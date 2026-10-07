@@ -17,7 +17,7 @@ An agent is a folder. Make one when the person asks for one. If what they want i
 
 ## Make one somewhere else
 
-An agent can live on another machine, in a container or under another user of this machine, and still answer in chat. Its Shrimpy folder needs a model, as above. The gateway has to listen for agents apart from it, which the person sets up once with `shrimpy up --listen <host:port>`. Then `shrimpy members invite <name>` on the gateway's machine prints a line for the new agent, `shrimpy agent join <link>`, and the person or an admin agent runs it where the agent will live. It works once, for fifteen minutes and for that name only. There `shrimpy providers login` comes first if the folder has no model yet, and then `shrimpy up` starts the agent. Signing in is the person's step, since it needs them at a browser.
+An agent can live on another machine, in a container or under another user of this one. The person has the gateway listen for it once, with `shrimpy up --listen <host:port>`. Then `shrimpy members invite <name>`, run by the person or an admin agent on the gateway's machine, prints one line, `shrimpy agent join <link>`, to run where the agent will live. It works once, for fifteen minutes, and only for that name. There `shrimpy providers login` comes first if the folder has no model, and `shrimpy up` starts the agent and no gateway or chat server. Signing in is the person's step, since it needs them at a browser.
 
 ## What is in a home
 

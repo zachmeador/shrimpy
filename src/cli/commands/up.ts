@@ -1,6 +1,6 @@
 import { basename, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { AgentNotRunningError, attachLocal, readEndpoint } from "../../contracts/agent/node.ts";
+import { AgentNotRunningError, attachLocal, readEndpoint, readMembership } from "../../contracts/agent/node.ts";
 import { type Address, formatAddress } from "../../contracts/gateway/index.ts";
 import { keptListenAddresses } from "../../gateway/index.ts";
 import { allHomes, dataFolder, folderPath, homeNamed, nothingToStart } from "../folder/index.ts";
@@ -26,10 +26,13 @@ const up: Command = {
     "says where the gateway listens. A gateway that is already running is used as it is, so --listen can't " +
     "change it, and this says so. When it is told to listen, by --listen or by the addresses the gateway kept, " +
     "it starts the gateway and the chat server in a folder with no agents too, since agents elsewhere can join " +
-    "it. Ctrl+C or SIGTERM stops what this started, agents first, and " +
-    "exits 0 once they have stopped; a second request tells the agents to stop without waiting for running " +
-    "turns, and a third ends everything at once. If a program this started ends by itself, this says which, " +
-    "stops the rest and exits 1.",
+    "it. When every agent it is to start belongs to a gateway elsewhere, because it joined one with shrimpy " +
+    "agent join, this starts those agents and no gateway or chat server, unless it is told to listen: they are " +
+    "talked to from the gateway's machine. With some agents that belong elsewhere and some that don't, it " +
+    "starts the gateway and the chat server as usual, and all the agents. Ctrl+C or SIGTERM stops what this " +
+    "started, agents first, and exits 0 once they have stopped; a second request tells the agents to stop " +
+    "without waiting for running turns, and a third ends everything at once. If a program this started ends by " +
+    "itself, this says which, stops the rest and exits 1.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({ args, options: { data: { type: "string" }, ...LISTEN_OPTION }, allowPositionals: true }),
@@ -41,17 +44,31 @@ const up: Command = {
     const given = values.data === undefined ? undefined : resolve(values.data);
     const told = listen !== undefined || keptListenAddresses(join(given ?? folderPath(), "gateway")).length > 0;
     if (homes.length === 0 && !told) throw nothingToStart();
-    return bringUp(io, { data: given ?? dataFolder(), homes, listen });
+    // Agents that joined a gateway elsewhere have no use for one here, unless this is told to listen for others.
+    const elsewhere = homes.flatMap((home) => readMembership(home)?.gateway ?? []);
+    if (homes.length > 0 && elsewhere.length === homes.length && !told) {
+      return bringUp(io, { homes, here: undefined, elsewhere: distinct(elsewhere) });
+    }
+    return bringUp(io, { homes, here: { data: given ?? dataFolder(), listen }, elsewhere: [] });
   },
 };
 
 interface Plan {
-  /** Where the gateway and the chat server keep their data, each in a folder of its own. */
-  data: string;
   homes: string[];
-  /** The addresses `--listen` gave the gateway, when it gave any. */
-  listen: Address[] | undefined;
+  /**
+   * The gateway and the chat server this starts beside the agents: where they keep their data, each in a folder of
+   * its own, and the addresses `--listen` gave the gateway, when it gave any. None when every agent belongs to a
+   * gateway elsewhere, and nothing is told to listen.
+   */
+  here: { data: string; listen: Address[] | undefined } | undefined;
+  /** The gateways the agents belong to, when they all belong to one elsewhere. */
+  elsewhere: Address[];
 }
+
+/** The addresses with none twice. */
+const distinct = (addresses: Address[]): Address[] => [
+  ...new Map(addresses.map((address) => [formatAddress(address), address])).values(),
+];
 
 /** The line a program prints to say it is listening, as far as `up` reads it. */
 interface Listening {
@@ -102,9 +119,19 @@ async function keepUp(io: Io, plan: Plan, crew: Started[], stop: StopWatch): Pro
   }
   const agent = crew.find((member) => member.role === "agent")?.program.listening.name;
   io.out("Running. Press Ctrl+C to stop what this command started.");
-  if (plan.homes.length > 0) io.out(`Talk to an agent with: shrimpy run ${agent ?? "<agent>"} "<text>"`);
-  else io.out("Let an agent in from another machine or user with: shrimpy members invite <name>");
-  io.out("See what is running with: shrimpy gateway status");
+  if (plan.here === undefined) {
+    // There is no gateway here to ask, so these agents are talked to where the gateway is.
+    const where = plan.elsewhere.map(formatAddress).join(" and ");
+    io.out(
+      plan.elsewhere.length === 1
+        ? `These agents belong to the gateway at ${where}, so you talk to them from that gateway's machine.`
+        : `These agents belong to the gateways at ${where}, so you talk to each from its gateway's machine.`,
+    );
+  } else {
+    if (plan.homes.length > 0) io.out(`Talk to an agent with: shrimpy run ${agent ?? "<agent>"} "<text>"`);
+    else io.out("Let an agent in from another machine or user with: shrimpy members invite <name>");
+    io.out("See what is running with: shrimpy gateway status");
+  }
 
   const ended = await Promise.race([
     stop.asked.then(() => undefined),
@@ -119,32 +146,12 @@ async function keepUp(io: Io, plan: Plan, crew: Started[], stop: StopWatch): Pro
 
 /** Start the gateway, the chat server and the agents that are not already running, in that order. */
 async function startMissing(io: Io, plan: Plan, crew: Started[], stop: StopWatch): Promise<void> {
-  const found = await askGateway(stop.signal);
-  if (found === undefined) {
-    const data = join(plan.data, "gateway");
-    const listen = (plan.listen ?? []).flatMap((address) => ["--listen", formatAddress(address)]);
-    const program = await launch(io, { text: "gateway" }, "the gateway", ["gateway", "serve", "--data", data, ...listen]);
-    crew.push({ role: "gateway", what: "the gateway", program });
-    io.out(`Started the gateway (pid ${program.pid}), keeping its roster in ${data}.`);
-    const { listen: listening = [], listenKept = null } = program.listening;
-    if (listening.length > 0) io.out(listeningLine(listening, listenKept));
+  if (plan.here === undefined) {
+    io.out("Every agent here belongs to a gateway elsewhere, so no gateway or chat server is started on this machine.");
   } else {
-    warnIfVersionDiffers(io, "the gateway", found.version);
-    io.out("The gateway is already running; using it as it is.");
-    if (plan.listen !== undefined) io.err(cannotChangeListening(plan.listen));
+    await startGatewayAndChat(io, plan.here, crew, stop);
+    if (stop.requests() > 0) return;
   }
-  if (stop.requests() > 0) return;
-
-  const chat = found?.programs.findLast((program) => program.kind === "chat");
-  if (chat === undefined) {
-    const program = await launch(io, { text: "chat" }, "the chat server", ["chat", "serve", join(plan.data, "chat")]);
-    crew.push({ role: "chat", what: "the chat server", program });
-    io.out(`Started the chat server (pid ${program.pid}), keeping its data in ${join(plan.data, "chat")}.`);
-  } else {
-    warnIfVersionDiffers(io, "the chat server", chat.version);
-    io.out("The chat server is already running; using it as it is.");
-  }
-  if (stop.requests() > 0) return;
 
   const agents = await Promise.allSettled(plan.homes.map((home) => startAgent(io, home)));
   let failed: PromiseRejectedResult | undefined;
@@ -157,6 +164,35 @@ async function startMissing(io: Io, plan: Plan, crew: Started[], stop: StopWatch
     io.out(result.value.line);
   }
   if (failed !== undefined) throw failed.reason;
+}
+
+/** Start the gateway and the chat server, whichever is not already running, in that order. */
+async function startGatewayAndChat(io: Io, here: NonNullable<Plan["here"]>, crew: Started[], stop: StopWatch): Promise<void> {
+  const found = await askGateway(stop.signal);
+  if (found === undefined) {
+    const data = join(here.data, "gateway");
+    const listen = (here.listen ?? []).flatMap((address) => ["--listen", formatAddress(address)]);
+    const program = await launch(io, { text: "gateway" }, "the gateway", ["gateway", "serve", "--data", data, ...listen]);
+    crew.push({ role: "gateway", what: "the gateway", program });
+    io.out(`Started the gateway (pid ${program.pid}), keeping its roster in ${data}.`);
+    const { listen: listening = [], listenKept = null } = program.listening;
+    if (listening.length > 0) io.out(listeningLine(listening, listenKept));
+  } else {
+    warnIfVersionDiffers(io, "the gateway", found.version);
+    io.out("The gateway is already running; using it as it is.");
+    if (here.listen !== undefined) io.err(cannotChangeListening(here.listen));
+  }
+  if (stop.requests() > 0) return;
+
+  const chat = found?.programs.findLast((program) => program.kind === "chat");
+  if (chat === undefined) {
+    const program = await launch(io, { text: "chat" }, "the chat server", ["chat", "serve", join(here.data, "chat")]);
+    crew.push({ role: "chat", what: "the chat server", program });
+    io.out(`Started the chat server (pid ${program.pid}), keeping its data in ${join(here.data, "chat")}.`);
+  } else {
+    warnIfVersionDiffers(io, "the chat server", chat.version);
+    io.out("The chat server is already running; using it as it is.");
+  }
 }
 
 /** Where the gateway it started listens for agents apart from it, and, when it was given no addresses, where it got them. */

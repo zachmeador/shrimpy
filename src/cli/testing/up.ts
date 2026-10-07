@@ -1,6 +1,6 @@
 import type { TestContext } from "node:test";
 import { stopAfter, until, useRuntimeDir, within } from "../../lib/testing/index.ts";
-import { type RunningCommand, shrimpyInBackground } from "./process.ts";
+import { type LaunchOptions, type RunningCommand, shrimpyInBackground } from "./process.ts";
 
 /** Whether a process with this ID is running. */
 export function isAlive(pid: number): boolean {
@@ -20,13 +20,14 @@ export interface RunningUp extends RunningCommand {
 
 /**
  * Start `shrimpy up` with `args` as its own process, and return at once. It gets
- * the test's runtime directory. When the test ends it is stopped as a SIGTERM
- * stops it; if it does not stop cleanly, it and the programs it started are
- * killed, so a failing test leaves nothing running.
+ * the test's runtime directory, unless `options.env` names another, as a
+ * second place for agents to live in does. When the test ends it is stopped as
+ * a SIGTERM stops it; if it does not stop cleanly, it and the programs it
+ * started are killed, so a failing test leaves nothing running.
  */
-export function launchUp(t: TestContext, args: string[]): RunningUp {
+export function launchUp(t: TestContext, args: string[], options: Pick<LaunchOptions, "env"> = {}): RunningUp {
   useRuntimeDir(t);
-  const command = shrimpyInBackground(["up", ...args], { untilStopped: true });
+  const command = shrimpyInBackground(["up", ...args], { ...options, untilStopped: true });
   const programs = (): number[] =>
     [...command.output().stdout.matchAll(/^Started .* \(pid (\d+)\)/gm)].map((found) => Number(found[1]));
   stopAfter(t, async () => {
@@ -46,8 +47,8 @@ export function launchUp(t: TestContext, args: string[]): RunningUp {
 }
 
 /** `launchUp`, and wait until `up` says everything is running. */
-export async function startUp(t: TestContext, args: string[]): Promise<RunningUp> {
-  const up = launchUp(t, args);
+export async function startUp(t: TestContext, args: string[], options?: Pick<LaunchOptions, "env">): Promise<RunningUp> {
+  const up = launchUp(t, args, options);
   const saidRunning = (): boolean => /^(Running\.|Everything is already running\.)/m.test(up.output().stdout);
   await Promise.race([
     until(saidRunning, "up to say it is running", 30_000),

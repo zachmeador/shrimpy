@@ -3,9 +3,12 @@ import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+import { saveMembership } from "../contracts/agent/node.ts";
+import { newToken } from "../contracts/gateway/node.ts";
 import { tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import {
   declareLocalModel,
+  freeAddresses,
   isAlive,
   launchUp,
   type ModelServer,
@@ -207,4 +210,32 @@ test("a stop request while up is still starting stops what has started, and exit
   assert.equal(finished.code, 0, finished.stderr);
   assert.deepEqual(up.programs().map(isAlive).filter(Boolean), []);
   assert.equal((await shrimpy(["gateway", "status"])).code, 1);
+});
+
+test("up starts no gateway or chat server for agents that all belong to a gateway elsewhere, unless it is told to listen, and starts them beside its own when only some do", { timeout }, async (t) => {
+  const model = await testModel(t);
+  const [elsewhere] = await freeAddresses(["127.0.0.1"]);
+  assert.ok(elsewhere);
+  const scout = await agentHome(t, model, "scout");
+  const rex = await agentHome(t, model, "rex");
+  // Rex joined a gateway that is somewhere else, and nothing answers there now, so it keeps trying.
+  saveMembership(rex, { token: newToken(), gateway: elsewhere });
+  // Each start has a data directory of its own, so that what one gateway kept is not another's to listen on.
+  const data = (): string => tempDir(t, "up-data");
+
+  const alone = await startUp(t, [rex, "--data", data()]);
+  assert.equal(alone.programs().length, 1, "rex alone");
+  assert.equal((await shrimpy(["gateway", "status"])).code, 1, "and no gateway is running here");
+  alone.kill("SIGTERM");
+  assert.equal((await alone.finished).code, 0);
+
+  const told = await startUp(t, [rex, "--data", data(), "--listen", "127.0.0.1:0"]);
+  assert.equal(told.programs().length, 3, "the gateway and the chat server too, since it was told to listen");
+  told.kill("SIGTERM");
+  assert.equal((await told.finished).code, 0);
+
+  const mixed = await startUp(t, [rex, scout, "--data", data()]);
+  assert.equal(mixed.programs().length, 4, "the gateway, the chat server and both agents");
+  mixed.kill("SIGTERM");
+  assert.equal((await mixed.finished).code, 0);
 });
