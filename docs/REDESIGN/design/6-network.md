@@ -134,6 +134,15 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 - **`shrimpy agent join <link>`** makes the home in the Shrimpy folder if there is none, joins, and gives up on a gateway that doesn't answer within a quarter of a minute.
 - **`shrimpy up` where there is no gateway.** When every agent it is to start belongs to a gateway elsewhere, it starts those agents and no gateway or chat server, unless it is told to listen.
 
+**The second step, underneath.** A client reaches an agent apart by its name, as it reaches one beside the gateway, and neither it nor the agent's own server can tell the difference.
+
+- **A call.** When a client asks for an agent that registered with no socket, the gateway makes a call for it: an ID that nobody could guess, good once and for a quarter of a minute. The client's connection waits at the gateway.
+- **Who wants me.** The agent asks the gateway for its calls over the connection it registered on, and waits for the answer, as it waits on chat's feed. Only the connection that registered as the agent is told of its calls.
+- **Answering.** For each call the agent opens one more connection to the entry, at a path that carries the call's ID, and joins it to its own socket on its own machine, the one its server already serves for connections that come through the gateway. The gateway joins that connection to the client's. From then on bytes pass both ways, and the gateway reads none of them.
+- **The ticket.** A client gets a ticket for an agent apart as for any program, hands it over first, and the agent asks the gateway whose it is over its own connection. So the agent's server and its rules for who may do what are untouched.
+- **From either side.** The way in on the gateway's machine and the way through over the entry both make a call for an agent apart, so a client beside the gateway and a client apart from it reach the agent the same way.
+- **No answer.** A call that the agent doesn't answer in time ends the client's connection, which a client already shows as an agent it couldn't reach.
+
 **Linux.** The tests ran there for the first time on 2026-10-07, on a machine of yours: Ubuntu 24.04 on x86_64 with Node 22.23. Of 613, 603 passed and 7 were skipped: the six that call a real model and one that needs an IPv6 loopback, which that machine has none of. The other three bundle a contract for a browser and failed because the dependencies were copied from a Mac and not installed there, so the bundler's Linux binary was missing. Two things were found and fixed: Node 22 warned that SQLite is experimental at the start of every program, and a test let go of a lock it meant to hold. Still to try there: the programs kept running by a service, and a pairing with a second machine. One thing to look at: the runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway started by a service and a command typed in a login shell may not look in the same place.
 
 **Left for later**
