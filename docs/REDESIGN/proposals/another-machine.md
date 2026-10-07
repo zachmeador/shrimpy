@@ -78,7 +78,7 @@ Nothing is opened where the agent lives. It only connects out.
 
 By hand it is one line on the gateway's machine and two where the agent will live, with the model between them. What is left can't be folded away: something has to say who is let in, and an agent needs a model.
 
-An admin agent can do all of it for you. It makes the invitation, reaches the other machine over SSH, runs the join, copies the model's three files from a home you name, and sets up whatever keeps the agent running there. That takes a skill and a way to the machine, and no mechanism: the design already has an admin agent reaching its neighbors over SSH. `members invite` would be open to an admin agent, as `members promote` is.
+An admin agent can do all of it for you. It makes the invitation, reaches the other machine over SSH, runs the join, copies the model's setup from a home you name, and sets up whatever keeps the agent running there. That takes a skill and a way to the machine, and no mechanism: the design already has an admin agent reaching its neighbors over SSH. `members invite` would be open to an admin agent, as `members promote` is.
 
 ## Underneath
 
