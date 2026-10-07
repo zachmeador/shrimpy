@@ -96,7 +96,7 @@ The [sandbox runtime scout](../../research/sandbox-runtime-scout-2026-08-26.md) 
 | Tailscale | — | Never needed. Shrimpy uses a network that Tailscale provides, may later read from it who is at the other end, never manages it and is never served through it. | Confirmed on 2026-10-06 |
 | Encryption | — | None of Shrimpy's own for now. On a tailnet the link is encrypted already. On a network that isn't one, a token and the messages travel in the clear, so the address you listen on should be one only your machines reach. | Confirmed for now on 2026-10-06 |
 | The commands for it | — | `members invite` and `agent join`, one option, `--listen`, and `shrimpy up` starting only the agents in a folder whose agents all belong to a gateway elsewhere. | Confirmed on 2026-10-06: you agreed to the pairing they carry out, and to the change to `up` |
-| You, from another machine | Over SSH to the gateway's machine | A machine of yours comes in by an invitation, as an agent does. It keeps a token in its Shrimpy folder and is you from then on. A Tailscale login may stand in for the token later. | Confirmed on 2026-10-06, as long as it is simple and clean. You saw its lines on 2026-10-07 and said to go on 2026-10-08 |
+| You, from another machine | Over SSH to the gateway's machine | A machine of yours comes in by an invitation, as an agent does. It keeps a token in its Shrimpy folder and is you from then on. A Tailscale login may stand in for the token later. | Confirmed on 2026-10-06, as long as it is simple and clean. You saw its lines on 2026-10-07, and they are yours to change |
 
 **Open**
 
@@ -155,7 +155,7 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 - **A limit on connecting.** Each try at connecting, signing in and registering gives up after a quarter of a minute, so an agent that starts while its gateway takes connections and answers nothing says so within that time.
 - **Chat follows the gateway.** When an agent loses its gateway it lets go of its connection to chat too, and comes in again with a new ticket once it has registered again, so it never waits on a feed that can't arrive.
 
-**The fourth step: you, from another machine.** You saw its lines on 2026-10-07 and said to go on 2026-10-08.
+**The fourth step: you, from another machine.** You agreed to it on 2026-10-06 as long as it was simple and clean, and saw these lines on 2026-10-07. You haven't said yes or no to them: the build went ahead on 2026-10-08 as shown, for you to change.
 
 ```text
 $ shrimpy members invite
