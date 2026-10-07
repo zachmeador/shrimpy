@@ -56,19 +56,19 @@ shrimpy members invite crab
 A name that is taken is refused there and then. Otherwise it prints one line to run where the agent will live, with an address and a code. The code works once, for fifteen minutes, and for that name only:
 
 ```text
-shrimpy agent join shrimpy://100.101.102.103:7447/K7Q2-9FXD --model <provider/id>
+shrimpy agent join shrimpy://100.101.102.103:7447/K7Q2-9FXD
 ```
 
-Where the agent will live, with Shrimpy at the same version:
+Where the agent will live, with Shrimpy at the same version, you paste that line and start the agent:
 
 ```bash
-shrimpy agent join shrimpy://100.101.102.103:7447/K7Q2-9FXD --model local/qwen3.8-27b
+shrimpy agent join shrimpy://100.101.102.103:7447/K7Q2-9FXD
 shrimpy up
 ```
 
-`join` makes the home `crab` if the folder has none, which is what `--model` is for. It makes the home's token, shows the gateway the code and the token, and writes the gateway's address into the home. It says at once whether the gateway let the agent in, and whether the two versions differ. `up`, in a folder whose agents all belong to a gateway elsewhere, starts those agents and no gateway. From then on the agent connects out to that address by itself, and comes back by itself after either side restarts.
+`join` is about who is let in, and takes nothing else. It makes the home `crab` if the folder has none, with a name and no model. It makes the home's token, shows the gateway the code and the token, and writes the gateway's address into the home. It says at once whether the gateway let the agent in, and whether the two versions differ. `up`, in a folder whose agents all belong to a gateway elsewhere, starts those agents and no gateway. From then on the agent connects out to that address by itself, and comes back by itself after either side restarts.
 
-Between the two commands the agent needs access to its model, as any new agent does: a provider in its `models.json` or a key in its `auth.json`. An agent doesn't start without it.
+Between the two commands the agent needs a model, as any new agent does: which one in its `agent.json`, and a provider for it in its `models.json` or a key in its `auth.json`. An agent doesn't start without one, and says what is missing. None of that is in the line you paste: a model is the home's own business, and the gateway knows nothing of it.
 
 On the gateway's machine crab is in the terminal's list like any agent: you talk to it in a thread, and watch and stop its sessions.
 
@@ -76,14 +76,14 @@ Nothing is opened where the agent lives. It only connects out.
 
 ### How short it gets
 
-By hand it is one line on the gateway's machine and two where the agent will live, with the model's access between them. What is left can't be folded away: something has to say who is let in, and an agent needs a model.
+By hand it is one line on the gateway's machine and two where the agent will live, with the model between them. What is left can't be folded away: something has to say who is let in, and an agent needs a model.
 
-An admin agent can do all of it for you. It makes the invitation, reaches the other machine over SSH, runs the join, copies the model's access from a home you name, and sets up whatever keeps the agent running there. That takes a skill and a way to the machine, and no mechanism: the design already has an admin agent reaching its neighbors over SSH. `members invite` would be open to an admin agent, as `members promote` is.
+An admin agent can do all of it for you. It makes the invitation, reaches the other machine over SSH, runs the join, copies the model's three files from a home you name, and sets up whatever keeps the agent running there. That takes a skill and a way to the machine, and no mechanism: the design already has an admin agent reaching its neighbors over SSH. `members invite` would be open to an admin agent, as `members promote` is.
 
 ## Underneath
 
 1. **The entry.** The WebSocket entry the browser uses also listens on each address you chose. A connection that shows an agent's token may do what a program on the gateway's machine does: sign in, ask for tickets, register. One that shows a code may join. One that shows neither is never taken for you, which only the gateway's own socket does. I'd give it nothing at all, where a page in a browser on the gateway's machine gets the list of programs and the roster today.
-2. **Joining.** `join` takes the code with the token. The gateway keeps a hash of the token and forgets the code, as it keeps no token today. A code is for one name, so that whoever holds it can't take another.
+2. **Joining.** `join` takes the code with the token. The gateway keeps a hash of the token and forgets the code, as it keeps no token today. A code is for one name, so that whoever holds it can't take another. Being a member takes a name and a token, and no model: a model is needed to run. Today a home can't be made without one, since `agent.json` must name it and `agent init` refuses without `--model`. See the sixth decision.
 3. **Reaching an agent that only connects out.** An agent apart from the gateway registers with no socket. When someone asks for it, the gateway tells the agent, over the connection the agent keeps open, and the agent opens one more connection to the gateway, which joins the two. The design already says this, in one sentence. The agent asks "who wants me" and waits, as it asks chat for events, so the gateway never has to reach it.
 4. **A dead connection.** The gateway pings each connection that comes over the entry and lets one go that stays silent for half a minute, so an agent that lost its network can register again. Today a registration lasts as long as its socket, which a dead network connection can outlive.
 5. **Chat.** The chat server stays on the gateway's machine. An agent apart from the gateway reaches it by name through the gateway, as an agent beside the gateway does.
@@ -124,6 +124,7 @@ Each is tested on one machine over a real connection first.
 3. **Two new commands,** `members invite` and `agent join`, one option, `--listen`, and one change to `shrimpy up`: in a folder whose agents all belong to a gateway elsewhere, it starts those agents and no gateway. Today it would start a second gateway and chat server there. You are who asks for them.
 4. **The order.** This next, ahead of the provider interface and the rest of the home.
 5. **You come in by an invitation too.** A machine of yours gets an invitation as an agent does, keeps a token in its Shrimpy folder, and is you from then on. Your Tailscale login becomes a way to skip that, and stops being the only way in. This follows from Tailscale never being needed, and it changes three confirmed rows of [identity](../design/3-identity.md): a person on another machine is their Tailscale login, a page from another device waits for Tailscale, and the gateway checks that an agent connects from the machine it is expected from.
+6. **A home can be made with no model.** Then `agent join` takes the invitation and nothing else, and the line the gateway's machine prints is the line you paste. `agent.json` may name no model, and `agent init` may go without `--model`. An agent with no model it can use doesn't start, and says what to set, as it does today for a provider that isn't declared or a key that is missing. The other way leaves a home as it is: `join` asks for a home that is already there, so a new machine runs `agent init` first, which is one more command.
 
 ## What the proof needs
 
