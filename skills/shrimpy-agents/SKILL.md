@@ -10,7 +10,7 @@ An agent is a folder. Make one when the person asks for one. If what they want i
 ## Make one
 
 1. `shrimpy agent init <name> --model <provider/id>` makes its home in the person's Shrimpy folder, as `agents/<name>`, and prints where. A name is letters, digits, dots, hyphens and underscores, and no one else on the roster can have it: people and agents share names. Running it again changes nothing that exists.
-2. Give it a model. Its home is its own and inherits nothing from yours (see shrimpy-setup).
+2. Give it a model, and a way to reach it. Its home is its own and inherits nothing from yours, but what it doesn't hold comes from `providers/` in the Shrimpy folder (see shrimpy-setup).
 3. Say who it is in its `SOUL.md`. The starter works as it is, so edit it and keep what still fits.
 4. The person starts it with `shrimpy agent serve <name>` in a terminal, or with `shrimpy up` if nothing is running yet. It joins the roster the first time it runs, and `shrimpy gateway status` then lists it.
 5. Leave the first hello to the person. `shrimpy run` from your shell would be you talking, not them.
@@ -46,7 +46,7 @@ A running agent reads these files when it starts and when it is told to reload, 
 
 Both act on you. To act on another agent, add `--agent <agent>`, as in `shrimpy agent reload --agent scout`.
 
-A change to `agent.json`, `models.json` or `auth.json` waits for a restart, which is the person's step. A new `name` in `agent.json` renames the agent when it restarts: it stays the same member, with its DMs and history, and a name another member has is refused.
+A change to `agent.json` or `models.json` waits for a restart, which is the person's step. A key or sign-in in `auth.json` doesn't. A new `name` in `agent.json` renames the agent when it restarts: it stays the same member, with its DMs and history, and a name another member has is refused.
 
 ## See what an agent is doing
 

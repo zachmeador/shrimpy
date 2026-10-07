@@ -34,6 +34,24 @@ export interface HomePaths {
   readonly bin: string;
 }
 
+/**
+ * Where the files are in the `providers/` directory of the folder agents are
+ * started in. They have the formats of a home's own files, and an agent takes
+ * from them what its home doesn't hold.
+ */
+export interface ProviderPaths {
+  readonly root: string;
+  /** Sign-ins and keys, in the format of a home's auth.json. */
+  readonly auth: string;
+  /** Model servers of your own, in the format of a home's models.json. */
+  readonly models: string;
+}
+
+export function providerPaths(dir: string): ProviderPaths {
+  const root = resolve(dir);
+  return { root, auth: join(root, "auth.json"), models: join(root, "models.json") };
+}
+
 export function homePaths(home: string): HomePaths {
   const root = resolve(home);
   const pi = join(root, "state", "pi");

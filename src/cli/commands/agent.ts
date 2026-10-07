@@ -11,7 +11,7 @@ import {
   startHomeAgent,
 } from "../../agent/index.ts";
 import { readEndpoint } from "../../contracts/agent/node.ts";
-import { homeNamed, isPath, newHome } from "../folder/index.ts";
+import { homeNamed, isPath, newHome, providersPath } from "../folder/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
@@ -87,7 +87,9 @@ const serve: Command = {
   usage: "<agent> [--now]",
   summary: "Run the agent in the foreground until it is told to stop.",
   details:
-    "Prints one JSON line when it is listening. SIGTERM or Ctrl+C stops it: it stops taking input, gives " +
+    "Prints one JSON line when it is listening. What the agent's home doesn't declare or hold, such as a " +
+    "model server or a sign-in, it takes from providers/ in your Shrimpy folder, which is ~/shrimpy or the " +
+    "folder SHRIMPY_DIR names. SIGTERM or Ctrl+C stops it: it stops taking input, gives " +
     "running turns up to five seconds to finish, then closes, and work that did not finish resumes at the " +
     "next start. --now skips the wait, and so does a second signal during it.",
   async run(args, io) {
@@ -111,7 +113,7 @@ const serve: Command = {
       else void agent?.close({ now: true });
     });
     try {
-      agent = await startHomeAgent(homeNamed(given), { shrimpy: shrimpyCommand() });
+      agent = await startHomeAgent(homeNamed(given), { shrimpy: shrimpyCommand(), providers: providersPath() });
       io.out(JSON.stringify({ event: "listening", name: agent.name, home: agent.home, ...agent.endpoint }));
       await requested;
       await agent.close({ now: values.now === true });

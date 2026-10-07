@@ -31,14 +31,14 @@ There is no setup command yet. A new setup is `shrimpy agent init <name> --model
 
 ## A model for an agent
 
-An agent gets its model from its own home and nowhere else: not from the environment, not from another home. Everything below is read when the agent starts, so the person restarts it after a change.
+An agent takes its servers and keys from two places and nowhere else: not from the environment, not from another home. Its own home comes first, and what the home doesn't hold comes from `providers/` in the Shrimpy folder, which every agent started there shares. Servers are read when the agent starts, so the person restarts it after changing one. A key or a sign-in is read again at every request.
 
 - `agent.json` names the model it starts with, as `provider/id`.
-- `state/pi/models.json` declares servers of your own. A server that needs no key still takes a placeholder:
+- `models.json` declares servers of your own: `state/pi/models.json` in a home, `providers/models.json` in the folder. A server that needs no key still takes a placeholder:
   `{"providers": {"local": {"baseUrl": "http://localhost:8090/v1", "api": "openai-completions", "apiKey": "local", "models": [{"id": "qwen3.8-27b"}]}}}`
-- `state/pi/auth.json` holds keys for the built-in providers: `{"anthropic": {"type": "api_key", "key": "..."}}`. A key is used as written, so `$NAME` and `!command` are refused. Ask the person for it, and copy none from another home.
+- `auth.json` holds keys for the built-in providers: `state/pi/auth.json` in a home, `providers/auth.json` in the folder. `{"anthropic": {"type": "api_key", "key": "..."}}`. A key is used as written, so `$NAME` and `!command` are refused. Ask the person for it. A key in the folder serves every agent, and one in a home only that agent. Copy none from another home.
 
-Signing in with OAuth doesn't work yet.
+An `oauth` entry in an `auth.json` is used, and renewed when its token runs out. Nothing signs in yet.
 
 ## When a command says
 
@@ -51,8 +51,8 @@ Signing in with OAuth doesn't work yet.
 - **The agent "X" is already running**: another home holds the same token, so the gateway takes the two for one agent. That happens when a home is copied. The message says how to make the copy an agent of its own. Don't start an agent's home twice.
 - **Another process owns the agent home**: an agent already runs there. Use it.
 - **A gateway is already running**, **a chat server is already running**, or **another chat server is using the data**: one is up already. Use it.
-- **names the provider "p", which is not declared**: declare `p` in `models.json`, or correct the model in `agent.json`.
-- **The provider "p" has no API key**: add the key to `auth.json`, or give a declared server its `apiKey`.
+- **names the provider "p", which is not declared**: declare `p` in a `models.json`, the home's or the folder's, or correct the model in `agent.json`.
+- **The provider "p" has no API key**: add the key to an `auth.json`, the home's or the folder's, or give a declared server its `apiKey`.
 - **has no model "m"**: the message lists the models it has.
 - **is not an agent home**: the path is wrong, or `shrimpy agent init` hasn't run there.
 - **There is no agent called X**: the name is wrong or the agent isn't made yet. The message lists the agents the Shrimpy folder has and the command that makes this one.

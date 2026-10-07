@@ -12,7 +12,7 @@
  */
 export { commandLines, whyNotACommand } from "./commands.ts";
 export { useShrimpyDir } from "./folder.ts";
-export { declareLocalModel } from "./home.ts";
+export { declareLocalModel, localProvider } from "./home.ts";
 export { type CapturedIo, captureIo } from "./io.ts";
 export { type ModelRequest, type ModelServer, startModelServer } from "./model-server.ts";
 export { untilRegistered } from "./registered.ts";

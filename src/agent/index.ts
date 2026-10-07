@@ -259,14 +259,21 @@ function reporter(options: AgentOptions): (error: Error) => void {
  * lock and changes nothing, so a home that does not load, or a model that
  * cannot be used, fails before the agent claims the home. `shrimpy` is the
  * program and arguments that run Shrimpy, which the agent's shell finds as the
- * `shrimpy` command.
+ * `shrimpy` command. `providers` is the `providers/` directory of the folder the
+ * agent is started in: what its home doesn't declare or hold, such as a model
+ * server or a sign-in, it takes from there. It is told where that is and never
+ * looks, so with none the agent has only what its home holds.
  */
-export async function startHomeAgent(home: string, options: { shrimpy?: readonly string[] } = {}): Promise<HomeAgent> {
+export async function startHomeAgent(
+  home: string,
+  options: { shrimpy?: readonly string[]; providers?: string } = {},
+): Promise<HomeAgent> {
   const loaded = loadHome(home);
   const model = { provider: loaded.model.provider, modelId: loaded.model.id };
   const models = await buildModels({
     modelsFile: loaded.paths.models,
     authFile: loaded.paths.auth,
+    ...(options.providers === undefined ? {} : { providers: options.providers }),
     model,
   });
   const agent = await startAgent({

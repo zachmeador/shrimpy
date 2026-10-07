@@ -9,6 +9,9 @@ export const FOLDER_VARIABLE = "SHRIMPY_DIR";
 /** The folder of the Shrimpy folder that holds one home for each agent. Its presence is what marks the folder as Shrimpy's. */
 const AGENTS = "agents";
 
+/** The folder of the Shrimpy folder that holds the sign-ins, keys and model servers every agent started there shares. */
+const PROVIDERS = "providers";
+
 /** The file that makes a folder of `agents/` an agent's home. */
 const HOME_FILE = "agent.json";
 
@@ -18,6 +21,15 @@ const MAKE_AN_AGENT = "shrimpy agent init <name> --model <provider/id>";
 export function folderPath(): string {
   const given = process.env[FOLDER_VARIABLE];
   return given === undefined || given === "" ? join(homedir(), "shrimpy") : resolve(given);
+}
+
+/**
+ * Where the Shrimpy folder's `providers/` is, which an agent is told when it is
+ * started and never looks for. Nothing is read or made: an agent takes what is
+ * there, and a folder with no `providers/` gives it nothing.
+ */
+export function providersPath(): string {
+  return join(folderPath(), PROVIDERS);
 }
 
 /** Whether `word` is a path, and not the name of an agent: it has a path separator in it, or starts with `.` or `~`. */

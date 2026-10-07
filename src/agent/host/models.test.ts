@@ -31,6 +31,18 @@ function home(t: TestContext, files: { models?: unknown; auth?: unknown } = {}):
   return { modelsFile, authFile };
 }
 
+/** The `providers/` directory of a folder, with the files it is given. */
+function providers(t: TestContext, files: { models?: unknown; auth?: unknown } = {}) {
+  const dir = tempDir(t, "providers");
+  const modelsFile = join(dir, "models.json");
+  const authFile = join(dir, "auth.json");
+  if (files.models !== undefined) writeFileSync(modelsFile, JSON.stringify(files.models));
+  if (files.auth !== undefined) writeFileSync(authFile, JSON.stringify(files.auth));
+  return { dir, modelsFile, authFile };
+}
+
+const groq = { provider: "groq", modelId: "llama-3.3-70b-versatile" };
+
 /** Ask a model one question and return its reply. */
 function ask(models: Models, provider: string, id: string) {
   const model = models.getModel(provider, id);
@@ -100,18 +112,90 @@ test("keys in the process environment are not used", async (t) => {
   }
 });
 
+test("what the home doesn't declare or hold comes from the folder's providers, and what it does is its own", async (t) => {
+  const folder = providers(t, {
+    models: {
+      providers: {
+        shared: { ...qwen, baseUrl: "http://shared.invalid/v1" },
+        both: { ...qwen, baseUrl: "http://folder.invalid/v1" },
+      },
+    },
+    auth: { groq: { type: "api_key", key: "gsk-from-the-folder" } },
+  });
+  const files = home(t, { models: { providers: { both: { ...qwen, baseUrl: "http://home.invalid/v1" } } } });
+  const models = await buildModels({ ...files, providers: folder.dir, model: { provider: "shared", modelId: "qwen" } });
+  const requests = stubChatCompletions(t, "Hi");
+
+  await ask(models, "shared", "qwen");
+  await ask(models, "both", "qwen");
+  await ask(models, groq.provider, groq.modelId);
+  const ownKey = home(t, { auth: { groq: { type: "api_key", key: "gsk-from-the-home" } } });
+  await ask(await buildModels({ ...ownKey, providers: folder.dir, model: groq }), groq.provider, groq.modelId);
+
+  assert.deepEqual(
+    requests.map((request) => request.url),
+    [
+      "http://shared.invalid/v1/chat/completions",
+      "http://home.invalid/v1/chat/completions",
+      "https://api.groq.com/openai/v1/chat/completions",
+      "https://api.groq.com/openai/v1/chat/completions",
+    ],
+  );
+  assert.deepEqual(
+    requests.slice(2).map((request) => request.headers.authorization),
+    ["Bearer gsk-from-the-folder", "Bearer gsk-from-the-home"],
+  );
+});
+
+test("a key added to the folder after the start is used by the next request, with no restart", async (t) => {
+  const folder = providers(t, { auth: { groq: { type: "api_key", key: "gsk-first" } } });
+  const models = await buildModels({ ...home(t), providers: folder.dir, model: groq });
+  const requests = stubChatCompletions(t, "Hi");
+
+  await ask(models, groq.provider, groq.modelId);
+  writeFileSync(folder.authFile, JSON.stringify({ groq: { type: "api_key", key: "gsk-second" } }));
+  await ask(models, groq.provider, groq.modelId);
+
+  assert.deepEqual(
+    requests.map((request) => request.headers.authorization),
+    ["Bearer gsk-first", "Bearer gsk-second"],
+  );
+});
+
+test("a sign-in makes a provider that signs in with OAuth usable, and with none the start says which files it looks in", async (t) => {
+  const files = home(t);
+  const model = { provider: "openai-codex", modelId: "gpt-5.3-codex-spark" };
+  const folder = providers(t, { auth: {} });
+  await assert.rejects(
+    buildModels({ ...files, providers: folder.dir, model }),
+    (error: Error) =>
+      error instanceof ModelSetupError && error.message.includes(files.authFile) && error.message.includes(folder.authFile),
+  );
+
+  const signedIn = { "openai-codex": { type: "oauth", access: "access", refresh: "refresh", expires: Date.now() + 3_600_000 } };
+  writeFileSync(folder.authFile, JSON.stringify(signedIn));
+  await buildModels({ ...files, providers: folder.dir, model });
+});
+
 test("a model that cannot be used stops the start, saying which file to change", async (t) => {
   const files = home(t, { models: { providers: { local: qwen, keyless: { ...qwen, apiKey: undefined } } } });
-  const unusable = (provider: string, modelId: string, mentions: string) =>
+  const unusable = (provider: string, modelId: string, mentions: string[], folderDir?: string) =>
     assert.rejects(
-      buildModels({ ...files, model: { provider, modelId } }),
-      (error: Error) => error instanceof ModelSetupError && error.message.includes(mentions),
+      buildModels({ ...files, ...(folderDir === undefined ? {} : { providers: folderDir }), model: { provider, modelId } }),
+      (error: Error) => error instanceof ModelSetupError && mentions.every((file) => error.message.includes(file)),
     );
 
-  await unusable("anthropic", "claude-sonnet-4-5", files.authFile);
-  await unusable("keyless", "qwen", files.modelsFile);
-  await unusable("antropic", "x", "antropic");
-  await unusable("local", "qwen2", "qwen2");
+  await unusable("anthropic", "claude-sonnet-4-5", [files.authFile]);
+  await unusable("keyless", "qwen", [files.modelsFile]);
+  await unusable("antropic", "x", ["antropic"]);
+  await unusable("local", "qwen2", ["qwen2"]);
+
+  // With a folder's providers, the message names its files too, and the file a provider is declared in when that is the folder's.
+  const folder = providers(t, { models: { providers: { shared: { ...qwen, apiKey: undefined } } } });
+  await unusable("anthropic", "claude-sonnet-4-5", [files.authFile, folder.authFile], folder.dir);
+  await unusable("antropic", "x", [files.modelsFile, folder.modelsFile], folder.dir);
+  await unusable("shared", "qwen", [folder.modelsFile], folder.dir);
+  await unusable("shared", "qwen2", [folder.modelsFile], folder.dir);
 });
 
 test("a file that does not fit stops the start, naming the file", async (t) => {
@@ -119,5 +203,11 @@ test("a file that does not fit stops the start, naming the file", async (t) => {
   await assert.rejects(
     buildModels({ ...files, model: { provider: "local", modelId: "qwen" } }),
     (error: Error) => error.message.startsWith(files.modelsFile) && error.message.includes("headers"),
+  );
+
+  const folder = providers(t, { auth: { groq: { type: "api_key", key: "$GROQ_API_KEY" } } });
+  await assert.rejects(
+    buildModels({ ...home(t), providers: folder.dir, model: groq }),
+    (error: Error) => error.message.startsWith(folder.authFile) && error.message.includes("groq.key"),
   );
 });

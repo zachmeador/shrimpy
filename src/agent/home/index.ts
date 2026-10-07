@@ -1,5 +1,6 @@
 /**
- * An agent's home on disk: where its files live, what `agent.json` says, how
+ * An agent's home on disk: where its files live, and the files of the
+ * `providers/` directory it may be told of, what `agent.json` says, how
  * to create or load one, what its instructions, context and skills files tell
  * the agent, read into a snapshot together with the skills that ship with
  * Shrimpy, what its triggers files say: when each fires, what it is to do and
@@ -15,7 +16,7 @@ export { checkAgentName, type ModelChoice, modelLabel, parseModelChoice } from "
 export { type BreadcrumbFile, readBreadcrumbs, writeBreadcrumb } from "./breadcrumbs.ts";
 export { cutText, type LeftOut } from "./files.ts";
 export { type InitOptions, type InitResult, initHome } from "./init.ts";
-export { type HomePaths, homePaths } from "./layout.ts";
+export { type HomePaths, homePaths, type ProviderPaths, providerPaths } from "./layout.ts";
 export { type LoadedHome, loadHome } from "./load.ts";
 export { delayMs, delayText, describeSchedule, nextOccurrence, normalizeDelay, sameSchedule } from "./schedule.ts";
 export { type ContextFile, type HomeSnapshot, readHomeSnapshot } from "./snapshot.ts";
