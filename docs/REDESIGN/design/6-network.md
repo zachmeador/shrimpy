@@ -143,6 +143,15 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 - **From either side.** The way in on the gateway's machine and the way through over the entry both make a call for an agent apart, so a client beside the gateway and a client apart from it reach the agent the same way.
 - **No answer.** A call that the agent doesn't answer in time ends the client's connection, which a client already shows as an agent it couldn't reach.
 
+**The third step, underneath.** What keeps an agent apart and its gateway honest about each other.
+
+- **A connection that went dead at the gateway.** The entry pings every connection it holds, and lets go of one that hasn't answered for half a minute. A registration goes with its connection, so an agent that lost its network without a word stops being listed, and can register again when it is back.
+- **A gateway that went dead at the agent.** An agent apart asks its gateway something small every quarter of a minute, and takes no answer within a quarter of a minute for a lost connection: it lets go and connects again, as it does when the connection closes.
+- **What the agent says.** One line when it loses its gateway, with the address and that it keeps trying, and one line when it is back. Nothing in between, however long it takes.
+- **Another version.** An agent apart that finds its gateway running another version of Shrimpy says so once, with both versions, and carries on: programs are upgraded together, and nothing is refused for a version.
+- **A token the gateway doesn't know.** An agent apart is told to delete its membership and join again with a new invitation, since only an invitation lets it in.
+- **An agent that isn't running.** On the gateway's machine, a command that finds an agent on the roster with no home in its folder says to start it where it lives, and no longer names a command that can't work there.
+
 **Linux.** The tests ran there for the first time on 2026-10-07, on a machine of yours: Ubuntu 24.04 on x86_64 with Node 22.23. Of 613, 603 passed and 7 were skipped: the six that call a real model and one that needs an IPv6 loopback, which that machine has none of. The other three bundle a contract for a browser and failed because the dependencies were copied from a Mac and not installed there, so the bundler's Linux binary was missing. Two things were found and fixed: Node 22 warned that SQLite is experimental at the start of every program, and a test let go of a lock it meant to hold. Still to try there: the programs kept running by a service, and a pairing with a second machine. One thing to look at: the runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway started by a service and a command typed in a login shell may not look in the same place.
 
 **Left for later**
