@@ -50,6 +50,7 @@ As of 2026-10-05. An item leaves when it is fixed or when the design changes to 
 - The facts that come with a message are fixed when it is handed to its session, not when the session takes it up. Nothing differs yet, because each fact is fixed for a message. Pi has no hook for the moment input is taken up, so a fact that changes while a message waits needs a capture of its own.
 - Skills are trails only. `/skill:name`, templates, required-tool filtering and choosing skills for one agent aren't built.
 - The skills name what doesn't exist yet and say so: a setup command, OAuth sign-in and a command that removes an agent.
+- A subscription login written into a home's `auth.json` works while its token is live and fails when the token is about to expire. Pi renews a login by writing to the credential store, and a home's store can't be written. Seen with a made-up login on 2026-10-06. Nothing signs in to a provider either.
 
 ### The network
 

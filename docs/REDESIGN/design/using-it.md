@@ -106,7 +106,7 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 - Thread and session operations: reset, archive, resume, fork, names, search, read and export.
 - Chat commands in a thread: `/new`, `/status` and `/help`. `/stop` is built.
 - Reactions, edits and deletes in threads. The chat server has them. The clients need keys for them, and agents need tools: the [message tools](4-conversation.md) row names `react` and an `edit` option on `send_message`, and doesn't yet say how an agent deletes a message of its own.
-- Model selection, defaults, settings, setup and sign-in, including OAuth; status and help come from the service.
+- Model selection, defaults, settings, setup and sign-in, including OAuth; status and help come from the service. You said on 2026-10-06 that this is a priority before the release: signing in to a provider's subscription made simple, with Pi's own flows; choosing the model of a thread, or the one an agent starts with, from the terminal; and ideally one `/login` for the whole network, kept at the gateway. The last is not decided. It would change where credentials live, which today is the home alone.
 - Your own settings as a person, starting with the name you appear under. Today it is your OS user's name.
 - Attachments on messages, including clipboard files and images. An image reaches the model with its message.
 - The search tools and a tool that shows the model an image file.
