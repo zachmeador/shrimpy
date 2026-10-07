@@ -67,7 +67,7 @@ async function homeFromApart(t: TestContext, network: Network, name: string): Pr
   const [address] = addresses;
   assert.ok(address);
   const home = homeFor(t, network, name);
-  const member = await joinHome(home, writeLink({ name, address, code }));
+  const { member } = await joinHome(home, writeLink({ name, address, code }));
   assert.deepEqual(readMembership(home)?.gateway, address);
   assert.equal(readMembership(home)?.memberId, member.id);
   return { home, member };

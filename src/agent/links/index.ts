@@ -10,5 +10,5 @@
 export { type ChatLink, type ChatLinkOptions, type LiveChat, openChatLink } from "./chat.ts";
 export { type GatewayLinkOptions, joinGateway, type MembershipStore } from "./gateway.ts";
 export { whoseTicket } from "./identity.ts";
-export { joinHome } from "./join-home.ts";
+export { JoinFailedError, joinHome, type JoinedHome, type JoinHomeOptions } from "./join-home.ts";
 export { ChatUnavailableError } from "./unavailable.ts";

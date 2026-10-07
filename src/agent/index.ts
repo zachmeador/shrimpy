@@ -90,7 +90,7 @@ export {
   type WayToSignIn,
 } from "./host/durable.ts";
 export type { JoinOptions } from "./join.ts";
-export { joinHome } from "./links/index.ts";
+export { JoinFailedError, joinHome, type JoinedHome, type JoinHomeOptions } from "./links/index.ts";
 export type { CloseOptions } from "./stop.ts";
 
 export interface AgentOptions extends HostOptions {

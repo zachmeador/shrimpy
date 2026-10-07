@@ -16,6 +16,7 @@ export {
   dataFolder,
   FOLDER_VARIABLE,
   folderPath,
+  homeInFolder,
   homeNamed,
   isPath,
   newHome,

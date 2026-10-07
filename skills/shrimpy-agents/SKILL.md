@@ -15,6 +15,10 @@ An agent is a folder. Make one when the person asks for one. If what they want i
 4. The person starts it with `shrimpy agent serve <name>` in a terminal, or with `shrimpy up` if nothing is running yet. It joins the roster the first time it runs, and `shrimpy gateway status` then lists it.
 5. Leave the first hello to the person. `shrimpy run` from your shell would be you talking, not them.
 
+## Make one somewhere else
+
+An agent can live on another machine, in a container or under another user of this machine, and still answer in chat. Its Shrimpy folder needs a model, as above. The gateway has to listen for agents apart from it, which the person sets up once with `shrimpy up --listen <host:port>`. Then `shrimpy members invite <name>` on the gateway's machine prints a line for the new agent, `shrimpy agent join <link>`, and the person or an admin agent runs it where the agent will live. It works once, for fifteen minutes and for that name only. There `shrimpy providers login` comes first if the folder has no model yet, and then `shrimpy up` starts the agent. Signing in is the person's step, since it needs them at a browser.
+
 ## What is in a home
 
 The Shrimpy folder is `~/shrimpy`, or the folder `SHRIMPY_DIR` names, and has a home for each agent in `agents/`. A command that takes an `<agent>` takes its name, like `scout`, or the path of its home. A word with a `/` in it, or one that starts with `.` or `~`, is a path.

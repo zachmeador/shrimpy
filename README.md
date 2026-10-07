@@ -90,6 +90,7 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `rooms new <name> [<member>...]` | Make a room, with you and the members you name in it. Takes an admin. |
 | `rooms add <room> <member>...` | Add members to a room you are in. Takes an admin. |
 | `agent init <agent> [--model <provider/id>] [--name <name>]` | Create an agent home. Files that already exist are left as they are. |
+| `agent join <link>` | Make an agent here that joins a gateway elsewhere, with the link of an invitation. |
 | `agent serve <agent> [--now]` | Run the agent in the foreground until it is told to stop. |
 | `agent status [--agent <agent>]` | Say whether the agent is running, and how to reach it. |
 | `agent reload [--agent <agent>]` | Make a running agent read its instructions, context files, skills and triggers again. |

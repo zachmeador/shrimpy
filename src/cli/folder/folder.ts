@@ -117,6 +117,17 @@ export function newHome(word: string): string {
 }
 
 /**
+ * The home of the agent called `name` in the Shrimpy folder, whether or not it has one yet, and whether it does. For a
+ * command that makes the home when there is none. The folder must be Shrimpy's, and `name` a plain name: a path would
+ * lead out of `agents/`.
+ */
+export function homeInFolder(name: string): { home: string; exists: boolean } {
+  if (isPath(name)) throw new UsageError(`"${name}" is a path, and the home of an agent in the Shrimpy folder is named by a plain name.`);
+  const home = homeIn(ownFolder(), name);
+  return { home, exists: existsSync(join(home, HOME_FILE)) };
+}
+
+/**
  * The agents the Shrimpy folder has, by name, and the folder of `agents/` they
  * are in, for an error that has to say which to name. Nothing is made, and a
  * folder that is someone else's is refused as it is anywhere else.

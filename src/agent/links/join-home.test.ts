@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { createServer } from "node:net";
+import { type AddressInfo, createServer, type Socket } from "node:net";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { readMembership, saveMembership } from "../../contracts/agent/node.ts";
 import { type Address, writeLink } from "../../contracts/gateway/index.ts";
 import { newToken } from "../../contracts/gateway/node.ts";
-import { tempDir } from "../../lib/testing/index.ts";
+import { stopAfter, tempDir } from "../../lib/testing/index.ts";
 import { initHome, loadHome } from "../home/index.ts";
-import { joinHome } from "./join-home.ts";
+import { JoinFailedError, joinHome } from "./join-home.ts";
 
 /*
  * What joining a home with a link refuses before it sends anything. Joining itself, against a gateway that lets the
@@ -70,10 +70,35 @@ test("a home keeps its token before it joins, and asks again with the same token
   const address = await closedAddress();
   const link = writeLink({ name: "crab", address, code: "K7Q2-9FXD" });
 
-  await assert.rejects(joinHome(home, link), new RegExp(`Could not reach the gateway at 127\\.0\\.0\\.1:${String(address.port)}`));
+  await assert.rejects(
+    joinHome(home, link),
+    (error: Error) =>
+      error instanceof JoinFailedError &&
+      error.message.includes(`Could not reach the gateway at 127.0.0.1:${String(address.port)}`),
+  );
   const made = readMembership(home);
   assert.deepEqual(Object.keys(made ?? {}), ["token"], "it has a token, and is no member yet");
 
-  await assert.rejects(joinHome(home, link), /Could not reach the gateway/);
+  await assert.rejects(joinHome(home, link), JoinFailedError);
   assert.equal(readMembership(home)?.token, made?.token);
+});
+
+test("a join that is given up on while the gateway says nothing fails as an attempt that can be made again, with the token kept", async (t) => {
+  const home = homeOf(t, "crab");
+  // A server that takes the connection and never answers.
+  const taken = new Set<Socket>();
+  const silent = createServer((socket) => taken.add(socket));
+  await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
+  stopAfter(t, async () => {
+    for (const socket of taken) socket.destroy();
+    await new Promise<void>((resolve) => silent.close(() => resolve()));
+  });
+  const { port } = silent.address() as AddressInfo;
+  const link = writeLink({ name: "crab", address: { host: "127.0.0.1", port }, code: "K7Q2-9FXD" });
+
+  const giveUp = new AbortController();
+  setTimeout(() => giveUp.abort(), 200);
+  await assert.rejects(joinHome(home, link, { signal: giveUp.signal }), JoinFailedError);
+
+  assert.deepEqual(Object.keys(readMembership(home) ?? {}), ["token"]);
 });
