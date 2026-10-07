@@ -69,19 +69,24 @@ test("posts that were acknowledged survive a kill, and retrying every post leave
   const requests = Array.from({ length: 300 }, (_, index) => ({ id: `zach-${index}`, text: `message ${index}` }));
   const acknowledged = new Map<string, Message>();
   let killed: Promise<void> | undefined;
+  let afterTheKill: Promise<void>[] = [];
 
-  // Send everything at once, and kill the server while most of it is still waiting.
-  const sending = requests.map((request) =>
+  // Send half at once and kill the server once some of it is acknowledged, while the rest of that half is still
+  // waiting. The other half is sent into the kill, where nothing can acknowledge it: a server that is quick enough
+  // to acknowledge everything it was sent before the kill lands still leaves posts that were interrupted.
+  const post = (request: { id: string; text: string }): Promise<void> =>
     zach.chat.post(main.id, request.text, request.id).then(
       (message) => {
         acknowledged.set(request.id, message);
-        if (acknowledged.size === 20) killed = first.kill("SIGKILL");
+        if (acknowledged.size !== 20) return;
+        killed = first.kill("SIGKILL");
+        afterTheKill = requests.slice(requests.length / 2).map(post);
       },
       () => undefined,
-    ),
-  );
-  await Promise.all(sending);
+    );
+  await Promise.all(requests.slice(0, requests.length / 2).map(post));
   await killed;
+  await Promise.all(afterTheKill);
   assert.ok(acknowledged.size >= 20);
   assert.ok(acknowledged.size < requests.length, "the kill came too late to interrupt anything");
 
