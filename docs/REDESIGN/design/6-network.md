@@ -112,7 +112,7 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 
 **Build,** in four steps, each tested on one machine over a real connection first:
 
-1. **Letting an agent in.** The entry on an address, the invitation, and a home that remembers its gateway. An agent in a folder that shares no sockets with the gateway joins, is listed as running, reads chat and answers in a thread. Underneath, as below, it was built on 2026-10-06. Its commands are being built as changes of their own: `--listen`, `members invite` and `agent join`, then `up` where there is no gateway.
+1. **Letting an agent in.** The entry on an address, the invitation, and a home that remembers its gateway. An agent in a folder that shares no sockets with the gateway joins, is listed as running, reads chat and answers in a thread. Built: underneath on 2026-10-06, and its commands on 2026-10-07, each a change of its own.
 2. **Reached through the gateway.** The gateway joining a client to an agent that connects out. Until then the gateway says that an agent apart from it can't be reached yet, where a client asks for its sessions. The terminal then watches and stops that agent's sessions as it does those of an agent beside the gateway.
 3. **Kept honest.** Pings, coming back after either side restarts, a wrong or missing token refused, a version that differs reported. Then the same with an agent under a second OS user, and on a real second machine.
 4. **You, from another machine.** The terminal on a machine that isn't the gateway's, let in by an invitation of its own.
@@ -126,7 +126,7 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 - **Being there.** An agent apart signs in and registers with no socket, so the roster says it is running and a copy of its home is turned away. A client that asks for a ticket to it is told that an agent apart from the gateway can't be reached yet.
 - **A way through.** The way to a program takes the ticket as well as the name.
 
-**The commands of the first step.** Each is a change of its own.
+**The commands of the first step,** as they were built.
 
 - **`--listen <host:port>`** on `shrimpy up` and `shrimpy gateway serve`, given more than once for more addresses. The gateway keeps them with its roster, so a later start with no `--listen` listens there again, and says so. Giving them again replaces what was kept. An address that means every interface is refused, since an invitation needs one that another machine can use.
 - **`shrimpy up` that is told to listen** starts the gateway and the chat server in a folder with no agents too, since agents elsewhere can join it.

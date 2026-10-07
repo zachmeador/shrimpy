@@ -43,6 +43,7 @@ src/
     roster/         every member, with its name and how it is recognized, in one file
     tickets/        tickets in flight
     invitations/    invitations in flight: a code that lets one agent in from apart
+    listening/      the addresses the gateway listens on for agents apart from it, kept between starts
     ways/           a way in for each registered program
     pipe/           bytes both ways between two connections, shared with the entries
     registry/       the programs that are running, one registration per live connection

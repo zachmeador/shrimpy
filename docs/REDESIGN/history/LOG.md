@@ -36,6 +36,7 @@
 - An agent asks another with `ask_agent`, each question in a thread of its own, and the answer comes back to the session that asked. ([log, 2026-10-06](#log))
 - Providers for a whole folder: one sign-in in each place agents run, made with `shrimpy providers login`, serves every agent started there, and an agent names a model only when it wants one of its own. ([log, 2026-10-06](#log))
 - An agent apart from the gateway, underneath: the gateway listens on an address, an invitation lets one agent in, and an agent that shares no socket with the gateway joins, is listed as running, reads chat and answers. ([log, 2026-10-06](#log))
+- The commands that pair an agent apart from the gateway: `shrimpy up --listen`, `shrimpy members invite` and `shrimpy agent join`, and `shrimpy up` starting only the agents where the gateway is elsewhere. ([log, 2026-10-07](#log))
 
 ## Log
 
@@ -44,6 +45,23 @@ Newest first, roughly: the entries of one day aren't always in the order they ha
 A piece of work is done when its Prove list has evidence from real wiring, not equivalent mocks. A passing build or deleted files don't count. A newly found experience difference stays pending until it is reviewed.
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**2026-10-07: a gateway on one machine and an agent on another.** The first pairing between two machines, by hand, through the commands. A throwaway gateway ran on a Mac with Node 26, listening on its loopback, and an SSH tunnel made that address reachable on the loopback of your Linux machine, which has Node 22. So each end stayed on loopback and nothing listened on a network address.
+
+- `shrimpy members invite crab` on the Mac printed the line, and `shrimpy agent join` with it on the Linux machine made crab's home there and joined. A stand-in model ran beside it, the folder there was given it as its default, and `shrimpy up` there started crab and no gateway or chat server.
+- On the Mac the roster said crab was running, and `shrimpy run crab` printed its answer. In crab's shell on the Linux machine, `shrimpy members` and `shrimpy threads` reached the gateway as crab.
+- With the tunnel closed the roster said within three seconds that crab was not running. With it open again crab was back in about four seconds and answered. With the gateway stopped and started again with no `--listen`, it listened where it had, and crab was back two seconds later and answered.
+- Each time its gateway went away crab said "Could not join the network: WebSocket error" once, which doesn't say that it keeps trying.
+- Not tried: an address the other machine reaches directly, a second OS user, a connection that goes dead without closing, and a real model.
+
+**2026-10-07: the commands that pair an agent apart from the gateway.** Four commits by one builder and one by the coordinator. You agreed to pairing by an invitation and to `shrimpy up` starting only the agents where the gateway is elsewhere, and `--listen` and `agent join` are the two ends of that pairing.
+
+- `--listen <host:port>` on `shrimpy up` and `shrimpy gateway serve` opens the gateway's entry. The gateway keeps the addresses in `state/listen.json` beside its roster, with the ports it got, and listens there again at a start with no `--listen`. An address that means every interface is refused, since no other machine could use it in an invitation. Told to listen, `up` starts the gateway and the chat server in a folder with no agents.
+- `shrimpy members invite <name>` prints the line to paste, once for each address, with a loopback address marked as the one for another user of the gateway's machine. A name no agent can have is refused before the gateway is asked.
+- `shrimpy agent join <link>` makes the home if the folder has none, joins, says if the gateway runs another version, and says what is next. It gives up after fifteen seconds on a gateway that doesn't answer.
+- `shrimpy up`, when every agent it starts belongs to a gateway elsewhere, starts those agents and no gateway or chat server.
+- The builder made `agent join` end its process by force when it gave up, because a WebSocket that was still connecting couldn't be let go of. The transport now takes a signal and closes such a connection, which lets the process end by itself on Node 22 and on Node 26, and the forced end is gone.
+- Small choices: `--listen` given to `up` when a gateway is already running only warns. `joinHome` says who joined and which version the gateway runs. A link with an IPv6 address is printed in quotes, since a shell reads its brackets.
 
 **2026-10-07: the first run on Linux.** You offered a Linux machine of yours for testing. A dev folder was made there under one account, with the checkout and its dependencies copied over and nothing downloaded, and the tests ran on Linux for the first time: Ubuntu 24.04 on x86_64, with Node 22.23, the oldest Node the package says it runs on.
 
