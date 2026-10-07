@@ -4,30 +4,19 @@ import type { ByteTransportFactory } from "@earendil-works/pi-client";
  * A byte transport over the platform's WebSocket, which browsers and Node both
  * have. Each binary frame is one chunk of the protocol's byte stream. What an
  * error says of the URL stops before its query, which may carry a ticket.
- * Aborting `signal` gives up on a connection that has not opened yet, and lets
- * go of it: a host that never answers would otherwise hold the process until
- * the operating system gave up for it.
+ * This is the transport for a page in a browser. A program reaches the
+ * gateway's network entry with `entryTransports`, which can drop a connection
+ * at once.
  */
-export function webSocketTransport(url: string, signal?: AbortSignal): ByteTransportFactory {
+export function webSocketTransport(url: string): ByteTransportFactory {
   const where = url.split("?", 1)[0] ?? url;
   return (handlers) =>
     new Promise((resolve, reject) => {
-      if (signal?.aborted === true) {
-        reject(new Error(`Gave up before the WebSocket was opened (${where})`));
-        return;
-      }
       const socket = new WebSocket(url);
       socket.binaryType = "arraybuffer";
       let open = false;
-      const giveUp = (): void => {
-        reject(new Error(`Gave up before the WebSocket opened (${where})`));
-        // Closing one that is still connecting fails the connection, which frees it.
-        socket.close();
-      };
-      signal?.addEventListener("abort", giveUp, { once: true });
       socket.onopen = () => {
         open = true;
-        signal?.removeEventListener("abort", giveUp);
         resolve({
           send(chunk) {
             if (socket.readyState !== WebSocket.OPEN) {
@@ -55,7 +44,6 @@ export function webSocketTransport(url: string, signal?: AbortSignal): ByteTrans
         else reject(error);
       };
       socket.onclose = () => {
-        signal?.removeEventListener("abort", giveUp);
         if (open) handlers.onClose();
         else reject(new Error(`WebSocket closed before it opened (${where})`));
       };
