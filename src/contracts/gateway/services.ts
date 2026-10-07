@@ -138,7 +138,10 @@ export interface Gateway {
    * dial an agent that is apart from it, so it lists it as running, and when
    * someone asks for it, makes a call for it and waits for the agent to answer
    * (see `calls`). A connection that came through the browser entry can't
-   * register.
+   * register. A connection over the entry can die with no word, so the gateway
+   * pings it and lets go of it once it has answered none for half a minute,
+   * which takes the registration away: an agent that lost its network is listed
+   * as running for no longer than that, and registers again when it is back.
    */
   register(announcement: Announcement, context: Context): Promise<void>;
   /**
@@ -164,7 +167,8 @@ export interface Gateway {
   /**
    * The version of Shrimpy the gateway runs, so that whoever talks through it
    * can tell when they were not built together. Like a registration's version,
-   * it is reported and never refused.
+   * it is reported and never refused. It is also the smallest thing to ask, so
+   * a program that has to know whether the gateway still answers asks this.
    */
   version(context: Context): Promise<string>;
 

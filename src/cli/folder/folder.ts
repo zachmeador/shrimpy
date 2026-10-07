@@ -137,6 +137,17 @@ export function agentsListed(): { where: string; names: string[] } {
   return { where: join(folder, AGENTS), names: agentsIn(folder) };
 }
 
+/**
+ * Whether the Shrimpy folder has a home for the agent called `name`, which is
+ * what `agent serve <name>` would start, and the folder of `agents/` it looked
+ * in. Nothing is made, and a folder that is someone else's has none.
+ */
+export function lookForHome(name: string): { found: boolean; where: string } {
+  const where = join(folderPath(), AGENTS);
+  // A name that is a path is not the name of a home, and `agent serve` would take it for the folder it points to.
+  return { found: !isPath(name) && existsSync(join(where, name, HOME_FILE)), where };
+}
+
 /** The homes of every agent in the Shrimpy folder, for `up` when it is told no agents. A folder with none gives an empty list. */
 export function allHomes(): string[] {
   const folder = ownFolder();

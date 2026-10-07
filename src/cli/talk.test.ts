@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { join } from "node:path";
 import { test } from "node:test";
+import { initHome } from "../agent/index.ts";
 import { Chat, type ChatConnection } from "../contracts/chat/index.ts";
 import { memberNamed } from "../contracts/chat/testing/index.ts";
 import { connectLocalGateway, newToken } from "../contracts/gateway/node.ts";
@@ -12,6 +14,7 @@ import {
   shrimpyInBackground,
   startScriptedAgent,
   startTalking,
+  useShrimpyDir,
 } from "./testing/index.ts";
 
 /*
@@ -255,17 +258,24 @@ test("with no gateway running it says what to start, and exits 1", { timeout }, 
   assert.match(result.stderr, /shrimpy up/);
 });
 
-test("an agent that is not registered can't answer, so nothing is posted and it says what to start", { timeout }, async (t) => {
+test("an agent that is not registered can't answer, so nothing is posted and it says what to start: here, when its home is in the Shrimpy folder, and where it lives when not", { timeout }, async (t) => {
   const talking = await startTalking(t);
   await startScriptedAgent(t, { name: "rex", handle: () => answered("woof") });
   await startScriptedAgent(t, { name: "scout", handle: () => answered("hi"), register: false });
+  await startScriptedAgent(t, { name: "crab", handle: () => answered("hi"), register: false });
+  initHome(join(useShrimpyDir(t), "agents", "scout"), { name: "scout" });
 
-  const result = await shrimpy(["run", "scout", "hello"]);
+  const here = await shrimpy(["run", "scout", "hello"]);
+  assert.equal(here.code, 1);
+  assert.equal(here.stdout, "");
+  assert.match(here.stderr, /shrimpy agent serve scout/);
 
-  assert.equal(result.code, 1);
-  assert.equal(result.stdout, "");
-  assert.match(result.stderr, /shrimpy agent serve/);
-  assert.deepEqual(await (await talking.you()).chat.channels(), [], "not even a DM was made");
+  // Crab lives somewhere else, so no command typed here would start it.
+  const elsewhere = await shrimpy(["run", "crab", "hello"]);
+  assert.equal(elsewhere.code, 1);
+  assert.equal(elsewhere.stdout, "");
+  assert.doesNotMatch(elsewhere.stderr, /agent serve|shrimpy up/);
+  assert.deepEqual(await (await talking.you()).chat.channels(), [], "and nothing was posted for either, not even a DM");
 });
 
 test("a program of another version is named on standard error, and the command carries on", { timeout }, async (t) => {

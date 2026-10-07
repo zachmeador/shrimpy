@@ -16,6 +16,7 @@ export {
   agentLookedAt,
   type Dm,
   type Farewell,
+  type HomeLookup,
   type Model,
   type Notice,
   type Place,

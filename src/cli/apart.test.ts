@@ -9,6 +9,7 @@ import { readMembership } from "../contracts/agent/node.ts";
 import {
   connectGateway,
   entryTransports,
+  formatAddress,
   type GatewayConnection,
   type Member,
   NEEDS_ADMIN,
@@ -49,13 +50,16 @@ interface Network {
   person: GatewayConnection;
 }
 
-/** The gateway, listening on loopback, with the chat server registered with it and a test model, in the test's runtime directory. */
-async function startNetwork(t: TestContext): Promise<Network> {
+/**
+ * The gateway, listening on loopback, with the chat server registered with it and a test model, in the test's runtime
+ * directory. `silenceMs` is how long the gateway lets a connection stay silent before it lets go of it.
+ */
+async function startNetwork(t: TestContext, options: { silenceMs?: number } = {}): Promise<Network> {
   useRuntimeDir(t);
   const model = await startModelServer();
   stopAfter(t, () => model.close());
   const dataDir = tempDir(t, "gateway-data");
-  const gateway = await startGateway({ dataDir, listen: [{ host: "127.0.0.1", port: 0 }] });
+  const gateway = await startGateway({ dataDir, listen: [{ host: "127.0.0.1", port: 0 }], ...options });
   stopAfter(t, () => gateway.close());
   await serveChat(t, tempDir(t, "chat-data"));
   await untilRegistered("chat", "chat");
@@ -288,28 +292,59 @@ test("an agent apart is reached by its name through the gateway, from the gatewa
   await within(10_000, ended, "the connections through the gateway to end with the agent");
 });
 
-test("when the gateway stops and starts again, an agent apart registers again by itself and is reached again", { timeout }, async (t) => {
+test("when the gateway stops and starts again, an agent apart registers again by itself and is reached again, and says that it lost the gateway and that it is back", { timeout }, async (t) => {
   const network = await startNetwork(t);
   const { home } = await homeFromApart(t, network, "crab");
-  await serve(t, home, [], { env: apartEnv(t) });
+  const crab = await serve(t, home, [], { env: apartEnv(t) });
   await untilRegistered("agent", "crab");
   const before = await reachCrab(t, network.person, localTransports());
   assert.deepEqual(await before.connection.sessions(), []);
   const ended = new Promise<void>((resolve) => before.connection.onDisconnect(() => resolve()));
+  const [address] = network.gateway.listening;
+  assert.ok(address);
+  /** What the agent has told whoever reads its output about the gateway at that address. */
+  const saidOfGateway = (): string[] => crab.output().stderr.split("\n").filter((line) => line.includes(formatAddress(address)));
+  assert.deepEqual(saidOfGateway(), [], "nothing while it has the gateway");
 
   // What was joined through the gateway goes with it.
   await network.gateway.close();
   await within(10_000, ended, "the connection through the gateway to end with it");
+  await until(() => saidOfGateway().length === 1, "the agent to say that it lost the gateway");
 
   // It comes back on the roster it kept, where it listened, and the agent, which never stopped, is found again.
   const back = await startGateway({ dataDir: network.dataDir });
   stopAfter(t, () => back.close());
   assert.deepEqual(back.listening, network.gateway.listening);
   await untilRegistered("agent", "crab");
+  await until(() => saidOfGateway().length === 2, "the agent to say that it is back");
   const person = await connectLocalGateway();
   stopAfter(t, () => person.close());
   const after = await reachCrab(t, person, localTransports());
   assert.deepEqual(await after.connection.sessions(), []);
   const said = await shrimpy(["run", "crab", "hi"]);
   assert.equal(said.stdout.trim(), "Hello from the test model.", "and it answers in a thread as before");
+  assert.equal(saidOfGateway().length, 2, "and that was all it said of it");
+});
+
+test("an agent apart whose connection stops answering without closing is no longer listed as running, what was joined through the gateway to it is let go of, and it is registered again once it answers", { timeout }, async (t) => {
+  const silenceMs = 1000;
+  const network = await startNetwork(t, { silenceMs });
+  const { person } = network;
+  const { home, member } = await homeFromApart(t, network, "crab");
+  const crab = await serve(t, home, [], { env: apartEnv(t) });
+  await untilRegistered("agent", "crab");
+  const reached = await reachCrab(t, person, localTransports());
+  const ended = new Promise<void>((resolve) => reached.connection.onDisconnect(() => resolve()));
+  const listed = async () => (await person.members()).find((each) => each.id === member.id)?.reachable;
+  assert.equal(await listed(), true);
+
+  // A process that is stopped takes connections and answers none of them, and its end of each stays open.
+  process.kill(crab.listening.pid, "SIGSTOP");
+  await eventually(listed, (running) => running === false, { what: "crab to stop being listed as running", timeoutMs: 5 * silenceMs });
+  await within(5 * silenceMs, ended, "the connection through the gateway to crab to end with it");
+
+  process.kill(crab.listening.pid, "SIGCONT");
+  await eventually(listed, (running) => running === true, { what: "crab to be listed as running again", timeoutMs: 15_000 });
+  const again = await reachCrab(t, person, localTransports());
+  assert.deepEqual(await again.connection.sessions(), [], "and it is reached again");
 });

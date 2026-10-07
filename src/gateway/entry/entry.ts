@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, STATUS_CODES } from "n
 import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
 import { DEFAULT_MAX_FRAME_LENGTH } from "@earendil-works/pi-protocol";
-import { createWebSocketStream, WebSocketServer } from "ws";
+import { createWebSocketStream, type WebSocket, WebSocketServer } from "ws";
 import {
   type Address,
   formatAddress,
@@ -11,6 +11,9 @@ import {
   type ProgramName,
 } from "../../contracts/gateway/index.ts";
 import { bridge, connectUpstream } from "../pipe/index.ts";
+
+/** How long a connection may answer no ping before the entry lets go of it. */
+const SILENCE_MS = 30_000;
 
 export interface EntryOptions {
   /** The addresses to listen on. A port of 0 picks a free one. */
@@ -33,6 +36,12 @@ export interface EntryOptions {
    * and `abandon` is told when that connection did not open.
    */
   answer(call: string): { arrive(connection: Duplex): void; abandon(): void } | undefined;
+  /**
+   * How long a connection may stay silent, answering none of the pings the
+   * entry sends it, before the entry lets go of it, in milliseconds. Half a
+   * minute if not given. Tests shorten it.
+   */
+  silenceMs?: number;
 }
 
 export interface Entry {
@@ -51,7 +60,10 @@ export interface Entry {
  * program opens only with a ticket that is good for that program, once the
  * program is reached. A connection that answers a call opens only for an ID of
  * a call that is waiting, once. A request that carries an `Origin` is a web
- * page, which has no business here, and is refused.
+ * page, which has no business here, and is refused. Every connection it holds,
+ * to the gateway, through to a program or answering a call, is pinged, and one
+ * that answers none for a while is let go of, since a connection can die with
+ * no word. What was joined to it ends with it.
  */
 export async function startEntry(options: EntryOptions): Promise<Entry> {
   // One protocol frame plus its length prefix is the most a client sends in one message.
@@ -63,6 +75,34 @@ export async function startEntry(options: EntryOptions): Promise<Entry> {
   const servers: Server[] = [];
   let closing: Promise<void> | undefined;
 
+  // When each connection last answered a ping, which is when it opened until it does.
+  const heard = new WeakMap<WebSocket, number>();
+  const silenceMs = options.silenceMs ?? SILENCE_MS;
+  const pingMs = Math.max(1, Math.floor(silenceMs / 3));
+  let lastRound = Date.now();
+  const pinging = setInterval(() => {
+    const now = Date.now();
+    // A gateway that was suspended, or too busy to run its timers, has not been listening, so nobody could answer it.
+    const late = now - lastRound > 2 * pingMs;
+    lastRound = now;
+    for (const ws of webSockets.clients) {
+      // The same holds for a connection that the entry stopped reading, because what it sent is waiting to be taken.
+      if (late || ws.isPaused) heard.set(ws, now);
+      if (now - (heard.get(ws) ?? now) >= silenceMs) ws.terminate();
+      else ws.ping();
+    }
+  }, pingMs);
+  pinging.unref();
+
+  /** Take the handshake in as a WebSocket, which from then on is pinged. */
+  function accept(request: IncomingMessage, socket: Duplex, head: Buffer, use: (ws: WebSocket) => void): void {
+    webSockets.handleUpgrade(request, socket, head, (ws) => {
+      heard.set(ws, Date.now());
+      ws.on("pong", () => heard.set(ws, Date.now()));
+      use(ws);
+    });
+  }
+
   /** An agent opens this to answer a call. Its ID is what lets it in, and is good once. */
   function answer(call: string, request: IncomingMessage, socket: Duplex, head: Buffer): void {
     if (closing !== undefined) return void socket.destroy();
@@ -70,7 +110,7 @@ export async function startEntry(options: EntryOptions): Promise<Entry> {
     if (answering === undefined) return refuse(socket, 403);
     // The handshake can still fail, and then no connection ever arrives.
     socket.once("close", () => answering.abandon());
-    webSockets.handleUpgrade(request, socket, head, (ws) => answering.arrive(createWebSocketStream(ws)));
+    accept(request, socket, head, (ws) => answering.arrive(createWebSocketStream(ws)));
   }
 
   async function upgrade(request: IncomingMessage, socket: Duplex, head: Buffer): Promise<void> {
@@ -109,7 +149,7 @@ export async function startEntry(options: EntryOptions): Promise<Entry> {
     upstream.once("close", () => upstreams.delete(upstream));
     // The handshake can still fail, and then no bridge ever owns the upstream.
     socket.once("close", () => upstream.destroy());
-    webSockets.handleUpgrade(request, socket, head, (ws) => bridge(createWebSocketStream(ws), upstream));
+    accept(request, socket, head, (ws) => bridge(createWebSocketStream(ws), upstream));
   }
 
   const open = async ({ host, port }: Address): Promise<Address> => {
@@ -131,6 +171,7 @@ export async function startEntry(options: EntryOptions): Promise<Entry> {
 
   const close = (): Promise<void> => {
     closing ??= (async () => {
+      clearInterval(pinging);
       const stopped = servers.splice(0).map(
         (http) =>
           new Promise<void>((done) => {

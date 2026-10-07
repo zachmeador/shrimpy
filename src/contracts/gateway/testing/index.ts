@@ -6,4 +6,4 @@
  * not know about any program but the command that starts the gateway.
  */
 export { gatewayThatDoes } from "./partial.ts";
-export { startTestGateway, type TestGateway } from "./real.ts";
+export { startTestGateway, type TestGateway, type TestGatewayOptions } from "./real.ts";

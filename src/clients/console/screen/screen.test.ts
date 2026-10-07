@@ -417,6 +417,20 @@ test("the gateway being gone explains why nothing is registered, and is said onc
   assert.equal(thread(screenOf({ ...model, gateway: { state: "up" } }, { now })).notes.length, 2);
 });
 
+test("an agent that is not running is said to start here when this machine has its home, and where it lives when it has none", () => {
+  const open = aThread("th_1", { preview: "go" });
+  const gone = { state: "down" as const, why: { kind: "not-registered" as const } };
+  const homes = (agent: string) => ({ found: agent === "scout", where: "/folder/agents" });
+  const noteOn = (name: string, parts: Parameters<typeof onThread>[3]) =>
+    thread(screenOf(onThread(name, open, undefined, { agent: gone, ...parts }), { now })).notes.map((note) => note.text);
+
+  assert.match(noteOn("scout", { homes }).join("\n"), /shrimpy agent serve scout/);
+  const elsewhere = noteOn("crab", { homes }).join("\n");
+  assert.ok(!/agent serve|shrimpy up/.test(elsewhere), elsewhere);
+  assert.ok(elsewhere.includes("/folder/agents"), "and it says where it looked");
+  assert.match(noteOn("crab", {}).join("\n"), /shrimpy agent serve crab/, "a console that was not told says to start it here");
+});
+
 test("a program that runs another version of Shrimpy is named with its version", () => {
   const model = aModel({
     where: { screen: "threads", place: { kind: "agent", name: "scout" } },

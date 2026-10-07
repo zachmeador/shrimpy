@@ -19,6 +19,7 @@ export {
   homeInFolder,
   homeNamed,
   isPath,
+  lookForHome,
   newHome,
   nothingToStart,
   providersFolder,

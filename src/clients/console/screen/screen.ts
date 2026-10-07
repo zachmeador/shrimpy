@@ -417,7 +417,7 @@ function notesOf(model: Model, agent: string | undefined): Note[] {
   if (!watching && model.chat.state === "down" && !(gatewayDown && model.chat.why.kind === "not-registered")) warn(chatNote(model.chat.why));
   const looking = where.screen === "thread" ? "work" : watching ? "sessions" : undefined;
   if (looking !== undefined && agent !== undefined && model.agent?.state === "down" && !(gatewayDown && model.agent.why.kind === "not-registered")) {
-    warn(agentNote(oneLine(agent), model.agent.why, looking));
+    warn(agentNote(oneLine(agent), model.agent.why, looking, model.homes?.(agent)));
   }
   if (model.refusal !== undefined && agent !== undefined && (where.screen === "sessions" || where.screen === "session")) {
     warn(refusalNote(where.screen, agent, model.refusal));

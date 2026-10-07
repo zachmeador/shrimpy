@@ -83,6 +83,8 @@ export function shrimpyInBackground(args: string[], options?: LaunchOptions): Ru
 export interface Served<Listening> {
   /** The line it printed when it began listening. */
   readonly listening: Listening;
+  /** What it has printed so far. The code is null until it has ended. */
+  output: () => CliResult;
   /** Send `signal` (SIGTERM by default) and wait for the process to end. Safe to call again. */
   stop: (signal?: NodeJS.Signals) => Promise<CliResult>;
 }
@@ -111,7 +113,7 @@ async function serving<Listening>(
       cause: error,
     });
   });
-  return { listening: JSON.parse(line) as Listening, stop };
+  return { listening: JSON.parse(line) as Listening, output: result, stop };
 }
 
 export type ServedAgent = Served<{

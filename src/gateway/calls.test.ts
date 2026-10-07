@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { type TestContext, test } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { answerPath, entryTransports, type GatewayConnection, reachProgram, type Transports } from "../contracts/gateway/index.ts";
 import { connectLocalGateway, localTransports } from "../contracts/gateway/node.ts";
 import { isDisconnected } from "../lib/connection/index.ts";
 import { eventually, stopAfter, useRuntimeDir, within } from "../lib/testing/index.ts";
+import { SHRIMPY_VERSION } from "../lib/version/index.ts";
+import type { GatewayOptions } from "./index.ts";
 import {
   connectApart,
   connectEcho,
@@ -29,9 +32,9 @@ const CRAB = { kind: "agent", name: "crab" } as const;
 const REX = { kind: "agent", name: "rex" } as const;
 
 /** A gateway that listens for agents apart from it, with the person who runs it on its socket. */
-async function gatewayWithPerson(t: TestContext) {
+async function gatewayWithPerson(t: TestContext, options: Partial<GatewayOptions> = {}) {
   useRuntimeDir(t);
-  const gateway = await startGatewayInProcess(t, { listen: LOOPBACK });
+  const gateway = await startGatewayInProcess(t, { listen: LOOPBACK, ...options });
   stopAfter(t, () => gateway.close());
   const person = await connectLocalGateway();
   stopAfter(t, () => person.close());
@@ -166,4 +169,29 @@ test("a call that the agent does not answer in time ends the client's connection
   const reached = await again;
   stopAfter(t, () => reached.connection.close());
   assert.equal(await reached.connection.echo("back"), "echo: back");
+});
+
+test("a connection that answers its pings is not let go of however quiet it is: the agent's registration, a client's way through to the agent and the connection that answered its call, even after the gateway was blocked for longer than it lets a connection stay silent", { timeout }, async (t) => {
+  const silenceMs = 500;
+  const { gateway, person } = await gatewayWithPerson(t, { silenceMs });
+  const crab = await startAgentApart(t, gateway, person, "crab");
+  const maya = await invited(t, gateway, person, "maya");
+  const asking = ask(maya.connection, entryTransports(entryOf(gateway)), CRAB, crab.server.serverId);
+  const [call = ""] = await crab.waitForCalls(1);
+  crab.answer(call);
+  const reached = await asking;
+  stopAfter(t, () => reached.connection.close());
+  assert.equal(await reached.connection.echo("first"), "echo: first");
+
+  // Nothing is said on any of the three connections for three times as long as the gateway lets one stay silent.
+  await delay(3 * silenceMs);
+  assert.deepEqual((await person.list()).map((program) => program.name), ["crab"]);
+  assert.equal(await crab.connection.version(), SHRIMPY_VERSION);
+  assert.equal(await reached.connection.echo("later"), "echo: later");
+
+  // A gateway that was blocked has not been listening, so nobody was silent for it, and nobody is let go of.
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2 * silenceMs);
+  assert.equal(await reached.connection.echo("after"), "echo: after");
+  assert.equal(await crab.connection.version(), SHRIMPY_VERSION);
+  assert.deepEqual((await person.list()).map((program) => program.name), ["crab"]);
 });

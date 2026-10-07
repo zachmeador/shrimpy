@@ -22,6 +22,7 @@ import {
   agentEntries,
   agentLookedAt,
   type Farewell,
+  type HomeLookup,
   type Model,
   type Notice,
   type Place,
@@ -41,6 +42,8 @@ export interface ConsoleStateOptions {
   sendMs?: number;
   /** The pauses between attempts to reach a program. Tests shorten them. */
   backoff?: Backoff;
+  /** Whether this machine has a home for an agent that is not running, so that a note can say whether to start it here. */
+  homes?: HomeLookup;
 }
 
 /** What the console knows and can do, without a terminal. */
@@ -105,6 +108,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     sessions: undefined,
     refusal: undefined,
     notice: undefined,
+    homes: options.homes,
   };
   const set = (patch: Partial<Model>): void => {
     if (closed) return;

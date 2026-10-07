@@ -52,6 +52,13 @@ export interface GatewayOptions {
    * one that another machine can use.
    */
   listen?: Address[];
+  /**
+   * How long a connection over the network entry may stay silent, answering
+   * none of the pings the gateway sends it, before the gateway lets go of it,
+   * which takes a registration made over it away too. Half a minute if not
+   * given. Tests shorten it.
+   */
+  silenceMs?: number;
 }
 
 export interface RunningGateway {
@@ -151,6 +158,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
           good: (ticket, target) => tickets.check(ticket, target),
           reach,
           answer: (call) => calls.answer(call),
+          ...(options.silenceMs === undefined ? {} : { silenceMs: options.silenceMs }),
         });
       } catch (error) {
         if (listeningAsKept === undefined) throw error;

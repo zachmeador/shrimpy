@@ -61,13 +61,22 @@ export function chatNote(why: Why): string | undefined {
 /**
  * What to tell about the agent that is selected, if it is not as it should be.
  * `looking` is what is on show: the work in a thread, which can be stopped from
- * here, or the agent's sessions, which are only watched.
+ * here, or the agent's sessions, which are only watched. `home` says whether
+ * this machine has a home for the agent, when the console was told: an agent
+ * that has none lives somewhere else, and is started there.
  */
-export function agentNote(agent: string, why: Why, looking: "work" | "sessions" = "work"): string | undefined {
+export function agentNote(
+  agent: string,
+  why: Why,
+  looking: "work" | "sessions" = "work",
+  home?: { found: boolean; where: string },
+): string | undefined {
   const name = oneLine(agent);
   switch (why.kind) {
     case "not-registered":
-      return `No agent named ${name} is registered with this machine's gateway. Start it with: shrimpy agent serve ${name}, or start everything with: ${START_EVERYTHING}`;
+      return home?.found === false
+        ? `No agent named ${name} is registered with this machine's gateway. It has no home in ${oneLine(home.where)}, so it lives somewhere else: start it where it lives.`
+        : `No agent named ${name} is registered with this machine's gateway. Start it with: shrimpy agent serve ${name}, or start everything with: ${START_EVERYTHING}`;
     case "lost":
       return looking === "work"
         ? `Lost the connection to ${name}. The work shown may be out of date, and it can't be stopped from here. Trying again.`

@@ -1,5 +1,6 @@
 import type { Member } from "../../contracts/chat/index.ts";
 import type { Registration } from "../../contracts/gateway/index.ts";
+import { lookForHome } from "../folder/index.ts";
 import { START_EVERYTHING } from "./hints.ts";
 
 /**
@@ -54,13 +55,19 @@ export function agentNamed(members: Member[], name: string): Member {
 
 /**
  * The registration of `agent`, the newest if there are several. An agent that is
- * not registered can't answer, so when there is none the error says to start it.
+ * not registered can't answer, so when there is none the error says to start it:
+ * here, if its home is in the Shrimpy folder, and where it lives if not, since
+ * an agent can be on the roster with its home on another machine, or under
+ * another user, and nothing here can start it.
  */
 export function runningAgent(programs: Registration[], agent: Member): Registration {
   const registered = programs.findLast((program) => program.kind === "agent" && program.memberId === agent.id);
   if (registered !== undefined) return registered;
+  const { found, where } = lookForHome(agent.name);
   throw new Error(
     `The agent ${agent.name} is on the roster but is not running. ` +
-      `Start it with: shrimpy agent serve ${agent.name}, or start everything with: ${START_EVERYTHING}`,
+      (found
+        ? `Start it with: shrimpy agent serve ${agent.name}, or start everything with: ${START_EVERYTHING}`
+        : `It has no home in ${where}, so it lives somewhere else: start it where it lives.`),
   );
 }

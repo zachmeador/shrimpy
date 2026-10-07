@@ -2,7 +2,7 @@ import type { Transports } from "../../contracts/gateway/index.ts";
 import { localTransports } from "../../contracts/gateway/node.ts";
 import { type ConsoleTerminal, startDrawing } from "./draw/index.ts";
 import { farewellLine } from "./screen/index.ts";
-import { createConsoleState } from "./state/index.ts";
+import { createConsoleState, type HomeLookup } from "./state/index.ts";
 
 /** Where the console says what it has to say once it is left, and hears that it is asked to stop. */
 export interface ConsoleIo {
@@ -26,6 +26,12 @@ export interface ConsoleOptions {
   quitWindowMs?: number;
   /** The moment it is, for saying when things happened. */
   now?: () => number;
+  /**
+   * Whether this machine has a home for an agent, so that what is said of an
+   * agent that is not running tells where to start it: here, or where it
+   * lives. Without it the console says to start it here.
+   */
+  homes?: HomeLookup;
 }
 
 /**
@@ -40,6 +46,7 @@ export async function openConsole(options: ConsoleOptions): Promise<number> {
     transports: options.transports ?? localTransports(),
     pollMs: options.pollMs,
     noticeMs: options.noticeMs,
+    homes: options.homes,
   });
   try {
     const drawing = startDrawing({

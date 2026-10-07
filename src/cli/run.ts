@@ -1,5 +1,5 @@
 import { type Command, loadFamily, loadGroups } from "./commands/index.ts";
-import { FOLDER_VARIABLE, folderPath } from "./folder/index.ts";
+import { FOLDER_VARIABLE, folderPath, lookForHome } from "./folder/index.ts";
 import type { Io } from "./io/index.ts";
 import { UsageError } from "./usage/index.ts";
 
@@ -71,7 +71,7 @@ async function runConsole(io: Io, open: (io: Io) => Promise<number>): Promise<nu
 /** The console is only loaded when it is opened, so no other command loads the terminal library. */
 async function openTheConsole(io: Io): Promise<number> {
   const { openConsole } = await import("../clients/console/index.ts");
-  return openConsole({ io });
+  return openConsole({ io, homes: lookForHome });
 }
 
 /** The words that select a command: one for `up`, two for `agent serve`. */

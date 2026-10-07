@@ -49,6 +49,13 @@ export interface Room {
   threads: Thread[];
 }
 
+/**
+ * Whether this machine has a home for the agent called `agent`, which is what
+ * would start it here, and where it looked. The console is handed this and
+ * never looks for a home itself.
+ */
+export type HomeLookup = (agent: string) => { found: boolean; where: string };
+
 /** Something that happened a moment ago that the person should know, which goes away by itself. */
 export type Notice =
   | { kind: "not-sent"; problem: Problem }
@@ -87,6 +94,8 @@ export interface Model {
    */
   refusal: string | undefined;
   notice: Notice | undefined;
+  /** What this machine has homes for, when the console was told. It never changes. */
+  homes: HomeLookup | undefined;
 }
 
 /** An agent as the list of agents shows it. */

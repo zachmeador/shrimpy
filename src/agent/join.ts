@@ -15,9 +15,13 @@ export interface JoinOptions {
    * reaches the gateway, and chat through it, over the entry: the gateway can't
    * dial a socket here, so the agent registers with none, the roster says it is
    * running, and the gateway makes a call when someone asks for it, which the
-   * agent answers by opening one more connection to the entry. By default the
-   * agent is beside the gateway, reaches it over its Unix sockets on this
-   * machine, and registers the socket its server listens on.
+   * agent answers by opening one more connection to the entry. The agent says
+   * when it loses the gateway and when it is back, and asks the gateway
+   * something every so often, since a gateway on another machine can stop
+   * answering with its connection still open. By default the agent is beside
+   * the gateway, reaches it over its Unix sockets on this machine, registers
+   * the socket its server listens on, and says nothing of a gateway that is not
+   * there.
    */
   apart?: Address;
   /** Open the connection to chat over what the gateway offers. By default `connectChat`; a test wraps it. */
@@ -83,8 +87,9 @@ export function join(participant: Participant, options: JoinOptions): Joined {
     listening: options.apart === undefined ? listening : { serverId: listening.serverId },
     membership: { read: () => readMembership(paths.root), save: (membership) => saveMembership(paths.root, membership) },
     files: { name: paths.config, membership: paths.member },
-    onError: (error) => onError(new Error(`Could not join the network: ${error.message}`)),
+    onError,
     transportFactory: reach.gateway,
+    ...(options.apart === undefined ? {} : { apart: options.apart }),
     ...(backoff === undefined ? {} : { backoff: backoff() }),
   });
   const answering =

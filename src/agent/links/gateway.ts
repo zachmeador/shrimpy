@@ -1,11 +1,20 @@
 import type { Membership } from "../../contracts/agent/index.ts";
-import { type GatewayConnection, TURNED_AWAY, type TurnedAway, whyTurnedAway } from "../../contracts/gateway/index.ts";
 import {
+  type Address,
+  formatAddress,
+  type GatewayConnection,
+  TURNED_AWAY,
+  type TurnedAway,
+  whyTurnedAway,
+} from "../../contracts/gateway/index.ts";
+import {
+  type Heartbeat,
   type KeepRegisteredOptions,
   keepRegistered,
   type KeptRegistration,
   newToken,
 } from "../../contracts/gateway/node.ts";
+import { isDisconnected } from "../../lib/connection/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 
@@ -20,6 +29,18 @@ export interface GatewayLinkOptions extends Pick<KeepRegisteredOptions, "transpo
   /** The name the agent asks the roster to call it. */
   name: string;
   /**
+   * Where the gateway's entry is, when the agent is apart from the gateway. An
+   * agent apart says when it loses the gateway and when it is back, and when
+   * the gateway runs another version of Shrimpy. It is told to join again with a
+   * new invitation when the gateway does not know its token, and it asks the
+   * gateway something small every so often, since a gateway on another machine
+   * can stop answering with its connection still open. An agent beside the
+   * gateway needs none of that: its Unix socket closes when the gateway goes.
+   */
+  apart?: Address;
+  /** How often an agent apart asks the gateway something, and how long it waits for the answer. Tests shorten them. */
+  heartbeat?: Heartbeat;
+  /**
    * What the agent tells the gateway about where it listens: the server ID it
    * answers as and the socket the gateway pipes connections to, which is the
    * one that asks for a ticket. An agent apart from the gateway has no socket
@@ -29,7 +50,12 @@ export interface GatewayLinkOptions extends Pick<KeepRegisteredOptions, "transpo
   membership: MembershipStore;
   /** The file that says what the agent is called and the file that holds its token, for telling a person which to look at. */
   files: { name: string; membership: string };
-  /** Told why the agent could not be a member, once for each reason, and not again while the same refusal repeats. */
+  /**
+   * Told, one line at a time, why the agent could not be a member, once for
+   * each reason and not again while the same refusal repeats, and for an agent
+   * apart where it stands with its gateway: that it can't reach it, that it is
+   * back, and that it runs another version.
+   */
   onError(error: Error): void;
 }
 
@@ -39,14 +65,17 @@ type HomeFiles = GatewayLinkOptions["files"];
 /**
  * What to do about a refusal from the gateway, in the paths of this home. The
  * gateway says what happened and knows nothing of the files, so this is the
- * agent's to say. A refusal the gateway did not name gets no advice.
+ * agent's to say. A refusal the gateway did not name gets no advice. An agent
+ * apart can only be let in again by an invitation.
  */
-function adviceFor(why: TurnedAway | undefined, files: HomeFiles): string | undefined {
+function adviceFor(why: TurnedAway | undefined, files: HomeFiles, apart: boolean): string | undefined {
   switch (why) {
     case TURNED_AWAY.nameTaken:
       return `Change the name in ${files.name} and start the agent again.`;
     case TURNED_AWAY.unknownToken:
-      return `To join as a new member, delete ${files.membership} and start the agent again.`;
+      return apart
+        ? `To join as a new member, delete ${files.membership}, get a new invitation and join again with it: shrimpy agent join <link>`
+        : `To join as a new member, delete ${files.membership} and start the agent again.`;
     case TURNED_AWAY.agentRunning:
       return (
         `If this home is a copy that should be an agent of its own, stop it, delete ${files.membership}, ` +
@@ -55,6 +84,44 @@ function adviceFor(why: TurnedAway | undefined, files: HomeFiles): string | unde
     case undefined:
       return undefined;
   }
+}
+
+/**
+ * What an agent apart says of its gateway, for a person who only reads what it
+ * prints: that it can't reach it, said once however long that lasts, that it is
+ * back, said once it is registered again after it said it could not, and that
+ * the gateway runs another version of Shrimpy, which is said for each
+ * connection it registers on.
+ */
+function gatewayNews(gateway: Address, tell: (line: string) => void) {
+  const where = formatAddress(gateway);
+  let away = false;
+  return {
+    /** The agent can't reach the gateway, or has lost it. */
+    cannotReach: (): void => {
+      if (away) return;
+      away = true;
+      tell(`Can't reach the gateway at ${where}. This agent keeps trying.`);
+    },
+    /** The agent has registered on `connection`. */
+    registered: (connection: GatewayConnection): void => {
+      if (away) {
+        away = false;
+        tell(`The gateway at ${where} is back.`);
+      }
+      // Not waited for: the agent carries on whatever the gateway says, and whether it says anything.
+      connection.version().then(
+        (version) => {
+          if (version === SHRIMPY_VERSION) return;
+          tell(
+            `The gateway at ${where} runs Shrimpy ${version}, but this agent runs ${SHRIMPY_VERSION}. ` +
+              "Programs are meant to be upgraded together.",
+          );
+        },
+        () => undefined,
+      );
+    },
+  };
 }
 
 /**
@@ -69,11 +136,14 @@ function adviceFor(why: TurnedAway | undefined, files: HomeFiles): string | unde
  * agent, and the agent finds it again each time it comes back. A refusal, at
  * joining, signing in or registering, is told once, with what to do about it
  * when the gateway names the case, and is told again only if it changes or the
- * agent has registered since.
+ * agent has registered since. An agent apart says once that it can't reach the
+ * gateway, however long that lasts, and once that it is back; one beside the
+ * gateway says nothing of a gateway that is not there.
  */
 export function joinGateway(options: GatewayLinkOptions): KeptRegistration {
-  const { name, membership, files } = options;
+  const { name, membership, files, apart } = options;
   let reported: string | undefined;
+  const news = apart === undefined ? undefined : gatewayNews(apart, (line) => options.onError(new Error(line)));
 
   async function joinOrSignIn(gateway: GatewayConnection): Promise<void> {
     const saved = membership.read();
@@ -93,9 +163,9 @@ export function joinGateway(options: GatewayLinkOptions): KeptRegistration {
   }
 
   /** A refusal from the gateway, as a person is told of it. */
-  function turnedAway(refusal: Error): Error {
-    const advice = adviceFor(whyTurnedAway(refusal), files);
-    return new Error(`The gateway did not let ${name} in: ${refusal.message}${advice === undefined ? "" : ` ${advice}`}`);
+  function turnedAway(refusal: Error): string {
+    const advice = adviceFor(whyTurnedAway(refusal), files, apart !== undefined);
+    return `The gateway did not let ${name} in: ${refusal.message}${advice === undefined ? "" : ` ${advice}`}`;
   }
 
   return keepRegistered(
@@ -109,15 +179,19 @@ export function joinGateway(options: GatewayLinkOptions): KeptRegistration {
       transportFactory: options.transportFactory,
       backoff: options.backoff,
       signIn: joinOrSignIn,
+      ...(news === undefined ? {} : { heartbeat: options.heartbeat ?? {}, onLost: news.cannotReach }),
       // A refusal that comes back after the agent has registered is a new one to tell.
-      onRegistered() {
+      onRegistered(gateway) {
         reported = undefined;
+        news?.registered(gateway);
       },
       onError(error) {
-        const told = isRefusal(error) ? turnedAway(error) : error;
-        if (told.message === reported) return;
-        reported = told.message;
-        options.onError(told);
+        // For an agent apart, a connection that can't be made or that ended is the gateway being out of reach, which is told once.
+        if (news !== undefined && isDisconnected(error)) return news.cannotReach();
+        const told = `Could not join the network: ${isRefusal(error) ? turnedAway(error) : error.message}`;
+        if (told === reported) return;
+        reported = told;
+        options.onError(new Error(told));
       },
     },
   );
