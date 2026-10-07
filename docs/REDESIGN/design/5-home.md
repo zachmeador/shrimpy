@@ -34,7 +34,7 @@ providers/models.json         model servers of your own
 providers/default-model.json  the model an agent starts with when its agent.json names none
 ```
 
-- **A home's own files win.** Its `auth.json` for a provider it has an entry for, its `models.json` for a provider it declares, and the model its `agent.json` names. An agent on another account keeps its own.
+- **A home's own files win.** Its `auth.json` for a provider it has an entry for, its `models.json` for a provider it declares, and the model its `agent.json` names. An agent on another account keeps its own. A provider the home declares takes its key from the home alone, so a key the folder holds never goes to a server the home gave the same name.
 - **The agent is told, and doesn't look.** `shrimpy up` and `shrimpy agent serve` say where the folder's `providers/` is. An agent started with none has only what its home holds.
 - **A sign-in is renewed where it is stored,** under a lock on that file, so agents that share one renew it once. Each reads the file again for every request, so a new sign-in needs no restart.
 - **`shrimpy providers login` signs a folder in** with Pi's own flows, in the terminal. It shows a link or a code and takes what you paste back, so it works over SSH. A place you have no shell in isn't covered: you, or an agent of yours, are taken to have one.

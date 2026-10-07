@@ -104,32 +104,37 @@ function startingModel(options: ModelRuntimeOptions, folder: ProviderPaths | und
  * The model runtime for one home: Pi's built-in providers with the keys and
  * sign-ins in the auth.json files, plus the providers that the models.json files
  * declare. The home's file comes first in each pair: it is the one used for a
- * provider it holds an entry for or declares. A provider that models.json
- * declares replaces a built-in one with the same ID. The model the agent starts
+ * provider it holds an entry for or declares, and a provider the home declares
+ * takes its key from the home alone. A provider that models.json declares
+ * replaces a built-in one with the same ID. The model the agent starts
  * with is the one its agent.json names, or else the folder's default. Fails
  * with a message that says what to change if there is none, or it is unusable.
  */
 export async function buildModels(options: ModelRuntimeOptions): Promise<ModelRuntime> {
   const folder = options.providers === undefined ? undefined : providerPaths(options.providers);
   const start = startingModel(options, folder);
-  const shared = folder === undefined ? [] : [folder.auth];
   const files: Files = {
     models: folder === undefined ? [options.modelsFile] : [options.modelsFile, folder.models],
-    auth: [options.authFile, ...shared],
+    auth: folder === undefined ? [options.authFile] : [options.authFile, folder.auth],
   };
-  const credentials = credentialStore(options.authFile, ...shared);
-  // A file that doesn't fit stops the start here, naming itself, and not at the first request.
-  await credentials.list();
-  const models = createModels({ credentials, authContext: HOME_ONLY });
-  // Loaded here because it brings in every provider's model list.
-  const { builtinProviders } = await import("@earendil-works/pi-ai/providers/all");
-  for (const provider of builtinProviders()) models.setProvider(provider);
   const declared = new Map<string, { provider: CustomProvider; file: string }>();
   for (const file of files.models) {
     for (const provider of readCustomProviders(file)) {
       if (!declared.has(provider.id)) declared.set(provider.id, { provider, file });
     }
   }
+  // A provider the home declares is the home's whole: its server takes no key that the folder holds for that name.
+  const own = new Set([...declared].filter(([, { file }]) => file === options.modelsFile).map(([id]) => id));
+  const credentials = credentialStore(
+    options.authFile,
+    folder === undefined ? undefined : { file: folder.auth, except: own },
+  );
+  // A file that doesn't fit stops the start here, naming itself, and not at the first request.
+  await credentials.list();
+  const models = createModels({ credentials, authContext: HOME_ONLY });
+  // Loaded here because it brings in every provider's model list.
+  const { builtinProviders } = await import("@earendil-works/pi-ai/providers/all");
+  for (const provider of builtinProviders()) models.setProvider(provider);
   for (const { provider } of declared.values()) models.setProvider(customProvider(provider));
   await requireUsable(models, start, declared, files);
   return { models, model: start.model };

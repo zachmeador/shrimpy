@@ -14,27 +14,42 @@ import { backoff } from "../../lib/retry/index.ts";
  */
 const LOCK_WAIT_MS = 30_000;
 
+/** A second auth.json, which gives an agent what its home's own file doesn't hold. */
+export interface SharedCredentials {
+  /** The auth.json of the folder the agent is started in. */
+  readonly file: string;
+  /**
+   * The providers that take nothing from it: the ones the home declares for
+   * itself. A key for the folder's server of some name is not one for a server
+   * the home gave that name.
+   */
+  readonly except: ReadonlySet<string>;
+}
+
 /**
- * The credentials in auth.json files. Every call reads the file again, so what
- * another process changed, such as a renewal, a new sign-in or an edit by
- * hand, is there at the next request with no restart. Nothing changes a file
- * except `modify` and `delete`, which take a lock on it that the operating
- * system holds for the process, so agents that share a file renew a sign-in
- * once. With more than one file, the first that holds an entry for a provider
- * is the one that counts, and the one a change to that entry goes to.
+ * The credentials in a home's auth.json, and in a file it shares with other
+ * homes when there is one. Every call reads the file again, so what another
+ * process changed, such as a renewal, a new sign-in or an edit by hand, is
+ * there at the next request with no restart. Nothing changes a file except
+ * `modify` and `delete`, which take a lock on it that the operating system
+ * holds for the process, so agents that share a file renew a sign-in once.
+ * The home's file comes first: it counts for a provider it holds an entry for,
+ * and a change to an entry goes to the file that holds it.
  */
-export function credentialStore(file: string, ...fallbacks: readonly string[]): CredentialStore {
-  const first = fileStore(file);
-  const stores = [first, ...fallbacks.map(fileStore)];
+export function credentialStore(file: string, shared?: SharedCredentials): CredentialStore {
+  const own = fileStore(file);
+  if (shared === undefined) return own;
+  const folder = fileStore(shared.file);
+  const storesFor = (provider: string): CredentialStore[] => (shared.except.has(provider) ? [own] : [own, folder]);
   const holding = async (provider: string, options: AuthOperationOptions | undefined): Promise<CredentialStore> => {
-    for (const store of stores) {
+    for (const store of storesFor(provider)) {
       if ((await store.read(provider, options)) !== undefined) return store;
     }
-    return first;
+    return own;
   };
   return {
     async read(provider, options) {
-      for (const store of stores) {
+      for (const store of storesFor(provider)) {
         const credential = await store.read(provider, options);
         if (credential !== undefined) return credential;
       }
@@ -42,10 +57,9 @@ export function credentialStore(file: string, ...fallbacks: readonly string[]): 
     },
     async list(options) {
       const listed = new Map<string, CredentialInfo>();
-      for (const store of stores) {
-        for (const info of await store.list(options)) {
-          if (!listed.has(info.providerId)) listed.set(info.providerId, info);
-        }
+      for (const info of await own.list(options)) listed.set(info.providerId, info);
+      for (const info of await folder.list(options)) {
+        if (!listed.has(info.providerId) && !shared.except.has(info.providerId)) listed.set(info.providerId, info);
       }
       return [...listed.values()];
     },

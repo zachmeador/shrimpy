@@ -58,7 +58,7 @@ An `oauth` entry in an `auth.json` is used, and renewed when its token runs out.
 - **is not an agent home**: the path is wrong, or `shrimpy agent init` hasn't run there.
 - **There is no agent called X**: the name is wrong or the agent isn't made yet. The message lists the agents the Shrimpy folder has and the command that makes this one.
 - **There are no agents in … yet**: `shrimpy up` has nothing to start. Make an agent first.
-- **has other files in it and no agents/ folder**: that folder isn't Shrimpy's, so nothing is made there. The person sets `SHRIMPY_DIR` to another folder, or moves that one.
+- **has other files in it and no agents/ or providers/ folder**: that folder isn't Shrimpy's, so nothing is made there. The person sets `SHRIMPY_DIR` to another folder, or moves that one.
 - **too long for a socket**: set `SHRIMPY_RUNTIME_DIR` to a shorter directory, for every shrimpy command.
 - **runs Shrimpy 0.0.1, but this command is 0.0.0**: programs of two versions are up together. Restart them together.
 - **not valid JSON**, or **unsupported keys**: the file it names has a mistake, and the message says where.

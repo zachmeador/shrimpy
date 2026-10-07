@@ -125,9 +125,11 @@ test("what the home doesn't declare or hold comes from the folder's providers, a
         both: { ...qwen, baseUrl: "http://folder.invalid/v1" },
       },
     },
-    auth: { groq: { type: "api_key", key: "gsk-from-the-folder" } },
+    auth: { groq: { type: "api_key", key: "gsk-from-the-folder" }, both: { type: "api_key", key: "for-the-folder's-server" } },
   });
-  const files = home(t, { models: { providers: { both: { ...qwen, baseUrl: "http://home.invalid/v1" } } } });
+  const files = home(t, {
+    models: { providers: { both: { ...qwen, baseUrl: "http://home.invalid/v1", apiKey: "for-the-home's-server" } } },
+  });
   const models = await modelsOf({ ...files, providers: folder.dir, model: { provider: "shared", modelId: "qwen" } });
   const requests = stubChatCompletions(t, "Hi");
 
@@ -146,9 +148,10 @@ test("what the home doesn't declare or hold comes from the folder's providers, a
       "https://api.groq.com/openai/v1/chat/completions",
     ],
   );
+  // A server the home declares takes the home's key, and never the one the folder holds for a server of that name.
   assert.deepEqual(
-    requests.slice(2).map((request) => request.headers.authorization),
-    ["Bearer gsk-from-the-folder", "Bearer gsk-from-the-home"],
+    requests.map((request) => request.headers.authorization),
+    ["Bearer local", "Bearer for-the-home's-server", "Bearer gsk-from-the-folder", "Bearer gsk-from-the-home"],
   );
 });
 

@@ -101,7 +101,7 @@ test("the home's file comes first, a change goes to the file that holds the entr
     both: { type: "api_key", key: "sk-home" },
   };
   writeFileSync(homeFile, JSON.stringify(own));
-  const store = credentialStore(homeFile, folderFile);
+  const store = credentialStore(homeFile, { file: folderFile, except: new Set() });
 
   assert.deepEqual(await store.read("sub"), undefined, "a folder with no providers/ in it holds nothing, and that is no error");
 

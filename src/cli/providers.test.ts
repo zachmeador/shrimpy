@@ -35,13 +35,8 @@ test("agents take the model, server and key their homes don't hold from the fold
   const folder = useShrimpyDir(t);
   const shared = await testModel(t);
   const own = await testModel(t);
-  // scout names no model, and its home holds nothing. rex names a model, and has a server and a key of its own.
-  assert.equal((await shrimpy(["agent", "init", "scout"])).code, 0);
-  assert.equal((await shrimpy(["agent", "init", "rex", "--model", "local/other-model"])).code, 0);
-  const rex = join(folder, "agents", "rex");
-  declareLocalModel(rex, { url: own.url, model: "other-model" });
-  writeFileSync(join(rex, "state", "pi", "auth.json"), JSON.stringify({ local: { type: "api_key", key: "rex-key" } }));
-  // The folder has a model for every agent that names none, a server for it and a key for the server.
+  // The folder has a model for every agent that names none, a server for it and a key for the server. It has them
+  // before it has an agent, as a folder that was signed in first does.
   const providers = join(folder, "providers");
   mkdirSync(providers, { recursive: true });
   writeFileSync(join(providers, "default-model.json"), JSON.stringify({ provider: "local", id: "test-model" }));
@@ -50,6 +45,12 @@ test("agents take the model, server and key their homes don't hold from the fold
     JSON.stringify({ providers: { local: localProvider({ url: shared.url, models: ["test-model"] }) } }),
   );
   writeFileSync(join(providers, "auth.json"), JSON.stringify({ local: { type: "api_key", key: "folder-key" } }));
+  // scout names no model, and its home holds nothing. rex names a model, and has a server and a key of its own.
+  assert.equal((await shrimpy(["agent", "init", "scout"])).code, 0);
+  assert.equal((await shrimpy(["agent", "init", "rex", "--model", "local/other-model"])).code, 0);
+  const rex = join(folder, "agents", "rex");
+  declareLocalModel(rex, { url: own.url, model: "other-model" });
+  writeFileSync(join(rex, "state", "pi", "auth.json"), JSON.stringify({ local: { type: "api_key", key: "rex-key" } }));
 
   await startUp(t, []);
   await untilRegistered("agent", "scout");

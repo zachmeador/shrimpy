@@ -6,11 +6,14 @@ import { UsageError } from "../usage/index.ts";
 /** The variable that names a Shrimpy folder other than the default. */
 export const FOLDER_VARIABLE = "SHRIMPY_DIR";
 
-/** The folder of the Shrimpy folder that holds one home for each agent. Its presence is what marks the folder as Shrimpy's. */
+/** The folder of the Shrimpy folder that holds one home for each agent. */
 const AGENTS = "agents";
 
 /** The folder of the Shrimpy folder that holds the sign-ins, keys and model servers every agent started there shares. */
 const PROVIDERS = "providers";
+
+/** What marks a folder as Shrimpy's: either is made first on a new setup, a home or a sign-in. */
+const MARKS = [AGENTS, PROVIDERS];
 
 /** The file that makes a folder of `agents/` an agent's home. */
 const HOME_FILE = "agent.json";
@@ -40,9 +43,9 @@ export function isPath(word: string): boolean {
 /**
  * The Shrimpy folder, once it is known to be Shrimpy's: it is not there yet,
  * or it holds nothing but dot files, such as the `.DS_Store` Finder leaves, or
- * it has an `agents/` folder. A folder with other files and no `agents/`, such
- * as a clone of this repository, belongs to someone else, and nothing is made
- * in it.
+ * it has an `agents/` or a `providers/` folder. A folder with other files and
+ * neither, such as a clone of this repository, belongs to someone else, and
+ * nothing is made in it.
  */
 function ownFolder(): string {
   const folder = folderPath();
@@ -53,9 +56,10 @@ function ownFolder(): string {
         `Set ${FOLDER_VARIABLE} to another folder, or move this file.`,
     );
   }
-  if (existsSync(join(folder, AGENTS)) || readdirSync(folder).every((entry) => entry.startsWith("."))) return folder;
+  const marked = MARKS.some((mark) => existsSync(join(folder, mark)));
+  if (marked || readdirSync(folder).every((entry) => entry.startsWith("."))) return folder;
   throw new Error(
-    `${folder} has other files in it and no ${AGENTS}/ folder, so Shrimpy won't make anything there. ` +
+    `${folder} has other files in it and no ${AGENTS}/ or ${PROVIDERS}/ folder, so Shrimpy won't make anything there. ` +
       `Set ${FOLDER_VARIABLE} to another folder, or move this one.`,
   );
 }
