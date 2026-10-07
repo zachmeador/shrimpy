@@ -105,6 +105,48 @@ test("members invite prints the line to run where the agent will live for each a
   assert.ok(taken.stderr.includes(says), taken.stderr);
 });
 
+test("members invite with no name prints the line to run on another machine of yours for each address the gateway listens on, says which are for the gateway's own machine, and the code in it lets a machine in as the person", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const gateway = await serveGateway(t, ["--listen", "127.0.0.1:0", "--listen", hasIPv6Loopback ? "[::1]:0" : "127.0.0.1:0"]);
+  const listen = gateway.listening.listen;
+
+  const invited = await shrimpy(["members", "invite"]);
+  assert.equal(invited.code, 0, invited.stderr);
+  assert.match(invited.stdout, new RegExp(`lets another machine of yours in as ${person}`));
+  const lines = commandLines(invited.stdout);
+  assert.ok(lines.every((line) => line.startsWith("shrimpy join ")), invited.stdout);
+  const links = lines.map((line) => readLink(line.slice("shrimpy join ".length).replace(/^'(.*)'$/, "$1")));
+  assert.deepEqual(links.map((link) => link.address), listen, "one line for each address, in the order the gateway has them");
+  assert.ok(links.every((link) => link.name === null && link.code === links[0]?.code), "for a machine and not an agent, with one code");
+  assert.match(invited.stdout, /gateway's machine/, "and a loopback address is said to reach only the gateway's own machine");
+
+  // The code is good where the line says to use it, and the machine it lets in is the person.
+  const [link] = links;
+  assert.ok(link);
+  const apart = await connectGateway({ transportFactory: entryTransports(link.address).gateway });
+  stopAfter(t, () => apart.close());
+  const member = await apart.joinMachine(newToken(), link.code);
+  assert.deepEqual([member.kind, member.name], ["person", person]);
+});
+
+test("members invite with no name is refused to an agent, an admin too, in words that say why, and when the gateway listens nowhere is refused as the gateway says it", { timeout }, async (t) => {
+  await startTestGateway(t);
+  const scout = await startAgentShell(t, "scout");
+
+  const nowhere = await shrimpy(["members", "invite"]);
+  assert.equal(nowhere.code, 1);
+  assert.match(nowhere.stderr, /listens on no address/);
+
+  // An agent is refused before the address is looked at, and being an admin makes no difference.
+  for (const admin of [false, true]) {
+    if (admin) assert.equal((await shrimpy(["members", "promote", "scout"])).code, 0);
+    const refused = await scout.run(["members", "invite"]);
+    assert.equal(refused.code, 1, refused.stderr);
+    assert.match(refused.stderr, /no agent may ask for one/);
+    assert.ok(refused.stderr.includes(person), "and it says who to ask");
+  }
+});
+
 test("members invite is refused as the gateway says it when the gateway listens nowhere, and to an agent that is no admin, who is told who the admins are", { timeout }, async (t) => {
   const gateway = await startTestGateway(t);
   const scout = await startAgentShell(t, "scout");

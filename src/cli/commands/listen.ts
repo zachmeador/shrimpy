@@ -9,7 +9,8 @@ export const LISTEN_OPTION = { listen: { type: "string", multiple: true } } as c
 /** What the help of a command that takes --listen says about it. */
 export const ABOUT_LISTEN =
   "--listen <host:port> opens the gateway's network entry on that address, for agents that live apart from it: " +
-  "under another OS user, in a container or on another machine. Give it more than once for more addresses. " +
+  "under another OS user, in a container or on another machine. Other machines of yours come in by it too. " +
+  "Give it more than once for more addresses. " +
   "Write an IPv6 address in brackets, as in [::1]:7447. A port of 0 picks a free one. An address that means " +
   "every interface, such as 0.0.0.0 or ::, is refused, because an invitation needs an address that another " +
   "machine can use: name one that only your own machines reach, such as a tailnet address, or 127.0.0.1 for " +
