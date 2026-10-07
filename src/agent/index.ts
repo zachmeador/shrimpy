@@ -4,8 +4,9 @@
  * made by its name to), and takes part in the network as a member and in chat.
  * Other programs reach an agent only through `contracts/agent`; they never
  * import this program's modules, except that the CLI starts an agent, creates a
- * home, previews what a home would tell an agent, and reads, checks and
- * changes the files of its triggers and its wake file through this door, none
+ * home, previews what a home would tell an agent, reads, checks and
+ * changes the files of its triggers and its wake file, and signs the folder its
+ * agents are started in to a model provider, through this door, none
  * of which needs a running agent. It must not know who its clients are beyond who it is told
  * they are, or anything about the chat server and the gateway beyond their
  * contracts.
@@ -61,7 +62,9 @@ export {
   parseWake,
   type ProviderPaths,
   providerPaths,
+  readDefaultModel,
   removeTrigger,
+  saveDefaultModel,
   saveTrigger,
   saveWake,
   switchTrigger,
@@ -74,6 +77,16 @@ export {
   type WakePolicy,
   type WakeRead,
 } from "./home/index.ts";
+export {
+  type Dialogue,
+  type Notice,
+  openSignIns,
+  type ProviderToSignIn,
+  type Question,
+  type SignIns,
+  type SignInWay,
+  type WayToSignIn,
+} from "./host/durable.ts";
 export type { JoinOptions } from "./join.ts";
 export type { CloseOptions } from "./stop.ts";
 

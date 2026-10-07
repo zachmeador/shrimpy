@@ -23,6 +23,9 @@ async function run(...args: string[]) {
 
 const modelFlags = ["--model", "local/test-model"];
 
+/** What `agent init` says to type first, to give the agent a way to reach its model. */
+const SIGN_IN = "shrimpy providers login";
+
 const agentFile = (home: string): unknown => JSON.parse(readFileSync(join(home, "agent.json"), "utf8"));
 
 test("agent init with a name makes the home in the Shrimpy folder and names the agent for it, with a path it makes the home there, and it says what to type next; a folder name no agent can have needs --name", async (t) => {
@@ -34,7 +37,7 @@ test("agent init with a name makes the home in the Shrimpy folder and names the 
   assert.equal(made.code, 0, made.err);
   const model = { provider: "local", id: "test-model" };
   assert.deepEqual(agentFile(join(folder, "agents", "scout")), { name: "scout", model });
-  assert.deepEqual(commandLines(made.out.join("\n")), ["shrimpy up", "shrimpy agent serve scout"]);
+  assert.deepEqual(commandLines(made.out.join("\n")), [SIGN_IN, "shrimpy up", "shrimpy agent serve scout"]);
 
   const elsewhere = join(tempDir(t, "elsewhere"), "maya");
   const path = await run("agent", "init", elsewhere, ...modelFlags);
@@ -42,7 +45,7 @@ test("agent init with a name makes the home in the Shrimpy folder and names the 
 
   assert.equal(path.code, 0, path.err);
   assert.deepEqual(agentFile(elsewhere), { name: "maya", model });
-  assert.deepEqual(commandLines(path.out.join("\n")), [`shrimpy up ${elsewhere}`, `shrimpy agent serve ${elsewhere}`]);
+  assert.deepEqual(commandLines(path.out.join("\n")), [SIGN_IN, `shrimpy up ${elsewhere}`, `shrimpy agent serve ${elsewhere}`]);
   assert.equal(renamed.code, 0, renamed.err);
   assert.equal(readdirSync(join(folder, "agents")).join(), "scout", "and nothing of those went into the folder");
 
@@ -65,11 +68,11 @@ test("agent init needs no model: the agent names none and starts with the folder
 
   assert.equal(bare.code, 0, bare.err);
   assert.deepEqual(agentFile(join(folder, "agents", "scout")), { name: "scout" });
-  assert.deepEqual(commandLines(bare.out.join("\n")), ["shrimpy up", "shrimpy agent serve scout"]);
-  // Where the model comes from, and where its access can: the agent's own files, then the folder's providers/.
+  assert.deepEqual(commandLines(bare.out.join("\n")), [SIGN_IN, "shrimpy up", "shrimpy agent serve scout"]);
+  // Where the model comes from, and how its access is given: one command, whichever it is.
   assert.ok(bare.out.join("\n").includes(join(providers, "default-model.json")), "an agent with no model is told where its model is");
   assert.ok(named.out.join("\n").includes("local/test-model"), "and one with a model says which");
-  for (const said of [bare, named]) assert.ok(said.out.join("\n").includes(providers), "both are told the folder's providers/ is there to use");
+  assert.ok(commandLines(named.out.join("\n")).includes(SIGN_IN), "both are told how to sign the folder in");
 
   // Asking again is no difference when the agent that is there names no model, or names the one asked for, or none is asked for.
   assert.equal((await run("agent", "init", "scout")).code, 0);

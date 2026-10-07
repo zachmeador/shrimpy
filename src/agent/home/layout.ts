@@ -47,6 +47,8 @@ export interface ProviderPaths {
   readonly models: string;
   /** The model an agent starts with when its agent.json names none: `{"provider": "...", "id": "..."}`. */
   readonly defaultModel: string;
+  /** A random ID for the folder, which some providers are told when it signs in. Made the first time one asks. */
+  readonly deviceId: string;
 }
 
 export function providerPaths(dir: string): ProviderPaths {
@@ -56,6 +58,7 @@ export function providerPaths(dir: string): ProviderPaths {
     auth: join(root, "auth.json"),
     models: join(root, "models.json"),
     defaultModel: join(root, "default-model.json"),
+    deviceId: join(root, "device-id"),
   };
 }
 

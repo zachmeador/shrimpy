@@ -35,6 +35,16 @@ export function providersPath(): string {
   return join(folderPath(), PROVIDERS);
 }
 
+/**
+ * The Shrimpy folder's `providers/`, for a command that writes there. The folder
+ * must be Shrimpy's, as it must for everything else that makes something in it.
+ * Nothing is made yet: whatever writes makes `providers/` when it has something
+ * to put in it.
+ */
+export function providersFolder(): string {
+  return join(ownFolder(), PROVIDERS);
+}
+
 /** Whether `word` is a path, and not the name of an agent: it has a path separator in it, or starts with `.` or `~`. */
 export function isPath(word: string): boolean {
   return word.includes("/") || word.includes(sep) || word.startsWith(".") || word.startsWith("~");

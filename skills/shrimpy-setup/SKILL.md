@@ -21,7 +21,7 @@ Programs reach each other by name through the gateway, so people and agents can 
 
 A program that won't start says why in the terminal that started it. Ask the person to paste it.
 
-There is no setup command yet. A new setup is `shrimpy agent init <name> --model <provider/id>`, a model for the agent, then `shrimpy up`. One agent that answers is a complete setup, and a second can wait until the person asks for it.
+There is no setup command yet. A new setup is `shrimpy providers login` to sign in and choose a model, then `shrimpy agent init <name>`, then `shrimpy up`. One agent that answers is a complete setup, and a second can wait until the person asks for it.
 
 ## See what is running
 
@@ -36,9 +36,9 @@ An agent takes its model, servers and keys from two places and nowhere else: not
 - `agent.json` names the model it starts with, as `"model": {"provider": "local", "id": "qwen3.8-27b"}`, which `agent init --model <provider/id>` writes. An agent whose `agent.json` names none starts with the one in `providers/default-model.json`: `{"provider": "local", "id": "qwen3.8-27b"}`. With neither it doesn't start.
 - `models.json` declares servers of your own: `state/pi/models.json` in a home, `providers/models.json` in the folder. A server that needs no key still takes a placeholder:
   `{"providers": {"local": {"baseUrl": "http://localhost:8090/v1", "api": "openai-completions", "apiKey": "local", "models": [{"id": "qwen3.8-27b"}]}}}`
-- `auth.json` holds keys for the built-in providers: `state/pi/auth.json` in a home, `providers/auth.json` in the folder. `{"anthropic": {"type": "api_key", "key": "..."}}`. A key is used as written, so `$NAME` and `!command` are refused. Ask the person for it. A key in the folder serves every agent, and one in a home only that agent. Copy none from another home.
+- `auth.json` holds keys for the built-in providers: `state/pi/auth.json` in a home, `providers/auth.json` in the folder. `{"anthropic": {"type": "api_key", "key": "..."}}`. A key is used as written, so `$NAME` and `!command` are refused. A key in the folder serves every agent, and one in a home only that agent. Copy none from another home.
 
-An `oauth` entry in an `auth.json` is used, and renewed when its token runs out. Nothing signs in yet.
+The person signs the folder in with `shrimpy providers login [<provider>]`, with a subscription or an API key, and it asks which model agents start with if `default-model.json` isn't there. It is theirs to run, since it needs them at a terminal, and at a browser for a subscription: hand them the command, and don't ask for a key in chat. A sign-in is renewed when its token runs out.
 
 ## When a command says
 
@@ -53,7 +53,7 @@ An `oauth` entry in an `auth.json` is used, and renewed when its token runs out.
 - **A gateway is already running**, **a chat server is already running**, or **another chat server is using the data**: one is up already. Use it.
 - **The agent has no model to start with**: name one in `agent.json`, or put one in `providers/default-model.json`.
 - **names the provider "p", which is not declared**: declare `p` in a `models.json`, the home's or the folder's, or correct the model in the file the message says names it: `agent.json`, or `providers/default-model.json`.
-- **The provider "p" has no API key**: add the key to an `auth.json`, the home's or the folder's, or give a declared server its `apiKey`.
+- **The provider "p" has no API key**, or **signs in with an account** and has no sign-in: the person runs `shrimpy providers login p`. To give a declared server a key instead, set its `apiKey`.
 - **has no model "m"**: the message lists the models it has.
 - **is not an agent home**: the path is wrong, or `shrimpy agent init` hasn't run there.
 - **There is no agent called X**: the name is wrong or the agent isn't made yet. The message lists the agents the Shrimpy folder has and the command that makes this one.

@@ -1,5 +1,4 @@
 import {
-  type AuthContext,
   createModels,
   createProvider,
   type Models,
@@ -9,7 +8,7 @@ import {
 import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 import type { ModelRef } from "@earendil-works/pi-durable";
 import { type ProviderPaths, providerPaths, readDefaultModel } from "../home/index.ts";
-import { credentialStore } from "./credentials.ts";
+import { credentialStore, NO_AMBIENT_AUTH } from "./credentials.ts";
 import { type CustomApi, type CustomProvider, readCustomProviders } from "./custom-providers.ts";
 
 export interface ModelRuntimeOptions {
@@ -44,16 +43,6 @@ export class ModelSetupError extends Error {
     this.name = "ModelSetupError";
   }
 }
-
-/**
- * Keys come from the home's files and the folder's only. The process environment
- * and files such as ~/.aws would give every home on the machine the same
- * credentials by accident.
- */
-const HOME_ONLY: AuthContext = {
-  env: () => Promise.resolve(undefined),
-  fileExists: () => Promise.resolve(false),
-};
 
 const STREAMS: Record<CustomApi, () => ProviderStreams> = {
   "openai-completions": openAICompletionsApi,
@@ -131,7 +120,7 @@ export async function buildModels(options: ModelRuntimeOptions): Promise<ModelRu
   );
   // A file that doesn't fit stops the start here, naming itself, and not at the first request.
   await credentials.list();
-  const models = createModels({ credentials, authContext: HOME_ONLY });
+  const models = createModels({ credentials, authContext: NO_AMBIENT_AUTH });
   // Loaded here because it brings in every provider's model list.
   const { builtinProviders } = await import("@earendil-works/pi-ai/providers/all");
   for (const provider of builtinProviders()) models.setProvider(provider);
@@ -203,15 +192,20 @@ function missingKey(provider: Provider, declaredIn: string | undefined, files: F
       `set "apiKey": "local" under providers.${id} in ${declaredIn}.`
     );
   }
+  const [own, folder] = files.auth;
   if (provider.auth.apiKey === undefined) {
-    return (
-      `The provider "${id}" signs in with OAuth, and nothing signs in yet. ` +
-      `An entry with "type": "oauth" in ${either(files.auth)} is used, and renewed when its token runs out.`
-    );
+    // Only a sign-in will do. An agent that was told of no folder has only its own file to look in, which a command doesn't write.
+    return folder === undefined
+      ? `The provider "${id}" signs in with an account, and ${own} holds no sign-in for it. ` +
+          'An entry with "type": "oauth" there is used, and renewed when its token runs out.'
+      : `The provider "${id}" signs in with an account, and no sign-in for it is in ${own} or ${folder}. ` +
+          `Run shrimpy providers login ${id} to sign in, for every agent in the Shrimpy folder.`;
   }
   const entry = JSON.stringify({ [id]: { type: "api_key", key: "<your key>" } });
-  const [own, ...shared] = files.auth;
-  const where =
-    shared.length === 0 ? own : `${own}, or to ${shared.join(" or ")} to give every agent in the Shrimpy folder the same key`;
-  return `The provider "${id}" has no API key. Add one to ${where}, for example ${entry}`;
+  if (folder === undefined) return `The provider "${id}" has no API key. Add one to ${own}, for example ${entry}`;
+  const verb = provider.auth.oauth === undefined ? "add a key" : "sign in or add a key";
+  return (
+    `The provider "${id}" has no API key. Run shrimpy providers login ${id} to ${verb}, which keeps it in ${folder} ` +
+    `for every agent in the Shrimpy folder, or put a key in ${own} for this agent alone, for example ${entry}`
+  );
 }

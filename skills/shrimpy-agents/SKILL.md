@@ -10,7 +10,7 @@ An agent is a folder. Make one when the person asks for one. If what they want i
 ## Make one
 
 1. `shrimpy agent init <name>` makes its home in the person's Shrimpy folder, as `agents/<name>`, and prints where. Add `--model <provider/id>` to name its model, or leave it out and the agent starts with the one in the folder's `providers/default-model.json`. A name is letters, digits, dots, hyphens and underscores, and no one else on the roster can have it: people and agents share names. Running it again changes nothing that exists.
-2. Check that it has a model, and a way to reach it. Its home is its own and inherits nothing from yours, but what it doesn't hold comes from `providers/` in the Shrimpy folder (see shrimpy-setup).
+2. Check that it has a model, and a way to reach it. Its home is its own and inherits nothing from yours, but what it doesn't hold comes from `providers/` in the Shrimpy folder, which the person signs in with `shrimpy providers login` (see shrimpy-setup).
 3. Say who it is in its `SOUL.md`. The starter works as it is, so edit it and keep what still fits.
 4. The person starts it with `shrimpy agent serve <name>` in a terminal, or with `shrimpy up` if nothing is running yet. It joins the roster the first time it runs, and `shrimpy gateway status` then lists it.
 5. Leave the first hello to the person. `shrimpy run` from your shell would be you talking, not them.

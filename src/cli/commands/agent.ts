@@ -20,8 +20,6 @@ import { connectIfRunning, withConnection } from "./connected.ts";
 import { leftOutLines, whatItReads } from "./reloaded.ts";
 import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, mayActOn, WHICH_AGENT } from "./which-agent.ts";
 
-const EXAMPLE_MODEL = '{"provider": "local", "id": "qwen3.8-27b"}';
-
 const init: Command = {
   name: "agent init",
   usage: "<agent> [--model <provider/id>] [--name <name>]",
@@ -59,18 +57,24 @@ const init: Command = {
     );
     io.out("");
     io.out("Next:");
-    const steps: string[][] = [];
-    if (model === undefined) {
-      steps.push([
-        `Make sure a model is named, as ${EXAMPLE_MODEL}: in ${folder.defaultModel} for every agent that names none, ` +
-          `or under "model" in ${paths.config} for ${name} alone.`,
-      ]);
-    }
+    const own = dirname(paths.models);
+    const steps: string[][] = [
+      model === undefined
+        ? [
+            `Choose ${name}'s model and give it access. This signs in to a provider for every agent in your Shrimpy ` +
+              "folder, and asks which model they start with, unless the folder has both already:",
+            "     shrimpy providers login",
+            `   Or, for ${name} alone, name a model under "model" in ${paths.config}, and declare a server in ` +
+              `models.json or add a key to auth.json in ${own}.`,
+          ]
+        : [
+            `Give ${name} access to its model's provider. This signs in for every agent in your Shrimpy folder, ` +
+              "unless it is signed in already:",
+            "     shrimpy providers login",
+            `   Or, for ${name} alone, declare a server in models.json or add a key to auth.json in ${own}.`,
+          ],
+    ];
     steps.push(
-      [
-        `Give ${name} access to its model's provider: declare a server in models.json, or add a key to auth.json. ` +
-          `Put them in ${dirname(paths.models)} for ${name} alone, or in ${folder.root} for every agent in your Shrimpy folder.`,
-      ],
       [`Say who ${name} is in ${paths.soul}. It starts with a few plain defaults that work as they are.`],
       [
         "Start it:",

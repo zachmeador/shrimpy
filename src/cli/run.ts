@@ -112,8 +112,9 @@ async function overview(): Promise<string> {
       "./scout is a folder here. A command that takes --agent <agent> acts, without it, on the agent whose shell it " +
       "runs in, and in your own terminal on the only agent your Shrimpy folder has.",
     "",
-    `Your Shrimpy folder is ${folderPath()}, where agents/ holds the home of each agent, and gateway/ and chat/ ` +
-      `hold the data of those programs. Set ${FOLDER_VARIABLE} to use another folder.`,
+    `Your Shrimpy folder is ${folderPath()}, where agents/ holds the home of each agent, providers/ the sign-ins ` +
+      `and model servers they share, and gateway/ and chat/ the data of those programs. ` +
+      `Set ${FOLDER_VARIABLE} to use another folder.`,
     "",
     "Say more about one command with: shrimpy <command> --help",
   ].join("\n");

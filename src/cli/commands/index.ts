@@ -22,6 +22,7 @@ const USING = new Map<string, Family>([
 // The commands that start, stop, inspect and repair its programs and homes.
 const RUNNING = new Map<string, Family>([
   ["agent", async () => (await import("./agent.ts")).agentCommands],
+  ["providers", async () => (await import("./providers.ts")).providersCommands],
   ["sessions", async () => (await import("./sessions.ts")).sessionsCommands],
   ["triggers", async () => (await import("./triggers.ts")).triggersCommands],
   ["wake", async () => (await import("./wake.ts")).wakeCommands],

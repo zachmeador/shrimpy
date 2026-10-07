@@ -1,7 +1,13 @@
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import type { AuthOperationOptions, Credential, CredentialInfo, CredentialStore } from "@earendil-works/pi-ai";
+import type {
+  AuthContext,
+  AuthOperationOptions,
+  Credential,
+  CredentialInfo,
+  CredentialStore,
+} from "@earendil-works/pi-ai";
 import { type ConfigObject, parseConfig } from "../../lib/json-config/index.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
 import { type Lock, takeLock } from "../../lib/lock/node.ts";
@@ -13,6 +19,16 @@ import { backoff } from "../../lib/retry/index.ts";
  * process that dies lets go at once, so waiting longer means one is stuck.
  */
 const LOCK_WAIT_MS = 30_000;
+
+/**
+ * Keys come from the auth.json files only. The process environment and files
+ * such as ~/.aws would give every home on the machine the same credentials by
+ * accident.
+ */
+export const NO_AMBIENT_AUTH: AuthContext = {
+  env: () => Promise.resolve(undefined),
+  fileExists: () => Promise.resolve(false),
+};
 
 /** A second auth.json, which gives an agent what its home's own file doesn't hold. */
 export interface SharedCredentials {
@@ -120,7 +136,8 @@ function parseCredential(entry: ConfigObject): Credential {
   const type = entry.choice("type", ["api_key", "oauth"]);
   if (type === "oauth") {
     const access = entry.string("access");
-    const refresh = entry.string("refresh");
+    // A provider with no refresh token, such as OpenRouter, saves an empty one.
+    const refresh = entry.text("refresh");
     const expires = entry.number("expires");
     return { ...entry.rest(), type, access, refresh, expires };
   }

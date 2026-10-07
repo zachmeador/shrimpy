@@ -33,6 +33,14 @@ export class ConfigObject {
     return value;
   }
 
+  /** A string that may be empty, such as a token a provider has none of. */
+  text(key: string): string {
+    const value = this.#take(key);
+    if (value === undefined) throw this.#problem(key, "is required");
+    if (typeof value !== "string") throw this.#problem(key, "must be a string");
+    return value;
+  }
+
   optionalString(key: string): string | undefined {
     this.#known.add(key);
     return this.#has(key) ? this.string(key) : undefined;
