@@ -41,7 +41,7 @@ function nobodyCalled(members: Member[], names: string[]): Error {
   const others = agents.length === 0 ? "No agent has joined yet." : `The agents are: ${agents.join(", ")}.`;
   const who = names.length === 1 ? names.join("") : `${names.slice(0, -1).join(", ")} or ${names.at(-1) ?? ""}`;
   return new Error(
-    `Nobody called ${who} is on this machine's roster. ${others} ` +
+    `Nobody called ${who} is on the roster. ${others} ` +
       "An agent joins when it first runs: shrimpy agent serve <agent>",
   );
 }

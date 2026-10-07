@@ -78,7 +78,7 @@ test("threads with an agent you have never talked to lists nothing, and makes no
   assert.deepEqual(JSON.parse(result.stdout), []);
   assert.deepEqual(await (await talking.you()).chat.channels(), []);
   assert.equal(nobody.code, 1);
-  assert.match(nobody.stderr, /Nobody called nobody is on this machine's roster/);
+  assert.match(nobody.stderr, /Nobody called nobody is on the roster/);
   assert.equal(yourself.code, 1);
   assert.match(yourself.stderr, /is you/);
 });

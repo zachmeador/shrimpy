@@ -128,8 +128,8 @@ async function overview(): Promise<string> {
       "runs in, and in your own terminal on the only agent your Shrimpy folder has.",
     "",
     `Your Shrimpy folder is ${folderPath()}, where agents/ holds the home of each agent, providers/ the sign-ins ` +
-      `and model servers they share, and gateway/ and chat/ the data of those programs. ` +
-      `Set ${FOLDER_VARIABLE} to use another folder.`,
+      `and model servers they share, and gateway/ and chat/ the data of those programs. If this machine joined a ` +
+      `gateway as yours, machine.json says which. Set ${FOLDER_VARIABLE} to use another folder.`,
     "",
     "Say more about one command with: shrimpy <command> --help",
   ].join("\n");

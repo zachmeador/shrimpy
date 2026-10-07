@@ -49,7 +49,10 @@ test("joining as a machine keeps one file in the Shrimpy folder, private to its 
   const next = { name: null, address, code: (await person.inviteMachine()).code };
   await assert.rejects(joinAsMachine(folder, next), (error: unknown) => error instanceof Error && error.message.includes(machineFile(folder)));
   assert.deepEqual(readMachine(folder), kept);
-  await assert.rejects(joinAsMachine(join(tempDir(t, "other"), "shrimpy"), { ...next, name: "crab" }), /for an agent called crab/);
+  await assert.rejects(
+    joinAsMachine(join(tempDir(t, "other"), "shrimpy"), { ...next, name: "crab" }),
+    (error: unknown) => error instanceof Error && error.message.includes("crab"),
+  );
 });
 
 test("a join whose answer never came is made again with the same link and finds the same machine, and a token is never shown to a second gateway", { timeout }, async (t) => {

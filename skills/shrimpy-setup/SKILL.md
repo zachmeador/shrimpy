@@ -44,7 +44,7 @@ The person signs the folder in with `shrimpy providers login [<provider>]`, with
 
 - **No gateway is running**, or **no chat server is registered**: nothing is up. The person runs `shrimpy up`.
 - **The agent X is on the roster but is not running**: the person runs `shrimpy agent serve <agent>`. For an agent that lives elsewhere, which has no home here, they run `shrimpy up` where it lives.
-- **Nobody called X is on this machine's roster**: the name is wrong, or that agent hasn't run yet. An agent joins the roster the first time it runs, or when `shrimpy agent join` is run for it where it lives, and the message lists the agents there are.
+- **Nobody called X is on the roster**: the name is wrong, or that agent hasn't run yet. An agent joins the roster the first time it runs, or when `shrimpy agent join` is run for it where it lives, and the message lists the agents there are.
 - **The name "X" is taken**: another member has the name, and people and agents share names. Change `name` in the agent's `agent.json` to one nobody has. The person starts the agent again.
 - **The gateway does not know that token**: the gateway's roster was replaced since this home joined. The message names the file in the home to delete so that the agent joins again as a new member. A new member has none of the old one's DMs, so leave that to the person.
 - **The chat server can't reach the gateway**: nobody can come in to chat until the gateway is back, and programs find it again when it is. If it stays down, the person runs `shrimpy up`.

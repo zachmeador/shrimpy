@@ -141,7 +141,8 @@ const join: Command = {
     "It gives up on a gateway that does not answer within fifteen seconds. A failure leaves a home that was " +
     "just made, and running this again with the same link is safe while the code is good: an invitation works " +
     "once, for fifteen minutes, and only for the name it was made for. A home that has joined a gateway " +
-    "already is refused, and the error names the file to delete to join anew.",
+    "already is refused, and the error names the file to delete to join anew. A link for another machine of " +
+    "yours, which names no agent, is refused too: shrimpy join takes that one.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     const [text] = expectArguments(positionals, ["<link>"]);
@@ -200,7 +201,7 @@ function invitationIn(text: string): Link & { name: string } {
   try {
     const link = readLink(text);
     if (link.name === null) {
-      throw new Error("That link is for another machine of yours, and names no agent.");
+      throw new Error("That link is for another machine of yours, and names no agent. Use shrimpy join <link> for it.");
     }
     checkAgentName(link.name);
     return { ...link, name: link.name };

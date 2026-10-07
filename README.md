@@ -112,6 +112,7 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `members invite [<name>]` | Invite an agent that will live elsewhere, or with no name another machine of yours, and print the line to run there. |
 | `members promote <name>` | Make an agent an admin. |
 | `members demote <name>` | Make an admin agent an ordinary agent again. |
+| `join <link>` | Make this machine one of yours, with the link of an invitation from another machine of yours. |
 | `gateway serve --data <dir> [--listen <host:port>]... [--web-port <port>] [--web-dir <dir>]` | Run the gateway in the foreground until it is told to stop. |
 | `gateway status` | List the programs registered with this machine's gateway, and the members on its roster. |
 | `chat serve <data-dir>` | Run the chat server in the foreground until it is told to stop, registered with the gateway. |

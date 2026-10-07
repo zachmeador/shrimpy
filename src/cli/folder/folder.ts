@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve, sep } from "node:path";
+import { MACHINE_FILE } from "../../contracts/gateway/index.ts";
 import { UsageError } from "../usage/index.ts";
 
 /** The variable that names a Shrimpy folder other than the default. */
@@ -12,8 +13,11 @@ const AGENTS = "agents";
 /** The folder of the Shrimpy folder that holds the sign-ins, keys and model servers every agent started there shares. */
 const PROVIDERS = "providers";
 
-/** What marks a folder as Shrimpy's: either is made first on a new setup, a home or a sign-in. */
-const MARKS = [AGENTS, PROVIDERS];
+/** The folder of the Shrimpy folder that holds the gateway's data, where `up` keeps it unless it is told another place. */
+const GATEWAY = "gateway";
+
+/** What marks a folder as Shrimpy's: a new setup starts with a home, a sign-in or the file of a machine that joined a gateway as the person's own. */
+const MARKS = [AGENTS, PROVIDERS, MACHINE_FILE];
 
 /** The file that makes a folder of `agents/` an agent's home. */
 const HOME_FILE = "agent.json";
@@ -43,6 +47,25 @@ export function providersPath(): string {
  */
 export function providersFolder(): string {
   return join(ownFolder(), PROVIDERS);
+}
+
+/**
+ * The Shrimpy folder, for a command that keeps this machine's place in it as one
+ * of the person's own. The folder must be Shrimpy's, as it must for everything
+ * else that makes something in it. Nothing is made yet.
+ */
+export function machineFolder(): string {
+  return ownFolder();
+}
+
+/**
+ * Where the gateway's data is, when the Shrimpy folder has a gateway of its own:
+ * `up` keeps it in `gateway/` of the folder. Nothing is read or made. A gateway
+ * that was given a data directory somewhere else is not found this way.
+ */
+export function gatewayOfItsOwn(): string | undefined {
+  const data = join(folderPath(), GATEWAY);
+  return existsSync(data) ? data : undefined;
 }
 
 /** Whether `word` is a path, and not the name of an agent: it has a path separator in it, or starts with `.` or `~`. */
