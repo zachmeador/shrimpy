@@ -1,4 +1,4 @@
-import { parseConfig } from "../../lib/json-config/index.ts";
+import { type ConfigObject, parseConfig } from "../../lib/json-config/index.ts";
 
 /** A model by the provider that serves it and the ID that provider knows it by. */
 export interface ModelChoice {
@@ -9,8 +9,8 @@ export interface ModelChoice {
 /** What `agent.json` holds. */
 export interface AgentConfig {
   readonly name: string;
-  /** The model a new session starts with. */
-  readonly model: ModelChoice;
+  /** The model a new session starts with. Without one, the agent starts with the folder's default model. */
+  readonly model?: ModelChoice;
 }
 
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -29,11 +29,17 @@ export function parseAgentConfig(text: string, file: string): AgentConfig {
   const root = parseConfig(text, file);
   const name = root.string("name");
   if (!NAME.test(name)) throw root.problem("name", NAME_RULE);
-  const model = root.object("model");
-  const choice = { provider: model.string("provider"), id: model.string("id") };
-  model.done();
+  const model = root.optionalObject("model");
+  const choice = model === undefined ? undefined : readModelChoice(model);
   root.done();
-  return { name, model: choice };
+  return choice === undefined ? { name } : { name, model: choice };
+}
+
+/** A model as `agent.json` and the folder's `default-model.json` write it: the provider and the ID. */
+export function readModelChoice(object: ConfigObject): ModelChoice {
+  const choice = { provider: object.string("provider"), id: object.string("id") };
+  object.done();
+  return choice;
 }
 
 export function formatAgentConfig(config: AgentConfig): string {

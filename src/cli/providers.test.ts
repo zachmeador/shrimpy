@@ -28,29 +28,28 @@ async function testModel(t: TestContext): Promise<ModelServer> {
   return model;
 }
 
-const authorizations = (model: ModelServer): (string | undefined)[] =>
-  model.requests.map((request) => request.headers.authorization);
+const sent = (model: ModelServer): { model: string; authorization: string | undefined }[] =>
+  model.requests.map((request) => ({ model: request.body.model, authorization: request.headers.authorization }));
 
-test("agents take the model server and key their homes don't hold from the folder's providers/, and a home's own files win", { timeout }, async (t) => {
+test("agents take the model, server and key their homes don't hold from the folder's providers/, and a home's own files win", { timeout }, async (t) => {
   const folder = useShrimpyDir(t);
   const shared = await testModel(t);
   const own = await testModel(t);
-  for (const name of ["scout", "rex"]) {
-    const init = await shrimpy(["agent", "init", name, "--model", "local/test-model"]);
-    assert.equal(init.code, 0, init.stderr);
-  }
-  // The folder has a server and a key for it, for every agent that has none of its own.
+  // scout names no model, and its home holds nothing. rex names a model, and has a server and a key of its own.
+  assert.equal((await shrimpy(["agent", "init", "scout"])).code, 0);
+  assert.equal((await shrimpy(["agent", "init", "rex", "--model", "local/other-model"])).code, 0);
+  const rex = join(folder, "agents", "rex");
+  declareLocalModel(rex, { url: own.url, model: "other-model" });
+  writeFileSync(join(rex, "state", "pi", "auth.json"), JSON.stringify({ local: { type: "api_key", key: "rex-key" } }));
+  // The folder has a model for every agent that names none, a server for it and a key for the server.
   const providers = join(folder, "providers");
   mkdirSync(providers, { recursive: true });
+  writeFileSync(join(providers, "default-model.json"), JSON.stringify({ provider: "local", id: "test-model" }));
   writeFileSync(
     join(providers, "models.json"),
     JSON.stringify({ providers: { local: localProvider({ url: shared.url, models: ["test-model"] }) } }),
   );
   writeFileSync(join(providers, "auth.json"), JSON.stringify({ local: { type: "api_key", key: "folder-key" } }));
-  // scout's home holds nothing. rex has a server and a key of its own.
-  const rex = join(folder, "agents", "rex");
-  declareLocalModel(rex, { url: own.url, model: "test-model" });
-  writeFileSync(join(rex, "state", "pi", "auth.json"), JSON.stringify({ local: { type: "api_key", key: "rex-key" } }));
 
   await startUp(t, []);
   await untilRegistered("agent", "scout");
@@ -61,6 +60,6 @@ test("agents take the model server and key their homes don't hold from the folde
     assert.equal(reply.stdout, "Hello from the test model.\n");
   }
 
-  assert.deepEqual(authorizations(shared), ["Bearer folder-key"], "scout used the folder's server and key");
-  assert.deepEqual(authorizations(own), ["Bearer rex-key"], "and rex its own");
+  assert.deepEqual(sent(shared), [{ model: "test-model", authorization: "Bearer folder-key" }], "scout used the folder's");
+  assert.deepEqual(sent(own), [{ model: "other-model", authorization: "Bearer rex-key" }], "and rex its own");
 });

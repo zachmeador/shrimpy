@@ -45,11 +45,18 @@ export interface ProviderPaths {
   readonly auth: string;
   /** Model servers of your own, in the format of a home's models.json. */
   readonly models: string;
+  /** The model an agent starts with when its agent.json names none: `{"provider": "...", "id": "..."}`. */
+  readonly defaultModel: string;
 }
 
 export function providerPaths(dir: string): ProviderPaths {
   const root = resolve(dir);
-  return { root, auth: join(root, "auth.json"), models: join(root, "models.json") };
+  return {
+    root,
+    auth: join(root, "auth.json"),
+    models: join(root, "models.json"),
+    defaultModel: join(root, "default-model.json"),
+  };
 }
 
 export function homePaths(home: string): HomePaths {

@@ -1,4 +1,4 @@
-import { basename } from "node:path";
+import { basename, dirname } from "node:path";
 import { parseArgs } from "node:util";
 import {
   checkAgentName,
@@ -8,6 +8,7 @@ import {
   modelLabel,
   parseModelChoice,
   previewHomeContext,
+  providerPaths,
   startHomeAgent,
 } from "../../agent/index.ts";
 import { readEndpoint } from "../../contracts/agent/node.ts";
@@ -19,11 +20,16 @@ import { connectIfRunning, withConnection } from "./connected.ts";
 import { leftOutLines, whatItReads } from "./reloaded.ts";
 import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, mayActOn, WHICH_AGENT } from "./which-agent.ts";
 
+const EXAMPLE_MODEL = '{"provider": "local", "id": "qwen3.8-27b"}';
+
 const init: Command = {
   name: "agent init",
-  usage: "<agent> --model <provider/id> [--name <name>]",
+  usage: "<agent> [--model <provider/id>] [--name <name>]",
   summary: "Create an agent home. Files that already exist are left as they are.",
-  details: "The agent is named for the folder of its home unless --name gives it another name.",
+  details:
+    "The agent is named for the folder of its home unless --name gives it another name. Without --model it " +
+    "names no model, and starts with the one in providers/default-model.json in your Shrimpy folder, which " +
+    "is ~/shrimpy or the folder SHRIMPY_DIR names.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({
@@ -33,30 +39,50 @@ const init: Command = {
       }),
     );
     const [given] = expectArguments(positionals, ["<agent>"]);
-    if (values.model === undefined) throw new UsageError("Missing --model.");
-    const model = modelFromFlag(values.model);
+    const model = values.model === undefined ? undefined : modelFromFlag(values.model);
 
     const home = newHome(given);
     const name = values.name ?? folderName(home);
-    const { paths, created } = initHome(home, { name, model });
+    const { paths, created } = initHome(home, { name, ...(model === undefined ? {} : { model }) });
     if (created.length === 0) {
       io.out(`The agent ${name} is already set up in ${paths.root}. Nothing was changed.`);
       return 0;
     }
     // A home in the Shrimpy folder is found by its name, and one anywhere else by its path.
     const named = !isPath(given);
-    io.out(`Created the agent ${name} in ${paths.root}, with the model ${modelLabel(model)}.`);
+    // Where an agent's model and its access come from: its own files first, then the Shrimpy folder's providers/.
+    const folder = providerPaths(providersPath());
+    io.out(
+      model === undefined
+        ? `Created the agent ${name} in ${paths.root}. It names no model, so it starts with the one in ${folder.defaultModel}.`
+        : `Created the agent ${name} in ${paths.root}, with the model ${modelLabel(model)}.`,
+    );
     io.out("");
     io.out("Next:");
-    io.out(
-      `  1. Give ${name} access to that model. Declare its provider in ${paths.models}, ` +
-        `or add a key to ${paths.auth}.`,
+    const steps: string[][] = [];
+    if (model === undefined) {
+      steps.push([
+        `Make sure a model is named, as ${EXAMPLE_MODEL}: in ${folder.defaultModel} for every agent that names none, ` +
+          `or under "model" in ${paths.config} for ${name} alone.`,
+      ]);
+    }
+    steps.push(
+      [
+        `Give ${name} access to its model's provider: declare a server in models.json, or add a key to auth.json. ` +
+          `Put them in ${dirname(paths.models)} for ${name} alone, or in ${folder.root} for every agent in your Shrimpy folder.`,
+      ],
+      [`Say who ${name} is in ${paths.soul}. It starts with a few plain defaults that work as they are.`],
+      [
+        "Start it:",
+        `     ${named ? "shrimpy up" : `shrimpy up ${paths.root}`}`,
+        "   Or, if Shrimpy is already running, add the agent to it:",
+        `     shrimpy agent serve ${named ? given : paths.root}`,
+      ],
     );
-    io.out(`  2. Say who ${name} is in ${paths.soul}. It starts with a few plain defaults that work as they are.`);
-    io.out("  3. Start it:");
-    io.out(`       ${named ? "shrimpy up" : `shrimpy up ${paths.root}`}`);
-    io.out("     Or, if Shrimpy is already running, add the agent to it:");
-    io.out(`       shrimpy agent serve ${named ? given : paths.root}`);
+    steps.forEach(([first, ...rest], index) => {
+      io.out(`  ${index + 1}. ${first}`);
+      for (const line of rest) io.out(`  ${line}`);
+    });
     return 0;
   },
 };

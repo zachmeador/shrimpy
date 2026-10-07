@@ -314,13 +314,18 @@ test("a home whose name was changed is the same member under the new name, in th
   assert.deepEqual(await agentNames(gateway), ["skipper"]);
 });
 
-test("a model that cannot be used stops the start before the home is claimed", { timeout }, async (t) => {
-  const paths = newHome(t, { local: { ...local, apiKey: undefined } });
+test("no model, or one that cannot be used, stops the start before the home is claimed", { timeout }, async (t) => {
+  const unusable = newHome(t, { local: { ...local, apiKey: undefined } });
+  // A home that names no model, started with nothing that names one for it.
+  const none = newHome(t, { local }, "rex");
+  writeFileSync(none.config, JSON.stringify({ name: "rex" }));
 
-  await assert.rejects(startHomeAgent(paths.root).then((agent) => closeAfter(t, agent)), ModelSetupError);
+  for (const paths of [unusable, none]) {
+    await assert.rejects(startHomeAgent(paths.root).then((agent) => closeAfter(t, agent)), ModelSetupError);
 
-  assert.equal(existsSync(join(paths.runtime, "owner.lock")), false);
-  assert.equal(existsSync(paths.database), false);
+    assert.equal(existsSync(join(paths.runtime, "owner.lock")), false);
+    assert.equal(existsSync(paths.database), false);
+  }
 });
 
 test("a folder that is not a home is left alone", { timeout }, async (t) => {

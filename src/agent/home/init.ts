@@ -12,7 +12,8 @@ import { type HomePaths, homePaths } from "./layout.ts";
 
 export interface InitOptions {
   readonly name: string;
-  readonly model: ModelChoice;
+  /** The model the agent starts with. Without one, `agent.json` names none, and the agent starts with the folder's default. */
+  readonly model?: ModelChoice;
 }
 
 export interface InitResult {
@@ -37,11 +38,12 @@ const STARTING_SOUL = `${[
 /**
  * Create the files and folders of an agent home. Anything that already exists
  * is left as it is, so running it again only fills in what is missing. An
- * existing `agent.json` must say the same thing as the options.
+ * existing `agent.json` must say the same thing as the options: with no model
+ * in them, whatever model it names is no difference.
  */
 export function initHome(home: string, options: InitOptions): InitResult {
   const paths = homePaths(home);
-  const config: AgentConfig = { name: options.name, model: options.model };
+  const config: AgentConfig = { name: options.name, ...(options.model === undefined ? {} : { model: options.model }) };
   checkAgentName(config.name);
   // Parsing first means init never writes an agent.json that cannot load.
   const text = formatAgentConfig(config);
@@ -77,9 +79,13 @@ export function initHome(home: string, options: InitOptions): InitResult {
 
 function checkSame(paths: HomePaths, wanted: AgentConfig): void {
   const existing = parseAgentConfig(readFileSync(paths.config, "utf8"), paths.config);
-  if (existing.name === wanted.name && modelLabel(existing.model) === modelLabel(wanted.model)) return;
+  const sameModel =
+    wanted.model === undefined ||
+    (existing.model !== undefined && modelLabel(existing.model) === modelLabel(wanted.model));
+  if (existing.name === wanted.name && sameModel) return;
+  const has = existing.model === undefined ? "no model of its own" : `the model ${modelLabel(existing.model)}`;
   throw new Error(
-    `${paths.config} already describes the agent "${existing.name}" with the model ${modelLabel(existing.model)}. ` +
+    `${paths.config} already describes the agent "${existing.name}" with ${has}. ` +
       "Init does not change an existing agent. Edit that file to change it.",
   );
 }

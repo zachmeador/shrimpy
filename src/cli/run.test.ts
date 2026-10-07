@@ -55,7 +55,7 @@ test("an unknown command is refused with the list of commands, and so is a name 
 test("a command used wrongly exits with 2 and shows its usage", async () => {
   const cases: [string[], string][] = [
     [["agent", "init"], "Missing <agent>."],
-    [["agent", "init", "scout"], "Missing --model."],
+    [["agent", "init", "scout", "--model", "qwen"], 'Model "qwen" should be provider/id'],
     [["agent", "serve", "h", "--fast"], "Unknown option '--fast'"],
     [["sessions", "steer", "th_1", "one", "two"], "Unexpected argument: two."],
     [["run", "scout", "   "], "The text is empty."],

@@ -33,6 +33,7 @@ What you set up lives in one folder, `~/shrimpy`, or the folder the environment 
 ```text
 ~/shrimpy/
   agents/<name>/    one home for each agent
+  providers/        sign-ins, keys, model servers and a default model that every agent here shares
   gateway/          the gateway's data: the roster of who is on the network
   chat/             the chat server's data
 ```
@@ -88,7 +89,7 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `rooms` | List the rooms you are in, each with its members and when it was last updated. |
 | `rooms new <name> [<member>...]` | Make a room, with you and the members you name in it. Takes an admin. |
 | `rooms add <room> <member>...` | Add members to a room you are in. Takes an admin. |
-| `agent init <agent> --model <provider/id> [--name <name>]` | Create an agent home. Files that already exist are left as they are. |
+| `agent init <agent> [--model <provider/id>] [--name <name>]` | Create an agent home. Files that already exist are left as they are. |
 | `agent serve <agent> [--now]` | Run the agent in the foreground until it is told to stop. |
 | `agent status [--agent <agent>]` | Say whether the agent is running, and how to reach it. |
 | `agent reload [--agent <agent>]` | Make a running agent read its instructions, context files, skills and triggers again. |

@@ -66,6 +66,24 @@ test("init does not change an agent that already exists, and refuses a name that
   assert.equal(existsSync(fresh), false);
 });
 
+test("an agent can be made with no model, and asking again never changes the agent that is there", (t) => {
+  const home = tempHome(t);
+  const { paths } = initHome(home, { name: "scout" });
+
+  assert.deepEqual(JSON.parse(readFileSync(paths.config, "utf8")), { name: "scout" });
+  assert.equal(loadHome(home).model, undefined);
+  assert.deepEqual(initHome(home, { name: "scout" }).created, []);
+  // A model that is asked for is a difference from an agent that names none.
+  assert.throws(() => initHome(home, { name: "scout", model }), /already describes the agent "scout" with no model/);
+
+  // An agent that names one is the same agent when none is asked for.
+  const named = tempHome(t);
+  initHome(named, { name: "scout", model });
+  const before = readFileSync(homePaths(named).config, "utf8");
+  assert.deepEqual(initHome(named, { name: "scout" }).created, []);
+  assert.equal(readFileSync(homePaths(named).config, "utf8"), before);
+});
+
 test("agent.json is checked, and a bad value is refused with the file and the key that is wrong", (t) => {
   const home = tempHome(t);
   const { paths } = initHome(home, { name: "scout", model });

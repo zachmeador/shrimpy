@@ -59,6 +59,8 @@ export {
   parseModelChoice,
   parseTrigger,
   parseWake,
+  type ProviderPaths,
+  providerPaths,
   removeTrigger,
   saveTrigger,
   saveWake,
@@ -254,27 +256,29 @@ function reporter(options: AgentOptions): (error: Error) => void {
 
 /**
  * Start the agent that lives at `home`, and have it take part in chat as the
- * agent its `agent.json` names. Its name and model come from that file, and
- * its instructions from the files of the home. Reading `agent.json` takes no
- * lock and changes nothing, so a home that does not load, or a model that
- * cannot be used, fails before the agent claims the home. `shrimpy` is the
- * program and arguments that run Shrimpy, which the agent's shell finds as the
- * `shrimpy` command. `providers` is the `providers/` directory of the folder the
- * agent is started in: what its home doesn't declare or hold, such as a model
- * server or a sign-in, it takes from there. It is told where that is and never
- * looks, so with none the agent has only what its home holds.
+ * agent its `agent.json` names. Its name comes from that file, and so does its
+ * model, if the file names one: otherwise it starts with the folder's default.
+ * Its instructions come from the files of the home. Reading `agent.json` takes
+ * no lock and changes nothing, so a home that does not load, or a model that
+ * is missing or cannot be used, fails before the agent claims the home.
+ * `shrimpy` is the program and arguments that run Shrimpy, which the agent's
+ * shell finds as the `shrimpy` command. `providers` is the `providers/`
+ * directory of the folder the agent is started in: what its home doesn't
+ * declare or hold, such as a model server, a sign-in or the model to start
+ * with, it takes from there. It is told where that is and never looks, so with
+ * none the agent has only what its home holds.
  */
 export async function startHomeAgent(
   home: string,
   options: { shrimpy?: readonly string[]; providers?: string } = {},
 ): Promise<HomeAgent> {
   const loaded = loadHome(home);
-  const model = { provider: loaded.model.provider, modelId: loaded.model.id };
-  const models = await buildModels({
+  const { models, model } = await buildModels({
     modelsFile: loaded.paths.models,
     authFile: loaded.paths.auth,
+    configFile: loaded.paths.config,
     ...(options.providers === undefined ? {} : { providers: options.providers }),
-    model,
+    ...(loaded.model === undefined ? {} : { model: { provider: loaded.model.provider, modelId: loaded.model.id } }),
   });
   const agent = await startAgent({
     home: loaded.paths.root,

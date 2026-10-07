@@ -56,6 +56,32 @@ test("agent init with a name makes the home in the Shrimpy folder and names the 
   assert.deepEqual(agentFile(oddHome), { name: "scout-bot", model });
 });
 
+test("agent init needs no model: the agent names none and starts with the folder's, and what init says follows from which it is", async (t) => {
+  const folder = useShrimpyDir(t);
+  const providers = join(folder, "providers");
+
+  const bare = await run("agent", "init", "scout");
+  const named = await run("agent", "init", "rex", ...modelFlags);
+
+  assert.equal(bare.code, 0, bare.err);
+  assert.deepEqual(agentFile(join(folder, "agents", "scout")), { name: "scout" });
+  assert.deepEqual(commandLines(bare.out.join("\n")), ["shrimpy up", "shrimpy agent serve scout"]);
+  // Where the model comes from, and where its access can: the agent's own files, then the folder's providers/.
+  assert.ok(bare.out.join("\n").includes(join(providers, "default-model.json")), "an agent with no model is told where its model is");
+  assert.ok(named.out.join("\n").includes("local/test-model"), "and one with a model says which");
+  for (const said of [bare, named]) assert.ok(said.out.join("\n").includes(providers), "both are told the folder's providers/ is there to use");
+
+  // Asking again is no difference when the agent that is there names no model, or names the one asked for, or none is asked for.
+  assert.equal((await run("agent", "init", "scout")).code, 0);
+  assert.equal((await run("agent", "init", "rex")).code, 0);
+  assert.equal((await run("agent", "init", "rex", ...modelFlags)).code, 0);
+  // A model that the agent doesn't name is one init won't add.
+  const added = await run("agent", "init", "scout", ...modelFlags);
+  assert.equal(added.code, 1);
+  assert.match(added.err, /agent\.json/);
+  assert.deepEqual(agentFile(join(folder, "agents", "scout")), { name: "scout" });
+});
+
 test("a folder with someone else's files in it is not used, and nothing is made in it, until the files are gone; dot files are not someone else's", async (t) => {
   const folder = useShrimpyDir(t);
   mkdirSync(folder);

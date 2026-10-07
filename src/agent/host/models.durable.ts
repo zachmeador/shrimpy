@@ -8,7 +8,7 @@ import {
 } from "@earendil-works/pi-ai";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 import type { ModelRef } from "@earendil-works/pi-durable";
-import { providerPaths } from "../home/index.ts";
+import { type ProviderPaths, providerPaths, readDefaultModel } from "../home/index.ts";
 import { credentialStore } from "./credentials.ts";
 import { type CustomApi, type CustomProvider, readCustomProviders } from "./custom-providers.ts";
 
@@ -17,18 +17,27 @@ export interface ModelRuntimeOptions {
   readonly modelsFile: string;
   /** The home's auth.json: keys and sign-ins for providers. */
   readonly authFile: string;
+  /** The home's agent.json, which the messages name when the model is to be named there. */
+  readonly configFile: string;
   /**
    * The folder's `providers/` directory, when the agent was told of one: what
-   * the home doesn't declare or hold comes from its models.json and auth.json.
+   * the home doesn't declare or hold comes from its models.json and auth.json,
+   * and a model its agent.json doesn't name from its default-model.json.
    * Without it the agent has only what its home holds. The agent is told where
    * it is and never looks for it.
    */
   readonly providers?: string;
-  /** The model the agent starts with. It must be usable, or this fails. */
+  /** The model the home's agent.json names, if it names one. */
+  readonly model?: ModelRef;
+}
+
+/** The model runtime, and the model the agent starts with. */
+export interface ModelRuntime {
+  readonly models: Models;
   readonly model: ModelRef;
 }
 
-/** The model the home names cannot be used, and what to do about it. */
+/** The agent has no model to start with, or the one it has cannot be used, and what to do about it. */
 export class ModelSetupError extends Error {
   constructor(message: string) {
     super(message);
@@ -64,16 +73,45 @@ type Declared = ReadonlyMap<string, { readonly provider: CustomProvider; readonl
 
 const either = (files: readonly string[]): string => files.join(" or ");
 
+/** The model an agent starts with, and the file that names it. */
+interface Start {
+  readonly model: ModelRef;
+  readonly file: string;
+}
+
+const EXAMPLE_MODEL = '{"provider": "local", "id": "qwen3.8-27b"}';
+
+/** The model its agent.json names, or else the folder's default. With neither the agent has none, and the error says what to do. */
+function startingModel(options: ModelRuntimeOptions, folder: ProviderPaths | undefined): Start {
+  const { configFile } = options;
+  if (options.model !== undefined) return { model: options.model, file: configFile };
+  if (folder !== undefined) {
+    const fallback = readDefaultModel(folder.defaultModel);
+    if (fallback !== undefined) {
+      return { model: { provider: fallback.provider, modelId: fallback.id }, file: folder.defaultModel };
+    }
+  }
+  const named = `Name one in ${configFile}, as "model": ${EXAMPLE_MODEL}`;
+  throw new ModelSetupError(
+    folder === undefined
+      ? `The agent has no model to start with: ${configFile} names none. ${named}.`
+      : `The agent has no model to start with: ${configFile} names none, and ${folder.defaultModel} is not there. ` +
+          `${named}, or put ${EXAMPLE_MODEL} in ${folder.defaultModel} for every agent that names none.`,
+  );
+}
+
 /**
  * The model runtime for one home: Pi's built-in providers with the keys and
  * sign-ins in the auth.json files, plus the providers that the models.json files
  * declare. The home's file comes first in each pair: it is the one used for a
  * provider it holds an entry for or declares. A provider that models.json
- * declares replaces a built-in one with the same ID. Fails with a message that
- * says what to change if the home's default model is unusable.
+ * declares replaces a built-in one with the same ID. The model the agent starts
+ * with is the one its agent.json names, or else the folder's default. Fails
+ * with a message that says what to change if there is none, or it is unusable.
  */
-export async function buildModels(options: ModelRuntimeOptions): Promise<Models> {
+export async function buildModels(options: ModelRuntimeOptions): Promise<ModelRuntime> {
   const folder = options.providers === undefined ? undefined : providerPaths(options.providers);
+  const start = startingModel(options, folder);
   const shared = folder === undefined ? [] : [folder.auth];
   const files: Files = {
     models: folder === undefined ? [options.modelsFile] : [options.modelsFile, folder.models],
@@ -93,8 +131,8 @@ export async function buildModels(options: ModelRuntimeOptions): Promise<Models>
     }
   }
   for (const { provider } of declared.values()) models.setProvider(customProvider(provider));
-  await requireUsable(models, options.model, declared, files);
-  return models;
+  await requireUsable(models, start, declared, files);
+  return { models, model: start.model };
 }
 
 function customProvider(spec: CustomProvider): Provider {
@@ -120,8 +158,8 @@ function customProvider(spec: CustomProvider): Provider {
   });
 }
 
-async function requireUsable(models: Models, model: ModelRef, declared: Declared, files: Files): Promise<void> {
-  const { provider: providerId, modelId } = model;
+async function requireUsable(models: Models, start: Start, declared: Declared, files: Files): Promise<void> {
+  const { provider: providerId, modelId } = start.model;
   const provider = models.getProvider(providerId);
   if (provider === undefined) {
     const declaredIds = [...declared.keys()].join(", ") || "none";
@@ -132,7 +170,7 @@ async function requireUsable(models: Models, model: ModelRef, declared: Declared
       .sort()
       .join(", ");
     throw new ModelSetupError(
-      `The model ${providerId}/${modelId} names the provider "${providerId}", ` +
+      `The model ${providerId}/${modelId}, named in ${start.file}, names the provider "${providerId}", ` +
         `which is not declared in ${either(files.models)} (declared there: ${declaredIds}) ` +
         `and is not built in (built in: ${builtin}).`,
     );
@@ -142,10 +180,11 @@ async function requireUsable(models: Models, model: ModelRef, declared: Declared
     const ids = models.getModels(providerId).map(({ id }) => id);
     const shown = ids.slice(0, LISTED_MODELS).join(", ");
     const more = ids.length > LISTED_MODELS ? ` and ${ids.length - LISTED_MODELS} more` : "";
-    const where = declaredIn === undefined ? "" : ` Add it under providers.${providerId}.models in ${declaredIn}.`;
-    throw new ModelSetupError(
-      `The provider "${providerId}" has no model "${modelId}". It has: ${shown}${more}.${where}`,
-    );
+    const fix =
+      declaredIn === undefined
+        ? `Correct the model in ${start.file}.`
+        : `Add it under providers.${providerId}.models in ${declaredIn}, or correct the model in ${start.file}.`;
+    throw new ModelSetupError(`The provider "${providerId}" has no model "${modelId}". It has: ${shown}${more}. ${fix}`);
   }
   if ((await models.checkAuth(providerId)) !== undefined) return;
   throw new ModelSetupError(missingKey(provider, declaredIn, files));

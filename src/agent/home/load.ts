@@ -5,8 +5,8 @@ import { type HomePaths, homePaths } from "./layout.ts";
 /** An agent home, read from disk and checked. */
 export interface LoadedHome {
   readonly name: string;
-  /** The model a new session starts with. */
-  readonly model: ModelChoice;
+  /** The model a new session starts with, when `agent.json` names one. */
+  readonly model: ModelChoice | undefined;
   readonly paths: HomePaths;
 }
 

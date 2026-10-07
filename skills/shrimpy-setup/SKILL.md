@@ -13,7 +13,7 @@ You can check things and edit files. Starting programs is the person's step: `sh
 - **The chat server**, one per machine. It keeps every channel, thread and message in its data directory, `chat/`. Never delete that directory.
 - **An agent for each home.** One process that owns the home's files and answers in threads.
 
-By default all of it lives in the Shrimpy folder, `~/shrimpy` or the folder `SHRIMPY_DIR` names: `agents/` holds a home for each agent, beside `gateway/` and `chat/`. Commands take an agent by name, like `scout`, which is `agents/scout` there.
+By default all of it lives in the Shrimpy folder, `~/shrimpy` or the folder `SHRIMPY_DIR` names: `agents/` holds a home for each agent, beside `providers/`, `gateway/` and `chat/`. Commands take an agent by name, like `scout`, which is `agents/scout` there.
 
 `shrimpy up` starts whichever of these is missing, with every agent in `agents/`, and stays in that terminal. Ctrl+C stops what it started. Anything already running is used as it is. To add an agent to a setup that is up, the person runs `shrimpy agent serve <agent>` in another terminal. Stopping an agent that `up` started stops everything `up` started.
 
@@ -31,9 +31,9 @@ There is no setup command yet. A new setup is `shrimpy agent init <name> --model
 
 ## A model for an agent
 
-An agent takes its servers and keys from two places and nowhere else: not from the environment, not from another home. Its own home comes first, and what the home doesn't hold comes from `providers/` in the Shrimpy folder, which every agent started there shares. Servers are read when the agent starts, so the person restarts it after changing one. A key or a sign-in is read again at every request.
+An agent takes its model, servers and keys from two places and nowhere else: not from the environment, not from another home. Its own home comes first, and what the home doesn't hold comes from `providers/` in the Shrimpy folder, which every agent started there shares. The model and the servers are read when the agent starts, so the person restarts it after changing one. A key or a sign-in is read again at every request.
 
-- `agent.json` names the model it starts with, as `provider/id`.
+- `agent.json` names the model it starts with, as `"model": {"provider": "local", "id": "qwen3.8-27b"}`, which `agent init --model <provider/id>` writes. An agent whose `agent.json` names none starts with the one in `providers/default-model.json`: `{"provider": "local", "id": "qwen3.8-27b"}`. With neither it doesn't start.
 - `models.json` declares servers of your own: `state/pi/models.json` in a home, `providers/models.json` in the folder. A server that needs no key still takes a placeholder:
   `{"providers": {"local": {"baseUrl": "http://localhost:8090/v1", "api": "openai-completions", "apiKey": "local", "models": [{"id": "qwen3.8-27b"}]}}}`
 - `auth.json` holds keys for the built-in providers: `state/pi/auth.json` in a home, `providers/auth.json` in the folder. `{"anthropic": {"type": "api_key", "key": "..."}}`. A key is used as written, so `$NAME` and `!command` are refused. Ask the person for it. A key in the folder serves every agent, and one in a home only that agent. Copy none from another home.
@@ -51,7 +51,8 @@ An `oauth` entry in an `auth.json` is used, and renewed when its token runs out.
 - **The agent "X" is already running**: another home holds the same token, so the gateway takes the two for one agent. That happens when a home is copied. The message says how to make the copy an agent of its own. Don't start an agent's home twice.
 - **Another process owns the agent home**: an agent already runs there. Use it.
 - **A gateway is already running**, **a chat server is already running**, or **another chat server is using the data**: one is up already. Use it.
-- **names the provider "p", which is not declared**: declare `p` in a `models.json`, the home's or the folder's, or correct the model in `agent.json`.
+- **The agent has no model to start with**: name one in `agent.json`, or put one in `providers/default-model.json`.
+- **names the provider "p", which is not declared**: declare `p` in a `models.json`, the home's or the folder's, or correct the model in the file the message says names it: `agent.json`, or `providers/default-model.json`.
 - **The provider "p" has no API key**: add the key to an `auth.json`, the home's or the folder's, or give a declared server its `apiKey`.
 - **has no model "m"**: the message lists the models it has.
 - **is not an agent home**: the path is wrong, or `shrimpy agent init` hasn't run there.
