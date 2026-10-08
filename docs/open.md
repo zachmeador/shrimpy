@@ -264,21 +264,15 @@ The owner, 2026-10-08: "forget about discord, telegram, buzz, etc. not on my rad
 
 ### Conversations and sessions
 
-- Reset a session, or restore an earlier one — designed; no way in yet.
-- Archive or rename a thread — designed; no way in yet.
-- Fork or clone a conversation and walk its tree — kept.
-- Search past sessions and channels — undecided.
-- Follow a channel live from the shell (`tail`) — undecided.
-- Post to a room from the shell — undecided.
-- Leave a room or remove a member — waits until someone needs it.
-- Export a conversation as readable text (`/export`) — kept.
-- Import an old-format session (`/import`) — dropped, pending the owner's review.
-- Name a session (`/name`) and show its details (`/session`) — keep the intent.
-- Compact a session by hand (`/compact`) — keep the intent.
-- Copy the agent's last answer (`/copy`) — keep the intent.
-- See an agent's intermediate text while `run` waits — dropped; `run` prints the final answer.
-- Pick a model, thinking level or skill for one `run` — undecided.
-- Have a silent agent nudged to answer — removed; the final text is the reply.
+Marked by the owner on 2026-10-08. Nine lines were dropped and are gone from this list.
+
+- Archive or rename a thread — wanted: "yeah this is needed ux". The chat server does both, and nothing a person uses reaches them.
+- Post to a room from the shell — wanted: "i can think of reasons this is needed. and it's not that complicated".
+- Delete a room — wanted, and new: leaving a room and removing a member can wait "as long as you can delete a room". Nothing deletes one.
+- Search past threads and sessions — wanted as one tool for agents: "probably makes sense to add one agent tool for this".
+- Leave a room or remove a member — later.
+- Compact a session by hand — later, with the compaction work.
+- Copy the agent's last answer — later.
 
 ### The terminal
 
