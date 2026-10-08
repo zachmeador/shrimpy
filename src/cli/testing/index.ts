@@ -6,9 +6,11 @@
  * the CLI itself as a child process, including the commands that serve a
  * program, the shell of an agent that runs it, the finding of `shrimpy` command
  * lines in a text, free loopback addresses to listen on, and a Shrimpy
- * folder of its own for every test, which importing this gives each one so that
- * no test can reach a real `~/shrimpy`. Only tests and test fixtures import
- * this, and it must not know how a program works inside.
+ * folder and a home directory of their own for every test, and a PATH with no
+ * way to the machine's service manager, which importing this gives each one so
+ * that no test can reach a real `~/shrimpy`, look in the person's own home or
+ * run a real `systemctl`. Only tests and test fixtures import this, and it must
+ * not know how a program works inside.
  */
 export { canConnect, freeAddresses } from "./addresses.ts";
 export { commandLines, whyNotACommand } from "./commands.ts";

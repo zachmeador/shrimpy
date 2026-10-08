@@ -40,4 +40,5 @@ test("status marks a program whose version differs from the command's, and says 
   assert.ok(lines[0]?.includes("scout") && lines[0].includes("8.8.8"), "the agent of another version is marked");
   assert.ok(cli.err.join("\n").includes("9.9.9"), "and so is the gateway of another version, on standard error");
   assert.ok(cli.out.some((line) => line.includes("mem_scout") && line.includes("yes")), "and the roster is listed");
+  assert.ok(cli.out.at(-1)?.includes("shrimpy gateway install"), "and it ends with a line on the service, of which this home has none");
 });

@@ -15,6 +15,7 @@ export {
   agentsListed,
   allHomes,
   dataFolder,
+  defaultFolderPath,
   FOLDER_VARIABLE,
   folderPath,
   gatewayOfItsOwn,

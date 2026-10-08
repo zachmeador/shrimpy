@@ -39,21 +39,50 @@ const up: Command = {
     );
     if (values.data === "") throw new UsageError("--data needs a directory.");
     const listen = listenAddresses(values.listen);
-    const homes = positionals.length === 0 ? allHomes() : positionals.map(homeNamed);
-    // Nothing is made until there is something to start, so where the gateway keeps its data is only read.
     const given = values.data === undefined ? undefined : resolve(values.data);
-    const told = listen !== undefined || keptListenAddresses(join(given ?? folderPath(), "gateway")).length > 0;
-    if (homes.length === 0 && !told) throw nothingToStart();
-    // Agents that joined a gateway elsewhere have no use for one here, unless this is told to listen for others.
-    const elsewhere = homes.flatMap((home) => readMembership(home)?.gateway ?? []);
-    if (homes.length > 0 && elsewhere.length === homes.length && !told) {
-      return bringUp(io, { homes, here: undefined, elsewhere: distinct(elsewhere) });
-    }
-    return bringUp(io, { homes, here: { data: given ?? dataFolder(), listen }, elsewhere: [] });
+    const plan = planUp(positionals, given, listen, dataFolder);
+    if (plan === undefined) throw nothingToStart();
+    return bringUp(io, plan);
   },
 };
 
-interface Plan {
+/**
+ * What `up` starts for the agents it is told to start, or every agent of the Shrimpy folder when it is told none,
+ * the data directory it is given and the addresses it is told to listen on: undefined when there is nothing to
+ * start. It only reads. `dataFolder` is where the gateway and the chat server keep their data when no directory
+ * is given.
+ */
+export function planUp(
+  named: string[],
+  given: string | undefined,
+  listen: Address[] | undefined,
+  dataFolder: () => string,
+): Plan | undefined {
+  const homes = named.length === 0 ? allHomes() : named.map(homeNamed);
+  // Nothing is made until there is something to start, so where the gateway keeps its data is only read.
+  const told = listen !== undefined || keptListenAddresses(join(given ?? folderPath(), "gateway")).length > 0;
+  if (homes.length === 0 && !told) return undefined;
+  // Agents that joined a gateway elsewhere have no use for one here, unless this is told to listen for others.
+  const elsewhere = homes.flatMap((home) => readMembership(home)?.gateway ?? []);
+  if (homes.length > 0 && elsewhere.length === homes.length && !told) {
+    return { homes, here: undefined, elsewhere: distinct(elsewhere) };
+  }
+  return { homes, here: { data: given ?? dataFolder(), listen }, elsewhere: [] };
+}
+
+/** Whether everything `plan` starts is running already, so that another `up` would find nothing to start. */
+export async function alreadyRunning(plan: Plan): Promise<boolean> {
+  if (plan.here !== undefined) {
+    const found = await askLocalGateway();
+    if (found === undefined || !found.programs.some((program) => program.kind === "chat")) return false;
+  }
+  for (const home of plan.homes) {
+    if ((await runningAgent(home)) === undefined) return false;
+  }
+  return true;
+}
+
+export interface Plan {
   homes: string[];
   /**
    * The gateway and the chat server this starts beside the agents: where they keep their data, each in a folder of

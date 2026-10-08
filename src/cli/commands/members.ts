@@ -12,6 +12,7 @@ import type { Io } from "../io/index.ts";
 import { askGateway, memberNamed, START_EVERYTHING, withGatewayAsMe } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
+import { shellWord } from "./shell-word.ts";
 import { renderTable } from "./table.ts";
 
 /** What an admin is, for the help of the commands that list and change them. */
@@ -83,11 +84,6 @@ const invite: Command = {
 
 /** Whether `host` reaches only the machine it is used on. */
 const isLoopback = (host: string): boolean => host === "localhost" || host === "::1" || host.startsWith("127.");
-
-/** `text` as one word of a shell: as it is when the shell reads nothing in it, and in quotes when it does, as the brackets of an IPv6 address are. */
-function shellWord(text: string): string {
-  return /^[\w@%+=:,./-]+$/.test(text) ? text : `'${text.replaceAll("'", "'\\''")}'`;
-}
 
 /** What `members invite` prints: what the invitation is good for, and for each address the gateway listens on the line to run where the agent will live. */
 function invitationLines(name: string, { code, addresses }: Invitation): string[] {

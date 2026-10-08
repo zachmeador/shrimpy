@@ -4,10 +4,12 @@ import type { GatewayConnection, Registration, RosterEntry } from "../../contrac
 import { connectLocalGateway, GatewayNotRunningError } from "../../contracts/gateway/node.ts";
 import { startGateway, type WebOptions } from "../../gateway/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
+import { thisAccount } from "../service/index.ts";
 import { START_EVERYTHING } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
+import { installCommands, serviceStatusLine } from "./install.ts";
 import { ABOUT_LISTEN, LISTEN_OPTION, listenAddresses } from "./listen.ts";
 import { serveUntilStopped } from "./serve.ts";
 import { renderTable } from "./table.ts";
@@ -79,8 +81,9 @@ const status: Command = {
     "The programs are listed by kind, name and version: where a program listens is told to the gateway alone. " +
     "The members are everyone the gateway knows, " +
     "people and agents, by ID, kind and name, with whether a program is registered as each. A version that " +
-    "differs from this command's own is marked, and so is the gateway's, on standard error. Exits 1 if no " +
-    "gateway is running.",
+    "differs from this command's own is marked, and so is the gateway's, on standard error. It ends with a " +
+    "line that says whether a service is installed for your Shrimpy folder, which gateway install sets up, " +
+    "and whether it is running. Exits 1 if no gateway is running.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     expectArguments(positionals, []);
@@ -89,6 +92,11 @@ const status: Command = {
     for (const line of renderPrograms(programs, SHRIMPY_VERSION)) io.out(line);
     io.out("");
     for (const line of renderMembers(members)) io.out(line);
+    const service = await serviceStatusLine(thisAccount());
+    if (service !== undefined) {
+      io.out("");
+      io.out(service);
+    }
     return 0;
   },
 };
@@ -131,4 +139,4 @@ function renderMembers(members: RosterEntry[]): string[] {
   return ["Members:", ...renderTable(["id", "kind", "name", "reachable"], rows)];
 }
 
-export const gatewayCommands: Command[] = [serve, status];
+export const gatewayCommands: Command[] = [serve, status, ...installCommands];

@@ -17,6 +17,8 @@ By default all of it lives in the Shrimpy folder, `~/shrimpy` or the folder `SHR
 
 `shrimpy up` starts whichever of these is missing, with every agent in `agents/`, and stays in that terminal. Ctrl+C stops what it started. Anything already running is used as it is. An agent that joined a gateway elsewhere with `shrimpy agent join` belongs to that gateway: where every agent in the folder does, `up` starts those agents and no gateway or chat server, and they are talked to from the gateway's machine. To add an agent to a setup that is up, the person runs `shrimpy agent serve <agent>` in another terminal. Stopping an agent that `up` started stops everything `up` started.
 
+`shrimpy gateway install` keeps `shrimpy up` running as a service of the person's account, started again if it fails, and `shrimpy gateway uninstall` removes it. They are the person's to run: installing again restarts everything, you included.
+
 Programs reach each other by name through the gateway, so people and agents can talk only while it runs. An agent's own work does not need it, and its replies wait until it is back, but `up` stops everything it started when any of it ends, the gateway included. With the gateway down, `shrimpy sessions list`, `shrimpy sessions read <session>` and `shrimpy sessions stop <session>` still work for an agent asking about itself, and for a person, who adds `--agent <agent>`, because they go straight to the agent's home. From an agent's shell, a command about another agent goes through the gateway and takes an admin.
 
 A program that won't start says why in the terminal that started it. Ask the person to paste it.
@@ -25,7 +27,7 @@ There is no setup command yet. A new setup is `shrimpy providers login` to sign 
 
 ## See what is running
 
-- `shrimpy gateway status` lists the registered programs (kind, name and version) and the roster (ID, kind, name, and whether it is reachable now). An agent that isn't listed among the programs isn't running.
+- `shrimpy gateway status` lists the registered programs (kind, name and version) and the roster (ID, kind, name, and whether it is reachable now), and ends with whether a service keeps the Shrimpy folder running. An agent that isn't listed among the programs isn't running.
 - `shrimpy agent status --agent <agent>` says whether that agent is running.
 - `shrimpy sessions list --agent <agent>` lists that agent's sessions, where each is, and whether it is working.
 

@@ -24,10 +24,15 @@ const HOME_FILE = "agent.json";
 
 const MAKE_AN_AGENT = "shrimpy agent init <name> --model <provider/id>";
 
+/** Where the Shrimpy folder is when `SHRIMPY_DIR` names none: `shrimpy` in the person's own folder, which is `home` if it is not this process's. */
+export function defaultFolderPath(home: string = homedir()): string {
+  return join(home, "shrimpy");
+}
+
 /** Where the Shrimpy folder is: `SHRIMPY_DIR` when it is set, and `shrimpy` in the person's own folder when not. Nothing is read or made. */
 export function folderPath(): string {
   const given = process.env[FOLDER_VARIABLE];
-  return given === undefined || given === "" ? join(homedir(), "shrimpy") : resolve(given);
+  return given === undefined || given === "" ? defaultFolderPath() : resolve(given);
 }
 
 /**

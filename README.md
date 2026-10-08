@@ -115,6 +115,8 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `join <link>` | Make this machine one of yours, with the link of an invitation from another machine of yours. |
 | `gateway serve --data <dir> [--listen <host:port>]... [--web-port <port>] [--web-dir <dir>]` | Run the gateway in the foreground until it is told to stop. |
 | `gateway status` | List the programs registered with this machine's gateway, and the members on its roster. |
+| `gateway install` | Run shrimpy up for your Shrimpy folder as a service of your account, started again if it fails. |
+| `gateway uninstall` | Stop your Shrimpy folder's service and remove it. Nothing of Shrimpy's is deleted. |
 | `chat serve <data-dir>` | Run the chat server in the foreground until it is told to stop, registered with the gateway. |
 <!-- commands:end -->
 
