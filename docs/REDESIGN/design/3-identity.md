@@ -10,7 +10,7 @@ Homes under one OS user share that user's authority. Different permissions need 
 
 **Who may do what, confirmed on 2026-10-05** as good enough for now, and built that day. You asked for it to be settled with rooms. Every request that comes through the gateway carries who is asking, and every operation of an agent's API asks a check.
 
-1. **One role: admin.** A member is an admin or isn't, and the roster records it. You are one. An agent is one when you say so.
+1. **One role: admin.** A member is an admin or isn't, and the roster records it. You are one. An agent is one when you say so, and since 2026-10-07 the first agent a roster has is one from the moment it joins, as you asked: "the first agent made should be admin by default".
 2. **What needs an admin:** making a room, adding members to one, and watching or controlling another agent's sessions and triggers. Later, renaming or removing a member and replacing a token.
 3. **What never does:** talking. Any member posts in the channels it is in and starts a DM with anyone. An agent watches and controls itself. You do anything.
 4. **The program that is asked checks,** as now: the chat server for rooms, an agent for its sessions and triggers, the gateway for the roster. The four permissions stay the names of what an operation needs: message, watch, control and administer.

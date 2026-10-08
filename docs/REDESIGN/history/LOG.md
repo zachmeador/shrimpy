@@ -41,6 +41,8 @@
 - A connection between an agent apart and its gateway that dies without a word is noticed at both ends, and the agent says when it loses its gateway and when it is back. ([log, 2026-10-07](#log))
 - A machine of the person's own comes in with `shrimpy members invite` and `shrimpy join`, and the commands that talk and the terminal are the person there. ([log, 2026-10-07](#log))
 - `shrimpy gateway install` and `uninstall`: a service of the account, a systemd user unit on Linux and a LaunchAgent on macOS, keeps `shrimpy up` running for a Shrimpy folder. ([log, 2026-10-07](#log))
+- The first agent a roster has is an admin from the moment it joins. ([log, 2026-10-07](#log))
+- `shrimpy up` keeps its folder running: an agent made later starts by itself, one that ends is started again alone, and a home that is taken away has its agent stopped. ([log, 2026-10-07](#log))
 
 ## Log
 
@@ -49,6 +51,31 @@ Newest first, roughly: the entries of one day aren't always in the order they ha
 A piece of work is done when its Prove list has evidence from real wiring, not equivalent mocks. A passing build or deleted files don't count. A newly found experience difference stays pending until it is reviewed.
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**2026-10-07: the first agent is an admin, and `shrimpy up` keeps its folder running.** Both from your first evening of living with it. Your agent made a home for a new agent, as you asked, and could only hand you the command that starts it: "a user expects to be able to add an agent without having to think about restarting a service or running things". And: "the first agent made should be admin by default". One builder, a commit each, and a small one of mine after the review.
+
+- **The first agent a roster has is an admin** from the moment it joins, beside the gateway or with an invitation. Any later agent is promoted as before. Eleven tests took the first agent for an ordinary one, and now test one that isn't the first or was demoted. One of them hung where it should have failed: a gateway started inside the test kept the process alive after a failed assertion, and test support now closes it when the test ends.
+- **`shrimpy up` with no agents named keeps the folder running.** Every two seconds it looks at the homes. It starts the agent of a home that appears, starts an agent that ends again alone, and stops the agent it started at a home that is taken away. The pause before a restart grows from two seconds to five minutes while an agent keeps failing, and starts over once the agent has stayed up for a minute. A home whose agent can't start is said once, with what the agent said, and stops nothing else, and a change to its `agent.json` makes it try at once. The gateway or the chat server ending still stops everything, with exit code 1. With agents named nothing changed.
+- **This changes a row you confirmed** on 2026-10-04, that `up` stops everything when any one program ends. You were told before it was built and haven't said yes or no, so it is on [your list](../AUTHOR-TO-REVIEW.md).
+- What it says:
+
+  ```text
+  Started the agent rex (pid 96690) from …/agents/rex.
+  The agent scout (pid 88775) ended by itself (signal SIGKILL). It is started again after 2 seconds.
+  Could not start the agent at …/agents/rex (exit code 1). It is tried again after 2 seconds, then after longer pauses, and at once when its agent.json changes.
+  The home at …/agents/rex is gone, so the agent rex (pid 96690) is stopped.
+  ```
+
+- With it: `agent init` and `agent join` say that the agent starts by itself while Shrimpy runs. The skills say that starting Shrimpy is the person's step and a new agent's home is not, and that an agent is retired by moving its home out of `agents/`. `shrimpy gateway status` says where the gateway is on a machine whose agents all belong to one elsewhere.
+- Choices the build made, which the plan didn't cover:
+  - No option slows `up`, so the tests run the command inside the test's process with pauses of their own. The programs it starts are real processes.
+  - Only an agent that `up` started is stopped when its home goes.
+  - A home with no gateway of its own that appears where every agent belongs to a gateway elsewhere is started, with no gateway for it.
+  - A new home starts within two seconds, so with the starter `SOUL.md`. The skill says to reload the agent once its own is written.
+- Mine, after the review: `shrimpy gateway status` ends with its line on the service where no gateway runs too, and that line says how a service that is not running is started again.
+- Left as it is, and in [STATUS.md](../STATUS.md): `up` takes a home for gone whenever it can't see the home's `agent.json`, so a folder that can't be read for a moment costs its agents a restart.
+- Run for real on your Linux machine, just after midnight. For the account whose agent belongs to a gateway elsewhere: an uninstall, a first install, and the agent's process killed, which `up` started again alone two seconds later. For the account with the gateway: the install replaced the unit written by hand, turned lingering on and restarted the service at 00:03. On the stop, `up` said it had stopped everything it started before systemd said the service had stopped. The gateway listened where it had, the two agents in the folder started, one of them made that evening and until then started only by hand, and the third agent connected again from the other account and answered a message in under two seconds.
+- 676 tests: 670 pass and 6 are skipped. On Linux with Node 22.23, 666 pass, and the three that fail are the ones that bundle a contract for a browser, for want of a dependency that was copied and not installed.
 
 **2026-10-07: `shrimpy gateway install` and `uninstall`.** You asked for them the evening you moved in: "needed ux is `shrimpy gateway install/uninstall`". One builder, one commit, which holds the two commands and nothing else. What they do is in [the network](../design/6-network.md).
 

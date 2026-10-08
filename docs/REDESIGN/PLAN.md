@@ -118,7 +118,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- What the first evening of living with it asked for, from the list in [using it](design/using-it.md): the first agent of a setup is an admin, and `shrimpy up` follows its folder, so that adding an agent takes nobody starting anything. `shrimpy gateway install` and `uninstall` are built.
+- Living with it. What the first evening asked for is built: `shrimpy gateway install` and `uninstall`, the first agent of a setup as an admin, and `shrimpy up` keeping its folder running. What you notice next goes on the list in [using it](design/using-it.md), and decides what is built next.
 - One proposal waits on you: [hearing a thread while working in it](proposals/hearing-a-thread.md).
 
 **Next:**
