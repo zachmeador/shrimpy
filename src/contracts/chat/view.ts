@@ -36,7 +36,12 @@ export interface Thread {
   main: boolean;
   /** Null until someone names it; show `preview` instead. */
   name: string | null;
-  /** The start of the thread's first message that is still there, as it now reads, or null when it has none. */
+  /**
+   * The start of the thread's first message that is still there and is not a
+   * command for agents, as it now reads, or null when it has none. A thread
+   * that was started with a command is named for the first thing said in it
+   * after.
+   */
   preview: string | null;
   archived: boolean;
   /**

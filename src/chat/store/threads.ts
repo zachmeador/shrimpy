@@ -1,4 +1,4 @@
-import type { Thread } from "../../contracts/chat/index.ts";
+import { agentCommandIn, type Thread } from "../../contracts/chat/index.ts";
 import type { ReportChange } from "./changes.ts";
 import { newId } from "../../lib/ids/index.ts";
 import type { Sql } from "./sql.ts";
@@ -60,18 +60,37 @@ export function insertThread(
   return id;
 }
 
+/** How many messages are read at a time while looking for the one a thread is named for. */
+const PREVIEW_BATCH = 20;
+
 /**
- * Make a thread's preview the preview of its first message that is still
- * there, or nothing when it has none. A message is what its events add up to,
- * so the preview follows its edits and a deleted message leaves no trace in it.
+ * Make a thread's preview the preview of its first message that is still there
+ * and is not a command for agents, or nothing when it has none. A thread that
+ * someone starts with a command is named for the first thing said in it after,
+ * and until then has no preview. A message is what its events add up to, so the
+ * preview follows its edits, and a deleted message leaves no trace in it.
  */
 export function refreshPreview(sql: Sql, threadId: string): void {
-  sql.run(
-    `UPDATE threads
-     SET preview = (SELECT m.preview FROM messages m WHERE m.thread_id = threads.id AND m.deleted = 0 ORDER BY m.seq LIMIT 1)
-     WHERE id = ?`,
-    threadId,
-  );
+  let after = -1;
+  let preview: string | null = null;
+  for (;;) {
+    const batch = sql.all(
+      `SELECT m.seq, m.text, m.preview FROM messages m
+       WHERE m.thread_id = ? AND m.deleted = 0 AND m.seq > ? ORDER BY m.seq LIMIT ?`,
+      threadId,
+      after,
+      PREVIEW_BATCH,
+    ) as { seq: number; text: string; preview: string }[];
+    const named = batch.find((row) => agentCommandIn(row.text) === undefined);
+    if (named !== undefined) {
+      preview = named.preview;
+      break;
+    }
+    const last = batch.at(-1);
+    if (batch.length < PREVIEW_BATCH || last === undefined) break;
+    after = last.seq;
+  }
+  sql.run("UPDATE threads SET preview = ? WHERE id = ?", preview, threadId);
 }
 
 export function threadOperations(sql: Sql, report: ReportChange): ThreadOperations {

@@ -1,6 +1,7 @@
 import {
   AGENT_COMMANDS,
   type AgentCommand,
+  agentCommandIn,
   type Channel,
   type ChatClient,
   type ChatEvent,
@@ -29,17 +30,6 @@ const ACTIONS: Record<AgentCommand, (admissions: Admissions, event: ChatEvent, w
   model: (admissions, { message }, words) => actOnModel(admissions, message, words),
 };
 
-const isCommand = (word: string): word is AgentCommand => Object.hasOwn(ACTIONS, word);
-
-/** Mentions may come first, as in `@scout /stop`. The name is a whole word, and what follows it is not part of the command. */
-const COMMAND = /^\s*(?:@\S+\s+)*\/([\p{L}\p{N}_-]+)(.*)$/su;
-
-function written(event: ChatEvent): { name: string; words: string } | undefined {
-  if (event.kind !== "posted") return undefined;
-  const found = COMMAND.exec(event.text);
-  return found === null ? undefined : { name: (found[1] ?? "").toLowerCase(), words: (found[2] ?? "").trim() };
-}
-
 /**
  * The command a message of a thread is, if it is one that is for the agent: a
  * person wrote it, and it is in a DM, or it is in a room and mentions the agent
@@ -49,8 +39,8 @@ function written(event: ChatEvent): { name: string; words: string } | undefined 
  */
 export function commandFor(self: Member, event: ChatEvent, where: Channel["kind"]): AgentCommand | undefined {
   if (event.kind !== "posted" || event.actor.kind !== "person") return undefined;
-  const name = written(event)?.name;
-  if (name === undefined || !isCommand(name)) return undefined;
+  const name = agentCommandIn(event.text)?.command;
+  if (name === undefined) return undefined;
   if (where === "room") {
     const { mentions } = event.message;
     const forMe = mentions.length === 0 ? AGENT_COMMANDS[name].withoutMention === "everyone" : mentions.includes(self.id);
@@ -80,7 +70,8 @@ type Left = Omit<Receipt, "memberId" | "event">;
  * command's event and for what it says, so posting it again posts nothing twice.
  */
 export async function obey(command: AgentCommand, event: ChatEvent, { chat, admissions, signal, onError }: Obeying): Promise<void> {
-  const line = await ACTIONS[command](admissions, event, written(event)?.words ?? "");
+  const words = (event.kind === "posted" ? agentCommandIn(event.text)?.words : undefined) ?? "";
+  const line = await ACTIONS[command](admissions, event, words);
   let receipt: Left = { status: "silent", reply: null, detail: null };
   if (line !== undefined) {
     try {

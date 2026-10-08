@@ -91,6 +91,23 @@ test("side threads keep their own conversations in the channel", { timeout }, as
   );
 });
 
+test("a thread that someone started with a command for agents is listed by the first message in it that is none, and by nothing before one", { timeout }, async (t) => {
+  const { zach, dm } = await startDm(t);
+  const side = await zach.chat.createThread(dm.id, null);
+  const preview = async (): Promise<string | null | undefined> =>
+    (await zach.chat.threads(dm.id)).find((thread) => thread.id === side.id)?.preview;
+
+  const first = await zach.chat.post(side.id, "@Shrimpy /model local/big", "zach-1");
+  await zach.chat.post(side.id, "/stop", "zach-2");
+  assert.equal(await preview(), null, "a thread of commands has nothing to be named for");
+
+  await zach.chat.post(side.id, "Is the build green?", "zach-3");
+  assert.equal(await preview(), "Is the build green?");
+
+  await zach.chat.edit(first.id, "Never mind the model.");
+  assert.equal(await preview(), "Never mind the model.", "the preview follows an edit that makes a command a message");
+});
+
 test("a feed catches up after a reconnect", { timeout }, async (t) => {
   const chat = await startTestChat(t);
   const zach = await chat.person();

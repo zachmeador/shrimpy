@@ -8,11 +8,12 @@
  * message mentions, and must not know what a fact means to whoever reads it,
  * or anything about agents' sessions, the engine or any chat provider. The one
  * thing it says about agents is the names of the commands a person can write in
- * a thread for them to act on, with a line on each and who each is for in a room
- * when it names nobody, so that a client shows what an agent acts on and for
- * whom; how an agent acts is its own. This door is safe for browsers.
+ * a thread for them to act on, with a line on each, who each is for in a room
+ * when it names nobody, and how a text is told to be one, so that a client shows
+ * what an agent acts on and for whom, and everyone reads a text the same way;
+ * how an agent acts is its own. This door is safe for browsers.
  */
-export { AGENT_COMMANDS, type AgentCommand, type AgentCommandLines } from "./commands.ts";
+export { AGENT_COMMANDS, type AgentCommand, type AgentCommandLines, agentCommandIn } from "./commands.ts";
 export {
   type ChatClient,
   type ChatConnection,
