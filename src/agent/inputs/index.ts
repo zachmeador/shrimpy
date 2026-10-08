@@ -23,6 +23,7 @@ export {
   isQuestion,
   isUrgent,
   isWakeup,
+  type ModelChange,
   type Named,
   type Occurrence,
   type OccurrenceInput,

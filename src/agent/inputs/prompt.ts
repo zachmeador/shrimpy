@@ -10,6 +10,7 @@ import {
   isOccurrence,
   isQuestion,
   isWakeup,
+  type ModelChange,
   type Occurrence,
   type Outstanding,
   type Place,
@@ -24,9 +25,11 @@ import {
  * breadcrumbs that are new to its session, if any, as data and not instructions,
  * then where it is, if it is in a thread: in words when its session knows, as a
  * DM with someone or a room and who else is in it, and always the IDs of the
- * thread and its channel. Then come which of the wake-ups it asked for were
- * cancelled since it last heard of them, if any, which results of questions it
- * asked it was never shown, if any, and the input itself. A chat event is shown
+ * thread and its channel. Then come, when `change` is given because the model
+ * that wrote the session's last answer is not the one it runs on now, which two
+ * they are, as a fact and not an instruction; which of the wake-ups it asked for
+ * were cancelled since it last heard of them, if any, which results of questions
+ * it asked it was never shown, if any, and the input itself. A chat event is shown
  * under a line that says what happened and when, after any earlier events of the
  * thread the agent has not acted on, each the same way and oldest first. In a
  * room, what was said in the thread since the agent last looked comes between
@@ -41,17 +44,24 @@ import {
  * sections, which stay the same on every request. The final format belongs to
  * the work on what the model receives.
  */
-export function promptFor(outstanding: Outstanding): string {
+export function promptFor(outstanding: Outstanding, change?: ModelChange): string {
   const thread = threadOf(outstanding);
   const cancelled = outstanding.cancelled ?? [];
   const missed = outstanding.missed ?? [];
   return [
     ...(outstanding.breadcrumbs === undefined ? [] : [shown(outstanding.breadcrumbs)]),
     ...(thread === undefined ? [] : [whereIs(thread, outstanding.place)]),
+    ...(change === undefined ? [] : [modelChanged(change)]),
     ...(cancelled.length === 0 ? [] : [cancellations(cancelled)]),
     ...(missed.length === 0 ? [] : [missedResults(missed)]),
     bodyOf(outstanding),
   ].join("\n\n");
+}
+
+/** That the session's model changed since its last answer, which models the two are, and nothing about what to do with it. */
+function modelChanged({ was, now }: ModelChange): string {
+  const written = ({ provider, id }: ModelChange["was"]): string => `${provider}/${id}`;
+  return `The model changed since your last answer: that one was written by ${written(was)}, and you are ${written(now)} now.`;
 }
 
 /** Where an input is: its place in words, when its session knows it, and the IDs `shrimpy read` takes. */

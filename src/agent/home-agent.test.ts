@@ -241,6 +241,12 @@ test("a reload makes a session that already exists use the model agent.json name
 
   assert.deepEqual(requests.map((request) => request.body.model), ["qwen", "llama", "llama", "newest"]);
   assert.equal(requests[3]?.url, "http://fresh.invalid/v1/chat/completions");
+
+  // The model is told when the model that wrote its last answer is not the one it runs on, whatever changed it, and once.
+  const shown = (index: number): string => String(requests[index]?.body.messages.findLast((message) => message.role === "user")?.content);
+  assert.ok(shown(1).includes("local/qwen") && shown(1).includes("local/llama"));
+  assert.doesNotMatch(shown(2), /local\/qwen/);
+  assert.ok(shown(3).includes("local/llama") && shown(3).includes("fresh/newest"));
 });
 
 test("a session given a model of its own uses it from its next request while the agent's other sessions use the home's, until it follows the home again or a reload finds the home naming another model", { timeout }, async (t) => {
@@ -333,7 +339,7 @@ test("an agent says which models it can use now and which one its sessions follo
   assert.equal(session.view.status.model?.id, "qwen", "and the session keeps the model it had");
 });
 
-test("/model as the first message of a new thread starts the thread on that model, which the agent says in the thread, and /model default has the thread follow the agent's model again", { timeout }, async (t) => {
+test("/model as the first message of a new thread starts the thread on that model, which the agent says in the thread, and /model default has the thread follow the agent's model again, which the model is told once", { timeout }, async (t) => {
   const paths = newHome(t, { local: several });
   const requests = stubChatCompletions(t, "Ok");
   const { chat } = await startNetwork(t);
@@ -342,6 +348,8 @@ test("/model as the first message of a new thread starts the thread on that mode
   const side = await person.newThread();
   /** The model each request named, in order. */
   const named = (): string[] => requests.map((request) => request.body.model);
+  /** What the model was shown with the newest message of a request. */
+  const shown = (index: number): string => String(requests[index]?.body.messages.findLast((message) => message.role === "user")?.content);
 
   const command = await person.askIn(side.id, "/model local/llama");
   const [line] = await person.replies(side.id);
@@ -354,13 +362,17 @@ test("/model as the first message of a new thread starts the thread on that mode
   await person.askIn(side.id, "hello");
   await person.ask("in the main thread");
   assert.deepEqual(named(), ["llama", "qwen"], "the thread runs on that model, and the agent's other thread on its own");
+  assert.doesNotMatch(shown(0), /local\//, "a session that had never answered is told nothing of its model");
 
   const back = await person.askIn(side.id, "/model default");
   const backLine = (await person.replies(side.id)).find((reply) => reply.id === back.receipt.reply);
   assert.ok(backLine?.text.includes("local/qwen") && backLine.text.includes("local/llama"), "the agent says that it follows its own model again");
   assert.equal(requests.length, 2, "no request was made for this command either");
   await person.askIn(side.id, "hello again");
-  assert.deepEqual(named(), ["llama", "qwen", "qwen"]);
+  await person.askIn(side.id, "and once more");
+  assert.deepEqual(named(), ["llama", "qwen", "qwen", "qwen"]);
+  assert.ok(shown(2).includes("local/llama") && shown(2).includes("local/qwen"), "the model that answered next is shown which model wrote the answer before and which it is");
+  assert.doesNotMatch(shown(3), /local\//, "and it is shown once, since that answer was written by the model it runs on");
 });
 
 test("a /model that names a model the agent can't use is answered in the thread with why and which models it can use, and the thread keeps the model it had", { timeout }, async (t) => {

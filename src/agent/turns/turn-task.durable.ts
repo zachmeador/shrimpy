@@ -26,6 +26,7 @@ import {
   isQuestion,
   isUrgent,
   isWakeup,
+  type ModelChange,
   type Outstanding,
   promptFor,
   threadOf,
@@ -33,6 +34,7 @@ import {
 } from "../inputs/index.ts";
 import { keepSkipped, plain, RecordsDoc, sessionAddress, SessionsDoc } from "../records/durable.ts";
 import type { Delivery } from "./delivery.ts";
+import { modelChangeOf } from "./model-change.durable.ts";
 import { toOutcome } from "./turn.durable.ts";
 
 /** The name of the task that follows one input, from the moment it is taken up until its source is told how it ended. */
@@ -87,11 +89,14 @@ const requestIdOf = (outstanding: Outstanding): string => {
  * What the session is handed for an input. When the session is working, an
  * urgent input joins the turn that is running, which reads it at its next step,
  * and any other input waits for the next turn. A session that is idle starts a
- * turn for either.
+ * turn for either. `change` is the fact that the session's model is not the one
+ * that wrote its last answer, which is shown with the first input it is handed
+ * after that. Only the submission that first names a request ID says anything,
+ * so whoever asks for it again to find it leaves `change` out.
  */
-const inputOf = (outstanding: Outstanding) => ({
+const inputOf = (outstanding: Outstanding, change?: ModelChange) => ({
   type: "input" as const,
-  content: promptFor(outstanding),
+  content: promptFor(outstanding, change),
   whenBusy: isUrgent(outstanding) ? ("steer" as const) : ("followUp" as const),
   requestId: requestIdOf(outstanding),
 });
@@ -168,8 +173,11 @@ export function turnTask(options: TurnTaskOptions) {
       handOver: guarded(
         async (turn, runtime, context) => {
           const session = await sessionOf(turn.input, runtime, context);
-          for (const input of [...(await unhanded(turn, runtime, context)), turn.input]) {
-            await session.submit(inputOf(input), context);
+          // The session is told of a change of its model once, with the first input it is handed.
+          const change = await modelChange(runtime, context);
+          const inputs = [...(await unhanded(turn, runtime, context)), turn.input];
+          for (const [index, input] of inputs.entries()) {
+            await session.submit(inputOf(input, index === 0 ? change : undefined), context);
           }
           await runtime.commit(() => ({ status: "running", checkpoint: { phase: "follow" } }), context);
         },
@@ -237,6 +245,16 @@ async function sessionOf(input: Outstanding, runtime: Runtime, context: Context)
   const session = await runtime.conversation(runtime.conversationId, context);
   if (session === undefined) throw new Error(`The session ${placeText(input)} is gone.`);
   return session;
+}
+
+/** That the session's model is not the one that wrote its last answer, if so, as it stands as the input is handed over. */
+async function modelChange(runtime: Runtime, context: Context): Promise<ModelChange | undefined> {
+  const found: { change?: ModelChange } = {};
+  await runtime.commit(async (tx) => {
+    found.change = await modelChangeOf(tx, runtime.conversationId);
+    return undefined;
+  }, context);
+  return found.change;
 }
 
 /**

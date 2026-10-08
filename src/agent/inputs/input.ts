@@ -1,3 +1,5 @@
+import type { ModelId } from "../../contracts/agent/index.ts";
+
 /**
  * What an input is, in Shrimpy's own terms: a chat event, a wake-up the agent
  * asked for, an occurrence of a trigger or the result of a question the agent
@@ -185,6 +187,15 @@ export type Backlog = {
   cut: number;
   atLeast?: true;
 };
+
+/**
+ * That the model that wrote a session's last answer is not the one the session
+ * runs on now, which the model is told with the next input it is handed. It is
+ * worked out from the session's records when the input is handed over, and is
+ * not kept, so it covers every reason a session's model changes and is told
+ * once, since the next answer is written by the model that runs on.
+ */
+export type ModelChange = { was: ModelId; now: ModelId };
 
 /** A breadcrumb as the model is shown it: the name of its file, and its text, which is already cut to what is shown. */
 export type Breadcrumb = { name: string; text: string };
