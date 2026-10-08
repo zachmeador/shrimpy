@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { assistantItem, sessionView, toolItem, userItem, workingView } from "../../../contracts/agent/testing/index.ts";
-import type { Status } from "../state/index.ts";
+import type { Notice, Status } from "../state/index.ts";
 import {
   aChatServer,
   aDm,
@@ -22,6 +22,7 @@ import {
 import {
   type AgentsScreen,
   farewellLine,
+  modelLines,
   type Screen,
   screenOf,
   type SessionsScreen,
@@ -533,7 +534,13 @@ test("text from other members and from tools can't act on a terminal, wherever i
         version: `1.0${hostile}`,
         reached: true,
         doing: { kind: "retrying", error: `error${hostile}` },
-        session: { queued: 1, model: { provider: `provider${hostile}`, id: `model${hostile}` }, usage: { input: 1, output: 2, cost: 0.5 } },
+        session: {
+          queued: 1,
+          model: { provider: `provider${hostile}`, id: `model${hostile}` },
+          own: true,
+          defaultModel: { provider: `home${hostile}`, id: `default${hostile}` },
+          usage: { input: 1, output: 2, cost: 0.5 },
+        },
         othersWorking: 1,
       },
     },
@@ -558,4 +565,22 @@ test("text from other members and from tools can't act on a terminal, wherever i
     if (screen.kind === "thread") assert.ok(screen.status !== undefined, "the reading is on the screen");
     for (const text of all) assert.doesNotMatch(text, ACTED_ON, `${screen.kind}: ${JSON.stringify(text)}`);
   }
+
+  // What `/model` says carries the models and the words of the agent, and the list it opens carries what the agent calls them.
+  const used = { provider: `provider${hostile}`, id: `model${hostile}` };
+  const notices: [Notice, string][] = [
+    [{ kind: "model-is", model: used, own: true, defaultModel: used }, "provider"],
+    [{ kind: "model-set", model: used }, "provider"],
+    [{ kind: "model-followed", defaultModel: used }, "provider"],
+    [{ kind: "model-not-changed", problem: { said: `refused${hostile}` } }, "refused"],
+    [{ kind: "model-not-shown", problem: { down: { kind: "unreachable", message: `agent${hostile}` } } }, "agent"],
+  ];
+  for (const [notice, shown] of notices) {
+    const note = thread(screenOf({ ...model, notice }, { now })).notes.at(-1) ?? "";
+    assert.ok(note.includes(shown), notice.kind);
+    assert.doesNotMatch(note, ACTED_ON, `${notice.kind}: ${JSON.stringify(note)}`);
+  }
+  const offered = modelLines({ models: [{ ...used, name: `name${hostile}` }], default: used }, `scout${hostile}`);
+  assert.equal(offered.length, 2);
+  for (const text of stringsIn(offered)) assert.doesNotMatch(text, ACTED_ON, JSON.stringify(text));
 });

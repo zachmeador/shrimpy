@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
+import type { AgentModels } from "../../../contracts/agent/index.ts";
 import type { Channel, ChatClient } from "../../../contracts/chat/index.ts";
 import type { GatewayConnection, Transports } from "../../../contracts/gateway/index.ts";
 import { createListeners } from "../../../lib/listeners/index.ts";
@@ -12,6 +13,7 @@ import {
   keepAgent,
   keepChat,
   keepRegistry,
+  type Problem,
   problemOf,
   type SessionUpdate,
   type ThreadUpdate,
@@ -24,6 +26,7 @@ import {
   type Farewell,
   type HomeLookup,
   type Model,
+  type ModelChoice,
   type Notice,
   type Place,
   type SendResult,
@@ -81,6 +84,23 @@ export interface ConsoleState {
    * again replaces it. Posts nothing.
    */
   readStatus(): Promise<void>;
+  /**
+   * The models the agent of the open DM thread can use now, and the one its
+   * sessions follow by default, for the list that `/model ` opens. What the
+   * agent said is kept for ten seconds, so that a list narrowed by typing does
+   * not ask at every key. Undefined when there is no such agent, it is not
+   * reached, or it does not answer in a few seconds.
+   */
+  models(): Promise<AgentModels | undefined>;
+  /**
+   * `/model` in the open DM thread: say which model the thread's session uses,
+   * make it use another from its next request, or make it follow the agent's
+   * model again. It says what came of it in a notice, in the agent's words when
+   * the agent refuses a model. A thread the agent has no session for yet has
+   * nothing to change, and that is all it says: nothing waits for the session.
+   * Posts nothing.
+   */
+  chooseModel(choice: ModelChoice): Promise<void>;
 
   /** The work that goes on if the console is left now, if there is any. It asks chat once more, briefly. */
   farewell(): Promise<Farewell | undefined>;
@@ -96,6 +116,10 @@ const NOTICE_MS = 6000;
 const SEND_MS = 20_000;
 /** How long leaving waits for chat to say who is working. */
 const FAREWELL_MS = 500;
+/** How long the models an agent said it can use are kept before it is asked again. A list is narrowed by typing, and each key asks for the list. */
+const MODELS_KEPT_MS = 10_000;
+/** How long an agent is waited for to say its models. The editor asks for one list at a time, so one that never came would hold up every key after it. */
+const MODELS_WAIT_MS = 3000;
 
 export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
   const pollMs = options.pollMs ?? POLL_MS;
@@ -239,6 +263,24 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       if ("said" in problem && sessionsOnShow()) set({ refusal: problem.said });
     },
   );
+
+  // The models an agent said it can use, and when. A clock that only goes forward keeps them, so a changed system time cannot.
+  let kept: { link: AgentLink; at: number; models: AgentModels } | undefined;
+
+  /**
+   * The models the agent behind `link` can use: what it said in the last few
+   * seconds, or else what it says when asked. Undefined when it says nothing
+   * in time, or refuses; that is not kept, so the next key asks again.
+   */
+  async function modelsOf(link: AgentLink): Promise<AgentModels | undefined> {
+    if (kept?.link === link && performance.now() - kept.at < MODELS_KEPT_MS) return kept.models;
+    const waiting = new AbortController();
+    const asked = link.models().catch(() => undefined);
+    const models = await Promise.race([asked, delay(MODELS_WAIT_MS, undefined, { signal: waiting.signal }).catch(() => undefined)]);
+    waiting.abort();
+    if (models !== undefined) kept = { link, at: performance.now(), models };
+    return models;
+  }
 
   /** The agent on the roster that is called `name`. */
   const roster = (name: string): AgentEntry => {
@@ -410,10 +452,59 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       statusReads += 1;
       const read = statusReads;
       const link = agent;
-      // The agent is asked which sessions it has, for how many of them are working besides this thread's. It may not answer.
-      const sessions =
-        where.place.kind === "agent" && link?.status().state === "up" ? await link.sessions().catch(() => undefined) : undefined;
-      if (read === statusReads) set({ status: statusOf(model, sessions, clock()) });
+      const asking = where.place.kind === "agent" && link?.status().state === "up" ? link : undefined;
+      // The agent is asked which sessions it has, for how many of them are working besides this thread's, and which model is its default, when the thread's is not that one. It may not answer.
+      const own = model.session?.status.ownModel === true;
+      const [sessions, models] = await Promise.all([
+        asking?.sessions().catch(() => undefined),
+        own && asking !== undefined ? modelsOf(asking) : undefined,
+      ]);
+      if (read === statusReads) set({ status: statusOf(model, sessions, clock(), models?.default) });
+    },
+
+    async models() {
+      const { where } = model;
+      const link = agent;
+      if (where.screen !== "thread" || where.place.kind !== "agent" || link?.status().state !== "up") return undefined;
+      return modelsOf(link);
+    },
+
+    async chooseModel(choice) {
+      const { where } = model;
+      const link = agent;
+      if (where.screen !== "thread" || where.place.kind !== "agent" || link === undefined) return;
+      if (choice.kind === "unclear") return say({ kind: "model-unclear" });
+      const { thread } = where;
+      // Where the person is changes while the agent is asked, which the compiler cannot see. What came of it is for the thread it was asked in.
+      const stillHere = (): boolean => agent === link && model.where.screen === "thread" && model.where.thread === thread;
+      const tell = (notice: Notice): void => {
+        if (stillHere()) say(notice);
+      };
+      const failed = (problem: Problem): void =>
+        tell({ kind: choice.kind === "show" ? "model-not-shown" : "model-not-changed", problem });
+
+      const status = link.status();
+      if (status.state === "down") return failed({ down: status.why });
+      if (thread === undefined) return say({ kind: "no-session" });
+      // The agent may have made the session since the link last looked for it, which it does every few seconds, and a link that was lost has not watched it again yet. The person is not to be told there is none when there is.
+      await link.look(thread);
+
+      if (choice.kind === "show") {
+        const view = model.session;
+        if (view === undefined) return tell({ kind: "no-session" });
+        const { model: used, ownModel } = view.status;
+        // The default is worth asking for when the thread's model is not it.
+        const defaultModel = ownModel ? (await modelsOf(link))?.default : undefined;
+        return tell({ kind: "model-is", model: used, own: ownModel, defaultModel });
+      }
+      try {
+        const told = await link.setModel(thread, choice.kind === "use" ? choice.model : null);
+        if (!told) return tell({ kind: "no-session" });
+        if (choice.kind === "use") return tell({ kind: "model-set", model: choice.model });
+        tell({ kind: "model-followed", defaultModel: (await modelsOf(link))?.default });
+      } catch (error) {
+        failed(problemOf(error));
+      }
     },
 
     async farewell() {

@@ -1,4 +1,10 @@
-import type { SessionActivity, SessionStatus, SessionSummary, SessionView } from "../../../contracts/agent/index.ts";
+import type {
+  ModelId,
+  SessionActivity,
+  SessionStatus,
+  SessionSummary,
+  SessionView,
+} from "../../../contracts/agent/index.ts";
 import type { Channel, Member, Thread, ThreadView } from "../../../contracts/chat/index.ts";
 import type { Registration, RosterEntry } from "../../../contracts/gateway/index.ts";
 import type { LinkStatus, Problem } from "../network/index.ts";
@@ -61,7 +67,30 @@ export type Notice =
   | { kind: "not-sent"; problem: Problem }
   | { kind: "not-opened"; problem: Problem }
   | { kind: "not-watched"; problem: Problem }
-  | { kind: "not-listed"; problem: Problem };
+  | { kind: "not-listed"; problem: Problem }
+  /** `/model` with nothing after it: the model the thread uses, whether it is one of its own, and the agent's default when that is known. */
+  | { kind: "model-is"; model: ModelId | null; own: boolean; defaultModel: ModelId | undefined }
+  /** `/model` with a model: the thread uses it from the agent's next request. */
+  | { kind: "model-set"; model: ModelId }
+  /** `/model default`: the thread follows the agent's model again, which is `defaultModel` when that is known. */
+  | { kind: "model-followed"; defaultModel: ModelId | undefined }
+  | { kind: "model-not-shown"; problem: Problem }
+  | { kind: "model-not-changed"; problem: Problem }
+  /** The agent has no session for the open thread yet, so there is no model to show or change. */
+  | { kind: "no-session" }
+  /** `/model` was written with something that is neither `default` nor a model as provider/id. */
+  | { kind: "model-unclear" };
+
+/** What `/model` was written with in a thread of a DM. */
+export type ModelChoice =
+  /** Nothing after it: say which model the thread uses. */
+  | { kind: "show" }
+  /** `default`: follow the agent's model again. */
+  | { kind: "default" }
+  /** A model as `provider/id`. */
+  | { kind: "use"; model: ModelId }
+  /** Anything else, which names no model. */
+  | { kind: "unclear" };
 
 /** An agent in its DM with the person, as `/status` found it. */
 export interface AgentStatus {
@@ -75,8 +104,21 @@ export interface AgentStatus {
   reached: boolean;
   /** What it was doing in the thread. Undefined for a thread that is not started. */
   doing: SessionActivity | undefined;
-  /** What the thread's session said of itself. Undefined when the agent was not reached or has no session there. */
-  session: { queued: number; model: SessionStatus["model"]; usage: SessionStatus["usage"] } | undefined;
+  /**
+   * What the thread's session said of itself. Undefined when the agent was not
+   * reached or has no session there. `own` says that its model was given to it
+   * and is not the agent's default, which `defaultModel` is when the agent was
+   * asked, and it is only asked when the model is the session's own.
+   */
+  session:
+    | {
+        queued: number;
+        model: SessionStatus["model"];
+        own: boolean;
+        defaultModel: ModelId | undefined;
+        usage: SessionStatus["usage"];
+      }
+    | undefined;
   /** How many of its other sessions were working. Undefined when it could not be asked. */
   othersWorking: number | undefined;
 }

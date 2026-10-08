@@ -1,4 +1,5 @@
 import type {
+  ModelId,
   QueuedInput,
   SessionActivity,
   SessionItem,
@@ -26,6 +27,12 @@ const START_EVERYTHING = "shrimpy up";
 
 /** The command a person writes in a thread to stop the work there. */
 const STOP: AgentCommand = "stop";
+
+/** The command a person writes in a thread of a DM to see or change the model of the thread's session. */
+const MODEL: TerminalCommand = "model";
+
+/** What `/model` is written with to have the thread follow the agent's model again. */
+export const MODEL_DEFAULT = "default";
 
 /** The program a problem is about. */
 export type Program = { kind: "chat" } | { kind: "agent"; name: string };
@@ -134,7 +141,31 @@ export function noticeText(notice: Notice, agentName: string): string {
       return `Could not watch the work: ${because({ kind: "agent", name: agent }, notice.problem)}.`;
     case "not-listed":
       return `Could not read your threads: ${because({ kind: "chat" }, notice.problem)}.`;
+    case "model-is":
+      return modelIs(agent, notice);
+    case "model-set":
+      return `This thread uses ${modelWords(notice.model)} from ${agent}'s next request. That lasts until ${agent} is started again or its default model changes.`;
+    case "model-followed":
+      return `This thread follows ${agent}'s default model again${notice.defaultModel === undefined ? "" : `: ${modelWords(notice.defaultModel)}`}.`;
+    case "model-not-shown":
+      return `Could not read the model of this thread: ${because({ kind: "agent", name: agent }, notice.problem)}.`;
+    case "model-not-changed":
+      return `Could not change the model: ${because({ kind: "agent", name: agent }, notice.problem)}.`;
+    case "no-session":
+      return `${agent} has no session in this thread yet. /${MODEL} works once ${agent} has answered here.`;
+    case "model-unclear":
+      return `Write a model as provider/id, or write ${MODEL_DEFAULT}. /${MODEL} and a space lists the models ${agent} can use.`;
   }
+}
+
+/** What `/model` with nothing after it says: the model the thread uses, whose it is, and how to choose another. */
+function modelIs(agent: string, notice: Extract<Notice, { kind: "model-is" }>): string {
+  const choose = `/${MODEL} and a space`;
+  if (notice.model === null) return `This thread has no model yet. To choose one, write ${choose}.`;
+  const used = modelWords(notice.model);
+  if (!notice.own) return `This thread uses ${used}, ${agent}'s default model. To choose another, write ${choose}.`;
+  const home = notice.defaultModel === undefined ? "" : ` ${agent}'s default is ${modelWords(notice.defaultModel)}.`;
+  return `This thread uses ${used}, a model chosen for this thread.${home} Write /${MODEL} ${MODEL_DEFAULT} to follow ${agent}'s model again, or ${choose} to choose another.`;
 }
 
 /** The line printed when the console is left while an agent is still working. */
@@ -270,18 +301,34 @@ function activityWords(activity: SessionActivity): string | undefined {
 
 /**
  * The commands the terminal acts on itself, which are never posted: what each
- * does in a DM with an agent and in a room, in one line. The list of commands
- * shows them with the commands for agents.
+ * does in a DM with an agent and in a room, in one line. A command with no line
+ * for a room is no command there, and what is written is a message. The list of
+ * commands shows them with the commands for agents.
  */
 export const TERMINAL_COMMANDS = {
+  model: {
+    dm: "Show the model of this thread, or try another one.",
+  },
   status: {
     dm: "Show what the agent is doing, its model, tokens and cost.",
     room: "Show which agents here are running and working.",
   },
-} as const satisfies Record<string, { dm: string; room: string }>;
+} as const satisfies Record<string, { dm: string; room?: string }>;
 
 /** The name of a command for the terminal, without its slash. */
 export type TerminalCommand = keyof typeof TERMINAL_COMMANDS;
+
+/** A model as it is written after `/model`: its provider, a slash and its ID. */
+export const modelWords = (model: ModelId): string => `${oneLine(model.provider)}/${oneLine(model.id)}`;
+
+/** The line beside `default` in the list that `/model ` opens: whose model it stands for, and which one that is. */
+export const defaultModelLine = (agent: string, model: ModelId): string => `${oneLine(agent)}'s model: ${modelWords(model)}`;
+
+/** What `/status` adds to the model of a thread when the thread was given it, and the agent's default when that is known. */
+const chosenFor = (agent: string, defaultModel: ModelId | undefined): string =>
+  defaultModel === undefined
+    ? " (chosen for this thread)"
+    : ` (chosen for this thread; ${agent}'s default is ${modelWords(defaultModel)})`;
 
 /** The line over what `/status` read: whom it is for, and when it was read. */
 export const statusHeader = (at: number): string => `status · shown only to you · read ${localTime(at)}`;
@@ -299,10 +346,10 @@ export function agentStatusRows(status: AgentStatus): string[] {
     return rows;
   }
   if (status.session !== undefined) {
-    const { queued, model, usage } = status.session;
+    const { queued, model, own, defaultModel, usage } = status.session;
     rows.push(
       `Inputs waiting: ${howMany(queued)}`,
-      `Model: ${model === null ? "none" : `${oneLine(model.provider)}/${oneLine(model.id)}`}`,
+      `Model: ${model === null ? "none" : modelWords(model)}${own ? chosenFor(name, defaultModel) : ""}`,
       `This session: ${withCommas(usage.input)} tokens in, ${withCommas(usage.output)} out, cost $${usage.cost.toFixed(4)}`,
     );
   } else if (status.doing !== undefined) {

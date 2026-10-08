@@ -16,6 +16,7 @@ import {
 import {
   type InFull,
   type MessageRow,
+  modelLines,
   OUT_OF_DATE,
   QUIT_AGAIN,
   type Screen,
@@ -63,8 +64,9 @@ export interface Drawing {
  * Draw the console on a terminal and carry what the person types to the state:
  * keys choose, open, send and go back, switch tool calls and thinking between
  * brief and in full, and everything else they type goes to the editor, which
- * lists the commands of a thread while what is typed starts with a slash. The
- * screen is drawn again from the state's model after each change.
+ * lists the commands of a thread while what is typed starts with a slash, and
+ * the models of an agent after `/model `. The screen is drawn again from the
+ * state's model after each change.
  */
 export function startDrawing(options: DrawingOptions): Drawing {
   // A link in a message would show its text and hide where it goes. With this the address is printed with it.
@@ -125,8 +127,14 @@ export function startDrawing(options: DrawingOptions): Drawing {
   editor.onSubmit = (text) => {
     if (text === "") return;
     // A command for the terminal is acted on here and posted nowhere.
-    if (terminalCommandOf(text) === "status") {
+    const { where } = state.model();
+    const command = where.screen === "thread" ? terminalCommandOf(text, where.place.kind === "agent" ? "dm" : "room") : undefined;
+    if (command?.name === "status") {
       void state.readStatus();
+      return;
+    }
+    if (command?.name === "model") {
+      void state.chooseModel(command.choice);
       return;
     }
     const key = draftKey;
@@ -161,8 +169,18 @@ export function startDrawing(options: DrawingOptions): Drawing {
   const inFull: InFull = { toolCalls: false, thinking: false };
   // The screen as it was last drawn, which says what the keys do on it.
   let current: Screen = screenOf(state.model(), { now: now(), inFull });
-  // While what is typed in a thread starts with a slash, the editor lists the commands that can be written there.
-  editor.setAutocompleteProvider(commandList(() => (current.kind === "thread" ? current.commands : [])));
+  // While what is typed in a thread starts with a slash, the editor lists the commands that can be written there, and the models of the agent after `/model `.
+  editor.setAutocompleteProvider(
+    commandList({
+      commands: () => (current.kind === "thread" ? current.commands : []),
+      async models() {
+        const { where } = state.model();
+        if (where.screen !== "thread" || where.place.kind !== "agent") return undefined;
+        const models = await state.models();
+        return models === undefined ? undefined : modelLines(models, where.place.name);
+      },
+    }),
+  );
 
   let chosen: string | undefined;
   let focus: Component | null | undefined;

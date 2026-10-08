@@ -25,7 +25,7 @@ test("in an agent's DM it finds the agent, what it is doing in the thread, what 
       version: SHRIMPY_VERSION,
       reached: true,
       doing: { kind: "tool", name: "bash" },
-      session: { queued: 1, model: view.status.model, usage: view.status.usage },
+      session: { queued: 1, model: view.status.model, own: false, defaultModel: undefined, usage: view.status.usage },
       othersWorking: 2,
     },
   });

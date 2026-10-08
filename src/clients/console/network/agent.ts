@@ -1,6 +1,9 @@
 import {
   type AgentConnection,
+  type AgentModels,
   connectAgent,
+  type ModelId,
+  type SessionHandle,
   type SessionSummary,
   type SessionView,
 } from "../../../contracts/agent/index.ts";
@@ -42,6 +45,20 @@ export interface AgentLink {
    */
   sessions(): Promise<SessionSummary[]>;
   /**
+   * Ask the agent which models it can use now, and which one its sessions follow
+   * by default. Fails like `sessions`.
+   */
+  models(): Promise<AgentModels>;
+  /**
+   * Make the session at `session` use `model` from its next request, or follow
+   * the agent's model again with null, when that is the session being watched.
+   * Resolves true when the agent was told, and false when no such session is
+   * being watched: the agent has none yet, or the link has not got to it. Fails
+   * with `Down` when the agent is not reachable, and with the agent's own words
+   * when it refuses.
+   */
+  setModel(session: string, model: ModelId | null): Promise<boolean>;
+  /**
    * Watch a session by its address, which is a thread's ID or `trigger:` and a
    * trigger's name: its view is passed on from now on, and again after each
    * time the connection comes back. An agent with no such session yet has
@@ -49,6 +66,12 @@ export interface AgentLink {
    * session, or none, lets go of this one.
    */
   watch(session: string | undefined): void;
+  /**
+   * Look now for the session being watched, if it is `session` and the agent has
+   * made it since the last look, which the link makes every few seconds while the
+   * agent has none. Resolves when the look has ended, and never fails.
+   */
+  look(session: string): Promise<void>;
   /** Hang up and stop trying to reach the agent. */
   close(): Promise<void>;
 }
@@ -56,12 +79,13 @@ export interface AgentLink {
 /**
  * Keep a connection to the agent called `name`: reach it by its name through
  * the gateway, with a ticket to come in with, hold the connection, answer for
- * its list of sessions, and keep watching the session that is wanted across
- * losses. The work in the agent goes on whether or not this link is up.
+ * its list of sessions and its models, keep watching the session that is wanted
+ * across losses, and tell that session which model to use. The work in the
+ * agent goes on whether or not this link is up.
  */
 export function keepAgent(options: AgentLinkOptions): AgentLink {
   let wanted: string | undefined;
-  let watching: { id: string; connection: AgentConnection; stop: () => void } | undefined;
+  let watching: { id: string; connection: AgentConnection; handle: SessionHandle; stop: () => void } | undefined;
   let retry: ReturnType<typeof setTimeout> | undefined;
   let reported: string | undefined;
   let closed = false;
@@ -87,7 +111,7 @@ export function keepAgent(options: AgentLinkOptions): AgentLink {
         const handle = await connection.attach(id);
         if (wanted !== id || keeper.current() !== connection) return;
         const stop = handle.subscribe((view) => options.onSession({ session: id, view }));
-        watching = { id, connection, stop };
+        watching = { id, connection, handle, stop };
         reported = undefined;
       } catch (error) {
         // Whichever it is, look again later. A lost connection is the link's to report, and any other trouble is reported once.
@@ -140,22 +164,38 @@ export function keepAgent(options: AgentLinkOptions): AgentLink {
     },
   });
 
+  /** The connection to the agent, or `Down` saying why there is none. */
+  const connected = (): AgentConnection => {
+    const connection = keeper.current();
+    if (connection !== undefined) return connection;
+    const status = keeper.status();
+    throw new Down(status.state === "down" ? status.why : { kind: "lost" });
+  };
+
   return {
     name: options.name,
     status: () => keeper.status(),
     onStatus: (listener) => keeper.onStatus(listener),
     async sessions() {
-      const connection = keeper.current();
-      if (connection === undefined) {
-        const status = keeper.status();
-        throw new Down(status.state === "down" ? status.why : { kind: "lost" });
-      }
-      return connection.sessions();
+      return connected().sessions();
+    },
+    async models() {
+      return connected().models();
+    },
+    async setModel(session, model) {
+      const connection = connected();
+      const attached = watching;
+      if (attached?.id !== session || attached.connection !== connection) return false;
+      await attached.handle.setModel(model);
+      return true;
     },
     watch(session) {
       wanted = session;
       reported = undefined;
       void settle();
+    },
+    async look(session) {
+      if (wanted === session) await settle();
     },
     async close() {
       closed = true;

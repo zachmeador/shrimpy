@@ -4,6 +4,7 @@ import type { RoutedServerPresentation } from "@earendil-works/pi-server";
 import { Refusal, refuse } from "../../../lib/refusal/index.ts";
 import { offer, type Offer } from "../../../lib/testing/index.ts";
 import {
+  type AgentModels,
   type Member,
   type ModelId,
   type SessionDirectory,
@@ -30,7 +31,7 @@ export interface ScriptedSession {
   readonly stops: number;
   /** The text clients steered into the session, in order. */
   readonly steers: string[];
-  /** The models clients gave the session, in order. Null is a client telling it to follow the agent's home again. */
+  /** The models clients gave the session, in order, which the agent accepted. Null is a client telling it to follow the agent's home again. */
   readonly modelChoices: (ModelId | null)[];
 }
 
@@ -59,6 +60,14 @@ export interface ScriptedAgent {
   session(address: string, options?: { view?: SessionView; place?: SessionPlace }): ScriptedSession;
   /** How many times clients have asked which sessions the agent has. */
   readonly listings: number;
+  /**
+   * Make these the models the agent can use, and `models.default` the one its
+   * sessions follow unless a client gives one of its own. Until a test says
+   * which, the agent can use the one model that a session view shows.
+   */
+  useModels(models: AgentModels): void;
+  /** How many times clients have asked which models the agent can use. */
+  readonly modelListings: number;
 }
 
 interface Held {
@@ -69,9 +78,16 @@ interface Held {
 
 const noTrigger = (name: string): Refusal => new Refusal(`This agent has no trigger called ${name}.`);
 
+const sameModel = (a: ModelId, b: ModelId): boolean => a.provider === b.provider && a.id === b.id;
+
 export function scriptedAgent(): ScriptedAgent {
   const held = new Map<string, Held>();
   let listings = 0;
+  let modelListings = 0;
+  let usable: AgentModels = {
+    models: [{ provider: "local", id: "test-model", name: "test-model" }],
+    default: { provider: "local", id: "test-model" },
+  };
   // The agent says a session has work when it is answering input or has input queued.
   const working = (view: SessionView): boolean => view.status.busy || view.status.queued.length > 0;
 
@@ -118,8 +134,17 @@ export function scriptedAgent(): ScriptedAgent {
         stops += 1;
         return Promise.resolve();
       },
+      // As the agent does: a model it can't use is refused with the ones it can, and the status says whether the model is the agent's or the session's own.
       setModel(model) {
+        if (model !== null && !usable.models.some((each) => sameModel(each, model))) {
+          const names = usable.models.map((each) => `${each.provider}/${each.id}`).join(", ");
+          return Promise.reject(new Refusal(`This agent can't use ${model.provider}/${model.id}. It can use: ${names}.`));
+        }
         modelChoices.push(model);
+        made.update((view) => {
+          view.status.model = model ?? usable.default;
+          view.status.ownModel = model !== null && !sameModel(model, usable.default);
+        });
         return Promise.resolve();
       },
     };
@@ -161,14 +186,11 @@ export function scriptedAgent(): ScriptedAgent {
             await presentation.attachSession(address, context);
           }),
         detach: (context) => admitted(() => presentation.detachSession(context)),
-        // A scripted agent can use the one model its sessions show.
         models: () =>
-          admitted(() =>
-            Promise.resolve({
-              models: [{ provider: "local", id: "test-model", name: "test-model" }],
-              default: { provider: "local", id: "test-model" },
-            }),
-          ),
+          admitted(() => {
+            modelListings += 1;
+            return Promise.resolve(structuredClone(usable));
+          }),
         // A scripted agent has no triggers.
         triggers: () => admitted(() => Promise.resolve([])),
         trigger: (name) => admitted(() => Promise.reject(noTrigger(name))),
@@ -194,6 +216,12 @@ export function scriptedAgent(): ScriptedAgent {
     session,
     get listings() {
       return listings;
+    },
+    useModels(models) {
+      usable = structuredClone(models);
+    },
+    get modelListings() {
+      return modelListings;
     },
   };
 }

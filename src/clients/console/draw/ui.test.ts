@@ -14,6 +14,7 @@ import {
   aModel,
   anAgent,
   aReceipt,
+  aRoom,
   aSession,
   aThread,
   aThreadView,
@@ -273,6 +274,124 @@ test("/status shows the person what the agent is doing and its model, posts noth
   await seen("hello");
   await settle();
   assert.ok(!drawn().includes("big-model"), "the reading is gone once the thread has been left");
+});
+
+const SMALL = { provider: "local", id: "small-model" };
+const BIG = { provider: "local", id: "big-model" };
+const TWO_MODELS = { models: [{ ...BIG, name: "Big Model" }, { ...SMALL, name: "Small Model" }], default: SMALL };
+
+/** The terminal in a thread of scout's, which has a session using its default model, small-model, and can use that and big-model. */
+async function onModels(t: TestContext) {
+  const rig = await startRig(t, { now: () => now });
+  const agent = rig.agents.scout?.agent;
+  assert.ok(agent);
+  agent.useModels(TWO_MODELS);
+  const thread = await rig.thread("scout", "go");
+  const session = agent.session(thread.id, {
+    view: sessionView({ items: [userItem("go"), assistantItem("Done.")], status: { model: SMALL, usage: { input: 1204, output: 388, cost: 0.02 } } }),
+  });
+  const terminal = new FakeTerminal(100, 30);
+  const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
+  stopAfter(t, () => drawing.stop());
+  const drawn = (): string => visible(drawing.render(100)).join("\n");
+  const seen = (text: string): Promise<void> => until(() => drawn().includes(text), `the screen to show ${text}`);
+  await seen("your threads");
+  rig.state.openThread(thread.id);
+  await rig.until((model) => model.session !== undefined, "the session to be watched");
+  return { rig, agent, session, terminal, drawn, seen, posted: (): string[] => rig.chat.chat.messages(thread.id).map((message) => message.text) };
+}
+
+test("/model and a space lists default and the models the agent can use, narrowed by typing, and choosing one tells the session to use it and posts nothing", { timeout: 15_000 }, async (t) => {
+  const { agent, session, terminal, drawn, seen, posted } = await onModels(t);
+
+  terminal.type("/model");
+  await seen(lineOf("/model"));
+  terminal.type(" ");
+  await seen("local/big-model");
+  assert.ok(drawn().includes("local/small-model"));
+  assert.match(drawn(), /default.*local\/small-model/, "default says which model it is");
+  assert.ok(drawn().indexOf("default") < drawn().indexOf("local/big-model"), "and comes first");
+  terminal.type("big");
+  await until(() => !drawn().includes("local/small-model"), "the list to narrow");
+  terminal.type(ENTER);
+  await seen("local/big-model");
+
+  await until(() => session.modelChoices.length === 1, "the session to be told");
+  assert.deepEqual(session.modelChoices, [BIG]);
+  assert.deepEqual(posted(), ["go"], "nothing was posted");
+  assert.equal(agent.modelListings, 1, "narrowing the list did not ask the agent again");
+});
+
+test("/model default puts the thread back on the agent's model, and /status says which model the thread uses, and the agent's too while the thread's is its own", { timeout: 15_000 }, async (t) => {
+  const { rig, session, terminal, drawn, posted } = await onModels(t);
+
+  terminal.type("/model local/big-model");
+  terminal.type(ENTER);
+  await rig.until((model) => model.session?.status.model?.id === "big-model", "the thread to use big-model");
+  terminal.type("/status");
+  terminal.type(ENTER);
+  await until(() => drawn().includes("388") && drawn().includes("local/small-model"), "the reading to show the agent's default");
+  assert.ok(drawn().includes("local/big-model"), "beside the thread's own model");
+
+  terminal.type("/model default");
+  terminal.type(ENTER);
+  await rig.until((model) => model.session?.status.model?.id === "small-model", "the thread to follow the agent again");
+  terminal.type("/status");
+  terminal.type(ENTER);
+  await until(() => drawn().includes("388") && !drawn().includes("local/big-model"), "the reading to show the agent's model alone");
+  assert.ok(drawn().includes("local/small-model"));
+  assert.deepEqual(session.modelChoices, [BIG, null]);
+  assert.deepEqual(posted(), ["go"], "nothing was posted");
+});
+
+test("a model the agent refuses is shown as the agent said it, and the thread keeps the model it had", { timeout: 15_000 }, async (t) => {
+  const { session, terminal, drawn, seen, posted } = await onModels(t);
+
+  terminal.type("/model local/nonesuch");
+  terminal.type(ENTER);
+  await seen("local/nonesuch");
+
+  assert.ok(drawn().includes("local/big-model"), "the agent's own words say which it can use");
+  assert.deepEqual(session.modelChoices, []);
+  assert.deepEqual(session.view.status.model, SMALL);
+  assert.equal(session.view.status.ownModel, false);
+  assert.deepEqual(posted(), ["go"], "nothing was posted");
+});
+
+test("a model typed whole and followed by enter at once is the model chosen, whatever list the editor still has", async (t) => {
+  const { terminal, state, lines } = start(t, conversation());
+  state.answers.models = TWO_MODELS;
+  const drawn = (): string => lines().join("\n");
+
+  terminal.type("/model ");
+  await until(() => drawn().includes("local/small-model"), "the list of models");
+  terminal.type("local/big-model");
+  terminal.type(ENTER);
+
+  assert.deepEqual(state.calls, ["model local/big-model"], "the list still had default chosen, which no longer fit what was typed");
+});
+
+test("/model is no command in a room: the list does not offer it, and what is written is a message", async (t) => {
+  const inRoom = aThread("th_2", { preview: "go" });
+  const room = aModel({
+    where: { screen: "thread", place: { kind: "room", id: "ch_2" }, thread: "th_2" },
+    listing: aListing([anAgent("scout"), aChatServer()]),
+    rooms: { ch_2: aRoom("ops", ["scout"], [inRoom]) },
+  });
+  const { terminal, state, lines } = start(t, room);
+  const drawn = (): string => lines().join("\n");
+  const here = screenOf(room, { now });
+  assert.equal(here.kind, "thread");
+  const stop = (here as ThreadScreen).commands.find((command) => command.name === "/stop");
+  assert.ok(stop, "/stop is a command in a room");
+
+  terminal.type("/");
+  await until(() => drawn().includes(stop.line), "the list of commands");
+  assert.ok(!drawn().includes(lineOf("/model")), "the list has no /model");
+  terminal.type("model local/big-model");
+  terminal.type(ENTER);
+
+  assert.deepEqual(state.calls, ["send /model local/big-model"]);
 });
 
 test("escape goes back from a thread while the agent is working there, and the work goes on", { timeout: 15_000 }, async (t) => {

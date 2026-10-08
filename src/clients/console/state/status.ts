@@ -1,4 +1,4 @@
-import type { SessionActivity, SessionSummary } from "../../../contracts/agent/index.ts";
+import type { ModelId, SessionActivity, SessionSummary } from "../../../contracts/agent/index.ts";
 import type { Thread } from "../../../contracts/chat/index.ts";
 import { agentEntries, type Model, type Status, type Where, workingIn } from "./model.ts";
 
@@ -13,10 +13,16 @@ function threadOf(model: Model, where: Extract<Where, { screen: "thread" }>): Th
 /**
  * What `/status` finds out about the thread the person is in, as it stands in
  * the model now, with `sessions` as the agent listed them when it was asked,
- * if it could be: the agent in a DM, or the agents of a room. Nothing is found
- * out for a person who is in no thread.
+ * if it could be, and `defaultModel` as it said when it was asked: the agent in
+ * a DM, or the agents of a room. Nothing is found out for a person who is in no
+ * thread.
  */
-export function statusOf(model: Model, sessions: SessionSummary[] | undefined, at: number): Status | undefined {
+export function statusOf(
+  model: Model,
+  sessions: SessionSummary[] | undefined,
+  at: number,
+  defaultModel?: ModelId,
+): Status | undefined {
   const { where } = model;
   if (where.screen !== "thread") return undefined;
   const thread = threadOf(model, where);
@@ -52,7 +58,16 @@ export function statusOf(model: Model, sessions: SessionSummary[] | undefined, a
       version: entry?.version,
       reached,
       doing: thread === undefined ? undefined : sessionBusy ? view.status.activity : marked ? { kind: "working" } : idle,
-      session: view === undefined ? undefined : { queued: view.status.queued.length, model: view.status.model, usage: view.status.usage },
+      session:
+        view === undefined
+          ? undefined
+          : {
+              queued: view.status.queued.length,
+              model: view.status.model,
+              own: view.status.ownModel,
+              defaultModel,
+              usage: view.status.usage,
+            },
       othersWorking: sessions?.filter((each) => each.working && each.id !== where.thread).length,
     },
   };
