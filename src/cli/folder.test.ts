@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { AGENT_HOME_VARIABLE } from "../contracts/agent/index.ts";
 import { stopAfter, tempDir } from "../lib/testing/index.ts";
 import { runCli } from "./index.ts";
@@ -83,6 +86,22 @@ test("agent init needs no model: the agent names none and starts with the folder
   assert.equal(added.code, 1);
   assert.match(added.err, /agent\.json/);
   assert.deepEqual(agentFile(join(folder, "agents", "scout")), { name: "scout" });
+});
+
+test("a command whose reader stops reading, as head does, still does its work, ends well and says nothing of it", async (t) => {
+  const folder = useShrimpyDir(t);
+  const main = fileURLToPath(new URL("./main.ts", import.meta.url));
+  const child = spawn(process.execPath, [main, "agent", "init", "scout"], { stdio: ["ignore", "pipe", "pipe"] });
+  // The reader is gone before the command has printed anything.
+  child.stdout.destroy();
+  let complaint = "";
+  child.stderr.on("data", (chunk: Buffer) => (complaint += chunk.toString()));
+
+  const [code] = (await once(child, "exit")) as [number | null];
+
+  assert.equal(code, 0, complaint);
+  assert.equal(complaint, "");
+  assert.ok(existsSync(join(folder, "agents", "scout", "agent.json")), "the home was made all the same");
 });
 
 test("a folder with someone else's files in it is not used, and nothing is made in it, until the files are gone; dot files are not someone else's", async (t) => {

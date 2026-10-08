@@ -36,6 +36,10 @@ const INPUT_ENDED = "The input ended before the question was answered.";
 export function processIo(): Io {
   const terminal = process.stdin.isTTY && process.stdout.isTTY;
   let lines: Lines | undefined;
+  // Whoever reads what a command prints may stop reading, as `head` does, or go away, as a log does when it is
+  // restarted. What is printed after that is dropped: it is no failure of the command, and nothing a program that
+  // is to keep running should end for.
+  for (const stream of [process.stdout, process.stderr]) stream.on("error", ignoreReaderGone);
   return {
     out: (line) => void process.stdout.write(`${line}\n`),
     err: (line) => void process.stderr.write(`${line}\n`),
@@ -54,6 +58,11 @@ export function processIo(): Io {
     },
     terminal,
   };
+}
+
+/** An output whose reader has gone is no error. Anything else that goes wrong with one is. */
+function ignoreReaderGone(error: NodeJS.ErrnoException): void {
+  if (error.code !== "EPIPE") throw error;
 }
 
 /** Why a question stopped being asked: what the signal says, which is an error unless someone aborted it with something else. */
