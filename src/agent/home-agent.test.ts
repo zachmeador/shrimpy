@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
@@ -14,7 +15,7 @@ import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { homePaths } from "./home/index.ts";
 import { ModelSetupError } from "./host/durable.ts";
 import { initHome, parseModelChoice, previewHomeContext, startHomeAgent } from "./index.ts";
-import { attachThread, type ChatServer, closeAfter, startChatServer, stubChatCompletions, talkTo } from "./testing/index.ts";
+import { attachThread, type ChatServer, closeAfter, roomWith, startChatServer, stubChatCompletions, talkTo } from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -109,7 +110,8 @@ async function talkToAgent(chat: ChatServer, name: string) {
     me: talk.me,
     partner: talk.partner,
     thread: talk.thread,
-    replies: () => talk.replies(),
+    replies: (threadId?: string) => talk.replies(threadId),
+    said: (threadId?: string) => talk.said(threadId),
     newThread: () => talk.newThread(),
     async ask(text: string, timeoutMs?: number): Promise<{ asked: Message; receipt: Receipt }> {
       const asked = await talk.say(text);
@@ -329,6 +331,99 @@ test("an agent says which models it can use now and which one its sessions follo
   await assert.rejects(session.setModel({ provider: "local", id: "gpt" }), refusedWith("llama", "mistral", "qwen"));
   await assert.rejects(session.setModel({ provider: "openai", id: "gpt-5" }), refusedWith("anthropic", "groq", "local"));
   assert.equal(session.view.status.model?.id, "qwen", "and the session keeps the model it had");
+});
+
+test("/model as the first message of a new thread starts the thread on that model, which the agent says in the thread, and /model default has the thread follow the agent's model again", { timeout }, async (t) => {
+  const paths = newHome(t, { local: several });
+  const requests = stubChatCompletions(t, "Ok");
+  const { chat } = await startNetwork(t);
+  await startAt(t, paths.root);
+  const person = await talkToAgent(chat, "scout");
+  const side = await person.newThread();
+  /** The model each request named, in order. */
+  const named = (): string[] => requests.map((request) => request.body.model);
+
+  const command = await person.askIn(side.id, "/model local/llama");
+  const [line] = await person.replies(side.id);
+  assert.equal(command.receipt.status, "answered");
+  assert.equal(command.receipt.reply, line?.id, "the receipt names the agent's line");
+  assert.ok(line?.text.includes("local/llama") && line.text.includes("local/qwen"), "which says the model it runs on now and the one it ran on");
+  assert.deepEqual(named(), [], "and no request was made for the command");
+  assert.deepEqual((await person.said(side.id)).map((message) => message.author.id), [person.me.id, person.partner.id]);
+
+  await person.askIn(side.id, "hello");
+  await person.ask("in the main thread");
+  assert.deepEqual(named(), ["llama", "qwen"], "the thread runs on that model, and the agent's other thread on its own");
+
+  const back = await person.askIn(side.id, "/model default");
+  const backLine = (await person.replies(side.id)).find((reply) => reply.id === back.receipt.reply);
+  assert.ok(backLine?.text.includes("local/qwen") && backLine.text.includes("local/llama"), "the agent says that it follows its own model again");
+  assert.equal(requests.length, 2, "no request was made for this command either");
+  await person.askIn(side.id, "hello again");
+  assert.deepEqual(named(), ["llama", "qwen", "qwen"]);
+});
+
+test("a /model that names a model the agent can't use is answered in the thread with why and which models it can use, and the thread keeps the model it had", { timeout }, async (t) => {
+  const paths = newHome(t, { local: several });
+  const requests = stubChatCompletions(t, "Ok");
+  const { chat } = await startNetwork(t);
+  await startAt(t, paths.root);
+  const person = await talkToAgent(chat, "scout");
+  const textOf = async (command: string): Promise<string> => {
+    const { receipt } = await person.ask(command);
+    assert.equal(receipt.status, "answered");
+    return (await person.replies()).find((reply) => reply.id === receipt.reply)?.text ?? "";
+  };
+
+  const sameProvider = await textOf("/model local/gpt");
+  for (const id of ["llama", "mistral", "qwen"]) assert.ok(sameProvider.includes(id), `${id} is among the models it says it can use`);
+  assert.ok((await textOf("/model openai/gpt-5")).includes("local"), "and a provider it has no sign-in for is answered with those it has");
+  assert.ok((await textOf("/model")).includes("local/qwen"), "with nothing after it, it says which model the thread runs on");
+  await textOf("/model local/qwen");
+  await textOf("/model not a model");
+  assert.equal(requests.length, 0, "no request was made for any of these");
+
+  await person.ask("hello");
+  assert.deepEqual(requests.map((request) => request.body.model), ["qwen"]);
+});
+
+test("in a room /model is for the agent it names and for every agent when it says @all, and an agent it does not name neither changes its model nor answers", { timeout }, async (t) => {
+  const scout = newHome(t, { local: { ...several, apiKey: "key-scout" } });
+  const bob = newHome(t, { local: { ...several, apiKey: "key-bob" } }, "bob");
+  const requests = stubChatCompletions(t, "Ok");
+  const { chat } = await startNetwork(t);
+  await startAt(t, scout.root);
+  await startAt(t, bob.root);
+  const toScout = await talkToAgent(chat, "scout");
+  const toBob = await talkToAgent(chat, "bob");
+  const { person, main } = await roomWith(chat, "Ops", [toScout.partner, toBob.partner]);
+  const members = { scout: toScout.partner.id, bob: toBob.partner.id };
+  const say = (text: string): Promise<Message> => person.chat.post(main.id, text, randomUUID());
+  /** What `agent` left on a message and what it said in the room, once its receipt is there. */
+  const receiptOf = async (agent: keyof typeof members, message: Message): Promise<Receipt | undefined> =>
+    (await person.chat.read(main.id, null, 200)).find((each) => each.id === message.id)?.receipts.find((receipt) => receipt.memberId === members[agent]);
+  const answered = (agent: keyof typeof members, message: Message): Promise<Receipt | undefined> =>
+    eventually(() => receiptOf(agent, message), (found) => found !== undefined, { what: `${agent}'s receipt` });
+  /** The models each agent's requests named, by the key that tells their homes apart. */
+  const named = (key: string): string[] =>
+    requests.filter((request) => request.headers.authorization === `Bearer ${key}`).map((request) => request.body.model);
+
+  const onlyScout = await say("@scout /model local/llama");
+  assert.equal((await answered("scout", onlyScout))?.status, "answered");
+  // Each agent takes the events of the room in order, so once bob has answered this he is past the command.
+  const hello = await say("@all hello");
+  await Promise.all([answered("scout", hello), answered("bob", hello)]);
+  assert.equal(await receiptOf("bob", onlyScout), undefined, "bob was not named and left no receipt");
+  assert.deepEqual([named("key-scout"), named("key-bob")], [["llama"], ["qwen"]], "so scout runs on the model and bob on his own");
+
+  const everyone = await say("@all /model local/mistral");
+  assert.deepEqual(await Promise.all([answered("scout", everyone), answered("bob", everyone)]).then((all) => all.map((receipt) => receipt?.status)), ["answered", "answered"]);
+  const again = await say("@all again");
+  await Promise.all([answered("scout", again), answered("bob", again)]);
+  assert.deepEqual([named("key-scout"), named("key-bob")], [["llama", "mistral"], ["qwen", "mistral"]]);
+
+  const lines = (await person.chat.read(main.id, null, 200)).filter((message) => message.author.kind === "agent" && message.text !== "Ok");
+  assert.deepEqual(lines.map((message) => message.author.id).sort(), [members.bob, members.scout, members.scout].sort(), "scout said a line for each command it was named in, and bob for the one that named everyone");
 });
 
 test("two homes share no keys, instructions or history", { timeout }, async (t) => {

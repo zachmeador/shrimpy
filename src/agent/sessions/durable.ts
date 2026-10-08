@@ -13,5 +13,6 @@
  * through the function this exports. It must not know how an input is taken up,
  * followed or told to its source, or about transports and chat.
  */
+export { requireModel } from "./models.durable.ts";
 export { type ServedSession, stopWork } from "./service.durable.ts";
 export { createSessions, type Sessions } from "./sessions.durable.ts";

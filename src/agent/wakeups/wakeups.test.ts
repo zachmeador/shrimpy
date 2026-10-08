@@ -9,7 +9,7 @@ import { eventually, stopAfter, tempDir } from "../../lib/testing/index.ts";
 import { createAdmissions } from "../chat/durable.ts";
 import { openHost } from "../host/durable.ts";
 import { isWakeup, type Outstanding, type TurnOutcome } from "../inputs/index.ts";
-import { createSessions, stopWork } from "../sessions/durable.ts";
+import { createSessions, requireModel, stopWork } from "../sessions/durable.ts";
 import { callingTools, fauxModels, loggedRequests, type Script } from "../testing/index.ts";
 import { beginRun, turnTask } from "../turns/durable.ts";
 import type { Delivery } from "../turns/index.ts";
@@ -73,7 +73,13 @@ async function start(t: TestContext, home: string, script: Script, options: Star
   const stop = (): Promise<void> => (closing ??= host.close());
   stopAfter(t, stop);
   const defaults = { model, cwd: home };
-  const admissions = createAdmissions(host.harness, defaults, turn.task, stopWork, () => Promise.resolve([]));
+  const admissions = createAdmissions(
+    host.harness,
+    defaults,
+    turn.task,
+    { stopWork, requireModel: (wanted) => requireModel(models, wanted) },
+    () => Promise.resolve([]),
+  );
   await createSessions(host.harness, defaults, models).applyDefaults();
   await beginRun(host.harness);
   host.resume();

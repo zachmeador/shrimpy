@@ -1,5 +1,5 @@
 import type { AgentModels } from "../../../contracts/agent/index.ts";
-import { AGENT_COMMANDS, type AgentCommand } from "../../../contracts/chat/index.ts";
+import { AGENT_COMMANDS } from "../../../contracts/chat/index.ts";
 import type { ModelChoice, Notice } from "../state/index.ts";
 import { oneLine } from "./plain.ts";
 import { defaultModelLine, MODEL_DEFAULT, modelWords, TERMINAL_COMMANDS, type TerminalCommand } from "./words.ts";
@@ -10,10 +10,7 @@ export interface CommandLine {
   line: string;
 }
 
-/** A command is for the agents or for the terminal, never both, since the terminal would take it before any agent could. This stops compiling when a name is in both. */
-const _inOneKind: [Extract<AgentCommand, TerminalCommand>] extends [never] ? true : never = true;
-
-/** What every command does, by name: in a DM, and in a room if it is a command there. */
+/** What every command does, by name: in a DM, and in a room if it is a command there. The terminal's own `/model` is the one the person gets here. */
 const LINES: Record<string, { dm: string; room?: string }> = { ...AGENT_COMMANDS, ...TERMINAL_COMMANDS };
 
 /**

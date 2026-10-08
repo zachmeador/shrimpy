@@ -8,7 +8,7 @@ import { createAdmissions } from "../chat/durable.ts";
 import { openHost } from "../host/durable.ts";
 import { type ChatInput, idOf, isChat, type Snapshot, type TurnOutcome } from "../inputs/index.ts";
 import { SessionsDoc } from "../records/durable.ts";
-import { createSessions, stopWork } from "../sessions/durable.ts";
+import { createSessions, requireModel, stopWork } from "../sessions/durable.ts";
 import { type FauxScenario, fauxModels, releaseGate } from "../testing/index.ts";
 import { turnTask } from "./durable.ts";
 import type { Delivery } from "./index.ts";
@@ -84,7 +84,13 @@ async function open(t: TestContext, home: string, scenario: FauxScenario, option
     await stop();
   });
   const defaults = { model, cwd: home };
-  const admissions = createAdmissions(host.harness, defaults, turn.task, stopWork, () => Promise.resolve([]));
+  const admissions = createAdmissions(
+    host.harness,
+    defaults,
+    turn.task,
+    { stopWork, requireModel: (wanted) => requireModel(models, wanted) },
+    () => Promise.resolve([]),
+  );
   await createSessions(host.harness, defaults, models).applyDefaults();
   host.resume();
   return { host, admissions, reports, stop };

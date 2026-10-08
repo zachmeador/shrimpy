@@ -39,7 +39,7 @@ import { messageTools } from "./message-tools/durable.ts";
 import { askTools, createQuestions } from "./questions/durable.ts";
 import { openRecords, type SessionDefaults } from "./records/durable.ts";
 import { type HomeFiles, startServer } from "./server.ts";
-import { createSessions, stopWork } from "./sessions/durable.ts";
+import { createSessions, requireModel, stopWork } from "./sessions/durable.ts";
 import { type CloseOptions, stopper } from "./stop.ts";
 import { createTriggers } from "./triggers/durable.ts";
 import { beginRun, createWorking, type Run, turnTask } from "./turns/durable.ts";
@@ -205,7 +205,13 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       triggers.extension,
     );
     const sessions = createSessions(host.harness, defaults, options.models);
-    const admissions = createAdmissions(host.harness, defaults, turn.task, stopWork, breadcrumbs);
+    const admissions = createAdmissions(
+      host.harness,
+      defaults,
+      turn.task,
+      { stopWork, requireModel: (model) => requireModel(options.models, model) },
+      breadcrumbs,
+    );
     const working = createWorking(host.harness);
     // What wakes the agent in each room is read from the home's wake file, at the start and on a reload. A file that
     // does not check out is left out and named, and the agent keeps what it last read.

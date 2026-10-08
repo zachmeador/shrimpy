@@ -8,9 +8,11 @@
  * follows an input knows how its turn ended, the reply is posted and the receipt
  * left, which names the event; a wake-up the agent asked for, an occurrence of a
  * trigger and the result of a question are posted the same way, and have no
- * receipt. A command a person writes in a thread, `/stop`, is no input: it is
- * acted on when the feed brings it, whatever the room's wake policy, and is never
- * handed to a session or a model. What an agent the agent asked a question posts
+ * receipt. A command a person writes in a thread, `/stop` or `/model`, is no
+ * input: it is acted on when the feed brings it, if it is for the agent, whatever
+ * the room's wake policy, and is never handed to a session or a model. The one
+ * line the agent says about it, if it says one, is posted to the thread and named
+ * by the command's receipt. What an agent the agent asked a question posts
  * in the question's own thread while the question is open belongs to the question
  * and wakes nobody, and the receipt it leaves on the question closes it, as a
  * result for the session that asked. When a question's time is up, it looks at

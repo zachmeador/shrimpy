@@ -1,12 +1,13 @@
+import type { ModelId } from "../../contracts/agent/index.ts";
 import type { ChatInput, Question, QuestionResult } from "../inputs/index.ts";
 import type { WakePolicies } from "./policy.ts";
 
 /**
  * What chat needs from the agent's records: where it stands in chat's feed and
  * in which chat store, a way to take an event up, which questions the agent has
- * open and a way to close one, and a way to stop the work behind a thread, for a
- * command. It is also handed the choices the agent made, in a file of its home,
- * about what wakes it in each room.
+ * open and a way to close one, and ways to stop the work behind a thread and to
+ * choose its model, for the commands. It is also handed the choices the agent
+ * made, in a file of its home, about what wakes it in each room.
  */
 export interface Admissions {
   /** What wakes the agent in each room. Without it, every room has the default. */
@@ -71,4 +72,21 @@ export interface Admissions {
    * the agent's other sessions alone. It resolves once the work has stopped.
    */
   stopWork(threadId: string): Promise<void>;
+  /**
+   * The model the session behind a thread uses, and the one the agent's home
+   * names, which a session follows until it is given another. A thread with no
+   * session yet is to run on the home's.
+   */
+  modelOf(threadId: string): Promise<{ used: ModelId; home: ModelId }>;
+  /**
+   * Make the session behind a thread use `model` from its next request, or
+   * follow the home's model again with null, for a command. A thread with no
+   * session gets one first, as an event in it would make, so a command can be the
+   * first thing written in a thread. A request that is running goes on as it
+   * began. It lasts until the agent is started again or a reload finds the home
+   * naming another model, as for any session. A model the agent can't use now is
+   * refused, saying which it can, and nothing changes. Answers with the model
+   * the session used before and the one it uses now.
+   */
+  useModel(thread: { threadId: string; channelId: string }, model: ModelId | null): Promise<{ before: ModelId; now: ModelId }>;
 }

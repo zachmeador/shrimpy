@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 /**
  * Split text into messages of at most `limit` characters. A part ends where a
  * line does when it can end in the later half of what fits, and never splits a
@@ -42,4 +44,15 @@ export function clip(text: string, limit: number): string {
  */
 export function replyRequestId(recordsId: string, threadId: string, answer: string, part: number): string {
   return `reply-${recordsId}-${threadId}-${answer}-${part}`;
+}
+
+/**
+ * Names the line an agent says about a command by the command's event and by the
+ * line itself. Posting the same line again is a retry that posts nothing twice,
+ * and a line that differs from the one an earlier run posted, as when that run
+ * changed a model before it went down and the next finds it changed already, is
+ * posted too, where under one name chat would refuse it as a different text.
+ */
+export function commandReplyRequestId(eventId: string, line: string): string {
+  return `command-${eventId}-${createHash("sha256").update(line).digest("hex").slice(0, 16)}`;
 }
