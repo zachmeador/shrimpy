@@ -188,8 +188,9 @@ export function joinGateway(options: GatewayLinkOptions): KeptRegistration {
         news?.registered(gateway);
       },
       onError(error) {
-        // For an agent apart, a connection that can't be made or that ended is the gateway being out of reach, which is told once.
-        if (news !== undefined && isDisconnected(error)) return news.cannotReach();
+        // A connection that can't be made or that ended is the gateway being out of reach. An agent apart tells it once. One
+        // beside the gateway says nothing and keeps trying, as it does while no gateway is listening.
+        if (isDisconnected(error)) return news?.cannotReach();
         const told = `Could not join the network: ${isRefusal(error) ? turnedAway(error) : error.message}`;
         if (told === reported) return;
         reported = told;
