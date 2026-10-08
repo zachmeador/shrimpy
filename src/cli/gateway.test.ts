@@ -73,4 +73,5 @@ test("status, with no gateway on this machine, says where the gateway of the fol
   const here = captureIo();
   assert.equal(await runCli(["gateway", "status"], here.io), 1);
   assert.match(here.err.join("\n"), /No gateway is running on this machine\. Start Shrimpy with: shrimpy up/);
+  assert.ok(here.out.at(-1)?.includes("shrimpy gateway install"), "and it ends with the line on the service too");
 });

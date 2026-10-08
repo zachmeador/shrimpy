@@ -86,9 +86,9 @@ const status: Command = {
     "people and agents, by ID, kind and name, with whether a program is registered as each. A version that " +
     "differs from this command's own is marked, and so is the gateway's, on standard error. It ends with a " +
     "line that says whether a service is installed for your Shrimpy folder, which gateway install sets up, " +
-    "and whether it is running. Exits 1 if no gateway is running. When none is meant to run here, because " +
-    "every agent in your Shrimpy folder belongs to a gateway elsewhere, it says where that gateway is, and " +
-    "ends with the line on the service all the same.",
+    "and whether it is running. If no gateway is running it says how to start Shrimpy, or, when none is meant " +
+    "to run here because every agent in your Shrimpy folder belongs to a gateway elsewhere, where that " +
+    "gateway is. It ends with the line on the service all the same, and exits 1.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     expectArguments(positionals, []);
@@ -136,21 +136,23 @@ function gatewaysElsewhere(): Address[] {
 
 /**
  * What to say when no gateway runs on this machine: how to start Shrimpy, or, when the agents of the Shrimpy folder
- * belong to a gateway elsewhere and none is meant to run here, where theirs is, with the line on the service. Exits 1.
+ * belong to a gateway elsewhere and none is meant to run here, where theirs is. The line on the service comes after
+ * either. Exits 1.
  */
 async function noGatewayHere(io: Io, error: GatewayNotRunningError): Promise<number> {
   const elsewhere = gatewaysElsewhere();
-  if (elsewhere.length === 0) {
-    throw new Error(`${error.message} Start Shrimpy with: ${START_EVERYTHING}`, { cause: error });
-  }
   const where = elsewhere.map(formatAddress).join(" and ");
-  io.err(
-    elsewhere.length === 1
-      ? `${error.message} The agents in your Shrimpy folder belong to the gateway at ${where}, so Shrimpy starts none here. ` +
-          "To see what runs there, run shrimpy gateway status on that machine."
-      : `${error.message} The agents in your Shrimpy folder belong to the gateways at ${where}, so Shrimpy starts none here. ` +
-          "To see what runs there, run shrimpy gateway status on each of those machines.",
-  );
+  if (elsewhere.length === 0) {
+    io.err(`${error.message} Start Shrimpy with: ${START_EVERYTHING}`);
+  } else {
+    io.err(
+      elsewhere.length === 1
+        ? `${error.message} The agents in your Shrimpy folder belong to the gateway at ${where}, so Shrimpy starts none here. ` +
+            "To see what runs there, run shrimpy gateway status on that machine."
+        : `${error.message} The agents in your Shrimpy folder belong to the gateways at ${where}, so Shrimpy starts none here. ` +
+            "To see what runs there, run shrimpy gateway status on each of those machines.",
+    );
+  }
   const service = await serviceStatusLine(thisAccount());
   if (service !== undefined) io.out(service);
   return 1;

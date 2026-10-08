@@ -213,7 +213,8 @@ export async function serviceStatusLine(account: Account): Promise<string | unde
   if (!existsSync(service.file)) return `No service is installed for ${folder}. shrimpy gateway install sets one up.`;
   try {
     const { running, detail } = await stateOf(account, service);
-    return `The service ${service.name} is installed for ${folder} and ${running ? "running" : `not running (${detail})`}.`;
+    if (running) return `The service ${service.name} is installed for ${folder} and running.`;
+    return `The service ${service.name} is installed for ${folder} and not running (${detail}). shrimpy gateway install starts it again.`;
   } catch (error) {
     return `The service ${service.name} is installed for ${folder}. It could not be asked whether it runs: ${error instanceof Error ? error.message : String(error)}`;
   }
