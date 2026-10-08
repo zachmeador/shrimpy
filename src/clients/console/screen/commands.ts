@@ -41,17 +41,18 @@ export type TerminalInput = { name: "status" } | { name: "model"; choice: ModelC
 const COMMAND = /^\s*\/(\S+)(?:\s+(\S+))?\s*$/;
 
 /**
- * The command for the terminal that a text is, if it is one where the person
- * is writing: all of it, but for the spaces around it, is a slash and the
- * command's name, and for `/model` one word after that. Anything else that
- * starts with a slash is a message, since a command for the terminal posts
- * nothing and a message that was taken for one would be lost. A command that a
- * place has no line for is a message there.
+ * The command for the terminal that a text is, if it is one: all of it, but
+ * for the spaces around it, is a slash and the command's name, and for `/model`
+ * one word after that. Anything else that starts with a slash is a message,
+ * since a command for the terminal posts nothing and a message that was taken
+ * for one would be lost. A command is the terminal's wherever it is written:
+ * in a place it does not work in, the terminal says where it does, and posts
+ * nothing, since a message would wake every agent there.
  */
-export function terminalCommandOf(text: string, where: "dm" | "room"): TerminalInput | undefined {
+export function terminalCommandOf(text: string): TerminalInput | undefined {
   const found = COMMAND.exec(text);
   const name = found?.[1]?.toLowerCase();
-  if (name === undefined || !isTerminalCommand(name) || LINES[name]?.[where] === undefined) return undefined;
+  if (name === undefined || !isTerminalCommand(name)) return undefined;
   const word = found?.[2];
   if (name === "status") return word === undefined ? { name } : undefined;
   return { name, choice: modelChoiceOf(word) };

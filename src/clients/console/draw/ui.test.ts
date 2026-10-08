@@ -371,7 +371,7 @@ test("a model typed whole and followed by enter at once is the model chosen, wha
   assert.deepEqual(state.calls, ["model local/big-model"], "the list still had default chosen, which no longer fit what was typed");
 });
 
-test("/model is no command in a room: the list does not offer it, and what is written is a message", async (t) => {
+test("/model in a room is not offered by the list and is not posted, since a message would wake every agent there", async (t) => {
   const inRoom = aThread("th_2", { preview: "go" });
   const room = aModel({
     where: { screen: "thread", place: { kind: "room", id: "ch_2" }, thread: "th_2" },
@@ -391,7 +391,7 @@ test("/model is no command in a room: the list does not offer it, and what is wr
   terminal.type("model local/big-model");
   terminal.type(ENTER);
 
-  assert.deepEqual(state.calls, ["send /model local/big-model"]);
+  assert.deepEqual(state.calls, ["model local/big-model"], "the terminal takes it, and sends nothing");
 });
 
 test("escape goes back from a thread while the agent is working there, and the work goes on", { timeout: 15_000 }, async (t) => {

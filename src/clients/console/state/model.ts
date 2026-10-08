@@ -79,7 +79,9 @@ export type Notice =
   /** The agent has no session for the open thread yet, so there is no model to show or change. */
   | { kind: "no-session" }
   /** `/model` was written with something that is neither `default` nor a model as provider/id. */
-  | { kind: "model-unclear" };
+  | { kind: "model-unclear" }
+  /** `/model` was written in a room, which has no one agent. */
+  | { kind: "model-in-room" };
 
 /** What `/model` was written with in a thread of a DM. */
 export type ModelChoice =

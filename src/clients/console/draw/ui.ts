@@ -128,7 +128,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
     if (text === "") return;
     // A command for the terminal is acted on here and posted nowhere.
     const { where } = state.model();
-    const command = where.screen === "thread" ? terminalCommandOf(text, where.place.kind === "agent" ? "dm" : "room") : undefined;
+    const command = where.screen === "thread" ? terminalCommandOf(text) : undefined;
     if (command?.name === "status") {
       void state.readStatus();
       return;

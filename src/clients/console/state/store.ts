@@ -472,7 +472,10 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     async chooseModel(choice) {
       const { where } = model;
       const link = agent;
-      if (where.screen !== "thread" || where.place.kind !== "agent" || link === undefined) return;
+      if (where.screen !== "thread") return;
+      // A room has no one agent whose model this could be.
+      if (where.place.kind !== "agent") return say({ kind: "model-in-room" });
+      if (link === undefined) return;
       if (choice.kind === "unclear") return say({ kind: "model-unclear" });
       const { thread } = where;
       // Where the person is changes while the agent is asked, which the compiler cannot see. What came of it is for the thread it was asked in.

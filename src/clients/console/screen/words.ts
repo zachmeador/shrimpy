@@ -155,6 +155,8 @@ export function noticeText(notice: Notice, agentName: string): string {
       return `${agent} has no session in this thread yet. /${MODEL} works once ${agent} has answered here.`;
     case "model-unclear":
       return `Write a model as provider/id, or write ${MODEL_DEFAULT}. /${MODEL} and a space lists the models ${agent} can use.`;
+    case "model-in-room":
+      return `/${MODEL} works in a thread of your DM with an agent. A room has no one agent to choose a model for. Nothing was posted.`;
   }
 }
 
