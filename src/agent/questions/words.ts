@@ -58,4 +58,4 @@ export const uncertain = (name: string): string =>
 
 export const asked = (name: string, due: number): string =>
   `Asked @${name}. The answer comes to you here as a new input, and if there is none by ${localTime(due)} you are told that instead. ` +
-  "You can end your turn now.";
+  "You can end your turn now. What you write last is posted as your reply, so write a line meant for whoever you are talking to, such as what you are waiting for, or write only END to post nothing.";

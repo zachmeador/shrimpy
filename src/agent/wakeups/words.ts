@@ -48,7 +48,7 @@ export const tooMany = (waiting: number): string =>
   "Wait for one to wake you first.";
 
 export const wakeSet = (due: number, askedAt: number, inThread: boolean): string =>
-  `You will be woken ${inThread ? "in this thread " : ""}at ${localTime(due)}, in ${howLong(due - askedAt)}, with your note. You can end your turn now.`;
+  `You will be woken ${inThread ? "in this thread " : ""}at ${localTime(due)}, in ${howLong(due - askedAt)}, with your note. You can end your turn now. What you write last is posted as your reply, so write a line meant for whoever you are talking to, such as what you are waiting for, or write only END to post nothing.`;
 
 /** A length of time in its two largest units: "2 hours 30 minutes", "5 minutes", "1 day". */
 export function howLong(milliseconds: number): string {
