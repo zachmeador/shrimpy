@@ -276,30 +276,19 @@ Marked by the owner on 2026-10-08. Nine lines were dropped and are gone from thi
 
 ### The terminal
 
-- Open settings (`/settings`) and Shrimpy's own (`/shrimpy`) — keep the intent.
-- Show the keys (`/hotkeys`) — keep the intent; a screen listing every key waits.
-- Read what changed in a release (`/changelog`) — keep the intent.
-- Set an agent's thinking level with `/thinking` in the terminal — keep the intent.
-- Quit with `/quit` — keep the intent; Ctrl+C twice and Ctrl+D quit today.
-- Sign in or out with `/login` and `/logout` — keep the intent.
-- Reload with `/reload` — keep the intent.
-- Switch between agents and chats with `/agents` — keep the intent.
-- Trust a project (`/trust`) — under review; ambient project instructions stay off.
-- Use a skill with `/skill:name`, and expand prompt templates — kept.
-- Run a shell line from the editor with `!` and `!!` — kept.
-- Recall earlier messages with the editor's history — comes back when missed.
-- Complete file paths while typing — comes back when missed.
-- Paste clipboard text and images into a message — comes back when missed.
-- Edit in an external editor, suspend, and copy with keys — come back when missed.
-- Edit a message the agent hasn't picked up yet — comes back when missed.
-- Use a fullscreen mode — comes back when missed.
-- See hidden turn context, a header, a footer and constant usage — come back when missed.
-- Watch a shrimp swim while an agent works — not for now.
-- See the shrimp in the terminal's tab title — kept.
-- Mark favourite models, apply one with Enter, save a default with Ctrl+S — promised.
-- Start the terminal with a first message, or through `chat`, `agent tui` or `agent run` — undecided.
-- Reopen the latest thread with the latest agent, starting its service on demand — decided.
-- See which replies and work arrived while the terminal was closed — decided.
+Marked by the owner on 2026-10-08. Thirteen lines were dropped and are gone from this list.
+
+- A way to show the keys — wanted: the line of keys at the bottom "is getting a bit crowded. some way to display keys is needed". The owner means to restyle the terminal a little at some point.
+- The shrimp in the terminal's tab title — wanted, and soon: "move this bad boy up the priority stack".
+- Recall earlier messages with the editor's history — later, and soon.
+- See what arrived while the terminal was closed — later, and soon.
+- Reopen the latest thread with the latest agent — later.
+- Open settings — later; there is nothing to set yet.
+- Set an agent's thinking level with `/thinking` — later; it would work as `/model` does.
+- Sign in or out from the terminal — later; `shrimpy providers login` does it from a shell.
+- Paste clipboard images into a message — later, with attachments.
+- Edit a message the agent hasn't picked up yet — later, with the ways in for edits and reactions.
+- Use a fullscreen mode — later.
 
 ### Models and signing in
 
