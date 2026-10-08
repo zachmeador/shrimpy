@@ -65,7 +65,7 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
   - Two reloads at once take turns.
   - A reload that changes the home's model replaces every session's own model, one equal to the new default included.
 - The skills say that a changed model takes a reload, and that only a new name still waits for the agent to be started again.
-- 690 tests: 684 pass and 6 are skipped. One run of the builder's, on a machine three builders were loading, failed a test of an agent apart from its gateway that this change doesn't touch. It passed alone six times of six, and in every run since.
+- 690 tests: 684 pass and 6 are skipped. One run of the builder's, on a machine that other builds were loading, failed a test of an agent apart from its gateway that this change doesn't touch. It passed alone six times of six, and in every run since.
 
 **2026-10-08: Esc always goes back, a list of commands, and `/status`.** From your first night with the terminal: "one bad piece of ux is Esc works as back in the shrimpy terminal browser but if an agent is running it interrupts instead of going back". You agreed that Esc always goes back and `/stop` stops, and asked for the rest: "there should be other slash-controls in the terminal browser. `/status` is useful", and "there should be a tui modal when you type `/` into the input box and you can see what commands there are and a brief explainer". One builder, a commit for each. [Using it](../design/using-it.md) has what they do.
 
