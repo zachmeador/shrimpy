@@ -329,7 +329,7 @@ Tool policy is composable through SDK allowlists and denylists, active-tool APIs
 
 `DefaultResourceLoader` controls system prompts, appended prompt text, instruction files, extensions, skills, prompts, and themes. Shrimpy supplies a complete assembled system prompt, strips ambient Pi instruction and skill layers, and loads a curated extension set. Pi continues to own provider-native tool definitions and interactive command handling.
 
-The focused [Pi skill handling note](pi-skill-handling.md) covers skill discovery, additional paths, slash-command expansion, and the Shrimpy integration gap in more detail.
+The focused Pi skill handling note covers skill discovery, additional paths, slash-command expansion, and the Shrimpy integration gap in more detail.
 
 ### Background Work And Multi-Agent Scope
 

@@ -46,7 +46,7 @@ The Sep 16 [networking comparison](sandbox-runtime-scout-2026-08-26.md#networkin
 
 ### macOS
 
-The existing [macos-seatbelt-helper.md](macos-seatbelt-helper.md) note remains the main macOS research source. Durable points:
+The existing macos-seatbelt-helper.md note remains the main macOS research source. Durable points:
 
 - App Sandbox is the supported app-distribution model.
 - Seatbelt/SBPL-style profiles are the lower-level policy substrate that can express per-process path and service restrictions.
@@ -54,7 +54,7 @@ The existing [macos-seatbelt-helper.md](macos-seatbelt-helper.md) note remains t
 - Security-scoped bookmarks and picker flows are the user-consent story for folders selected at runtime.
 - Sandboxing should apply before loading Node or any large runtime where feasible, because already-open descriptors or inherited services can weaken a late sandbox.
 
-The first Mac proof should use an existing CLI runner around the agent process. A signed helper or menu-bar app is later work for folder consent or native services, not a prerequisite for the experiment. See the [helper note](macos-seatbelt-helper.md).
+The first Mac proof should use an existing CLI runner around the agent process. A signed helper or menu-bar app is later work for folder consent or native services, not a prerequisite for the experiment. See the helper note.
 
 ### Linux
 
@@ -148,7 +148,7 @@ Risks:
 - commit operations still need controlled access to object storage, refs, and config;
 - setup is more complex for normal users.
 
-Shrimpy implication: a worktree needs its own OS policy and explicit access to the required git directories. [Git documents](https://git-scm.com/docs/git-worktree) the split between per-worktree metadata and the shared common directory. A worktree of the live repository does not become independent just because its checkout lives under `/tmp`. Use a separate repository with its own metadata when isolation of history/configuration is required, and test that it has no object-store alternates back into the live repo. The current pi-permission-modes extension actually disables its Bash sandbox for real worktrees; see the [Pi survey](pi-sandboxing-implementations.md).
+Shrimpy implication: a worktree needs its own OS policy and explicit access to the required git directories. [Git documents](https://git-scm.com/docs/git-worktree) the split between per-worktree metadata and the shared common directory. A worktree of the live repository does not become independent just because its checkout lives under `/tmp`. Use a separate repository with its own metadata when isolation of history/configuration is required, and test that it has no object-store alternates back into the live repo. The current pi-permission-modes extension actually disables its Bash sandbox for real worktrees; see the Pi survey.
 
 ## Bringing sandbox changes back into the workspace
 
@@ -170,7 +170,7 @@ For the first experiment, run one agent process inside a sandbox, as proposed in
 
 ## Sources
 
-- Existing Shrimpy research: [macos-seatbelt-helper.md](macos-seatbelt-helper.md).
+- Existing Shrimpy research: macos-seatbelt-helper.md.
 - OpenAI Codex docs: [Sandbox](https://learn.chatgpt.com/docs/sandboxing).
 - Anthropic Claude Code docs: [Security](https://code.claude.com/docs/en/security), [Permissions](https://code.claude.com/docs/en/permissions), [Sandboxed Bash tool](https://code.claude.com/docs/en/sandboxing), [Sandbox environments](https://code.claude.com/docs/en/sandbox-environments).
 - Linux kernel docs: [Landlock](https://www.kernel.org/doc/html/latest/userspace-api/landlock.html), [Seccomp BPF](https://www.kernel.org/doc/html/latest/userspace-api/seccomp_filter.html).

@@ -46,7 +46,7 @@ SRT's published [network advisory](https://github.com/anthropics/sandbox-runtime
 
 ## nono: retain as a serious process-policy comparison
 
-nono applies OS restrictions to the whole process. Its current policy and proxy machinery is broader than the older Pi-pack description; see the refreshed [Pi comparison](pi-sandboxing-implementations.md). The [0.76.0 changes](https://github.com/nolabs-ai/nono/releases/tag/v0.76.0) include multi-hop symlink resolution and removal of blanket `/Volumes` reads. [0.77.0](https://github.com/nolabs-ai/nono/releases/tag/v0.77.0) includes breaking profile cleanup and further credential and network work.
+nono applies OS restrictions to the whole process. Its current policy and proxy machinery is broader than the older Pi-pack description; see the refreshed Pi comparison. The [0.76.0 changes](https://github.com/nolabs-ai/nono/releases/tag/v0.76.0) include multi-hop symlink resolution and removal of blanket `/Volumes` reads. [0.77.0](https://github.com/nolabs-ai/nono/releases/tag/v0.77.0) includes breaking profile cleanup and further credential and network work.
 
 Its [security policy](https://github.com/nolabs-ai/nono/blob/main/SECURITY.md) still says guarantees are unstable and production use is not recommended. Concrete examples explain why the warning matters:
 
