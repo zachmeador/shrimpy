@@ -276,11 +276,10 @@ Marked by the owner on 2026-10-08. Nine lines were dropped and are gone from thi
 
 ### The terminal
 
-Marked by the owner on 2026-10-08. Thirteen lines were dropped and are gone from this list.
+Marked by the owner on 2026-10-08. Fourteen lines were dropped and are gone from this list.
 
 - A way to show the keys — wanted: the line of keys at the bottom "is getting a bit crowded. some way to display keys is needed". The owner means to restyle the terminal a little at some point.
 - The shrimp in the terminal's tab title — wanted, and soon: "move this bad boy up the priority stack".
-- Recall earlier messages with the editor's history — later, and soon.
 - See what arrived while the terminal was closed — later, and soon.
 - Reopen the latest thread with the latest agent — later.
 - Open settings — later; there is nothing to set yet.
