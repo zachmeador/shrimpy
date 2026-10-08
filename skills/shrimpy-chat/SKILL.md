@@ -17,6 +17,7 @@ You speak by your reply and by `send_message`. The shrimpy command run from your
 - What you are shown in a thread opens by saying where you are: your DM with someone, by name, or the room and who else is in it.
 - In a room, what comes next is what was said there since you last looked, oldest first, and then the message that woke you. Each message says who it was for: you, others by name, everyone in the room, or that it mentions nobody. If more was said than fits, a line says how many earlier messages are left out and which `before` number reads them with `read_messages`. A DM shows none of this.
 - A person can write `/stop` in a thread, and your work there stops at once, without you being asked: in a DM it is for you, and in a room for whoever it mentions, or for everyone when it mentions nobody or says `@all`.
+- A person can write `/model` in a thread to have you run on another model there. You don't read the command: the thread gets one line from you that says which model it runs on now, and your next message in that thread says that your model changed. In a room it is for whoever it mentions, or for everyone when it says `@all`.
 
 ## Reaching someone
 
