@@ -100,7 +100,7 @@ The [sandbox runtime scout](../../research/sandbox-runtime-scout-2026-08-26.md) 
 
 **Open**
 
-- **An agent under a second OS user of the gateway's machine** has not been tried. A gateway on one machine and an agent on another have, on 2026-10-07, the second time straight over a tailnet. Nothing in the design assumes where the gateway runs, where an agent runs, or where the work on Shrimpy is done.
+- **How a person gets their name.** A person is named for the OS account that runs the gateway. When that account was made for Shrimpy, the name is wrong and can be the one an agent wants: see [status](../STATUS.md). The design has the name you appear under as a setting of your own, for later, and moving in made it now.
 
 **Not built yet**
 
