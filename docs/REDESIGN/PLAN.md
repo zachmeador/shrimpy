@@ -118,6 +118,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
+- Cleaning up for the release, which you said on 2026-10-08 is close: the skills cover what a person and an agent do with Shrimpy, the reference documentation shrinks to very little, and old Shrimpy is replaced.
 - Living with it. What the first evening asked for is built: `shrimpy gateway install` and `uninstall`, the first agent of a setup as an admin, and `shrimpy up` keeping its folder running. What you notice next goes on the list in [using it](design/using-it.md), and decides what is built next.
 - One proposal waits on you: [hearing a thread while working in it](proposals/hearing-a-thread.md).
 
@@ -167,7 +168,7 @@ This plan deliberately leaves these out, so they don't creep back in:
 **Build**
 
 - Account for every CLI entry, slash command, export, setup and update recipe, service definition, template, skill, test, doc and security statement. Help and completion come from the real command surface.
-- Reference docs, the README and the developer docs and skills rewritten from scratch for what the release ships, keeping the charming parts of today's.
+- Very little reference documentation. You said on 2026-10-08: "i'd actually like to move to very minimal reference documentation. shrimpy agents can just check the code if they need to. but instructions and skills should cover all of the core ux/agent-ex". So what an agent is told and the skills that ship carry how Shrimpy is used, by a person and by an agent, and the README and the developer docs are written for what the release ships, keeping the charming parts of today's. What becomes of this redesign folder at the release is yours to say.
 - A decision for every command and affordance of today's Shrimpy that hasn't come back.
 - Default locations for machine-level data, and service installation for each program.
 - Delete `shrimpy-old/`, and with it `AppRuntime`, the session pool, leases, turn wrappers, gateway execution, control and watch state, private Pi imports and obsolete binaries, commands and dependencies. Remove any candidate scaffolding left in the new tree.
