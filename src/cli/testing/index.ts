@@ -2,15 +2,15 @@
  * Test support for the CLI: captured output, a terminal to open the console
  * on, a model that speaks OpenAI's protocol on a local port, an agent whose
  * side of chat a test scripts, a gateway and chat server to talk through,
- * `shrimpy up` running, waiting for a program to register with the gateway,
- * the CLI itself as a child process, including the commands that serve a
- * program, the shell of an agent that runs it, the finding of `shrimpy` command
- * lines in a text, free loopback addresses to listen on, and a Shrimpy
- * folder and a home directory of their own for every test, and a PATH with no
- * way to the machine's service manager, which importing this gives each one so
- * that no test can reach a real `~/shrimpy`, look in the person's own home or
- * run a real `systemctl`. Only tests and test fixtures import this, and it must
- * not know how a program works inside.
+ * `shrimpy up` running, also with pauses of a test's own, waiting for a program
+ * to register with the gateway, the CLI itself as a child process, including
+ * the commands that serve a program, the shell of an agent that runs it, the
+ * finding of `shrimpy` command lines in a text, free loopback addresses to
+ * listen on, and a Shrimpy folder and a home directory of their own for every
+ * test, and a PATH with no way to the machine's service manager, which
+ * importing this gives each one so that no test can reach a real `~/shrimpy`,
+ * look in the person's own home or run a real `systemctl`. Only tests and test
+ * fixtures import this, and it must not know how a program works inside.
  */
 export { canConnect, freeAddresses } from "./addresses.ts";
 export { commandLines, whyNotACommand } from "./commands.ts";
@@ -27,7 +27,7 @@ export {
   startScriptedAgent,
 } from "./scripted-agent.ts";
 export { startTalking, type Talking } from "./talking.ts";
-export { isAlive, launchUp, type RunningUp, startUp } from "./up.ts";
+export { isAlive, launchUp, launchUpWithPace, type RunningUp, startUp, startUpWithPace } from "./up.ts";
 export {
   type CliResult,
   type LaunchOptions,

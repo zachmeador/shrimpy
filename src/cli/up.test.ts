@@ -1,23 +1,26 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { saveMembership } from "../contracts/agent/node.ts";
 import { newToken } from "../contracts/gateway/node.ts";
 import { tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
+import type { Pace } from "./commands/index.ts";
 import {
   declareLocalModel,
   freeAddresses,
   isAlive,
   launchUp,
   type ModelServer,
+  type RunningUp,
   serve,
   serveChat,
   serveGateway,
   shrimpy,
   startModelServer,
   startUp,
+  startUpWithPace,
   untilRegistered,
   useShrimpyDir,
 } from "./testing/index.ts";
@@ -238,4 +241,181 @@ test("up starts no gateway or chat server for agents that all belong to a gatewa
   assert.equal(mixed.programs().length, 4, "the gateway, the chat server and both agents");
   mixed.kill("SIGTERM");
   assert.equal((await mixed.finished).code, 0);
+});
+
+/*
+ * Following the folder: `up` with no agents named keeps the homes of the Shrimpy folder running. These run it with
+ * pauses of the test's own, in this process, and everything it starts is a process of its own.
+ */
+
+/** Looking and starting again as fast as a test can wait for. */
+const quick: Pace = { lookMs: 100, pauseMs: 100, longestPauseMs: 400, stableMs: 1_000 };
+
+/** The process ID `up` last said it started `what` with: "the gateway", "the chat server", "the agent scout". */
+function startedPid(up: RunningUp, what: string): number {
+  const found = [...up.output().stdout.matchAll(new RegExp(`^Started ${what} \\(pid (\\d+)\\)`, "gm"))].at(-1);
+  assert.ok(found?.[1] !== undefined, `up did not say it started ${what}:\n${up.output().stdout}`);
+  return Number(found[1]);
+}
+
+/** The process ID the agent called `agent` answers with, as `shrimpy agent status` says. */
+async function pidOfAgent(agent: string): Promise<number> {
+  return (JSON.parse((await shrimpy(["agent", "status", "--agent", agent])).stdout) as { pid: number }).pid;
+}
+
+test("a home made while up runs is started by itself and joins the roster, nothing that was running is started again, and a home taken away has its agent stopped", { timeout }, async (t) => {
+  const model = await testModel(t);
+  const folder = useShrimpyDir(t);
+  await agentInFolder(t, model, "scout");
+  const up = await startUpWithPace(t, [], quick);
+  const before = ["the gateway", "the chat server", "the agent scout"].map((what) => startedPid(up, what));
+  await untilRegistered("agent", "scout");
+
+  // The home is whole when it appears, as one is that is finished elsewhere and moved in.
+  renameSync(await agentHome(t, model, "rex"), join(folder, "agents", "rex"));
+  await untilRegistered("agent", "rex");
+
+  assert.equal(up.programs().length, 4, "only the agent of the new home was started");
+  assert.deepEqual(before.map(isAlive), [true, true, true]);
+  assert.equal(await pidOfAgent("scout"), before[2], "scout is the process it was");
+  const said = await shrimpy(["run", "rex", "hi"]);
+  assert.equal(said.stdout, "Hello from the test model.\n", said.stderr);
+
+  const rex = startedPid(up, "the agent rex");
+  renameSync(join(folder, "agents", "rex"), join(tempDir(t, "taken-away"), "rex"));
+  await until(() => !isAlive(rex), "the agent of the home that was taken away to stop", 30_000);
+  assert.match(up.output().stdout, /The home at .*rex is gone, so the agent rex \(pid \d+\) is stopped\./);
+  assert.deepEqual(before.map(isAlive), [true, true, true], "while the rest runs on");
+  assert.equal(up.output().code, null);
+
+  up.kill("SIGTERM");
+  const stopped = await up.finished;
+  assert.equal(stopped.code, 0, stopped.stderr);
+  assert.deepEqual(up.programs().map(isAlive), [false, false, false, false]);
+});
+
+test("an agent that is killed is started again alone and answers, while the gateway, the chat server and the other agent keep their processes, and a chat server that ends still takes everything down", { timeout }, async (t) => {
+  const model = await testModel(t);
+  await agentInFolder(t, model, "scout");
+  await agentInFolder(t, model, "rex");
+  const up = await startUpWithPace(t, [], quick);
+  const [gateway, chat, scout, rex] = ["the gateway", "the chat server", "the agent scout", "the agent rex"].map((what) =>
+    startedPid(up, what),
+  );
+  assert.ok(gateway && chat && scout && rex);
+  await untilRegistered("agent", "scout");
+
+  process.kill(scout, "SIGKILL");
+  await until(() => startedPid(up, "the agent scout") !== scout, "up to start scout again", 30_000);
+
+  const again = startedPid(up, "the agent scout");
+  assert.match(up.output().stderr, new RegExp(`The agent scout \\(pid ${String(scout)}\\) ended by itself \\(signal SIGKILL\\)`));
+  await untilRegistered("agent", "scout");
+  const said = await shrimpy(["run", "scout", "hi"]);
+  assert.equal(said.stdout, "Hello from the test model.\n", said.stderr);
+  assert.equal(await pidOfAgent("scout"), again);
+  assert.equal(up.programs().length, 5, "nothing else was started");
+  assert.deepEqual([gateway, chat, rex].map(isAlive), [true, true, true]);
+  assert.equal(await pidOfAgent("rex"), rex, "rex is the process it was");
+
+  process.kill(chat, "SIGKILL");
+  const finished = await within(30_000, up.finished, "up ending");
+  assert.equal(finished.code, 1);
+  assert.match(finished.stderr, /chat server/i);
+  assert.deepEqual(up.programs().map(isAlive), [false, false, false, false, false]);
+});
+
+test("the pause before an agent that keeps ending is started again grows, and starts over once the agent has stayed up", { timeout }, async (t) => {
+  const model = await testModel(t);
+  await agentInFolder(t, model, "scout");
+  const up = await startUpWithPace(t, [], { lookMs: 50, pauseMs: 100, longestPauseMs: 10_000, stableMs: 1_500 });
+  const endings = (): number[] =>
+    [...up.output().stderr.matchAll(/ended by itself \(signal SIGKILL\)\. It is started again after (\d+) milliseconds\./g)].map(
+      (found) => Number(found[1]),
+    );
+  const killAndWaitForTheNext = async (stayUp: number): Promise<void> => {
+    const pid = startedPid(up, "the agent scout");
+    await delay(stayUp);
+    process.kill(pid, "SIGKILL");
+    await until(() => startedPid(up, "the agent scout") !== pid, "up to start scout again", 30_000);
+  };
+
+  // Killed the moment it is up, twice, and then after it has stayed up longer than it takes for the pauses to start over.
+  await killAndWaitForTheNext(0);
+  await killAndWaitForTheNext(0);
+  await killAndWaitForTheNext(2_000);
+
+  const [first, second, third] = endings();
+  assert.ok(first !== undefined && second !== undefined && third !== undefined, up.output().stderr);
+  assert.ok(second > first, `the pause grows while it keeps ending: ${String(first)}, then ${String(second)}`);
+  assert.ok(third < second, `and starts over once the agent stayed up: ${String(third)}`);
+});
+
+test("a home that can't start for want of a model is said with the agent's words and does not stop the rest, and its agent starts at once when its agent.json names a model", { timeout }, async (t) => {
+  const model = await testModel(t);
+  const folder = useShrimpyDir(t);
+  await agentInFolder(t, model, "scout");
+  assert.equal((await shrimpy(["agent", "init", "rex"])).code, 0, "rex names no model, and the folder has no default");
+  const rex = join(folder, "agents", "rex");
+  declareLocalModel(rex, { url: model.url, model: "test-model" });
+  // The pause is a minute, so only the change to agent.json can start rex in the time the test has.
+  const up = await startUpWithPace(t, [], { ...quick, pauseMs: 60_000, longestPauseMs: 60_000 });
+  const before = ["the gateway", "the chat server", "the agent scout"].map((what) => startedPid(up, what));
+  await untilRegistered("agent", "scout");
+
+  const said = up.output().stderr;
+  assert.match(said, /\[agent rex\] The agent has no model to start with/, "it says what the agent said");
+  assert.ok(said.includes(`Could not start the agent at ${rex}`), said);
+  assert.equal(up.output().code, null, "and goes on");
+  assert.deepEqual(before.map(isAlive), [true, true, true]);
+
+  const named = { name: "rex", model: { provider: "local", id: "test-model" } };
+  writeFileSync(join(rex, "agent.json"), `${JSON.stringify(named, null, 2)}\n`);
+  await untilRegistered("agent", "rex");
+
+  assert.equal(up.programs().length, 4);
+  assert.deepEqual(before.map(isAlive), [true, true, true], "the rest was left as it was");
+  assert.equal(await pidOfAgent("scout"), before[2]);
+});
+
+test("a home that can't start is said once however often it is tried, and starts when what it lacked comes, with no change to its agent.json", { timeout }, async (t) => {
+  const model = await testModel(t);
+  const folder = useShrimpyDir(t);
+  assert.equal((await shrimpy(["agent", "init", "rex"])).code, 0);
+  declareLocalModel(join(folder, "agents", "rex"), { url: model.url, model: "test-model" });
+  const up = await startUpWithPace(t, [], { lookMs: 50, pauseMs: 50, longestPauseMs: 50, stableMs: 60_000 });
+  await until(() => up.output().stderr.includes("Could not start the agent"), "up to say rex could not start", 30_000);
+
+  await delay(2_000);
+
+  const times = (text: string): number => up.output().stderr.split(text).length - 1;
+  assert.equal(times("Could not start the agent"), 1);
+  assert.equal(times("has no model to start with"), 1);
+  assert.equal(up.output().code, null);
+
+  // A default model for the folder is found by trying again.
+  mkdirSync(join(folder, "providers"));
+  writeFileSync(join(folder, "providers", "default-model.json"), JSON.stringify({ provider: "local", id: "test-model" }));
+  await untilRegistered("agent", "rex");
+  assert.match(up.output().stdout, /^Started the agent rex \(pid \d+\)/m);
+});
+
+test("an agent that someone else started is used as it is, and when it ends up starts the home's agent itself", { timeout }, async (t) => {
+  const model = await testModel(t);
+  const home = await agentInFolder(t, model, "scout");
+  const byHand = await serve(t, home);
+  const up = await startUpWithPace(t, [], quick);
+
+  assert.equal(up.programs().length, 2, "only the gateway and the chat server were started");
+  assert.match(up.output().stdout, /The agent at .*scout is already running \(pid \d+\); using it as it is\./);
+  assert.equal(await pidOfAgent("scout"), byHand.listening.pid);
+
+  await byHand.stop("SIGKILL");
+  await until(() => up.programs().length === 3, "up to start scout itself", 30_000);
+
+  const itself = startedPid(up, "the agent scout");
+  assert.notEqual(itself, byHand.listening.pid);
+  await untilRegistered("agent", "scout");
+  assert.equal(await pidOfAgent("scout"), itself);
+  assert.equal(up.output().code, null);
 });

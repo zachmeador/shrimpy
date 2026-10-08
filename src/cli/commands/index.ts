@@ -4,8 +4,10 @@
  * server. It must not know how a command reads its own arguments.
  */
 import type { Command } from "./command.ts";
+import type { Pace } from "./up.ts";
 
 export type { Command } from "./command.ts";
+export type { Pace } from "./up.ts";
 
 type Family = () => Promise<Command[]>;
 
@@ -49,4 +51,9 @@ export async function loadGroups(): Promise<{ using: Command[]; running: Command
 export async function loadAll(): Promise<Command[]> {
   const { using, running } = await loadGroups();
   return [...using, ...running];
+}
+
+/** `shrimpy up` with the times of `pace`, for a test that can't wait for the ones it has. */
+export async function loadUpWithPace(pace: Pace): Promise<Command> {
+  return (await import("./up.ts")).upCommand(pace);
 }

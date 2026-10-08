@@ -51,8 +51,8 @@ const install: Command = {
       "start.",
     "It says what it installed and where the file is, what shrimpy up starts there (the gateway, the chat " +
       "server and the agents, or only the agents when they all belong to a gateway elsewhere), how to see what it " +
-      "prints, and how to take it away. The service reads the folder each time it starts, so an agent made " +
-      "later is started when it next starts, which running this again does.",
+      "prints, and how to take it away. The service follows the folder, as shrimpy up does with no agents " +
+      "named: an agent made later is started within a few seconds, and an agent that stops is started again.",
   ].join("\n\n"),
   run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));

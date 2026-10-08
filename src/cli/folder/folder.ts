@@ -24,6 +24,9 @@ const HOME_FILE = "agent.json";
 
 const MAKE_AN_AGENT = "shrimpy agent init <name> --model <provider/id>";
 
+/** The file that makes a folder an agent's home, and holds the agent's name and the model it starts with, if it names one. */
+export const homeConfigFile = (home: string): string => join(home, HOME_FILE);
+
 /** Where the Shrimpy folder is when `SHRIMPY_DIR` names none: `shrimpy` in the person's own folder, which is `home` if it is not this process's. */
 export function defaultFolderPath(home: string = homedir()): string {
   return join(home, "shrimpy");

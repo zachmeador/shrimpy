@@ -19,6 +19,7 @@ export {
   FOLDER_VARIABLE,
   folderPath,
   gatewayOfItsOwn,
+  homeConfigFile,
   homeInFolder,
   homeNamed,
   isPath,

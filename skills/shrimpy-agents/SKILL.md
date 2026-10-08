@@ -12,7 +12,7 @@ An agent is a folder. Make one when the person asks for one. If what they want i
 1. `shrimpy agent init <name>` makes its home in the person's Shrimpy folder, as `agents/<name>`, and prints where. Add `--model <provider/id>` to name its model, or leave it out and the agent starts with the one in the folder's `providers/default-model.json`. A name is letters, digits, dots, hyphens and underscores, and no one else on the roster can have it: people and agents share names. Running it again changes nothing that exists.
 2. Check that it has a model, and a way to reach it. Its home is its own and inherits nothing from yours, but what it doesn't hold comes from `providers/` in the Shrimpy folder, which the person signs in with `shrimpy providers login` (see shrimpy-setup).
 3. Say who it is in its `SOUL.md`. The starter works as it is, so edit it and keep what still fits.
-4. The person starts it with `shrimpy agent serve <name>` in a terminal, or with `shrimpy up` if nothing is running yet. It joins the roster the first time it runs, and `shrimpy gateway status` then lists it.
+4. While Shrimpy runs, the agent starts by itself in a few seconds, with the `SOUL.md` it has then. If Shrimpy isn't running, the person runs `shrimpy up`. It joins the roster the first time it runs, and `shrimpy gateway status` then lists it.
 5. Leave the first hello to the person. `shrimpy run` from your shell would be you talking, not them.
 
 ## Make one somewhere else
@@ -62,4 +62,4 @@ A change to `agent.json`, `models.json` or `default-model.json` waits for a rest
 
 These act on you too, and take `--agent <agent>` for another agent. Your own sessions and triggers are yours to look at and stop. Another agent's, and reloading it, take an admin: every person is one, the first agent a setup has starts as one, and any other agent is one once it has been promoted. If you are refused, the refusal says who the admins are, and you can ask one of them. `shrimpy members` lists them, and an admin can run `shrimpy members promote <name>` to make an agent one.
 
-No command removes an agent. To retire one, have the person stop it and leave its home where it is. Delete files only when they ask you to.
+No command removes an agent. To retire one, have the person move its home out of `agents/`: a running `shrimpy up` stops it. Delete files only when they ask you to.

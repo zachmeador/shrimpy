@@ -40,7 +40,7 @@ test("agent init with a name makes the home in the Shrimpy folder and names the 
   assert.equal(made.code, 0, made.err);
   const model = { provider: "local", id: "test-model" };
   assert.deepEqual(agentFile(join(folder, "agents", "scout")), { name: "scout", model });
-  assert.deepEqual(commandLines(made.out.join("\n")), [SIGN_IN, "shrimpy up", "shrimpy agent serve scout"]);
+  assert.deepEqual(commandLines(made.out.join("\n")), [SIGN_IN, "shrimpy up"]);
 
   const elsewhere = join(tempDir(t, "elsewhere"), "maya");
   const path = await run("agent", "init", elsewhere, ...modelFlags);
@@ -71,7 +71,7 @@ test("agent init needs no model: the agent names none and starts with the folder
 
   assert.equal(bare.code, 0, bare.err);
   assert.deepEqual(agentFile(join(folder, "agents", "scout")), { name: "scout" });
-  assert.deepEqual(commandLines(bare.out.join("\n")), [SIGN_IN, "shrimpy up", "shrimpy agent serve scout"]);
+  assert.deepEqual(commandLines(bare.out.join("\n")), [SIGN_IN, "shrimpy up"]);
   // Where the model comes from, and how its access is given: one command, whichever it is.
   assert.ok(bare.out.join("\n").includes(join(providers, "default-model.json")), "an agent with no model is told where its model is");
   assert.ok(named.out.join("\n").includes("local/test-model"), "and one with a model says which");

@@ -87,12 +87,17 @@ const init: Command = {
     }
     steps.push(
       [`Say who ${name} is in ${paths.soul}. It starts with a few plain defaults that work as they are.`],
-      [
-        "Start it:",
-        `     ${named ? "shrimpy up" : `shrimpy up ${paths.root}`}`,
-        "   Or, if Shrimpy is already running, add the agent to it:",
-        `     shrimpy agent serve ${named ? given : paths.root}`,
-      ],
+      named
+        ? [
+            `If Shrimpy is running, ${name} starts by itself in a few seconds. If it isn't, start Shrimpy:`,
+            "     shrimpy up",
+          ]
+        : [
+            "Start it:",
+            `     shrimpy up ${paths.root}`,
+            "   Or, if Shrimpy is already running, add the agent to it:",
+            `     shrimpy agent serve ${paths.root}`,
+          ],
     );
     steps.forEach(([first, ...rest], index) => {
       io.out(`  ${index + 1}. ${first}`);
@@ -182,8 +187,9 @@ const join: Command = {
       ]);
     }
     steps.push([
-      "Start it. It connects to the gateway by itself from then on, and you talk to it from the gateway's machine:",
+      `If Shrimpy is running here, ${name} starts by itself in a few seconds. If it isn't, start Shrimpy:`,
       "     shrimpy up",
+      "   It connects to the gateway by itself from then on, and you talk to it from the gateway's machine.",
     ]);
     steps.forEach(([first, ...rest], index) => {
       io.out(`  ${index + 1}. ${first}`);
