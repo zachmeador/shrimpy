@@ -23,7 +23,7 @@ import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning, withConnection } from "./connected.ts";
 import { folderDefault } from "./folder-default.ts";
-import { leftOutLines, whatItReads } from "./reloaded.ts";
+import { leftOutLines, modelLine, whatItReads } from "./reloaded.ts";
 import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, mayActOn, WHICH_AGENT } from "./which-agent.ts";
 
 const init: Command = {
@@ -324,13 +324,16 @@ const context: Command = {
 const reload: Command = {
   name: "agent reload",
   usage: "[--agent <agent>]",
-  summary: "Make a running agent read its instructions, context files, skills and triggers again.",
+  summary: "Make a running agent read its instructions, context files, skills, triggers and model again.",
   details:
     "An agent reads SOUL.md, the Markdown files in context/, the skills in skills/ and the triggers in " +
     "triggers/ when it starts, and editing them changes nothing for it until this is run. Each session then " +
     "uses what changed in its instructions with its next request, and what it already holds is not rewritten; " +
-    "a trigger follows its file at once. A file the agent cannot use is left out and named, and the rest is " +
-    `read. To see what a home gives an agent now, use shrimpy agent context. ${WHICH_AGENT} ` +
+    "a trigger follows its file at once. It reads its model again too: the one agent.json names, or else " +
+    "providers/default-model.json, on the servers the models.json files declare. If that is another model, " +
+    "every session uses it from its next request, whatever model it was given before. A file or a model the " +
+    "agent cannot use is left out and named, the agent keeps the model it had, and the rest is read. To see " +
+    `what a home gives an agent now, use shrimpy agent context. ${WHICH_AGENT} ` +
     ABOUT_ANOTHER_AGENT,
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
@@ -343,6 +346,7 @@ const reload: Command = {
         `Reloaded. The agent at ${target.home} now reads ${whatItReads(reloaded)}. ` +
           "Each of its sessions uses a change to its instructions with its next request; a trigger follows its file at once.",
       );
+      io.out(modelLine(reloaded));
       if (reloaded.leftOut.length > 0) io.out(`Left out:\n${leftOutLines(reloaded.leftOut).join("\n")}`);
       return 0;
     });

@@ -212,7 +212,8 @@ export type Settlement =
 
 /**
  * What an agent found in its home when it read it again, after `reload`: how
- * much of each kind it now gives its sessions, and the files it could not use.
+ * much of each kind it now gives its sessions, the model they follow, and the
+ * files it could not use.
  */
 export interface Reloaded {
   /** Whether `SOUL.md` has instructions in it. */
@@ -223,6 +224,14 @@ export interface Reloaded {
   skills: number;
   /** How many triggers it has now, on or off, counting one whose file it could not use but still has a last valid definition of. */
   triggers: number;
-  /** Files it did not use, each with why. Everything else was read. */
+  /** The model the home names, which its sessions follow now: the one `agent.json` names, or else the folder's default. */
+  model: { provider: string; id: string };
+  /** The model they followed until this reload, when it found the home naming another; null when it is the same one. */
+  changedFrom: { provider: string; id: string } | null;
+  /**
+   * Files it did not use, each with why. Everything else was read. The file
+   * that names the model is among them when that model can't be used, and then
+   * the sessions keep the model they had.
+   */
   leftOut: { file: string; reason: string }[];
 }

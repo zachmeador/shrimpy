@@ -1,5 +1,5 @@
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 
 /** A file the agent was not given, and why. */
 export interface LeftOut {
@@ -7,6 +7,13 @@ export interface LeftOut {
   readonly file: string;
   /** Short, so that "<file> was left out: <reason>." reads as a sentence. */
   readonly reason: string;
+}
+
+/** Where `path` is, as a left-out file says: inside `root` with `/` between folders, or its absolute path when it is not in `root`. */
+export function shownIn(root: string, path: string): string {
+  const inside = relative(root, path);
+  const outside = inside === ".." || inside.startsWith(`..${sep}`) || isAbsolute(inside);
+  return inside === "" || outside ? path : inside.split(sep).join("/");
 }
 
 /** What reading a text file found. A file that is not there is not a problem; one that cannot be used is. */

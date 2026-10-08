@@ -93,7 +93,7 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `agent join <link>` | Make an agent here that joins a gateway elsewhere, with the link of an invitation. |
 | `agent serve <agent> [--now]` | Run the agent in the foreground until it is told to stop. |
 | `agent status [--agent <agent>]` | Say whether the agent is running, and how to reach it. |
-| `agent reload [--agent <agent>]` | Make a running agent read its instructions, context files, skills and triggers again. |
+| `agent reload [--agent <agent>]` | Make a running agent read its instructions, context files, skills, triggers and model again. |
 | `agent context [--agent <agent>]` | Preview what an agent would be told, from its home's files as they are now. |
 | `providers login [<provider>]` | Sign your Shrimpy folder in to a model provider, for every agent started there. |
 | `sessions list [--agent <agent>]` | List the sessions of a running agent: each one's name (a thread's ID, or trigger: and a trigger's name), where it is (a DM with someone, a room, or a trigger's own), and whether it is working. |

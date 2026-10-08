@@ -13,7 +13,7 @@
  * they are, or anything about the chat server and the gateway beyond their
  * contracts.
  */
-import type { AgentEndpoint } from "../contracts/agent/index.ts";
+import type { AgentEndpoint, Reloaded } from "../contracts/agent/index.ts";
 import { readMembership } from "../contracts/agent/node.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { createAdmissions } from "./chat/durable.ts";
@@ -27,11 +27,12 @@ import {
   readBreadcrumbs,
   readTriggers,
   readWake,
+  shownIn,
   type TriggerFiles,
   type WakeRead,
   writeBreadcrumb,
 } from "./home/index.ts";
-import { buildModels, type HostOptions, openHost } from "./host/durable.ts";
+import { buildModels, type HostOptions, type ModelReload, openHost } from "./host/durable.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { whoseTicket } from "./links/index.ts";
 import { messageTools } from "./message-tools/durable.ts";
@@ -100,8 +101,13 @@ export interface AgentOptions extends HostOptions {
    * decides whether it is free.
    */
   name: string;
-  /** The model every session uses. It is set again at every start. */
+  /** The model every session follows, which is the home's. It is set again at every start, and a reload can change it. */
   model: SessionDefaults["model"];
+  /**
+   * Read again the model the home starts with and the model servers its files
+   * declare, for a reload. Without it a reload leaves both as they are.
+   */
+  reloadModels?: () => Promise<ModelReload>;
   /** Take part in the network and in chat. Without it, nothing reaches the agent but clients that attach to its sessions. */
   join?: JoinOptions;
   /** The shortest a trigger may repeat at, in milliseconds. A minute, if not given. Tests shorten it. */
@@ -220,12 +226,45 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     for (const { file, reason } of (await triggers.reload()).leftOut) report(new Error(`${file} was left out: ${reason}.`));
     for (const { file, reason } of await readWakes()) report(new Error(`${file} was left out: ${reason}.`));
     host.resume();
-    // Reloading reads the instructions, context files and skills, the triggers and the wake file.
+    // The model the home names is read again on a reload. When it is another, every session follows it from its next request,
+    // whatever it was given before. A model that can't be used is named, and the sessions keep the one they follow.
+    const followModel = async (): Promise<{ changedFrom: Reloaded["changedFrom"]; leftOut: LeftOut[] }> => {
+      const found = await options.reloadModels?.();
+      if (found === undefined) return { changedFrom: null, leftOut: [] };
+      const leftOut = found.leftOut.map(({ file, reason }) => ({ file: shownIn(options.home, file), reason }));
+      const before = defaults.model;
+      const same = found.model?.provider === before.provider && found.model.modelId === before.modelId;
+      if (found.model === undefined || same) return { changedFrom: null, leftOut };
+      // Whoever makes a session reads the model from `defaults`, so a session made while the others are changed follows it too.
+      defaults.model = found.model;
+      try {
+        await sessions.applyDefaults();
+      } catch (error) {
+        defaults.model = before;
+        throw error;
+      }
+      return { changedFrom: { provider: before.provider, id: before.modelId }, leftOut };
+    };
+    // Reloading reads the instructions, context files and skills, the triggers, the wake file and the model. Two reloads at
+    // once would each compare the model with a different one, so they take turns.
+    const reloadHome = async (): Promise<Reloaded> => {
+      const read = await context.reload();
+      const followed = await triggers.reload();
+      const model = await followModel();
+      return {
+        ...read,
+        triggers: followed.count,
+        model: { provider: defaults.model.provider, id: defaults.model.modelId },
+        changedFrom: model.changedFrom,
+        leftOut: [...read.leftOut, ...followed.leftOut, ...(await readWakes()), ...model.leftOut],
+      };
+    };
+    let reloading: Promise<unknown> = Promise.resolve();
     const files: HomeFiles = {
-      async reload() {
-        const read = await context.reload();
-        const followed = await triggers.reload();
-        return { ...read, triggers: followed.count, leftOut: [...read.leftOut, ...followed.leftOut, ...(await readWakes())] };
+      reload() {
+        const reloaded = reloading.then(reloadHome);
+        reloading = reloaded.catch(() => undefined);
+        return reloaded;
       },
     };
     // The gateway is joined once the server is up, so a ticket is checked over the connection it keeps, when there is one.
@@ -274,10 +313,11 @@ function reporter(options: AgentOptions): (error: Error) => void {
  * Start the agent that lives at `home`, and have it take part in chat as the
  * agent its `agent.json` names. Its name comes from that file, and so does its
  * model, if the file names one: otherwise it starts with the folder's default.
- * Its instructions come from the files of the home. A home that names a gateway
- * address in its membership, as one does that joined from apart, reaches the
- * gateway and chat there, and answers there the calls the gateway makes for it,
- * since the gateway can't dial it. Reading `agent.json` takes no lock and changes
+ * A reload reads that model, and the model servers, again. Its instructions come
+ * from the files of the home. A home that names a gateway address in its
+ * membership, as one does that joined from apart, reaches the gateway and chat
+ * there, and answers there the calls the gateway makes for it, since the
+ * gateway can't dial it. Reading `agent.json` takes no lock and changes
  * nothing, so a home that does not load, or a model that is missing or cannot
  * be used, fails before the agent claims the home. `shrimpy` is the program and arguments that run Shrimpy, which the agent's
  * shell finds as the `shrimpy` command. `providers` is the `providers/`
@@ -291,19 +331,24 @@ export async function startHomeAgent(
   options: { shrimpy?: readonly string[]; providers?: string } = {},
 ): Promise<HomeAgent> {
   const loaded = loadHome(home);
-  const { models, model } = await buildModels({
+  const runtime = await buildModels({
     modelsFile: loaded.paths.models,
     authFile: loaded.paths.auth,
     configFile: loaded.paths.config,
     ...(options.providers === undefined ? {} : { providers: options.providers }),
-    ...(loaded.model === undefined ? {} : { model: { provider: loaded.model.provider, modelId: loaded.model.id } }),
+    // Asked again at every reload, so a change to the file is seen.
+    named: () => {
+      const model = loadHome(loaded.paths.root).model;
+      return model === undefined ? undefined : { provider: model.provider, modelId: model.id };
+    },
   });
   const gateway = readMembership(loaded.paths.root)?.gateway;
   const agent = await startAgent({
     home: loaded.paths.root,
     name: loaded.name,
-    models,
-    model,
+    models: runtime.models,
+    model: runtime.model,
+    reloadModels: () => runtime.reload(),
     join: gateway === undefined ? {} : { apart: gateway },
     ...(options.shrimpy === undefined ? {} : { shrimpy: options.shrimpy }),
   });

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import { readMembership, saveMembership } from "../contracts/agent/node.ts";
+import { attachLocal, readMembership, saveMembership } from "../contracts/agent/node.ts";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
 import type { Registration, RosterEntry } from "../contracts/gateway/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
@@ -22,6 +22,16 @@ const local = {
   apiKey: "local",
   compat: { supportsDeveloperRole: false, supportsStore: false, supportsReasoningEffort: false },
   models: [{ id: "qwen", reasoning: true, contextWindow: 262_144, maxTokens: 65_536 }],
+};
+
+/** `local`, serving three models. */
+const several = {
+  ...local,
+  models: [
+    ...local.models,
+    { id: "llama", contextWindow: 131_072, maxTokens: 8_192 },
+    { id: "mistral", contextWindow: 32_768, maxTokens: 4_096 },
+  ],
 };
 
 /** A home that names `local/qwen` and declares that provider. */
@@ -75,6 +85,12 @@ const agentNames = async (gateway: TestGateway): Promise<string[]> =>
 function renameHome(paths: ReturnType<typeof newHome>, name: string): void {
   const config = JSON.parse(readFileSync(paths.config, "utf8")) as object;
   writeFileSync(paths.config, JSON.stringify({ ...config, name }));
+}
+
+/** Change the model a home's `agent.json` names, as a person does with an editor. */
+function nameModel(paths: ReturnType<typeof newHome>, provider: string, id: string): void {
+  const config = JSON.parse(readFileSync(paths.config, "utf8")) as object;
+  writeFileSync(paths.config, JSON.stringify({ ...config, model: { provider, id } }));
 }
 
 const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -177,6 +193,44 @@ test("editing the home takes effect at the next start, in sessions made before i
   assert.match(systemPrompt(0), /Answer in prose\./);
   assert.match(systemPrompt(1), /Answer in rhyme\./);
   assert.doesNotMatch(systemPrompt(1), /Answer in prose\./);
+});
+
+test("a reload makes a session that already exists use the model agent.json names now, with nothing started again, and names a model it can't use", { timeout }, async (t) => {
+  const paths = newHome(t, { local: several });
+  const requests = stubChatCompletions(t, "Ok");
+  const { chat } = await startNetwork(t);
+  await startAt(t, paths.root);
+  const person = await talkToAgent(chat, "scout");
+  const connection = await attachLocal(paths.root);
+  t.after(() => connection.close());
+
+  await person.ask("one");
+  nameModel(paths, "local", "llama");
+  const changed = await connection.reload();
+  await person.ask("two");
+  assert.deepEqual(
+    [changed.model, changed.changedFrom, changed.leftOut],
+    [{ provider: "local", id: "llama" }, { provider: "local", id: "qwen" }, []],
+  );
+
+  // A model the agent can't use is named, and the next request names the model it had.
+  nameModel(paths, "local", "llam");
+  const refused = await connection.reload();
+  await person.ask("three");
+  assert.deepEqual([refused.model, refused.changedFrom], [{ provider: "local", id: "llama" }, null]);
+  assert.equal(refused.leftOut.length, 1);
+  assert.equal(refused.leftOut[0]?.file, "agent.json");
+  assert.match(refused.leftOut[0].reason, /llam\b/);
+
+  // A server declared since the start can be named.
+  const fresh = { ...local, baseUrl: "http://fresh.invalid/v1", models: [{ id: "newest", contextWindow: 8_000, maxTokens: 1_000 }] };
+  writeFileSync(paths.models, JSON.stringify({ providers: { local: several, fresh } }));
+  nameModel(paths, "fresh", "newest");
+  await connection.reload();
+  await person.ask("four");
+
+  assert.deepEqual(requests.map((request) => request.body.model), ["qwen", "llama", "llama", "newest"]);
+  assert.equal(requests[3]?.url, "http://fresh.invalid/v1/chat/completions");
 });
 
 test("two homes share no keys, instructions or history", { timeout }, async (t) => {

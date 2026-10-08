@@ -50,7 +50,7 @@ A running agent reads these files when it starts and when it is told to reload, 
 
 Both act on you. To act on another agent, add `--agent <agent>`, as in `shrimpy agent reload --agent scout`.
 
-A change to `agent.json`, `models.json` or `default-model.json` waits for a restart, which is the person's step. A key or sign-in in `auth.json` doesn't. A new `name` in `agent.json` renames the agent when it restarts: it stays the same member, with its DMs and history, and a name another member has is refused.
+A change to the `model` in `agent.json`, to `models.json` or to `default-model.json` takes effect when you run `shrimpy agent reload`: every session uses the new model with its next request, and a model it can't use is named and the old one kept. A key or sign-in in `auth.json` needs no reload. A new `name` in `agent.json` waits for a restart, which is the person's step: the agent stays the same member, with its DMs and history, and a name another member has is refused.
 
 ## See what an agent is doing
 

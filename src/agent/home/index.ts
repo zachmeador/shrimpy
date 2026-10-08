@@ -15,7 +15,7 @@
 export { checkAgentName, type ModelChoice, modelLabel, parseModelChoice } from "./agent-config.ts";
 export { type BreadcrumbFile, readBreadcrumbs, writeBreadcrumb } from "./breadcrumbs.ts";
 export { readDefaultModel, saveDefaultModel } from "./default-model.ts";
-export { cutText, type LeftOut } from "./files.ts";
+export { cutText, type LeftOut, shownIn } from "./files.ts";
 export { type InitOptions, type InitResult, initHome } from "./init.ts";
 export { type HomePaths, homePaths, type ProviderPaths, providerPaths } from "./layout.ts";
 export { type LoadedHome, loadHome } from "./load.ts";

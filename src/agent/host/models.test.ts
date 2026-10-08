@@ -61,7 +61,7 @@ function ask(models: Models, provider: string, id: string) {
 
 test("a local server works with a placeholder key, and the flags in models.json shape the request", async (t) => {
   const files = home(t, { models: { providers: { local: qwen, plain: { ...qwen, compat: undefined } } } });
-  const models = await modelsOf({ ...files, model: { provider: "local", modelId: "qwen" } });
+  const models = await modelsOf({ ...files, named: () => ({ provider: "local", modelId: "qwen" }) });
   const requests = stubChatCompletions(t, "Hi there");
 
   const reply = await ask(models, "local", "qwen");
@@ -82,7 +82,7 @@ test("a local server works with a placeholder key, and the flags in models.json 
 
 test("a hosted provider uses the key in auth.json", async (t) => {
   const files = home(t, { auth: { groq: { type: "api_key", key: "gsk-from-the-home" } } });
-  const models = await modelsOf({ ...files, model: groq });
+  const models = await modelsOf({ ...files, named: () => groq });
   const requests = stubChatCompletions(t, "Hi");
 
   await ask(models, groq.provider, groq.modelId);
@@ -99,8 +99,8 @@ test("building the models reaches for no network", async (t) => {
   });
   const files = home(t, { auth: { groq: { type: "api_key", key: "gsk-test" } }, models: { providers: { local: qwen } } });
 
-  await buildModels({ ...files, model: groq });
-  await buildModels({ ...files, model: { provider: "local", modelId: "qwen" } });
+  await buildModels({ ...files, named: () => groq });
+  await buildModels({ ...files, named: () => ({ provider: "local", modelId: "qwen" }) });
 
   assert.deepEqual(reached, []);
 });
@@ -110,7 +110,7 @@ test("keys in the process environment are not used", async (t) => {
   const before = process.env.GROQ_API_KEY;
   process.env.GROQ_API_KEY = "gsk-from-the-environment";
   try {
-    await assert.rejects(buildModels({ ...files, model: groq }), ModelSetupError);
+    await assert.rejects(buildModels({ ...files, named: () => groq }), ModelSetupError);
   } finally {
     if (before === undefined) delete process.env.GROQ_API_KEY;
     else process.env.GROQ_API_KEY = before;
@@ -130,14 +130,14 @@ test("what the home doesn't declare or hold comes from the folder's providers, a
   const files = home(t, {
     models: { providers: { both: { ...qwen, baseUrl: "http://home.invalid/v1", apiKey: "for-the-home's-server" } } },
   });
-  const models = await modelsOf({ ...files, providers: folder.dir, model: { provider: "shared", modelId: "qwen" } });
+  const models = await modelsOf({ ...files, providers: folder.dir, named: () => ({ provider: "shared", modelId: "qwen" }) });
   const requests = stubChatCompletions(t, "Hi");
 
   await ask(models, "shared", "qwen");
   await ask(models, "both", "qwen");
   await ask(models, groq.provider, groq.modelId);
   const ownKey = home(t, { auth: { groq: { type: "api_key", key: "gsk-from-the-home" } } });
-  await ask(await modelsOf({ ...ownKey, providers: folder.dir, model: groq }), groq.provider, groq.modelId);
+  await ask(await modelsOf({ ...ownKey, providers: folder.dir, named: () => groq }), groq.provider, groq.modelId);
 
   assert.deepEqual(
     requests.map((request) => request.url),
@@ -157,7 +157,7 @@ test("what the home doesn't declare or hold comes from the folder's providers, a
 
 test("a key added to the folder after the start is used by the next request, with no restart", async (t) => {
   const folder = providers(t, { auth: { groq: { type: "api_key", key: "gsk-first" } } });
-  const models = await modelsOf({ ...home(t), providers: folder.dir, model: groq });
+  const models = await modelsOf({ ...home(t), providers: folder.dir, named: () => groq });
   const requests = stubChatCompletions(t, "Hi");
 
   await ask(models, groq.provider, groq.modelId);
@@ -175,14 +175,14 @@ test("a sign-in makes a provider that signs in with OAuth usable, and with none 
   const model = { provider: "openai-codex", modelId: "gpt-5.3-codex-spark" };
   const folder = providers(t, { auth: {} });
   await assert.rejects(
-    buildModels({ ...files, providers: folder.dir, model }),
+    buildModels({ ...files, providers: folder.dir, named: () => model }),
     (error: Error) =>
       error instanceof ModelSetupError && error.message.includes(files.authFile) && error.message.includes(folder.authFile),
   );
 
   const signedIn = { "openai-codex": { type: "oauth", access: "access", refresh: "refresh", expires: Date.now() + 3_600_000 } };
   writeFileSync(folder.authFile, JSON.stringify(signedIn));
-  await buildModels({ ...files, providers: folder.dir, model });
+  await buildModels({ ...files, providers: folder.dir, named: () => model });
 });
 
 test("an agent starts with the model its agent.json names, or else the folder's default", async (t) => {
@@ -191,7 +191,7 @@ test("an agent starts with the model its agent.json names, or else the folder's 
   const folder = providers(t, { defaultModel: { provider: "local", id: "qwen" } });
 
   const bare = await buildModels({ ...files, providers: folder.dir });
-  const named = await buildModels({ ...files, providers: folder.dir, model: { provider: "local", modelId: "other" } });
+  const named = await buildModels({ ...files, providers: folder.dir, named: () => ({ provider: "local", modelId: "other" }) });
 
   assert.deepEqual(bare.model, { provider: "local", modelId: "qwen" });
   assert.deepEqual(named.model, { provider: "local", modelId: "other" });
@@ -214,7 +214,7 @@ test("a model that cannot be used stops the start, saying which file to change",
   const files = home(t, { models: { providers: { local: qwen, keyless: { ...qwen, apiKey: undefined } } } });
   const unusable = (provider: string, modelId: string, mentions: string[], folderDir?: string) =>
     assert.rejects(
-      buildModels({ ...files, ...(folderDir === undefined ? {} : { providers: folderDir }), model: { provider, modelId } }),
+      buildModels({ ...files, ...(folderDir === undefined ? {} : { providers: folderDir }), named: () => ({ provider, modelId }) }),
       (error: Error) => error instanceof ModelSetupError && mentions.every((file) => error.message.includes(file)),
     );
 
@@ -244,13 +244,13 @@ test("a model that the folder's default names says so when it cannot be used", a
 test("a file that does not fit stops the start, naming the file", async (t) => {
   const files = home(t, { models: { providers: { local: { ...qwen, headers: {} } } } });
   await assert.rejects(
-    buildModels({ ...files, model: { provider: "local", modelId: "qwen" } }),
+    buildModels({ ...files, named: () => ({ provider: "local", modelId: "qwen" }) }),
     (error: Error) => error.message.startsWith(files.modelsFile) && error.message.includes("headers"),
   );
 
   const folder = providers(t, { auth: { groq: { type: "api_key", key: "$GROQ_API_KEY" } } });
   await assert.rejects(
-    buildModels({ ...home(t), providers: folder.dir, model: groq }),
+    buildModels({ ...home(t), providers: folder.dir, named: () => groq }),
     (error: Error) => error.message.startsWith(folder.authFile) && error.message.includes("groq.key"),
   );
 
@@ -258,5 +258,89 @@ test("a file that does not fit stops the start, naming the file", async (t) => {
   await assert.rejects(
     buildModels({ ...files, providers: broken.dir }),
     (error: Error) => error.message.startsWith(broken.defaultModelFile) && error.message.includes("id"),
+  );
+});
+
+const other = { id: "other", contextWindow: 8_000, maxTokens: 1_000 };
+
+test("a reload reads the model again: what agent.json names now, or else the folder's default as it is now", async (t) => {
+  const files = home(t, { models: { providers: { local: { ...qwen, models: [...qwen.models, other] } } } });
+  const folder = providers(t, { defaultModel: { provider: "local", id: "qwen" } });
+  const config: { model?: { provider: string; modelId: string } } = {};
+  const runtime = await buildModels({ ...files, providers: folder.dir, named: () => config.model });
+
+  assert.deepEqual((await runtime.reload()).model, { provider: "local", modelId: "qwen" });
+  writeFileSync(folder.defaultModelFile, JSON.stringify({ provider: "local", id: "other" }));
+  assert.deepEqual((await runtime.reload()).model, { provider: "local", modelId: "other" });
+  config.model = { provider: "local", modelId: "qwen" };
+  assert.deepEqual((await runtime.reload()).model, config.model, "the model agent.json names wins");
+});
+
+test("a reload sets the servers the models.json files declare now: one declared since can be named, one that changed is used from the next request, and one that is gone is dropped", async (t) => {
+  const files = home(t, { models: { providers: { local: qwen, groq: { ...qwen, baseUrl: "http://proxy.invalid/v1" } } } });
+  const runtime = await buildModels({ ...files, named: () => ({ provider: "local", modelId: "qwen" }) });
+  const requests = stubChatCompletions(t, "Hi");
+  assert.equal(runtime.models.getModels("groq").length, 1, "the home's server replaces the built-in groq");
+
+  const moved = { ...qwen, baseUrl: "http://moved.invalid/v1", models: [...qwen.models, other] };
+  writeFileSync(files.modelsFile, JSON.stringify({ providers: { local: moved, extra: qwen } }));
+  assert.deepEqual(await runtime.reload(), { model: { provider: "local", modelId: "qwen" }, leftOut: [] });
+  await ask(runtime.models, "extra", "qwen");
+  await ask(runtime.models, "local", "other");
+
+  assert.deepEqual(
+    requests.map((request) => request.url),
+    ["http://models.invalid/v1/chat/completions", "http://moved.invalid/v1/chat/completions"],
+  );
+  assert.ok(runtime.models.getModel(groq.provider, groq.modelId), "the built-in groq is back, as it is at a start");
+});
+
+test("a reload names a model it can't use in the words the start would, and a models.json that does not fit, and keeps what it had", async (t) => {
+  const files = home(t, { models: { providers: { local: qwen } } });
+  let named = { provider: "local", modelId: "qwen" };
+  const runtime = await buildModels({ ...files, named: () => named });
+  const requests = stubChatCompletions(t, "Hi");
+
+  // The start refuses the same files with the same words.
+  named = { provider: "local", modelId: "qwen2" };
+  const refusal = await buildModels({ ...files, named: () => named }).then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+  assert.ok(refusal instanceof ModelSetupError);
+  assert.deepEqual(await runtime.reload(), {
+    model: undefined,
+    leftOut: [{ file: files.configFile, reason: refusal.message }],
+  });
+
+  // The server a file that does not fit declared goes on as it was.
+  named = { provider: "local", modelId: "qwen" };
+  writeFileSync(files.modelsFile, JSON.stringify({ providers: { local: { ...qwen, headers: {} } } }));
+  const broken = await runtime.reload();
+  assert.deepEqual(broken.model, named);
+  assert.equal(broken.leftOut.length, 1);
+  assert.equal(broken.leftOut[0]?.file, files.modelsFile);
+  assert.match(broken.leftOut[0].reason, /headers/);
+  await ask(runtime.models, "local", "qwen");
+  assert.equal(requests[0]?.url, "http://models.invalid/v1/chat/completions");
+});
+
+test("a server the home declares after the start takes its key from the home alone, as one it declared at the start does", async (t) => {
+  const folder = providers(t, {
+    models: { providers: { shared: { ...qwen, apiKey: undefined } } },
+    auth: { shared: { type: "api_key", key: "the-folders" } },
+  });
+  const files = home(t);
+  const runtime = await buildModels({ ...files, providers: folder.dir, named: () => ({ provider: "shared", modelId: "qwen" }) });
+  const requests = stubChatCompletions(t, "Hi");
+  await ask(runtime.models, "shared", "qwen");
+
+  writeFileSync(files.modelsFile, JSON.stringify({ providers: { shared: { ...qwen, apiKey: "the-homes" } } }));
+  await runtime.reload();
+  await ask(runtime.models, "shared", "qwen");
+
+  assert.deepEqual(
+    requests.map((request) => request.headers.authorization),
+    ["Bearer the-folders", "Bearer the-homes"],
   );
 });

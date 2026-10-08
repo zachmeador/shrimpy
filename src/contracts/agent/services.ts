@@ -60,13 +60,24 @@ export interface SessionDirectory {
    */
   fire(name: string, context: Context): Promise<Occurrence>;
   /**
-   * Read the home's instructions, context files, skills and triggers again.
-   * Each session uses what changed with its next request, and what it already
-   * holds stays as it was. A trigger follows its file at once: a new schedule
-   * counts from now, a new prompt is used from the next occurrence, and a file
-   * that is gone or says `enabled: false` ends the trigger. A file that cannot
-   * be used is left out and named in the answer, and never makes the reload
-   * fail; a trigger whose file cannot be used keeps its last valid definition.
+   * Read the home's instructions, context files, skills, triggers and model
+   * again. Each session uses what changed with its next request, and what it
+   * already holds stays as it was. A trigger follows its file at once: a new
+   * schedule counts from now, a new prompt is used from the next occurrence,
+   * and a file that is gone or says `enabled: false` ends the trigger.
+   *
+   * The model is the one `agent.json` names, or else the folder's
+   * `default-model.json`, and the servers it can be on are the ones the
+   * `models.json` files declare now, so a server declared since the agent
+   * started can be named. If the home names another model than its sessions
+   * follow, every session follows the new one from its next request, whatever
+   * model it was given before, and a session made later starts with it. If it
+   * names the same one, no session changes.
+   *
+   * A file that cannot be used is left out and named in the answer, and never
+   * makes the reload fail; a trigger whose file cannot be used keeps its last
+   * valid definition. A model that cannot be used is named the same way, in the
+   * words the agent's start would use, and the sessions keep the model they had.
    */
   reload(context: Context): Promise<Reloaded>;
 }

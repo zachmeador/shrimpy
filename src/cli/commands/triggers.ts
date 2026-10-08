@@ -17,7 +17,7 @@ import { type Reached, reachChat } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning, noAgentRunning } from "./connected.ts";
-import { leftOutLines, whatItReads } from "./reloaded.ts";
+import { leftOutLines, modelLine, whatItReads } from "./reloaded.ts";
 import { renderTrigger, renderTriggerFile, renderTriggerFiles, renderTriggers, when } from "./render-triggers.ts";
 import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, command, mayActOn, type Target } from "./which-agent.ts";
 
@@ -81,6 +81,7 @@ async function followed(
     }
     const reloaded = await connection.reload();
     io.out(`Told the agent to read its files again. It now reads ${whatItReads(reloaded)}.`);
+    if (reloaded.changedFrom !== null) io.out(modelLine(reloaded));
     if (reloaded.leftOut.length > 0) io.out(`Left out:\n${leftOutLines(reloaded.leftOut).join("\n")}`);
     await then?.(connection);
   });

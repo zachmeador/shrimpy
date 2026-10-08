@@ -16,6 +16,13 @@ export function whatItReads({ soul, files, skills, triggers }: Read): string {
   return parts.length === 0 ? last : `${parts.join(", ")} and ${last}`;
 }
 
+/** What a reload found about the model: the agent's default, and the one it replaced when it replaced one. */
+export function modelLine({ model, changedFrom }: Pick<Reloaded, "model" | "changedFrom">): string {
+  const now = `${model.provider}/${model.id}`;
+  if (changedFrom === null) return `Its default model is ${now}.`;
+  return `Its default model is now ${now}, not ${changedFrom.provider}/${changedFrom.id}. Each session uses it from its next request.`;
+}
+
 /** The files an agent could not use, one to a line, each with why. */
 export function leftOutLines(leftOut: readonly { file: string; reason: string }[]): string[] {
   return leftOut.map((each) => `  ${each.file}: ${each.reason}`);

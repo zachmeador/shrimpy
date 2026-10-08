@@ -10,6 +10,7 @@ import { runCli } from "./index.ts";
 import {
   captureIo,
   declareLocalModel,
+  localProvider,
   type ModelServer,
   serveChat,
   startModelServer,
@@ -110,6 +111,26 @@ test("agent reload makes the running agent read its home again, and says what it
   assert.match(told(2), /Answer in rhyme\./);
   assert.match(told(2), /The team is small\./);
   assert.deepEqual(requestRoles(2), ["user", "assistant", "user", "assistant", "user"], "and what the session held is still there");
+});
+
+test("agent reload says which model the sessions follow, and when a reload changed it", { timeout }, async (t) => {
+  const { home, model, ask } = await servedHome(t);
+  const provider = localProvider({ url: model.url, models: ["test-model", "second-model"], apiKey: "local" });
+  writeFileSync(join(home, "state", "pi", "models.json"), JSON.stringify({ providers: { local: provider } }));
+  await ask("hello");
+
+  const same = await run("agent", "reload", "--agent", home);
+  writeFileSync(join(home, "agent.json"), JSON.stringify({ name: "scout", model: { provider: "local", id: "second-model" } }));
+  const changed = await run("agent", "reload", "--agent", home);
+  await ask("hello again");
+
+  assert.equal(same.code, 0, same.err.join("\n"));
+  assert.equal(changed.code, 0, changed.err.join("\n"));
+  assert.match(same.out.join("\n"), /local\/test-model/);
+  assert.doesNotMatch(same.out.join("\n"), /second-model/);
+  assert.match(changed.out.join("\n"), /local\/second-model/);
+  assert.match(changed.out.join("\n"), /local\/test-model/, "and the one it replaced");
+  assert.deepEqual(model.requests.map((request) => request.body.model), ["test-model", "second-model"]);
 });
 
 test("stopping the work makes the waiting command exit 130, and the message in the thread is marked stopped", { timeout }, async (t) => {

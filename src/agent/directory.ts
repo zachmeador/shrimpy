@@ -5,9 +5,9 @@ import { type Asker, type Caller, check, withCaller } from "./access/index.ts";
 import type { Sessions } from "./sessions/durable.ts";
 import type { Triggers } from "./triggers/durable.ts";
 
-/** What the agent API asks of the agent's instructions and triggers. */
+/** What the agent API asks of the agent's instructions, triggers and model. */
 export interface HomeFiles {
-  /** Read the home's instructions, context files, skills and triggers again. */
+  /** Read the home's instructions, context files, skills, triggers and model again. */
   reload(): Promise<Reloaded>;
 }
 

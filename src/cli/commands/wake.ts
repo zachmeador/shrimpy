@@ -14,7 +14,7 @@ import { type Reached, reachChat, roomNamed, roomNameWritten } from "../talk/ind
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning } from "./connected.ts";
-import { leftOutLines } from "./reloaded.ts";
+import { leftOutLines, modelLine } from "./reloaded.ts";
 import {
   ABOUT_ANOTHER_AGENT,
   AGENT_OPTION,
@@ -111,6 +111,7 @@ const wake: Command = {
     try {
       const reloaded = await connection.reload();
       io.out("Told the agent to read its files again.");
+      if (reloaded.changedFrom !== null) io.out(modelLine(reloaded));
       if (reloaded.leftOut.length > 0) io.out(`Left out:\n${leftOutLines(reloaded.leftOut).join("\n")}`);
     } finally {
       await connection.close().catch(() => undefined);

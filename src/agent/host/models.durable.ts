@@ -7,7 +7,8 @@ import {
 } from "@earendil-works/pi-ai";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 import type { ModelRef } from "@earendil-works/pi-durable";
-import { type ProviderPaths, providerPaths, readDefaultModel } from "../home/index.ts";
+import { ConfigError } from "../../lib/json-config/index.ts";
+import { type LeftOut, type ProviderPaths, providerPaths, readDefaultModel } from "../home/index.ts";
 import { credentialStore, NO_AMBIENT_AUTH } from "./credentials.ts";
 import { type CustomApi, type CustomProvider, readCustomProviders } from "./custom-providers.ts";
 
@@ -26,14 +27,36 @@ export interface ModelRuntimeOptions {
    * it is and never looks for it.
    */
   readonly providers?: string;
-  /** The model the home's agent.json names, if it names one. */
-  readonly model?: ModelRef;
+  /**
+   * The model the home's agent.json names, if it names one. It is asked at the
+   * start and again at every reload, so it reads the file as it is then.
+   */
+  readonly named?: () => ModelRef | undefined;
+}
+
+/** What a reload found. */
+export interface ModelReload {
+  /** The model the home starts with now, when it can be used. Without one the agent keeps the model it had. */
+  readonly model: ModelRef | undefined;
+  /** The files that could not be used, and the one that names the model when that can't be used, each with why. */
+  readonly leftOut: readonly LeftOut[];
 }
 
 /** The model runtime, and the model the agent starts with. */
 export interface ModelRuntime {
   readonly models: Models;
   readonly model: ModelRef;
+  /**
+   * Read again the model the home starts with and the servers that the
+   * models.json files declare, and set the servers on `models`: a server
+   * declared since the last reading can be named from now on, one that changed
+   * is used from the next request, and one that is gone is dropped, with the
+   * built-in provider of its name back if there is one. A request that is
+   * running goes on as it began. A file that cannot be used, or a model that
+   * cannot, is named in the answer and never makes this fail, and a models.json
+   * that cannot be used leaves the servers it declared as they were.
+   */
+  reload(): Promise<ModelReload>;
 }
 
 /** The agent has no model to start with, or the one it has cannot be used, and what to do about it. */
@@ -71,22 +94,46 @@ interface Start {
 const EXAMPLE_MODEL = '{"provider": "local", "id": "qwen3.8-27b"}';
 
 /** The model its agent.json names, or else the folder's default. With neither the agent has none, and the error says what to do. */
-function startingModel(options: ModelRuntimeOptions, folder: ProviderPaths | undefined): Start {
-  const { configFile } = options;
-  if (options.model !== undefined) return { model: options.model, file: configFile };
+function startingModel(configFile: string, named: ModelRef | undefined, folder: ProviderPaths | undefined): Start {
+  if (named !== undefined) return { model: named, file: configFile };
   if (folder !== undefined) {
     const fallback = readDefaultModel(folder.defaultModel);
     if (fallback !== undefined) {
       return { model: { provider: fallback.provider, modelId: fallback.id }, file: folder.defaultModel };
     }
   }
-  const named = `Name one in ${configFile}, as "model": ${EXAMPLE_MODEL}`;
+  const explained = `Name one in ${configFile}, as "model": ${EXAMPLE_MODEL}`;
   throw new ModelSetupError(
     folder === undefined
-      ? `The agent has no model to start with: ${configFile} names none. ${named}.`
+      ? `The agent has no model to start with: ${configFile} names none. ${explained}.`
       : `The agent has no model to start with: ${configFile} names none, and ${folder.defaultModel} is not there. ` +
-          `${named}, or put ${EXAMPLE_MODEL} in ${folder.defaultModel} for every agent that names none.`,
+          `${explained}, or put ${EXAMPLE_MODEL} in ${folder.defaultModel} for every agent that names none.`,
   );
+}
+
+/** What the models.json files declare: the home's file comes first, and a provider that two files declare is the first one's. */
+function declaredBy(read: ReadonlyMap<string, readonly CustomProvider[]>, files: readonly string[]): Declared {
+  const declared = new Map<string, { provider: CustomProvider; file: string }>();
+  for (const file of files) {
+    for (const provider of read.get(file) ?? []) {
+      if (!declared.has(provider.id)) declared.set(provider.id, { provider, file });
+    }
+  }
+  return declared;
+}
+
+/**
+ * A file that could not be used, as a reload names it. A problem in a config
+ * file starts with the file, which is left off the reason; any other problem is
+ * about `fallback`, the file that names what could not be used.
+ */
+function leftOutOf(error: unknown, fallback: string, known: readonly string[]): LeftOut {
+  const message = error instanceof Error ? error.message : String(error);
+  if (error instanceof ConfigError) {
+    const file = known.find((candidate) => message.startsWith(`${candidate}: `));
+    if (file !== undefined) return { file, reason: message.slice(file.length + 2) };
+  }
+  return { file: fallback, reason: message };
 }
 
 /**
@@ -98,22 +145,22 @@ function startingModel(options: ModelRuntimeOptions, folder: ProviderPaths | und
  * replaces a built-in one with the same ID. The model the agent starts
  * with is the one its agent.json names, or else the folder's default. Fails
  * with a message that says what to change if there is none, or it is unusable.
+ * The runtime can read the model and the servers again: see `reload`.
  */
 export async function buildModels(options: ModelRuntimeOptions): Promise<ModelRuntime> {
   const folder = options.providers === undefined ? undefined : providerPaths(options.providers);
-  const start = startingModel(options, folder);
+  const named = options.named ?? ((): undefined => undefined);
+  const start = startingModel(options.configFile, named(), folder);
   const files: Files = {
     models: folder === undefined ? [options.modelsFile] : [options.modelsFile, folder.models],
     auth: folder === undefined ? [options.authFile] : [options.authFile, folder.auth],
   };
-  const declared = new Map<string, { provider: CustomProvider; file: string }>();
-  for (const file of files.models) {
-    for (const provider of readCustomProviders(file)) {
-      if (!declared.has(provider.id)) declared.set(provider.id, { provider, file });
-    }
-  }
+  let read: ReadonlyMap<string, readonly CustomProvider[]> = new Map(
+    files.models.map((file) => [file, readCustomProviders(file)]),
+  );
   // A provider the home declares is the home's whole: its server takes no key that the folder holds for that name.
-  const own = new Set([...declared].filter(([, { file }]) => file === options.modelsFile).map(([id]) => id));
+  // The credentials look at this set at every request, so a reload changes it where it is.
+  const own = new Set<string>();
   const credentials = credentialStore(
     options.authFile,
     folder === undefined ? undefined : { file: folder.auth, except: own },
@@ -123,10 +170,55 @@ export async function buildModels(options: ModelRuntimeOptions): Promise<ModelRu
   const models = createModels({ credentials, authContext: NO_AMBIENT_AUTH });
   // Loaded here because it brings in every provider's model list.
   const { builtinProviders } = await import("@earendil-works/pi-ai/providers/all");
-  for (const provider of builtinProviders()) models.setProvider(provider);
-  for (const { provider } of declared.values()) models.setProvider(customProvider(provider));
+  const builtin = new Map(builtinProviders().map((provider) => [provider.id, provider]));
+  for (const provider of builtin.values()) models.setProvider(provider);
+
+  /** The providers that the models.json files declared when they were last read, which are set on `models`. */
+  let declared: Declared = new Map();
+  const setDeclared = (next: Declared): void => {
+    for (const id of declared.keys()) {
+      if (next.has(id)) continue;
+      const original = builtin.get(id);
+      if (original === undefined) models.deleteProvider(id);
+      else models.setProvider(original);
+    }
+    for (const { provider } of next.values()) models.setProvider(customProvider(provider));
+    own.clear();
+    for (const [id, { file }] of next) if (file === options.modelsFile) own.add(id);
+    declared = next;
+  };
+  setDeclared(declaredBy(read, files.models));
   await requireUsable(models, start, declared, files);
-  return { models, model: start.model };
+
+  const known = [options.configFile, ...files.models, ...files.auth, ...(folder === undefined ? [] : [folder.defaultModel])];
+  return {
+    models,
+    model: start.model,
+    async reload() {
+      const leftOut: LeftOut[] = [];
+      const reread = new Map<string, readonly CustomProvider[]>();
+      for (const file of files.models) {
+        try {
+          reread.set(file, readCustomProviders(file));
+        } catch (error) {
+          leftOut.push(leftOutOf(error, file, known));
+          reread.set(file, read.get(file) ?? []);
+        }
+      }
+      read = reread;
+      setDeclared(declaredBy(read, files.models));
+      let starting: Start | undefined;
+      try {
+        starting = startingModel(options.configFile, named(), folder);
+        await credentials.list();
+        await requireUsable(models, starting, declared, files);
+        return { model: starting.model, leftOut };
+      } catch (error) {
+        leftOut.push(leftOutOf(error, starting?.file ?? options.configFile, known));
+        return { model: undefined, leftOut };
+      }
+    },
+  };
 }
 
 function customProvider(spec: CustomProvider): Provider {

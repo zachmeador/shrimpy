@@ -7,7 +7,7 @@
  * reached, or what a person's terminal looks like.
  */
 export { type Host, type HostOptions, openHost } from "./host.durable.ts";
-export { buildModels, type ModelRuntimeOptions, ModelSetupError } from "./models.durable.ts";
+export { buildModels, type ModelReload, type ModelRuntimeOptions, ModelSetupError } from "./models.durable.ts";
 export { HomeOwnedError, takeOwnerLock } from "./owner-lock.ts";
 export {
   type Dialogue,
