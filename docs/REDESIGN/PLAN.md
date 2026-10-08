@@ -118,7 +118,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- `shrimpy gateway install` and `uninstall`, which keep a folder's Shrimpy running as a service, as [the network](design/6-network.md) has them. The four steps of an agent apart from the gateway are built.
+- What the first evening of living with it asked for, from the list in [using it](design/using-it.md): the first agent of a setup is an admin, and `shrimpy up` follows its folder, so that adding an agent takes nobody starting anything. `shrimpy gateway install` and `uninstall` are built.
 - One proposal waits on you: [hearing a thread while working in it](proposals/hearing-a-thread.md).
 
 **Next:**

@@ -175,17 +175,22 @@ Open the terminal with: shrimpy
 - **A folder that has a gateway of its own** is not joined: you are you there already, and `shrimpy join` says so.
 - **Leaving** is deleting the file the token is kept in. Nothing yet takes a machine's token back at the gateway.
 
-**Linux.** The tests ran there for the first time on 2026-10-07, on a machine of yours: Ubuntu 24.04 on x86_64 with Node 22.23. Of 613, 603 passed and 7 were skipped, and of the 661 there were by the end of that day, 651: the six that call a real model and one that needs an IPv6 loopback, which that machine has none of. The other three bundle a contract for a browser and failed because the dependencies were copied from a Mac and not installed there, so the bundler's Linux binary was missing. Two things were found and fixed: Node 22 warned that SQLite is experimental at the start of every program, and a test let go of a lock it meant to hold. Still to try there: the programs kept running by a service, and a pairing with a second machine. One thing to look at: the runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway started by a service and a command typed in a login shell may not look in the same place.
+**A service.** You asked on 2026-10-07 for `shrimpy gateway install` and `shrimpy gateway uninstall`, after the first setup on your Linux machine was kept running by a unit written by hand. Built that day.
+
+- **`shrimpy gateway install`** sets up a service for the account that runs it, which runs `shrimpy up` for the Shrimpy folder, and starts it: a systemd user unit on Linux, a LaunchAgent on a Mac. The service starts again when it fails. On any other system the command says what to run under whatever keeps programs running there.
+- **One folder has one service.** The default folder's is called `shrimpy`. Any other folder's has a name made from the folder, and is told the folder.
+- **What it runs** is what `up` would start there, and the command says which: the gateway, the chat server and the agents, or only the agents on a machine whose agents all belong to a gateway elsewhere. It runs the Shrimpy that installed it, with the `PATH` of the shell that installed it, so an agent's shell finds what yours does.
+- **A stop** is sent to `up` alone, which stops the agents, then the chat server, then the gateway, as it does at Ctrl+C. It has half a minute.
+- **Lingering.** On Linux a user service stops when the account's last login ends, unless the account lingers. `install` turns lingering on, and when that takes an administrator it installs and starts the service all the same and prints the one command that does.
+- **Run again,** it writes the service again and restarts it. It is refused while `shrimpy up` runs for the folder by hand, since the service would find everything running and start nothing, and where there is nothing for a service to start.
+- **`shrimpy gateway uninstall`** stops the service and removes it. It leaves every folder and file of Shrimpy's as it is, and lingering too.
+- **`shrimpy gateway status`** ends with a line that says whether a service is installed for the folder, and whether it is running.
+
+**Linux.** The tests ran there for the first time on 2026-10-07, on a machine of yours: Ubuntu 24.04 on x86_64 with Node 22.23. Of 613, 603 passed and 7 were skipped, and of the 661 there were by the end of that day, 651: the six that call a real model and one that needs an IPv6 loopback, which that machine has none of. The other three bundle a contract for a browser and failed because the dependencies were copied from a Mac and not installed there, so the bundler's Linux binary was missing. Two things were found and fixed: Node 22 warned that SQLite is experimental at the start of every program, and a test let go of a lock it meant to hold. Since then a pairing with a second machine has run there, and so have the programs kept running by a service that `shrimpy gateway install` set up, for an account whose agent belongs to a gateway under another account. One thing to look at: the runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway started by a service and a command typed in a shell may not look in the same place. On your machine a service and a command typed over SSH looked in the same place.
 
 **Left for later**
 
 - **Commands about one agent, from elsewhere.** `sessions`, `triggers`, `agent reload` and the like find an agent by its home's folder and talk to it by that path, so they act on an agent only where its home is, and as its OS user. The terminal reaches an agent by its name through the gateway, so after the second step it lists, watches and stops an agent wherever it lives. Naming an agent by its roster name in a command is a change of its own.
-- **A service.** You asked on 2026-10-07 for `shrimpy gateway install` and `shrimpy gateway uninstall`, after the first setup on your Linux machine was kept running by a unit written by hand. Being built:
-  - `install` sets up a service for the account that runs it, which runs `shrimpy up` for the Shrimpy folder, and starts it: a systemd user unit on Linux, a LaunchAgent on a Mac. One folder has one service, and the default folder's has the plain name.
-  - It runs what `up` would start there. On a machine whose agents belong to a gateway elsewhere that is those agents and no gateway, and it says so.
-  - The service gets the `PATH` of the shell that installed it, so an agent's shell finds what yours does.
-  - On Linux a user service stops when the account's last login ends, unless the account lingers. `install` turns lingering on, and when that takes an administrator it prints the one command that does.
-  - `uninstall` stops the service and removes it, and leaves every folder and file of Shrimpy's as it is.
 - **The chat server on a machine other than the gateway's.**
 
 **Prove**
@@ -203,7 +208,7 @@ Under Later in the [order of work](../PLAN.md#order-of-work).
 
 - Telegram as the first provider, reusing the existing sender, formatting and media helpers, without `AppRuntime`, `SessionPool` or the control bus. One poller per bot account, and an explicit owner for cursors, batches and receipts.
 - Reading from Tailscale where it is there, and never needing it: whose a person's machine is, and whether an agent connects from the machine it is expected from.
-- The programs kept running by a service on Linux, and the tests run there with dependencies installed on the machine.
+- The tests run on Linux with dependencies installed on the machine.
 
 **Prove**
 

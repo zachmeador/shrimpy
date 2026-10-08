@@ -40,6 +40,7 @@
 - A client reaches an agent apart from the gateway by its name: the gateway makes a call, and the agent answers it by connecting out. ([log, 2026-10-07](#log))
 - A connection between an agent apart and its gateway that dies without a word is noticed at both ends, and the agent says when it loses its gateway and when it is back. ([log, 2026-10-07](#log))
 - A machine of the person's own comes in with `shrimpy members invite` and `shrimpy join`, and the commands that talk and the terminal are the person there. ([log, 2026-10-07](#log))
+- `shrimpy gateway install` and `uninstall`: a service of the account, a systemd user unit on Linux and a LaunchAgent on macOS, keeps `shrimpy up` running for a Shrimpy folder. ([log, 2026-10-07](#log))
 
 ## Log
 
@@ -48,6 +49,22 @@ Newest first, roughly: the entries of one day aren't always in the order they ha
 A piece of work is done when its Prove list has evidence from real wiring, not equivalent mocks. A passing build or deleted files don't count. A newly found experience difference stays pending until it is reviewed.
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**2026-10-07: `shrimpy gateway install` and `uninstall`.** You asked for them the evening you moved in: "needed ux is `shrimpy gateway install/uninstall`". One builder, one commit, which holds the two commands and nothing else. What they do is in [the network](../design/6-network.md).
+
+- The service is a systemd user unit on Linux and a LaunchAgent on macOS, for the account that runs the command. It runs `shrimpy up` for the Shrimpy folder, with the Node and the entry point that ran the command and the `PATH` of that shell, and starts again five seconds after it fails.
+- Choices the build made, which the plan didn't cover:
+  - systemd tells every program of a service to stop at once, and `up` stops its programs in order, so the unit has the stop sent to `up` alone. A stop has half a minute.
+  - On macOS the service is started again only when it ends with a failure, as on Linux.
+  - Another folder's service is named for the folder's last part and eight characters of a hash of its path.
+  - Install is refused while everything `up` would start is running and the service is not, and where there is nothing to start.
+  - Lingering is looked at first and turned on without asking for a password. Uninstall leaves it on and says how to turn it off.
+  - `shrimpy gateway status` has no line about a service where no gateway runs.
+- Every test of the CLI now gets an empty home folder and stand-ins for `systemctl`, `loginctl` and `launchctl` that fail, so no test reaches a real service.
+- Run for real once, on your Linux machine, for the account whose agent belongs to the gateway under the other account. It replaced the unit written by hand, restarted the service and turned lingering on with no administrator. The agent registered again and answered a message.
+- Found by that run: `shrimpy gateway status` there says no gateway is running and to start Shrimpy, where the agents belong to a gateway elsewhere and are running.
+- Not run for real: a first install, uninstall, lingering that takes an administrator, and anything on macOS. [STATUS.md](../STATUS.md) has these, and that two folders of one account would share a gateway.
+- 668 tests: 662 pass and 6 are skipped.
 
 **2026-10-07: moving in on a Linux machine.** You agreed that the build was ahead of the use and asked for the new Shrimpy to be set up on your Linux machine, in place of the old one, to live with and to develop on. Old Shrimpy's gateway there was disabled already and not running. Its workspace's contents were moved into a dated folder beside it, with its unit, its pointer file and its shell completions, and a note of what came from where. Nothing was converted or deleted.
 
