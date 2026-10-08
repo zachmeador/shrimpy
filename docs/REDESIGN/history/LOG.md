@@ -60,7 +60,7 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 
 - The plan's direction and [using it](../design/using-it.md) say so now, with what it asks of the web client so that a companion app can wrap it later.
 - Buzz was looked at again that day, from its own README: its desktop app works, its mobile clients are listed as being wired up and push notifications as not written. It also keeps the conversation in a relay of its own, which is what the chat server does here.
-- Nothing is built. When the web client is built, and whether before the release, is yours to say.
+- You then settled the rest. The web client doesn't hold the release: "definitely want this but it won't hold up the first release from this branch". You agreed to the three things it is built to, so that a companion app can wrap it. And outside chat apps are put aside: "forget about discord, telegram, buzz, etc. not on my radar at this point. still open to the idea of chat adapters because some people might really want to use a particular platform but they're not mvp". So the provider interface moves from next to later in the plan, and the fourteen lines of the open list's draft about outside chat apps say so.
 
 **2026-10-08: a start on cleaning up for the release.** You said the release is close, and set the direction for the docs: "i'd actually like to move to very minimal reference documentation. shrimpy agents can just check the code if they need to. but instructions and skills should cover all of the core ux/agent-ex". The plan's release list says so now.
 

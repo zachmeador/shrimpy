@@ -245,20 +245,22 @@ What old Shrimpy let a person or an agent do that this one doesn't; the owner ma
 
 ### In outside chat apps
 
-- Talk to an agent from Telegram — later, as the first chat app.
-- Give each agent its own Telegram bot — decided; comes with Telegram.
-- Pick which agent answers in a Telegram chat — goes; a bot each replaces it.
-- Limit which chats and people may talk to an agent — comes with Telegram.
-- See typing, formatted and split replies, and sender labels — comes with Telegram.
-- Have quick bursts of messages merged into one — comes with Telegram.
-- Send a photo in Telegram and have the agent see it — waits for attachments.
-- Send a message that doesn't notify a person — becomes a quiet option, with Telegram.
-- Reach a person where they were last active — kept; needs outside chat apps.
-- Bind a channel to a chat app, and unbind it — comes with Telegram.
-- Set up Telegram with a guided command — comes with Telegram.
-- Start fresh in a chat app with `/new` or `/clear` — `/new` is planned; `/clear` goes.
-- Ask `/help` in a chat app, filtered to what the person may do — planned.
-- Set the thinking level with `/thinking` in a chat app — waits.
+The owner, 2026-10-08: "forget about discord, telegram, buzz, etc. not on my radar at this point. still open to the idea of chat adapters because some people might really want to use a particular platform but they're not mvp". The phone is reached by the web client.
+
+- Talk to an agent from Telegram — not in the first release; with a chat adapter, if ever.
+- Give each agent its own Telegram bot — not in the first release; with a chat adapter, if ever.
+- Pick which agent answers in a Telegram chat — not in the first release; with a chat adapter, if ever.
+- Limit which chats and people may talk to an agent — not in the first release; with a chat adapter, if ever.
+- See typing, formatted and split replies, and sender labels — not in the first release; with a chat adapter, if ever.
+- Have quick bursts of messages merged into one — not in the first release; with a chat adapter, if ever.
+- Send a photo in Telegram and have the agent see it — not in the first release; with a chat adapter, if ever.
+- Send a message that doesn't notify a person — not in the first release; with a chat adapter, if ever.
+- Reach a person where they were last active — not in the first release; with a chat adapter, if ever.
+- Bind a channel to a chat app, and unbind it — not in the first release; with a chat adapter, if ever.
+- Set up Telegram with a guided command — not in the first release; with a chat adapter, if ever.
+- Start fresh in a chat app with `/new` or `/clear` — not in the first release; with a chat adapter, if ever.
+- Ask `/help` in a chat app, filtered to what the person may do — not in the first release; with a chat adapter, if ever.
+- Set the thinking level with `/thinking` in a chat app — not in the first release; with a chat adapter, if ever.
 
 ### Conversations and sessions
 

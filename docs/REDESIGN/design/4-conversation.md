@@ -99,6 +99,8 @@ The provider interface with a fake provider is under Not built yet below. The wa
 
 *The conversation model: the provider interface with a fake provider.*
 
+Not in the first release. On 2026-10-08 you put outside chat apps aside: "forget about discord, telegram, buzz, etc. not on my radar at this point. still open to the idea of chat adapters because some people might really want to use a particular platform but they're not mvp". Your phone is reached by the web client, as [the plan's direction](../PLAN.md#direction) has it. What follows is kept as the idea was written.
+
 Under Next in the [order of work](../PLAN.md#order-of-work).
 
 **Outcome:** rooms hold several members, each agent decides what wakes it, and chat can reach an outside app through a provider interface. Two agents talk in a room without going round in circles, on a small local model, and a fake provider drives the same contract a real one will.

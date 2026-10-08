@@ -35,7 +35,7 @@ Confirmed during review:
 - **Shrimpy leaves Pi's terminal app.** Shrimpy owns its session-client contract and presentation, reusing public `pi-tui` components where they fit.
 - **Pi's durable runtime is the engine.** Shrimpy reshapes around it instead of wrapping it.
 - **Chat providers are interchangeable.** Telegram is one chat provider among possible others, such as Discord or iMessage. Shrimpy's chat behavior lives in the chat server, and each provider only translates its own API. A desktop chat app, possibly a fork Shrimpy maintains someday, would plug in the same way; it isn't part of this plan.
-- **Your phone is reached by Shrimpy's own client.** Decided in talk on 2026-10-08. Telegram was the convenient choice six months before, and you asked whether Shrimpy should supply it at all. The web client is built for a phone first, as a web app that is installed to the home screen and gets push notifications, so it reaches you where Telegram did and shows everything the terminal does. A companion app comes later and wraps the same pages with what the phone's system offers: "basically a browser view with ios integration stuff", and "home assistant's mobile app approach to me is perfect". The interface for chat providers stays, so that an outside app can be plugged in by whoever wants one. Whether Shrimpy ever ships a provider of its own is open, and none comes first.
+- **Your phone is reached by Shrimpy's own client.** Decided in talk on 2026-10-08. Telegram was the convenient choice six months before, and you asked whether Shrimpy should supply it at all. The web client is built for a phone first, as a web app that is installed to the home screen and gets push notifications, so it reaches you where Telegram did and shows everything the terminal does. A companion app comes later and wraps the same pages with what the phone's system offers: "basically a browser view with ios integration stuff", and "home assistant's mobile app approach to me is perfect". No outside chat app is in the first release or planned after it: "forget about discord, telegram, buzz, etc. not on my radar at this point. still open to the idea of chat adapters because some people might really want to use a particular platform but they're not mvp". The web client is wanted and doesn't hold the release: "definitely want this but it won't hold up the first release from this branch".
 - **Agents decide what wakes them.** The chat server offers each new channel message to member agents, and each agent's wake policy decides whether it starts a turn, as `channelPolicy` does today. By default an agent wakes for DMs, for mentions and for a person's message in a room that mentions nobody, and an included skill teaches agents to tune their own policy. Loop protection lives there too; nothing upstream filters conversation.
 - **Sandboxing is a deployment choice.** An agent runs the same with or without a sandbox. When it is sandboxed, the sandbox wraps the whole agent process. Shrimpy doesn't sandbox individual tools, so agents keep a real shell.
 
@@ -125,11 +125,12 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Next:**
 
-- The conversation model: the provider interface with a fake provider. [Not built yet](design/4-conversation.md)
+- Using it: the web client, built for a phone first, with push notifications. It doesn't hold up the release. [Not built yet](design/using-it.md)
 - The home: compaction, the request a turn sent, and workspace context. [Not built yet](design/5-home.md)
 
 **Later:**
 
+- The conversation model: an interface for chat adapters, with a fake one as its reference. Not in the first release, and no outside chat app is planned: the idea is kept. [Not built yet](design/4-conversation.md)
 - The network: agents everywhere. [Not built yet](design/6-network.md)
 - What an agent does without being asked: helpers. [Not built yet](design/7-on-its-own.md)
 - Using it: what daily use asks for. [Not built yet](design/using-it.md)

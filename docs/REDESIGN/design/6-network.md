@@ -202,11 +202,11 @@ Open the terminal with: shrimpy
 
 Under Later in the [order of work](../PLAN.md#order-of-work).
 
-**Outcome:** agents run in sandboxes and on Linux, the gateway reads who is at the other end from Tailscale where it is there, and an outside chat app can be plugged in through the provider interface.
+**Outcome:** agents run in sandboxes and on Linux, the gateway reads who is at the other end from Tailscale where it is there, and your phone reaches Shrimpy through the web client.
 
 **Build**
 
-- The provider interface with a fake provider, as [the conversation model](4-conversation.md) has it. Until 2026-10-08 Telegram was to be the first provider. Your phone is now reached by the web client, as [the plan's direction](../PLAN.md#direction) has it, and no provider of Shrimpy's own comes first. If one is written, it is from the interface and what its app documents, and takes nothing from old Shrimpy's code.
+- No outside chat app. Until 2026-10-08 Telegram was to be the first provider. You put outside chat apps aside that day, with chat adapters kept as an idea that is not in the first release, as [the conversation model](4-conversation.md) has it. If one is ever written, it takes nothing from old Shrimpy's code.
 - Reading from Tailscale where it is there, and never needing it: whose a person's machine is, and whether an agent connects from the machine it is expected from.
 - The tests run on Linux with dependencies installed on the machine.
 
