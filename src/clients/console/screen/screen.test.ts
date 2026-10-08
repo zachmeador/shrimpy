@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { assistantItem, sessionView, toolItem, userItem, workingView } from "../../../contracts/agent/testing/index.ts";
+import type { Status } from "../state/index.ts";
 import {
   aChatServer,
   aDm,
@@ -522,6 +523,22 @@ test("text from other members and from tools can't act on a terminal, wherever i
   });
   const dm = { kind: "agent" as const, name: `scout${hostile}` };
   const room = { kind: "room" as const, id: "ch_2" };
+  const statuses: Record<"agent" | "room", Status> = {
+    agent: {
+      at: now,
+      about: {
+        kind: "agent",
+        name: `scout${hostile}`,
+        running: true,
+        version: `1.0${hostile}`,
+        reached: true,
+        doing: { kind: "retrying", error: `error${hostile}` },
+        session: { queued: 1, model: { provider: `provider${hostile}`, id: `model${hostile}` }, usage: { input: 1, output: 2, cost: 0.5 } },
+        othersWorking: 1,
+      },
+    },
+    room: { at: now, about: { kind: "room", agents: [{ name: `scout${hostile}`, running: true, working: true }] } },
+  };
 
   for (const where of [
     { screen: "agents" as const },
@@ -534,9 +551,11 @@ test("text from other members and from tools can't act on a terminal, wherever i
     { screen: "session" as const, agent: `scout${hostile}`, session: `trigger:${hostile}` },
     { screen: "session" as const, agent: `scout${hostile}`, session: `th_3${hostile}` },
   ]) {
-    const screen = screenOf({ ...model, where }, { now });
+    const status = where.screen === "thread" ? statuses[where.place.kind] : undefined;
+    const screen = screenOf({ ...model, where, status }, { now });
     const all = [...stringsIn(screen)];
     assert.ok(all.length > 3);
+    if (screen.kind === "thread") assert.ok(screen.status !== undefined, "the reading is on the screen");
     for (const text of all) assert.doesNotMatch(text, ACTED_ON, `${screen.kind}: ${JSON.stringify(text)}`);
   }
 });

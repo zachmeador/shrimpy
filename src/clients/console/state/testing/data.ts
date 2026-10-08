@@ -45,6 +45,7 @@ export function aModel(parts: Partial<Model> = {}): Model {
     sessions: undefined,
     refusal: undefined,
     notice: undefined,
+    status: undefined,
     homes: undefined,
     ...parts,
   };

@@ -1,5 +1,5 @@
 import type { Channel, Message, Thread } from "../../../contracts/chat/index.ts";
-import { agentEntries, type Model, type Place, roomEntries, workingIn } from "../state/index.ts";
+import { agentEntries, type Model, type Place, roomEntries, type Status, workingIn } from "../state/index.ts";
 import { type CommandLine, commandLines } from "./commands.ts";
 import { oneLine, plain } from "./plain.ts";
 import { whenOf } from "./time.ts";
@@ -8,6 +8,7 @@ import {
   agentNote,
   agentsTitle,
   AGENTS_EMPTY,
+  agentStatusRows,
   type Can,
   chatNote,
   DELETED,
@@ -28,11 +29,13 @@ import {
   receiptNote,
   refusalNote,
   roomLabel,
+  roomStatusRows,
   roomThreadsTitle,
   SESSION_EMPTY,
   sessionsEmpty,
   sessionsTitle,
   sessionTitle,
+  statusHeader,
   THREAD_EMPTY,
   threadsEmpty,
   threadsTitle,
@@ -111,6 +114,12 @@ export interface MessageRow {
   notes: string[];
 }
 
+/** What `/status` read, as lines: the first says it is for the person alone and when it was read. */
+export interface StatusBlock {
+  header: string;
+  rows: string[];
+}
+
 export interface ThreadScreen extends Chrome {
   kind: "thread";
   /**
@@ -130,6 +139,8 @@ export interface ThreadScreen extends Chrome {
   workStale: boolean;
   /** Every command the person can write here, in order of name, each with what it does here. The editor lists them while the text starts with a slash. */
   commands: CommandLine[];
+  /** What `/status` read as it stood then, from the person's asking until they send a message or leave. It goes between the messages and the editor. */
+  status: StatusBlock | undefined;
 }
 
 /** One of an agent's sessions, as the agent sees it. It is for watching: nothing is said or done in it. */
@@ -354,10 +365,16 @@ function threadScreen(model: Model, place: Place, threadId: string | undefined, 
     work: workOf(session, inFull),
     workStale: isAgent && model.agent?.state === "down",
     commands: commandLines(isAgent ? "dm" : "room"),
+    status: model.status === undefined ? undefined : statusBlock(model.status),
     notes: notesOf(model, isAgent ? here.name : undefined),
     keys: keyHints("thread", can, inFull),
     can,
   };
+}
+
+function statusBlock(status: Status): StatusBlock {
+  const { about } = status;
+  return { header: statusHeader(status.at), rows: about.kind === "agent" ? agentStatusRows(about) : roomStatusRows(about) };
 }
 
 /** A thread's name, or the start of its first message, or a word saying it has none. */

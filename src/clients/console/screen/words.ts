@@ -7,9 +7,10 @@ import type {
   ToolStatus,
 } from "../../../contracts/agent/index.ts";
 import type { AgentCommand, Receipt } from "../../../contracts/chat/index.ts";
+import { localTime } from "../../../lib/time/index.ts";
 import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import type { Problem, Why } from "../network/index.ts";
-import type { Notice } from "../state/index.ts";
+import type { AgentStatus, Notice, RoomStatus } from "../state/index.ts";
 import { oneLine } from "./plain.ts";
 
 /*
@@ -265,6 +266,59 @@ function activityWords(activity: SessionActivity): string | undefined {
     case "retrying":
       return `retrying after: ${oneLine(activity.error)}`;
   }
+}
+
+/**
+ * The commands the terminal acts on itself, which are never posted: what each
+ * does in a DM with an agent and in a room, in one line. The list of commands
+ * shows them with the commands for agents.
+ */
+export const TERMINAL_COMMANDS = {
+  status: {
+    dm: "Show what the agent is doing, its model, tokens and cost.",
+    room: "Show which agents here are running and working.",
+  },
+} as const satisfies Record<string, { dm: string; room: string }>;
+
+/** The name of a command for the terminal, without its slash. */
+export type TerminalCommand = keyof typeof TERMINAL_COMMANDS;
+
+/** The line over what `/status` read: whom it is for, and when it was read. */
+export const statusHeader = (at: number): string => `status · shown only to you · read ${localTime(at)}`;
+
+const howMany = (count: number): string => (count === 0 ? "none" : String(count));
+const withCommas = (count: number): string => count.toLocaleString("en-US");
+
+/** What `/status` read about an agent in its DM, one thing to a line. */
+export function agentStatusRows(status: AgentStatus): string[] {
+  const name = oneLine(status.name);
+  const rows = [status.running ? `${name} · Shrimpy ${oneLine(status.version ?? "")} · running` : `${name} · not running`];
+  if (status.doing !== undefined) rows.push(`Doing now: ${activityWords(status.doing) ?? status.doing.kind}`);
+  if (!status.reached) {
+    if (status.running) rows.push(`Not connected to ${name} just now, so its inputs, model and usage are not shown.`);
+    return rows;
+  }
+  if (status.session !== undefined) {
+    const { queued, model, usage } = status.session;
+    rows.push(
+      `Inputs waiting: ${howMany(queued)}`,
+      `Model: ${model === null ? "none" : `${oneLine(model.provider)}/${oneLine(model.id)}`}`,
+      `This session: ${withCommas(usage.input)} tokens in, ${withCommas(usage.output)} out, cost $${usage.cost.toFixed(4)}`,
+    );
+  } else if (status.doing !== undefined) {
+    rows.push(`${name} has no session in this thread yet.`);
+  }
+  if (status.othersWorking !== undefined) rows.push(`Other sessions working: ${howMany(status.othersWorking)}`);
+  return rows;
+}
+
+/** What `/status` read about the agents of a room, one to a line. */
+export function roomStatusRows(status: RoomStatus): string[] {
+  if (status.agents.length === 0) return ["No agent is in this room."];
+  return status.agents.map(
+    (agent) =>
+      `${oneLine(agent.name)} · ${agent.running ? "running" : "not running"} · ${agent.working ? "working in this thread" : "not working in this thread"}`,
+  );
 }
 
 /** What marks a title or a block that may no longer be current. */

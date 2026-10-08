@@ -55,6 +55,7 @@ export async function openConsole(options: ConsoleOptions): Promise<number> {
     signIn: options.signIn,
     pollMs: options.pollMs,
     noticeMs: options.noticeMs,
+    now: options.now,
     homes: options.homes,
   });
   try {

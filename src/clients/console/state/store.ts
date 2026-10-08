@@ -29,6 +29,7 @@ import {
   type SendResult,
   workingIn,
 } from "./model.ts";
+import { statusOf } from "./status.ts";
 
 export interface ConsoleStateOptions {
   /** How the console reaches the gateway, and the programs registered with it by their names. */
@@ -43,6 +44,8 @@ export interface ConsoleStateOptions {
   sendMs?: number;
   /** The pauses between attempts to reach a program. Tests shorten them. */
   backoff?: Backoff;
+  /** The moment it is, in milliseconds since the epoch, for saying when `/status` read what it shows. The clock by default. */
+  now?: () => number;
   /** Whether this machine has a home for an agent that is not running, so that a note can say whether to start it here. */
   homes?: HomeLookup;
 }
@@ -70,6 +73,14 @@ export interface ConsoleState {
 
   /** Say something in the open thread, or in a new one. The person's draft is theirs to put back when it fails. */
   send(text: string): Promise<SendResult>;
+  /**
+   * Read what `/status` shows for the open thread: the agent, what it is doing
+   * there and what its session has used, or the agents of a room and who of them
+   * is working. It is kept in the model as it stood when it was read, for the
+   * person alone, until they send a message or leave the thread, and reading
+   * again replaces it. Posts nothing.
+   */
+  readStatus(): Promise<void>;
 
   /** The work that goes on if the console is left now, if there is any. It asks chat once more, briefly. */
   farewell(): Promise<Farewell | undefined>;
@@ -90,6 +101,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
   const pollMs = options.pollMs ?? POLL_MS;
   const noticeMs = options.noticeMs ?? NOTICE_MS;
   const sendMs = options.sendMs ?? SEND_MS;
+  const clock = options.now ?? Date.now;
   const listeners = createListeners<Model>(() => undefined);
   let closed = false;
 
@@ -107,11 +119,17 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     sessions: undefined,
     refusal: undefined,
     notice: undefined,
+    status: undefined,
     homes: options.homes,
   };
+  // Counts the readings of `/status` that were asked for or dropped, so that one still on its way when the person moves on or sends a message is not shown.
+  let statusReads = 0;
   const set = (patch: Partial<Model>): void => {
     if (closed) return;
-    model = { ...model, ...patch };
+    // What `/status` read is for the thread it was read in, so going anywhere else ends it.
+    const moved = patch.where !== undefined;
+    if (moved) statusReads += 1;
+    model = { ...model, ...(moved ? { status: undefined } : {}), ...patch };
     listeners.notify(model);
   };
 
@@ -369,6 +387,9 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
           pending = undefined;
           return id;
         });
+        // A message that is sent ends what `/status` read.
+        statusReads += 1;
+        if (model.status !== undefined) set({ status: undefined });
         if (where.thread === undefined) {
           started = undefined;
           const now = model.where;
@@ -381,6 +402,18 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
         say({ kind: "not-sent", problem: problemOf(silent) });
         return { ok: false };
       }
+    },
+
+    async readStatus() {
+      const { where } = model;
+      if (where.screen !== "thread") return;
+      statusReads += 1;
+      const read = statusReads;
+      const link = agent;
+      // The agent is asked which sessions it has, for how many of them are working besides this thread's. It may not answer.
+      const sessions =
+        where.place.kind === "agent" && link?.status().state === "up" ? await link.sessions().catch(() => undefined) : undefined;
+      if (read === statusReads) set({ status: statusOf(model, sessions, clock()) });
     },
 
     async farewell() {

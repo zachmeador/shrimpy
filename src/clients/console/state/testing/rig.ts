@@ -20,6 +20,8 @@ export interface RigOptions {
   noticeMs?: number;
   /** How long sending waits for the chat server, in milliseconds. */
   sendMs?: number;
+  /** The moment it is, for saying when `/status` read what it shows. */
+  now?: () => number;
 }
 
 /** The real gateway, a stand-in chat server and stand-in agents on real sockets, and a console state talking to them. */
@@ -59,6 +61,7 @@ export async function startRig(t: TestContext, options: RigOptions = {}): Promis
     pollMs: 15,
     noticeMs: options.noticeMs,
     sendMs: options.sendMs,
+    now: options.now,
     backoff: backoff({ firstMs: 1, maxMs: 8, random: () => 0 }),
   });
   stopAfter(t, () => state.close());

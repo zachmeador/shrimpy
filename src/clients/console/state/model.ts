@@ -1,4 +1,4 @@
-import type { SessionSummary, SessionView } from "../../../contracts/agent/index.ts";
+import type { SessionActivity, SessionStatus, SessionSummary, SessionView } from "../../../contracts/agent/index.ts";
 import type { Channel, Member, Thread, ThreadView } from "../../../contracts/chat/index.ts";
 import type { Registration, RosterEntry } from "../../../contracts/gateway/index.ts";
 import type { LinkStatus, Problem } from "../network/index.ts";
@@ -63,6 +63,40 @@ export type Notice =
   | { kind: "not-watched"; problem: Problem }
   | { kind: "not-listed"; problem: Problem };
 
+/** An agent in its DM with the person, as `/status` found it. */
+export interface AgentStatus {
+  kind: "agent";
+  name: string;
+  /** Whether the agent is registered with the gateway. */
+  running: boolean;
+  /** The version of Shrimpy it runs, when it is running. */
+  version: string | undefined;
+  /** Whether the agent was in touch with the console, which what follows from its session needs. */
+  reached: boolean;
+  /** What it was doing in the thread. Undefined for a thread that is not started. */
+  doing: SessionActivity | undefined;
+  /** What the thread's session said of itself. Undefined when the agent was not reached or has no session there. */
+  session: { queued: number; model: SessionStatus["model"]; usage: SessionStatus["usage"] } | undefined;
+  /** How many of its other sessions were working. Undefined when it could not be asked. */
+  othersWorking: number | undefined;
+}
+
+/** The agents of a room, as `/status` found them. */
+export interface RoomStatus {
+  kind: "room";
+  agents: { name: string; running: boolean; working: boolean }[];
+}
+
+/**
+ * What `/status` read in a thread, as it stood when it was asked. It is the
+ * person's alone, and it goes when they send a message or leave the thread.
+ */
+export interface Status {
+  /** When it was read, in milliseconds since the epoch. */
+  at: number;
+  about: AgentStatus | RoomStatus;
+}
+
 export interface Model {
   /** You, as the chat server says the gateway knows you. Unknown until the console has been let in to chat. */
   me: Member | undefined;
@@ -92,6 +126,8 @@ export interface Model {
    */
   refusal: string | undefined;
   notice: Notice | undefined;
+  /** What the person last asked of `/status` in the thread they are in. */
+  status: Status | undefined;
   /** What this machine has homes for, when the console was told. It never changes. */
   homes: HomeLookup | undefined;
 }

@@ -21,6 +21,7 @@ import {
   type Screen,
   screenOf,
   type SessionScreen,
+  terminalCommandOf,
   type ThreadScreen,
 } from "../screen/index.ts";
 import type { ConsoleState, Where } from "../state/index.ts";
@@ -30,6 +31,7 @@ import { keysComponent } from "./keys.ts";
 import { listOf } from "./list.ts";
 import { messageComponent } from "./message.ts";
 import { sessionComponents } from "./session.ts";
+import { statusComponent } from "./status.ts";
 import { createTheme } from "./theme.ts";
 import { workComponent } from "./work.ts";
 
@@ -125,6 +127,11 @@ export function startDrawing(options: DrawingOptions): Drawing {
 
   editor.onSubmit = (text) => {
     if (text === "") return;
+    // A command for the terminal is acted on here and posted nowhere.
+    if (terminalCommandOf(text) === "status") {
+      void state.readStatus();
+      return;
+    }
     const key = draftKey;
     void state.send(text).then((result) => {
       if (!result.ok) restore(key, text);
@@ -232,6 +239,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
     }
     const line = working(screen.working);
     if (line !== undefined) parts.push(line);
+    if (screen.status !== undefined) parts.push(statusComponent(screen.status, theme));
     editor.borderColor = screen.working === undefined ? theme.editor.borderColor : theme.editorBusy;
     return parts;
   }

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { setCapabilityOverrides, visibleWidth } from "@earendil-works/pi-tui";
-import { assistantItem, toolItem, userItem, workingView } from "../../../contracts/agent/testing/index.ts";
-import { AGENT_COMMANDS } from "../../../contracts/chat/index.ts";
+import { assistantItem, sessionView, toolItem, userItem, workingView } from "../../../contracts/agent/testing/index.ts";
 import { settle, stopAfter, until } from "../../../lib/testing/index.ts";
+import { localTime } from "../../../lib/time/index.ts";
 import type { Model } from "../state/index.ts";
 import {
   aChatServer,
@@ -24,7 +24,7 @@ import {
   startRig,
   zach,
 } from "../state/testing/index.ts";
-import { QUIT_AGAIN } from "../screen/index.ts";
+import { QUIT_AGAIN, screenOf, type ThreadScreen } from "../screen/index.ts";
 import { type Drawing, startDrawing } from "./index.ts";
 import { FakeTerminal, visible } from "./testing/index.ts";
 
@@ -175,45 +175,103 @@ test("a message that is not sent comes back to the editor to be sent again, ahea
   assert.match(lines().join("\n"), /\n will not go!\n/);
 });
 
+/** What a command in a DM's thread does, as the screen says it. */
+function lineOf(name: string): string {
+  const screen = screenOf(conversation(), { now });
+  assert.equal(screen.kind, "thread");
+  const found = (screen as ThreadScreen).commands.find((command) => command.name === name);
+  assert.ok(found, `${name} is a command`);
+  return found.line;
+}
+
 test("a slash lists the commands with what each does, more typing narrows the list, escape closes it without leaving the thread, and the next escape goes back", async (t) => {
   const { terminal, state, lines } = start(t, conversation());
   const drawn = (): string => lines().join("\n");
-  const stop = AGENT_COMMANDS.stop.dm;
 
   terminal.type("/");
-  await until(() => drawn().includes("/stop"), "the list of commands");
-  assert.ok(drawn().includes(stop), "with what the command does");
+  await until(() => drawn().includes(lineOf("/stop")) && drawn().includes(lineOf("/status")), "the list of both kinds of command");
+  terminal.type("sto");
+  await until(() => !drawn().includes(lineOf("/status")), "the list to narrow");
+  assert.ok(drawn().includes(lineOf("/stop")));
   terminal.type("x");
-  await until(() => !drawn().includes("/stop"), "the list to close, since nothing matches");
+  await until(() => !drawn().includes(lineOf("/stop")), "the list to close, since nothing matches");
   terminal.type(BACKSPACE);
-  await until(() => drawn().includes("/stop"), "the list to open again");
+  await until(() => drawn().includes(lineOf("/stop")), "the list to open again");
 
   terminal.type(ESC);
-  assert.ok(!drawn().includes("/stop"), "escape closes the list");
-  assert.match(drawn(), /\n \/\n/, "and leaves the text as it was");
+  assert.ok(!drawn().includes(lineOf("/stop")), "escape closes the list");
+  assert.match(drawn(), /\n \/sto\n/, "and leaves the text as it was");
   assert.deepEqual(state.calls, [], "without leaving the thread");
   terminal.type(ESC);
   assert.deepEqual(state.calls, ["back"], "the next escape goes back");
 });
 
-test("enter chooses the command in the list and the next enter sends it, and a text that starts with a slash and is no command is sent as written", async (t) => {
+test("enter chooses the command in the list and the next enter acts on it: a command for agents is sent, one for the terminal is not, and a text that starts with a slash and is no command is sent as written", async (t) => {
   const { terminal, state, lines } = start(t, conversation());
   const drawn = (): string => lines().join("\n");
 
   terminal.type("/st");
-  await until(() => drawn().includes(AGENT_COMMANDS.stop.dm), "the list of commands");
+  await until(() => drawn().includes(lineOf("/stop")), "the list of commands");
+  terminal.type(DOWN);
   terminal.type(ENTER);
   assert.deepEqual(state.calls, [], "choosing sends nothing");
   assert.match(drawn(), /\n \/stop\n/, "it puts the command in the editor");
-  assert.ok(!drawn().includes(AGENT_COMMANDS.stop.dm), "and closes the list");
+  assert.ok(!drawn().includes(lineOf("/stop")), "and closes the list");
   terminal.type(ENTER);
   assert.deepEqual(state.calls, ["send /stop"]);
 
+  terminal.type("/status");
+  terminal.type(ENTER);
+  assert.deepEqual(state.calls, ["send /stop", "status"], "a command for the terminal is acted on and not sent");
+
   terminal.type("/etc/hosts is wrong");
   await settle();
-  assert.ok(!drawn().includes(AGENT_COMMANDS.stop.dm), "a text that is no command opens no list");
+  assert.ok(!drawn().includes(lineOf("/stop")), "a text that is no command opens no list");
   terminal.type(ENTER);
-  assert.deepEqual(state.calls, ["send /stop", "send /etc/hosts is wrong"]);
+  assert.deepEqual(state.calls, ["send /stop", "status", "send /etc/hosts is wrong"]);
+});
+
+test("/status shows the person what the agent is doing and its model, posts nothing, and goes when a message is sent or the thread is left", { timeout: 15_000 }, async (t) => {
+  const rig = await startRig(t, { now: () => now });
+  const thread = await rig.thread("scout", "go");
+  rig.agents.scout?.agent.session(thread.id, {
+    view: sessionView({
+      items: [userItem("go"), assistantItem("Done.")],
+      status: { model: { provider: "local", id: "big-model" }, usage: { input: 1204, output: 388, cost: 0.0231 } },
+    }),
+  });
+  const terminal = new FakeTerminal(100, 30);
+  const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
+  stopAfter(t, () => drawing.stop());
+  const drawn = (): string => visible(drawing.render(100)).join("\n");
+  const seen = (text: string): Promise<void> => until(() => drawn().includes(text), `the screen to show ${text}`);
+  const posted = (): string[] => rig.chat.chat.messages(thread.id).map((message) => message.text);
+  await seen("your threads");
+  rig.state.openThread(thread.id);
+  await rig.until((model) => model.session !== undefined, "the session to be watched");
+
+  terminal.type("/status");
+  terminal.type(ENTER);
+  await seen("big-model");
+  assert.match(drawn(), /idle/, "what the agent is doing");
+  assert.match(drawn(), /388/, "what the session has used");
+  assert.ok(drawn().includes(localTime(now)), "when it was read");
+  assert.deepEqual(posted(), ["go"], "nothing was posted");
+
+  terminal.type("hello");
+  terminal.type(ENTER);
+  await until(() => !drawn().includes("big-model"), "the reading to go when a message is sent");
+  assert.deepEqual(posted(), ["go", "hello"]);
+
+  terminal.type("/status");
+  terminal.type(ENTER);
+  await seen("big-model");
+  terminal.type(ESC);
+  await seen("your threads");
+  rig.state.openThread(thread.id);
+  await seen("hello");
+  await settle();
+  assert.ok(!drawn().includes("big-model"), "the reading is gone once the thread has been left");
 });
 
 test("escape goes back from a thread while the agent is working there, and the work goes on", { timeout: 15_000 }, async (t) => {
