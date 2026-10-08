@@ -24,6 +24,7 @@ import {
   type ThreadScreen,
 } from "../screen/index.ts";
 import type { ConsoleState, Where } from "../state/index.ts";
+import { commandList } from "./commands.ts";
 import { interrupt } from "./interrupt.ts";
 import { keysComponent } from "./keys.ts";
 import { listOf } from "./list.ts";
@@ -34,6 +35,9 @@ import { workComponent } from "./work.ts";
 
 /** The terminal the console is drawn on. */
 export type ConsoleTerminal = Terminal;
+
+/** The key that chooses what the editor lists, as a terminal sends it. */
+const TAB = "\t";
 
 export interface DrawingOptions {
   state: ConsoleState;
@@ -59,7 +63,8 @@ export interface Drawing {
 /**
  * Draw the console on a terminal and carry what the person types to the state:
  * keys choose, open, send and go back, switch tool calls and thinking between
- * brief and in full, and everything else they type goes to the editor. The
+ * brief and in full, and everything else they type goes to the editor, which
+ * lists the commands of a thread while what is typed starts with a slash. The
  * screen is drawn again from the state's model after each change.
  */
 export function startDrawing(options: DrawingOptions): Drawing {
@@ -152,6 +157,8 @@ export function startDrawing(options: DrawingOptions): Drawing {
   const inFull: InFull = { toolCalls: false, thinking: false };
   // The screen as it was last drawn, which says what the keys do on it.
   let current: Screen = screenOf(state.model(), { now: now(), inFull });
+  // While what is typed in a thread starts with a slash, the editor lists the commands that can be written there.
+  editor.setAutocompleteProvider(commandList(() => (current.kind === "thread" ? current.commands : [])));
 
   let chosen: string | undefined;
   let focus: Component | null | undefined;
@@ -274,7 +281,15 @@ export function startDrawing(options: DrawingOptions): Drawing {
       return { consume: true };
     }
     if (matchesKey(data, "escape") && can.back) {
+      // Esc closes the list of commands when it is open, which the editor does. The next Esc goes back.
+      if (editor.isShowingAutocomplete()) return undefined;
       state.back();
+      return { consume: true };
+    }
+    if (matchesKey(data, "enter") && editor.isShowingAutocomplete()) {
+      // Enter chooses the command in the list, as Tab does. The editor's own Enter would choose it and send it at once.
+      editor.handleInput(TAB);
+      tui.requestRender();
       return { consume: true };
     }
     if (matchesKey(data, "ctrl+n") && can.newThread) {

@@ -6,7 +6,7 @@ import type {
   ThreadPlace,
   ToolStatus,
 } from "../../../contracts/agent/index.ts";
-import type { Receipt } from "../../../contracts/chat/index.ts";
+import type { AgentCommand, Receipt } from "../../../contracts/chat/index.ts";
 import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import type { Problem, Why } from "../network/index.ts";
 import type { Notice } from "../state/index.ts";
@@ -22,6 +22,9 @@ import { oneLine } from "./plain.ts";
 
 /** The command that starts everything a conversation needs, as the commands name it. */
 const START_EVERYTHING = "shrimpy up";
+
+/** The command a person writes in a thread to stop the work there. */
+const STOP: AgentCommand = "stop";
 
 /** The program a problem is about. */
 export type Program = { kind: "chat" } | { kind: "agent"; name: string };
@@ -139,7 +142,7 @@ export function farewellLine(agentName: string, threadId: string): string {
   const thread = oneLine(threadId);
   return (
     `${agent} is still working in thread ${thread}, and the work continues. ` +
-    `To stop it, open the thread and write /stop, or run: shrimpy sessions stop ${thread} --agent ${agent}`
+    `To stop it, open the thread and write /${STOP}, or run: shrimpy sessions stop ${thread} --agent ${agent}`
   );
 }
 
@@ -247,7 +250,7 @@ export function workingLine(names: string[], activity: SessionActivity | undefin
   const who = names.map(oneLine).join(" and ");
   const verb = names.length > 1 ? "are" : "is";
   const doing = activity === undefined ? undefined : activityWords(activity);
-  return `${who} ${verb} working${doing === undefined ? "" : ` · ${doing}`}${inThread ? " · write /stop to stop" : ""}`;
+  return `${who} ${verb} working${doing === undefined ? "" : ` · ${doing}`}${inThread ? ` · write /${STOP} to stop` : ""}`;
 }
 
 function activityWords(activity: SessionActivity): string | undefined {

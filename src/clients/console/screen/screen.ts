@@ -1,5 +1,6 @@
 import type { Channel, Message, Thread } from "../../../contracts/chat/index.ts";
 import { agentEntries, type Model, type Place, roomEntries, workingIn } from "../state/index.ts";
+import { type CommandLine, commandLines } from "./commands.ts";
 import { oneLine, plain } from "./plain.ts";
 import { whenOf } from "./time.ts";
 import { type Step, type Work, watchOf, workOf } from "./work.ts";
@@ -127,6 +128,8 @@ export interface ThreadScreen extends Chrome {
   work: Work | undefined;
   /** The work shown may be out of date: the agent is not being reached. */
   workStale: boolean;
+  /** Every command the person can write here, in order of name, each with what it does here. The editor lists them while the text starts with a slash. */
+  commands: CommandLine[];
 }
 
 /** One of an agent's sessions, as the agent sees it. It is for watching: nothing is said or done in it. */
@@ -350,6 +353,7 @@ function threadScreen(model: Model, place: Place, threadId: string | undefined, 
     working,
     work: workOf(session, inFull),
     workStale: isAgent && model.agent?.state === "down",
+    commands: commandLines(isAgent ? "dm" : "room"),
     notes: notesOf(model, isAgent ? here.name : undefined),
     keys: keyHints("thread", can, inFull),
     can,

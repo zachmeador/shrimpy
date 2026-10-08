@@ -6,9 +6,13 @@
  * the gateway, which is told where it listens and nobody else is, so this
  * contract has no address in it. It carries facts, such as which members a
  * message mentions, and must not know what a fact means to whoever reads it,
- * or anything about agents' sessions, the engine or any chat provider. This
- * door is safe for browsers.
+ * or anything about agents' sessions, the engine or any chat provider. The one
+ * thing it says about agents is the names of the commands a person can write in
+ * a thread for them to act on, with a line on each, so that a client shows
+ * what an agent acts on; how an agent acts is its own. This door is safe for
+ * browsers.
  */
+export { AGENT_COMMANDS, type AgentCommand, type AgentCommandLines } from "./commands.ts";
 export {
   type ChatClient,
   type ChatConnection,

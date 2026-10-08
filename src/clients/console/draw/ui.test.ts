@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { setCapabilityOverrides, visibleWidth } from "@earendil-works/pi-tui";
 import { assistantItem, toolItem, userItem, workingView } from "../../../contracts/agent/testing/index.ts";
+import { AGENT_COMMANDS } from "../../../contracts/chat/index.ts";
 import { settle, stopAfter, until } from "../../../lib/testing/index.ts";
 import type { Model } from "../state/index.ts";
 import {
@@ -33,6 +34,7 @@ const now = at(15, 0);
 
 const DOWN = "\u001b[B";
 const ENTER = "\r";
+const BACKSPACE = "\u007f";
 const ESC = "\u001b";
 /** What a terminal that reports keys being let go sends when Esc is. */
 const ESC_RELEASED = "\u001b[27;1:3u";
@@ -171,6 +173,47 @@ test("a message that is not sent comes back to the editor to be sent again, ahea
   await settle();
   await settle();
   assert.match(lines().join("\n"), /\n will not go!\n/);
+});
+
+test("a slash lists the commands with what each does, more typing narrows the list, escape closes it without leaving the thread, and the next escape goes back", async (t) => {
+  const { terminal, state, lines } = start(t, conversation());
+  const drawn = (): string => lines().join("\n");
+  const stop = AGENT_COMMANDS.stop.dm;
+
+  terminal.type("/");
+  await until(() => drawn().includes("/stop"), "the list of commands");
+  assert.ok(drawn().includes(stop), "with what the command does");
+  terminal.type("x");
+  await until(() => !drawn().includes("/stop"), "the list to close, since nothing matches");
+  terminal.type(BACKSPACE);
+  await until(() => drawn().includes("/stop"), "the list to open again");
+
+  terminal.type(ESC);
+  assert.ok(!drawn().includes("/stop"), "escape closes the list");
+  assert.match(drawn(), /\n \/\n/, "and leaves the text as it was");
+  assert.deepEqual(state.calls, [], "without leaving the thread");
+  terminal.type(ESC);
+  assert.deepEqual(state.calls, ["back"], "the next escape goes back");
+});
+
+test("enter chooses the command in the list and the next enter sends it, and a text that starts with a slash and is no command is sent as written", async (t) => {
+  const { terminal, state, lines } = start(t, conversation());
+  const drawn = (): string => lines().join("\n");
+
+  terminal.type("/st");
+  await until(() => drawn().includes(AGENT_COMMANDS.stop.dm), "the list of commands");
+  terminal.type(ENTER);
+  assert.deepEqual(state.calls, [], "choosing sends nothing");
+  assert.match(drawn(), /\n \/stop\n/, "it puts the command in the editor");
+  assert.ok(!drawn().includes(AGENT_COMMANDS.stop.dm), "and closes the list");
+  terminal.type(ENTER);
+  assert.deepEqual(state.calls, ["send /stop"]);
+
+  terminal.type("/etc/hosts is wrong");
+  await settle();
+  assert.ok(!drawn().includes(AGENT_COMMANDS.stop.dm), "a text that is no command opens no list");
+  terminal.type(ENTER);
+  assert.deepEqual(state.calls, ["send /stop", "send /etc/hosts is wrong"]);
 });
 
 test("escape goes back from a thread while the agent is working there, and the work goes on", { timeout: 15_000 }, async (t) => {
