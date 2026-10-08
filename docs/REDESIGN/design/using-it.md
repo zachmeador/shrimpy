@@ -131,7 +131,7 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 - The search tools and a tool that shows the model an image file.
 - Memory breadcrumbs, with the search index behind them and the `memory-management` skill.
 - Terminal affordances from today's client, listed under [terminal, models and settings](using-it.md).
-- A web client for talking and watching: channels, threads, agents and sessions, with history, live view and input, alongside the inspector views.
+- A web client for talking and watching: channels, threads, agents and sessions, with history, live view and input, alongside the inspector views. Since 2026-10-08 it is how your phone reaches Shrimpy, as [the plan's direction](../PLAN.md#direction) has it, so it is built for a phone first: installed to the home screen, with a push notification when an agent answers or writes while you are away. Three things follow for how it is built, so that a companion app can wrap it later: every screen works with no browser bar around it, a phone comes in as a machine of your own does, with an invitation, and what sends a notification doesn't know whether a browser or an app receives it. Installing and push need HTTPS, which on a tailnet is a certificate for the machine's name there: how the gateway gets one is to settle.
 
 **Prove,** for whatever gets built:
 
