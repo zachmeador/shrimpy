@@ -112,7 +112,6 @@ Under Later in the [order of work](../PLAN.md#order-of-work).
 
 - Your name where an account made for Shrimpy runs the gateway. On your list.
 - Shell completion for the new commands. Old Shrimpy's is set aside with it, and a line in the shell's startup file still looks for it.
-- Changing an agent's model takes a restart, which nothing in a conversation can do either.
 
 **Outcome:** the rough edges you found by using it are gone.
 

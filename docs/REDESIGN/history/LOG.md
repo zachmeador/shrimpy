@@ -44,6 +44,7 @@
 - The first agent a roster has is an admin from the moment it joins. ([log, 2026-10-07](#log))
 - `shrimpy up` keeps its folder running: an agent made later starts by itself, one that ends is started again alone, and a home that is taken away has its agent stopped. ([log, 2026-10-07](#log))
 - In the terminal, Esc always goes back and stops nothing, a list shows the commands of a thread when `/` is typed, and `/status` shows what an agent is doing, for the person alone. ([log, 2026-10-08](#log))
+- A reload applies an agent's model with nothing started again, and one session can be given a model of its own. ([log, 2026-10-08](#log))
 
 ## Log
 
@@ -52,6 +53,19 @@ Newest first, roughly: the entries of one day aren't always in the order they ha
 A piece of work is done when its Prove list has evidence from real wiring, not equivalent mocks. A passing build or deleted files don't count. A newly found experience difference stays pending until it is reviewed.
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**2026-10-08: a reload applies the model, and a session's own model.** You change an agent's model in two ways, and said so: "`/model` makes sense just for moments where i want to quickly try a different model in a thread with an agent or something. otherwise the ux of 'hey make your default model x' works good atm". The second ended with a change that waited for the agent to be started again, which an agent can't do for itself. I said I would have a reload apply it, for you to strike. One builder, a commit each, beside the builder of the terminal's commands. [The home](../design/5-home.md) has what they do.
+
+- **A reload** reads again the model the home starts with, from `agent.json` or else the folder's `default-model.json`, and the servers that the `models.json` files declare. If the home names another model, every session uses it from its next request. `shrimpy agent reload` says which model the agent's default is, and when it changed. A model the agent can't use is named with the files that were left out, in the words the start would have used, and the agent keeps the model it had.
+- **The agent's contract** has two more things: the models the agent can use now with the one its sessions follow by default, which takes what watching takes, and setting the attached session's model, which takes what controlling takes. A session's status says whether its model is the home's or its own, worked out by comparing, with no record of its own.
+- Choices the build made, which the plan didn't cover:
+  - A server that a `models.json` no longer declares is taken away on a reload, and a built-in provider of that name comes back. A request that still names it fails with Pi's own error.
+  - "Can use now" is what Pi lists as available. The start checks less, so the home's own model can be missing from that list.
+  - A problem with the model is reported with the files a reload left out, under the file that names it.
+  - Two reloads at once take turns.
+  - A reload that changes the home's model replaces every session's own model, one equal to the new default included.
+- The skills say that a changed model takes a reload, and that only a new name still waits for the agent to be started again.
+- 690 tests: 684 pass and 6 are skipped. One run of the builder's, on a machine three builders were loading, failed a test of an agent apart from its gateway that this change doesn't touch. It passed alone six times of six, and in every run since.
 
 **2026-10-08: Esc always goes back, a list of commands, and `/status`.** From your first night with the terminal: "one bad piece of ux is Esc works as back in the shrimpy terminal browser but if an agent is running it interrupts instead of going back". You agreed that Esc always goes back and `/stop` stops, and asked for the rest: "there should be other slash-controls in the terminal browser. `/status` is useful", and "there should be a tui modal when you type `/` into the input box and you can see what commands there are and a brief explainer". One builder, a commit for each. [Using it](../design/using-it.md) has what they do.
 
