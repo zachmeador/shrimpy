@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
-import { type AgentConnection, connectAgent } from "../../contracts/agent/index.ts";
+import { type Context, replicatedState } from "@earendil-works/chord";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { type AgentConnection, connectAgent, type SessionService } from "../../contracts/agent/index.ts";
 import { readMembership } from "../../contracts/agent/node.ts";
+import { sessionView } from "../../contracts/agent/testing/index.ts";
 import { gatewayAsAgent, joinRoster } from "../../contracts/chat/testing/index.ts";
 import { type GatewayConnection, NEEDS_ADMIN, reachProgram } from "../../contracts/gateway/index.ts";
 import { localTransports } from "../../contracts/gateway/node.ts";
 import { isRefusal, reasonOf } from "../../lib/refusal/index.ts";
 import { stopAfter } from "../../lib/testing/index.ts";
 import { type AgentRig, startAgentRig } from "../testing/index.ts";
+import { guardSession, withCaller } from "./access.ts";
 
 /*
  * What a caller may do at an agent depends on how it came: by the home's path it
@@ -53,6 +57,7 @@ test("through the gateway, another agent may watch and control the agent's sessi
   const calls = [
     () => notAdmin.sessions(),
     () => notAdmin.attach(rig.thread.id),
+    () => notAdmin.models(),
     () => notAdmin.triggers(),
     () => notAdmin.trigger("nightly"),
     () => notAdmin.fire("nightly"),
@@ -73,6 +78,50 @@ test("through the gateway, another agent may watch and control the agent's sessi
   // An agent that has been promoted may, the next time it comes in.
   assert.equal((await person.promote(rex.id)).admin, true);
   await readSteerAndStop(await reachScout(t, await gatewayAsAgent(t, "rex")), rig);
+});
+
+test("every call on a session is checked against whoever makes it, so that one a caller may not make never reaches the session", async () => {
+  const reached: string[] = [];
+  const reaching = (name: string) => () => {
+    reached.push(name);
+    return Promise.resolve();
+  };
+  const session: SessionService = {
+    state: replicatedState(sessionView()),
+    steer: () => {
+      reached.push("steer");
+      return Promise.resolve({ submission: 1 });
+    },
+    wait: () => {
+      reached.push("wait");
+      return Promise.resolve({ status: "cancelled" });
+    },
+    stop: reaching("stop"),
+    setModel: reaching("setModel"),
+  };
+  const guarded = guardSession(session);
+  // Written out for every call, so that a call added to a session fails to compile here until it is checked.
+  const calls: Record<Exclude<keyof SessionService, "state">, (context: Context) => Promise<unknown>> = {
+    steer: (context) => guarded.steer("hello", null, context),
+    wait: (context) => guarded.wait(1, context),
+    stop: (context) => guarded.stop(context),
+    setModel: (context) => guarded.setModel(null, context),
+  };
+  const asked = (kind: "person" | "agent"): Context =>
+    withCaller(BACKGROUND_CONTEXT, {
+      via: "gateway",
+      member: { id: "mem_asking", kind, name: "rex" },
+      admin: false,
+      self: false,
+      admins: [],
+    });
+
+  for (const [name, call] of Object.entries(calls)) {
+    await assert.rejects(async () => call(asked("agent")), needsAdmin, `${name} was not checked`);
+  }
+  assert.deepEqual(reached, [], "and none of them reached the session");
+  for (const call of Object.values(calls)) await call(asked("person"));
+  assert.deepEqual(reached.toSorted(), ["setModel", "steer", "stop", "wait"]);
 });
 
 test("by the home's path everything works, as it does with the gateway gone", { timeout }, async (t) => {

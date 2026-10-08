@@ -5,6 +5,7 @@ import { Refusal, refuse } from "../../../lib/refusal/index.ts";
 import { offer, type Offer } from "../../../lib/testing/index.ts";
 import {
   type Member,
+  type ModelId,
   type SessionDirectory,
   type SessionPlace,
   SessionService,
@@ -29,6 +30,8 @@ export interface ScriptedSession {
   readonly stops: number;
   /** The text clients steered into the session, in order. */
   readonly steers: string[];
+  /** The models clients gave the session, in order. Null is a client telling it to follow the agent's home again. */
+  readonly modelChoices: (ModelId | null)[];
 }
 
 /**
@@ -78,6 +81,7 @@ export function scriptedAgent(): ScriptedAgent {
 
     const state = replicatedState(structuredClone(options.view ?? sessionView()));
     const steers: string[] = [];
+    const modelChoices: (ModelId | null)[] = [];
     let stops = 0;
     const behindThread = !address.startsWith("trigger:");
     const made: ScriptedSession = {
@@ -99,6 +103,9 @@ export function scriptedAgent(): ScriptedAgent {
       get steers() {
         return [...steers];
       },
+      get modelChoices() {
+        return [...modelChoices];
+      },
     };
     const service: SessionService = {
       state,
@@ -109,6 +116,10 @@ export function scriptedAgent(): ScriptedAgent {
       wait: () => Promise.reject(new Error("A scripted agent does not settle input.")),
       stop() {
         stops += 1;
+        return Promise.resolve();
+      },
+      setModel(model) {
+        modelChoices.push(model);
         return Promise.resolve();
       },
     };
@@ -150,6 +161,14 @@ export function scriptedAgent(): ScriptedAgent {
             await presentation.attachSession(address, context);
           }),
         detach: (context) => admitted(() => presentation.detachSession(context)),
+        // A scripted agent can use the one model its sessions show.
+        models: () =>
+          admitted(() =>
+            Promise.resolve({
+              models: [{ provider: "local", id: "test-model", name: "test-model" }],
+              default: { provider: "local", id: "test-model" },
+            }),
+          ),
         // A scripted agent has no triggers.
         triggers: () => admitted(() => Promise.resolve([])),
         trigger: (name) => admitted(() => Promise.reject(noTrigger(name))),

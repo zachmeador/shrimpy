@@ -1,8 +1,10 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import type { Models } from "@earendil-works/pi-ai";
 import { type ConversationId, configure, type Harness } from "@earendil-works/pi-durable";
-import type { SessionPlace, SessionSummary } from "../../contracts/agent/index.ts";
+import type { AgentModels, SessionPlace, SessionSummary } from "../../contracts/agent/index.ts";
 import { agentChange, type SessionDefaults, type SessionRecord, SessionsDoc } from "../records/durable.ts";
-import { serveSession, type ServedSession } from "./service.durable.ts";
+import { listModels, requireModel } from "./models.durable.ts";
+import { serveSession, type ServedSession, type SessionModels } from "./service.durable.ts";
 
 const context = BACKGROUND_CONTEXT;
 
@@ -18,13 +20,26 @@ export interface Sessions {
   has(address: string): Promise<boolean>;
   /** Serve the session with this address to the clients that watch it. `takingInput` says whether new input may still come in. */
   serve(address: string, takingInput: () => boolean): Promise<ServedSession>;
-  /** Make every session follow the home's model and working directory, as a new session does from the start. */
+  /** The models the agent can use now, and the one its sessions follow by default, which is the home's. */
+  models(): Promise<AgentModels>;
+  /**
+   * Make every session follow the home's model and working directory, as a new
+   * session does from the start, whatever model it was given. Then show the
+   * clients that watch a session what its status says now, since whether its
+   * model is the home's depends on the home's.
+   */
   applyDefaults(): Promise<void>;
 }
 
-export function createSessions(harness: Harness, defaults: SessionDefaults): Sessions {
+export function createSessions(harness: Harness, defaults: SessionDefaults, models: Models): Sessions {
   const records = async (): Promise<Record<string, SessionRecord>> =>
     (await harness.snapshot(SessionsDoc, context))?.sessions ?? {};
+  /** The home's model is the one in `defaults` at the moment it is asked: the agent changes it when a reload finds another. */
+  const sessionModels: SessionModels = {
+    home: () => defaults.model,
+    require: (model) => requireModel(models, model),
+  };
+  const watched = new Set<ServedSession>();
 
   return {
     async list() {
@@ -51,8 +66,18 @@ export function createSessions(harness: Harness, defaults: SessionDefaults): Ses
       const conversation =
         session === undefined ? undefined : await harness.conversation(session.conversationId as ConversationId, context);
       if (conversation === undefined) throw new Error(`The agent has no session ${address}.`);
-      return serveSession(harness, conversation, context, takingInput);
+      const served = await serveSession(harness, conversation, context, takingInput, sessionModels);
+      watched.add(served);
+      return {
+        ...served,
+        close() {
+          watched.delete(served);
+          served.close();
+        },
+      };
     },
+
+    models: () => listModels(models, defaults.model),
 
     async applyDefaults() {
       const change = agentChange(defaults);
@@ -62,6 +87,7 @@ export function createSessions(harness: Harness, defaults: SessionDefaults): Ses
           await configure(tx, session.conversationId as ConversationId, change);
         }
       }, context);
+      for (const each of watched) each.refresh();
     },
   };
 }

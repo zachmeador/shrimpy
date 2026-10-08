@@ -34,8 +34,8 @@ export interface DirectoryParts {
  * is: the home's owner from the start if it came by the home's path, and
  * nobody until it has come in with a ticket if it came through the gateway,
  * which is the first thing it does. Every call after that asks `check` whether
- * its caller may: watching the sessions and the triggers is watching, and
- * firing a trigger starts work, which is control.
+ * its caller may: watching the sessions, the models and the triggers is
+ * watching, and firing a trigger starts work, which is control.
  */
 export function serveDirectory(parts: DirectoryParts): SessionDirectory {
   const { sessions, triggers, files, entry, takingInput, presentation } = parts;
@@ -71,6 +71,10 @@ export function serveDirectory(parts: DirectoryParts): SessionDirectory {
     detach(context) {
       who();
       return presentation.detachSession(context);
+    },
+    async models() {
+      check(who(), "watch");
+      return sessions.models();
     },
     async triggers() {
       check(who(), "watch");

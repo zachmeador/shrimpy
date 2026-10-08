@@ -17,6 +17,7 @@ async function standInAgent(t: TestContext, attach: (threadId: string) => Promis
         list: () => Promise.resolve([{ id: "th_1", threadId: "th_1", channelId: "ch_1", place: null, working: false }]),
         attach: (threadId) => attach(threadId),
         detach: () => Promise.resolve(),
+        models: () => Promise.resolve({ models: [], default: { provider: "local", id: "test-model" } }),
         triggers: () => Promise.resolve([]),
         trigger: () => Promise.reject(new Error("No triggers here.")),
         fire: () => Promise.reject(new Error("No triggers here.")),

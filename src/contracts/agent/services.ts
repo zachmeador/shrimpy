@@ -1,6 +1,8 @@
 import { type Context, defineService, type ReplicatedState } from "@earendil-works/chord";
 import type {
+  AgentModels,
   Member,
+  ModelId,
   Occurrence,
   Reloaded,
   SessionSummary,
@@ -10,7 +12,7 @@ import type {
   TriggerSummary,
 } from "./view.ts";
 
-/** Agent scope: which sessions exist, which one this connection watches, the agent's triggers, and the agent's home. */
+/** Agent scope: which sessions exist, which one this connection watches, the models the agent can use, the agent's triggers, and the agent's home. */
 export interface SessionDirectory {
   /**
    * Come in, before anything else, with a ticket the gateway made for this
@@ -35,6 +37,16 @@ export interface SessionDirectory {
    */
   attach(session: string, context: Context): Promise<void>;
   detach(context: Context): Promise<void>;
+  /**
+   * The models the agent can use now, each by provider and ID with the name Pi
+   * has for it, and the model its sessions follow by default. A model can be
+   * used when Pi's model runtime can reach it with the keys and sign-ins the
+   * agent has and the servers its files declare. A key or sign-in that was
+   * added since the agent started counts, and a server that was declared since
+   * it started counts after a `reload`. A session is told to use one of these
+   * with `SessionService.setModel`.
+   */
+  models(context: Context): Promise<AgentModels>;
   /**
    * Every standing trigger the agent has, in order of name, with its schedule,
    * whether it is on, when its next occurrence is due and how its last one
@@ -83,7 +95,7 @@ export interface SessionDirectory {
 }
 export const SessionDirectory = defineService<SessionDirectory>("shrimpy.agent.sessions");
 
-/** Session scope: the view of the attached session, and control over its work. */
+/** Session scope: the view of the attached session, and control over its work and its model. */
 export interface SessionService {
   readonly state: ReplicatedState<SessionView>;
   /**
@@ -98,5 +110,18 @@ export interface SessionService {
   wait(submission: number, context: Context): Promise<Settlement>;
   /** Stop the session's current work and withdraw input it has not picked up. */
   stop(context: Context): Promise<void>;
+  /**
+   * Make the session use `model` from its next request, or follow the model the
+   * agent's home names again with null. A request that is running goes on as it
+   * began. A model the agent can't use now, one that `SessionDirectory.models`
+   * doesn't list, is refused, and the refusal says which models it can use.
+   *
+   * A session's own model lasts until the agent is started again, when every
+   * session follows the home, or until a reload finds the home naming another
+   * model, when every session follows that one. A reload that finds the same
+   * model leaves it alone. The session's status says whether its model is the
+   * home's or its own: a session given the home's own model follows the home.
+   */
+  setModel(model: ModelId | null, context: Context): Promise<void>;
 }
 export const SessionService = defineService<SessionService>("shrimpy.agent.session");

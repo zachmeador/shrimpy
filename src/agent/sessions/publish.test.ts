@@ -15,6 +15,7 @@ function sessionView(items: SessionItem[], busy = false): SessionView {
       busy,
       queued: [],
       model: null,
+      ownModel: false,
       usage: { input: 0, output: 0, cost: 0 },
     },
     entries: items.length,

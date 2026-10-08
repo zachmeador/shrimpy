@@ -4,6 +4,7 @@ import type {
   EntryRecord,
   InboxState,
   LiveState,
+  ModelRef,
   ToolDiagnostic,
   UsageState,
 } from "@earendil-works/pi-durable";
@@ -19,12 +20,16 @@ import { assistantText } from "../turns/durable.ts";
 type ToolItem = Extract<SessionItem, { type: "tool" }>;
 type Content = string | readonly { type: string; text?: string }[];
 
-/** Build the view clients see from the engine's committed records. */
-export function toSessionView(view: ConversationView): SessionView {
+/**
+ * Build the view clients see from the engine's committed records. `home` is
+ * the model the agent's home names now: the status says whether the session's
+ * model is that one or its own.
+ */
+export function toSessionView(view: ConversationView, home: ModelRef): SessionView {
   const live = (view.docs["pi.live"] ?? {}) as LiveState;
   return {
     items: toItems(view.entries, live),
-    status: toStatus(view, live),
+    status: toStatus(view, live, home),
     entries: view.entries.length,
   };
 }
@@ -110,7 +115,7 @@ function finishTool(tool: ToolItem, entry: EntryRecord, result: ToolResultMessag
   } else tool.status = "error";
 }
 
-function toStatus(view: ConversationView, live: LiveState): SessionStatus {
+function toStatus(view: ConversationView, live: LiveState, home: ModelRef): SessionStatus {
   const inbox = (view.docs["pi.inbox"] ?? { items: [] }) as InboxState;
   const agent = (view.docs["pi.agent"] ?? {}) as {
     model?: { provider: string; modelId: string };
@@ -127,6 +132,7 @@ function toStatus(view: ConversationView, live: LiveState): SessionStatus {
     busy: live.run !== undefined,
     queued: inbox.items.map(toQueued),
     model: agent.model ? { provider: agent.model.provider, id: agent.model.modelId } : null,
+    ownModel: agent.model !== undefined && (agent.model.provider !== home.provider || agent.model.modelId !== home.modelId),
     usage,
   };
 }

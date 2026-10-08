@@ -45,11 +45,25 @@ export interface QueuedInput {
   text: string;
 }
 
+/** A model by the provider that serves it and the ID that provider knows it by. */
+export interface ModelId {
+  provider: string;
+  id: string;
+}
+
 export interface SessionStatus {
   activity: SessionActivity;
   busy: boolean;
   queued: QueuedInput[];
-  model: { provider: string; id: string } | null;
+  /** The model the session's next request names, or null when it has none. */
+  model: ModelId | null;
+  /**
+   * Whether `model` is one the session was given, and not the model the agent's
+   * home names, which every session follows until it is given another. A
+   * session that was given the home's own model follows the home, so this is
+   * false for it too. See `SessionService.setModel`.
+   */
+  ownModel: boolean;
   usage: { input: number; output: number; cost: number };
 }
 
@@ -210,6 +224,22 @@ export type Settlement =
   | { status: "cancelled" }
   | { status: "unanswered"; reason: string; detail: string | null };
 
+/** A model the agent can use: where it is served, the ID that server knows it by, and the name Pi has for it. */
+export interface AgentModel extends ModelId {
+  name: string;
+}
+
+/** The models an agent can use now, and the one its sessions follow by default. */
+export interface AgentModels {
+  /** In order of provider, then ID. */
+  models: AgentModel[];
+  /**
+   * The model the agent's home names, which a session follows until it is given
+   * another. It is missing from `models` when the agent can't use it now.
+   */
+  default: ModelId;
+}
+
 /**
  * What an agent found in its home when it read it again, after `reload`: how
  * much of each kind it now gives its sessions, the model they follow, and the
@@ -225,9 +255,9 @@ export interface Reloaded {
   /** How many triggers it has now, on or off, counting one whose file it could not use but still has a last valid definition of. */
   triggers: number;
   /** The model the home names, which its sessions follow now: the one `agent.json` names, or else the folder's default. */
-  model: { provider: string; id: string };
+  model: ModelId;
   /** The model they followed until this reload, when it found the home naming another; null when it is the same one. */
-  changedFrom: { provider: string; id: string } | null;
+  changedFrom: ModelId | null;
   /**
    * Files it did not use, each with why. Everything else was read. The file
    * that names the model is among them when that model can't be used, and then

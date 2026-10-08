@@ -3,7 +3,9 @@ import { type ByteTransportFactory, DisconnectedError } from "@earendil-works/pi
 import { openRoutedConnection, received } from "../../lib/connection/index.ts";
 import { SessionDirectory, SessionService } from "./services.ts";
 import type {
+  AgentModels,
   Member,
+  ModelId,
   Occurrence,
   Reloaded,
   SessionSummary,
@@ -35,6 +37,11 @@ export interface SessionHandle {
   /** Resolves when the submission has ended. A client that goes away while waiting does not stop the work. */
   wait(submission: number): Promise<Settlement>;
   stop(): Promise<void>;
+  /**
+   * Make the session use `model` from its next request, or follow the agent's
+   * home again with null. See `SessionService.setModel`.
+   */
+  setModel(model: ModelId | null): Promise<void>;
 }
 
 export interface AgentConnection {
@@ -51,6 +58,8 @@ export interface AgentConnection {
    * watches one at a time; attaching again switches.
    */
   attach(session: string): Promise<SessionHandle>;
+  /** The models the agent can use now, and the one its sessions follow by default. See `SessionDirectory.models`. */
+  models(): Promise<AgentModels>;
   /** Every standing trigger of the agent. See `SessionDirectory.triggers`. */
   triggers(): Promise<TriggerSummary[]>;
   /** One trigger, with its definition and recent occurrences. See `SessionDirectory.trigger`. */
@@ -101,6 +110,7 @@ export async function connectAgent(options: {
   return {
     enter: (ticket) => guarded(() => directory.enter(ticket, context)),
     sessions: () => guarded(() => directory.list(context)),
+    models: () => guarded(() => directory.models(context)),
     reload: () => guarded(() => directory.reload(context)),
     triggers: () => guarded(() => directory.triggers(context)),
     trigger: (name) => guarded(() => directory.trigger(name, context)),
@@ -117,6 +127,7 @@ export async function connectAgent(options: {
           steer: (text, requestId) => guarded(() => session.steer(text, requestId ?? null, context)),
           wait: (submission) => guarded(() => session.wait(submission, context)),
           stop: () => guarded(() => session.stop(context)),
+          setModel: (model) => guarded(() => session.setModel(model, context)),
         };
       }),
     onDisconnect: (listener) => connection.onDisconnect(listener),

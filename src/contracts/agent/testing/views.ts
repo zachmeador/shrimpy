@@ -10,6 +10,7 @@ export function sessionView(parts: { items?: SessionItem[]; status?: Partial<Ses
       busy: false,
       queued: [],
       model: { provider: "local", id: "test-model" },
+      ownModel: false,
       usage: { input: 0, output: 0, cost: 0 },
       ...parts.status,
     },

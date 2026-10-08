@@ -85,7 +85,7 @@ async function open(t: TestContext, home: string, scenario: FauxScenario, option
   });
   const defaults = { model, cwd: home };
   const admissions = createAdmissions(host.harness, defaults, turn.task, stopWork, () => Promise.resolve([]));
-  await createSessions(host.harness, defaults).applyDefaults();
+  await createSessions(host.harness, defaults, models).applyDefaults();
   host.resume();
   return { host, admissions, reports, stop };
 }

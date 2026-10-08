@@ -1,6 +1,6 @@
 import { type Context, replicatedState } from "@earendil-works/chord";
-import type { Conversation, Harness } from "@earendil-works/pi-durable";
-import type { SessionService } from "../../contracts/agent/index.ts";
+import type { Conversation, ConversationView, Harness, ModelRef } from "@earendil-works/pi-durable";
+import type { SessionService, SessionView } from "../../contracts/agent/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { closeQuestions } from "../questions/durable.ts";
 import { withdrawUnhanded } from "../turns/durable.ts";
@@ -9,9 +9,19 @@ import { publishSessionView } from "./publish.ts";
 import { toSessionView } from "./session-view.durable.ts";
 import { waitForSettlement } from "./settlement.durable.ts";
 
+/** What a served session asks of the agent about models. */
+export interface SessionModels {
+  /** The model the agent's home names now, which a session follows until it is given one of its own. */
+  home(): ModelRef;
+  /** Refuse a model the agent can't use now, saying which it can. */
+  require(model: ModelRef): Promise<void>;
+}
+
 /** A session being served: the contract's service, and a way to stop serving it. */
 export interface ServedSession {
   readonly service: SessionService;
+  /** Show the session's clients its status as it reads now, which depends on the home's model as well as the session's. */
+  refresh(): void;
   close(): void;
 }
 
@@ -37,18 +47,23 @@ export async function stopWork(harness: Harness, conversation: Conversation, con
  * Serve one session: keep its view published, and route control to the
  * engine. `takingInput` says whether new input may still come in; stopping
  * work and watching stay open either way. Stopping the work also cancels the
- * wake-ups the session is waiting on and closes its open questions.
+ * wake-ups the session is waiting on and closes its open questions. A session
+ * is told to use a model by changing the model its conversation is configured
+ * with, which its next request reads: a request that is running goes on as it
+ * began.
  */
 export async function serveSession(
   harness: Harness,
   conversation: Conversation,
   context: Context,
   takingInput: () => boolean,
+  models: SessionModels,
 ): Promise<ServedSession> {
   const committed = await conversation.viewState(context);
-  const state = replicatedState(toSessionView(committed.value));
+  const viewOf = (value: ConversationView): SessionView => toSessionView(value, models.home());
+  const state = replicatedState(viewOf(committed.value));
   const stopPublishing = committed.subscribe((value) => {
-    publishSessionView(state, toSessionView(value), context);
+    publishSessionView(state, viewOf(value), context);
   });
   return {
     service: {
@@ -63,7 +78,13 @@ export async function serveSession(
       },
       wait: (submission, callContext) => waitForSettlement(harness, conversation, submission, callContext),
       stop: (callContext) => stopWork(harness, conversation, callContext),
+      async setModel(model, callContext) {
+        const wanted: ModelRef = model === null ? models.home() : { provider: model.provider, modelId: model.id };
+        if (model !== null) await models.require(wanted);
+        await conversation.configure({ model: wanted }, callContext);
+      },
     },
+    refresh: () => publishSessionView(state, viewOf(committed.value), context),
     close() {
       stopPublishing();
       committed.dispose();

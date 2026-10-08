@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
+import type { AgentModels, SessionHandle } from "../contracts/agent/index.ts";
 import { attachLocal, readMembership, saveMembership } from "../contracts/agent/node.ts";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
 import type { Registration, RosterEntry } from "../contracts/gateway/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
 import type { TestGateway } from "../contracts/gateway/testing/index.ts";
-import { eventually, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
+import { isRefusal } from "../lib/refusal/index.ts";
+import { eventually, tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { homePaths } from "./home/index.ts";
 import { ModelSetupError } from "./host/durable.ts";
@@ -30,7 +32,7 @@ const several = {
   models: [
     ...local.models,
     { id: "llama", contextWindow: 131_072, maxTokens: 8_192 },
-    { id: "mistral", contextWindow: 32_768, maxTokens: 4_096 },
+    { id: "mistral", name: "Mistral Small", contextWindow: 32_768, maxTokens: 4_096 },
   ],
 };
 
@@ -108,9 +110,15 @@ async function talkToAgent(chat: ChatServer, name: string) {
     partner: talk.partner,
     thread: talk.thread,
     replies: () => talk.replies(),
+    newThread: () => talk.newThread(),
     async ask(text: string, timeoutMs?: number): Promise<{ asked: Message; receipt: Receipt }> {
       const asked = await talk.say(text);
       return { asked, receipt: await talk.receiptOn(asked, timeoutMs) };
+    },
+    /** The same in a side thread, which has a session of its own. */
+    async askIn(threadId: string, text: string): Promise<{ asked: Message; receipt: Receipt }> {
+      const asked = await talk.say(text, threadId);
+      return { asked, receipt: await talk.receiptOn(asked) };
     },
   };
 }
@@ -231,6 +239,96 @@ test("a reload makes a session that already exists use the model agent.json name
 
   assert.deepEqual(requests.map((request) => request.body.model), ["qwen", "llama", "llama", "newest"]);
   assert.equal(requests[3]?.url, "http://fresh.invalid/v1/chat/completions");
+});
+
+test("a session given a model of its own uses it from its next request while the agent's other sessions use the home's, until it follows the home again or a reload finds the home naming another model", { timeout }, async (t) => {
+  const paths = newHome(t, { local: several });
+  const requests = stubChatCompletions(t, "Ok");
+  const { chat } = await startNetwork(t);
+  await startAt(t, paths.root);
+  const person = await talkToAgent(chat, "scout");
+  const side = await person.newThread();
+  await person.ask("main");
+  await person.askIn(side.id, "side");
+  const first = await attachThread(paths.root, person.thread.id);
+  const second = await attachThread(paths.root, side.id);
+  t.after(() => first.connection.close());
+  t.after(() => second.connection.close());
+  const [mine, theirs] = [first.session, second.session];
+  /** Resolves once the session's status says it uses the model, and whether that is the session's own. */
+  const using = (session: SessionHandle, id: string, own: boolean) =>
+    waitForView(session, ({ status }) => status.model?.id === id && status.ownModel === own);
+  const [llama, mistral] = [{ provider: "local", id: "llama" }, { provider: "local", id: "mistral" }];
+
+  await mine.setModel(llama);
+  await using(mine, "llama", true);
+  await person.ask("main");
+  await person.askIn(side.id, "side");
+  await using(theirs, "qwen", false);
+
+  await mine.setModel(null);
+  await using(mine, "qwen", false);
+  await person.ask("main");
+
+  // A reload that finds the home naming the same model leaves what a session was given alone.
+  await mine.setModel(llama);
+  await theirs.setModel(mistral);
+  await using(mine, "llama", true);
+  await using(theirs, "mistral", true);
+  assert.equal((await first.connection.reload()).changedFrom, null);
+  await person.ask("main");
+  await person.askIn(side.id, "side");
+
+  // One that finds it naming another replaces it, and a session given the model the home now names follows the home.
+  nameModel(paths, "local", "mistral");
+  assert.deepEqual((await first.connection.reload()).changedFrom, { provider: "local", id: "qwen" });
+  await using(mine, "mistral", false);
+  await using(theirs, "mistral", false);
+  await person.ask("main");
+
+  assert.deepEqual(requests.map((request) => request.body.model), [
+    // Nobody has been given a model.
+    "qwen", "qwen",
+    // One session has llama, and the other follows the home.
+    "llama", "qwen",
+    // And that one follows the home again.
+    "qwen",
+    // A reload that changed nothing.
+    "llama", "mistral",
+    // The home names mistral.
+    "mistral",
+  ]);
+});
+
+test("an agent says which models it can use now and which one its sessions follow, and refuses a session one it can't use, saying which it can", { timeout }, async (t) => {
+  const paths = newHome(t, { local: several });
+  writeFileSync(paths.auth, JSON.stringify({ groq: { type: "api_key", key: "gsk-test" } }));
+  stubChatCompletions(t, "Ok");
+  const { chat } = await startNetwork(t);
+  await startAt(t, paths.root);
+  const person = await talkToAgent(chat, "scout");
+  await person.ask("hello");
+  const { connection, session } = await attachThread(paths.root, person.thread.id);
+  t.after(() => connection.close());
+  const providers = ({ models }: AgentModels): string[] => [...new Set(models.map((model) => model.provider))];
+
+  const listed = await connection.models();
+  assert.deepEqual(
+    listed.models.filter((model) => model.provider === "local").map(({ id, name }) => [id, name]),
+    [["llama", "llama"], ["mistral", "Mistral Small"], ["qwen", "qwen"]],
+  );
+  assert.deepEqual(providers(listed), ["groq", "local"], "a key makes its provider's models usable, and no other provider's");
+  assert.deepEqual(listed.default, { provider: "local", id: "qwen" });
+
+  // A key added since the agent started counts at once.
+  writeFileSync(paths.auth, JSON.stringify({ groq: { type: "api_key", key: "gsk-test" }, anthropic: { type: "api_key", key: "sk-test" } }));
+  assert.deepEqual(providers(await connection.models()), ["anthropic", "groq", "local"]);
+
+  const refusedWith = (...mentions: string[]) => (error: unknown) =>
+    isRefusal(error) && mentions.every((text) => error.message.includes(text));
+  await assert.rejects(session.setModel({ provider: "local", id: "gpt" }), refusedWith("llama", "mistral", "qwen"));
+  await assert.rejects(session.setModel({ provider: "openai", id: "gpt-5" }), refusedWith("anthropic", "groq", "local"));
+  assert.equal(session.view.status.model?.id, "qwen", "and the session keeps the model it had");
 });
 
 test("two homes share no keys, instructions or history", { timeout }, async (t) => {

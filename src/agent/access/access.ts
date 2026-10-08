@@ -26,9 +26,10 @@ export type Caller =
 
 /**
  * What a caller may be allowed to do at an agent. Messaging is the chat
- * server's, so what is left is looking at sessions and triggers, steering and
- * stopping the sessions and firing the triggers, and changing what the agent is
- * told. They name what an operation needs, and today every one needs the same.
+ * server's, so what is left is looking at sessions, models and triggers,
+ * steering and stopping the sessions, choosing their models and firing the
+ * triggers, and changing what the agent is told. They name what an operation
+ * needs, and today every one needs the same.
  */
 export type Permission = "watch" | "control" | "administer";
 
@@ -89,6 +90,10 @@ export function guardSession(service: SessionService): SessionService {
     stop(context) {
       check(callerOf(context), "control");
       return service.stop(context);
+    },
+    setModel(model, context) {
+      check(callerOf(context), "control");
+      return service.setModel(model, context);
     },
   };
 }

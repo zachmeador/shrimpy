@@ -74,7 +74,7 @@ async function start(t: TestContext, home: string, script: Script, options: Star
   stopAfter(t, stop);
   const defaults = { model, cwd: home };
   const admissions = createAdmissions(host.harness, defaults, turn.task, stopWork, () => Promise.resolve([]));
-  await createSessions(host.harness, defaults).applyDefaults();
+  await createSessions(host.harness, defaults, models).applyDefaults();
   await beginRun(host.harness);
   host.resume();
   return {

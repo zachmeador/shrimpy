@@ -204,7 +204,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       questions.extension,
       triggers.extension,
     );
-    const sessions = createSessions(host.harness, defaults);
+    const sessions = createSessions(host.harness, defaults, options.models);
     const admissions = createAdmissions(host.harness, defaults, turn.task, stopWork, breadcrumbs);
     const working = createWorking(host.harness);
     // What wakes the agent in each room is read from the home's wake file, at the start and on a reload. A file that
