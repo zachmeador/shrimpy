@@ -104,7 +104,9 @@ Under Later in the [order of work](../PLAN.md#order-of-work).
 - `shrimpy gateway install` and `uninstall`, to keep it running as a service. You asked on 2026-10-07, and they are being built ([the network](6-network.md)).
 - Your name where an account made for Shrimpy runs the gateway. On your list.
 - Shell completion for the new commands. Old Shrimpy's is set aside with it, and a line in the shell's startup file still looks for it.
-- The first agent of a setup is not an admin until you promote it, where the design has it be one.
+- The first agent of a setup is an admin from the start. "the first agent made should be admin by default", 2026-10-07. Not built: yours was promoted by hand.
+- Adding an agent takes nobody starting anything. "a user expects to be able to add an agent without having to think about restarting a service or running things", 2026-10-07, after your agent made a home for a new one and could only hand you the command that starts it. `shrimpy up` reads the folder once, when it starts. It is to follow the folder: a home that appears is started, and an agent that ends is started again by itself, where today one agent ending stops everything.
+- Changing an agent's model takes a restart, which nothing in a conversation can do either.
 
 **Outcome:** the rough edges you found by using it are gone.
 
