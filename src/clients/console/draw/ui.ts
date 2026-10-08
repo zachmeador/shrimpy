@@ -38,9 +38,6 @@ import { workComponent } from "./work.ts";
 /** The terminal the console is drawn on. */
 export type ConsoleTerminal = Terminal;
 
-/** The key that chooses what the editor lists, as a terminal sends it. */
-const TAB = "\t";
-
 export interface DrawingOptions {
   state: ConsoleState;
   /** The person's terminal by default. */
@@ -292,12 +289,6 @@ export function startDrawing(options: DrawingOptions): Drawing {
       // Esc closes the list of commands when it is open, which the editor does. The next Esc goes back.
       if (editor.isShowingAutocomplete()) return undefined;
       state.back();
-      return { consume: true };
-    }
-    if (matchesKey(data, "enter") && editor.isShowingAutocomplete()) {
-      // Enter chooses the command in the list, as Tab does. The editor's own Enter would choose it and send it at once.
-      editor.handleInput(TAB);
-      tui.requestRender();
       return { consume: true };
     }
     if (matchesKey(data, "ctrl+n") && can.newThread) {

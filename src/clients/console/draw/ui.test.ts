@@ -206,7 +206,7 @@ test("a slash lists the commands with what each does, more typing narrows the li
   assert.deepEqual(state.calls, ["back"], "the next escape goes back");
 });
 
-test("enter chooses the command in the list and the next enter acts on it: a command for agents is sent, one for the terminal is not, and a text that starts with a slash and is no command is sent as written", async (t) => {
+test("enter acts on the command chosen in the list and tab only puts it in the editor: a command for agents is sent, one for the terminal is not, and a text that starts with a slash and is no command is sent as written", async (t) => {
   const { terminal, state, lines } = start(t, conversation());
   const drawn = (): string => lines().join("\n");
 
@@ -214,13 +214,14 @@ test("enter chooses the command in the list and the next enter acts on it: a com
   await until(() => drawn().includes(lineOf("/stop")), "the list of commands");
   terminal.type(DOWN);
   terminal.type(ENTER);
-  assert.deepEqual(state.calls, [], "choosing sends nothing");
-  assert.match(drawn(), /\n \/stop\n/, "it puts the command in the editor");
+  assert.deepEqual(state.calls, ["send /stop"], "enter completes the chosen command and sends it");
   assert.ok(!drawn().includes(lineOf("/stop")), "and closes the list");
-  terminal.type(ENTER);
-  assert.deepEqual(state.calls, ["send /stop"]);
 
-  terminal.type("/status");
+  terminal.type("/sta");
+  await until(() => drawn().includes(lineOf("/status")), "the list of commands");
+  terminal.type(TAB);
+  assert.deepEqual(state.calls, ["send /stop"], "tab acts on nothing");
+  assert.match(drawn(), /\n \/status\n/, "it puts the command in the editor");
   terminal.type(ENTER);
   assert.deepEqual(state.calls, ["send /stop", "status"], "a command for the terminal is acted on and not sent");
 
