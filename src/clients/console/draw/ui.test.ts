@@ -207,7 +207,7 @@ test("a slash lists the commands with what each does, more typing narrows the li
   assert.deepEqual(state.calls, ["back"], "the next escape goes back");
 });
 
-test("enter acts on the command chosen in the list and tab only puts it in the editor: a command for agents is sent, one for the terminal is not, and a text that starts with a slash and is no command is sent as written", async (t) => {
+test("enter acts on the command chosen in the list and tab only puts it in the editor: a command for agents is sent, and one for the terminal is not", async (t) => {
   const { terminal, state, lines } = start(t, conversation());
   const drawn = (): string => lines().join("\n");
 
@@ -225,12 +225,29 @@ test("enter acts on the command chosen in the list and tab only puts it in the e
   assert.match(drawn(), /\n \/status\n/, "it puts the command in the editor");
   terminal.type(ENTER);
   assert.deepEqual(state.calls, ["send /stop", "status"], "a command for the terminal is acted on and not sent");
+});
+
+test("a text that starts with a slash is a command and never an ordinary message: one that is none is not posted and stays in the editor, and wrapped in backticks or after anything else it is posted", async (t) => {
+  const { terminal, state, lines } = start(t, conversation());
+  const drawn = (): string => lines().join("\n");
 
   terminal.type("/etc/hosts is wrong");
   await settle();
   assert.ok(!drawn().includes(lineOf("/stop")), "a text that is no command opens no list");
   terminal.type(ENTER);
-  assert.deepEqual(state.calls, ["send /stop", "status", "send /etc/hosts is wrong"]);
+  assert.deepEqual(state.calls, ["note no-command"], "it is refused with a note, and nothing is posted");
+  assert.match(drawn(), /\n \/etc\/hosts is wrong\n/, "and it is back in the editor to be corrected");
+
+  terminal.type(CTRL_C);
+  terminal.type("`/etc/hosts` is wrong");
+  terminal.type(ENTER);
+  terminal.type("@scout /stop");
+  terminal.type(ENTER);
+  assert.deepEqual(state.calls, ["note no-command", "send `/etc/hosts` is wrong", "send @scout /stop"]);
+
+  terminal.type("/status now");
+  terminal.type(ENTER);
+  assert.deepEqual(state.calls.slice(3), ["note takes-nothing"], "a command that takes nothing is not acted on with something after it");
 });
 
 test("/status shows the person what the agent is doing and its model, posts nothing, and goes when a message is sent or the thread is left", { timeout: 15_000 }, async (t) => {
@@ -391,7 +408,7 @@ test("/model in a room is not offered by the list and is not posted, since a mes
   terminal.type("model local/big-model");
   terminal.type(ENTER);
 
-  assert.deepEqual(state.calls, ["model local/big-model"], "the terminal takes it, and sends nothing");
+  assert.deepEqual(state.calls, ["note model-in-room"], "the terminal takes it, says where it works, and sends nothing");
 });
 
 test("escape goes back from a thread while the agent is working there, and the work goes on", { timeout: 15_000 }, async (t) => {

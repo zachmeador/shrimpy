@@ -76,6 +76,8 @@ export interface ConsoleState {
 
   /** Say something in the open thread, or in a new one. The person's draft is theirs to put back when it fails. */
   send(text: string): Promise<SendResult>;
+  /** Tell the person something that came of what they wrote, in a note that goes away by itself. Posts nothing. */
+  note(notice: Notice): void;
   /**
    * Read what `/status` shows for the open thread: the agent, what it is doing
    * there and what its session has used, or the agents of a room and who of them
@@ -446,6 +448,8 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       }
     },
 
+    note: (notice) => say(notice),
+
     async readStatus() {
       const { where } = model;
       if (where.screen !== "thread") return;
@@ -472,10 +476,8 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     async chooseModel(choice) {
       const { where } = model;
       const link = agent;
-      if (where.screen !== "thread") return;
-      // A room has no one agent whose model this could be.
-      if (where.place.kind !== "agent") return say({ kind: "model-in-room" });
-      if (link === undefined) return;
+      // A room has no agent selected, and so no one agent whose model this could be.
+      if (where.screen !== "thread" || link === undefined) return;
       if (choice.kind === "unclear") return say({ kind: "model-unclear" });
       const { thread } = where;
       // Where the person is changes while the agent is asked, which the compiler cannot see. What came of it is for the thread it was asked in.

@@ -68,6 +68,13 @@ export type Notice =
   | { kind: "not-opened"; problem: Problem }
   | { kind: "not-watched"; problem: Problem }
   | { kind: "not-listed"; problem: Problem }
+  /**
+   * What was written starts with a slash and is none of the commands there are, so nothing was posted and the text
+   * stays in the editor. `written` is the word it starts with, and `commands` are the ones there are, each with its slash.
+   */
+  | { kind: "no-command"; written: string; commands: string[] }
+  /** A command that takes nothing after it was written with something after it: nothing was posted. `command` has its slash. */
+  | { kind: "takes-nothing"; command: string }
   /** `/model` with nothing after it: the model the thread uses, whether it is one of its own, and the agent's default when that is known. */
   | { kind: "model-is"; model: ModelId | null; own: boolean; defaultModel: ModelId | undefined }
   /** `/model` with a model: the thread uses it from the agent's next request. */

@@ -22,8 +22,8 @@ import {
   type Screen,
   screenOf,
   type SessionScreen,
-  terminalCommandOf,
   type ThreadScreen,
+  writtenIn,
 } from "../screen/index.ts";
 import type { ConsoleState, Where } from "../state/index.ts";
 import { commandList } from "./commands.ts";
@@ -126,16 +126,23 @@ export function startDrawing(options: DrawingOptions): Drawing {
 
   editor.onSubmit = (text) => {
     if (text === "") return;
-    // A command for the terminal is acted on here and posted nowhere.
+    // A text that starts with a slash is a command. One for the terminal is acted on here and posted nowhere, and one
+    // that is none is refused with a note and put back in the editor, so a message is never posted by mistake.
     const { where } = state.model();
-    const command = where.screen === "thread" ? terminalCommandOf(text) : undefined;
-    if (command?.name === "status") {
-      void state.readStatus();
-      return;
-    }
-    if (command?.name === "model") {
-      void state.chooseModel(command.choice);
-      return;
+    const written = where.screen === "thread" ? writtenIn(text, where.place.kind === "agent" ? "dm" : "room") : ({ do: "post" } as const);
+    switch (written.do) {
+      case "status":
+        void state.readStatus();
+        return;
+      case "model":
+        void state.chooseModel(written.choice);
+        return;
+      case "refuse":
+        state.note(written.notice);
+        restore(draftKey, text);
+        return;
+      case "post":
+        break;
     }
     const key = draftKey;
     void state.send(text).then((result) => {

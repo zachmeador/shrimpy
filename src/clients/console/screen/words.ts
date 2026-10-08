@@ -141,6 +141,13 @@ export function noticeText(notice: Notice, agentName: string): string {
       return `Could not watch the work: ${because({ kind: "agent", name: agent }, notice.problem)}.`;
     case "not-listed":
       return `Could not read your threads: ${because({ kind: "chat" }, notice.problem)}.`;
+    case "no-command":
+      return (
+        `${oneLine(notice.written)} is no command here. The commands are ${andList(notice.commands.map(oneLine))}. ` +
+        "To start a message with a slash, wrap it in backticks or put anything before it. Nothing was posted."
+      );
+    case "takes-nothing":
+      return `${oneLine(notice.command)} takes nothing after it. Nothing was posted.`;
     case "model-is":
       return modelIs(agent, notice);
     case "model-set":
@@ -158,6 +165,12 @@ export function noticeText(notice: Notice, agentName: string): string {
     case "model-in-room":
       return `/${MODEL} works in a thread of your DM with an agent. A room has no one agent to choose a model for. Nothing was posted.`;
   }
+}
+
+/** Names as a sentence gives them: "a", "a and b", "a, b and c". */
+function andList(names: string[]): string {
+  const last = names.at(-1);
+  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${last}`;
 }
 
 /** What `/model` with nothing after it says: the model the thread uses, whose it is, and how to choose another. */
@@ -304,8 +317,9 @@ function activityWords(activity: SessionActivity): string | undefined {
 /**
  * The commands the terminal acts on itself, which are never posted: what each
  * does in a DM with an agent and in a room, in one line. A command with no line
- * for a room is no command there, and what is written is a message. The list of
- * commands shows them with the commands for agents.
+ * for a room is not listed there, and when it is written there the terminal
+ * says where it works and posts nothing. The list of commands shows them with
+ * the commands for agents.
  */
 export const TERMINAL_COMMANDS = {
   model: {

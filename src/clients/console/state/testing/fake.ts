@@ -37,6 +37,7 @@ export function fakeState(initial: Model): FakeState {
       calls.push(`send ${text}`);
       return Promise.resolve(answers.send);
     },
+    note: (notice) => void calls.push(`note ${notice.kind}`),
     readStatus() {
       calls.push("status");
       return Promise.resolve();
