@@ -118,7 +118,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- Nothing is being built. The four steps of an agent apart from the gateway are built, as [the network](design/6-network.md) has them.
+- `shrimpy gateway install` and `uninstall`, which keep a folder's Shrimpy running as a service, as [the network](design/6-network.md) has them. The four steps of an agent apart from the gateway are built.
 - One proposal waits on you: [hearing a thread while working in it](proposals/hearing-a-thread.md).
 
 **Next:**

@@ -180,7 +180,12 @@ Open the terminal with: shrimpy
 **Left for later**
 
 - **Commands about one agent, from elsewhere.** `sessions`, `triggers`, `agent reload` and the like find an agent by its home's folder and talk to it by that path, so they act on an agent only where its home is, and as its OS user. The terminal reaches an agent by its name through the gateway, so after the second step it lists, watches and stops an agent wherever it lives. Naming an agent by its roster name in a command is a change of its own.
-- **A service.** Nothing installs what keeps `shrimpy up` running after its machine restarts. That is a systemd unit or a launchd job that you write, or an agent writes.
+- **A service.** You asked on 2026-10-07 for `shrimpy gateway install` and `shrimpy gateway uninstall`, after the first setup on your Linux machine was kept running by a unit written by hand. Being built:
+  - `install` sets up a service for the account that runs it, which runs `shrimpy up` for the Shrimpy folder, and starts it: a systemd user unit on Linux, a LaunchAgent on a Mac. One folder has one service, and the default folder's has the plain name.
+  - It runs what `up` would start there. On a machine whose agents belong to a gateway elsewhere that is those agents and no gateway, and it says so.
+  - The service gets the `PATH` of the shell that installed it, so an agent's shell finds what yours does.
+  - On Linux a user service stops when the account's last login ends, unless the account lingers. `install` turns lingering on, and when that takes an administrator it prints the one command that does.
+  - `uninstall` stops the service and removes it, and leaves every folder and file of Shrimpy's as it is.
 - **The chat server on a machine other than the gateway's.**
 
 **Prove**
