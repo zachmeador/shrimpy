@@ -2,6 +2,8 @@
 
 The one list of what is open in Shrimpy: what waits on the owner, what isn't built, what falls short, what old Shrimpy had that isn't back, ideas kept, and what is left out. A line leaves when it is built or dropped, in the change that does it; open work is kept here and not in GitHub issues, and the words are in [how-it-is-built.md](how-it-is-built.md).
 
+**A draft, made on 2026-10-08.** The owner is checking it against `docs/REDESIGN/`. Until they say it holds everything, the status list, the review list and the plan in that folder are the authority, and they are what a change updates, not this file.
+
 ## Waiting on the owner
 
 1. **A first real sign-in.** `shrimpy providers login` has only run against a made-up sign-in and an API key. The owner runs it with a real subscription and says whether an agent then answers.

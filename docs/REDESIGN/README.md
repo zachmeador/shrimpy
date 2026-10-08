@@ -19,6 +19,24 @@ As of 2026-10-07.
 
 How the code is laid out is in [the code's layout](design/code-layout.md).
 
+## When this folder goes
+
+At the release, once you have been through it: "agree but only after i've gone through everything and nothing seems to have been missed", 2026-10-08. Until then it is the working record and is kept current. Two files are meant to outlive it, and are drafts until you accept them: [what is open](../open.md) and [how Shrimpy is built](../how-it-is-built.md). What each file here holds, to check them against:
+
+| File | Holds | What outlives it |
+|---|---|---|
+| `README.md`, `PLAN.md` | This page. Why, the direction, the words, the order of work, the release, what is deferred and what is not being built | Next and Later, the release, deferred, early thinking and not building go to the open list, and the words to how it is built. The rest is history |
+| `STATUS.md`, `AUTHOR-TO-REVIEW.md` | Where the code trails the design, and what waits on you | All of it, a line for each, in the open list |
+| `design/1-programs.md` to `3-identity.md` | The programs, the contracts and identity, as decided and built | What is untried or missing goes to the open list. The rest is in the code |
+| `design/4-conversation.md` to `7-on-its-own.md` | The conversation model, the home, the network and what an agent does unasked | "Not built yet", the choices that are yours to strike, and what old Shrimpy did go to the open list. The rest is built |
+| `design/using-it.md` | The terminal, the commands, and the list from living with it | The candidates, that list and the old commands go to the open list |
+| `design/code-layout.md` | The layout of `src/` and why | The rules, and where the words are, go to how it is built |
+| `proposals/hearing-a-thread.md` | A proposal that waits on you | One line in the open list. Its ten details are only here |
+| `history/LOG.md`, `history/mechanics.md` | What was built and decided by date, and the small choices | History. What they left open is in the open list |
+| `history/keep-list.md` | What is kept of old Shrimpy's voice | Needed to write the release's README, security statement and contributing page, so it needs a home before this folder goes |
+| `history/from-old-shrimpy.md` | What replaces each part of old Shrimpy, and its command families | The commands, as what a person could do, are in the open list. The map is history |
+| `history/size-baseline.md`, `history/spike/` | Old sizes, and the spike's report and evidence | History |
+
 ## What to read
 
 - **[For the author to review](AUTHOR-TO-REVIEW.md):** what is waiting on you. Start here.
