@@ -91,7 +91,7 @@ Compaction with Shrimpy's guidance, seeing the request a turn sent, and workspac
 
 Under Next in the [order of work](../PLAN.md#order-of-work).
 
-Pi compacts a session by default: it starts a summary in the background as the history nears the model's window, and makes a request wait for one above the limit. Shrimpy adds no guidance of its own to that summary yet and has no test of a session crossing the threshold. Pi never deletes anything, so what is kept of finished work is a separate question, on the list for the author.
+Pi compacts a session by default: it starts a summary in the background as the history nears the model's window, and makes a request wait for one above the limit. Shrimpy adds no guidance of its own to that summary yet and has no test of a session crossing the threshold. Pi never deletes anything, so what is kept of finished work is a separate question. You judged it no concern for now on 2026-10-05, and [STATUS.md](../STATUS.md) has what it costs.
 
 **Outcome:** the agent knows who it is and what it can do, and for any request you can see exactly what the model received and why. Then your dev agents move in, and the new Shrimpy is the one you use.
 

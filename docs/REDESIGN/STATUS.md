@@ -2,7 +2,7 @@
 
 Where the code falls short of the [design](README.md): promises it doesn't keep yet, and rough edges that are known. Work that hasn't started isn't listed here. Each design file has its own under "Not built yet". What was built and decided, by date, is in the [log](history/LOG.md).
 
-As of 2026-10-05. An item leaves when it is fixed or when the design changes to match the code. Before each review pause, every item is fixed, raised with the owner or left here on purpose.
+As of 2026-10-08. An item leaves when it is fixed or when the design changes to match the code. Before each review pause, every item is fixed, raised with the owner or left here on purpose.
 
 ## Where the code trails the plan
 

@@ -106,7 +106,7 @@ The [sandbox runtime scout](../../research/sandbox-runtime-scout-2026-08-26.md) 
 
 *An agent apart from the gateway.*
 
-Under Now in the [order of work](../PLAN.md#order-of-work).
+Its four steps are built, as below. What is left of it is under "Left for later".
 
 **Outcome:** an agent that runs as another OS user, in a container or on another machine joins the same network with one pasted line and looks the same in the terminal: you talk to it in a thread, and watch and stop its sessions.
 
