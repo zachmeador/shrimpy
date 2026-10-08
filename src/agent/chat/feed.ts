@@ -1,4 +1,4 @@
-import type { Channel, ChatEvent } from "../../contracts/chat/index.ts";
+import { agentCommandIn, type Channel, type ChatEvent } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import { DEFAULT_WAKE_POLICY, type WakePolicy } from "../home/index.ts";
@@ -106,6 +106,12 @@ export async function readFeed(options: FeedOptions): Promise<void> {
         const command = passed ? undefined : commandFor(self, event, where);
         if (command !== undefined) {
           await obey(command, event, { chat, admissions, signal, onError: reported });
+          at = event.seq;
+          continue;
+        }
+        // A person's command that is for another agent, or for nobody, is no message for this one either: no model reads
+        // a command as text, whoever it is for.
+        if (!passed && event.kind === "posted" && event.actor.kind === "person" && agentCommandIn(event.text) !== undefined) {
           at = event.seq;
           continue;
         }

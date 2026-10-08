@@ -407,6 +407,14 @@ test("in a room /model is for the agent it names and for every agent when it say
 
   const lines = (await person.chat.read(main.id, null, 200)).filter((message) => message.author.kind === "agent" && message.text !== "Ok");
   assert.deepEqual(lines.map((message) => message.author.id).sort(), [members.bob, members.scout, members.scout].sort(), "scout said a line for each command it was named in, and bob for the one that named everyone");
+
+  // A /model that names nobody is for nobody: no agent acts on it, and no model reads it as text.
+  const before = requests.length;
+  const nobody = await say("/model local/llama");
+  const last = await say("@all last");
+  await Promise.all([answered("scout", last), answered("bob", last)]);
+  assert.deepEqual([await receiptOf("scout", nobody), await receiptOf("bob", nobody)], [undefined, undefined]);
+  assert.equal(requests.length - before, 2, "each agent made one request, for the message after the command");
 });
 
 test("two homes share no keys, instructions or history", { timeout }, async (t) => {
