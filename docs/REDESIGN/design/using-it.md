@@ -114,6 +114,8 @@ Under Later in the [order of work](../PLAN.md#order-of-work).
 **From living with it.** You moved in on 2026-10-07. What you notice goes here as you say it, in your words where they help, and leaves when it is built or dropped. A thing that needs a decision of yours is on [your list](../AUTHOR-TO-REVIEW.md) instead.
 
 - Your name where an account made for Shrimpy runs the gateway. On your list.
+- Updating Shrimpy. "updating shrimpy will be something we want to have a good ux on, especially for people with multi-machine setups", 2026-10-08. Nothing is built: today it is new files in the checkout and a restart of the service on each machine, by hand, and programs on different machines can run different versions in between.
+- A setup command, and moving over from old Shrimpy. Neither is built, and you asked on 2026-10-08 that they be tracked with updating. Today a new setup is three commands, which the setup skill gives, and [the plan](../PLAN.md) has what moving over is meant to be.
 - Shell completion for the new commands. Old Shrimpy's is set aside with it, and a line in the shell's startup file still looks for it.
 
 **Outcome:** the rough edges you found by using it are gone.
