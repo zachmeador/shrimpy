@@ -46,6 +46,7 @@
 - In the terminal, Esc always goes back and stops nothing, a list shows the commands of a thread when `/` is typed, and `/status` shows what an agent is doing, for the person alone. ([log, 2026-10-08](#log))
 - A reload applies an agent's model with nothing started again, and one session can be given a model of its own. ([log, 2026-10-08](#log))
 - `/model` in the terminal tries another model in one thread. ([log, 2026-10-08](#log))
+- A text that starts with a slash in the terminal is always a command, `/model` is a message that the thread keeps and the agent acts on and answers, and an agent is told when the model it runs on has changed. ([log, 2026-10-08](#log))
 
 ## Log
 
@@ -54,6 +55,23 @@ Newest first, roughly: the entries of one day aren't always in the order they ha
 A piece of work is done when its Prove list has evidence from real wiring, not equivalent mocks. A passing build or deleted files don't count. A newly found experience difference stays pending until it is reviewed.
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**2026-10-08: `/model` is a message, a slash is always a command, and an agent is told its model changed.** You used the `/model` of that morning the same afternoon and found three things wrong with it. It refused in a new thread, where the agent has no session yet: "not a good ux. there will be times where i'll be like 'yeah i wanna try out this new model' and i'll open a thread with an agent and switch that thread's model to something at the beginning". The brief had told the builder not to support that, which was the coordinator's mistake. It left nothing in the thread: "the user isn't presented with something in the transcript about this change, which can be very impactful. likewise it should be obvious to the agent that this changed". And on what the terminal does with a slash: "we should consistently interpret `/` as only a slash command preview, not something someone can input". One builder, five commits, and two of mine after. [Using it](../design/using-it.md) and [the home](../design/5-home.md) have what they do.
+
+- **A slash always starts a command** in the terminal. A name that is no command gets a note and is not posted, so a mistyped command no longer reaches a model as a message.
+- **`/model` is a command for agents,** beside `/stop`. It is posted, the agent makes the thread's session if there is none, changes its model with no model call, and says one line in the thread, which the receipt on the command names as its reply.
+- **In a room it names who it is for.** You weighed it following `/stop`, where no mention means everyone: "if someone has a big room this could get really annoying to revert if you did it accidentally". So the chat contract now says of each command who it is for in a room when it mentions nobody, and `/model` is then for nobody.
+- **An agent is told** with a session's next input that the model that wrote its last answer is not the one it runs on now. It is read where the input is handed over, by comparing, with no record of its own.
+- **The contract's way to set a session's model,** added that morning, is gone: a change made that way left nothing in the thread. The models an agent can use, and whether a session's model is its own, stay.
+- Choices the build made, which the plan didn't cover:
+  - The words of a command are read by one function of the chat contract, which the agent and the chat server both use.
+  - A retried line about a command is named for the command's event and what the line says, since chat refuses another text under one request ID.
+  - Two inputs handed over before the next answer both say that the model changed, and an answer that failed doesn't count as the last one.
+- Mine, after the review:
+  - A thread started with `/model` was named for the agent's line about it. A thread is now named for neither a command nor the line an agent said about one.
+  - A `/model` that names nobody in a room, posted by a client other than the terminal, was read as text by every agent there. A person's command that is for another agent, or for nobody, is now no message for an agent either.
+- Run for real on your Linux machine, over SSH in a pseudo-terminal, with the agent under the second account. In a new thread `/model` and the second model on the LAN, typed fast, posted the command, and the agent's line named both models. A message was answered, `/model default` put the thread back, and the session's next input read "The model changed since your last answer", with both models. `/nope` was refused with a note, and the thread was listed by the first message in it.
+- 700 tests: 694 pass and 6 are skipped.
 
 **2026-10-08: `/model` in the terminal.** The last of the three steps your two ways of changing a model asked for: "just for moments where i want to quickly try a different model in a thread with an agent". One builder, one commit, on what the two builds before it gave: the terminal's list of commands, and the agent's models and a session's own model. [Using it](../design/using-it.md) has what it does.
 

@@ -75,7 +75,7 @@ Leaving it had four costs. An agent's rule for DMs was written in the chat serve
 | What wakes it in a DM | `addressed` includes it, which is always, because the chat server put it there | It is a DM and the other member wrote the message |
 | What wakes it in a room | `addressed` includes it. Or the policy is `people`, a person wrote it and `addressed` is empty. Or the policy is `all` | The same, read from `mentions` |
 | A person's mention joins the running turn | In a room, `addressed` includes it. In a DM, the text is read again | `mentions` includes it, in a room and a DM alike. Later the same day the rule became that any message a person writes joins it, which reads no mentions |
-| `/stop` | For the agent when `addressed` is empty or includes it | In a DM, always. In a room, when `mentions` is empty or includes it |
+| `/stop` | For the agent when `addressed` is empty or includes it | In a DM, always. In a room, when `mentions` is empty or includes it. Since 2026-10-08 the chat contract says of each command who it is for in a room when it mentions nobody: `/stop` is for everyone, and `/model` for nobody |
 | An answer wakes whoever asked | The agent's own message was `addressed` to the member who answered | In a room, its own message mentioned them. In a DM the reply wakes it anyway, so chat isn't asked for it |
 | Who a message in a room was for, as the model is told | Worked out from `addressed` | Worked out from `mentions`, in the same words |
 
