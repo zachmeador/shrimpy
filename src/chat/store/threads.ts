@@ -60,15 +60,28 @@ export function insertThread(
   return id;
 }
 
+/** Whether the message at `seq` is the line an agent said about a command: a receipt on a command names it as its reply. */
+function answersCommand(sql: Sql, seq: number): boolean {
+  const answered = sql.all(
+    `SELECT c.text FROM receipts r
+       JOIN events e ON e.seq = r.event_seq
+       JOIN messages c ON c.seq = e.message_seq
+      WHERE r.reply_seq = ?`,
+    seq,
+  ) as { text: string }[];
+  return answered.some((row) => agentCommandIn(row.text) !== undefined);
+}
+
 /** How many messages are read at a time while looking for the one a thread is named for. */
 const PREVIEW_BATCH = 20;
 
 /**
  * Make a thread's preview the preview of its first message that is still there
- * and is not a command for agents, or nothing when it has none. A thread that
- * someone starts with a command is named for the first thing said in it after,
- * and until then has no preview. A message is what its events add up to, so the
- * preview follows its edits, and a deleted message leaves no trace in it.
+ * and is neither a command for agents nor the line an agent said about one, or
+ * nothing when it has none. A thread that someone starts with a command is
+ * named for the first thing said in it after, and until then has no preview. A
+ * message is what its events add up to, so the preview follows its edits, and a
+ * deleted message leaves no trace in it.
  */
 export function refreshPreview(sql: Sql, threadId: string): void {
   let after = -1;
@@ -81,7 +94,7 @@ export function refreshPreview(sql: Sql, threadId: string): void {
       after,
       PREVIEW_BATCH,
     ) as { seq: number; text: string; preview: string }[];
-    const named = batch.find((row) => agentCommandIn(row.text) === undefined);
+    const named = batch.find((row) => agentCommandIn(row.text) === undefined && !answersCommand(sql, row.seq));
     if (named !== undefined) {
       preview = named.preview;
       break;

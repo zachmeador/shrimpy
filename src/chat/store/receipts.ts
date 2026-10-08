@@ -2,6 +2,7 @@ import type { ChatEvent, Message, Receipt } from "../../contracts/chat/index.ts"
 import { appendEvent } from "./append.ts";
 import type { ReportChange } from "./changes.ts";
 import type { Sql } from "./sql.ts";
+import { refreshPreview } from "./threads.ts";
 
 /**
  * The receipts on the event that the query calls `e`, as a JSON array in order
@@ -67,6 +68,8 @@ export function receiptOperations(sql: Sql, report: ReportChange): ReceiptOperat
         receipt.detail,
       );
       if (changed === 0) return;
+      // A receipt that names a reply can make that reply the line an agent said about a command, which names no thread.
+      if (receipt.reply !== null) refreshPreview(sql, event.message.threadId);
       const named = sql.one("SELECT message_seq FROM events WHERE seq = ?", event.seq) as { message_seq: number };
       appendEvent(sql, {
         kind: "receipted",

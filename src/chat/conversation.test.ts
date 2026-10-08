@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MAX_MESSAGE_LENGTH } from "../contracts/chat/index.ts";
 import { until } from "../lib/testing/index.ts";
-import { follow, mainThread, posted, startDm, startTestChat, texts } from "./testing/index.ts";
+import { follow, mainThread, outcome, posted, startDm, startTestChat, texts } from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -91,8 +91,8 @@ test("side threads keep their own conversations in the channel", { timeout }, as
   );
 });
 
-test("a thread that someone started with a command for agents is listed by the first message in it that is none, and by nothing before one", { timeout }, async (t) => {
-  const { zach, dm } = await startDm(t);
+test("a thread that someone started with a command for agents is listed by the first message in it that is neither a command nor an agent's line about one, and by nothing before one", { timeout }, async (t) => {
+  const { zach, shrimpy, dm } = await startDm(t);
   const side = await zach.chat.createThread(dm.id, null);
   const preview = async (): Promise<string | null | undefined> =>
     (await zach.chat.threads(dm.id)).find((thread) => thread.id === side.id)?.preview;
@@ -100,6 +100,10 @@ test("a thread that someone started with a command for agents is listed by the f
   const first = await zach.chat.post(side.id, "@Shrimpy /model local/big", "zach-1");
   await zach.chat.post(side.id, "/stop", "zach-2");
   assert.equal(await preview(), null, "a thread of commands has nothing to be named for");
+
+  const line = await shrimpy.chat.post(side.id, "This thread runs on local/big now.", "shrimpy-1");
+  await shrimpy.chat.leaveReceipt([first.event], outcome("answered", { reply: line.id }));
+  assert.equal(await preview(), null, "nor is it named for what an agent said about a command");
 
   await zach.chat.post(side.id, "Is the build green?", "zach-3");
   assert.equal(await preview(), "Is the build green?");
