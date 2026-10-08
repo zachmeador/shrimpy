@@ -7,7 +7,7 @@ import type {
   ThreadPlace,
   ToolStatus,
 } from "../../../contracts/agent/index.ts";
-import type { AgentCommand, Receipt } from "../../../contracts/chat/index.ts";
+import { AGENT_COMMANDS, type AgentCommand, type Receipt } from "../../../contracts/chat/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
 import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import type { Problem, Why } from "../network/index.ts";
@@ -28,8 +28,8 @@ const START_EVERYTHING = "shrimpy up";
 /** The command a person writes in a thread to stop the work there. */
 const STOP: AgentCommand = "stop";
 
-/** The command a person writes in a thread of a DM to see or change the model of the thread's session. */
-const MODEL: TerminalCommand = "model";
+/** The command a person writes in a thread to see or change the model of the thread's session. */
+const MODEL: AgentCommand = "model";
 
 /** What `/model` is written with to have the thread follow the agent's model again. */
 export const MODEL_DEFAULT = "default";
@@ -150,20 +150,14 @@ export function noticeText(notice: Notice, agentName: string): string {
       return `${oneLine(notice.command)} takes nothing after it. Nothing was posted.`;
     case "model-is":
       return modelIs(agent, notice);
-    case "model-set":
-      return `This thread uses ${modelWords(notice.model)} from ${agent}'s next request. That lasts until ${agent} is started again or its default model changes.`;
-    case "model-followed":
-      return `This thread follows ${agent}'s default model again${notice.defaultModel === undefined ? "" : `: ${modelWords(notice.defaultModel)}`}.`;
+    case "model-unstarted": {
+      const home = notice.defaultModel === undefined ? "" : ` Its default model is ${modelWords(notice.defaultModel)}.`;
+      return `${agent} has no session in this thread yet.${home} To start the thread on a model, write /${MODEL} and that model.`;
+    }
     case "model-not-shown":
       return `Could not read the model of this thread: ${because({ kind: "agent", name: agent }, notice.problem)}.`;
-    case "model-not-changed":
-      return `Could not change the model: ${because({ kind: "agent", name: agent }, notice.problem)}.`;
-    case "no-session":
-      return `${agent} has no session in this thread yet. /${MODEL} works once ${agent} has answered here.`;
-    case "model-unclear":
-      return `Write a model as provider/id, or write ${MODEL_DEFAULT}. /${MODEL} and a space lists the models ${agent} can use.`;
-    case "model-in-room":
-      return `/${MODEL} works in a thread of your DM with an agent. A room has no one agent to choose a model for. Nothing was posted.`;
+    case "name-an-agent":
+      return `Nothing was posted. ${oneLine(AGENT_COMMANDS[notice.command].room)}`;
   }
 }
 
@@ -322,9 +316,6 @@ function activityWords(activity: SessionActivity): string | undefined {
  * the commands for agents.
  */
 export const TERMINAL_COMMANDS = {
-  model: {
-    dm: "Show the model of this thread, or try another one.",
-  },
   status: {
     dm: "Show what the agent is doing, its model, tokens and cost.",
     room: "Show which agents here are running and working.",

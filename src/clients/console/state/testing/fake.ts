@@ -4,7 +4,7 @@ import type { ConsoleState, Farewell, Model, SendResult } from "../index.ts";
 
 /** A state that does nothing but remember what it was asked, for tests of what draws it and what its keys do. */
 export interface FakeState extends ConsoleState {
-  /** What was done to it, in order, such as "select scout", "send hello" or "model local/big". */
+  /** What was done to it, in order, such as "select scout", "send hello" or "note no-command". */
   readonly calls: string[];
   /** What it answers. */
   readonly answers: { send: SendResult; farewell: Farewell | undefined; models: AgentModels | undefined };
@@ -43,8 +43,8 @@ export function fakeState(initial: Model): FakeState {
       return Promise.resolve();
     },
     models: () => Promise.resolve(answers.models),
-    chooseModel(choice) {
-      calls.push(`model ${choice.kind === "use" ? `${choice.model.provider}/${choice.model.id}` : choice.kind}`);
+    showModel() {
+      calls.push("model");
       return Promise.resolve();
     },
     farewell: () => Promise.resolve(answers.farewell),

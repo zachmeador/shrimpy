@@ -1,8 +1,9 @@
 /**
  * The terminal client: browse the agents on the Shrimpy network and the rooms
  * you are in, see your threads with an agent or the threads of a room, talk in a
- * thread, with `/status` to read how the agent or the room stands and `/model`
- * to try another model in a thread with an agent, watch an agent's work behind
+ * thread, with `/status` to read how the agent or the room stands, `/model`
+ * alone to read which model a thread with an agent uses, and `/model` and a model
+ * as a message that the agent acts on, watch an agent's work behind
  * it, and see an agent's sessions, whatever they are behind, and watch any of
  * them. It makes no room and adds no member. It is a
  * client of the chat server and of agents, reaching both by their names through

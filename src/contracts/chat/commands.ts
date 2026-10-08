@@ -21,7 +21,7 @@ export interface AgentCommandLines {
 export const AGENT_COMMANDS = {
   model: {
     dm: "Show the model of this thread, or try another one.",
-    room: "Try another model in this thread, for the agent named first: @scout /model provider/id, or @all",
+    room: "Try another model: name the agent first, as in @scout /model provider/id, or @all for every agent here.",
     withoutMention: "nobody",
   },
   stop: {

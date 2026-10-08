@@ -1,6 +1,6 @@
 import type { AgentModels } from "../../../contracts/agent/index.ts";
-import { AGENT_COMMANDS } from "../../../contracts/chat/index.ts";
-import type { ModelChoice, Notice } from "../state/index.ts";
+import { AGENT_COMMANDS, type AgentCommand } from "../../../contracts/chat/index.ts";
+import type { Notice } from "../state/index.ts";
 import { oneLine } from "./plain.ts";
 import { defaultModelLine, MODEL_DEFAULT, modelWords, TERMINAL_COMMANDS, type TerminalCommand } from "./words.ts";
 
@@ -10,7 +10,15 @@ export interface CommandLine {
   line: string;
 }
 
-/** What every command does, by name: in a DM, and in a room if it is a command there. The terminal's own `/model` is the one the person gets here. */
+/**
+ * A name is a command for agents or one for the terminal, never both, since the
+ * terminal would take it before any agent could. This stops compiling when a
+ * name is in both. The one thing the terminal does with a command for agents is
+ * answer `/model` alone, which `writtenIn` says.
+ */
+const _inOneKind: [Extract<AgentCommand, TerminalCommand>] extends [never] ? true : never = true;
+
+/** What every command does, by name: in a DM, and in a room if it is a command there. */
 const LINES: Record<string, { dm: string; room?: string }> = { ...AGENT_COMMANDS, ...TERMINAL_COMMANDS };
 
 /**
@@ -30,13 +38,15 @@ export function commandLines(where: "dm" | "room"): CommandLine[] {
 }
 
 const isTerminalCommand = (name: string): name is TerminalCommand => Object.hasOwn(TERMINAL_COMMANDS, name);
+const isAgentCommand = (name: string): name is AgentCommand => Object.hasOwn(AGENT_COMMANDS, name);
 
 /** What the terminal does with a text written in a thread. */
 export type Written =
   /** It is a message, or a command for agents: it is posted as it was written. */
   | { do: "post" }
   | { do: "status" }
-  | { do: "model"; choice: ModelChoice }
+  /** `/model` alone: the terminal says which model the thread runs on. */
+  | { do: "model" }
   /** It is posted nowhere, and the text stays in the editor. */
   | { do: "refuse"; notice: Notice };
 
@@ -51,9 +61,14 @@ const SLASH_FIRST = /^\s*\/([\p{L}\p{N}_-]*)(.*)$/su;
  * nowhere, and a name that is no command there is refused, saying which are, so
  * that nothing is posted by mistake. To start a message with a slash, a person
  * wraps it in backticks or writes anything before it, as `@scout /stop` does,
- * which is posted and acted on by the agent. A command for the terminal is the
- * terminal's wherever it is written: in a place it does not work in, the
- * terminal says where it does, since a message would wake every agent there.
+ * which is posted and acted on by the agent.
+ *
+ * Two things set a command for agents apart from the rest. In a room, one that
+ * is for nobody unless an agent is named, as the chat contract says of each, is
+ * refused when it is written first, since it mentions nobody: `@scout /model x`
+ * is how it is written there. And `/model` alone in a DM is answered by the
+ * terminal, which can see which model the thread runs on, and is not posted.
+ * With anything after it, it is posted like any command for agents.
  */
 export function writtenIn(text: string, where: "dm" | "room"): Written {
   const found = SLASH_FIRST.exec(text);
@@ -61,22 +76,14 @@ export function writtenIn(text: string, where: "dm" | "room"): Written {
   const name = (found[1] ?? "").toLowerCase();
   const rest = (found[2] ?? "").trim();
   if (isTerminalCommand(name)) {
-    if (name === "status") return rest === "" ? { do: "status" } : { do: "refuse", notice: { kind: "takes-nothing", command: `/${name}` } };
-    return where === "room" ? { do: "refuse", notice: { kind: "model-in-room" } } : { do: "model", choice: modelChoiceOf(rest) };
+    return rest === "" ? { do: "status" } : { do: "refuse", notice: { kind: "takes-nothing", command: `/${name}` } };
   }
-  if (Object.hasOwn(AGENT_COMMANDS, name)) return { do: "post" };
+  if (isAgentCommand(name)) {
+    if (where === "room" && AGENT_COMMANDS[name].withoutMention === "nobody") return { do: "refuse", notice: { kind: "name-an-agent", command: name } };
+    return name === "model" && where === "dm" && rest === "" ? { do: "model" } : { do: "post" };
+  }
   const written = /^\s*(\S+)/.exec(text)?.[1] ?? "/";
   return { do: "refuse", notice: { kind: "no-command", written, commands: commandLines(where).map((command) => command.name) } };
-}
-
-/** What the words after `/model` ask for: nothing, the agent's model again, a model written as its provider, a slash and its ID, or something that is none of these. */
-function modelChoiceOf(words: string): ModelChoice {
-  if (words === "") return { kind: "show" };
-  if (words.toLowerCase() === MODEL_DEFAULT) return { kind: "default" };
-  // An ID may have slashes of its own, as a model of a router has, and a provider has none.
-  const slash = words.indexOf("/");
-  if (/\s/.test(words) || slash <= 0 || slash === words.length - 1) return { kind: "unclear" };
-  return { kind: "use", model: { provider: words.slice(0, slash), id: words.slice(slash + 1) } };
 }
 
 /** One choice in the list that `/model ` opens: what is written for it, and one line on it. */

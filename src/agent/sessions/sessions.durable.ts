@@ -3,7 +3,7 @@ import type { Models } from "@earendil-works/pi-ai";
 import { type ConversationId, configure, type Harness } from "@earendil-works/pi-durable";
 import type { AgentModels, SessionPlace, SessionSummary } from "../../contracts/agent/index.ts";
 import { agentChange, type SessionDefaults, type SessionRecord, SessionsDoc } from "../records/durable.ts";
-import { listModels, requireModel } from "./models.durable.ts";
+import { listModels } from "./models.durable.ts";
 import { serveSession, type ServedSession, type SessionModels } from "./service.durable.ts";
 
 const context = BACKGROUND_CONTEXT;
@@ -35,10 +35,7 @@ export function createSessions(harness: Harness, defaults: SessionDefaults, mode
   const records = async (): Promise<Record<string, SessionRecord>> =>
     (await harness.snapshot(SessionsDoc, context))?.sessions ?? {};
   /** The home's model is the one in `defaults` at the moment it is asked: the agent changes it when a reload finds another. */
-  const sessionModels: SessionModels = {
-    home: () => defaults.model,
-    require: (model) => requireModel(models, model),
-  };
+  const sessionModels: SessionModels = { home: () => defaults.model };
   const watched = new Set<ServedSession>();
 
   return {

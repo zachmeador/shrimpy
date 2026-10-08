@@ -566,14 +566,12 @@ test("text from other members and from tools can't act on a terminal, wherever i
     for (const text of all) assert.doesNotMatch(text, ACTED_ON, `${screen.kind}: ${JSON.stringify(text)}`);
   }
 
-  // What `/model` says carries the models and the words of the agent, and the list it opens carries what the agent calls them.
+  // What `/model` says carries the models of the agent, and the list it opens carries what the agent calls them.
   const used = { provider: `provider${hostile}`, id: `model${hostile}` };
   const notices: [Notice, string][] = [
     [{ kind: "no-command", written: `/path${hostile}`, commands: [`/stop${hostile}`] }, "/path"],
     [{ kind: "model-is", model: used, own: true, defaultModel: used }, "provider"],
-    [{ kind: "model-set", model: used }, "provider"],
-    [{ kind: "model-followed", defaultModel: used }, "provider"],
-    [{ kind: "model-not-changed", problem: { said: `refused${hostile}` } }, "refused"],
+    [{ kind: "model-unstarted", defaultModel: used }, "provider"],
     [{ kind: "model-not-shown", problem: { down: { kind: "unreachable", message: `agent${hostile}` } } }, "agent"],
   ];
   for (const [notice, shown] of notices) {

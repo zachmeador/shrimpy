@@ -13,8 +13,6 @@ import { waitForSettlement } from "./settlement.durable.ts";
 export interface SessionModels {
   /** The model the agent's home names now, which a session follows until it is given one of its own. */
   home(): ModelRef;
-  /** Refuse a model the agent can't use now, saying which it can. */
-  require(model: ModelRef): Promise<void>;
 }
 
 /** A session being served: the contract's service, and a way to stop serving it. */
@@ -47,10 +45,7 @@ export async function stopWork(harness: Harness, conversation: Conversation, con
  * Serve one session: keep its view published, and route control to the
  * engine. `takingInput` says whether new input may still come in; stopping
  * work and watching stay open either way. Stopping the work also cancels the
- * wake-ups the session is waiting on and closes its open questions. A session
- * is told to use a model by changing the model its conversation is configured
- * with, which its next request reads: a request that is running goes on as it
- * began.
+ * wake-ups the session is waiting on and closes its open questions.
  */
 export async function serveSession(
   harness: Harness,
@@ -78,11 +73,6 @@ export async function serveSession(
       },
       wait: (submission, callContext) => waitForSettlement(harness, conversation, submission, callContext),
       stop: (callContext) => stopWork(harness, conversation, callContext),
-      async setModel(model, callContext) {
-        const wanted: ModelRef = model === null ? models.home() : { provider: model.provider, modelId: model.id };
-        if (model !== null) await models.require(wanted);
-        await conversation.configure({ model: wanted }, callContext);
-      },
     },
     refresh: () => publishSessionView(state, viewOf(committed.value), context),
     close() {

@@ -5,7 +5,6 @@ import { SessionDirectory, SessionService } from "./services.ts";
 import type {
   AgentModels,
   Member,
-  ModelId,
   Occurrence,
   Reloaded,
   SessionSummary,
@@ -37,11 +36,6 @@ export interface SessionHandle {
   /** Resolves when the submission has ended. A client that goes away while waiting does not stop the work. */
   wait(submission: number): Promise<Settlement>;
   stop(): Promise<void>;
-  /**
-   * Make the session use `model` from its next request, or follow the agent's
-   * home again with null. See `SessionService.setModel`.
-   */
-  setModel(model: ModelId | null): Promise<void>;
 }
 
 export interface AgentConnection {
@@ -127,7 +121,6 @@ export async function connectAgent(options: {
           steer: (text, requestId) => guarded(() => session.steer(text, requestId ?? null, context)),
           wait: (submission) => guarded(() => session.wait(submission, context)),
           stop: () => guarded(() => session.stop(context)),
-          setModel: (model) => guarded(() => session.setModel(model, context)),
         };
       }),
     onDisconnect: (listener) => connection.onDisconnect(listener),

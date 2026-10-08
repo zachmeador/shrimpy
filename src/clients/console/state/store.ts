@@ -13,7 +13,6 @@ import {
   keepAgent,
   keepChat,
   keepRegistry,
-  type Problem,
   problemOf,
   type SessionUpdate,
   type ThreadUpdate,
@@ -26,7 +25,6 @@ import {
   type Farewell,
   type HomeLookup,
   type Model,
-  type ModelChoice,
   type Notice,
   type Place,
   type SendResult,
@@ -95,14 +93,13 @@ export interface ConsoleState {
    */
   models(): Promise<AgentModels | undefined>;
   /**
-   * `/model` in the open DM thread: say which model the thread's session uses,
-   * make it use another from its next request, or make it follow the agent's
-   * model again. It says what came of it in a notice, in the agent's words when
-   * the agent refuses a model. A thread the agent has no session for yet has
-   * nothing to change, and that is all it says: nothing waits for the session.
-   * Posts nothing.
+   * `/model` with nothing after it in the open DM thread: say in a notice which
+   * model the thread's session uses and whether that is its own, or, for a thread
+   * the agent has no session in yet, which model the agent's default is, since the
+   * thread starts on it. Choosing another is a message, `/model` and a model, which
+   * the agent acts on. Posts nothing.
    */
-  chooseModel(choice: ModelChoice): Promise<void>;
+  showModel(): Promise<void>;
 
   /** The work that goes on if the console is left now, if there is any. It asks chat once more, briefly. */
   farewell(): Promise<Farewell | undefined>;
@@ -473,43 +470,28 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       return modelsOf(link);
     },
 
-    async chooseModel(choice) {
+    async showModel() {
       const { where } = model;
       const link = agent;
       // A room has no agent selected, and so no one agent whose model this could be.
       if (where.screen !== "thread" || link === undefined) return;
-      if (choice.kind === "unclear") return say({ kind: "model-unclear" });
       const { thread } = where;
-      // Where the person is changes while the agent is asked, which the compiler cannot see. What came of it is for the thread it was asked in.
+      // Where the person is changes while the agent is asked, which the compiler cannot see. What the agent said is for the thread it was asked in.
       const stillHere = (): boolean => agent === link && model.where.screen === "thread" && model.where.thread === thread;
       const tell = (notice: Notice): void => {
         if (stillHere()) say(notice);
       };
-      const failed = (problem: Problem): void =>
-        tell({ kind: choice.kind === "show" ? "model-not-shown" : "model-not-changed", problem });
 
       const status = link.status();
-      if (status.state === "down") return failed({ down: status.why });
-      if (thread === undefined) return say({ kind: "no-session" });
+      if (status.state === "down") return tell({ kind: "model-not-shown", problem: { down: status.why } });
       // The agent may have made the session since the link last looked for it, which it does every few seconds, and a link that was lost has not watched it again yet. The person is not to be told there is none when there is.
-      await link.look(thread);
-
-      if (choice.kind === "show") {
-        const view = model.session;
-        if (view === undefined) return tell({ kind: "no-session" });
-        const { model: used, ownModel } = view.status;
-        // The default is worth asking for when the thread's model is not it.
-        const defaultModel = ownModel ? (await modelsOf(link))?.default : undefined;
-        return tell({ kind: "model-is", model: used, own: ownModel, defaultModel });
-      }
-      try {
-        const told = await link.setModel(thread, choice.kind === "use" ? choice.model : null);
-        if (!told) return tell({ kind: "no-session" });
-        if (choice.kind === "use") return tell({ kind: "model-set", model: choice.model });
-        tell({ kind: "model-followed", defaultModel: (await modelsOf(link))?.default });
-      } catch (error) {
-        failed(problemOf(error));
-      }
+      if (thread !== undefined) await link.look(thread);
+      const view = thread === undefined ? undefined : model.session;
+      if (view === undefined) return tell({ kind: "model-unstarted", defaultModel: (await modelsOf(link))?.default });
+      const { model: used, ownModel } = view.status;
+      // The default is worth asking for when the thread's model is not it.
+      const defaultModel = ownModel ? (await modelsOf(link))?.default : undefined;
+      tell({ kind: "model-is", model: used, own: ownModel, defaultModel });
     },
 
     async farewell() {

@@ -2,7 +2,6 @@ import {
   type AgentConnection,
   type AgentModels,
   connectAgent,
-  type ModelId,
   type SessionHandle,
   type SessionSummary,
   type SessionView,
@@ -50,15 +49,6 @@ export interface AgentLink {
    */
   models(): Promise<AgentModels>;
   /**
-   * Make the session at `session` use `model` from its next request, or follow
-   * the agent's model again with null, when that is the session being watched.
-   * Resolves true when the agent was told, and false when no such session is
-   * being watched: the agent has none yet, or the link has not got to it. Fails
-   * with `Down` when the agent is not reachable, and with the agent's own words
-   * when it refuses.
-   */
-  setModel(session: string, model: ModelId | null): Promise<boolean>;
-  /**
    * Watch a session by its address, which is a thread's ID or `trigger:` and a
    * trigger's name: its view is passed on from now on, and again after each
    * time the connection comes back. An agent with no such session yet has
@@ -79,9 +69,9 @@ export interface AgentLink {
 /**
  * Keep a connection to the agent called `name`: reach it by its name through
  * the gateway, with a ticket to come in with, hold the connection, answer for
- * its list of sessions and its models, keep watching the session that is wanted
- * across losses, and tell that session which model to use. The work in the
- * agent goes on whether or not this link is up.
+ * its list of sessions and its models, and keep watching the session that is
+ * wanted across losses. The work in the agent goes on whether or not this link
+ * is up.
  */
 export function keepAgent(options: AgentLinkOptions): AgentLink {
   let wanted: string | undefined;
@@ -181,13 +171,6 @@ export function keepAgent(options: AgentLinkOptions): AgentLink {
     },
     async models() {
       return connected().models();
-    },
-    async setModel(session, model) {
-      const connection = connected();
-      const attached = watching;
-      if (attached?.id !== session || attached.connection !== connection) return false;
-      await attached.handle.setModel(model);
-      return true;
     },
     watch(session) {
       wanted = session;

@@ -135,7 +135,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
         void state.readStatus();
         return;
       case "model":
-        void state.chooseModel(written.choice);
+        void state.showModel();
         return;
       case "refuse":
         state.note(written.notice);

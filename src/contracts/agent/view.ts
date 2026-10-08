@@ -58,10 +58,13 @@ export interface SessionStatus {
   /** The model the session's next request names, or null when it has none. */
   model: ModelId | null;
   /**
-   * Whether `model` is one the session was given, and not the model the agent's
-   * home names, which every session follows until it is given another. A
-   * session that was given the home's own model follows the home, so this is
-   * false for it too. See `SessionService.setModel`.
+   * Whether `model` is one the session was given, by a person's `/model` in its
+   * thread, and not the model the agent's home names, which every session
+   * follows until it is given another. A session that was given the home's own
+   * model follows the home, so this is false for it too. A session's own model
+   * lasts until the agent is started again, when every session follows the home,
+   * or until a reload finds the home naming another model, when every session
+   * follows that one. A reload that finds the same model leaves it alone.
    */
   ownModel: boolean;
   usage: { input: number; output: number; cost: number };

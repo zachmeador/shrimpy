@@ -5,7 +5,7 @@ import type {
   SessionSummary,
   SessionView,
 } from "../../../contracts/agent/index.ts";
-import type { Channel, Member, Thread, ThreadView } from "../../../contracts/chat/index.ts";
+import type { AgentCommand, Channel, Member, Thread, ThreadView } from "../../../contracts/chat/index.ts";
 import type { Registration, RosterEntry } from "../../../contracts/gateway/index.ts";
 import type { LinkStatus, Problem } from "../network/index.ts";
 
@@ -77,29 +77,11 @@ export type Notice =
   | { kind: "takes-nothing"; command: string }
   /** `/model` with nothing after it: the model the thread uses, whether it is one of its own, and the agent's default when that is known. */
   | { kind: "model-is"; model: ModelId | null; own: boolean; defaultModel: ModelId | undefined }
-  /** `/model` with a model: the thread uses it from the agent's next request. */
-  | { kind: "model-set"; model: ModelId }
-  /** `/model default`: the thread follows the agent's model again, which is `defaultModel` when that is known. */
-  | { kind: "model-followed"; defaultModel: ModelId | undefined }
+  /** `/model` with nothing after it in a thread the agent has no session in yet: it starts on the agent's default model, which is `defaultModel` when that is known. */
+  | { kind: "model-unstarted"; defaultModel: ModelId | undefined }
   | { kind: "model-not-shown"; problem: Problem }
-  | { kind: "model-not-changed"; problem: Problem }
-  /** The agent has no session for the open thread yet, so there is no model to show or change. */
-  | { kind: "no-session" }
-  /** `/model` was written with something that is neither `default` nor a model as provider/id. */
-  | { kind: "model-unclear" }
-  /** `/model` was written in a room, which has no one agent. */
-  | { kind: "model-in-room" };
-
-/** What `/model` was written with in a thread of a DM. */
-export type ModelChoice =
-  /** Nothing after it: say which model the thread uses. */
-  | { kind: "show" }
-  /** `default`: follow the agent's model again. */
-  | { kind: "default" }
-  /** A model as `provider/id`. */
-  | { kind: "use"; model: ModelId }
-  /** Anything else, which names no model. */
-  | { kind: "unclear" };
+  /** A command that is for nobody in a room unless an agent is named before it was written first there: nothing was posted. */
+  | { kind: "name-an-agent"; command: AgentCommand };
 
 /** An agent in its DM with the person, as `/status` found it. */
 export interface AgentStatus {

@@ -97,7 +97,6 @@ test("every call on a session is checked against whoever makes it, so that one a
       return Promise.resolve({ status: "cancelled" });
     },
     stop: reaching("stop"),
-    setModel: reaching("setModel"),
   };
   const guarded = guardSession(session);
   // Written out for every call, so that a call added to a session fails to compile here until it is checked.
@@ -105,7 +104,6 @@ test("every call on a session is checked against whoever makes it, so that one a
     steer: (context) => guarded.steer("hello", null, context),
     wait: (context) => guarded.wait(1, context),
     stop: (context) => guarded.stop(context),
-    setModel: (context) => guarded.setModel(null, context),
   };
   const asked = (kind: "person" | "agent"): Context =>
     withCaller(BACKGROUND_CONTEXT, {
@@ -121,7 +119,7 @@ test("every call on a session is checked against whoever makes it, so that one a
   }
   assert.deepEqual(reached, [], "and none of them reached the session");
   for (const call of Object.values(calls)) await call(asked("person"));
-  assert.deepEqual(reached.toSorted(), ["setModel", "steer", "stop", "wait"]);
+  assert.deepEqual(reached.toSorted(), ["steer", "stop", "wait"]);
 });
 
 test("by the home's path everything works, as it does with the gateway gone", { timeout }, async (t) => {

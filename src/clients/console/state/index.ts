@@ -4,7 +4,8 @@
  * the open thread and the work behind it, the session being watched, what is
  * connected, and the things a person does: pick an agent, a room, a thread or a
  * session, start a thread, say something, read the status of a thread, ask for
- * the models an agent can use and choose the model of a thread's session,
+ * the models an agent can use and read the model of a thread's session, tell the
+ * person something about what they wrote,
  * switch between an agent's threads and its sessions, go back, leave. It makes
  * no room and adds no member: that is for the commands. Everything it learns
  * comes through the console's links. It must not know how any of this is shown
@@ -20,7 +21,6 @@ export {
   type Farewell,
   type HomeLookup,
   type Model,
-  type ModelChoice,
   type Notice,
   type Place,
   type Room,
