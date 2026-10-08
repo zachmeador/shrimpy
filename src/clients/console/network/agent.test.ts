@@ -39,7 +39,7 @@ test("while the agent is not listed it says so, and it connects when the agent i
   const { link } = startLink(t);
 
   await until(() => JSON.stringify(link.status()) === JSON.stringify({ state: "down", why: { kind: "not-registered" } }), "the wait");
-  await assert.rejects(link.stop(), (error: unknown) => error instanceof Down && error.why.kind === "not-registered");
+  await assert.rejects(link.sessions(), (error: unknown) => error instanceof Down && error.why.kind === "not-registered");
   await startStandInAgent(t, { name: "scout" });
 
   await until(() => link.status().state === "up", "the agent to be reached");

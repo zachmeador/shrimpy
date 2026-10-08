@@ -1,5 +1,5 @@
 import type { Channel, Message, Thread } from "../../../contracts/chat/index.ts";
-import { agentEntries, type Model, type Place, roomEntries, workingIn, workingInOpenThread } from "../state/index.ts";
+import { agentEntries, type Model, type Place, roomEntries, workingIn } from "../state/index.ts";
 import { oneLine, plain } from "./plain.ts";
 import { whenOf } from "./time.ts";
 import { type Step, type Work, watchOf, workOf } from "./work.ts";
@@ -40,16 +40,10 @@ import {
   workingLine,
 } from "./words.ts";
 
-/** A line the person should read, apart from the list or the conversation. */
-export interface Note {
-  tone: "warn" | "info";
-  text: string;
-}
-
 /** What every screen has besides its own content. */
 interface Chrome {
-  /** What is not working, or has just gone wrong, most pressing first. */
-  notes: Note[];
+  /** What is not working, or has just gone wrong, most pressing first. Each is a line the person should read, apart from the list or the conversation. */
+  notes: string[];
   /** The line of keys, one hint to an item: every key that does something here, with what it does. */
   keys: string[];
   /** What the keys that depend on the screen do here. `keys` is made from it. */
@@ -187,7 +181,7 @@ export function screenOf(model: Model, options: ScreenOptions): Screen {
 }
 
 function agentsScreen(model: Model, inFull: InFull): AgentsScreen {
-  const can: Can = { escape: undefined, newThread: false, switchLists: false, work: false };
+  const can: Can = { back: false, newThread: false, switchLists: false, work: false };
   const agents: Row[] = agentEntries(model).map((entry) => ({
     id: entry.name,
     kind: "agent",
@@ -249,7 +243,7 @@ function lookingAt(model: Model, place: Place): Looking {
 function threadsScreen(model: Model, place: Place, now: number, inFull: InFull): ThreadsScreen {
   const here = lookingAt(model, place);
   // An agent has sessions to switch to, and a room does not.
-  const can: Can = { escape: "back", newThread: true, switchLists: place.kind === "agent", work: false };
+  const can: Can = { back: true, newThread: true, switchLists: place.kind === "agent", work: false };
   const rows: Row[] = here.threads.map((thread) => ({
     id: thread.id,
     kind: "thread",
@@ -272,7 +266,7 @@ function threadsScreen(model: Model, place: Place, now: number, inFull: InFull):
 }
 
 function sessionsScreen(model: Model, agent: string, inFull: InFull): SessionsScreen {
-  const can: Can = { escape: "back", newThread: false, switchLists: true, work: false };
+  const can: Can = { back: true, newThread: false, switchLists: true, work: false };
   const rows: Row[] = (model.sessions ?? []).map((session) => ({
     id: session.id,
     kind: "session",
@@ -295,7 +289,7 @@ function sessionsScreen(model: Model, agent: string, inFull: InFull): SessionsSc
 }
 
 function sessionScreen(model: Model, agent: string, address: string, inFull: InFull): SessionScreen {
-  const can: Can = { escape: "back", newThread: false, switchLists: false, work: true };
+  const can: Can = { back: true, newThread: false, switchLists: false, work: true };
   const view = model.session;
   const summary = model.sessions?.find((each) => each.id === address);
   // A session that was working when the agent went away is not working now, whatever its last view says.
@@ -328,7 +322,7 @@ function threadScreen(model: Model, place: Place, threadId: string | undefined, 
   const listed = threadId === undefined ? undefined : here.threads.find((thread) => thread.id === threadId);
   const thread = live?.thread ?? listed;
   const names = namer(here.channel, model);
-  // Only an agent's DM has a session to show and an agent to stop. In a room the marks chat keeps say who is working.
+  // Only an agent's DM has a session to show. In a room the marks chat keeps say who is working.
   const isAgent = place.kind === "agent";
   const who = isAgent ? oneLine(here.name) : roomLabel(here.name);
 
@@ -337,13 +331,11 @@ function threadScreen(model: Model, place: Place, threadId: string | undefined, 
   const markedWorking = thread?.working.map((mark) => names(mark.memberId)) ?? [];
   // A session that was working when the agent went away is not working now, whatever its last view says.
   const sessionBusy = session?.status.busy === true && model.agent?.state !== "down";
-  // Esc stops the work when the agent was last seen working in its DM with the person, and goes back otherwise.
-  const stoppable = workingInOpenThread(model);
   const working =
     markedWorking.length > 0 || sessionBusy
-      ? workingLine(markedWorking.length > 0 ? markedWorking : [who], sessionBusy ? session.status.activity : undefined, stoppable)
+      ? workingLine(markedWorking.length > 0 ? markedWorking : [who], sessionBusy ? session.status.activity : undefined, true)
       : undefined;
-  const can: Can = { escape: stoppable ? "stop" : "back", newThread: true, switchLists: false, work: isAgent };
+  const can: Can = { back: true, newThread: true, switchLists: false, work: isAgent };
 
   let lead: string | undefined;
   if (threadId === undefined) lead = isAgent ? newThreadHint(who) : newRoomThreadHint(here.name);
@@ -403,10 +395,10 @@ function messageRow(message: Message, model: Model, names: (memberId: string) =>
  * be found; then the others, then a version that differs, then what just
  * happened.
  */
-function notesOf(model: Model, agent: string | undefined): Note[] {
-  const notes: Note[] = [];
+function notesOf(model: Model, agent: string | undefined): string[] {
+  const notes: string[] = [];
   const warn = (text: string | undefined): void => {
-    if (text !== undefined) notes.push({ tone: "warn", text });
+    if (text !== undefined) notes.push(text);
   };
   const { where } = model;
   const gatewayDown = model.gateway.state === "down";
@@ -430,8 +422,6 @@ function notesOf(model: Model, agent: string | undefined): Note[] {
   const running = agent === undefined ? undefined : registered.findLast((program) => program.kind === "agent" && program.name === agent);
   warn(running === undefined ? undefined : versionWarning(`the agent ${oneLine(agent ?? "")}`, running.version));
 
-  if (model.notice !== undefined) {
-    notes.push({ tone: model.notice.kind === "stopped" ? "info" : "warn", text: noticeText(model.notice, oneLine(agent ?? "")) });
-  }
+  if (model.notice !== undefined) warn(noticeText(model.notice, oneLine(agent ?? "")));
   return notes;
 }

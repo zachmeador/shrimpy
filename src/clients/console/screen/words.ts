@@ -60,10 +60,9 @@ export function chatNote(why: Why): string | undefined {
 
 /**
  * What to tell about the agent that is selected, if it is not as it should be.
- * `looking` is what is on show: the work in a thread, which can be stopped from
- * here, or the agent's sessions, which are only watched. `home` says whether
- * this machine has a home for the agent, when the console was told: an agent
- * that has none lives somewhere else, and is started there.
+ * `looking` is what is on show: the work in a thread, or the agent's sessions.
+ * `home` says whether this machine has a home for the agent, when the console
+ * was told: an agent that has none lives somewhere else, and is started there.
  */
 export function agentNote(
   agent: string,
@@ -79,7 +78,7 @@ export function agentNote(
         : `No agent named ${name} is registered with this machine's gateway. Start it with: shrimpy agent serve ${name}, or start everything with: ${START_EVERYTHING}`;
     case "lost":
       return looking === "work"
-        ? `Lost the connection to ${name}. The work shown may be out of date, and it can't be stopped from here. Trying again.`
+        ? `Lost the connection to ${name}. The work shown may be out of date. Trying again.`
         : `Lost the connection to ${name}. What is shown may be out of date. Trying again.`;
     case "unreachable":
       return oneLine(why.message);
@@ -131,10 +130,6 @@ export function noticeText(notice: Notice, agentName: string): string {
       return `Could not watch the work: ${because({ kind: "agent", name: agent }, notice.problem)}.`;
     case "not-listed":
       return `Could not read your threads: ${because({ kind: "chat" }, notice.problem)}.`;
-    case "stopped":
-      return `Stopped ${agent}'s work in this thread.`;
-    case "not-stopped":
-      return `Could not stop the work: ${because({ kind: "agent", name: agent }, notice.problem)}.`;
   }
 }
 
@@ -144,7 +139,7 @@ export function farewellLine(agentName: string, threadId: string): string {
   const thread = oneLine(threadId);
   return (
     `${agent} is still working in thread ${thread}, and the work continues. ` +
-    `To stop it, open the thread and press Esc, or run: shrimpy sessions stop ${thread} --agent ${agent}`
+    `To stop it, open the thread and write /stop, or run: shrimpy sessions stop ${thread} --agent ${agent}`
   );
 }
 
@@ -244,14 +239,15 @@ export function receiptNote(receipt: Receipt, name: string): string | undefined 
 }
 
 /**
- * Who is working in a thread, and what the session is doing. At least one name.
- * `canStop` says that Esc stops the work here, which it does for an agent in its DM.
+ * Who is working, and what the session is doing. At least one name. `inThread`
+ * says that the person can write in the place this is shown, where `/stop` is
+ * how to stop the work, which they can't in a session they are only watching.
  */
-export function workingLine(names: string[], activity: SessionActivity | undefined, canStop: boolean): string {
+export function workingLine(names: string[], activity: SessionActivity | undefined, inThread: boolean): string {
   const who = names.map(oneLine).join(" and ");
   const verb = names.length > 1 ? "are" : "is";
   const doing = activity === undefined ? undefined : activityWords(activity);
-  return `${who} ${verb} working${doing === undefined ? "" : ` · ${doing}`}${canStop ? " · esc to stop" : ""}`;
+  return `${who} ${verb} working${doing === undefined ? "" : ` · ${doing}`}${inThread ? " · write /stop to stop" : ""}`;
 }
 
 function activityWords(activity: SessionActivity): string | undefined {
@@ -313,8 +309,8 @@ export interface InFull {
 
 /** What the keys that depend on the screen do on it. The line of keys is made from this, so it names what they do. */
 export interface Can {
-  /** Esc stops the agent's work, or goes back a level, or does nothing on the first screen. */
-  escape: "stop" | "back" | undefined;
+  /** Esc goes back a level. It does nothing on the first screen. */
+  back: boolean;
   /** Ctrl+N starts a thread. */
   newThread: boolean;
   /** Tab switches between the person's threads with an agent and its sessions. */
@@ -335,8 +331,7 @@ export function keyHints(screen: "agents" | "threads" | "sessions" | "thread" | 
   else if (screen !== "session") hints.push("↑↓ choose", "enter open");
   if (can.newThread) hints.push("ctrl+n new thread");
   if (can.switchLists) hints.push(screen === "sessions" ? "tab your threads" : "tab sessions");
-  if (can.escape === "stop") hints.push("esc stop");
-  else if (can.escape === "back") hints.push("esc back");
+  if (can.back) hints.push("esc back");
   if (can.work) {
     hints.push(`ctrl+o tool calls: ${inFull.toolCalls ? "full" : "brief"}`, `ctrl+t thinking: ${inFull.thinking ? "full" : "brief"}`);
   }

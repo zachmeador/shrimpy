@@ -31,7 +31,6 @@ import {
  */
 
 const timeout = 90_000;
-const ESC = "\u001b";
 const CTRL_C = "\u0003";
 const CTRL_N = "\u000e";
 const DOWN = "\u001b[B";
@@ -87,14 +86,14 @@ test("a bare shrimpy at a terminal opens the console, in which a person can see 
   const threads = await shrimpy(["threads", "scout"]);
   assert.match(threads.stdout, /hi there/);
 
-  // Another thread, with work that goes on: its answer streams beside the conversation until the person stops it.
+  // Another thread, with work that goes on: its answer streams beside the conversation until the person writes /stop.
   terminal.type(CTRL_N);
   terminal.type("go slow");
   terminal.type(ENTER);
   await seen(terminal, "word3", "the answer streaming");
   await seen(terminal, "scout is working", "who is working");
-  terminal.type(ESC);
-  await seen(terminal, "Stopped scout's work in this thread.");
+  terminal.type("/stop");
+  terminal.type(ENTER);
   await seen(terminal, "-- scout stopped before answering --", "what the agent did with the message");
 
   // And once more, left working: leaving says so, and says how to stop it.

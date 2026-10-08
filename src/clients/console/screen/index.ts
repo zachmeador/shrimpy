@@ -11,7 +11,6 @@ export { type Can, farewellLine, hiddenLines, type InFull, OUT_OF_DATE, QUIT_AGA
 export {
   type AgentsScreen,
   type MessageRow,
-  type Note,
   type Row,
   type Screen,
   type ScreenOptions,

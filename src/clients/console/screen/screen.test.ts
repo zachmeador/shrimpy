@@ -93,8 +93,7 @@ test("with no agents it says what to start, and with no gateway it says that ins
   const [note, ...more] = away.notes;
   assert.ok(note);
   assert.deepEqual(more, []);
-  assert.equal(note.tone, "warn");
-  assert.match(note.text, /No gateway is running.*shrimpy up/);
+  assert.match(note, /No gateway is running.*shrimpy up/);
 });
 
 test("when the gateway is lost the list stays, marked as possibly out of date, and says what was lost", () => {
@@ -108,7 +107,7 @@ test("when the gateway is lost the list stays, marked as possibly out of date, a
   assert.equal(screen.stale, true);
   assert.deepEqual(screen.rows.map((row) => row.id), ["scout"]);
   assert.equal(screen.notes.length, 1);
-  assert.match(screen.notes[0]?.text ?? "", /gateway/);
+  assert.match(screen.notes[0] ?? "", /gateway/);
 });
 
 test("a thread is listed by its name, or else the start of its first message, and says whether the agent is working in it", () => {
@@ -149,7 +148,7 @@ test("when chat is lost the threads stay and say so, and nothing claims there ar
   assert.equal(screen.stale, true);
   assert.equal(screen.rows.length, 1);
   assert.equal(screen.notes.length, 1);
-  assert.match(screen.notes[0]?.text ?? "", /chat server/);
+  assert.match(screen.notes[0] ?? "", /chat server/);
   const empty = threads(screenOf(aModel({ where: { screen: "threads", place: { kind: "agent", name: "scout" } }, chat: { state: "down", why: { kind: "lost" } } }), { now }));
   assert.equal(empty.empty, undefined);
 });
@@ -286,6 +285,18 @@ test("a thread that is working shows who is, and the work: thinking, tools with 
   assert.equal(tool.tone, "good");
 });
 
+test("the line saying who is working says how to stop them, in a DM and in a room alike", () => {
+  const busy = aThread("th_1", { preview: "go", working: [{ memberId: scout.id, since: now }] });
+  const inRoom = aThread("th_2", { preview: "go", working: [{ memberId: scout.id, since: now }] });
+  const room = aModel({
+    where: { screen: "thread", place: { kind: "room", id: "ch_2" }, thread: "th_2" },
+    rooms: { ch_2: aRoom("ops", ["scout"], [inRoom]) },
+  });
+
+  assert.match(thread(screenOf(onThread("scout", busy, undefined), { now })).working ?? "", /scout is working.*\/stop/);
+  assert.match(thread(screenOf(room, { now })).working ?? "", /scout is working.*\/stop/);
+});
+
 test("the work is only the current turn, and nothing once the session is idle", () => {
   const open = aThread("th_1", { preview: "go" });
   const history = [
@@ -387,7 +398,7 @@ test("while chat or the agent is lost, what is shown is marked, and the notes sa
   assert.equal(agentLost.messages.length, 1);
   assert.notEqual(agentLost.work, undefined, "the work stays");
   assert.equal(agentLost.notes.length, 1);
-  assert.match(agentLost.notes[0]?.text ?? "", /Lost the connection to scout/);
+  assert.match(agentLost.notes[0] ?? "", /Lost the connection to scout/);
 });
 
 test("an agent that went away is not said to be working because of what its session last showed", () => {
@@ -422,7 +433,7 @@ test("an agent that is not running is said to start here when this machine has i
   const gone = { state: "down" as const, why: { kind: "not-registered" as const } };
   const homes = (agent: string) => ({ found: agent === "scout", where: "/folder/agents" });
   const noteOn = (name: string, parts: Parameters<typeof onThread>[3]) =>
-    thread(screenOf(onThread(name, open, undefined, { agent: gone, ...parts }), { now })).notes.map((note) => note.text);
+    thread(screenOf(onThread(name, open, undefined, { agent: gone, ...parts }), { now })).notes;
 
   assert.match(noteOn("scout", { homes }).join("\n"), /shrimpy agent serve scout/);
   const elsewhere = noteOn("crab", { homes }).join("\n");
@@ -437,7 +448,7 @@ test("a program that runs another version of Shrimpy is named with its version",
     listing: aListing([anAgent("scout", "9.9.9"), aChatServer("8.8.8")], "7.7.7"),
   });
 
-  const notes = threads(screenOf(model, { now })).notes.map((note) => note.text);
+  const { notes } = threads(screenOf(model, { now }));
 
   assert.equal(notes.length, 3);
   assert.match(notes[0] ?? "", /gateway.*7\.7\.7/);
@@ -445,24 +456,21 @@ test("a program that runs another version of Shrimpy is named with its version",
   assert.match(notes[2] ?? "", /agent scout.*9\.9\.9/);
 });
 
-test("a message that was not sent says the message is still in the editor, and a stop is told apart from a problem", () => {
+test("a message that was not sent says the message is still in the editor", () => {
   const open = aThread("th_1", { preview: "go" });
-  const on = (notice: NonNullable<ReturnType<typeof aModel>["notice"]>) =>
-    thread(screenOf(onThread("scout", open, undefined, { notice }), { now })).notes.map((note) => [note.tone, note.text]);
+  const notice = { kind: "not-sent" as const, problem: { said: "The disk is full." } };
 
-  assert.deepEqual(
-    on({ kind: "not-sent", problem: { said: "The disk is full." } }).map(([tone, text]) => [tone, /The disk is full.*still in the editor/.test(text ?? "")]),
-    [["warn", true]],
-  );
-  assert.deepEqual(on({ kind: "stopped" }).map(([tone]) => tone), ["info"]);
-  assert.deepEqual(on({ kind: "not-stopped", problem: { said: "The work would not stop." } }).map(([tone]) => tone), ["warn"]);
+  const { notes } = thread(screenOf(onThread("scout", open, undefined, { notice }), { now }));
+
+  assert.equal(notes.length, 1);
+  assert.match(notes[0] ?? "", /The disk is full.*still in the editor/);
 });
 
 test("the line for leaving names the thread, says the work continues, and says how to stop it", () => {
   const line = farewellLine("scout", "th_4k9x2m7q0b3d");
 
   assert.match(line, /scout is still working in thread th_4k9x2m7q0b3d.*continues/);
-  assert.match(line, /Esc/);
+  assert.match(line, /\/stop/);
   assert.match(line, /shrimpy sessions stop th_4k9x2m7q0b3d --agent scout/);
   assert.equal(farewellLine("sc\u001b[2Jout", "th_\u0007x"), farewellLine("scout", "th_x"));
 });

@@ -58,9 +58,9 @@ export interface Drawing {
 
 /**
  * Draw the console on a terminal and carry what the person types to the state:
- * keys choose, open, send, stop and go back, switch tool calls and thinking
- * between brief and in full, and everything else they type goes to the editor.
- * The screen is drawn again from the state's model after each change.
+ * keys choose, open, send and go back, switch tool calls and thinking between
+ * brief and in full, and everything else they type goes to the editor. The
+ * screen is drawn again from the state's model after each change.
  */
 export function startDrawing(options: DrawingOptions): Drawing {
   // A link in a message would show its text and hide where it goes. With this the address is printed with it.
@@ -245,7 +245,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
     for (const part of parts) page.addChild(part);
     // The notes sit by what the person is doing, at the bottom, where a long conversation has not pushed them out of sight.
     if (screen.notes.length > 0 && (scrolls || parts.length > 0)) page.addChild(new Spacer(1));
-    for (const note of screen.notes) page.addChild(new Text(note.tone === "warn" ? theme.warn(note.text) : theme.dim(note.text), 0, 0));
+    for (const note of screen.notes) page.addChild(new Text(theme.warn(note), 0, 0));
     if (screen.kind === "thread") page.addChild(editor);
     page.addChild(waitingForSecondPress ? new Text(theme.warn(QUIT_AGAIN), 0, 0) : keysComponent(screen.keys, theme));
 
@@ -273,9 +273,8 @@ export function startDrawing(options: DrawingOptions): Drawing {
       leave();
       return { consume: true };
     }
-    if (matchesKey(data, "escape") && can.escape !== undefined) {
-      if (can.escape === "stop") void state.stop();
-      else state.back();
+    if (matchesKey(data, "escape") && can.back) {
+      state.back();
       return { consume: true };
     }
     if (matchesKey(data, "ctrl+n") && can.newThread) {

@@ -13,7 +13,6 @@ import {
   aModel,
   anAgent,
   aReceipt,
-  aRoom,
   aSession,
   aThread,
   aThreadView,
@@ -130,10 +129,10 @@ test("with nothing to choose from, enter does nothing and control-n still starts
 
 test("a note is drawn by the editor at the bottom, so a long conversation does not push it out of sight", (t) => {
   const messages = Array.from({ length: 40 }, (_, index) => aMessage(`msg_${String(index + 1)}`, zach, `message ${String(index + 1)}`, { sentAt: at(14, 5) }));
-  const long = onThread("scout", open, aThreadView(open, messages), { notice: { kind: "stopped" } });
+  const long = onThread("scout", open, aThreadView(open, messages), { notice: { kind: "not-sent", problem: { said: "The disk is full." } } });
   const { lines } = start(t, long);
 
-  assert.match(lines().slice(-6).join("\n"), /Stopped scout/);
+  assert.match(lines().slice(-6).join("\n"), /The disk is full/);
 });
 
 test("what is typed goes to the editor, enter sends it, and the editor is empty again", (t) => {
@@ -174,22 +173,32 @@ test("a message that is not sent comes back to the editor to be sent again, ahea
   assert.match(lines().join("\n"), /\n will not go!\n/);
 });
 
-test("escape stops the agent's work when it is working in your DM thread, and goes back when it is not, and in a room's thread", (t) => {
-  const busy = onThread("scout", aThread("th_1", { preview: "go", working: [{ memberId: scout.id, since: now }] }), undefined);
-  const { terminal, state } = start(t, busy);
+test("escape goes back from a thread while the agent is working there, and the work goes on", { timeout: 15_000 }, async (t) => {
+  const rig = await startRig(t);
+  const thread = await rig.thread("scout", "go");
+  const session = rig.agents.scout?.agent.session(thread.id, {
+    view: workingView([userItem("go"), toolItem("bash", { args: { command: "ls" } })], { kind: "tool", name: "bash" }),
+  });
+  assert.ok(session);
+  const terminal = new FakeTerminal(100, 30);
+  const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
+  stopAfter(t, () => drawing.stop());
+  const drawn = (): string => visible(drawing.render(100)).join("\n");
+  const seen = (text: string): Promise<void> => until(() => drawn().includes(text), `the screen to show ${text}`);
+  await seen("your threads");
+  rig.state.openThread(thread.id);
+  await seen("scout is working");
+  assert.match(drawn(), /scout is working.*\/stop/, "the line that says the agent is working says how to stop it");
+  assert.match(drawn(), /esc back/);
 
   terminal.type(ESC);
   terminal.type(ESC_RELEASED);
-  assert.deepEqual(state.calls, ["stop"], "a press is one press, whether or not the terminal reports the key being let go");
-  terminal.type(CTRL_N);
+  await seen("scout · your threads");
+  await settle();
 
-  state.show(conversation());
-  terminal.type(ESC);
-  const inRoom = aThread("th_2", { preview: "go", working: [{ memberId: scout.id, since: now }] });
-  state.show(aModel({ where: { screen: "thread", place: { kind: "room", id: "ch_2" }, thread: "th_2" }, rooms: { ch_2: aRoom("ops", ["scout"], [inRoom]) } }));
-  terminal.type(ESC);
-
-  assert.deepEqual(state.calls, ["stop", "start", "back", "back"]);
+  assert.doesNotMatch(drawn(), /Agents and rooms/, "a press is one press, whether or not the terminal reports the key being let go");
+  assert.equal(session.stops, 0);
+  assert.equal(session.view.status.busy, true, "the work goes on");
 });
 
 test("control-o shows a tool call in full and control-t the thinking in full, and each press again puts it back", (t) => {
@@ -531,6 +540,7 @@ test("watching a session shows its work as it happens, and nothing typed is sent
   terminal.type(ENTER);
   await settle();
   assert.doesNotMatch(drawn(), /hello/, "there is no editor to type in");
+  assert.doesNotMatch(drawn(), /\/stop/, "and so no way to stop the work is offered");
   assert.deepEqual(nightly.steers, []);
   assert.equal(rig.chat.chat.messages().length, 1, "only the message the thread began with was ever posted");
 

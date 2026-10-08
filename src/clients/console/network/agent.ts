@@ -1,7 +1,6 @@
 import {
   type AgentConnection,
   connectAgent,
-  type SessionHandle,
   type SessionSummary,
   type SessionView,
 } from "../../../contracts/agent/index.ts";
@@ -50,12 +49,6 @@ export interface AgentLink {
    * session, or none, lets go of this one.
    */
   watch(session: string | undefined): void;
-  /**
-   * Stop the work in the session being watched, for everyone. Resolves false
-   * when there is no session to stop. Fails with `Down` when the agent is not
-   * reachable.
-   */
-  stop(): Promise<boolean>;
   /** Hang up and stop trying to reach the agent. */
   close(): Promise<void>;
 }
@@ -68,7 +61,7 @@ export interface AgentLink {
  */
 export function keepAgent(options: AgentLinkOptions): AgentLink {
   let wanted: string | undefined;
-  let watching: { id: string; connection: AgentConnection; handle: SessionHandle; stop: () => void } | undefined;
+  let watching: { id: string; connection: AgentConnection; stop: () => void } | undefined;
   let retry: ReturnType<typeof setTimeout> | undefined;
   let reported: string | undefined;
   let closed = false;
@@ -94,7 +87,7 @@ export function keepAgent(options: AgentLinkOptions): AgentLink {
         const handle = await connection.attach(id);
         if (wanted !== id || keeper.current() !== connection) return;
         const stop = handle.subscribe((view) => options.onSession({ session: id, view }));
-        watching = { id, connection, handle, stop };
+        watching = { id, connection, stop };
         reported = undefined;
       } catch (error) {
         // Whichever it is, look again later. A lost connection is the link's to report, and any other trouble is reported once.
@@ -163,17 +156,6 @@ export function keepAgent(options: AgentLinkOptions): AgentLink {
       wanted = session;
       reported = undefined;
       void settle();
-    },
-    async stop() {
-      if (keeper.current() === undefined) {
-        const status = keeper.status();
-        throw new Down(status.state === "down" ? status.why : { kind: "lost" });
-      }
-      await settle();
-      const attached = watching;
-      if (attached === undefined || attached.id !== wanted) return false;
-      await attached.handle.stop();
-      return true;
     },
     async close() {
       closed = true;

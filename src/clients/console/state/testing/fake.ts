@@ -36,10 +36,6 @@ export function fakeState(initial: Model): FakeState {
       calls.push(`send ${text}`);
       return Promise.resolve(answers.send);
     },
-    stop() {
-      calls.push("stop");
-      return Promise.resolve();
-    },
     farewell: () => Promise.resolve(answers.farewell),
     close() {
       listeners.clear();

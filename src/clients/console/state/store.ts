@@ -28,7 +28,6 @@ import {
   type Place,
   type SendResult,
   workingIn,
-  workingInOpenThread,
 } from "./model.ts";
 
 export interface ConsoleStateOptions {
@@ -71,8 +70,6 @@ export interface ConsoleState {
 
   /** Say something in the open thread, or in a new one. The person's draft is theirs to put back when it fails. */
   send(text: string): Promise<SendResult>;
-  /** Stop the work in the session behind the open thread, for everyone, when the agent is working there. Does nothing otherwise. */
-  stop(): Promise<void>;
 
   /** The work that goes on if the console is left now, if there is any. It asks chat once more, briefly. */
   farewell(): Promise<Farewell | undefined>;
@@ -386,22 +383,13 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       }
     },
 
-    async stop() {
-      if (agent === undefined || !workingInOpenThread(model)) return;
-      try {
-        if (await agent.stop()) say({ kind: "stopped" });
-      } catch (error) {
-        say({ kind: "not-stopped", problem: problemOf(error) });
-      }
-    },
-
     async farewell() {
       const waiting = new AbortController();
       await Promise.race([refreshChannels(), delay(FAREWELL_MS, undefined, { signal: waiting.signal }).catch(() => undefined)]);
       waiting.abort();
       const { where } = model;
       const entries = agentEntries(model);
-      // Only the person's threads with an agent are looked at: a room has no one agent's work to stop with a key.
+      // Only the person's threads with an agent are looked at: a room has no one agent to name.
       const shown = agentLookedAt(where);
       const names = [...(shown === undefined ? [] : [shown]), ...entries.map((entry) => entry.name)];
       for (const name of new Set(names)) {

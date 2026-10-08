@@ -257,55 +257,6 @@ test("while chat is lost it says so and sends nothing, and when chat is back the
   assert.deepEqual(await rig.state.send("and now"), { ok: true });
 });
 
-test("stopping reaches the session behind the open thread when the agent is working, and says so", { timeout }, async (t) => {
-  const rig = await startRig(t);
-  const thread = await rig.thread("scout", "go");
-  const session = rig.agents.scout?.agent.session(thread.id, { view: workingView([userItem("go")]) });
-  await rig.until((model) => model.where.screen === "threads", "the threads");
-  rig.state.openThread(thread.id);
-  await rig.until((model) => model.session?.status.busy === true, "the work to show");
-
-  await rig.state.stop();
-
-  assert.equal(session?.stops, 1);
-  assert.deepEqual(rig.state.model().notice, { kind: "stopped" });
-});
-
-test("stopping when nothing is working asks no one", { timeout }, async (t) => {
-  const rig = await startRig(t);
-  const thread = await rig.thread("scout", "hello");
-  const session = rig.agents.scout?.agent.session(thread.id);
-  await rig.until((model) => model.where.screen === "threads", "the threads");
-  rig.state.openThread(thread.id);
-  await rig.until((model) => model.session !== undefined, "the session to show");
-
-  await rig.state.stop();
-
-  assert.equal(session?.stops, 0);
-  assert.equal(rig.state.model().notice, undefined);
-});
-
-test("a stop the agent refuses, or cannot hear, says why", { timeout }, async (t) => {
-  const rig = await startRig(t);
-  const thread = await rig.thread("scout", "go");
-  const session = rig.agents.scout?.agent.session(thread.id, { view: workingView([userItem("go")]) });
-  await rig.until((model) => model.where.screen === "threads", "the threads");
-  rig.state.openThread(thread.id);
-  await rig.until((model) => model.session?.status.busy === true, "the work to show");
-  session?.failStops("The work would not stop.");
-
-  await rig.state.stop();
-
-  assert.deepEqual(rig.state.model().notice, { kind: "not-stopped", problem: { said: "The work would not stop." } });
-  await rig.agents.scout?.outage();
-  await rig.until((model) => model.agent?.state === "down", "the loss to be noticed");
-  assert.equal(rig.state.model().session?.status.busy, true, "what was on screen stays");
-
-  await rig.state.stop();
-
-  assert.deepEqual(rig.state.model().notice, { kind: "not-stopped", problem: { down: { kind: "lost" } } });
-});
-
 test("when the agent comes back the work is watched again", { timeout }, async (t) => {
   const rig = await startRig(t);
   const thread = await rig.thread("scout", "go");
@@ -316,6 +267,7 @@ test("when the agent comes back the work is watched again", { timeout }, async (
 
   await rig.agents.scout?.outage();
   await rig.until((model) => model.agent?.state === "down", "the loss to be noticed");
+  assert.equal(rig.state.model().session?.status.busy, true, "what was on screen stays");
   session?.show(sessionView({ items: [userItem("go"), assistantItem("Done.")] }));
   await rig.agents.scout?.recover();
 

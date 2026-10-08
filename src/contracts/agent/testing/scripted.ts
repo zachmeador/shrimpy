@@ -27,8 +27,6 @@ export interface ScriptedSession {
   update(change: (view: SessionView) => void): void;
   /** How many times a client stopped the session's work. */
   readonly stops: number;
-  /** Make stops be refused with `reason`, as written, or work again with undefined. */
-  failStops(reason: string | undefined): void;
   /** The text clients steered into the session, in order. */
   readonly steers: string[];
 }
@@ -81,7 +79,6 @@ export function scriptedAgent(): ScriptedAgent {
     const state = replicatedState(structuredClone(options.view ?? sessionView()));
     const steers: string[] = [];
     let stops = 0;
-    let refusal: string | undefined;
     const behindThread = !address.startsWith("trigger:");
     const made: ScriptedSession = {
       address,
@@ -99,9 +96,6 @@ export function scriptedAgent(): ScriptedAgent {
       get stops() {
         return stops;
       },
-      failStops(reason) {
-        refusal = reason;
-      },
       get steers() {
         return [...steers];
       },
@@ -115,7 +109,7 @@ export function scriptedAgent(): ScriptedAgent {
       wait: () => Promise.reject(new Error("A scripted agent does not settle input.")),
       stop() {
         stops += 1;
-        return refusal === undefined ? Promise.resolve() : Promise.reject(new Refusal(refusal, "service_not_allowed"));
+        return Promise.resolve();
       },
     };
     held.set(address, { session: made, service, place: options.place ?? null });
