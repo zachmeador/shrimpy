@@ -24,7 +24,7 @@ From the first release of the redesigned Shrimpy on, a change that someone would
 
 ## Shape And Order
 
-Use a short verb-led bullet naming the concrete change and its consequence. Call out removed or renamed commands/fields and required manual actions plainly. Keep implementation detail in commits.
+Write lines people will read. Each change is one short verb-led bullet, a single sentence of about twenty words at most, that names what changed and what it means for whoever reads it. No inventory of the parts of a change, no internals, no qualifiers. A release should read in a minute: when a section runs long, cut its least consequential bullets before shortening the rest. Call out removed or renamed commands/fields and required manual actions plainly. Keep implementation detail in commits.
 
 A setup can run its programs on several machines, and they are updated one at a time. Say plainly when a change needs every program updated together, which is whenever a contract between the programs changed, and when a program can no longer read what the version before stored.
 
