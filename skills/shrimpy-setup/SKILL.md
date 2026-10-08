@@ -25,6 +25,10 @@ A program that won't start says why in the terminal that started it. Ask the per
 
 There is no setup command yet. A new setup is `shrimpy providers login` to sign in and choose a model, then `shrimpy agent init <name>`, then `shrimpy up`. One agent that answers is a complete setup, and a second can wait until the person asks for it.
 
+## The person on another machine
+
+The person can use Shrimpy from a machine that isn't the gateway's. On the gateway's machine, or on a machine of theirs that is in already, `shrimpy members invite` with no name prints one line, `shrimpy join <link>`, to run on the other machine. It works once, for fifteen minutes. From then on the terminal and the commands that talk reach the gateway from there as them. The gateway has to listen for it first: `shrimpy up --listen <host:port>`, once.
+
 ## See what is running
 
 - `shrimpy gateway status` lists the registered programs (kind, name and version) and the roster (ID, kind, name, and whether it is reachable now), and ends with whether a service keeps the Shrimpy folder running. An agent that isn't listed among the programs isn't running.
