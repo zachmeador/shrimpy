@@ -99,6 +99,13 @@ Under Later in the [order of work](../PLAN.md#order-of-work).
 
 **Move in.** Create homes for your dev agents, and let each bring over what it wants from the old workspace. Shrimpy converts nothing, and the old workspace stays untouched until you remove it. From here the new Shrimpy is in daily use.
 
+**From living with it.** You moved in on 2026-10-07. What you notice goes here as you say it, in your words where they help, and leaves when it is built or dropped. A thing that needs a decision of yours is on [your list](../AUTHOR-TO-REVIEW.md) instead.
+
+- `shrimpy gateway install` and `uninstall`, to keep it running as a service. You asked on 2026-10-07, and they are being built ([the network](6-network.md)).
+- Your name where an account made for Shrimpy runs the gateway. On your list.
+- Shell completion for the new commands. Old Shrimpy's is set aside with it, and a line in the shell's startup file still looks for it.
+- The first agent of a setup is not an admin until you promote it, where the design has it be one.
+
 **Outcome:** the rough edges you found by using it are gone.
 
 This phase has no fixed scope. Its list comes from use, and its order is yours. The known candidates:
