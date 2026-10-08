@@ -43,6 +43,7 @@
 - `shrimpy gateway install` and `uninstall`: a service of the account, a systemd user unit on Linux and a LaunchAgent on macOS, keeps `shrimpy up` running for a Shrimpy folder. ([log, 2026-10-07](#log))
 - The first agent a roster has is an admin from the moment it joins. ([log, 2026-10-07](#log))
 - `shrimpy up` keeps its folder running: an agent made later starts by itself, one that ends is started again alone, and a home that is taken away has its agent stopped. ([log, 2026-10-07](#log))
+- In the terminal, Esc always goes back and stops nothing, a list shows the commands of a thread when `/` is typed, and `/status` shows what an agent is doing, for the person alone. ([log, 2026-10-08](#log))
 
 ## Log
 
@@ -51,6 +52,20 @@ Newest first, roughly: the entries of one day aren't always in the order they ha
 A piece of work is done when its Prove list has evidence from real wiring, not equivalent mocks. A passing build or deleted files don't count. A newly found experience difference stays pending until it is reviewed.
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**2026-10-08: Esc always goes back, a list of commands, and `/status`.** From your first night with the terminal: "one bad piece of ux is Esc works as back in the shrimpy terminal browser but if an agent is running it interrupts instead of going back". You agreed that Esc always goes back and `/stop` stops, and asked for the rest: "there should be other slash-controls in the terminal browser. `/status` is useful", and "there should be a tui modal when you type `/` into the input box and you can see what commands there are and a brief explainer". One builder, a commit for each. [Using it](../design/using-it.md) has what they do.
+
+- **Esc** goes back a level on every screen, and no key of the terminal stops an agent's work. The exception it had was the coordinator's proposal of 2026-10-05, which you confirmed then. The line that says an agent is working says to write `/stop`, in a DM and in a room. The terminal's own stop went, with its notices and the code only it used. The agent's contract keeps its stop, which `shrimpy sessions stop` uses.
+- **The list** is the editor's own, from `pi-tui`, with a provider of the terminal's that knows only the commands. The editor's provider also completes file paths on the machine the terminal runs on, which is not where an agent lives.
+- **Which commands agents act on** is now said in the chat contract, with the line a client shows for each in a DM and in a room. The agent's actions are typed by those names, and what the agent does is unchanged.
+- **`/status`** is the terminal's own and posts nothing. It reads what the contracts already give, and one question to the agent, for how many of its other sessions are working.
+- Choices the build made, which the plan didn't cover:
+  - The list opens for a slash at the start of the text only, since that is what the editor offers. After a mention, as in `@scout /stop`, the command still works and no list shows.
+  - `/status` is a command only as the whole text.
+  - A name can't be a command for agents and for the terminal at once: it stops compiling. The plan has `/status` as a command an agent answers too, for a chat app with no screen of its own, so that is to settle when such an app comes.
+- What `/status` can't show yet, since the agent's contract doesn't give it: how full the context is, a wake-up that is waiting or a question that is open, the thinking level, and what went wrong at the provider last.
+- Mine, after trying it in a pseudo-terminal: the brief had Enter put the chosen command in the input, as Tab does, with a second Enter to act. Typed fast, a whole command and Enter were then taken for a choice, and nothing happened. Enter now acts on the chosen command, which is what the editor does by itself and what Pi's terminal does, and Tab only completes.
+- Tried in a pseudo-terminal by a script, against a setup of its own with a scripted model: the list, Esc closing it and then going back, `/status` and its block, and `/stop` sent as a message. The tests draw on a fake terminal with the real editor. Nobody has used it at a real terminal yet.
 
 **2026-10-07: the first agent is an admin, and `shrimpy up` keeps its folder running.** Both from your first evening of living with it. Your agent made a home for a new agent, as you asked, and could only hand you the command that starts it: "a user expects to be able to add an agent without having to think about restarting a service or running things". And: "the first agent made should be admin by default". One builder, a commit each, and a small one of mine after the review.
 

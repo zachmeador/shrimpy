@@ -102,6 +102,7 @@ Every sentence a model or a person reads is kept in a few files, so that wording
 | What a tool says: its description, its arguments and its answers | `words.ts` in the tool's module: `agent/message-tools/`, `agent/wakeups/` and `agent/questions/` |
 | The skills Shrimpy ships | `skills/<name>/SKILL.md` |
 | Everything the terminal shows | `clients/console/screen/words.ts` |
+| What a command for agents does, in the one line a client shows beside it | `contracts/chat/commands.ts`, since every client shows the same |
 | A command's usage and help | The command's own file in `cli/commands/` |
 
 `shrimpy agent context` prints what an agent would be told, put together from its home as it is now. A test holds every `shrimpy` command line in these words to the commands the CLI has.
