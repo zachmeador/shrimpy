@@ -45,6 +45,7 @@
 - `shrimpy up` keeps its folder running: an agent made later starts by itself, one that ends is started again alone, and a home that is taken away has its agent stopped. ([log, 2026-10-07](#log))
 - In the terminal, Esc always goes back and stops nothing, a list shows the commands of a thread when `/` is typed, and `/status` shows what an agent is doing, for the person alone. ([log, 2026-10-08](#log))
 - A reload applies an agent's model with nothing started again, and one session can be given a model of its own. ([log, 2026-10-08](#log))
+- `/model` in the terminal tries another model in one thread. ([log, 2026-10-08](#log))
 
 ## Log
 
@@ -53,6 +54,16 @@ Newest first, roughly: the entries of one day aren't always in the order they ha
 A piece of work is done when its Prove list has evidence from real wiring, not equivalent mocks. A passing build or deleted files don't count. A newly found experience difference stays pending until it is reviewed.
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**2026-10-08: `/model` in the terminal.** The last of the three steps your two ways of changing a model asked for: "just for moments where i want to quickly try a different model in a thread with an agent". One builder, one commit, on what the two builds before it gave: the terminal's list of commands, and the agent's models and a session's own model. [Using it](../design/using-it.md) has what it does.
+
+- `/model` and a space lists `default`, with the model that stands for, and the models the agent can use. A model is found by any part of its ID. The models are asked for when the list needs them and kept for ten seconds, and an agent that doesn't answer is waited for three.
+- What came of it is said in a note: which model the thread uses now and how long that lasts, or what the agent said when it refused a model. `/status` says when the thread's model is its own and which the agent's default is.
+- The brief asked the builder to drive the real terminal in a pseudo-terminal before reporting, after the list of commands had a flaw that only one showed. It found two more, and fixed both: a name typed fast and Enter were taken for `default`, which was still chosen in the list from before, and `/model` straight after an agent's first answer in a thread said there was no session, since the terminal looks for one every two seconds.
+- Mine, after the review: in a room, the build posted `/model x` as a message, as the brief allowed, which woke every agent there. The terminal now takes it, says that it works in a DM with an agent, and posts nothing.
+- Also mine, found on the way: an agent beside the gateway said "Could not join the network: Byte transport closed" once when a connection ended while it was being made, where it says nothing while no gateway is listening. A test that asserts its silence failed on that twice on a loaded machine. It now says nothing and keeps trying.
+- Run for real on your Linux machine, over SSH in a pseudo-terminal, in a thread with the agent under the second account. The list showed `default` and the two models on the LAN, choosing one was confirmed in a note, `/model default` put the thread back, and `/status` showed the default again.
+- 695 tests: 689 pass and 6 are skipped.
 
 **2026-10-08: a reload applies the model, and a session's own model.** You change an agent's model in two ways, and said so: "`/model` makes sense just for moments where i want to quickly try a different model in a thread with an agent or something. otherwise the ux of 'hey make your default model x' works good atm". The second ended with a change that waited for the agent to be started again, which an agent can't do for itself. I said I would have a reload apply it, for you to strike. One builder, a commit each, beside the builder of the terminal's commands. [The home](../design/5-home.md) has what they do.
 
