@@ -63,6 +63,8 @@ test("through the gateway, another agent may watch and control the agent's sessi
   // The agent itself, which signs in with the token its home keeps, may do all of it to its own sessions, and is no admin.
   const membership = readMembership(rig.home);
   assert.ok(membership?.memberId !== undefined, "the agent keeps the ID it knows itself by");
+  // The first agent a roster has is an admin, and scout is the first. It is made an ordinary agent, so that it may for being the agent itself.
+  await person.demote(membership.memberId);
   const ownGateway = await rig.chat.gateway.connect();
   await ownGateway.signIn(membership.token, null);
   assert.equal((await ownGateway.members()).find((member) => member.id === membership.memberId)?.admin, false);

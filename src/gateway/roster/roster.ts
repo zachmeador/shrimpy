@@ -43,8 +43,10 @@ export interface Roster {
   ensurePerson(osUser: string): Member;
   /**
    * Make a new agent called `name` that is recognized by `token`, which the
-   * caller made. When the roster has the member that holds the token already,
-   * that is the member, renamed to `name` if it is not called that.
+   * caller made. The first agent a roster has is an admin from the moment it
+   * joins, and any other is not. When the roster has the member that holds the
+   * token already, that is the member, renamed to `name` if it is not called
+   * that.
    */
   join(name: string, token: string): Member;
   /**
@@ -185,7 +187,7 @@ function keep(file: string, lock: Lock): Roster {
         id: newId("mem"),
         kind: "agent",
         name: label,
-        admin: false,
+        admin: !records.some((each) => each.kind === "agent"),
         recognizedBy: { tokenHash: hashOf(token) },
       };
       save([...records, record]);

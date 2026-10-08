@@ -60,6 +60,6 @@ A change to `agent.json`, `models.json` or `default-model.json` waits for a rest
 
 `sessions steer` puts input into a session that the thread never sees. It is not a way to talk to an agent.
 
-These act on you too, and take `--agent <agent>` for another agent. Your own sessions and triggers are yours to look at and stop. Another agent's, and reloading it, take an admin: every person is one, and an agent is one once it has been promoted. If you are refused, the refusal says who the admins are, and you can ask one of them. `shrimpy members` lists them, and an admin can run `shrimpy members promote <name>` to make an agent one.
+These act on you too, and take `--agent <agent>` for another agent. Your own sessions and triggers are yours to look at and stop. Another agent's, and reloading it, take an admin: every person is one, the first agent a setup has starts as one, and any other agent is one once it has been promoted. If you are refused, the refusal says who the admins are, and you can ask one of them. `shrimpy members` lists them, and an admin can run `shrimpy members promote <name>` to make an agent one.
 
 No command removes an agent. To retire one, have the person stop it and leave its home where it is. Delete files only when they ask you to.

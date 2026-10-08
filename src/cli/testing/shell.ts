@@ -22,16 +22,21 @@ export interface AgentShell {
  * The shell of the agent called `name`: it has joined the roster with a token
  * of its own, which its home keeps, and a command run in it acts with that
  * token. The home is made, but no agent runs there. It is not an admin unless
- * the person who runs the gateway has made it one. The test needs the gateway
- * of its own.
+ * the test asks for `admin`: the roster makes its first agent one, and a shell
+ * that the test did not ask to be one is made an ordinary agent. The test needs
+ * the gateway of its own.
  */
 export async function startAgentShell(t: TestContext, name: string, options: { admin?: true } = {}): Promise<AgentShell> {
   const gateway = await (await startTestGateway(t)).connect();
   const token = newToken();
-  const member = await gateway.join(name, token);
+  let member = await gateway.join(name, token);
   const home = tempDir(t, `${name}-home`);
   initHome(home, { name, model: { provider: "local", id: "test-model" } });
   saveMembership(home, { token, memberId: member.id });
-  if (options.admin === true) await (await (await startTestGateway(t)).connect()).promote(member.id);
+  const wanted = options.admin === true;
+  if (member.admin !== wanted) {
+    const person = await (await startTestGateway(t)).connect();
+    member = await (wanted ? person.promote(member.id) : person.demote(member.id));
+  }
   return { member, home, run: (args) => shrimpy(args, { env: { [AGENT_HOME_VARIABLE]: home } }) };
 }

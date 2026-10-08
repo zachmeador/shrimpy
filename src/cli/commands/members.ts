@@ -18,8 +18,8 @@ import { renderTable } from "./table.ts";
 /** What an admin is, for the help of the commands that list and change them. */
 const ADMIN =
   "An admin may make rooms, add members to them, watch and control other agents' sessions and triggers, " +
-  "promote and demote agents, and invite agents in from elsewhere. Every person is one, and an agent is one " +
-  "once it has been promoted.";
+  "promote and demote agents, and invite agents in from elsewhere. Every person is one. The first agent to join " +
+  "the gateway starts as one, and any other agent becomes one when it is promoted.";
 
 const members: Command = {
   name: "members",

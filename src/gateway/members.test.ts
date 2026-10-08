@@ -4,12 +4,12 @@ import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { NEEDS_ADMIN } from "../contracts/gateway/index.ts";
+import { type Member, NEEDS_ADMIN } from "../contracts/gateway/index.ts";
 import { connectLocalGateway, newToken } from "../contracts/gateway/node.ts";
 import { isRefusal, reasonOf } from "../lib/refusal/index.ts";
 import { inRuntimeDir, stopAfter, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
 import { RosterOwnedError } from "./index.ts";
-import { startGatewayInProcess } from "./testing/index.ts";
+import { invited, LOOPBACK, startGatewayInProcess } from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -112,6 +112,36 @@ test("the person who runs the gateway is on the roster from the start, and nobod
   }
 });
 
+test("the first agent a roster has is an admin from the moment it joins, on the gateway's own socket or over the entry, and no agent after it is, also when the first is demoted", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  for (const apart of [false, true]) {
+    const way = apart ? "over the entry" : "on the gateway's own socket";
+    const gateway = await startGatewayInProcess(t, { listen: LOOPBACK });
+    const person = await connectLocalGateway();
+    stopAfter(t, () => person.close());
+    const join = async (name: string): Promise<Member> => {
+      if (apart) return (await invited(t, gateway, person, name)).member;
+      const connection = await connectLocalGateway();
+      stopAfter(t, () => connection.close());
+      return connection.join(name, newToken());
+    };
+
+    const first = await join("scout");
+    const second = await join("rex");
+    assert.deepEqual([first.admin, second.admin], [true, false], way);
+
+    // The first agent is the one that joined first, not the one that is the only admin: demoting it makes no other the first.
+    await person.demote(first.id);
+    assert.equal((await join("maya")).admin, false, way);
+    assert.deepEqual(
+      (await person.members()).map((member) => [member.name, member.admin]),
+      [[userInfo().username, true], ["scout", false], ["rex", false], ["maya", false]],
+      way,
+    );
+    await gateway.close();
+  }
+});
+
 test("a roster written before there was a role is read with no agent an admin, and every person is one", { timeout }, async (t) => {
   useRuntimeDir(t);
   const dataDir = tempDir(t, "gateway-data");
@@ -162,7 +192,9 @@ test("a person or an admin promotes and demotes agents, anyone else is refused, 
   const rex = await rexConnection!.join("rex", newToken());
   const adminsOf = async (): Promise<string[]> =>
     (await person!.members()).filter((member) => member.admin).map((member) => member.name);
-  assert.deepEqual(await adminsOf(), [userInfo().username], "an agent starts as an ordinary one");
+  // The first agent a roster has is an admin, so scout is made an ordinary agent, as rex is.
+  await person!.demote(scout.id);
+  assert.deepEqual(await adminsOf(), [userInfo().username], "and no agent is an admin");
 
   // An agent that is not an admin may not, and the refusal says why in a way a caller can tell without reading it.
   const attempts = [() => scoutConnection!.promote(rex.id), () => scoutConnection!.demote(rex.id), () => rexConnection!.promote(rex.id)];

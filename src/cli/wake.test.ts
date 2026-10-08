@@ -27,9 +27,8 @@ test("wake chooses what wakes an agent in a room, checks the room when the agent
   const home = join(useShrimpyDir(t), "agents", "scout");
   declareLocalModel(home, { url: model.url, model: "test-model" });
   await serve(t, home);
-  // Making a room takes an admin, which the person who runs the gateway makes the agent.
-  const scout = await memberNamed(t, "scout");
-  await (await (await startTestGateway(t)).connect()).promote(scout.id);
+  // Making a room takes an admin, which the first agent a roster has is, once it has joined.
+  await memberNamed(t, "scout");
   const inShell = { env: { [AGENT_HOME_VARIABLE]: home } };
   const elsewhere = { env: { [AGENT_HOME_VARIABLE]: "" } };
   const file = join(home, "wake.json");

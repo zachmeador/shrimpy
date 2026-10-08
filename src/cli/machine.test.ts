@@ -95,7 +95,7 @@ test("commands in a folder that joined as the person reach the gateway there as 
   const members = await shrimpy(["members"]);
   assert.equal(members.code, 0, members.stderr);
   assert.match(members.stdout, new RegExp(`${person}\\s+person\\s+yes`));
-  assert.match(members.stdout, /scout\s+agent\s+no\s+yes/, "and the agent is running there");
+  assert.match(members.stdout, /scout\s+agent\s+yes\s+yes/, "and the agent is running there, an admin as the first agent is");
 
   const said = await shrimpy(["run", "scout", "hi"]);
   assert.equal(said.code, 0, said.stderr);
@@ -141,9 +141,9 @@ test("commands in a folder that joined as the person reach the gateway there as 
   // The rest of what talks reaches the gateway as the person too: the rooms, and the roles on the roster.
   assert.match((await shrimpy(["rooms"])).stdout, /#ops/);
   assert.equal((await shrimpy(["rooms", "add", "ops", "scout"])).code, 0);
-  assert.equal((await shrimpy(["members", "promote", "scout"])).code, 0);
-  assert.match((await shrimpy(["members"])).stdout, /scout\s+agent\s+yes\s+yes/);
-  assert.equal((await shrimpy(["members", "demote", "scout"])).code, 0);
+  assert.equal((await shrimpy(["members", "promote", "crab"])).code, 0);
+  assert.match((await shrimpy(["members"])).stdout, /crab\s+agent\s+yes\s+no/);
+  assert.equal((await shrimpy(["members", "demote", "crab"])).code, 0);
 
   // A gateway that does not know the machine's token says so, and which file to delete to join again.
   const lost = join(tempDir(t, "lost"), "shrimpy");

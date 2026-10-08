@@ -68,8 +68,9 @@ export interface Member {
   name: string;
   /**
    * Whether the member is an admin, the one role the roster records, as the
-   * roster has it now. Every person is one, and an agent is one only once it
-   * has been promoted. What needs an admin is for each program to say.
+   * roster has it now. Every person is one. The first agent a roster has is one
+   * from the moment it joins, and any other agent is one only once it has been
+   * promoted. What needs an admin is for each program to say.
    */
   admin: boolean;
 }

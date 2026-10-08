@@ -127,6 +127,8 @@ test("making a room and adding members take an admin, which a person is and an a
   const scout = await chat.agent("scout");
   const maya = await chat.agent("maya");
   const rex = await chat.agent("rex");
+  // The first agent a roster has is an admin, so scout is made an ordinary agent first.
+  await chat.setAdmin(scout.me, false);
   const needsAdmin = (error: unknown): boolean => isRefusal(error) && reasonOf(error) === NEEDS_ADMIN;
   // The person is the admin there is, so the refusal names them for whoever has to ask.
   const asksTheAdmin = (error: unknown): boolean => needsAdmin(error) && (error as Error).message.includes(zach.me.name);

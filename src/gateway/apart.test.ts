@@ -89,6 +89,8 @@ test("a connection over the entry that has signed in is that agent, and may do w
   await chat.register({ ...agentAnnouncement("chat"), kind: "chat" });
   const crab = await invited(t, gateway, person, "crab");
   const rex = await invited(t, gateway, person, "rex");
+  // The first agent a roster has is an admin, so crab is made an ordinary agent, as rex is.
+  crab.member = await person.demote(crab.member.id);
 
   // As that agent, over a connection that signs in with its token.
   const returning = await connectApart(t, gateway);

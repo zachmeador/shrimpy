@@ -24,7 +24,7 @@ import {
 
 const timeout = 90_000;
 
-/** The administrator there is when nobody has been promoted: the person who runs the gateway. */
+/** The administrator there is when no agent is one: the person who runs the gateway. */
 const person = userInfo().username;
 
 test("in an agent's shell, a sessions command about another agent is refused unless the agent is an admin, one about itself is not asked of the gateway, and without the gateway the other can't be reached", { timeout }, async (t) => {
@@ -43,6 +43,8 @@ test("in an agent's shell, a sessions command about another agent is refused unl
   const scout = served.scout?.listening.home ?? "";
   const inScoutsShell = { env: { [AGENT_HOME_VARIABLE]: scout } };
   const noSessions = "The agent has no sessions yet.";
+  // The first agent a roster has is an admin, so scout is made an ordinary agent first.
+  await (await gateway.connect()).demote((await memberNamed(t, "scout")).id);
 
   // About itself, which is what it is with no --agent, it goes by the home's path, as ever. About rex it goes through the gateway as scout, and rex refuses.
   const own = await shrimpy(["sessions", "list"], inScoutsShell);

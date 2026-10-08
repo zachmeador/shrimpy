@@ -98,6 +98,8 @@ test("no agent gets an invitation for a machine of the person's own, an admin ag
   const [self] = await person.members();
   assert.ok(self);
   const crab = await invited(t, gateway, person, "crab");
+  // The first agent a roster has is an admin, so crab is made an ordinary agent, to be refused as one that is not and then as one that is.
+  crab.member = await person.demote(crab.member.id);
   const beside = await onTheSocket(t);
   await beside.signIn(crab.token, null);
 
