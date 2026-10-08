@@ -13,6 +13,8 @@ Include a change when a user, operator, maintainer, or agent would act different
 
 Released sections are immutable unless the user explicitly requests historical repair. Put post-release work and corrections under `Unreleased`, even when they concern behavior introduced in an earlier release.
 
+From the first release of the redesigned Shrimpy on, a change that someone would act on adds its line to `Unreleased` in the same change that makes it, so the section is never written from memory.
+
 ## Evidence And Workflow
 
 1. Read root instructions and inspect Git status, staged/unstaged changes, the active changelog section, and the package version.
@@ -32,7 +34,7 @@ Keep the title `# 🦐 Shrimpy Changelog`. Use `## 🦐 Unreleased` until a targ
 
 ## The release that replaces old Shrimpy
 
-The first release of the redesigned Shrimpy can't be written from a diff, since nearly every line changed. Write it for someone who runs the Shrimpy before it: what is gone, what replaced it, what they do to move over, and what has not come back yet. Releases before it describe a program that no longer exists, so their headings and their area names are no guide, and the `Unreleased` entries written for it are dropped, since that work is deleted and was never released. Remove this section once that release is out.
+The first release of the redesigned Shrimpy can't be written from a diff, since nearly every line changed. Write it for someone who runs the Shrimpy before it: what is gone, what replaced it, what they do to move over, and what has not come back yet. The notes of the releases before it were removed from the changelog on 2026-10-08, at the owner's word, and are in git at the tag `v0.6.2`: they describe a program that no longer exists, so their headings are no guide. Remove this section once that release is out.
 
 ## Verify
 
