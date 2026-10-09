@@ -507,13 +507,14 @@ test("text from other members and from tools can't act on a terminal, wherever i
   session.status.queued = [{ mode: "steer", text: `queued${hostile}` }];
   const sessions = [
     aSession("th_1", { place: { kind: "dm", with: { name: `mechanic${hostile}`, kind: "agent" }, thread: { main: false, name: `thread${hostile}` } } }),
-    aSession(`trigger:${hostile}`, { place: { kind: "trigger", trigger: `nightly${hostile}` } }),
-    aSession(`th_2${hostile}`, { place: { kind: "room", room: `ops${hostile}`, thread: { main: true, name: null } } }),
+    aSession(`trigger:${hostile}`, { place: { kind: "trigger", trigger: `nightly${hostile}` }, working: true }),
+    aSession(`th_2${hostile}`, { place: { kind: "room", room: `ops${hostile}`, thread: { main: true, name: null } }, working: true }),
     aSession(`th_3${hostile}`),
   ];
   const model = onThread(`scout${hostile}`, open, view, {
     session,
     sessions,
+    workingSessions: { [`scout${hostile}`]: sessions.filter((each) => each.working) },
     refusal: `refused${hostile}`,
     listing: aListing([anAgent(`scout${hostile}`, `1.0${hostile}`)], `2.0${hostile}`),
     dms: { [`scout${hostile}`]: aDm(`scout${hostile}`, [open]) },
@@ -559,11 +560,17 @@ test("text from other members and from tools can't act on a terminal, wherever i
     { screen: "session" as const, agent: `scout${hostile}`, session: `th_3${hostile}` },
   ]) {
     const status = where.screen === "thread" ? statuses[where.place.kind] : undefined;
-    const screen = screenOf({ ...model, where, status }, { now });
-    const all = [...stringsIn(screen)];
-    assert.ok(all.length > 3);
-    if (screen.kind === "thread") assert.ok(screen.status !== undefined, "the reading is on the screen");
-    for (const text of all) assert.doesNotMatch(text, ACTED_ON, `${screen.kind}: ${JSON.stringify(text)}`);
+    // With the agent reached, the threads of an agent say where else it is working.
+    for (const agent of [model.agent, { state: "up" as const }]) {
+      const screen = screenOf({ ...model, where, status, agent }, { now });
+      const all = [...stringsIn(screen)];
+      assert.ok(all.length > 3);
+      if (screen.kind === "thread") assert.ok(screen.status !== undefined, "the reading is on the screen");
+      if (screen.kind === "threads" && agent?.state === "up" && where.screen === "threads" && where.place.kind === "agent") {
+        assert.ok(screen.elsewhere !== undefined, "the line is on the screen");
+      }
+      for (const text of all) assert.doesNotMatch(text, ACTED_ON, `${screen.kind}: ${JSON.stringify(text)}`);
+    }
   }
 
   // What `/model` says carries the models of the agent, and the list it opens carries what the agent calls them.

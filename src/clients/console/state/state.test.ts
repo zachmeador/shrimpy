@@ -43,6 +43,49 @@ test("with several agents it shows them all, and whether each is working in a th
   await rig.until((model) => agentEntries(model).every((entry) => !entry.working), "scout to be done");
 });
 
+test("an agent that stops answering when asked what it is working in is listed as chat's marks on the person's threads list it, and the other agents and the terminal go on", { timeout }, async (t) => {
+  const frozen: Freezable[] = [];
+  let silent = false;
+  const rig = await startRig(t, {
+    agents: ["scout", "mechanic"],
+    answerMs: 150,
+    transports: (local) => ({
+      ...local,
+      program(target, ticket) {
+        const wrapped = freezable(local.program(target, ticket));
+        if (target.kind === "agent" && target.name === "mechanic") {
+          frozen.push(wrapped);
+          if (silent) wrapped.freeze();
+        }
+        return wrapped.transportFactory;
+      },
+    }),
+  });
+  const mechanic = rig.agents.mechanic?.agent.session("th_a", {
+    place: { kind: "dm", with: { name: "scout", kind: "agent" }, thread: { main: true, name: null } },
+    view: workingView([userItem("ping")]),
+  });
+  const scout = rig.agents.scout?.agent.session("th_b", {
+    place: { kind: "room", room: "ops", thread: { main: true, name: null } },
+  });
+  assert.ok(mechanic && scout);
+  const elsewhere = (model: Model, name: string): number => agentEntries(model).find((entry) => entry.name === name)?.elsewhere.length ?? 0;
+
+  await rig.until((model) => elsewhere(model, "mechanic") === 1, "mechanic to be said to be working where the person is not");
+  silent = true;
+  for (const each of frozen) each.freeze();
+  scout.update((view) => {
+    view.status.busy = true;
+  });
+
+  await rig.until((model) => elsewhere(model, "scout") === 1, "scout to be said to be working, though mechanic is silent");
+  await rig.until((model) => elsewhere(model, "mechanic") === 0, "mechanic to be listed as the person's threads list it");
+  const listed = agentEntries(rig.state.model()).find((entry) => entry.name === "mechanic");
+  assert.deepEqual([listed?.running, listed?.working], [true, false]);
+  rig.state.selectAgent("scout");
+  assert.deepEqual(rig.state.model().where, { screen: "threads", place: { kind: "agent", name: "scout" } });
+});
+
 test("an agent the person has not talked to has no threads, and viewing it makes none", { timeout }, async (t) => {
   const rig = await startRig(t);
   await rig.until((model) => model.where.screen === "threads", "the agent's threads");
@@ -293,7 +336,10 @@ test("going back leaves the thread, then the agent, and what was watched is let 
   rig.state.back();
   assert.deepEqual(rig.state.model().where, { screen: "agents" });
   assert.equal(rig.state.model().agent, undefined);
-  await until(() => rig.agents.scout?.connections() === 0, "the connection to the agent to end");
+  // The list of agents asks each running agent what it is working in, so it holds a link of its own. A room's threads hold none.
+  rig.state.selectRoom("ch_ops");
+  await until(() => rig.agents.scout?.connections() === 0, "the connections to the agent to end");
+  rig.state.back();
   rig.state.back();
   assert.deepEqual(rig.state.model().where, { screen: "agents" });
 });

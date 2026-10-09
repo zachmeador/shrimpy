@@ -20,6 +20,8 @@ export interface RigOptions {
   noticeMs?: number;
   /** How long sending waits for the chat server, in milliseconds. */
   sendMs?: number;
+  /** How long an agent is waited for to say its sessions while the list of agents is on show, in milliseconds. */
+  answerMs?: number;
   /** The moment it is, for saying when `/status` read what it shows. */
   now?: () => number;
 }
@@ -61,6 +63,7 @@ export async function startRig(t: TestContext, options: RigOptions = {}): Promis
     pollMs: 15,
     noticeMs: options.noticeMs,
     sendMs: options.sendMs,
+    answerMs: options.answerMs,
     now: options.now,
     backoff: backoff({ firstMs: 1, maxMs: 8, random: () => 0 }),
   });

@@ -1,6 +1,7 @@
 /**
  * What the console knows and can do, without a terminal: where the person is,
- * which agents run, the rooms they are in, their threads, an agent's sessions,
+ * which agents run and, while the list of agents is on show, what each is working
+ * in, the rooms they are in, their threads, an agent's sessions,
  * the open thread and the work behind it, the session being watched, what is
  * connected, and the things a person does: pick an agent, a room, a thread or a
  * session, start a thread, say something, read the status of a thread, ask for
@@ -30,5 +31,6 @@ export {
   type SendResult,
   type Status,
   type Where,
+  workingElsewhere,
   workingIn,
 } from "./model.ts";

@@ -15,6 +15,9 @@ export interface ListOptions {
   moved(key: string): void;
 }
 
+/** What a row is told apart by when the choice is kept: an ID is only unique among rows of its kind, so it is both. */
+export const rowKey = (row: Row): string => `${row.kind} ${row.id}`;
+
 /**
  * A list of agents, rooms or threads to choose from, with the choice kept
  * across the list being drawn again. The list is handed each row's position,
@@ -29,8 +32,7 @@ export function listOf(options: ListOptions): SelectList {
     { minPrimaryColumnWidth: 24, maxPrimaryColumnWidth: 48 },
   );
   const rowAt = (value: string): Row | undefined => options.rows[Number(value)];
-  // An ID is only unique among rows of its kind, so the choice is kept by both.
-  const kept = options.rows.findIndex((row) => `${row.kind} ${row.id}` === options.chosen);
+  const kept = options.rows.findIndex((row) => rowKey(row) === options.chosen);
   list.setSelectedIndex(Math.max(0, kept));
   list.onSelect = (item) => {
     const row = rowAt(item.value);
@@ -38,7 +40,7 @@ export function listOf(options: ListOptions): SelectList {
   };
   list.onSelectionChange = (item) => {
     const row = rowAt(item.value);
-    if (row !== undefined) options.moved(`${row.kind} ${row.id}`);
+    if (row !== undefined) options.moved(rowKey(row));
   };
   return list;
 }

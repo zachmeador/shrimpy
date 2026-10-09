@@ -1,10 +1,11 @@
 import type { Channel, Message, Thread } from "../../../contracts/chat/index.ts";
-import { agentEntries, type Model, type Place, roomEntries, type Status, workingIn } from "../state/index.ts";
+import { agentEntries, type Model, type Place, roomEntries, type Status, workingElsewhere, workingIn } from "../state/index.ts";
 import { type CommandLine, commandLines } from "./commands.ts";
 import { oneLine, plain } from "./plain.ts";
 import { whenOf } from "./time.ts";
 import { type Step, type Work, watchOf, workOf } from "./work.ts";
 import {
+  agentDetail,
   agentNote,
   agentsTitle,
   AGENTS_EMPTY,
@@ -15,6 +16,7 @@ import {
   editedAt,
   earlierItems,
   earlierMessages,
+  elsewhereLine,
   gatewayNote,
   idleLine,
   type InFull,
@@ -81,6 +83,8 @@ export interface ThreadsScreen extends Chrome {
   stale: boolean;
   rows: Row[];
   empty: string | undefined;
+  /** Said when the agent is working in a session that is none of these threads: where, and that its sessions are one Tab away. */
+  elsewhere: string | undefined;
 }
 
 /** The sessions of an agent, which is the other list on its screen beside the person's threads with it. */
@@ -200,7 +204,7 @@ function agentsScreen(model: Model, inFull: InFull): AgentsScreen {
     id: entry.name,
     kind: "agent",
     label: oneLine(entry.name),
-    detail: entry.running ? (entry.working ? "working" : "idle") : "not running",
+    detail: entry.running ? agentDetail(entry.sessions, entry.elsewhere, model.me?.name) : "not running",
     working: entry.working,
   }));
   const rooms: Row[] = roomEntries(model).map((entry) => ({
@@ -273,10 +277,22 @@ function threadsScreen(model: Model, place: Place, now: number, inFull: InFull):
     rows,
     // A room always has its main thread, so there is no one to ask the person to start a talk with.
     empty: rows.length === 0 && model.chat.state === "up" && agent !== undefined ? threadsEmpty(oneLine(agent)) : undefined,
+    elsewhere: agent === undefined ? undefined : elsewhereOf(model, agent),
     notes: notesOf(model, agent),
     keys: keyHints("threads", can, inFull),
     can,
   };
+}
+
+/**
+ * The line saying the agent is working in sessions that are none of the person's
+ * threads with it, if it is. An agent that is not reached is not said to be, since
+ * what it last listed may be out of date.
+ */
+function elsewhereOf(model: Model, agent: string): string | undefined {
+  if (model.agent?.state !== "up") return undefined;
+  const elsewhere = workingElsewhere(model.sessions ?? [], model.dms[agent]);
+  return elsewhere.length === 0 ? undefined : elsewhereLine(agent, elsewhere, model.me?.name);
 }
 
 function sessionsScreen(model: Model, agent: string, inFull: InFull): SessionsScreen {

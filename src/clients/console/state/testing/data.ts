@@ -43,6 +43,7 @@ export function aModel(parts: Partial<Model> = {}): Model {
     thread: undefined,
     session: undefined,
     sessions: undefined,
+    workingSessions: {},
     refusal: undefined,
     notice: undefined,
     status: undefined,

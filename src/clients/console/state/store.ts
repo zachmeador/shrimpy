@@ -30,6 +30,7 @@ import {
   type SendResult,
   workingIn,
 } from "./model.ts";
+import { keepRollCall } from "./roll-call.ts";
 import { statusOf } from "./status.ts";
 
 export interface ConsoleStateOptions {
@@ -37,8 +38,10 @@ export interface ConsoleStateOptions {
   transports: Transports;
   /** Run on each connection the console makes to the gateway, before anything else, to be somebody to it. See `RegistryOptions`. */
   signIn?: (gateway: GatewayConnection) => Promise<void>;
-  /** How often what has no subscription is asked for again: what is running, the threads in the person's DMs and rooms, and the sessions of the agent on show. 2 seconds by default. */
+  /** How often what has no subscription is asked for again: what is running, the threads in the person's DMs and rooms, the sessions of the agent on show, and, while the list of agents is on show, the sessions of each running agent. 2 seconds by default. */
   pollMs?: number;
+  /** How long an agent is waited for to say its sessions while the list of agents is on show, before it is shown as the person's own threads with it show it. 5 seconds by default. */
+  answerMs?: number;
   /** How long a notice stays. 6 seconds by default. */
   noticeMs?: number;
   /** How long sending a message waits for the chat server before saying it was not sent. 20 seconds by default. */
@@ -113,6 +116,7 @@ const placeKey = (place: Place): string => (place.kind === "agent" ? `agent ${pl
 const POLL_MS = 2000;
 const NOTICE_MS = 6000;
 const SEND_MS = 20_000;
+const ANSWER_MS = 5000;
 /** How long leaving waits for chat to say who is working. */
 const FAREWELL_MS = 500;
 /** How long the models an agent said it can use are kept before it is asked again. A list is narrowed by typing, and each key asks for the list. */
@@ -140,6 +144,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     thread: undefined,
     session: undefined,
     sessions: undefined,
+    workingSessions: {},
     refusal: undefined,
     notice: undefined,
     status: undefined,
@@ -154,6 +159,8 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     if (moved) statusReads += 1;
     model = { ...model, ...(moved ? { status: undefined } : {}), ...patch };
     listeners.notify(model);
+    // Which agents are asked what they are working in follows where the person is, and which agents are running.
+    if (moved || patch.listing !== undefined) tend();
   };
 
   let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -169,6 +176,25 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
   let channelsRead = false;
 
   const registry = keepRegistry({ transports: options.transports, signIn: options.signIn, pollMs, backoff: options.backoff });
+  const rollCall = keepRollCall({
+    registry,
+    transports: options.transports,
+    pollMs,
+    answerMs: options.answerMs ?? ANSWER_MS,
+    backoff: options.backoff,
+    onChange: (workingSessions) => set({ workingSessions }),
+  });
+
+  /**
+   * While the list of agents is on show, each agent that is running is asked
+   * what it is working in, and none is when it is not. It waits for the person to
+   * have been taken to the only agent there is, or to have found their own way,
+   * so that a console that opens on that agent does not reach every agent first.
+   */
+  function tend(): void {
+    const asked = model.where.screen === "agents" && landed ? agentEntries(model).filter((entry) => entry.running) : [];
+    rollCall.keep(asked.map((entry) => entry.name));
+  }
 
   const onThread = (update: ThreadUpdate): void => {
     const { where } = model;
@@ -243,14 +269,17 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     },
   );
 
-  // Read through a function: where the person is changes while the sessions are asked for, which the compiler cannot see.
+  // Read through functions: where the person is changes while the sessions are asked for, which the compiler cannot see.
   const sessionsOnShow = (): boolean => model.where.screen === "sessions";
+  /** The list of an agent's threads says when it is working somewhere else, so it needs the agent's sessions as much as their list does. */
+  const sessionsWanted = (): boolean =>
+    model.where.screen === "sessions" || (model.where.screen === "threads" && model.where.place.kind === "agent");
 
-  /** The sessions of the agent that is selected, asked for again for as long as they are on show. */
+  /** The sessions of the agent that is selected, asked for again for as long as they are on show or its threads are. */
   const refreshSessions = converge(
     async () => {
       const link = agent;
-      if (link === undefined || !sessionsOnShow() || link.status().state !== "up") return;
+      if (link === undefined || !sessionsWanted() || link.status().state !== "up") return;
       const sessions = await link.sessions();
       if (agent !== link) return;
       if (JSON.stringify(sessions) !== JSON.stringify(model.sessions)) set({ sessions });
@@ -311,6 +340,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     if (only !== undefined && agents.length === 1 && Object.keys(model.rooms).length === 0 && model.where.screen === "agents") {
       select(only.name);
     }
+    tend();
   }
 
   registry.onChange(() => {
@@ -325,6 +355,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
   const poll = setInterval(() => {
     void refreshChannels();
     void refreshSessions();
+    rollCall.ask();
   }, pollMs);
   // The links have been trying since they were made, and may have something to say already.
   set({ gateway: registry.status(), listing: registry.listing(), chat: chat.status() });
@@ -397,6 +428,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
         agent?.watch(undefined);
         set({ where: { screen: "threads", place: where.place }, thread: undefined, session: undefined, notice: undefined });
         void refreshChannels();
+        void refreshSessions();
       } else if (where.screen === "session") {
         agent?.watch(undefined);
         set({ where: { screen: "sessions", agent: where.agent }, session: undefined, notice: undefined, refusal: undefined });
@@ -525,7 +557,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       clearInterval(poll);
       clearTimeout(noticeTimer);
       listeners.clear();
-      await Promise.all([chat.close(), agent?.close(), registry.close(), ...closing]);
+      await Promise.all([chat.close(), agent?.close(), rollCall.close(), registry.close(), ...closing]);
     },
   };
 }

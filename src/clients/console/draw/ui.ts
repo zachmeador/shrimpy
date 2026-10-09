@@ -29,7 +29,7 @@ import type { ConsoleState, Where } from "../state/index.ts";
 import { commandList } from "./commands.ts";
 import { interrupt } from "./interrupt.ts";
 import { keysComponent } from "./keys.ts";
-import { listOf } from "./list.ts";
+import { listOf, rowKey } from "./list.ts";
 import { messageComponent } from "./message.ts";
 import { sessionComponents } from "./session.ts";
 import { statusComponent } from "./status.ts";
@@ -190,8 +190,26 @@ export function startDrawing(options: DrawingOptions): Drawing {
   );
 
   let chosen: string | undefined;
+  // The kind of the screen drawn before this one, and whether a list of sessions was opened and has not been drawn with rows yet.
+  let before: Screen["kind"] | undefined;
+  let landing = false;
   let focus: Component | null | undefined;
   const rows = (): number => tui.terminal.rows;
+
+  /**
+   * A list of sessions that is opened starts on the session that is working, if
+   * one is, wherever it stands in the list. Coming back to the list from watching
+   * a session is not opening it: the choice stays where the person left it.
+   */
+  function landOnWork(screen: Screen): void {
+    if (screen.kind === "sessions" && before !== "sessions" && before !== "session") landing = true;
+    else if (screen.kind !== "sessions" && screen.kind !== "session") landing = false;
+    before = screen.kind;
+    if (!landing || screen.kind !== "sessions" || screen.rows.length === 0) return;
+    landing = false;
+    const busy = screen.rows.find((row) => row.working);
+    if (busy !== undefined) chosen = rowKey(busy);
+  }
 
   /** What the screen holds between its title and its notes, and what the keys go to. */
   function body(screen: Screen): { parts: Component[]; focus: Component | null } {
@@ -206,25 +224,34 @@ export function startDrawing(options: DrawingOptions): Drawing {
       case "sessions": {
         // Nothing is being worked on in a list, so its spinner has no business running.
         working(undefined);
+        const parts: Component[] = [];
+        let list: Component | null = null;
         if (screen.rows.length === 0) {
-          return { parts: screen.empty === undefined ? [] : [new Text(theme.dim(screen.empty), 0, 0)], focus: null };
+          if (screen.empty !== undefined) parts.push(new Text(theme.dim(screen.empty), 0, 0));
+        } else {
+          list = listOf({
+            rows: screen.rows,
+            chosen,
+            room: rows() - 8,
+            theme,
+            open: (row) => {
+              if (row.kind === "agent") state.selectAgent(row.id);
+              else if (row.kind === "room") state.selectRoom(row.id);
+              else if (row.kind === "session") state.openSession(row.id);
+              else state.openThread(row.id);
+            },
+            moved: (id) => {
+              chosen = id;
+            },
+          });
+          parts.push(list);
         }
-        const list = listOf({
-          rows: screen.rows,
-          chosen,
-          room: rows() - 8,
-          theme,
-          open: (row) => {
-            if (row.kind === "agent") state.selectAgent(row.id);
-            else if (row.kind === "room") state.selectRoom(row.id);
-            else if (row.kind === "session") state.openSession(row.id);
-            else state.openThread(row.id);
-          },
-          moved: (id) => {
-            chosen = id;
-          },
-        });
-        return { parts: [list], focus: list };
+        // An agent working where these threads are not is said under them, where the rows do not move for it.
+        if (screen.kind === "threads" && screen.elsewhere !== undefined) {
+          if (parts.length > 0) parts.push(new Spacer(1));
+          parts.push(new Text(theme.tone.busy(screen.elsewhere), 0, 0));
+        }
+        return { parts, focus: list };
       }
     }
   }
@@ -271,6 +298,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
     syncDraft(model.where);
     const screen = screenOf(model, { now: now(), inFull });
     current = screen;
+    landOnWork(screen);
     const { parts, focus: next } = body(screen);
 
     page.clear();

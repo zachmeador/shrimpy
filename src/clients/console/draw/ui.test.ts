@@ -4,7 +4,7 @@ import { setCapabilityOverrides, visibleWidth } from "@earendil-works/pi-tui";
 import { assistantItem, sessionView, toolItem, userItem, workingView } from "../../../contracts/agent/testing/index.ts";
 import { settle, stopAfter, until } from "../../../lib/testing/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
-import type { Model } from "../state/index.ts";
+import { agentEntries, type Model } from "../state/index.ts";
 import {
   aChatServer,
   agentMember,
@@ -808,4 +808,73 @@ test("watching a session shows its work as it happens, and nothing typed is sent
   terminal.type(ESC);
   await seen("its sessions");
   assert.equal(nightly.stops, 0, "going back stops nothing");
+});
+
+test("the list of agents shows an agent as working when any of its sessions is, where when that is one place that is not with the person and how many when it is several, and as idle when the work ends", { timeout: 15_000 }, async (t) => {
+  const rig = await startRig(t, { agents: ["scout", "mechanic"] });
+  const yours = await rig.thread("mechanic", "check the disk");
+  const sessions = rig.agents.scout?.agent;
+  assert.ok(sessions);
+  // Scout's DM with mechanic is none of the person's threads, and it is working in it.
+  const private_ = sessions.session("th_private", {
+    place: { kind: "dm", with: { name: "mechanic", kind: "agent" }, thread: { main: true, name: null } },
+    view: workingView([userItem("ping")]),
+  });
+  const terminal = new FakeTerminal(100, 30);
+  const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
+  stopAfter(t, () => drawing.stop());
+  const rowOf = (agent: string): string => visible(drawing.render(100)).find((line) => line.slice(2).startsWith(agent)) ?? "";
+  const entryOf = (agent: string) => agentEntries(rig.state.model()).find((entry) => entry.name === agent);
+
+  await until(() => rowOf("scout").includes("mechanic"), "scout's row to say where it is working");
+  assert.equal(entryOf("scout")?.working, true);
+  assert.equal(entryOf("mechanic")?.working, false);
+  assert.ok(!rowOf("mechanic").includes("scout"));
+
+  // Working in a thread of the person's reads as it always did: working, and nowhere else.
+  await (await rig.asAgent("mechanic")).chat.setWorking(yours.id, true);
+  await rig.until((model) => agentEntries(model).find((entry) => entry.name === "mechanic")?.working === true, "mechanic to be working");
+  assert.deepEqual(entryOf("mechanic")?.elsewhere, []);
+  assert.ok(!rowOf("mechanic").includes("scout"));
+
+  // In two places at once, the row says how many and no longer where.
+  const nightly = sessions.session("trigger:nightly", {
+    place: { kind: "trigger", trigger: "nightly" },
+    view: workingView([userItem("It is 02:00.")]),
+  });
+  await until(() => rowOf("scout").includes("2"), "scout's row to say how many sessions it is working in");
+  assert.ok(!rowOf("scout").includes("mechanic"));
+
+  const done = sessionView({ items: [userItem("ping"), assistantItem("pong")] });
+  private_.show(done);
+  nightly.show(done);
+  await rig.until((model) => agentEntries(model).find((entry) => entry.name === "scout")?.working === false, "scout's work to end");
+  assert.ok(!rowOf("scout").includes("mechanic"));
+});
+
+test("on an agent's threads a line says where it is working when that is none of them, and tab opens its sessions on the one that is working", { timeout: 15_000 }, async (t) => {
+  const rig = await startRig(t);
+  const yours = await rig.thread("scout", "check the disk");
+  const me = (await rig.person()).me;
+  const sessions = rig.agents.scout?.agent;
+  assert.ok(sessions);
+  sessions.session(yours.id, { place: { kind: "dm", with: { name: me.name, kind: "person" }, thread: { main: false, name: null } } });
+  sessions.session("trigger:nightly", { place: { kind: "trigger", trigger: "nightly" } });
+  sessions.session("th_private", {
+    place: { kind: "dm", with: { name: "mechanic", kind: "agent" }, thread: { main: true, name: null } },
+    view: workingView([userItem("ping")]),
+  });
+  const terminal = new FakeTerminal(100, 30);
+  const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
+  stopAfter(t, () => drawing.stop());
+  const drawn = (): string => visible(drawing.render(100)).join("\n");
+
+  await rig.until((model) => model.where.screen === "threads", "scout's threads");
+  await until(() => drawn().includes("mechanic"), "the line saying where scout is working");
+  terminal.type(TAB);
+  const listed = await rig.until((model) => model.where.screen === "sessions" && model.sessions?.length === 3, "scout's sessions");
+  terminal.type(ENTER);
+
+  assert.deepEqual(listed.sessions?.map((session) => session.id), [yours.id, "trigger:nightly", "th_private"], "the working session keeps its place");
+  assert.deepEqual(rig.state.model().where, { screen: "session", agent: "scout", session: "th_private" });
 });

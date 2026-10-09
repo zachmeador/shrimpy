@@ -153,6 +153,12 @@ export interface Model {
   /** The sessions of the agent that is selected, as it last listed them and in its order. Undefined until it has. */
   sessions: SessionSummary[] | undefined;
   /**
+   * The sessions each running agent said it is working in, by the agent's name,
+   * as it listed them, the last time the list of agents asked. Only an agent that
+   * answered, is reached and is working in some session has an entry here.
+   */
+  workingSessions: Record<string, SessionSummary[]>;
+  /**
    * What the agent said when it would not list its sessions or let the one being
    * watched be watched: its words, which stay until it says yes or the person
    * goes elsewhere.
@@ -174,7 +180,12 @@ export interface AgentEntry {
   running: boolean;
   /** The version of Shrimpy it runs, when it is running. */
   version: string | undefined;
+  /** Whether it is working in any session, whether in a thread of the person's or elsewhere. */
   working: boolean;
+  /** How many sessions it is working in. */
+  sessions: number;
+  /** The sessions it is working in that are none of the person's threads with it, as it lists them. Empty when it said none or was not asked. */
+  elsewhere: SessionSummary[];
 }
 
 /** Whether the member `agentId` is working in `thread`, going by the marks chat keeps. */
@@ -182,24 +193,42 @@ export function workingIn(thread: Thread, agentId: string): boolean {
   return thread.working.some((mark) => mark.memberId === agentId);
 }
 
+/** The sessions among `sessions` that are working and are none of the threads of `dm`, the person's DM with the agent. */
+export function workingElsewhere(sessions: SessionSummary[], dm: Dm | undefined): SessionSummary[] {
+  const yours = new Set(dm?.threads.map((thread) => thread.id));
+  return sessions.filter((session) => session.working && (session.threadId === null || !yours.has(session.threadId)));
+}
+
 /**
  * The agents on the roster, by name, running or not, with whether each is
- * working in a thread of the person's.
+ * working, in a thread of the person's, as chat marks, or in any session, as the
+ * agent said, and in which sessions of the agent's that are none of the person's.
  */
-export function agentEntries(model: Pick<Model, "listing" | "dms">): AgentEntry[] {
+export function agentEntries(model: Pick<Model, "listing" | "dms" | "workingSessions">): AgentEntry[] {
   const running = new Map<string, Registration>();
   for (const program of model.listing?.programs ?? []) {
     if (program.kind === "agent" && program.memberId !== null) running.set(program.memberId, program);
   }
   return (model.listing?.members ?? [])
     .filter((member) => member.kind === "agent")
-    .map((member) => ({
-      id: member.id,
-      name: member.name,
-      running: running.has(member.id),
-      version: running.get(member.id)?.version,
-      working: model.dms[member.name]?.threads.some((thread) => workingIn(thread, member.id)) ?? false,
-    }))
+    .map((member) => {
+      const dm = model.dms[member.name];
+      const said = model.workingSessions[member.name] ?? [];
+      // Chat's marks and the agent's word are two ways to learn the same thing, so a session that both name counts once.
+      const working = new Set([
+        ...(dm?.threads ?? []).filter((thread) => workingIn(thread, member.id)).map((thread) => thread.id),
+        ...said.map((session) => session.id),
+      ]);
+      return {
+        id: member.id,
+        name: member.name,
+        running: running.has(member.id),
+        version: running.get(member.id)?.version,
+        working: working.size > 0,
+        sessions: working.size,
+        elsewhere: workingElsewhere(said, dm),
+      };
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 

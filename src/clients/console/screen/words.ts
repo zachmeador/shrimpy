@@ -4,6 +4,7 @@ import type {
   SessionActivity,
   SessionItem,
   SessionPlace,
+  SessionSummary,
   ThreadPlace,
   ToolStatus,
 } from "../../../contracts/agent/index.ts";
@@ -236,16 +237,49 @@ export const earlierItems = (count: number, address: string, agent: string): str
 export function placeWords(place: SessionPlace | null, address: string, me: string | undefined): string {
   if (place === null) return oneLine(address);
   switch (place.kind) {
-    case "dm": {
-      const mine = place.with.kind === "person" && place.with.name === me;
-      return `${mine ? "your DM" : `DM with ${oneLine(place.with.name)}`} · ${threadWords(place.thread, address)}`;
-    }
+    case "dm":
     case "room":
-      return `${roomLabel(place.room)} · ${threadWords(place.thread, address)}`;
+      return `${placeOnly(place, me)} · ${threadWords(place.thread, address)}`;
+    case "trigger":
+      return placeOnly(place, me);
+  }
+}
+
+/** Where a session is, without which thread of it: "your DM", "DM with mechanic", "#ops" or "trigger nightly". */
+function placeOnly(place: SessionPlace, me: string | undefined): string {
+  switch (place.kind) {
+    case "dm":
+      return place.with.kind === "person" && place.with.name === me ? "your DM" : `DM with ${oneLine(place.with.name)}`;
+    case "room":
+      return roomLabel(place.room);
     case "trigger":
       return `trigger ${oneLine(place.trigger)}`;
   }
 }
+
+/** Where sessions that are working are, for a row or a line: the place of the one there is, or how many when there are several. */
+function whereWords(sessions: SessionSummary[], me: string | undefined): string {
+  const [only] = sessions;
+  if (only === undefined || sessions.length > 1) return `${String(sessions.length)} sessions`;
+  return only.place === null ? "another session" : placeOnly(only.place, me);
+}
+
+/**
+ * What the list of agents says of an agent that is running: that it is idle, or
+ * working, and, when it is working where the person's threads with it are not,
+ * where, or in how many sessions when it is working in several. `sessions` is
+ * how many it is working in, and `elsewhere` the ones that are none of the
+ * person's threads with it.
+ */
+export function agentDetail(sessions: number, elsewhere: SessionSummary[], me: string | undefined): string {
+  if (sessions === 0) return "idle";
+  if (elsewhere.length === 0) return "working";
+  return `working · ${sessions === 1 ? whereWords(elsewhere, me) : `${String(sessions)} sessions`}`;
+}
+
+/** The line on an agent's threads that says it is working in sessions that are none of them, where, and where to see them. `elsewhere` is not empty. */
+export const elsewhereLine = (agent: string, elsewhere: SessionSummary[], me: string | undefined): string =>
+  `${oneLine(agent)} is working elsewhere: ${whereWords(elsewhere, me)}. Tab shows its sessions.`;
 
 /** A thread of a session's place by its name, with a mark if it is the main one, or by its address when it has no name. */
 function threadWords(thread: ThreadPlace, address: string): string {
