@@ -203,13 +203,17 @@ export function reactionsLine(reactions: { emoji: string; by: string[] }[]): str
 }
 
 export const agentsTitle = (): string => `shrimpy · ${SHRIMPY_VERSION} · ${SHRIMPY_RELEASE_NAME}`;
-export const threadsTitle = (agent: string): string => `${oneLine(agent)} · your threads`;
-export const sessionsTitle = (agent: string): string => `${oneLine(agent)} · its sessions`;
+
+/** What the list on an agent's screen shows: everything the agent takes part in, or only what is with the person. */
+export type ListFilter = "everything" | "yours";
+
+/** The title of an agent's screen, which says which of the two the list shows. */
+export const agentTitle = (agent: string, filter: ListFilter): string =>
+  `${oneLine(agent)} · ${filter === "everything" ? "everything" : "your threads"}`;
 /** `channel` is what the channel is called, as `channelLabel` says. */
 export const channelThreadsTitle = (channel: string): string => `${oneLine(channel)} · threads`;
-/** `where` is where the session is, as `placeWords` says. */
+/** `where` is what is watched: where the session is, as `placeWords` says, or the thread it is behind. */
 export const sessionTitle = (agent: string, where: string): string => `${oneLine(agent)} · watching ${oneLine(where)}`;
-export const sessionsEmpty = (agent: string): string => `${oneLine(agent)} has no sessions yet.`;
 export const SESSION_EMPTY = "Nothing in this session yet.";
 /** The label over what a session was shown. */
 export const SHOWN = "shown";
@@ -217,22 +221,23 @@ export const idleLine = (agent: string): string => `${oneLine(agent)} is idle`;
 /** `who` is what the conversation is called: an agent's name or a room's label. */
 export const threadTitle = (who: string, title: string | undefined): string =>
   `${oneLine(who)} · ${title === undefined ? "new thread" : oneLine(title)}`;
-export const threadsEmpty = (agent: string): string =>
-  `You have not talked to ${oneLine(agent)} yet. Press Ctrl+N to start a thread.`;
+/** What an agent's screen says when its list is empty. `more` is whether there is anything else on the other side of the filter. */
+export const threadsEmpty = (agent: string, more: boolean): string =>
+  `You have not talked to ${oneLine(agent)} yet. Press Ctrl+N to start a thread.${more ? ` Left shows everything ${oneLine(agent)} takes part in.` : ""}`;
 export const newThreadHint = (agent: string): string => `New thread with ${oneLine(agent)}. Type below to start it.`;
 export const newRoomThreadHint = (room: string): string => `New thread in ${roomLabel(room)}. Type below to start it.`;
 
 /** A room as it is written wherever the console names one. */
 export const roomLabel = (name: string): string => `#${oneLine(name)}`;
 
-/** The word on a row of the first screen for a channel that the person is not in and only reads. */
+/** The word on a row of the first screen for a room that the person is not in and only reads. */
 export const READ_ONLY_TAG = "read-only";
 
 /** The names of a channel's members, in alphabetical order, each on one line. */
 const memberNames = (channel: Pick<Channel, "members">): string[] =>
   channel.members.map((member) => oneLine(member.name)).sort((a, b) => a.localeCompare(b));
 
-/** A DM between two members that the person is not one of, as the first screen names it: by both, in alphabetical order. */
+/** A DM between two members that the person is not one of, as a thread of it is titled: by both, in alphabetical order. */
 const dmBetween = (names: string[]): string => `DM between ${andList(names.map(oneLine).sort((a, b) => a.localeCompare(b)))}`;
 
 /**
@@ -245,13 +250,12 @@ export function channelLabel(channel: Pick<Channel, "kind" | "name" | "members">
 }
 
 /**
- * What the first screen says of a channel the person only reads: that it is only
+ * What the first screen says of a room the person only reads: that it is only
  * read, which comes first so that a narrow terminal does not cut it, then its
- * members if it is a room, and whether anyone is working in it.
+ * members, and whether anyone is working in it.
  */
-export function readOnlyDetail(channel: Pick<Channel, "kind" | "members">, working: boolean): string {
-  const members = channel.kind === "room" ? memberNames(channel).join(", ") : "";
-  return [READ_ONLY_TAG, members, working ? "working" : ""].filter((part) => part !== "").join(" · ");
+export function readOnlyDetail(room: Pick<Channel, "members">, working: boolean): string {
+  return [READ_ONLY_TAG, memberNames(room).join(", "), working ? "working" : ""].filter((part) => part !== "").join(" · ");
 }
 
 /** A word of a shell as it is when the shell reads nothing in it, and in single quotes when it does. */
@@ -293,22 +297,20 @@ export function placeWords(place: SessionPlace | null, address: string, me: stri
   switch (place.kind) {
     case "dm":
     case "room":
-      return `${placeOnly(place, me)} · ${threadWords(place.thread, address)}`;
+      return `${placeLabel(place, me)} · ${threadWords(place.thread, address)}`;
     case "trigger":
-      return placeOnly(place, me);
+      return placeLabel(place, me);
   }
 }
 
-/**
- * Where a session is, without which thread of it: "your DM", "DM with mechanic", "#ops" or "trigger nightly".
- * With `agent`, the agent the session belongs to, a DM with another member is named as the first screen names
- * it, "DM between mechanic and scout", so that the person finds it there.
- */
-function placeOnly(place: SessionPlace, me: string | undefined, agent?: string): string {
+/** The person's DM with an agent, as a row says it is theirs. */
+export const YOUR_DM = "your DM";
+
+/** Where a session is, without which thread of it: "your DM", "DM with mechanic", "#ops" or "trigger nightly". */
+export function placeLabel(place: SessionPlace, me: string | undefined): string {
   switch (place.kind) {
     case "dm":
-      if (place.with.kind === "person" && place.with.name === me) return "your DM";
-      return agent === undefined ? `DM with ${oneLine(place.with.name)}` : dmBetween([agent, place.with.name]);
+      return place.with.kind === "person" && place.with.name === me ? YOUR_DM : `DM with ${oneLine(place.with.name)}`;
     case "room":
       return roomLabel(place.room);
     case "trigger":
@@ -316,32 +318,28 @@ function placeOnly(place: SessionPlace, me: string | undefined, agent?: string):
   }
 }
 
-/** Where sessions of `agent` that are working are, for a row or a line: the place of the one there is, or how many when there are several. */
-function whereWords(sessions: SessionSummary[], me: string | undefined, agent: string): string {
+/** Where sessions that are working are, for a row: the place of the one there is, or how many when there are several. */
+function whereWords(sessions: SessionSummary[], me: string | undefined): string {
   const [only] = sessions;
   if (only === undefined || sessions.length > 1) return `${String(sessions.length)} sessions`;
-  return only.place === null ? "another session" : placeOnly(only.place, me, agent);
+  return only.place === null ? "another session" : placeLabel(only.place, me);
 }
 
 /**
- * What the list of agents says of `agent`, which is running: that it is idle, or
+ * What the list of agents says of an agent that is running: that it is idle, or
  * working, and, when it is working where the person's threads with it are not,
  * where, or in how many sessions when it is working in several. `sessions` is
  * how many it is working in, and `elsewhere` the ones that are none of the
  * person's threads with it.
  */
-export function agentDetail(agent: string, sessions: number, elsewhere: SessionSummary[], me: string | undefined): string {
+export function agentDetail(sessions: number, elsewhere: SessionSummary[], me: string | undefined): string {
   if (sessions === 0) return "idle";
   if (elsewhere.length === 0) return "working";
-  return `working · ${sessions === 1 ? whereWords(elsewhere, me, agent) : `${String(sessions)} sessions`}`;
+  return `working · ${sessions === 1 ? whereWords(elsewhere, me) : `${String(sessions)} sessions`}`;
 }
 
-/** The line on an agent's threads that says it is working in sessions that are none of them, where, and where to see them. `elsewhere` is not empty. */
-export const elsewhereLine = (agent: string, elsewhere: SessionSummary[], me: string | undefined): string =>
-  `${oneLine(agent)} is working elsewhere: ${whereWords(elsewhere, me, agent)}. Tab shows its sessions.`;
-
 /** A thread of a session's place by its name, with a mark if it is the main one, or by its address when it has no name. */
-function threadWords(thread: ThreadPlace, address: string): string {
+export function threadWords(thread: ThreadPlace, address: string): string {
   const name = thread.name === null ? "" : oneLine(thread.name);
   if (name !== "") return thread.main ? `${name} [main]` : name;
   return thread.main ? "main" : `thread ${oneLine(address)}`;
@@ -519,24 +517,26 @@ export interface Can {
   send: boolean;
   /** Ctrl+N starts a thread. */
   newThread: boolean;
-  /** Tab switches between the person's threads with an agent and its sessions. */
-  switchLists: boolean;
+  /** Left and Right choose between everything on an agent's screen and only what is with the person. */
+  filter: boolean;
+  /** Tab turns a thread over to the session behind it as the agent sees it, and a session that was so turned back to the thread. */
+  turnOver: boolean;
   /** Ctrl+O and Ctrl+T switch tool calls and thinking between brief and in full: work is shown here. */
   work: boolean;
 }
 
 /**
  * What the line of keys at the bottom of a screen says: every key that does
- * something there, each with what it does. Where Tab goes depends on which of
- * an agent's two lists is on show.
+ * something there, each with what it does. Where Tab goes depends on which side
+ * of a thread is on show: its conversation, or its session as the agent sees it.
  */
-export function keyHints(screen: "agents" | "threads" | "sessions" | "thread" | "session", can: Can, inFull: InFull): string[] {
+export function keyHints(screen: "agents" | "threads" | "thread" | "session", can: Can, inFull: InFull): string[] {
   const hints: string[] = [];
   if (screen === "thread" && can.send) hints.push("enter send");
-  else if (screen === "sessions") hints.push("↑↓ choose", "enter watch");
   else if (screen === "agents" || screen === "threads") hints.push("↑↓ choose", "enter open");
+  if (can.filter) hints.push("←→ everything or yours");
   if (can.newThread) hints.push("ctrl+n new thread");
-  if (can.switchLists) hints.push(screen === "sessions" ? "tab your threads" : "tab sessions");
+  if (can.turnOver) hints.push(screen === "session" ? "tab conversation" : "tab agent's view");
   if (can.back) hints.push("esc back");
   if (can.work) {
     hints.push(`ctrl+o tool calls: ${inFull.toolCalls ? "full" : "brief"}`, `ctrl+t thinking: ${inFull.thinking ? "full" : "brief"}`);

@@ -1,6 +1,6 @@
 /**
  * What the console shows, as plain text and facts: for the state it is given,
- * the agents, threads, sessions, conversation or watched session on screen,
+ * the agents, threads, conversation or watched session on screen,
  * what is not working, what the keys do, what can be written after a slash and
  * what comes of it, and every sentence. Everything that
  * came from another member, an
@@ -9,7 +9,17 @@
  * the network.
  */
 export { type CommandLine, type ModelLine, modelLines, type Written, writtenIn } from "./commands.ts";
-export { type Can, farewellLine, hiddenLines, type InFull, MODEL_DEFAULT, OUT_OF_DATE, QUIT_AGAIN, READ_ONLY_TAG } from "./words.ts";
+export {
+  type Can,
+  farewellLine,
+  hiddenLines,
+  type InFull,
+  type ListFilter,
+  MODEL_DEFAULT,
+  OUT_OF_DATE,
+  QUIT_AGAIN,
+  READ_ONLY_TAG,
+} from "./words.ts";
 export {
   type AgentsScreen,
   type MessageRow,
@@ -18,7 +28,6 @@ export {
   type ScreenOptions,
   screenOf,
   type SessionScreen,
-  type SessionsScreen,
   type StatusBlock,
   type ThreadScreen,
   type ThreadsScreen,

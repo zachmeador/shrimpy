@@ -1,13 +1,15 @@
 import type { Channel, Message, Thread } from "../../../contracts/chat/index.ts";
 import {
   agentEntries,
+  agentOfThread,
   type Model,
+  type Part,
+  partsOf,
   type Place,
   readOnlyEntries,
   roomEntries,
   type Status,
-  workingElsewhere,
-  workingIn,
+  type Where,
 } from "../state/index.ts";
 import { type CommandLine, commandLines } from "./commands.ts";
 import { oneLine, plain } from "./plain.ts";
@@ -19,6 +21,7 @@ import {
   agentsTitle,
   AGENTS_EMPTY,
   agentStatusRows,
+  agentTitle,
   type Can,
   channelLabel,
   channelThreadsTitle,
@@ -27,15 +30,16 @@ import {
   editedAt,
   earlierItems,
   earlierMessages,
-  elsewhereLine,
   gatewayNote,
   idleLine,
   type InFull,
   keyHints,
+  type ListFilter,
   newRoomThreadHint,
   newThreadHint,
   NO_TITLE,
   noticeText,
+  placeLabel,
   placeWords,
   queuedLine,
   readOnlyDetail,
@@ -46,16 +50,15 @@ import {
   roomLabel,
   roomStatusRows,
   SESSION_EMPTY,
-  sessionsEmpty,
-  sessionsTitle,
   sessionTitle,
   statusHeader,
   THREAD_EMPTY,
   threadsEmpty,
-  threadsTitle,
   threadTitle,
+  threadWords,
   versionWarning,
   workingLine,
+  YOUR_DM,
 } from "./words.ts";
 
 /** What every screen has besides its own content. */
@@ -70,9 +73,9 @@ interface Chrome {
 
 /** A row of a list the person chooses from. */
 export interface Row {
-  /** What the state is told when the row is chosen: an agent's name, the channel ID of a room or of a channel only read, a thread's ID or a session's address. It is never shown. */
+  /** What the state is told when the row is chosen: an agent's name, the channel ID of a room or of a channel only read, a thread's ID or the address of a session behind no thread. It is never shown. */
   id: string;
-  /** What choosing it opens. */
+  /** What choosing it opens: a thread is opened as the conversation it is, and a session as the agent's view of it. */
   kind: "agent" | "room" | "read-only" | "thread" | "session";
   label: string;
   detail: string;
@@ -89,24 +92,21 @@ export interface AgentsScreen extends Chrome {
   empty: string | undefined;
 }
 
+/**
+ * The threads of a room or of a channel only read, or, on an agent's screen,
+ * everything the agent takes part in, newest first.
+ */
 export interface ThreadsScreen extends Chrome {
   kind: "threads";
   title: string;
+  /** The list may be out of date: chat is not being reached, or the agent is, and what it last said is shown. */
   stale: boolean;
   rows: Row[];
   empty: string | undefined;
-  /** Said when the agent is working in a session that is none of these threads: where, and that its sessions are one Tab away. */
-  elsewhere: string | undefined;
-}
-
-/** The sessions of an agent, which is the other list on its screen beside the person's threads with it. */
-export interface SessionsScreen extends Chrome {
-  kind: "sessions";
-  title: string;
-  /** The list may be out of date: the agent is not being reached. */
-  stale: boolean;
-  rows: Row[];
-  empty: string | undefined;
+  /** This is an agent's screen, and not a room's or a channel's. */
+  ofAgent: boolean;
+  /** Everything that will be listed is in: on an agent's screen, the agent has said which sessions it has. */
+  settled: boolean;
 }
 
 /** One message of a thread, as it now stands. */
@@ -161,7 +161,11 @@ export interface ThreadScreen extends Chrome {
   status: StatusBlock | undefined;
 }
 
-/** One of an agent's sessions, as the agent sees it. It is for watching: nothing is said or done in it. */
+/**
+ * One of an agent's sessions, as the agent sees it: a trigger's own, or the one
+ * behind a thread, turned over from it. It is for watching: nothing is said or
+ * done in it.
+ */
 export interface SessionScreen extends Chrome {
   kind: "session";
   /**
@@ -183,13 +187,15 @@ export interface SessionScreen extends Chrome {
   stale: boolean;
 }
 
-export type Screen = AgentsScreen | ThreadsScreen | SessionsScreen | ThreadScreen | SessionScreen;
+export type Screen = AgentsScreen | ThreadsScreen | ThreadScreen | SessionScreen;
 
 export interface ScreenOptions {
   /** The moment it is, in milliseconds since the epoch, for saying when things happened. */
   now: number;
   /** What is shown in full where work is shown. Everything is brief when this is left out. */
   inFull?: InFull;
+  /** What the list on an agent's screen shows. Everything when this is left out. */
+  filter?: ListFilter;
 }
 
 const BRIEF: InFull = { toolCalls: false, thinking: false };
@@ -202,23 +208,27 @@ export function screenOf(model: Model, options: ScreenOptions): Screen {
     case "agents":
       return agentsScreen(model, inFull);
     case "threads":
-      return threadsScreen(model, where.place, options.now, inFull);
-    case "thread":
-      return threadScreen(model, where.place, where.thread, options.now, inFull);
-    case "sessions":
-      return sessionsScreen(model, where.agent, inFull);
+      return where.place.kind === "agent"
+        ? agentScreen(model, where.place.name, options.filter ?? "everything", options.now, inFull)
+        : threadsScreen(model, where.place, options.now, inFull);
+    case "thread": {
+      const agent = agentOfThread(where);
+      return where.turned === true && where.thread !== undefined && agent !== undefined
+        ? turnedScreen(model, where, agent, where.thread, inFull)
+        : threadScreen(model, where, options.now, inFull);
+    }
     case "session":
       return sessionScreen(model, where.agent, where.session, inFull);
   }
 }
 
 function agentsScreen(model: Model, inFull: InFull): AgentsScreen {
-  const can: Can = { back: false, send: false, newThread: false, switchLists: false, work: false };
+  const can: Can = { back: false, send: false, newThread: false, filter: false, turnOver: false, work: false };
   const agents: Row[] = agentEntries(model).map((entry) => ({
     id: entry.name,
     kind: "agent",
     label: oneLine(entry.name),
-    detail: entry.running ? agentDetail(entry.name, entry.sessions, entry.elsewhere, model.me?.name) : "not running",
+    detail: entry.running ? agentDetail(entry.sessions, entry.elsewhere, model.me?.name) : "not running",
     working: entry.working,
   }));
   const rooms: Row[] = roomEntries(model).map((entry) => ({
@@ -228,7 +238,7 @@ function agentsScreen(model: Model, inFull: InFull): AgentsScreen {
     detail: [entry.members.map(oneLine).join(", "), entry.working ? "working" : undefined].filter((part) => part !== undefined && part !== "").join(" · "),
     working: entry.working,
   }));
-  // The channels the person is not in come last, apart from their own.
+  // The rooms the person is not in come last, apart from their own.
   const reading: Row[] = readOnlyEntries(model).map(({ channel, working }) => ({
     id: channel.id,
     kind: "read-only",
@@ -249,7 +259,7 @@ function agentsScreen(model: Model, inFull: InFull): AgentsScreen {
   };
 }
 
-/** The threads the person looks at: an agent's DM with them, a room, or a channel they only read. */
+/** The channel whose threads the person looks at, or that a thread is in: their DM with an agent, a room, or a channel they only read. */
 interface Looking {
   /** The agent's name, or the room's. */
   name: string;
@@ -257,22 +267,12 @@ interface Looking {
   label: string;
   channel: Channel | undefined;
   threads: Thread[];
-  /** Whether the one it is about is at work in the thread: the agent in its DM, or anyone in a room or a channel only read. */
-  busyIn(thread: Thread): boolean;
 }
 
 function lookingAt(model: Model, place: Place): Looking {
   if (place.kind === "agent") {
     const dm = model.dms[place.name];
-    // Chat's working marks name members by ID, and the agent is the one agent in its DM with the person.
-    const agentId = dm?.channel.members.find((member) => member.kind === "agent")?.id;
-    return {
-      name: place.name,
-      label: oneLine(place.name),
-      channel: dm?.channel,
-      threads: dm?.threads ?? [],
-      busyIn: (thread) => agentId !== undefined && workingIn(thread, agentId),
-    };
+    return { name: place.name, label: oneLine(place.name), channel: dm?.channel, threads: dm?.threads ?? [] };
   }
   const found = place.kind === "room" ? model.rooms[place.id] : model.readOnly[place.id];
   return {
@@ -280,30 +280,54 @@ function lookingAt(model: Model, place: Place): Looking {
     label: found === undefined ? roomLabel(place.id) : channelLabel(found.channel),
     channel: found?.channel,
     threads: found?.threads ?? [],
-    busyIn: (thread) => thread.working.length > 0,
   };
 }
 
-function threadsScreen(model: Model, place: Place, now: number, inFull: InFull): ThreadsScreen {
+/** The threads of a room the person is in, or of a room they only read. */
+function threadsScreen(model: Model, place: Exclude<Place, { kind: "agent" }>, now: number, inFull: InFull): ThreadsScreen {
   const here = lookingAt(model, place);
-  // An agent has sessions to switch to, and a room does not. A channel the person only reads takes no new thread.
-  const can: Can = { back: true, send: false, newThread: place.kind !== "read-only", switchLists: place.kind === "agent", work: false };
+  // A channel the person only reads takes no new thread.
+  const can: Can = { back: true, send: false, newThread: place.kind !== "read-only", filter: false, turnOver: false, work: false };
   const rows: Row[] = here.threads.map((thread) => ({
     id: thread.id,
     kind: "thread",
     label: titleWithTags(thread),
-    detail: [whenOf(thread.updatedAt, now), here.busyIn(thread) ? "working" : undefined].filter((part) => part !== undefined).join(" · "),
-    working: here.busyIn(thread),
+    detail: [whenOf(thread.updatedAt, now), thread.working.length > 0 ? "working" : undefined].filter((part) => part !== undefined).join(" · "),
+    working: thread.working.length > 0,
   }));
-  const agent = place.kind === "agent" ? place.name : undefined;
   return {
     kind: "threads",
-    title: place.kind === "agent" ? threadsTitle(here.label) : channelThreadsTitle(here.label),
+    title: channelThreadsTitle(here.label),
     stale: model.chat.state === "down",
     rows,
     // A room always has its main thread, so there is no one to ask the person to start a talk with.
-    empty: rows.length === 0 && model.chat.state === "up" && agent !== undefined ? threadsEmpty(oneLine(agent)) : undefined,
-    elsewhere: agent === undefined ? undefined : elsewhereOf(model, agent),
+    empty: undefined,
+    ofAgent: false,
+    settled: true,
+    notes: notesOf(model, undefined),
+    keys: keyHints("threads", can, inFull),
+    can,
+  };
+}
+
+/**
+ * An agent's screen: everything the agent takes part in as one list, or only
+ * what is with the person. What the agent says of its sessions is a part of the
+ * list, so it is as stale as the agent is out of reach.
+ */
+function agentScreen(model: Model, agent: string, filter: ListFilter, now: number, inFull: InFull): ThreadsScreen {
+  const can: Can = { back: true, send: false, newThread: true, filter: true, turnOver: false, work: false };
+  const parts = partsOf(model, agent);
+  const rows = parts.filter((part) => filter === "everything" || part.yours).map((part) => partRow(part, model.me?.name, now));
+  const listed = model.sessions !== undefined;
+  return {
+    kind: "threads",
+    title: agentTitle(agent, filter),
+    stale: model.chat.state === "down" || (model.agent?.state === "down" && listed),
+    rows,
+    empty: rows.length === 0 && model.chat.state === "up" ? threadsEmpty(agent, parts.length > 0) : undefined,
+    ofAgent: true,
+    settled: listed,
     notes: notesOf(model, agent),
     keys: keyHints("threads", can, inFull),
     can,
@@ -311,43 +335,55 @@ function threadsScreen(model: Model, place: Place, now: number, inFull: InFull):
 }
 
 /**
- * The line saying the agent is working in sessions that are none of the person's
- * threads with it, if it is. An agent that is not reached is not said to be, since
- * what it last listed may be out of date.
+ * The row for something an agent takes part in: what it is called, then where it
+ * is, when it was last active and whether the agent is working there. A
+ * session behind no thread is called for where it is, and has no time.
  */
-function elsewhereOf(model: Model, agent: string): string | undefined {
-  if (model.agent?.state !== "up") return undefined;
-  const elsewhere = workingElsewhere(model.sessions ?? [], model.dms[agent]);
-  return elsewhere.length === 0 ? undefined : elsewhereLine(agent, elsewhere, model.me?.name);
-}
-
-function sessionsScreen(model: Model, agent: string, inFull: InFull): SessionsScreen {
-  const can: Can = { back: true, send: false, newThread: false, switchLists: true, work: false };
-  const rows: Row[] = (model.sessions ?? []).map((session) => ({
-    id: session.id,
-    kind: "session",
-    label: placeWords(session.place, session.id, model.me?.name),
-    detail: session.working ? "working" : "idle",
-    working: session.working,
-  }));
-  const stale = model.agent?.state === "down";
+function partRow(part: Part, me: string | undefined, now: number): Row {
+  const where = part.yours ? YOUR_DM : part.place === null ? undefined : placeLabel(part.place, me);
+  const working = part.working ? "working" : undefined;
+  if (part.kind === "session") {
+    return { id: part.id, kind: "session", label: where ?? oneLine(part.id), detail: working ?? "", working: part.working };
+  }
+  // Chat names a thread. A thread only the agent has said it has is called what the agent knows of it.
+  let label = oneLine(part.id);
+  if (part.thread !== undefined) label = titleWithTags(part.thread);
+  else if (part.place !== null && part.place.kind !== "trigger") label = threadWords(part.place.thread, part.id);
+  const when = part.at === undefined ? undefined : whenOf(part.at, now);
   return {
-    kind: "sessions",
-    title: sessionsTitle(agent),
-    stale,
-    rows,
-    // Until the agent has said which sessions it has, there is nothing to claim about them.
-    empty: model.sessions !== undefined && rows.length === 0 && !stale ? sessionsEmpty(agent) : undefined,
-    notes: notesOf(model, agent),
-    keys: keyHints("sessions", can, inFull),
-    can,
+    id: part.id,
+    kind: "thread",
+    label,
+    detail: [where, when, working].filter((each) => each !== undefined).join(" · "),
+    working: part.working,
   };
 }
 
 function sessionScreen(model: Model, agent: string, address: string, inFull: InFull): SessionScreen {
-  const can: Can = { back: true, send: false, newThread: false, switchLists: false, work: true };
-  const view = model.session;
   const summary = model.sessions?.find((each) => each.id === address);
+  const title = sessionTitle(agent, placeWords(summary?.place ?? null, address, model.me?.name));
+  return sessionScreenOf(model, agent, address, title, false, inFull);
+}
+
+type ThreadWhere = Extract<Where, { screen: "thread" }>;
+
+/**
+ * A thread turned over: the session behind it as `agent` sees it, titled for the
+ * thread, with Tab to turn it back.
+ */
+function turnedScreen(model: Model, where: ThreadWhere, agent: string, threadId: string, inFull: InFull): SessionScreen {
+  const here = lookingAt(model, where.place);
+  const thread = (model.thread?.thread.id === threadId ? model.thread.thread : undefined) ?? here.threads.find((each) => each.id === threadId);
+  const named = thread === undefined ? oneLine(threadId) : titleOf(thread);
+  // The title of a DM with the agent already has the agent's name in it, and any other conversation is named.
+  const title = sessionTitle(agent, where.place.kind === "agent" ? named : `${here.label} · ${named}`);
+  return sessionScreenOf(model, agent, threadId, title, true, inFull);
+}
+
+/** A session as `agent` sees it, by its address. `turnOver` is whether it is a thread's, turned over, and so can be turned back. */
+function sessionScreenOf(model: Model, agent: string, address: string, title: string, turnOver: boolean, inFull: InFull): SessionScreen {
+  const can: Can = { back: true, send: false, newThread: false, filter: false, turnOver, work: true };
+  const view = model.session;
   // A session that was working when the agent went away is not working now, whatever its last view says.
   const stale = model.agent?.state === "down";
   const busy = view?.status.busy === true && !stale;
@@ -359,7 +395,7 @@ function sessionScreen(model: Model, agent: string, address: string, inFull: InF
 
   return {
     kind: "session",
-    title: sessionTitle(agent, placeWords(summary?.place ?? null, address, model.me?.name)),
+    title,
     lead,
     steps: watched?.steps ?? [],
     working: busy ? workingLine([agent], view.status.activity, false) : undefined,
@@ -372,31 +408,42 @@ function sessionScreen(model: Model, agent: string, address: string, inFull: InF
   };
 }
 
-function threadScreen(model: Model, place: Place, threadId: string | undefined, now: number, inFull: InFull): ThreadScreen {
+function threadScreen(model: Model, where: ThreadWhere, now: number, inFull: InFull): ThreadScreen {
+  const { place, thread: threadId } = where;
   const here = lookingAt(model, place);
   const live = threadId !== undefined && model.thread?.thread.id === threadId ? model.thread : undefined;
   const listed = threadId === undefined ? undefined : here.threads.find((thread) => thread.id === threadId);
   const thread = live?.thread ?? listed;
   const names = namer(here.channel, model);
-  // Only an agent's DM has a session to show. In a room the marks chat keeps say who is working.
-  const isAgent = place.kind === "agent";
+  // The agent whose screen the thread was opened from has its work shown beside it, from its session behind the thread.
+  // A room's own threads have none: the marks chat keeps say who is working.
+  const agent = agentOfThread(where);
+  const dm = place.kind === "agent";
   // The person writes in their DM with an agent and in a room they are in, and in no other channel.
   const reading = place.kind === "read-only";
   const who = here.label;
 
   const messages = (live?.messages ?? []).map((message) => messageRow(message, model, names, now));
-  const session = isAgent ? model.session : undefined;
+  const session = agent === undefined ? undefined : model.session;
   const markedWorking = thread?.working.map((mark) => names(mark.memberId)) ?? [];
   // A session that was working when the agent went away is not working now, whatever its last view says.
   const sessionBusy = session?.status.busy === true && model.agent?.state !== "down";
   const working =
     markedWorking.length > 0 || sessionBusy
-      ? workingLine(markedWorking.length > 0 ? markedWorking : [who], sessionBusy ? session.status.activity : undefined, !reading)
+      ? workingLine(markedWorking.length > 0 ? markedWorking : [agent ?? who], sessionBusy ? session.status.activity : undefined, !reading)
       : undefined;
-  const can: Can = { back: true, send: !reading, newThread: !reading, switchLists: false, work: isAgent };
+  const can: Can = {
+    back: true,
+    send: !reading,
+    newThread: !reading,
+    filter: false,
+    // There is something to turn over to once the agent has a session behind the thread.
+    turnOver: agent !== undefined && threadId !== undefined && model.session !== undefined,
+    work: agent !== undefined,
+  };
 
   let lead: string | undefined;
-  if (threadId === undefined) lead = reading ? undefined : isAgent ? newThreadHint(who) : newRoomThreadHint(here.name);
+  if (threadId === undefined) lead = reading ? undefined : dm ? newThreadHint(who) : newRoomThreadHint(here.name);
   else if (live !== undefined && live.earlier > 0) lead = earlierMessages(live.earlier, threadId);
   else if (live !== undefined && messages.length === 0) lead = THREAD_EMPTY;
 
@@ -407,11 +454,11 @@ function threadScreen(model: Model, place: Place, threadId: string | undefined, 
     messages,
     working,
     work: workOf(session, inFull),
-    workStale: isAgent && model.agent?.state === "down",
-    commands: reading ? [] : commandLines(isAgent ? "dm" : "room"),
+    workStale: agent !== undefined && model.agent?.state === "down",
+    commands: reading ? [] : commandLines(dm ? "dm" : "room"),
     readOnly: reading && here.channel !== undefined ? readOnlyLine(here.channel, model.me?.name) : undefined,
     status: model.status === undefined ? undefined : statusBlock(model.status),
-    notes: notesOf(model, isAgent ? here.name : undefined),
+    notes: notesOf(model, agent),
     keys: keyHints("thread", can, inFull),
     can,
   };
@@ -469,16 +516,18 @@ function notesOf(model: Model, agent: string | undefined): string[] {
   const { where } = model;
   const gatewayDown = model.gateway.state === "down";
   if (model.gateway.state === "down") warn(gatewayNote(model.gateway.why));
-  // An agent's sessions come from the agent, so the chat server has nothing to do with what they show.
-  const watching = where.screen === "sessions" || where.screen === "session";
+  // A session as the agent sees it, and a thread turned over to it, come from the agent, so the chat server has nothing to do with what they show.
+  const watching = where.screen === "session" || (where.screen === "thread" && where.turned === true);
+  // An agent's screen is made of what chat lists and what the agent says of its sessions.
+  const listing = where.screen === "threads" && where.place.kind === "agent";
   // The gateway being gone is why nothing is registered: that is not worth saying twice.
   if (!watching && model.chat.state === "down" && !(gatewayDown && model.chat.why.kind === "not-registered")) warn(chatNote(model.chat.why));
-  const looking = where.screen === "thread" ? "work" : watching ? "sessions" : undefined;
+  const looking = watching || listing ? "sessions" : where.screen === "thread" ? "work" : undefined;
   if (looking !== undefined && agent !== undefined && model.agent?.state === "down" && !(gatewayDown && model.agent.why.kind === "not-registered")) {
     warn(agentNote(oneLine(agent), model.agent.why, looking, model.homes?.(agent)));
   }
-  if (model.refusal !== undefined && agent !== undefined && (where.screen === "sessions" || where.screen === "session")) {
-    warn(refusalNote(where.screen, agent, model.refusal));
+  if (model.refusal !== undefined && agent !== undefined && (listing || where.screen === "session")) {
+    warn(refusalNote(listing ? "sessions" : "session", agent, model.refusal));
   }
 
   warn(model.listing === undefined ? undefined : versionWarning("the gateway", model.listing.version));

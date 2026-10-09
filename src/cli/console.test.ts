@@ -75,7 +75,6 @@ test("a bare shrimpy at a terminal opens the console, in which a person can see 
   const { cli, exited } = openOn(terminal);
 
   // One agent is running, so it goes straight to that agent, whom the person has not talked to yet.
-  await seen(terminal, "scout · your threads");
   await seen(terminal, "You have not talked to scout yet.");
 
   // A new thread, and a message in it: the thread is made with the message, and the reply comes back into it.

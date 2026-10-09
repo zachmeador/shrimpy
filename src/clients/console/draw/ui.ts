@@ -15,6 +15,7 @@ import {
 } from "@earendil-works/pi-tui";
 import {
   type InFull,
+  type ListFilter,
   type MessageRow,
   modelLines,
   OUT_OF_DATE,
@@ -62,11 +63,12 @@ export interface Drawing {
 
 /**
  * Draw the console on a terminal and carry what the person types to the state:
- * keys choose, open, send and go back, switch tool calls and thinking between
- * brief and in full, and everything else they type goes to the editor, which
- * lists the commands of a thread while what is typed starts with a slash, and
- * the models of an agent after `/model `. The screen is drawn again from the
- * state's model after each change.
+ * keys choose, open, send and go back, narrow an agent's list to what is with
+ * the person and widen it again, turn a thread over to the session behind it,
+ * switch tool calls and thinking between brief and in full, and everything else
+ * they type goes to the editor, which lists the commands of a thread while what
+ * is typed starts with a slash, and the models of an agent after `/model `. The
+ * screen is drawn again from the state's model after each change.
  */
 export function startDrawing(options: DrawingOptions): Drawing {
   // A link in a message would show its text and hide where it goes. With this the address is printed with it.
@@ -174,8 +176,10 @@ export function startDrawing(options: DrawingOptions): Drawing {
 
   // What the person asked to see in full, wherever work is shown. It outlasts the screen it was asked on.
   const inFull: InFull = { toolCalls: false, thinking: false };
+  // What an agent's list shows, which the person sets once and which stays as set for every agent while the console is open.
+  let filter: ListFilter = "everything";
   // The screen as it was last drawn, which says what the keys do on it.
-  let current: Screen = screenOf(state.model(), { now: now(), inFull });
+  let current: Screen = screenOf(state.model(), { now: now(), inFull, filter });
   // While what is typed in a thread starts with a slash, the editor lists the commands that can be written there, and the models of the agent after `/model `.
   editor.setAutocompleteProvider(
     commandList({
@@ -190,22 +194,26 @@ export function startDrawing(options: DrawingOptions): Drawing {
   );
 
   let chosen: string | undefined;
-  // The kind of the screen drawn before this one, and whether a list of sessions was opened and has not been drawn with rows yet.
+  // The kind of the screen drawn before this one, and whether an agent's screen was opened and has not been drawn whole yet.
   let before: Screen["kind"] | undefined;
   let landing = false;
   let focus: Component | null | undefined;
   const rows = (): number => tui.terminal.rows;
 
   /**
-   * A list of sessions that is opened starts on the session that is working, if
-   * one is, wherever it stands in the list. Coming back to the list from watching
-   * a session is not opening it: the choice stays where the person left it.
+   * An agent's screen that is opened starts on the row where the agent is
+   * working, if there is one, wherever it stands in the list. It waits until the
+   * agent has said which sessions it has, so that a session behind no thread is
+   * found too, and gives up if the person has chosen a row first. Coming back to
+   * the list from a thread or a session is not opening it: the choice stays
+   * where the person left it.
    */
   function landOnWork(screen: Screen): void {
-    if (screen.kind === "sessions" && before !== "sessions" && before !== "session") landing = true;
-    else if (screen.kind !== "sessions" && screen.kind !== "session") landing = false;
+    const agentList = screen.kind === "threads" && screen.ofAgent;
+    if (agentList && before !== "threads" && before !== "thread" && before !== "session") landing = true;
+    else if (!agentList) landing = false;
     before = screen.kind;
-    if (!landing || screen.kind !== "sessions" || screen.rows.length === 0) return;
+    if (!landing || screen.kind !== "threads" || !screen.settled || screen.rows.length === 0) return;
     landing = false;
     const busy = screen.rows.find((row) => row.working);
     if (busy !== undefined) chosen = rowKey(busy);
@@ -221,8 +229,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
       case "session":
         return { parts: sessionParts(screen), focus: null };
       case "agents":
-      case "threads":
-      case "sessions": {
+      case "threads": {
         // Nothing is being worked on in a list, so its spinner has no business running.
         working(undefined);
         const parts: Component[] = [];
@@ -244,14 +251,10 @@ export function startDrawing(options: DrawingOptions): Drawing {
             },
             moved: (id) => {
               chosen = id;
+              landing = false;
             },
           });
           parts.push(list);
-        }
-        // An agent working where these threads are not is said under them, where the rows do not move for it.
-        if (screen.kind === "threads" && screen.elsewhere !== undefined) {
-          if (parts.length > 0) parts.push(new Spacer(1));
-          parts.push(new Text(theme.tone.busy(screen.elsewhere), 0, 0));
         }
         return { parts, focus: list };
       }
@@ -298,7 +301,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
   function update(): void {
     const model = state.model();
     syncDraft(model.where);
-    const screen = screenOf(model, { now: now(), inFull });
+    const screen = screenOf(model, { now: now(), inFull, filter });
     current = screen;
     landOnWork(screen);
     const { parts, focus: next } = body(screen);
@@ -334,8 +337,8 @@ export function startDrawing(options: DrawingOptions): Drawing {
     // A terminal that reports keys being let go sends one more event for each press, and a key is pressed once.
     if (isKeyRelease(data)) return undefined;
     if (matchesKey(data, "ctrl+c")) {
-      const where = state.model().where;
-      const pressed = quitting.press(where.screen === "thread" && editor.getText() !== "");
+      // What is typed is only there to clear where there is an input to see it in.
+      const pressed = quitting.press(current.can.send && editor.getText() !== "");
       if (pressed === "cleared") editor.setText("");
       if (pressed === "quit") leave();
       update();
@@ -357,8 +360,16 @@ export function startDrawing(options: DrawingOptions): Drawing {
       state.startThread();
       return { consume: true };
     }
-    if (matchesKey(data, "tab") && can.switchLists) {
-      state.switchLists();
+    if (matchesKey(data, "tab") && can.turnOver) {
+      // While the editor lists commands, Tab is the editor's: it puts the chosen command in the input.
+      if (editor.isShowingAutocomplete()) return undefined;
+      state.turnOver();
+      return { consume: true };
+    }
+    // Right narrows an agent's list to what is with the person, and Left widens it again.
+    if ((matchesKey(data, "left") || matchesKey(data, "right")) && can.filter) {
+      filter = matchesKey(data, "right") ? "yours" : "everything";
+      update();
       return { consume: true };
     }
     if (matchesKey(data, "ctrl+o") && can.work) {

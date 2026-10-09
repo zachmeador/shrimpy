@@ -2,14 +2,14 @@
  * What the console knows and can do, without a terminal: where the person is,
  * which agents run and, while the list of agents is on show, what each is working
  * in, the rooms they are in and the channels they only read, their threads, an
- * agent's sessions,
+ * agent's sessions, everything an agent takes part in,
  * the open thread and the work behind it, the session being watched, what is
  * connected, and the things a person does: pick an agent, a room, a channel they
  * only read, a thread or a
  * session, start a thread, say something, read the status of a thread, ask for
  * the models an agent can use and read the model of a thread's session, tell the
  * person something about what they wrote,
- * switch between an agent's threads and its sessions, go back, leave. It makes
+ * turn a thread over to the session behind it and back, go back, leave. It makes
  * no room and adds no member: that is for the commands. Everything it learns
  * comes through the console's links. It must not know how any of this is shown
  * or drawn, or what a key does.
@@ -19,12 +19,15 @@ export {
   type AgentEntry,
   agentEntries,
   agentLookedAt,
+  agentOfThread,
   type AgentStatus,
   type Dm,
   type Farewell,
   type HomeLookup,
   type Model,
   type Notice,
+  type Part,
+  partsOf,
   type Place,
   type ReadOnlyChannel,
   type ReadOnlyEntry,
@@ -36,6 +39,5 @@ export {
   type SendResult,
   type Status,
   type Where,
-  workingElsewhere,
   workingIn,
 } from "./model.ts";

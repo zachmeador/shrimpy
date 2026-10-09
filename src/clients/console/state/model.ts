@@ -1,6 +1,7 @@
 import type {
   ModelId,
   SessionActivity,
+  SessionPlace,
   SessionStatus,
   SessionSummary,
   SessionView,
@@ -10,38 +11,87 @@ import type { Registration, RosterEntry } from "../../../contracts/gateway/index
 import type { LinkStatus, Problem } from "../network/index.ts";
 
 /**
- * Whose threads the person looks at: their DM with an agent, by the agent's
- * name, a room they are in, by its channel's ID, or a channel they are not in
- * and only read, by its channel's ID.
+ * Whose threads the person looks at, and which channel a thread is in: their DM
+ * with an agent, by the agent's name, a room they are in, by its channel's ID,
+ * or a channel they are not in and only read, by its channel's ID. An agent's
+ * screen lists every thread the agent takes part in, so a thread opened from it
+ * is in whichever of these it is.
  */
 export type Place = { kind: "agent"; name: string } | { kind: "room"; id: string } | { kind: "read-only"; id: string };
 
 /**
- * Where in the console the person is. An agent's screen is two lists, the
- * person's threads with it and its sessions, and a room's is one.
+ * Where in the console the person is. An agent's screen is one list of
+ * everything the agent takes part in, and a room's is the room's threads.
  */
 export type Where =
   | { screen: "agents" }
   | { screen: "threads"; place: Place }
-  /** `thread` is undefined for a thread that is not started yet: it comes to be with its first message. */
-  | { screen: "thread"; place: Place; thread: string | undefined }
-  /** The sessions of the agent with this name. */
-  | { screen: "sessions"; agent: string }
-  /** One session of that agent, watched, by its address at the agent. Nothing is said or done in it. */
+  /**
+   * `thread` is undefined for a thread that is not started yet: it comes to be
+   * with its first message. `place` is the channel the thread is in. `agent` is
+   * the agent whose screen the thread was opened from, said only when `place`
+   * does not say it: that agent's work is shown beside the thread, and Esc goes
+   * back to its screen. `turned` shows the session behind the thread as that
+   * agent sees it, in place of the conversation.
+   */
+  | { screen: "thread"; place: Place; thread: string | undefined; agent?: string; turned?: boolean }
+  /** One session of that agent that is behind no thread, watched, by its address at the agent. Nothing is said or done in it. */
   | { screen: "session"; agent: string; session: string };
 
-/** The name of the agent whose threads or sessions are on show, if the person is looking at an agent's. */
+type ThreadWhere = Extract<Where, { screen: "thread" }>;
+
+/** The agent whose screen a thread was opened from, whose work is shown beside it. A room's own threads have none. */
+export function agentOfThread(where: ThreadWhere): string | undefined {
+  return where.place.kind === "agent" ? where.place.name : where.agent;
+}
+
+/**
+ * The list that a thread or a session goes back to: the screen of the agent it
+ * was opened from, or else the threads of the channel it is in.
+ */
+export function listedIn(where: Extract<Where, { screen: "thread" | "session" }>): Place {
+  if (where.screen === "session") return { kind: "agent", name: where.agent };
+  const agent = agentOfThread(where);
+  return agent === undefined ? where.place : { kind: "agent", name: agent };
+}
+
+/** The name of the agent whose screen, or whose thread or session, is on show, if the person is looking at an agent's. */
 export function agentLookedAt(where: Where): string | undefined {
   switch (where.screen) {
     case "agents":
       return undefined;
     case "threads":
-    case "thread":
       return where.place.kind === "agent" ? where.place.name : undefined;
-    case "sessions":
+    case "thread":
+      return agentOfThread(where);
     case "session":
       return where.agent;
   }
+}
+
+/**
+ * The thread screen for opening `thread` from the screen `from`, or for starting
+ * a new one there when it is undefined. From an agent's screen a thread is in
+ * whichever channel chat says it is in: the person's DM with the agent, a room
+ * they are in, or a channel they only read, such as the agent's DM with another
+ * agent. From a room's list, or from inside a thread, it is where that is.
+ */
+export function openedThread(
+  model: Pick<Model, "dms" | "rooms" | "readOnly">,
+  from: Extract<Where, { screen: "threads" | "thread" }>,
+  thread: string | undefined,
+): Where {
+  const at = (place: Place, openedBy: string | undefined): Where =>
+    openedBy === undefined || place.kind === "agent" ? { screen: "thread", place, thread } : { screen: "thread", place, thread, agent: openedBy };
+  if (from.screen === "thread") return at(from.place, agentOfThread(from));
+  const { place } = from;
+  if (place.kind !== "agent" || thread === undefined) return at(place, undefined);
+  const has = (threads: Thread[]): boolean => threads.some((each) => each.id === thread);
+  if (has(model.dms[place.name]?.threads ?? [])) return at(place, undefined);
+  const room = Object.values(model.rooms).find((each) => has(each.threads));
+  if (room !== undefined) return at({ kind: "room", id: room.channel.id }, place.name);
+  const reading = Object.values(model.readOnly).find((each) => has(each.threads));
+  return reading === undefined ? at(place, undefined) : at({ kind: "read-only", id: reading.channel.id }, place.name);
 }
 
 /** The person's DM with an agent, and their threads in it, newest first. */
@@ -203,7 +253,7 @@ export function workingIn(thread: Thread, agentId: string): boolean {
 }
 
 /** The sessions among `sessions` that are working and are none of the threads of `dm`, the person's DM with the agent. */
-export function workingElsewhere(sessions: SessionSummary[], dm: Dm | undefined): SessionSummary[] {
+function workingElsewhere(sessions: SessionSummary[], dm: Dm | undefined): SessionSummary[] {
   const yours = new Set(dm?.threads.map((thread) => thread.id));
   return sessions.filter((session) => session.working && (session.threadId === null || !yours.has(session.threadId)));
 }
@@ -267,7 +317,7 @@ export function roomEntries(model: Pick<Model, "me" | "rooms">): RoomEntry[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** A channel the person only reads, as the list of agents and rooms shows it. */
+/** A room the person only reads, as the list of agents and rooms shows it. */
 export interface ReadOnlyEntry {
   channel: Channel;
   /** Whether anyone is working in a thread of it. */
@@ -275,14 +325,116 @@ export interface ReadOnlyEntry {
 }
 
 /**
- * The channels the person only reads, the DMs first and then the rooms, each in
- * alphabetical order of its name, which in a DM is the names of its two members.
+ * The rooms the person only reads, in alphabetical order of their names. A DM
+ * between two agents is not here: it is on the screen of each of them.
  */
 export function readOnlyEntries(model: Pick<Model, "readOnly">): ReadOnlyEntry[] {
-  const rank = ({ channel }: ReadOnlyEntry): number => (channel.kind === "dm" ? 0 : 1);
   return Object.values(model.readOnly)
+    .filter(({ channel }) => channel.kind === "room")
     .map(({ channel, threads }) => ({ channel, working: threads.some((thread) => thread.working.length > 0) }))
-    .sort((a, b) => rank(a) - rank(b) || a.channel.name.localeCompare(b.channel.name));
+    .sort((a, b) => a.channel.name.localeCompare(b.channel.name));
+}
+
+/**
+ * One thing an agent takes part in, as its screen lists it: a thread, or a
+ * session behind no thread, which is a trigger's own.
+ */
+export interface Part {
+  /** What the state is told to open it: a thread's ID, or the address of a session behind no thread. */
+  id: string;
+  /** A thread opens as the conversation it is, and a session behind no thread as the agent's view of it. */
+  kind: "thread" | "session";
+  /** The thread as chat lists it. Undefined when chat does not, and only the agent has said it is there. */
+  thread: Thread | undefined;
+  /** Where it is: as chat has it when chat lists the thread, and else as the agent said. Null when neither knows. */
+  place: SessionPlace | null;
+  /** It is in the person's DM with the agent. */
+  yours: boolean;
+  /** Whether the agent is working there. */
+  working: boolean;
+  /** When something was last said in it, in milliseconds since the epoch. Undefined for what chat does not list, such as a session behind no thread: the agent gives no time. */
+  at: number | undefined;
+}
+
+/** Where a thread of `channel` is, for the agent `agentId`, as the agent says a session's place. */
+function placeIn(channel: Channel, thread: Thread, agentId: string | undefined): SessionPlace {
+  const place = { main: thread.main, name: thread.name };
+  if (channel.kind === "room") return { kind: "room", room: channel.name, thread: place };
+  const other = channel.members.find((member) => member.id !== agentId);
+  return { kind: "dm", with: { name: other?.name ?? channel.name, kind: other?.kind ?? "person" }, thread: place };
+}
+
+/** The DM of the person with an agent, which is theirs: the other member is a person. */
+const isYours = (place: SessionPlace | null): boolean => place?.kind === "dm" && place.with.kind === "person";
+
+/**
+ * Everything the agent called `agent` takes part in, newest first: the threads
+ * of its DM with the person, the threads of its DMs with other members, and the
+ * threads of rooms it has a session in, all as chat lists them, and its sessions
+ * behind no thread. What has no time, which only a session behind no thread
+ * has, comes last, in the agent's order. The agent's word on which sessions it
+ * has, and whether it is working in them, is not taken for true of an agent that
+ * cannot be reached now.
+ */
+export function partsOf(model: Model, agent: string): Part[] {
+  const dm = model.dms[agent];
+  const agentId = agentEntries(model).find((entry) => entry.name === agent)?.id ?? dm?.channel.members.find((member) => member.kind === "agent")?.id;
+  const reached = model.agent?.state === "up";
+  const listed = model.sessions ?? [];
+  const sessionBehind = new Map<string, SessionSummary>();
+  for (const session of listed) if (session.threadId !== null) sessionBehind.set(session.threadId, session);
+
+  const parts: Part[] = [];
+  const have = new Set<string>();
+  const addThread = (channel: Channel, thread: Thread): void => {
+    have.add(thread.id);
+    const place = placeIn(channel, thread, agentId);
+    parts.push({
+      id: thread.id,
+      kind: "thread",
+      thread,
+      place,
+      yours: isYours(place),
+      working: (agentId !== undefined && workingIn(thread, agentId)) || (reached && sessionBehind.get(thread.id)?.working === true),
+      at: thread.updatedAt,
+    });
+  };
+
+  if (dm !== undefined) for (const thread of dm.threads) addThread(dm.channel, thread);
+  for (const { channel, threads } of Object.values(model.readOnly)) {
+    if (channel.kind === "dm" && agentId !== undefined && channel.members.some((member) => member.id === agentId)) {
+      for (const thread of threads) addThread(channel, thread);
+    }
+  }
+  // What is left of the agent's sessions: a thread of a room, which chat lists, and what chat does not list.
+  const rooms = [...Object.values(model.rooms), ...Object.values(model.readOnly)].filter(({ channel }) => channel.kind === "room");
+  const inRoom = (threadId: string): { channel: Channel; thread: Thread } | undefined => {
+    for (const { channel, threads } of rooms) {
+      const thread = threads.find((each) => each.id === threadId);
+      if (thread !== undefined) return { channel, thread };
+    }
+    return undefined;
+  };
+  for (const session of listed) {
+    const { threadId } = session;
+    if (threadId !== null && have.has(threadId)) continue;
+    const found = threadId === null ? undefined : inRoom(threadId);
+    if (found !== undefined) {
+      addThread(found.channel, found.thread);
+      continue;
+    }
+    parts.push({
+      id: threadId ?? session.id,
+      kind: threadId === null ? "session" : "thread",
+      thread: undefined,
+      place: session.place,
+      yours: isYours(session.place),
+      working: reached && session.working,
+      at: undefined,
+    });
+  }
+  // The sort is stable, so what ties keeps the order it was found in.
+  return parts.sort((a, b) => (a.at === undefined || b.at === undefined ? Number(a.at === undefined) - Number(b.at === undefined) : b.at - a.at));
 }
 
 /** Work that goes on after the console is left: the agent that is working, and the thread it is working in. */

@@ -31,7 +31,7 @@ export function fakeState(initial: Model): FakeState {
     selectReadOnly: (id) => void calls.push(`read-only ${id}`),
     openThread: (threadId) => void calls.push(`open ${threadId}`),
     startThread: () => void calls.push("start"),
-    switchLists: () => void calls.push("switch"),
+    turnOver: () => void calls.push("turn over"),
     openSession: (address) => void calls.push(`watch ${address}`),
     back: () => void calls.push("back"),
     send(text) {

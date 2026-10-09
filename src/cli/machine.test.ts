@@ -33,6 +33,7 @@ import {
 
 const timeout = 90_000;
 const CTRL_C = "\u0003";
+const ENTER = "\r";
 const TAB = "\t";
 
 /** What a command that runs beside the gateway is started with: a Shrimpy folder, a runtime directory and a user's directory of its own. */
@@ -163,7 +164,7 @@ test("commands in a folder that joined as the person reach the gateway there as 
 test("the terminal in a folder that joined as the person signs in on its connection to the gateway there, lists the agent and reaches its sessions", { timeout }, async (t) => {
   const { env } = await startBesideTheGateway(t);
   await joinAsTheMachine(t, env);
-  const said = await shrimpy(["run", "scout", "hi"]);
+  const said = await shrimpy(["run", "scout", "check the disk"]);
   const thread = /Thread (th_\w+) started/.exec(said.stderr)?.[1];
   assert.ok(thread, said.stderr);
 
@@ -178,11 +179,13 @@ test("the terminal in a folder that joined as the person signs in on its connect
   const seen = (text: string, what = text): Promise<void> =>
     until(() => terminal.text().includes(text), `the console to show ${what}`, 30_000);
 
-  // One agent is running, so it goes straight to that agent, and the console knows the person it is.
-  await seen("scout · your threads");
+  // One agent is running, so it goes straight to that agent, whose screen lists the thread the person started.
+  await seen("check the disk", "the thread the person started");
+  terminal.type(ENTER);
+  // The agent's view of that thread has what only the agent has, such as its thinking: the agent was reached too.
+  await seen("tab agent's view", "the agent's view to be there to turn to");
   terminal.type(TAB);
-  await seen("scout · its sessions");
-  await seen(`your DM · thread ${thread}`, "the session of the thread the person started, as theirs");
+  await seen("think about it", "what the agent thought");
 
   terminal.type(CTRL_C);
   terminal.type(CTRL_C);

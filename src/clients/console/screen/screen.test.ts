@@ -16,7 +16,6 @@ import {
   aThread,
   aThreadView,
   onThread,
-  startRig,
   zach,
 } from "../state/testing/index.ts";
 import {
@@ -25,7 +24,6 @@ import {
   modelLines,
   type Screen,
   screenOf,
-  type SessionsScreen,
   type ThreadScreen,
   type ThreadsScreen,
 } from "./index.ts";
@@ -132,8 +130,8 @@ test("a thread is listed by its name, or else the start of its first message, an
     [
       ["th_a", "Check the disk usage", true],
       ["th_b", "Dentist", false],
-      ["th_c", "(no messages yet) [main]", false],
       ["th_d", "Old plans [archived]", false],
+      ["th_c", "(no messages yet) [main]", false],
     ],
   );
 });
@@ -155,46 +153,38 @@ test("when chat is lost the threads stay and say so, and nothing claims there ar
   assert.equal(empty.empty, undefined);
 });
 
-test("an agent's sessions list has every session the agent has, one behind a thread you are not in and a trigger's own among them, each with where it is", { timeout: 15_000 }, async (t) => {
-  const rig = await startRig(t);
-  const yours = await rig.thread("scout", "check the disk");
-  const me = (await rig.person()).me;
-  const sessions = rig.agents.scout?.agent;
-  assert.ok(sessions);
-  sessions.session(yours.id, { place: { kind: "dm", with: { name: me.name, kind: "person" }, thread: { main: false, name: null } } });
-  sessions.session("th_private", { place: { kind: "dm", with: { name: "mechanic", kind: "agent" }, thread: { main: true, name: null } } });
-  sessions.session("th_in_a_room", {
-    place: { kind: "room", room: "ops", thread: { main: false, name: "Disk space" } },
-    view: workingView([userItem("go")]),
-  });
-  sessions.session("trigger:nightly", { place: { kind: "trigger", trigger: "nightly" } });
-  // An agent that has not learned where a session is lists it with no place.
-  sessions.session("th_unplaced");
-  await rig.until((model) => model.where.screen === "threads", "the agent's threads");
-
-  rig.state.switchLists();
-  const listed = await rig.until((model) => model.sessions?.length === 5, "the agent's sessions");
-
-  const screen = screenOf(listed, { now });
-  assert.equal(screen.kind, "sessions");
-  const { rows } = screen as SessionsScreen;
-  assert.deepEqual(
-    rows.map((row) => [row.id, row.working]),
-    [
-      [yours.id, false],
-      ["th_private", false],
-      ["th_in_a_room", true],
-      ["trigger:nightly", false],
-      ["th_unplaced", false],
+test("every session an agent has is a row of its screen, one chat does not list included, and what has no time comes after what has", () => {
+  const model = aModel({
+    where: { screen: "threads", place: { kind: "agent", name: "scout" } },
+    listing: aListing([anAgent("scout"), aChatServer()]),
+    agent: { state: "up" },
+    dms: { scout: aDm("scout", [aThread("th_a", { preview: "Check the disk usage", updatedAt: at(10, 3, 14, 5) })]) },
+    sessions: [
+      aSession("trigger:nightly", { place: { kind: "trigger", trigger: "nightly" }, working: true }),
+      aSession("th_gone", { place: { kind: "room", room: "ops", thread: { main: false, name: "Disk space" } } }),
+      aSession("th_unplaced"),
+      aSession("th_a"),
     ],
+  });
+
+  const { rows } = threads(screenOf(model, { now }));
+
+  assert.deepEqual(
+    rows.map((row) => [row.id, row.kind, row.working]),
+    [
+      ["th_a", "thread", false],
+      ["trigger:nightly", "session", true],
+      ["th_gone", "thread", false],
+      ["th_unplaced", "thread", false],
+    ],
+    "the session behind a thread chat lists is that thread's row and not another",
   );
-  const [mine, private_, room, trigger, unplaced] = rows.map((row) => row.label);
-  assert.match(mine ?? "", /DM/);
-  assert.doesNotMatch(mine ?? "", /mechanic/);
-  assert.match(private_ ?? "", /mechanic/);
-  assert.match(room ?? "", /ops.*Disk space/);
-  assert.match(trigger ?? "", /nightly/);
-  assert.equal(unplaced, "th_unplaced", "its address, since that is all there is to say");
+  const [, trigger, gone, unplaced] = rows;
+  assert.ok(trigger && gone && unplaced);
+  assert.match(trigger.label, /nightly/);
+  assert.equal(gone.label, "Disk space");
+  assert.match(gone.detail, /#ops/);
+  assert.equal(unplaced.label, "th_unplaced", "its address, since that is all there is to say");
 });
 
 test("a thread shows who said what, oldest first, as themselves or as someone else", () => {
@@ -562,10 +552,13 @@ test("text from other members and from tools can't act on a terminal, wherever i
     { screen: "thread" as const, place: dm, thread: "th_1" },
     { screen: "threads" as const, place: room },
     { screen: "thread" as const, place: room, thread: "th_1" },
-    { screen: "threads" as const, place: { kind: "read-only" as const, id: "ch_3" } },
-    { screen: "thread" as const, place: { kind: "read-only" as const, id: "ch_3" }, thread: "th_1" },
+    { screen: "threads" as const, place: { kind: "read-only" as const, id: "ch_4" } },
     { screen: "thread" as const, place: { kind: "read-only" as const, id: "ch_4" }, thread: "th_1" },
-    { screen: "sessions" as const, agent: `scout${hostile}` },
+    // Opened from the agent's screen, a thread of a channel the person only reads has the agent's work beside it, and turns over.
+    { screen: "thread" as const, place: { kind: "read-only" as const, id: "ch_3" }, thread: "th_1", agent: `scout${hostile}` },
+    { screen: "thread" as const, place: { kind: "read-only" as const, id: "ch_3" }, thread: "th_1", agent: `scout${hostile}`, turned: true },
+    { screen: "thread" as const, place: room, thread: "th_1", agent: `scout${hostile}` },
+    { screen: "thread" as const, place: dm, thread: "th_1", turned: true },
     { screen: "session" as const, agent: `scout${hostile}`, session: "th_1" },
     { screen: "session" as const, agent: `scout${hostile}`, session: `trigger:${hostile}` },
     { screen: "session" as const, agent: `scout${hostile}`, session: `th_3${hostile}` },
@@ -573,17 +566,19 @@ test("text from other members and from tools can't act on a terminal, wherever i
     // `/status` finds nothing in a channel the person only reads, and the line over its input is on the screen instead.
     const reading = where.screen === "thread" && where.place.kind === "read-only";
     const status = where.screen === "thread" && where.place.kind !== "read-only" ? statuses[where.place.kind] : undefined;
-    // With the agent reached, the threads of an agent say where else it is working.
+    // With the agent reached, its screen says where it is working, and what it last listed is not taken for old.
     for (const agent of [model.agent, { state: "up" as const }]) {
-      const screen = screenOf({ ...model, where, status, agent }, { now });
-      const all = [...stringsIn(screen)];
-      assert.ok(all.length > 3);
-      if (screen.kind === "thread") assert.equal(screen.status !== undefined, !reading, "the reading is on the screen");
-      if (screen.kind === "thread") assert.equal(screen.readOnly !== undefined, reading, "and so is the line over a missing input");
-      if (screen.kind === "threads" && agent?.state === "up" && where.screen === "threads" && where.place.kind === "agent") {
-        assert.ok(screen.elsewhere !== undefined, "the line is on the screen");
+      for (const filter of ["everything", "yours"] as const) {
+        const screen = screenOf({ ...model, where, status, agent }, { now, filter });
+        const all = [...stringsIn(screen)];
+        assert.ok(all.length > 3);
+        if (screen.kind === "thread") assert.equal(screen.status !== undefined, !reading, "the reading is on the screen");
+        if (screen.kind === "thread") assert.equal(screen.readOnly !== undefined, reading, "and so is the line over a missing input");
+        if (screen.kind === "threads" && where.screen === "threads" && where.place.kind === "agent") {
+          assert.ok(screen.rows.length > 0, "the agent's screen lists what it takes part in");
+        }
+        for (const text of all) assert.doesNotMatch(text, ACTED_ON, `${screen.kind}: ${JSON.stringify(text)}`);
       }
-      for (const text of all) assert.doesNotMatch(text, ACTED_ON, `${screen.kind}: ${JSON.stringify(text)}`);
     }
   }
 
