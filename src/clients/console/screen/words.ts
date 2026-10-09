@@ -10,7 +10,7 @@ import type {
 } from "../../../contracts/agent/index.ts";
 import { AGENT_COMMANDS, type AgentCommand, type Receipt } from "../../../contracts/chat/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
-import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
+import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import type { Problem, Why } from "../network/index.ts";
 import type { AgentStatus, Notice, RoomStatus } from "../state/index.ts";
 import { oneLine } from "./plain.ts";
@@ -202,7 +202,7 @@ export function reactionsLine(reactions: { emoji: string; by: string[] }[]): str
   return reactions.map(({ emoji, by }) => `${oneLine(emoji)} ${by.join(", ")}`).join("  ");
 }
 
-export const agentsTitle = (): string => "Agents and rooms";
+export const agentsTitle = (): string => `shrimpy · ${SHRIMPY_VERSION} · ${SHRIMPY_RELEASE_NAME}`;
 export const threadsTitle = (agent: string): string => `${oneLine(agent)} · your threads`;
 export const sessionsTitle = (agent: string): string => `${oneLine(agent)} · its sessions`;
 export const roomThreadsTitle = (room: string): string => `${roomLabel(room)} · threads`;

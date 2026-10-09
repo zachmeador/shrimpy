@@ -4,6 +4,7 @@ import { setCapabilityOverrides, visibleWidth } from "@earendil-works/pi-tui";
 import { assistantItem, sessionView, toolItem, userItem, workingView } from "../../../contracts/agent/testing/index.ts";
 import { settle, stopAfter, until } from "../../../lib/testing/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
+import { SHRIMPY_RELEASE_NAME } from "../../../lib/version/index.ts";
 import { agentEntries, type Model } from "../state/index.ts";
 import {
   aChatServer,
@@ -457,7 +458,7 @@ test("escape goes back from a thread while the agent is working there, and the w
   await seen("scout · your threads");
   await settle();
 
-  assert.doesNotMatch(drawn(), /Agents and rooms/, "a press is one press, whether or not the terminal reports the key being let go");
+  assert.ok(!drawn().includes(SHRIMPY_RELEASE_NAME), "a press is one press, whether or not the terminal reports the key being let go");
   assert.equal(session.stops, 0);
   assert.equal(session.view.status.busy, true, "the work goes on");
 });
@@ -734,7 +735,7 @@ test("text from other members and from tools can't reach the terminal, wherever 
   drawn.push(...drawing.render(80));
   state.show({ ...model, where: { screen: "agents" } });
   drawn.push(...drawing.render(80));
-  await until(() => terminal.output().includes("Agents"), "the terminal to be written");
+  await until(() => terminal.output().includes(SHRIMPY_RELEASE_NAME), "the terminal to be written");
 
   // Styles are the console's own. Once those and the cursor are taken out, nothing but text is left.
   const own = new RegExp("\\u001b\\[[0-9;:]*m|\\u001b_pi:c\\u0007", "g");

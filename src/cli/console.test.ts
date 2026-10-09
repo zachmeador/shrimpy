@@ -5,6 +5,7 @@ import { openConsole } from "../clients/console/index.ts";
 import type { Message, Thread } from "../contracts/chat/index.ts";
 import { memberNamed } from "../contracts/chat/testing/index.ts";
 import { eventually, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
+import { SHRIMPY_RELEASE_NAME } from "../lib/version/index.ts";
 import { runCli } from "./index.ts";
 import {
   captureIo,
@@ -192,7 +193,7 @@ test("the console lists the rooms a person is in beside the agents, and a thread
   });
 
   // With an agent and a room to choose from, the person chooses, and is not taken to the agent.
-  await seen(terminal, "Agents and rooms");
+  await seen(terminal, SHRIMPY_RELEASE_NAME, "the first screen");
   await seen(terminal, "#ops");
   terminal.type(DOWN);
   terminal.type(ENTER);
@@ -252,7 +253,7 @@ test("a stop request, as SIGTERM is, leaves the console as the keys do", { timeo
   useRuntimeDir(t);
   const terminal = new FakeTerminal();
   const { cli, exited } = openOn(terminal);
-  await seen(terminal, "Agents");
+  await seen(terminal, SHRIMPY_RELEASE_NAME, "the first screen");
 
   cli.requestStop();
 
