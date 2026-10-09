@@ -16,8 +16,9 @@ export interface SkillTrail {
 /**
  * The skills in one folder: each subfolder with a `SKILL.md` whose front matter
  * has a description, and may have a name. A subfolder with no `SKILL.md` is
- * not a skill and may hold anything. A skill that is not written right is left
- * out and named, as `shown` writes its path; it never stops the rest.
+ * not a skill and may hold anything. A skill that is not written right, or
+ * that can't be looked at, is left out and named, as `shown` writes its path; it
+ * never stops the rest.
  */
 export async function readSkills(
   folder: string,
@@ -35,7 +36,17 @@ export async function readSkills(
   for (const entry of entries.sort((a, b) => compare(a.name, b.name))) {
     if (entry.name.startsWith(".")) continue;
     const directory = join(folder, entry.name);
-    if (!(await stat(directory).then((info) => info.isDirectory(), () => false))) continue;
+    let isFolder: boolean;
+    try {
+      isFolder = (await stat(directory)).isDirectory();
+    } catch (error) {
+      // A link to nothing, or a folder that can't be looked at, may have been a skill, so it is named. An entry that
+      // vanished while the folder was read is gone.
+      const dangling = codeOf(error) === "ENOENT";
+      if (!dangling || entry.isSymbolicLink()) leftOut.push({ file: shown(directory), reason: dangling ? "it is a link to nothing" : why(error) });
+      continue;
+    }
+    if (!isFolder) continue;
     const file = join(directory, "SKILL.md");
     const read = await readText(file);
     if (read.kind === "missing") continue;

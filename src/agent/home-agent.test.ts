@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import type { AgentModels } from "../contracts/agent/index.ts";
 import { attachLocal, readMembership, saveMembership } from "../contracts/agent/node.ts";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
@@ -14,7 +15,7 @@ import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { homePaths } from "./home/index.ts";
 import { ModelSetupError } from "./host/durable.ts";
 import { initHome, parseModelChoice, previewHomeContext, startHomeAgent } from "./index.ts";
-import { attachThread, type ChatServer, closeAfter, roomWith, startChatServer, stubChatCompletions, talkTo } from "./testing/index.ts";
+import { attachThread, type ChatServer, closeAfter, roomWith, startChatServer, stubChatCompletions, talkTo, writeTrigger } from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -207,27 +208,49 @@ test("a start reads the home as it is then, in sessions made before it too", { t
   assert.doesNotMatch(systemPrompt(1), /Answer in prose\./);
 });
 
-test("a note written into context/ while the agent runs is in what the model is shown at its next request, with nothing told to reload and nothing started again", { timeout }, async (t) => {
+test("a note written into context/ while the agent runs is in what the model is shown at its next request, with nothing told to reload and nothing started again; a home whose agent.json can't be seen is not read until it can be", { timeout }, async (t) => {
   const paths = newHome(t);
+  writeTrigger(paths.root, "tidy", ["every: 1h"], "Tidy the notes.");
   const requests = stubChatCompletions(t, "Ok");
+  const reported: string[] = [];
+  t.mock.method(console, "error", (...lines: unknown[]) => void reported.push(lines.join(" ")));
   const { chat } = await startNetwork(t);
   await startAt(t, paths.root, { lookEveryMs: LOOK });
   const person = await talkToAgent(chat, "scout");
+  const connection = await attachLocal(paths.root);
+  t.after(() => connection.close());
   const told = (index: number): string => String(requests[index]?.body.messages[0]?.content);
+  /** Ask something, and give back the instructions the model had with it. */
+  const toldNow = async (): Promise<string> => {
+    await person.ask("and now?");
+    return told(requests.length - 1);
+  };
 
   await person.ask("one");
   writeFileSync(join(paths.context, "disk.md"), "The disk is on fire.\n");
-  const now = await eventually(
-    async () => {
-      await person.ask("and now?");
-      return told(requests.length - 1);
-    },
-    (text) => text.includes("The disk is on fire."),
-    { what: "the note to be in what the model is shown" },
-  );
+  const now = await eventually(toldNow, (text) => text.includes("The disk is on fire."), { what: "the note to be in what the model is shown" });
 
   assert.doesNotMatch(told(0), /The disk is on fire\./, "the request before the note did not have it");
   assert.equal(now, (await previewHomeContext(paths.root)).sections.map((section) => section.text).join("\n\n"), "and the one after has the home as the preview shows it");
+
+  // The share the home is on is not mounted for a moment, so its agent.json can't be seen. What a reading would find
+  // then, no trigger and no note, is not read, and the agent says why once. The agent's own reload is refused the same way.
+  const away = `${paths.config}.away`;
+  renameSync(paths.config, away);
+  rmSync(join(paths.triggers, "tidy.md"));
+  rmSync(join(paths.context, "disk.md"));
+  await delay(LOOK * 12);
+  const said = (): string[] => reported.filter((line) => line.includes("can't be read for now"));
+  assert.deepEqual((await connection.triggers()).map((trigger) => trigger.name), ["tidy"], "the agent's triggers are as they were");
+  assert.ok((await toldNow()).includes("The disk is on fire."), "and so are its instructions");
+  assert.equal(said().length, 1, "and it said so once");
+  await assert.rejects(connection.reload(), /can't be read for now/);
+
+  // It is back, and the agent reads the home again without being told.
+  renameSync(away, paths.config);
+  await eventually(async () => (await connection.triggers()).length, (count) => count === 0, { what: "the home to be read again" });
+  await eventually(toldNow, (text) => !text.includes("The disk is on fire."), { what: "the note to be gone from what the model is shown" });
+  assert.equal(said().length, 1, "and nothing more was said");
 });
 
 test("agent.json naming another model is followed by the next request with no command, and the model is told once; a model that can't be used is said and the sessions keep theirs; a server declared since can be named", { timeout }, async (t) => {

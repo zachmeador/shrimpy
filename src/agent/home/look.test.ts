@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { tempDir } from "../../lib/testing/index.ts";
@@ -11,7 +11,7 @@ import { lookAtHome } from "./look.ts";
  * show a change to every file that reading the home reads, and none to the rest.
  */
 
-test("a look changes when a file that reading the home reads is changed, made or deleted, and not for any other file of the home", async (t) => {
+test("a look changes when a file that reading the home reads is changed, made, deleted or made unreadable, and not for any other file of the home", async (t) => {
   const paths = homePaths(join(tempDir(t, "look"), "scout"));
   const outside = join(tempDir(t, "folder"), "models.json");
   const write = (path: string, text: string): void => {
@@ -37,6 +37,15 @@ test("a look changes when a file that reading the home reads is changed, made or
     const next = await look();
     assert.notEqual(next, last, `${file} was changed`);
     last = next;
+  }
+  // A file that is made unreadable, or readable again, changes neither its size nor its time.
+  for (const file of files) {
+    chmodSync(file, 0o000);
+    const shut = await look();
+    assert.notEqual(shut, last, `${file} was made unreadable`);
+    chmodSync(file, 0o644);
+    last = await look();
+    assert.notEqual(last, shut, `${file} was made readable again`);
   }
   for (const file of [inHome("context/new.md"), inHome("triggers/new.md"), inHome("skills/new/SKILL.md")]) {
     write(file, "one");

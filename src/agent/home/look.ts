@@ -10,10 +10,12 @@ import type { HomePaths } from "./layout.ts";
  * of `context/`, the skills of the home and those that ship with Shrimpy, the
  * Markdown files of `triggers/`, the wake file, `agent.json`, and `outside`, the
  * other files the agent reads, such as its model files. It gives their names,
- * sizes and the times they were changed, and never opens one, so it is cheap
- * enough to repeat every few seconds. Two looks are the same text when none of
- * those files has changed between them. It never fails: a file that can't be
- * looked at is in the text with the reason. It picks the files that
+ * sizes, modes and the times they were changed, and never opens one, so it is
+ * cheap enough to repeat every few seconds. The mode is there because a file
+ * that is made unreadable, or readable again, changes neither its size nor its
+ * time. Two looks are the same text when none of those files has changed
+ * between them. It never fails: a file that can't be looked at is in the text
+ * with the reason. It picks the files that
  * `readHomeSnapshot` and `readTriggers` read, so whatever they would read
  * differently shows in the look.
  */
@@ -29,8 +31,9 @@ export async function lookAtHome(paths: HomePaths, outside: readonly string[] = 
   return JSON.stringify([...found].sort(([a], [b]) => compare(a, b)));
 }
 
-/** What one file looks like: its size and when it was changed. */
-const describe = (info: Stats): string => (info.isFile() ? `${String(info.size)} ${String(info.mtimeMs)}` : "not a file");
+/** What one file looks like: its size, when it was changed and who may read it. */
+const describe = (info: Stats): string =>
+  info.isFile() ? `${String(info.size)} ${String(info.mtimeMs)} ${info.mode.toString(8)}` : "not a file";
 
 const why = (error: unknown): string => codeOf(error) ?? "unreadable";
 

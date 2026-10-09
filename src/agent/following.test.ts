@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { eventually, tempDir } from "../lib/testing/index.ts";
+import { eventually, stopAfter, tempDir } from "../lib/testing/index.ts";
 import { LEFT_OUT_BREADCRUMB } from "./following.ts";
 import { homePaths } from "./home/index.ts";
 import { startAgentRig, talking, writeTrigger } from "./testing/index.ts";
@@ -72,4 +72,103 @@ test("a file that is still being written is not read until it stops changing; on
   await eventually(() => existsSync(breadcrumb), (there) => !there, { what: "the breadcrumb to go" });
   assert.ok(!(await shownWith("one more")).includes("triggers/tidy.md"));
   assert.equal(said().length, 1, "and nothing more was said");
+});
+
+test("SOUL.md, a note and a folder of notes that can't be read are still in what the model is shown, as they were last read, and the new text is shown once they can be read again; a file that is gone is gone, and one that was never read has nothing to show", { timeout }, async (t) => {
+  const home = tempDir(t, "agent");
+  const paths = homePaths(home);
+  const put = (file: string, text: string): string => {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, text);
+    return file;
+  };
+  const soul = put(paths.soul, "You keep the build green.\n");
+  const note = put(join(paths.context, "disk.md"), "The disk is on fire.\n");
+  const alex = put(join(paths.context, "people", "alex.md"), "Alex owns the release.\n");
+  const gone = put(join(paths.context, "gone.md"), "Deleted soon.\n");
+  const never = put(join(paths.context, "never.md"), "Never readable.\n");
+  const people = dirname(alex);
+  // Put back before the home is removed, which a folder with no permissions would stop.
+  stopAfter(t, () => {
+    for (const path of [soul, note, never, people]) chmodSync(path, 0o755);
+  });
+  chmodSync(never, 0o000);
+  try {
+    readFileSync(never);
+    t.skip("this system lets a file with no permissions be read");
+    return;
+  } catch {
+    // It can't be read, as it should not be.
+  }
+  const model = talking(() => ({ final: "Seen." }));
+  const rig = await startAgentRig(t, { home, script: model.script, lookEveryMs: 100 });
+  const said = (): string => (rig.reports as Error[]).map((report) => report.message).join("\n");
+  /** Say something, and give back the instructions the model had with it. */
+  const instructions = async (): Promise<Record<string, string>> => {
+    await rig.receiptOn(await rig.say("anything new?"));
+    return model.sections.at(-1) ?? {};
+  };
+  const has = (section: string | undefined, text: string): boolean => section?.includes(text) ?? false;
+
+  let seen = await instructions();
+  assert.ok(has(seen.soul, "build green") && has(seen.context, "on fire") && has(seen.context, "Alex owns") && has(seen.context, "Deleted soon"));
+  assert.equal(has(seen.context, "Never readable"), false, "a file that could not be read from the start has nothing to show");
+
+  // None of the three can be read now, and the agent says so, and still has them as it last read them.
+  chmodSync(soul, 0o000);
+  chmodSync(note, 0o000);
+  chmodSync(people, 0o000);
+  rmSync(gone);
+  await eventually(said, (all) => ["SOUL.md", "context/disk.md", "context/people"].every((name) => all.includes(`${name} was left out`)), {
+    what: "the files that can't be read to be said",
+  });
+  seen = await instructions();
+  assert.ok(has(seen.soul, "build green"), "SOUL.md is as it was");
+  assert.ok(has(seen.context, "The disk is on fire.") && has(seen.context, "Alex owns the release."), "so are the note and the folder of notes");
+  assert.equal(has(seen.context, "Deleted soon"), false, "a file that is gone is gone");
+  assert.equal(has(seen.context, "Never readable"), false);
+
+  // They can be read again, with new text.
+  chmodSync(people, 0o755);
+  chmodSync(soul, 0o644);
+  chmodSync(note, 0o644);
+  put(soul, "You keep the build red.\n");
+  put(note, "The disk is out.\n");
+  put(alex, "Alex owns nothing.\n");
+  seen = await eventually(
+    instructions,
+    (found) => has(found.soul, "build red") && has(found.context, "The disk is out.") && has(found.context, "owns nothing"),
+    { what: "the new text to be shown" },
+  );
+  assert.equal(has(seen.soul, "build green") || has(seen.context, "on fire") || has(seen.context, "owns the release"), false, "and the old text is gone");
+});
+
+test("a skill whose front matter is broken stays listed with the description it had, and its new description is shown once it is right", { timeout }, async (t) => {
+  const home = tempDir(t, "agent");
+  const file = join(homePaths(home).skills, "garden", "SKILL.md");
+  const write = (text: string): void => {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, text);
+  };
+  write("---\ndescription: Use when the person asks about the garden.\n---\nSteps.\n");
+  const model = talking(() => ({ final: "Seen." }));
+  const rig = await startAgentRig(t, { home, script: model.script, lookEveryMs: 100 });
+  /** Say something, and give back the skills the model was told of with it. */
+  const skills = async (): Promise<string> => {
+    await rig.receiptOn(await rig.say("anything new?"));
+    return model.sections.at(-1)?.skills ?? "";
+  };
+  assert.ok((await skills()).includes("garden: Use when the person asks about the garden."));
+
+  write("# The garden\nNo front matter at all.\n");
+  await eventually(() => (rig.reports as Error[]).map((report) => report.message).join("\n"), (all) => all.includes("skills/garden/SKILL.md was left out"), {
+    what: "the broken skill to be said",
+  });
+  assert.ok((await skills()).includes("garden: Use when the person asks about the garden."), "it is listed with the description it had");
+
+  write("---\ndescription: Use when the person asks about the lawn.\n---\nSteps.\n");
+  const mended = await eventually(skills, (listed) => listed.includes("garden: Use when the person asks about the lawn."), {
+    what: "the new description to be shown",
+  });
+  assert.ok(!mended.includes("about the garden."), "and the old one is gone");
 });

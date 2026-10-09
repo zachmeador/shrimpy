@@ -93,9 +93,16 @@ export interface SessionDirectory {
    * names the same one, no session changes.
    *
    * A file that cannot be used is left out and named in the answer, and never
-   * makes the reload fail; a trigger whose file cannot be used keeps its last
-   * valid definition. A model that cannot be used is named the same way, in the
-   * words the agent's start would use, and the sessions keep the model they had.
+   * makes the reload fail. What the agent last read of it stays: a trigger keeps
+   * its last valid definition, and `SOUL.md`, a context file or folder or a skill
+   * is still in its instructions as it was, the reason saying so. A model that
+   * cannot be used is named the same way, in the words the agent's start would
+   * use, and the sessions keep the model they had.
+   *
+   * A home whose `agent.json` cannot be seen, as when the share it is on is not
+   * mounted for a moment, is not read at all: the reload is refused, in a
+   * sentence that says the home cannot be read for now and the agent keeps what
+   * it has, and the agent's own look tries again at the next time.
    */
   reload(context: Context): Promise<Reloaded>;
 }

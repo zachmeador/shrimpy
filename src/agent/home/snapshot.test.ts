@@ -74,7 +74,7 @@ test("a file that cannot be read is left out and named, and the others are still
   assert.deepEqual(snapshot.leftOut.map((each) => each.file), ["context/locked.md"]);
 });
 
-test("links to files and folders are followed, a link back on itself ends, and a broken one is named", async (t) => {
+test("links to files and folders are followed, a link back on itself ends, and a broken one is named, as a skill's is", async (t) => {
   const { paths, write } = newHome(t);
   const shared = write("shared/team.md", "Team notes.\n");
   write("shared/more/extra.md", "Extra.\n");
@@ -86,12 +86,13 @@ test("links to files and folders are followed, a link back on itself ends, and a
   symlinkSync(paths.context, join(paths.context, "again"));
   symlinkSync(join(paths.root, "nowhere.md"), join(paths.context, "gone.md"));
   symlinkSync(join(paths.root, "elsewhere", "shared-skill"), join(paths.skills, "shared-skill"));
+  symlinkSync(join(paths.root, "nowhere"), join(paths.skills, "missing-skill"));
 
   const snapshot = await readHome(paths);
 
   assert.deepEqual(snapshot.files.map((file) => file.path), ["context/more/extra.md", "context/team.md"]);
   assert.deepEqual(snapshot.skills.map((each) => each.name), ["shared-skill"]);
-  assert.deepEqual(snapshot.leftOut.map((each) => each.file), ["context/gone.md"]);
+  assert.deepEqual(snapshot.leftOut.map((each) => each.file), ["context/gone.md", "skills/missing-skill"]);
 });
 
 test("a skill with no description, or no front matter, is left out and named; a folder that is not a skill is not", async (t) => {

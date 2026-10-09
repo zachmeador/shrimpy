@@ -20,7 +20,7 @@ import { createAdmissions } from "./chat/durable.ts";
 import { channelOfThread, createDelivery, createWakes } from "./chat/index.ts";
 import { homeContext } from "./context/durable.ts";
 import { type ContextPreview, previewContext } from "./context/index.ts";
-import { type Following, follow, keepLeftOut, LOOK_EVERY_MS } from "./following.ts";
+import { type Following, follow, keepLeftOut, LOOK_EVERY_MS, requireSeen } from "./following.ts";
 import {
   homePaths,
   type LeftOut,
@@ -112,6 +112,13 @@ export interface AgentOptions extends HostOptions {
   reloadModels?: () => Promise<ModelReload>;
   /** The files `reloadModels` reads. The agent looks at them with its own, to know when to call it. */
   modelFiles?: readonly string[];
+  /**
+   * The file that makes the folder a home, such as the `agent.json` of a home the agent was started from. While it
+   * can't be seen, as when the share the home is on is not mounted for a moment, nothing is read: a reading fails with
+   * a sentence that says so, the agent keeps what it has, and the next look tries again. Without it a reading is made
+   * of whatever is there.
+   */
+  homeFile?: string;
   /**
    * How often the agent looks at its files, in milliseconds, to read again what
    * changed. Two seconds, if not given. Tests shorten it.
@@ -265,6 +272,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     // and says which files it could not use.
     const told = keepLeftOut({ home: options.home, report });
     const reloadHome = async (): Promise<Reloaded> => {
+      if (options.homeFile !== undefined) await requireSeen(options.home, options.homeFile);
       const read = await context.reload();
       const followed = await triggers.reload();
       const model = await followModel();
@@ -377,6 +385,7 @@ export async function startHomeAgent(
     model: runtime.model,
     reloadModels: () => runtime.reload(),
     modelFiles: runtime.files,
+    homeFile: loaded.paths.config,
     join: gateway === undefined ? {} : { apart: gateway },
     ...(options.shrimpy === undefined ? {} : { shrimpy: options.shrimpy }),
     ...(options.lookEveryMs === undefined ? {} : { lookEveryMs: options.lookEveryMs }),

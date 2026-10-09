@@ -1,4 +1,6 @@
-import { homePaths, type LeftOut, leftOutSentence, removeBreadcrumb, writeBreadcrumb } from "./home/index.ts";
+import { stat } from "node:fs/promises";
+import { refuse } from "../lib/refusal/index.ts";
+import { homePaths, type LeftOut, leftOutSentence, removeBreadcrumb, shownIn, writeBreadcrumb } from "./home/index.ts";
 
 /** How often the agent looks at its files, in milliseconds. A test gives a shorter time. */
 export const LOOK_EVERY_MS = 2_000;
@@ -100,6 +102,20 @@ export function follow<T>(options: FollowOptions<T>): Following<T> {
       await queue;
     },
   };
+}
+
+/**
+ * Fail, with one sentence that says so, when `file` can't be seen. It is the file
+ * that makes a folder a home, `agent.json`, so a home that lacks it is not there:
+ * the share it is on is not mounted for a moment, say. Reading such a home would
+ * find no triggers, which would end them all, and no instructions. So nothing is
+ * read, the agent keeps what it has, and the next look tries again. It is a
+ * refusal, so whoever asks for a reading is told in the same words.
+ */
+export async function requireSeen(home: string, file: string): Promise<void> {
+  const seen = await stat(file).then((info) => info.isFile(), () => false);
+  if (seen) return;
+  refuse(`The home at ${home} can't be read for now, because ${shownIn(home, file)} can't be seen, so the agent keeps what it has.`, "service_not_allowed");
 }
 
 /**

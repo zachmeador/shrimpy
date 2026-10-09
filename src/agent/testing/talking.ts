@@ -17,12 +17,30 @@ export interface Talking {
   readonly script: Script;
   /** What the model was shown at the start of each turn, oldest first: everything it was given since it last answered. */
   readonly shown: string[];
+  /** The instructions the model had at the start of each turn, by section: `shrimpy`, `soul`, `context` and `skills`. */
+  readonly sections: Record<string, string>[];
 }
 
 /** The text of a user message, whatever shape the engine gives it. */
 function textOf(message: Message): string {
   if (message.role !== "user") return "";
   return typeof message.content === "string" ? message.content : message.content.map((block) => (block.type === "text" ? block.text : "")).join("");
+}
+
+/**
+ * The instruction sections a request has, by name: the leading system message declares them, and each later one
+ * replaces the sections it names, or removes one with null.
+ */
+function sectionsOf(messages: readonly Message[]): Record<string, string> {
+  const sections = new Map<string, string>();
+  for (const message of messages) {
+    if (message.role !== "system") continue;
+    for (const [name, text] of Object.entries(message.sections ?? {})) {
+      if (text === null) sections.delete(name);
+      else sections.set(name, text);
+    }
+  }
+  return Object.fromEntries(sections);
 }
 
 /** Everything the model was shown since it last answered, oldest first. */
@@ -38,10 +56,12 @@ export function shownSinceLastAnswer(messages: readonly Message[]): string {
  */
 export function talking(respond: (shown: string, turn: number) => Turn): Talking {
   const shown: string[] = [];
+  const sections: Record<string, string>[] = [];
   let current: Turn = { final: "" };
   const script: Script = (messages) => {
     if (messages.at(-1)?.role !== "toolResult") {
       shown.push(shownSinceLastAnswer(messages));
+      sections.push(sectionsOf(messages));
       current = respond(shown.at(-1) ?? "", shown.length - 1);
       if (current.send !== undefined) {
         const { text, to } = current.send;
@@ -54,5 +74,5 @@ export function talking(respond: (shown: string, turn: number) => Turn): Talking
     }
     return fauxAssistantMessage([fauxText(current.final)]);
   };
-  return { script, shown };
+  return { script, shown, sections };
 }

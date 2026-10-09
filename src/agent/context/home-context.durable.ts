@@ -1,5 +1,5 @@
 import { defineExtension, type Extension, section } from "@earendil-works/pi-durable";
-import { homePaths, readHomeSnapshot } from "../home/index.ts";
+import { carryOver, type HomeSnapshot, homePaths, readHomeSnapshot } from "../home/index.ts";
 import type { AgentFacts } from "./base.ts";
 import { type ContextReport, factsOf, reportOf } from "./preview.ts";
 import { renderSections, SECTION_KEYS, type SectionKey } from "./sections.ts";
@@ -12,7 +12,8 @@ export interface HomeContext {
   /**
    * Read the home's files again. Requests prepared after it render the new
    * text, and the engine adds the change to each session it reaches. Whatever
-   * the sessions already hold stays as it was.
+   * the sessions already hold stays as it was. A file, a folder of notes or a
+   * skill that the reading leaves out stays as the reading before it had it.
    */
   reload(): Promise<ContextReport>;
 }
@@ -26,9 +27,16 @@ export interface HomeContext {
  */
 export async function homeContext(agent: AgentFacts): Promise<HomeContext> {
   const facts = factsOf(agent);
-  const read = async (): Promise<{ text: ReadonlyMap<SectionKey, string>; report: ContextReport }> => {
-    const snapshot = await readHomeSnapshot(homePaths(facts.home));
+  /** What was read, with the text of the sections made from it; `previous` is what the agent has until this is read. */
+  const read = async (
+    previous?: HomeSnapshot,
+  ): Promise<{ snapshot: HomeSnapshot; text: ReadonlyMap<SectionKey, string>; report: ContextReport }> => {
+    const paths = homePaths(facts.home);
+    const fresh = await readHomeSnapshot(paths);
+    // What can't be used is not taken out of the instructions: the agent goes on with what it last read of it.
+    const snapshot = previous === undefined ? fresh : carryOver(previous, fresh, paths);
     return {
+      snapshot,
       text: new Map(renderSections(facts, snapshot).map(({ key, text }) => [key, text])),
       report: reportOf(snapshot),
     };
@@ -46,7 +54,7 @@ export async function homeContext(agent: AgentFacts): Promise<HomeContext> {
     report: current.report,
     reload() {
       const reloaded = queue.then(async () => {
-        current = await read();
+        current = await read(current.snapshot);
         return current.report;
       });
       queue = reloaded.catch(() => undefined);

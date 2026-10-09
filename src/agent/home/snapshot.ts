@@ -1,7 +1,7 @@
 import type { Dirent, Stats } from "node:fs";
 import { readdir, realpath, stat } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
-import { codeOf, compare, type LeftOut, readText, why } from "./files.ts";
+import { codeOf, compare, type LeftOut, readText, shownIn, why } from "./files.ts";
 import { INCLUDED_SKILLS } from "./included.ts";
 import type { HomePaths } from "./layout.ts";
 import { mergeSkills, readSkills, type SkillTrail } from "./skills.ts";
@@ -93,4 +93,46 @@ const isMarkdown = (name: string): boolean => name.toLowerCase().endsWith(".md")
 
 function brokenLink(error: unknown): string {
   return codeOf(error) === "ENOENT" ? "it is a link to nothing" : why(error);
+}
+
+/** What a left-out file says when the agent goes on with what it had of it. */
+const KEPT = "so what was last read of it is kept";
+
+/**
+ * `read`, the reading just made, where what it left out is what the reading
+ * before it, `previous`, had: `SOUL.md`, a file or folder of `context/`, or a
+ * skill. The agent goes on with what it had of it, the text or the description,
+ * instead of losing it from its instructions for a save that is broken or a read
+ * that failed. It is still named as left out, and its reason says that what was
+ * last read of it is kept. Only what a reading names is carried over: a file
+ * that is gone is not named, and so is gone, and neither is one the reading before
+ * did not have. `previous` is what the agent holds, so a file that stays
+ * unusable stays as it was when it was last read.
+ */
+export function carryOver(previous: HomeSnapshot, read: HomeSnapshot, paths: HomePaths): HomeSnapshot {
+  const covers = (left: string, held: string): boolean => held === left || held.startsWith(`${left}/`);
+  const heldBack = (held: string): boolean => read.leftOut.some(({ file }) => covers(file, held));
+
+  const soul = read.soul === undefined && previous.soul !== undefined && heldBack("SOUL.md") ? previous.soul : undefined;
+  const have = new Set(read.files.map(({ path }) => path));
+  const files = previous.files.filter(({ path }) => !have.has(path) && heldBack(path));
+  // A skill is left out under the path its reading shows: inside the home, or in full for one that ships with Shrimpy.
+  const isOwn = (skill: SkillTrail): boolean => skill.file.startsWith(`${paths.skills}${sep}`);
+  const shown = (skill: SkillTrail): string => (isOwn(skill) ? shownIn(paths.root, skill.file) : skill.file);
+  const haveSkills = new Set(read.skills.map(({ file }) => file));
+  const skills = previous.skills.filter((skill) => !haveSkills.has(skill.file) && heldBack(shown(skill)));
+  if (soul === undefined && files.length === 0 && skills.length === 0) return read;
+
+  const kept = (left: string): boolean =>
+    (soul !== undefined && left === "SOUL.md") ||
+    files.some(({ path }) => covers(left, path)) ||
+    skills.some((skill) => covers(left, shown(skill)));
+  const all = [...read.skills, ...skills];
+  return {
+    soul: soul ?? read.soul,
+    files: [...read.files, ...files].sort((a, b) => compare(a.path, b.path)),
+    // A skill of the home that is carried over replaces a skill that ships under the same name, as one that is read does.
+    skills: mergeSkills(all.filter(isOwn), all.filter((skill) => !isOwn(skill))),
+    leftOut: read.leftOut.map((each) => (kept(each.file) ? { file: each.file, reason: `${each.reason}, ${KEPT}` } : each)),
+  };
 }
