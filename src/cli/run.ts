@@ -1,6 +1,7 @@
 import type { ConsoleOptions } from "../clients/console/index.ts";
-import { type Command, loadFamily, loadGroups } from "./commands/index.ts";
-import { FOLDER_VARIABLE, folderPath, lookForHome } from "./folder/index.ts";
+import { type Command, loadFamily } from "./commands/index.ts";
+import { lookForHome } from "./folder/index.ts";
+import { commandHelp, frontPage, groupHelp, unknownCommand, usageLine } from "./help.ts";
 import type { Io } from "./io/index.ts";
 import { UsageError } from "./usage/index.ts";
 
@@ -16,34 +17,42 @@ export interface RunOptions {
  * Run `shrimpy` with the arguments after its name. The result is the exit
  * code: 0 for success, 2 when the command was used wrongly, and 1 for any
  * other failure. A command may use other codes for results it reports. With no
- * command, at a terminal, it opens the console; anywhere else it lists the
- * commands.
+ * command, at a terminal, it opens the console; anywhere else it prints the
+ * front page.
  */
 export async function runCli(argv: string[], io: Io, options: RunOptions = {}): Promise<number> {
-  const [family] = argv;
-  if (family === undefined) {
+  const [first] = argv;
+  if (first === undefined) {
     if (io.terminal) return runConsole(io, options.openConsole ?? openTheConsole);
-    io.err(await overview());
+    io.err(frontPage());
     return 2;
   }
-  if (family === "help" || family === "--help" || family === "-h") {
-    io.out(await overview());
+  if (first === "help" || first === "--help" || first === "-h") {
+    io.out(frontPage());
     return 0;
   }
 
+  const family = await loadFamily(first);
   // `rooms` and `rooms new` both select `rooms new ops`: the one with more words is the one meant.
-  const command = (await loadFamily(family))
+  const command = family
     ?.filter((candidate) => selects(candidate, argv))
     .sort((a, b) => words(b).length - words(a).length)[0];
-  if (command === undefined) {
-    io.err(`Unknown command: ${argv.filter((word) => !word.startsWith("-")).slice(0, 2).join(" ")}`);
-    io.err(await overview());
-    return 2;
-  }
-  const rest = argv.slice(words(command).length);
+  const rest = argv.slice(command === undefined ? 1 : words(command).length);
   if (rest.includes("--help") || rest.includes("-h")) {
-    io.out([describe(command), "", command.summary, command.details].filter((line) => line !== undefined).join("\n"));
-    return 0;
+    // A group has commands of more than one word, such as `agent init`. Asked for its help, it lists them.
+    const group = family?.some((candidate) => words(candidate).length > 1) === true;
+    if (family !== undefined && group && (command === undefined || command.name === first)) {
+      io.out(groupHelp(first, family));
+      return 0;
+    }
+    if (command !== undefined) {
+      io.out(commandHelp(command));
+      return 0;
+    }
+  }
+  if (command === undefined) {
+    io.err(unknownCommand(argv, family === undefined ? undefined : first));
+    return 2;
   }
 
   try {
@@ -51,7 +60,7 @@ export async function runCli(argv: string[], io: Io, options: RunOptions = {}): 
   } catch (error) {
     if (error instanceof UsageError) {
       io.err(error.message);
-      io.err(describe(command));
+      io.err(usageLine(command));
       return 2;
     }
     io.err(error instanceof Error ? error.message : String(error));
@@ -95,42 +104,3 @@ const words = (command: Command): string[] => command.name.split(" ");
 /** Whether the arguments start with the words of the command's name. */
 const selects = (command: Command, argv: string[]): boolean =>
   words(command).every((word, index) => argv[index] === word);
-
-/** How a command is typed: its name, then its arguments if it takes any. */
-function invocation(command: Command): string {
-  return command.usage === "" ? command.name : `${command.name} ${command.usage}`;
-}
-
-function describe(command: Command): string {
-  return `Usage: shrimpy ${invocation(command)}`;
-}
-
-/** Every command, bare `shrimpy` first, then those for using Shrimpy, then those for running it and looking after it. */
-async function overview(): Promise<string> {
-  const { using, running } = await loadGroups();
-  const list = (commands: Command[]): string[] =>
-    commands.flatMap((command) => [`  ${invocation(command)}`, `      ${command.summary}`]);
-  return [
-    "Usage: shrimpy [<command>] [arguments]",
-    "",
-    "  (no command)",
-    "      Open the terminal client, to see your agents and talk to them. It needs a terminal.",
-    "",
-    "Use Shrimpy:",
-    ...list(using),
-    "",
-    "Run and look after Shrimpy:",
-    ...list(running),
-    "",
-    "Wherever a command takes an agent's home, an <agent> is a name or a path. A name, like scout, is the home " +
-      "agents/scout in your Shrimpy folder. Anything with a / in it, or that starts with . or ~, is a path, so " +
-      "./scout is a folder here. A command that takes --agent <agent> acts, without it, on the agent whose shell it " +
-      "runs in, and in your own terminal on the only agent your Shrimpy folder has.",
-    "",
-    `Your Shrimpy folder is ${folderPath()}, where agents/ holds the home of each agent, providers/ the sign-ins ` +
-      `and model servers they share, and gateway/ and chat/ the data of those programs. If this machine joined a ` +
-      `gateway as yours, machine.json says which. Set ${FOLDER_VARIABLE} to use another folder.`,
-    "",
-    "Say more about one command with: shrimpy <command> --help",
-  ].join("\n");
-}

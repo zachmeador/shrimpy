@@ -33,10 +33,16 @@ export function agentToActOn(flag: string | undefined): Target {
 /** The option every command about one agent takes, to name an agent that is not the one whose shell it runs in. */
 export const AGENT_OPTION = { agent: { type: "string" } } as const;
 
+/** What the help of a command that takes an <agent> says an <agent> is. */
+export const AN_AGENT =
+  "An <agent> is a name or a path. A name, like scout, is the home agents/scout in your Shrimpy folder. " +
+  "Anything with a / in it, or that starts with . or ~, is a path, so ./scout is a folder here.";
+
 /** What the help of a command about one agent says about which agent that is. */
 export const WHICH_AGENT =
   "With no --agent it acts on the agent whose shell it runs in, and in your own terminal on the only agent your " +
-  "Shrimpy folder has. --agent <agent>, a name or a path, acts on another, and is needed when the folder has more than one agent.";
+  "Shrimpy folder has. --agent <agent> acts on another, and is needed when the folder has more than one agent. " +
+  AN_AGENT;
 
 /** What the help of a command that acts on an agent says about acting on another agent's. */
 export const ABOUT_ANOTHER_AGENT =

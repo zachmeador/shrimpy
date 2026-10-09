@@ -19,7 +19,7 @@ import type { Command } from "./command.ts";
 import { connectIfRunning } from "./connected.ts";
 import { folderDefault } from "./folder-default.ts";
 import { leftOutLines, whatItReads } from "./reloaded.ts";
-import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, mayActOn, WHICH_AGENT } from "./which-agent.ts";
+import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, AN_AGENT, agentToActOn, mayActOn, WHICH_AGENT } from "./which-agent.ts";
 
 const init: Command = {
   name: "agent init",
@@ -28,7 +28,7 @@ const init: Command = {
   details:
     "The agent is named for the folder of its home unless --name gives it another name. Without --model it " +
     "names no model, and starts with the one in providers/default-model.json in your Shrimpy folder, which " +
-    "is ~/shrimpy or the folder SHRIMPY_DIR names.",
+    `is ~/shrimpy or the folder SHRIMPY_DIR names. ${AN_AGENT}`,
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({
@@ -126,13 +126,13 @@ function modelFromFlag(flag: string): ModelChoice {
 const serve: Command = {
   name: "agent serve",
   usage: "<agent> [--now]",
-  summary: "Run the agent in the foreground until it is told to stop.",
+  summary: "Run the agent in the foreground until it is told to stop. shrimpy up starts it for you.",
   details:
     "Prints one JSON line when it is listening. What the agent's home doesn't declare or hold, such as a " +
     "model server or a sign-in, it takes from providers/ in your Shrimpy folder, which is ~/shrimpy or the " +
     "folder SHRIMPY_DIR names. SIGTERM or Ctrl+C stops it: it stops taking input, gives " +
     "running turns up to five seconds to finish, then closes, and work that did not finish resumes at the " +
-    "next start. --now skips the wait, and so does a second signal during it.",
+    `next start. --now skips the wait, and so does a second signal during it. ${AN_AGENT}`,
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({ args, options: { now: { type: "boolean" } }, allowPositionals: true }),

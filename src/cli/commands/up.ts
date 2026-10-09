@@ -13,6 +13,7 @@ import { parsing, UsageError } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
 import { ABOUT_LISTEN, LISTEN_OPTION, listenAddresses } from "./listen.ts";
+import { AN_AGENT } from "./which-agent.ts";
 
 /** How `up` keeps a folder running when it is told no agents. A test gives it shorter times. */
 export interface Pace {
@@ -44,11 +45,14 @@ export function upCommand(pace: Pace = PACE): Command {
     usage: "[<agent>...] [--data <dir>] [--listen <host:port>]...",
     summary: "Start what is missing on this machine and keep it running: the gateway, the chat server and your agents.",
     details: [
-      "With no agents named, it starts every agent in your Shrimpy folder, which is ~/shrimpy or the folder " +
-        "SHRIMPY_DIR names: each folder of agents/ that holds an agent.json. The gateway keeps its roster in " +
-        "gateway/ and the chat server its store in chat/, in that folder or in the directory --data names, which " +
-        "is made if it is missing. Each program runs as a process of its own, the same one that gateway serve, " +
-        "chat serve and agent serve start. A gateway, chat server or agent that is already running is used as it " +
+      "Your Shrimpy folder is ~/shrimpy or the folder SHRIMPY_DIR names. Its agents/ holds the home of each " +
+        "agent, providers/ the sign-ins and model servers they share, and gateway/ and chat/ the data of those " +
+        "programs. If this machine joined a gateway as yours, machine.json says which.",
+      "With no agents named, it starts every agent in your Shrimpy folder: each folder of agents/ that holds an " +
+        "agent.json. The gateway keeps its roster in gateway/ and the chat server its store in chat/, in that " +
+        "folder or in the directory --data names, which is made if it is missing. Each program runs as a process " +
+        "of its own, the same one that gateway serve, chat serve and agent serve start. A gateway, chat server or " +
+        "agent that is already running is used as it " +
         `is, and left running when this stops. ${ABOUT_LISTEN} This passes --listen to the gateway it starts, and ` +
         "says where the gateway listens. A gateway that is already running is used as it is, so --listen can't " +
         "change it, and this says so. When it is told to listen, by --listen or by the addresses the gateway kept, " +
@@ -71,7 +75,7 @@ export function upCommand(pace: Pace = PACE): Command {
         "started ends by itself, this says which, stops the rest and exits 1, so whatever keeps this running " +
         "starts it all again.",
       "With agents named, it starts those and follows nothing: if one of them, or the gateway or the chat " +
-        "server this started, ends by itself, this says which, stops the rest and exits 1.",
+        `server this started, ends by itself, this says which, stops the rest and exits 1. ${AN_AGENT}`,
     ].join("\n\n"),
     async run(args, io) {
       const { values, positionals } = parsing(() =>

@@ -11,21 +11,46 @@ async function run(...args: string[]) {
   return { code, out: cli.out.join("\n"), err: cli.err.join("\n") };
 }
 
-test("with no command it lists the commands and exits with 2, and help lists them and exits with 0, in the order of their groups, with where the Shrimpy folder is", async (t) => {
+/** The names a front page lists, each in the column before its description: `agent ...` is the group agent. */
+function namesOn(page: string): Set<string> {
+  const names = new Set<string>();
+  for (const line of page.split("\n")) {
+    const [listed = "", description] = line.trim().split(/ {2,}/);
+    if (description === undefined) continue;
+    for (const name of listed.replace(/^shrimpy /, "").replace(/ \.\.\.$/, "").split(", ")) {
+      names.add(name.split(" ")[0] ?? "");
+    }
+  }
+  return names;
+}
+
+/** The groups of the programs that `up` runs. The front page leaves them out, and their own help lists them. */
+const PROGRAMS = ["gateway", "chat"];
+
+test("every command is reached from the front page: it is on it, or its group is, and the group's help lists it", async (t) => {
   const folder = useShrimpyDir(t);
   const commands = await loadAll();
 
+  const front = await run("--help");
   const bare = await run();
-  const help = await run("help");
 
-  assert.equal(bare.code, 2);
-  assert.equal(help.code, 0);
-  assert.equal(help.err, "");
-  for (const text of [bare.err, help.out]) {
-    const places = commands.map((command) => text.indexOf(`\n  ${command.name}`));
-    assert.ok(places.every((at) => at > 0), `every command is listed:\n${text}`);
-    assert.deepEqual(places, places.toSorted((a, b) => a - b), "in the order of the groups: using Shrimpy first");
-    assert.ok(text.includes(folder), "and it says where the Shrimpy folder is");
+  assert.equal(front.code, 0);
+  assert.equal(front.err, "");
+  assert.equal(bare.code, 2, "with no command, away from a terminal, it prints the front page and exits with 2");
+  assert.equal(bare.err, front.out);
+  assert.ok(front.out.includes(folder), "and the page says where the Shrimpy folder is");
+  assert.ok(front.out.split("\n").length <= 25, "and stays a page that is read at a glance");
+
+  const named = namesOn(front.out);
+  for (const command of commands) {
+    const [group = ""] = command.name.split(" ");
+    const program = PROGRAMS.includes(group);
+    assert.equal(named.has(group), !program, `${command.name}: ${group} is ${program ? "left off" : "on"} the front page`);
+    if (!commands.some((each) => each.name.startsWith(`${group} `))) continue;
+    // A command in a group is found in the group's help, which is the help of the group's name.
+    const help = await run(group, "--help");
+    assert.equal(help.code, 0, group);
+    assert.match(help.out, new RegExp(`^  ${command.name}( |$)`, "m"), `${command.name} is in the help of ${group}`);
   }
 });
 
@@ -43,12 +68,19 @@ test("with no command at a terminal it opens the console instead, and its result
   assert.deepEqual([result, opened, cli.err, cli.out], [1, 1, [], []]);
 });
 
-test("an unknown command is refused with the list of commands, and so is a name that is only a property of plain objects", async () => {
-  for (const args of [["nope"], ["agent", "nope"], ["constructor"]]) {
+test("a command that does not exist is refused with 2 and one message that names where to find the ones that do, also for a name that is only a property of plain objects", async () => {
+  const cases: [string[], string][] = [
+    [["nope"], "shrimpy --help"],
+    [["constructor"], "shrimpy --help"],
+    [["agent", "nope"], "shrimpy agent --help"],
+    [["agent"], "shrimpy agent --help"],
+  ];
+  for (const [args, finder] of cases) {
     const result = await run(...args);
     assert.equal(result.code, 2, args.join(" "));
-    assert.match(result.err, /^Unknown command: /);
-    assert.ok(result.err.includes("\n  up "), "and the list of commands follows it");
+    assert.equal(result.out, "");
+    assert.ok(result.err.includes(args.join(" ")) && result.err.includes(finder), result.err);
+    assert.equal(result.err.split("\n").length, 1, "and the list of commands is not printed after it");
   }
 });
 

@@ -11,50 +11,37 @@ export type { Pace } from "./up.ts";
 
 type Family = () => Promise<Command[]>;
 
-// A family is named by the first word of its commands. The commands for using
-// Shrimpy come first, as the ones people use most.
-const USING = new Map<string, Family>([
+// A family is named by the first word of its commands. They come in the order of the front page, and the programs
+// that `up` runs come last.
+const FAMILIES = new Map<string, Family>([
   ["up", async () => (await import("./up.ts")).upCommands],
+  ["status", async () => (await import("./status.ts")).statusCommands],
+  ["login", async () => (await import("./login.ts")).loginCommands],
   ["run", async () => (await import("./run.ts")).runCommands],
+  ["agent", async () => (await import("./agent.ts")).agentCommands],
+  ["triggers", async () => (await import("./triggers.ts")).triggersCommands],
+  ["sessions", async () => (await import("./sessions.ts")).sessionsCommands],
+  ["wake", async () => (await import("./wake.ts")).wakeCommands],
   ["threads", async () => (await import("./threads.ts")).threadsCommands],
   ["read", async () => (await import("./read.ts")).readCommands],
   ["rooms", async () => (await import("./rooms.ts")).roomsCommands],
-]);
-
-// The commands that start, stop, inspect and repair its programs and homes.
-const RUNNING = new Map<string, Family>([
-  ["agent", async () => (await import("./agent.ts")).agentCommands],
-  ["login", async () => (await import("./login.ts")).loginCommands],
-  ["sessions", async () => (await import("./sessions.ts")).sessionsCommands],
-  ["triggers", async () => (await import("./triggers.ts")).triggersCommands],
-  ["wake", async () => (await import("./wake.ts")).wakeCommands],
-  ["members", async () => (await import("./members.ts")).membersCommands],
-  ["invite", async () => (await import("./invite.ts")).inviteCommands],
-  ["join", async () => (await import("./join.ts")).joinCommands],
-  ["status", async () => (await import("./status.ts")).statusCommands],
   ["install", async () => (await import("./install.ts")).installCommands],
   ["uninstall", async () => (await import("./install.ts")).uninstallCommands],
+  ["invite", async () => (await import("./invite.ts")).inviteCommands],
+  ["join", async () => (await import("./join.ts")).joinCommands],
+  ["members", async () => (await import("./members.ts")).membersCommands],
   ["gateway", async () => (await import("./gateway.ts")).gatewayCommands],
   ["chat", async () => (await import("./chat.ts")).chatCommands],
 ]);
-
-const FAMILIES = new Map([...USING, ...RUNNING]);
 
 /** The commands of one family, or undefined if there is no such family. */
 export function loadFamily(family: string): Promise<Command[]> | undefined {
   return FAMILIES.get(family)?.();
 }
 
-/** The commands for using Shrimpy, and the ones for running it and looking after it, each in the order they are listed. */
-export async function loadGroups(): Promise<{ using: Command[]; running: Command[] }> {
-  const load = async (families: Map<string, Family>): Promise<Command[]> =>
-    (await Promise.all([...families.values()].map((family) => family()))).flat();
-  return { using: await load(USING), running: await load(RUNNING) };
-}
-
+/** Every command, family by family, in the order of the front page. */
 export async function loadAll(): Promise<Command[]> {
-  const { using, running } = await loadGroups();
-  return [...using, ...running];
+  return (await Promise.all([...FAMILIES.values()].map((family) => family()))).flat();
 }
 
 /** `shrimpy up` with the times of `pace`, for a test that can't wait for the ones it has. */

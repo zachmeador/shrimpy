@@ -6,7 +6,7 @@ export interface Command {
   readonly name: string;
   /** The arguments after the name, such as "<agent> [--now]". */
   readonly usage: string;
-  /** One line, for the list of commands. */
+  /** One line, for the help of the command's group and the README's table of commands. */
   readonly summary: string;
   /** More, for the command's own help. */
   readonly details?: string;

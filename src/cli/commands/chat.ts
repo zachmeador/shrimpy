@@ -8,7 +8,7 @@ import { serveUntilStopped } from "./serve.ts";
 const serve: Command = {
   name: "chat serve",
   usage: "<data-dir>",
-  summary: "Run the chat server in the foreground until it is told to stop, registered with the gateway.",
+  summary: "Run the chat server in the foreground until it is told to stop, registered with the gateway. shrimpy up starts it for you.",
   details:
     "The chat server keeps its store in the data directory, which is made if it does not exist. Prints one " +
     "JSON line when it is listening. SIGTERM or Ctrl+C stops it. It starts with no gateway running and " +

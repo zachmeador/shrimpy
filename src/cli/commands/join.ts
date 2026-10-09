@@ -18,27 +18,28 @@ const join: Command = {
   summary:
     "With the link of an invitation, make an agent here that joins a gateway elsewhere, or make this machine one of yours.",
   details: [
-    "Run this where the agent or the machine is to live, with the link that shrimpy invite printed on the gateway's " +
-      "machine, or on a machine of yours that has joined. The link says which it is for. Either way the invitation " +
-      "works once, for fifteen minutes, and running this again with the same link is safe while the code is good. " +
-      "It says on standard error whether the gateway runs another version of Shrimpy than this command, and gives " +
-      "up on a gateway that does not answer within fifteen seconds.",
-    "A link that names an agent makes that agent's home here: agents/<name> in your Shrimpy folder, which is " +
-      "~/shrimpy or the folder SHRIMPY_DIR names. If there is none, it is made as agent init <name> makes it, with " +
-      "no model; one that is there must be that agent. This makes the agent's token, shows the gateway the name, " +
-      "the code and the token, and keeps the gateway's address in the home, where shrimpy up finds it: the agent " +
-      "connects to that gateway from then on, and is talked to from the gateway's machine. It says whether the " +
-      "gateway let the agent in. The invitation works only for the name it was made for. A failure leaves a home " +
-      "that was just made. A home that has joined a gateway already is refused, and the error names the file to " +
-      "delete to join anew.",
-    "A link that names nobody makes this machine one of yours. It makes a token, keeps it in machine.json in your " +
-      "Shrimpy folder, and shows the gateway the code and the token. From then on the commands that talk (run, " +
-      "threads, read, rooms and members) and the terminal that a bare shrimpy opens reach that gateway as you, " +
-      "wherever it runs. A command about an agent's home, such as sessions or triggers, still acts on the homes of " +
-      "this machine. It says whose machine this is now. A failure leaves the token. A Shrimpy folder that has a " +
-      "gateway of its own is refused, since there you are the person who runs the gateway already, and so is one " +
-      "that has joined already: the error names the file to delete to join anew. Deleting that file is also how " +
-      "this machine leaves, though the gateway has no way yet to take the token back.",
+    "Run this where the agent or the machine is to live, with the link that shrimpy invite printed. The link says " +
+      "which it is for. Either way the invitation works once, for fifteen minutes, and running this again with the " +
+      "same link is safe while the code is good. It says on standard error whether the gateway runs another " +
+      "version of Shrimpy than this command, and gives up on a gateway that does not answer within fifteen seconds.",
+    "A link that names an agent, which shrimpy invite <name> printed on the gateway's machine, makes that agent's " +
+      "home here: agents/<name> in your Shrimpy folder, which is ~/shrimpy or the folder SHRIMPY_DIR names. If " +
+      "there is none, it is made as agent init <name> makes it, with no model; one that is there must be that " +
+      "agent. This makes the agent's token, shows the gateway the name, the code and the token, and keeps the " +
+      "gateway's address in the home, where shrimpy up finds it: the agent connects to that gateway from then on, " +
+      "and is talked to from the gateway's machine. It says whether the gateway let the agent in. The invitation " +
+      "works only for the name it was made for. A failure leaves a home that was just made. A home that has " +
+      "joined a gateway already is refused, and the error names the file to delete to join anew.",
+    "A link that names nobody, which shrimpy invite printed with no name, on the gateway's machine or on a " +
+      "machine of yours that has joined, makes this machine one of yours. It makes a token, keeps it in " +
+      "machine.json in your Shrimpy folder, and shows the gateway the code and the token. From then on the " +
+      "commands that talk (run, threads, read, rooms and members) and the terminal that a bare shrimpy opens " +
+      "reach that gateway as you, wherever it runs. A command about an agent's home, such as sessions or " +
+      "triggers, still acts on the homes of this machine. It says whose machine this is now. A failure leaves the " +
+      "token. A Shrimpy folder that has a gateway of its own is refused, since there you are the person who runs " +
+      "the gateway already, and so is one that has joined already: the error names the file to delete to join " +
+      "anew. Deleting that file is also how this machine leaves, though the gateway has no way yet to take the " +
+      "token back.",
   ].join("\n\n"),
   run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));

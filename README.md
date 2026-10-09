@@ -83,21 +83,13 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | Command | What it does |
 |---|---|
 | `up [<agent>...] [--data <dir>] [--listen <host:port>]...` | Start what is missing on this machine and keep it running: the gateway, the chat server and your agents. |
+| `status` | List the programs registered with this machine's gateway, and the members on its roster. |
+| `login [<provider>]` | Sign your Shrimpy folder in to a model provider, for every agent started there. |
 | `run <agent> "<text>" [--thread <id>] [--no-wait]` | Say something to an agent and print its reply. |
-| `threads <member\|#room> [--json]` | List your threads with a person or an agent, or in a room: ID, when last updated, who is working in it, and its name. |
-| `read <thread> [--json]` | Show a thread: who said what and when, oldest first, with each message's ID. |
-| `rooms` | List the rooms you are in, each with its members and when it was last updated. |
-| `rooms new <name> [<member>...]` | Make a room, with you and the members you name in it. Takes an admin. |
-| `rooms add <room> <member>...` | Add members to a room you are in. Takes an admin. |
 | `agent init <agent> [--model <provider/id>] [--name <name>]` | Create an agent home. Files that already exist are left as they are. |
-| `agent serve <agent> [--now]` | Run the agent in the foreground until it is told to stop. |
+| `agent serve <agent> [--now]` | Run the agent in the foreground until it is told to stop. shrimpy up starts it for you. |
 | `agent status [--agent <agent>]` | Say whether the agent is running, and how to reach it. |
 | `agent context [--agent <agent>]` | Preview what an agent would be told, from its home's files as they are now. |
-| `login [<provider>]` | Sign your Shrimpy folder in to a model provider, for every agent started there. |
-| `sessions list [--agent <agent>]` | List the sessions of a running agent: each one's name (a thread's ID, or trigger: and a trigger's name), where it is (a DM with someone, a room, or a trigger's own), and whether it is working. |
-| `sessions read <session> [--json] [--agent <agent>]` | Show a session: what was said, what the tools did, and what it is doing now. |
-| `sessions steer <session> <text> [--request-id <id>] [--wait] [--agent <agent>]` | Give a session input; it joins work already running. |
-| `sessions stop <session> [--agent <agent>]` | Stop the work in a session, and withdraw the input it has not picked up. |
 | `triggers [--agent <agent>]` | List the triggers of an agent: each one's schedule, whether it is on, when it runs next and how its last occurrence ended. |
 | `triggers add <name> (--every <delay> \| --cron "<fields>" [--timezone <zone>]) [--thread <id>] [--overlap allow] [--check "<command>" [--when changed\|output\|always] [--then wake\|note] [--timeout <delay>]] "<prompt>" [--agent <agent>]` | Make a trigger, or replace the one of that name: a prompt the agent is given on a schedule. |
 | `triggers show <name> [--agent <agent>]` | Show a trigger: what it says, when it runs next and its latest occurrences. |
@@ -105,17 +97,25 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `triggers on <name> [--agent <agent>]` | Turn a trigger on. |
 | `triggers off <name> [--agent <agent>]` | Turn a trigger off, and keep it. |
 | `triggers remove <name> [--agent <agent>]` | Delete a trigger. |
+| `sessions list [--agent <agent>]` | List the sessions of a running agent: each one's name (a thread's ID, or trigger: and a trigger's name), where it is (a DM with someone, a room, or a trigger's own), and whether it is working. |
+| `sessions read <session> [--json] [--agent <agent>]` | Show a session: what was said, what the tools did, and what it is doing now. |
+| `sessions steer <session> <text> [--request-id <id>] [--wait] [--agent <agent>]` | Give a session input; it joins work already running. |
+| `sessions stop <session> [--agent <agent>]` | Stop the work in a session, and withdraw the input it has not picked up. |
 | `wake [<room> <policy>] [--agent <agent>]` | Choose what wakes an agent in a room, or list what is set. |
+| `threads <member\|#room> [--json]` | List your threads with a person or an agent, or in a room: ID, when last updated, who is working in it, and its name. |
+| `read <thread> [--json]` | Show a thread: who said what and when, oldest first, with each message's ID. |
+| `rooms` | List the rooms you are in, each with its members and when it was last updated. |
+| `rooms new <name> [<member>...]` | Make a room, with you and the members you name in it. Takes an admin. |
+| `rooms add <room> <member>...` | Add members to a room you are in. Takes an admin. |
+| `install` | Run shrimpy up for your Shrimpy folder as a service of your account, started again if it fails. |
+| `uninstall` | Stop your Shrimpy folder's service and remove it. Nothing of Shrimpy's is deleted. |
+| `invite [<name>]` | Invite an agent that will live elsewhere, or with no name another machine of yours, and print the line to run there. |
+| `join <link>` | With the link of an invitation, make an agent here that joins a gateway elsewhere, or make this machine one of yours. |
 | `members` | List the roster: each member's kind, whether it is an admin, and whether a program is running as it. |
 | `members promote <name>` | Make an agent an admin. |
 | `members demote <name>` | Make an admin agent an ordinary agent again. |
-| `invite [<name>]` | Invite an agent that will live elsewhere, or with no name another machine of yours, and print the line to run there. |
-| `join <link>` | With the link of an invitation, make an agent here that joins a gateway elsewhere, or make this machine one of yours. |
-| `status` | List the programs registered with this machine's gateway, and the members on its roster. |
-| `install` | Run shrimpy up for your Shrimpy folder as a service of your account, started again if it fails. |
-| `uninstall` | Stop your Shrimpy folder's service and remove it. Nothing of Shrimpy's is deleted. |
-| `gateway serve --data <dir> [--listen <host:port>]... [--web-port <port>] [--web-dir <dir>]` | Run the gateway in the foreground until it is told to stop. |
-| `chat serve <data-dir>` | Run the chat server in the foreground until it is told to stop, registered with the gateway. |
+| `gateway serve --data <dir> [--listen <host:port>]... [--web-port <port>] [--web-dir <dir>]` | Run the gateway in the foreground until it is told to stop. shrimpy up starts it for you. |
+| `chat serve <data-dir>` | Run the chat server in the foreground until it is told to stop, registered with the gateway. shrimpy up starts it for you. |
 <!-- commands:end -->
 
 ## The shape

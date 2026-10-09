@@ -19,7 +19,7 @@ From the first release of the redesigned Shrimpy on, a change that someone would
 
 1. Read root instructions and inspect Git status, staged/unstaged changes, the active changelog section, and the package version.
 2. For a normal unreleased update, compare with the latest semver release tag. Inspect the actual relevant diffs; commit messages and existing prose are leads rather than proof.
-3. Verify commands and flags against `shrimpy --help` and each command's own help, configuration against its validators, and behavior against the owning source. Include the skills Shrimpy ships and what every agent is told.
+3. Verify commands and flags against the README's table of commands and each command's own help, configuration against its validators, and behavior against the owning source. Include the skills Shrimpy ships and what every agent is told.
 4. Add or update `Unreleased` above the latest release, preserving unrelated entries. Do not invent a target version. Change the heading to a release date only for requested release preparation.
 
 ## Shape And Order

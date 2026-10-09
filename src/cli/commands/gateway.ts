@@ -9,7 +9,7 @@ import { serveUntilStopped } from "./serve.ts";
 const serve: Command = {
   name: "gateway serve",
   usage: "--data <dir> [--listen <host:port>]... [--web-port <port>] [--web-dir <dir>]",
-  summary: "Run the gateway in the foreground until it is told to stop.",
+  summary: "Run the gateway in the foreground until it is told to stop. shrimpy up starts it for you.",
   details:
     "The gateway keeps the roster of who is on the network in the data directory, which is made if it does " +
     "not exist. Prints one JSON line when it is listening. SIGTERM or Ctrl+C stops it. The browser entry " +

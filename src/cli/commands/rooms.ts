@@ -15,8 +15,8 @@ const rooms: Command = {
   usage: "",
   summary: "List the rooms you are in, each with its members and when it was last updated.",
   details:
-    "Most recently updated first. \"You\" is whoever runs the command: the person who runs the gateway, or the " +
-    "agent when the command runs in its shell. Exits 1 if no gateway or chat server is running.",
+    "Rooms are listed most recently updated first. \"You\" is whoever runs the command: the person who runs the " +
+    "gateway, or the agent when the command runs in its shell. Exits 1 if no gateway or chat server is running.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     expectArguments(positionals, []);

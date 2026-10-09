@@ -19,10 +19,22 @@ import type { Command } from "./command.ts";
 import { connectIfRunning, noAgentRunning } from "./connected.ts";
 import { leftOutLines, modelLine, whatItReads } from "./reloaded.ts";
 import { renderTrigger, renderTriggerFile, renderTriggerFiles, renderTriggers, when } from "./render-triggers.ts";
-import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, command, mayActOn, type Target } from "./which-agent.ts";
+import {
+  ABOUT_ANOTHER_AGENT,
+  AGENT_OPTION,
+  AN_AGENT,
+  agentToActOn,
+  command,
+  mayActOn,
+  type Target,
+  WHICH_AGENT,
+} from "./which-agent.ts";
 
 /** What takes an admin, when a command run in the shell of another agent changes this agent's trigger files. */
 const CHANGE = "Changing another agent's triggers";
+
+/** What the help of each command about one agent's triggers says about which agent that is. */
+const WHICH = `${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`;
 
 /** How to make a trigger, for an error that has to say what to do next. */
 const MAKE_ONE = 'triggers add <name> --every 1h "<what to do>"';
@@ -166,8 +178,8 @@ const list: Command = {
       "Each has its own --help.",
     "",
     "With no --agent these commands act on the agent whose shell they run in, and in your own terminal on the only " +
-      "agent your Shrimpy folder has. --agent <agent>, a name or a path, acts on another, and is needed when the " +
-      "folder has more than one agent. With no agent running, this shows only what the trigger files say, and exits 1.",
+      "agent your Shrimpy folder has. --agent <agent> acts on another, and is needed when the folder has more than " +
+      `one agent. ${AN_AGENT} With no agent running, this shows only what the trigger files say, and exits 1.`,
     "",
     ABOUT_ANOTHER_AGENT,
   ].join("\n"),
@@ -236,6 +248,8 @@ const add: Command = {
       "as triggers/<name>.md in the agent's home, in place of any trigger of that name, and the new trigger is on. " +
       "A running agent is then told to read its files again, and this says when the trigger runs first. An agent " +
       "that is not running reads the file when it starts, and a new trigger counts from then.",
+    "",
+    WHICH,
   ].join("\n"),
   async run(args, io) {
     const { values, positionals } = parsing(() =>
@@ -321,7 +335,7 @@ const show: Command = {
     "occurrence of a trigger with a check can also end noted, when it wrote its news to a breadcrumb, or " +
     "interrupted, when the agent stopped while the check ran. A check that finds no news makes no occurrence, so " +
     "for a trigger with a check it also says when the check last ran, and how many in a row have found none. With " +
-    "no agent running, it shows only what the trigger's file says, and exits 1.",
+    `no agent running, it shows only what the trigger's file says, and exits 1. ${WHICH}`,
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     const [name] = expectArguments(positionals, ["<name>"]);
@@ -363,6 +377,8 @@ const run: Command = {
       "is a failure: with --then wake the agent is woken with the prompt and the output, and with --then note the " +
       "breadcrumb is written. What it printed is what the next scheduled occurrence compares with, and the " +
       "schedule does not move. shrimpy triggers show says how it ended.",
+    "",
+    WHICH,
   ].join("\n"),
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
@@ -400,10 +416,10 @@ function switching(enabled: boolean): Command {
     summary: enabled ? "Turn a trigger on." : "Turn a trigger off, and keep it.",
     details: enabled
       ? "Takes enabled: false out of the trigger's file, then tells a running agent to read its files again. " +
-        "Its schedule counts from then. An agent that is not running reads the file when it starts."
+        `Its schedule counts from then. An agent that is not running reads the file when it starts. ${WHICH}`
       : "Puts enabled: false in the trigger's file, then tells a running agent to read its files again. A trigger " +
         "that is off never runs on its schedule, but shrimpy triggers run still runs it. An occurrence that is " +
-        "running is not stopped: shrimpy sessions stop does that.",
+        `running is not stopped: shrimpy sessions stop does that. ${WHICH}`,
     async run(args, io) {
       const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
       const [name] = expectArguments(positionals, ["<name>"]);
@@ -425,7 +441,7 @@ const remove: Command = {
   details:
     "Deletes the trigger's file, then tells a running agent to read its files again, which ends the trigger. An " +
     "occurrence that is running is not stopped: shrimpy sessions stop does that. The trigger's session, " +
-    "trigger:<name>, stays, so that what it did can still be read.",
+    `trigger:<name>, stays, so that what it did can still be read. ${WHICH}`,
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     const [name] = expectArguments(positionals, ["<name>"]);
