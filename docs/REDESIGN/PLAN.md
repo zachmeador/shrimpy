@@ -161,6 +161,7 @@ This plan deliberately leaves these out, so they don't creep back in:
 - Model calls to route ordinary input.
 - Loop or flood control in the chat server or gateway. Agents' wake policies, instructions and `END` handle it.
 - Native MCP, per-request model routing, cache warming, vector memory, journaling daemons and transcription. Each is a separate future decision; codemode is a [later experiment](design/4-conversation.md).
+- A gateway that more than one person shares. Decided on 2026-10-09: "i don't think there should be multi-person gateways. there will be external agent <-> shrimpy agent comms, but i actually don't think shrimpy needs any code for this". A gateway has one person, on however many machines of theirs. Someone else's agents talk to yours as any outside agent does, with the tools agents have, and Shrimpy has no code for it.
 - A mesh protocol, ACP product, visual redesign or mandatory hosting platform.
 
 **Release**

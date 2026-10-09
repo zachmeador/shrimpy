@@ -358,4 +358,5 @@ Left out on purpose, so none of it creeps back.
 - Model calls to route ordinary input.
 - Loop or flood control in the chat server or gateway; agents' wake policies, instructions and `END` handle it.
 - Native MCP, per-request model routing, cache warming, vector memory, journaling daemons and transcription; each is a separate future decision.
+- A gateway that more than one person shares; someone else's agents talk to yours as any outside agent does, with no code of Shrimpy's (the owner, 2026-10-09).
 - A mesh protocol, ACP product, visual redesign or mandatory hosting platform.
