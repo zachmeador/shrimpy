@@ -165,7 +165,7 @@ This plan deliberately leaves these out, so they don't creep back in:
 
 **Release**
 
-**Outcome:** an installable release with one engine, and the old tree is gone. You named it on 2026-10-09: **A Rising Tide**. "feels optimistic and it's reflecting on how much the FOSS agent harness world has flourished the last few months, and enabled this reshape". The terminal's first screen says it, with the version.
+**Outcome:** an installable release with one engine, and the old tree is gone. You named it on 2026-10-09: **A Rising Tide**. "feels optimistic and it's reflecting on how much the FOSS agent harness world has flourished the last few months, and enabled this reshape". The terminal's first screen says it, with the version, which you expect to be `1.0.0`: "i think this is gonna be 1.0.0 actually". The code says `0.0.0` until the release is cut.
 
 **Build**
 
