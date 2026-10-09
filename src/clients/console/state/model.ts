@@ -11,9 +11,10 @@ import type { LinkStatus, Problem } from "../network/index.ts";
 
 /**
  * Whose threads the person looks at: their DM with an agent, by the agent's
- * name, or a room they are in, by its channel's ID.
+ * name, a room they are in, by its channel's ID, or a channel they are not in
+ * and only read, by its channel's ID.
  */
-export type Place = { kind: "agent"; name: string } | { kind: "room"; id: string };
+export type Place = { kind: "agent"; name: string } | { kind: "room"; id: string } | { kind: "read-only"; id: string };
 
 /**
  * Where in the console the person is. An agent's screen is two lists, the
@@ -51,6 +52,12 @@ export interface Dm {
 
 /** A room the person is in, and its threads, newest first. */
 export interface Room {
+  channel: Channel;
+  threads: Thread[];
+}
+
+/** A channel the person is not in and only reads, a DM between two agents or a room of agents, and its threads, newest first. */
+export interface ReadOnlyChannel {
   channel: Channel;
   threads: Thread[];
 }
@@ -146,6 +153,8 @@ export interface Model {
   dms: Record<string, Dm>;
   /** The rooms the person is in, by their channels' IDs. */
   rooms: Record<string, Room>;
+  /** The channels the person is not in and only reads, by their channels' IDs. */
+  readOnly: Record<string, ReadOnlyChannel>;
   /** The live view of the open thread. */
   thread: ThreadView | undefined;
   /** The live view of the session on show: the one behind the open thread, once the agent has one, or the one being watched. */
@@ -256,6 +265,24 @@ export function roomEntries(model: Pick<Model, "me" | "rooms">): RoomEntry[] {
       working: threads.some((thread) => thread.working.length > 0),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** A channel the person only reads, as the list of agents and rooms shows it. */
+export interface ReadOnlyEntry {
+  channel: Channel;
+  /** Whether anyone is working in a thread of it. */
+  working: boolean;
+}
+
+/**
+ * The channels the person only reads, the DMs first and then the rooms, each in
+ * alphabetical order of its name, which in a DM is the names of its two members.
+ */
+export function readOnlyEntries(model: Pick<Model, "readOnly">): ReadOnlyEntry[] {
+  const rank = ({ channel }: ReadOnlyEntry): number => (channel.kind === "dm" ? 0 : 1);
+  return Object.values(model.readOnly)
+    .map(({ channel, threads }) => ({ channel, working: threads.some((thread) => thread.working.length > 0) }))
+    .sort((a, b) => rank(a) - rank(b) || a.channel.name.localeCompare(b.channel.name));
 }
 
 /** Work that goes on after the console is left: the agent that is working, and the thread it is working in. */

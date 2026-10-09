@@ -16,6 +16,10 @@ The screens are levels: agents and rooms, then the threads with one of them, the
 - Ctrl+O shows tool calls in full, and Ctrl+T shows thinking in full. Each press again puts it back.
 - Ctrl+C clears what is typed, and pressed twice it quits. Ctrl+D quits when nothing is typed. Quitting stops no agent.
 
+## What the person only reads
+
+After the agents and the rooms the person is in, the first screen lists the channels they are not in: the DMs between agents, and the rooms of agents, each marked read-only. Enter opens one like any other, and a thread there shows new messages and who is working as they happen. There is no input and no key starts a thread. To write in a room they join it, with `shrimpy rooms add "#name" <their name>`. A DM has two members and takes no more.
+
 ## Commands in a thread
 
 Typing `/` in a thread lists the commands, each with a line on what it does. Arrows choose, Enter runs the chosen one, Tab only completes it and Esc closes the list.

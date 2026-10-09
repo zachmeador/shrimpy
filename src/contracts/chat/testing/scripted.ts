@@ -33,11 +33,13 @@ export interface ScriptedChatOptions {
  * by a test, for the tests of the console, which watch threads and talk in
  * them. It is a stand-in for what the console needs and nothing more: it takes
  * the calls the console makes, keeps what was posted once however often the
- * same request is sent, and publishes a thread's view as it changes. What an
- * agent does with a feed, receipts, edits, deletes and reactions, rooms, who a
- * text mentions, and the limits of the chat server are not here, because
- * nothing that uses this makes those calls; whatever tests that need chat to
- * behave as it does run the chat server itself.
+ * same request is sent, and publishes a thread's view as it changes. The person
+ * who runs the gateway reads the channels they are not in, a room is made by the
+ * test and joined with `addMembers`, and nothing here refuses a write: a test
+ * that needs the chat server to refuse runs the chat server itself, as it does
+ * for what an agent does with a feed, receipts, edits, deletes and reactions,
+ * who a text mentions, and the limits of the chat server, which are not here
+ * because nothing that uses this makes those calls.
  */
 export interface ScriptedChat {
   /**
@@ -54,6 +56,8 @@ export interface ScriptedChat {
   route(threadId: string): Offer | undefined;
   /** The main thread of the DM between two members, made if need be, without going through a connection. */
   dm(a: Member, b: Member): { channel: Channel; thread: Thread };
+  /** A room called `name` with these members and its main thread, without going through a connection. */
+  room(name: string, members: Member[]): { channel: Channel; thread: Thread };
   /** Say something in a thread as a member, without a connection to do it over. */
   say(author: Member, threadId: string, text: string): Message;
   /** Every message, oldest first, or those of one thread. The copies are the test's to keep. */
@@ -64,6 +68,8 @@ export interface ScriptedChat {
 
 interface ChannelRecord {
   id: string;
+  /** A room's name. A DM has none. */
+  name?: string;
   members: Member[];
 }
 
@@ -120,19 +126,23 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
     const record = threads.find((thread) => thread.id === threadId);
     if (state !== undefined && record !== undefined) state.replace(BACKGROUND_CONTEXT, toView(record));
   };
-  const toChannel = (record: ChannelRecord, viewer: Member): Channel => ({
+  /** A channel as `viewerId` sees it: a DM is named for the members that are not the viewer, in alphabetical order. */
+  const toChannel = (record: ChannelRecord, viewerId?: string): Channel => ({
     id: record.id,
-    kind: "dm",
-    name: record.members
-      .filter((member) => member.id !== viewer.id)
-      .map((member) => member.name)
-      .join(", "),
+    kind: record.name === undefined ? "dm" : "room",
+    name:
+      record.name ??
+      record.members
+        .filter((member) => member.id !== viewerId)
+        .map((member) => member.name)
+        .sort((a, b) => a.localeCompare(b))
+        .join(", "),
     members: clone(record.members),
   });
 
   const makeDm = (a: Member, b: Member): { channel: ChannelRecord; thread: ThreadRecord } => {
     const existing = channels.find(
-      (channel) => isIn(channel, a.id) && isIn(channel, b.id) && channel.members.length === 2,
+      (channel) => channel.name === undefined && isIn(channel, a.id) && isIn(channel, b.id) && channel.members.length === 2,
     );
     if (existing !== undefined) {
       return { channel: existing, thread: threads.find((thread) => thread.channelId === existing.id && thread.main)! };
@@ -195,22 +205,34 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
       async channels() {
         gate("channels");
         const me = caller();
-        return channels.filter((channel) => isIn(channel, me.id)).map((channel) => toChannel(channel, me));
+        return channels.filter((channel) => isIn(channel, me.id)).map((channel) => toChannel(channel, me.id));
       },
       async readOnlyChannels() {
-        return unsupported();
+        gate("readOnlyChannels");
+        const me = caller();
+        // A person reads the channels they are not in. An agent reads only its own.
+        if (me.kind !== "person") return [];
+        return channels.filter((channel) => !isIn(channel, me.id)).map((channel) => toChannel(channel, me.id));
       },
       async openDm(otherId) {
         gate("openDm");
         const me = caller();
         const other = (await identity.member(otherId)) ?? refuse(`There is no member ${otherId} on the roster.`);
-        return toChannel(makeDm(me, other).channel, me);
+        return toChannel(makeDm(me, other).channel, me.id);
       },
       async createRoom() {
         return unsupported();
       },
-      async addMembers() {
-        return unsupported();
+      async addMembers(channelId, memberIds) {
+        gate("addMembers");
+        const me = caller();
+        const room = channels.find((channel) => channel.id === channelId && channel.name !== undefined);
+        if (room === undefined) refuse(`Unknown channel: ${channelId}`);
+        for (const id of memberIds) {
+          if (isIn(room, id)) continue;
+          room.members.push(id === me.id ? me : ((await identity.member(id)) ?? refuse(`There is no member ${id} on the roster.`)));
+        }
+        return toChannel(room, me.id);
       },
       async threads(channelId) {
         gate("threads");
@@ -302,7 +324,14 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
     },
     dm(a, b) {
       const { channel, thread } = makeDm(a, b);
-      return { channel: toChannel(channel, a), thread: toThread(thread) };
+      return { channel: toChannel(channel, a.id), thread: toThread(thread) };
+    },
+    room(name, members) {
+      const channel: ChannelRecord = { id: nextId("ch"), name, members: clone(members) };
+      const thread: ThreadRecord = { id: nextId("th"), channelId: channel.id, main: true, name: null, updatedAt: now() };
+      channels.push(channel);
+      threads.push(thread);
+      return { channel: toChannel(channel), thread: toThread(thread) };
     },
     say(author, threadId, text) {
       return append(author, threadId, text, nextId("said"));

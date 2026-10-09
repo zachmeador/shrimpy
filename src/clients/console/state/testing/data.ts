@@ -40,6 +40,7 @@ export function aModel(parts: Partial<Model> = {}): Model {
     agent: undefined,
     dms: {},
     rooms: {},
+    readOnly: {},
     thread: undefined,
     session: undefined,
     sessions: undefined,

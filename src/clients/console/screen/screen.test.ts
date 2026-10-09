@@ -511,7 +511,14 @@ test("text from other members and from tools can't act on a terminal, wherever i
     aSession(`th_2${hostile}`, { place: { kind: "room", room: `ops${hostile}`, thread: { main: true, name: null } }, working: true }),
     aSession(`th_3${hostile}`),
   ];
+  // The channels the person only reads name members, and the line over their input has the person's own name in a command to run.
+  const others = [agentMember(`scout${hostile}`), agentMember(`mechanic${hostile}`)];
+  const readOnly = {
+    ch_3: { channel: { id: "ch_3", kind: "dm" as const, name: "x", members: others }, threads: [open] },
+    ch_4: { channel: { id: "ch_4", kind: "room" as const, name: `lab${hostile}`, members: others }, threads: [open] },
+  };
   const model = onThread(`scout${hostile}`, open, view, {
+    me: { ...zach, name: `zach${hostile}` },
     session,
     sessions,
     workingSessions: { [`scout${hostile}`]: sessions.filter((each) => each.working) },
@@ -519,6 +526,7 @@ test("text from other members and from tools can't act on a terminal, wherever i
     listing: aListing([anAgent(`scout${hostile}`, `1.0${hostile}`)], `2.0${hostile}`),
     dms: { [`scout${hostile}`]: aDm(`scout${hostile}`, [open]) },
     rooms: { ch_2: aRoom(`ops${hostile}`, [`scout${hostile}`], [open]) },
+    readOnly,
     chat: { state: "down", why: { kind: "unreachable", message: `chat${hostile}` } },
     agent: { state: "down", why: { kind: "unreachable", message: `agent${hostile}` } },
     notice: { kind: "not-sent", problem: { said: `said${hostile}` } },
@@ -554,18 +562,24 @@ test("text from other members and from tools can't act on a terminal, wherever i
     { screen: "thread" as const, place: dm, thread: "th_1" },
     { screen: "threads" as const, place: room },
     { screen: "thread" as const, place: room, thread: "th_1" },
+    { screen: "threads" as const, place: { kind: "read-only" as const, id: "ch_3" } },
+    { screen: "thread" as const, place: { kind: "read-only" as const, id: "ch_3" }, thread: "th_1" },
+    { screen: "thread" as const, place: { kind: "read-only" as const, id: "ch_4" }, thread: "th_1" },
     { screen: "sessions" as const, agent: `scout${hostile}` },
     { screen: "session" as const, agent: `scout${hostile}`, session: "th_1" },
     { screen: "session" as const, agent: `scout${hostile}`, session: `trigger:${hostile}` },
     { screen: "session" as const, agent: `scout${hostile}`, session: `th_3${hostile}` },
   ]) {
-    const status = where.screen === "thread" ? statuses[where.place.kind] : undefined;
+    // `/status` finds nothing in a channel the person only reads, and the line over its input is on the screen instead.
+    const reading = where.screen === "thread" && where.place.kind === "read-only";
+    const status = where.screen === "thread" && where.place.kind !== "read-only" ? statuses[where.place.kind] : undefined;
     // With the agent reached, the threads of an agent say where else it is working.
     for (const agent of [model.agent, { state: "up" as const }]) {
       const screen = screenOf({ ...model, where, status, agent }, { now });
       const all = [...stringsIn(screen)];
       assert.ok(all.length > 3);
-      if (screen.kind === "thread") assert.ok(screen.status !== undefined, "the reading is on the screen");
+      if (screen.kind === "thread") assert.equal(screen.status !== undefined, !reading, "the reading is on the screen");
+      if (screen.kind === "thread") assert.equal(screen.readOnly !== undefined, reading, "and so is the line over a missing input");
       if (screen.kind === "threads" && agent?.state === "up" && where.screen === "threads" && where.place.kind === "agent") {
         assert.ok(screen.elsewhere !== undefined, "the line is on the screen");
       }

@@ -1,9 +1,11 @@
 /**
  * What the console knows and can do, without a terminal: where the person is,
  * which agents run and, while the list of agents is on show, what each is working
- * in, the rooms they are in, their threads, an agent's sessions,
+ * in, the rooms they are in and the channels they only read, their threads, an
+ * agent's sessions,
  * the open thread and the work behind it, the session being watched, what is
- * connected, and the things a person does: pick an agent, a room, a thread or a
+ * connected, and the things a person does: pick an agent, a room, a channel they
+ * only read, a thread or a
  * session, start a thread, say something, read the status of a thread, ask for
  * the models an agent can use and read the model of a thread's session, tell the
  * person something about what they wrote,
@@ -24,6 +26,9 @@ export {
   type Model,
   type Notice,
   type Place,
+  type ReadOnlyChannel,
+  type ReadOnlyEntry,
+  readOnlyEntries,
   type Room,
   type RoomEntry,
   roomEntries,

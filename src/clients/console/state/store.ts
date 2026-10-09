@@ -27,7 +27,9 @@ import {
   type Model,
   type Notice,
   type Place,
+  type Room,
   type SendResult,
+  type Where,
   workingIn,
 } from "./model.ts";
 import { keepRollCall } from "./roll-call.ts";
@@ -64,9 +66,11 @@ export interface ConsoleState {
   selectAgent(name: string): void;
   /** Show the threads of a room the person is in, by its channel's ID. */
   selectRoom(roomId: string): void;
-  /** Open one of the threads on show, to talk and, in an agent's, to watch the work. */
+  /** Show the threads of a channel the person is not in and only reads, by its channel's ID. */
+  selectReadOnly(channelId: string): void;
+  /** Open one of the threads on show, to talk and, in an agent's, to watch the work. In a channel the person only reads, to read it. */
   openThread(threadId: string): void;
-  /** Start a thread with the selected agent or in the selected room. It comes to be with its first message. */
+  /** Start a thread with the selected agent or in the selected room. It comes to be with its first message. A channel the person only reads takes none. */
   startThread(): void;
   /** On an agent's screen, switch between the person's threads with it and its sessions. */
   switchLists(): void;
@@ -111,7 +115,7 @@ export interface ConsoleState {
 }
 
 /** A place as a string, for telling one from another. */
-const placeKey = (place: Place): string => (place.kind === "agent" ? `agent ${place.name}` : `room ${place.id}`);
+const placeKey = (place: Place): string => (place.kind === "agent" ? `agent ${place.name}` : `${place.kind} ${place.id}`);
 
 const POLL_MS = 2000;
 const NOTICE_MS = 6000;
@@ -141,6 +145,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     agent: undefined,
     dms: {},
     rooms: {},
+    readOnly: {},
     thread: undefined,
     session: undefined,
     sessions: undefined,
@@ -249,14 +254,30 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     set({ agent: link.status(), session: undefined, sessions: undefined, refusal: undefined });
   };
 
-  /** The person's DMs and rooms and the threads in them, asked for again whenever something suggests they changed. */
+  /**
+   * Where the person is, as it is once `rooms` are the rooms they are in: the same screen in the room, if they were
+   * reading a channel that is one of their rooms now because they joined it, and nothing otherwise.
+   */
+  function walkedIn(rooms: Record<string, Room>): Where | undefined {
+    const { where } = model;
+    if ((where.screen !== "threads" && where.screen !== "thread") || where.place.kind !== "read-only") return undefined;
+    const { id } = where.place;
+    return rooms[id] === undefined ? undefined : { ...where, place: { kind: "room", id } };
+  }
+
+  /** The person's DMs, rooms and channels they only read, and the threads in them, asked for again whenever something suggests they changed. */
   const refreshChannels = converge(
     async () => {
       if (chat.status().state !== "up") return;
       const agents = agentEntries(model);
-      const { dms, rooms } = await chat.call((client) => readChannels(client, agents));
-      if (JSON.stringify(dms) !== JSON.stringify(model.dms) || JSON.stringify(rooms) !== JSON.stringify(model.rooms)) {
-        set({ dms, rooms });
+      const { dms, rooms, readOnly } = await chat.call((client) => readChannels(client, agents));
+      if (
+        JSON.stringify(dms) !== JSON.stringify(model.dms) ||
+        JSON.stringify(rooms) !== JSON.stringify(model.rooms) ||
+        JSON.stringify(readOnly) !== JSON.stringify(model.readOnly)
+      ) {
+        const where = walkedIn(rooms);
+        set({ dms, rooms, readOnly, ...(where === undefined ? {} : { where }) });
       }
       if (model.notice?.kind === "not-listed") say(undefined);
       channelsRead = true;
@@ -321,7 +342,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
    * The channel a new thread goes in: the person's DM with the agent, which is
    * made if they have none, or the room, which the console never makes.
    */
-  async function channelOf(client: ChatClient, place: Place, signal: AbortSignal): Promise<Channel> {
+  async function channelOf(client: ChatClient, place: Exclude<Place, { kind: "read-only" }>, signal: AbortSignal): Promise<Channel> {
     if (place.kind === "room") {
       const room = model.rooms[place.id];
       if (room === undefined) throw new Error("You are not in that room.");
@@ -337,7 +358,8 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     if (agents.length === 0) return;
     landed = true;
     const [only] = agents;
-    if (only !== undefined && agents.length === 1 && Object.keys(model.rooms).length === 0 && model.where.screen === "agents") {
+    const channels = Object.keys(model.rooms).length + Object.keys(model.readOnly).length;
+    if (only !== undefined && agents.length === 1 && channels === 0 && model.where.screen === "agents") {
       select(only.name);
     }
     tend();
@@ -369,17 +391,19 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     void refreshChannels();
   }
 
-  function selectRoom(id: string): void {
+  function selectChannel(place: Extract<Place, { id: string }>): void {
     landed = true;
     useAgent(undefined);
     chat.follow(undefined);
-    set({ where: { screen: "threads", place: { kind: "room", id } }, thread: undefined, session: undefined, notice: undefined });
+    set({ where: { screen: "threads", place }, thread: undefined, session: undefined, notice: undefined });
     void refreshChannels();
   }
 
   function open(threadId: string | undefined): void {
     const { where } = model;
     if (where.screen !== "threads" && where.screen !== "thread") return;
+    // A channel the person only reads takes no new thread.
+    if (threadId === undefined && where.place.kind === "read-only") return;
     landed = true;
     chat.follow(threadId);
     agent?.watch(threadId);
@@ -398,7 +422,8 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     subscribe: (listener) => listeners.add(listener),
 
     selectAgent: select,
-    selectRoom,
+    selectRoom: (id) => selectChannel({ kind: "room", id }),
+    selectReadOnly: (id) => selectChannel({ kind: "read-only", id }),
     openThread: (threadId) => open(threadId),
     startThread() {
       newThreads += 1;
@@ -441,17 +466,19 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
 
     async send(text) {
       const { where } = model;
-      if (where.screen !== "thread") return { ok: false };
+      // The chat server refuses a write in a channel the person only reads, so nothing is asked of it.
+      if (where.screen !== "thread" || where.place.kind === "read-only") return { ok: false };
+      const { place } = where;
       const newThread = newThreads;
       // A chat server that has stopped answering must not leave the message in limbo. Sending it again is safe either way.
       const answered = AbortSignal.timeout(sendMs);
       try {
         const threadId = await chat.call(async (client) => {
-          let id = where.thread ?? (started?.place === placeKey(where.place) ? started.threadId : undefined);
+          let id = where.thread ?? (started?.place === placeKey(place) ? started.threadId : undefined);
           if (id === undefined) {
-            const channel = await channelOf(client, where.place, answered);
+            const channel = await channelOf(client, place, answered);
             id = (await client.createThread(channel.id, null, answered)).id;
-            started = { place: placeKey(where.place), threadId: id };
+            started = { place: placeKey(place), threadId: id };
           }
           const requestId =
             pending?.threadId === id && pending.text === text ? pending.requestId : randomUUID();

@@ -9,7 +9,7 @@
  * the network.
  */
 export { type CommandLine, type ModelLine, modelLines, type Written, writtenIn } from "./commands.ts";
-export { type Can, farewellLine, hiddenLines, type InFull, MODEL_DEFAULT, OUT_OF_DATE, QUIT_AGAIN } from "./words.ts";
+export { type Can, farewellLine, hiddenLines, type InFull, MODEL_DEFAULT, OUT_OF_DATE, QUIT_AGAIN, READ_ONLY_TAG } from "./words.ts";
 export {
   type AgentsScreen,
   type MessageRow,

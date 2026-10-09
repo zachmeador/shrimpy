@@ -99,7 +99,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
   const drafts = new Map<string, string>();
   let draftKey: string | undefined;
   const keyOf = (where: Where): string | undefined =>
-    where.screen === "thread" ? `${JSON.stringify(where.place)}\n${where.thread ?? "new"}` : undefined;
+    where.screen === "thread" && where.place.kind !== "read-only" ? `${JSON.stringify(where.place)}\n${where.thread ?? "new"}` : undefined;
   const syncDraft = (where: Where): void => {
     const key = keyOf(where);
     if (key === draftKey) return;
@@ -214,8 +214,9 @@ export function startDrawing(options: DrawingOptions): Drawing {
   /** What the screen holds between its title and its notes, and what the keys go to. */
   function body(screen: Screen): { parts: Component[]; focus: Component | null } {
     switch (screen.kind) {
+      // A channel the person only reads has no editor either, and what is typed goes nowhere.
       case "thread":
-        return { parts: threadParts(screen), focus: editor };
+        return { parts: threadParts(screen), focus: screen.can.send ? editor : null };
       // A session is watched and not talked in, so there is no editor, and what is typed goes nowhere.
       case "session":
         return { parts: sessionParts(screen), focus: null };
@@ -237,6 +238,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
             open: (row) => {
               if (row.kind === "agent") state.selectAgent(row.id);
               else if (row.kind === "room") state.selectRoom(row.id);
+              else if (row.kind === "read-only") state.selectReadOnly(row.id);
               else if (row.kind === "session") state.openSession(row.id);
               else state.openThread(row.id);
             },
@@ -311,7 +313,14 @@ export function startDrawing(options: DrawingOptions): Drawing {
     // The notes sit by what the person is doing, at the bottom, where a long conversation has not pushed them out of sight.
     if (screen.notes.length > 0 && (scrolls || parts.length > 0)) page.addChild(new Spacer(1));
     for (const note of screen.notes) page.addChild(new Text(theme.warn(note), 0, 0));
-    if (screen.kind === "thread") page.addChild(editor);
+    if (screen.kind === "thread") {
+      if (screen.can.send) page.addChild(editor);
+      else if (screen.readOnly !== undefined) {
+        // Where the input would be, a channel the person only reads says why there is none.
+        page.addChild(new Spacer(1));
+        page.addChild(new Text(theme.dim(screen.readOnly), 0, 0));
+      }
+    }
     page.addChild(waitingForSecondPress ? new Text(theme.warn(QUIT_AGAIN), 0, 0) : keysComponent(screen.keys, theme));
 
     if (focus !== next) {

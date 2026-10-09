@@ -1,5 +1,14 @@
 import type { Channel, Message, Thread } from "../../../contracts/chat/index.ts";
-import { agentEntries, type Model, type Place, roomEntries, type Status, workingElsewhere, workingIn } from "../state/index.ts";
+import {
+  agentEntries,
+  type Model,
+  type Place,
+  readOnlyEntries,
+  roomEntries,
+  type Status,
+  workingElsewhere,
+  workingIn,
+} from "../state/index.ts";
 import { type CommandLine, commandLines } from "./commands.ts";
 import { oneLine, plain } from "./plain.ts";
 import { whenOf } from "./time.ts";
@@ -11,6 +20,8 @@ import {
   AGENTS_EMPTY,
   agentStatusRows,
   type Can,
+  channelLabel,
+  channelThreadsTitle,
   chatNote,
   DELETED,
   editedAt,
@@ -27,12 +38,13 @@ import {
   noticeText,
   placeWords,
   queuedLine,
+  readOnlyDetail,
+  readOnlyLine,
   reactionsLine,
   receiptNote,
   refusalNote,
   roomLabel,
   roomStatusRows,
-  roomThreadsTitle,
   SESSION_EMPTY,
   sessionsEmpty,
   sessionsTitle,
@@ -58,10 +70,10 @@ interface Chrome {
 
 /** A row of a list the person chooses from. */
 export interface Row {
-  /** What the state is told when the row is chosen: an agent's name, a room's channel ID, a thread's ID or a session's address. It is never shown. */
+  /** What the state is told when the row is chosen: an agent's name, the channel ID of a room or of a channel only read, a thread's ID or a session's address. It is never shown. */
   id: string;
   /** What choosing it opens. */
-  kind: "agent" | "room" | "thread" | "session";
+  kind: "agent" | "room" | "read-only" | "thread" | "session";
   label: string;
   detail: string;
   working: boolean;
@@ -141,8 +153,10 @@ export interface ThreadScreen extends Chrome {
   work: Work | undefined;
   /** The work shown may be out of date: the agent is not being reached. */
   workStale: boolean;
-  /** Every command the person can write here, in order of name, each with what it does here. The editor lists them while the text starts with a slash. */
+  /** Every command the person can write here, in order of name, each with what it does here. The editor lists them while the text starts with a slash. None in a channel they only read. */
   commands: CommandLine[];
+  /** Said where the input would be when the person only reads the channel: that they do, and why they can't write there. There is no input then. */
+  readOnly: string | undefined;
   /** What `/status` read as it stood then, from the person's asking until they send a message or leave. It goes between the messages and the editor. */
   status: StatusBlock | undefined;
 }
@@ -199,12 +213,12 @@ export function screenOf(model: Model, options: ScreenOptions): Screen {
 }
 
 function agentsScreen(model: Model, inFull: InFull): AgentsScreen {
-  const can: Can = { back: false, newThread: false, switchLists: false, work: false };
+  const can: Can = { back: false, send: false, newThread: false, switchLists: false, work: false };
   const agents: Row[] = agentEntries(model).map((entry) => ({
     id: entry.name,
     kind: "agent",
     label: oneLine(entry.name),
-    detail: entry.running ? agentDetail(entry.sessions, entry.elsewhere, model.me?.name) : "not running",
+    detail: entry.running ? agentDetail(entry.name, entry.sessions, entry.elsewhere, model.me?.name) : "not running",
     working: entry.working,
   }));
   const rooms: Row[] = roomEntries(model).map((entry) => ({
@@ -214,7 +228,15 @@ function agentsScreen(model: Model, inFull: InFull): AgentsScreen {
     detail: [entry.members.map(oneLine).join(", "), entry.working ? "working" : undefined].filter((part) => part !== undefined && part !== "").join(" · "),
     working: entry.working,
   }));
-  const rows = [...agents, ...rooms];
+  // The channels the person is not in come last, apart from their own.
+  const reading: Row[] = readOnlyEntries(model).map(({ channel, working }) => ({
+    id: channel.id,
+    kind: "read-only",
+    label: channelLabel(channel),
+    detail: readOnlyDetail(channel, working),
+    working,
+  }));
+  const rows = [...agents, ...rooms, ...reading];
   return {
     kind: "agents",
     title: agentsTitle(),
@@ -227,41 +249,45 @@ function agentsScreen(model: Model, inFull: InFull): AgentsScreen {
   };
 }
 
-/** The threads the person looks at: an agent's DM with them, or a room. */
+/** The threads the person looks at: an agent's DM with them, a room, or a channel they only read. */
 interface Looking {
   /** The agent's name, or the room's. */
   name: string;
+  /** What the conversation is called on screen: the agent's name, or the room's or the channel's label. */
+  label: string;
   channel: Channel | undefined;
   threads: Thread[];
-  /** Whether the one it is about is at work in the thread: the agent in its DM, or anyone in a room. */
+  /** Whether the one it is about is at work in the thread: the agent in its DM, or anyone in a room or a channel only read. */
   busyIn(thread: Thread): boolean;
 }
 
 function lookingAt(model: Model, place: Place): Looking {
-  if (place.kind === "room") {
-    const room = model.rooms[place.id];
+  if (place.kind === "agent") {
+    const dm = model.dms[place.name];
+    // Chat's working marks name members by ID, and the agent is the one agent in its DM with the person.
+    const agentId = dm?.channel.members.find((member) => member.kind === "agent")?.id;
     return {
-      name: room?.channel.name ?? place.id,
-      channel: room?.channel,
-      threads: room?.threads ?? [],
-      busyIn: (thread) => thread.working.length > 0,
+      name: place.name,
+      label: oneLine(place.name),
+      channel: dm?.channel,
+      threads: dm?.threads ?? [],
+      busyIn: (thread) => agentId !== undefined && workingIn(thread, agentId),
     };
   }
-  const dm = model.dms[place.name];
-  // Chat's working marks name members by ID, and the agent is the one agent in its DM with the person.
-  const agentId = dm?.channel.members.find((member) => member.kind === "agent")?.id;
+  const found = place.kind === "room" ? model.rooms[place.id] : model.readOnly[place.id];
   return {
-    name: place.name,
-    channel: dm?.channel,
-    threads: dm?.threads ?? [],
-    busyIn: (thread) => agentId !== undefined && workingIn(thread, agentId),
+    name: found?.channel.name ?? place.id,
+    label: found === undefined ? roomLabel(place.id) : channelLabel(found.channel),
+    channel: found?.channel,
+    threads: found?.threads ?? [],
+    busyIn: (thread) => thread.working.length > 0,
   };
 }
 
 function threadsScreen(model: Model, place: Place, now: number, inFull: InFull): ThreadsScreen {
   const here = lookingAt(model, place);
-  // An agent has sessions to switch to, and a room does not.
-  const can: Can = { back: true, newThread: true, switchLists: place.kind === "agent", work: false };
+  // An agent has sessions to switch to, and a room does not. A channel the person only reads takes no new thread.
+  const can: Can = { back: true, send: false, newThread: place.kind !== "read-only", switchLists: place.kind === "agent", work: false };
   const rows: Row[] = here.threads.map((thread) => ({
     id: thread.id,
     kind: "thread",
@@ -272,7 +298,7 @@ function threadsScreen(model: Model, place: Place, now: number, inFull: InFull):
   const agent = place.kind === "agent" ? place.name : undefined;
   return {
     kind: "threads",
-    title: place.kind === "agent" ? threadsTitle(oneLine(here.name)) : roomThreadsTitle(here.name),
+    title: place.kind === "agent" ? threadsTitle(here.label) : channelThreadsTitle(here.label),
     stale: model.chat.state === "down",
     rows,
     // A room always has its main thread, so there is no one to ask the person to start a talk with.
@@ -296,7 +322,7 @@ function elsewhereOf(model: Model, agent: string): string | undefined {
 }
 
 function sessionsScreen(model: Model, agent: string, inFull: InFull): SessionsScreen {
-  const can: Can = { back: true, newThread: false, switchLists: true, work: false };
+  const can: Can = { back: true, send: false, newThread: false, switchLists: true, work: false };
   const rows: Row[] = (model.sessions ?? []).map((session) => ({
     id: session.id,
     kind: "session",
@@ -319,7 +345,7 @@ function sessionsScreen(model: Model, agent: string, inFull: InFull): SessionsSc
 }
 
 function sessionScreen(model: Model, agent: string, address: string, inFull: InFull): SessionScreen {
-  const can: Can = { back: true, newThread: false, switchLists: false, work: true };
+  const can: Can = { back: true, send: false, newThread: false, switchLists: false, work: true };
   const view = model.session;
   const summary = model.sessions?.find((each) => each.id === address);
   // A session that was working when the agent went away is not working now, whatever its last view says.
@@ -354,7 +380,9 @@ function threadScreen(model: Model, place: Place, threadId: string | undefined, 
   const names = namer(here.channel, model);
   // Only an agent's DM has a session to show. In a room the marks chat keeps say who is working.
   const isAgent = place.kind === "agent";
-  const who = isAgent ? oneLine(here.name) : roomLabel(here.name);
+  // The person writes in their DM with an agent and in a room they are in, and in no other channel.
+  const reading = place.kind === "read-only";
+  const who = here.label;
 
   const messages = (live?.messages ?? []).map((message) => messageRow(message, model, names, now));
   const session = isAgent ? model.session : undefined;
@@ -363,12 +391,12 @@ function threadScreen(model: Model, place: Place, threadId: string | undefined, 
   const sessionBusy = session?.status.busy === true && model.agent?.state !== "down";
   const working =
     markedWorking.length > 0 || sessionBusy
-      ? workingLine(markedWorking.length > 0 ? markedWorking : [who], sessionBusy ? session.status.activity : undefined, true)
+      ? workingLine(markedWorking.length > 0 ? markedWorking : [who], sessionBusy ? session.status.activity : undefined, !reading)
       : undefined;
-  const can: Can = { back: true, newThread: true, switchLists: false, work: isAgent };
+  const can: Can = { back: true, send: !reading, newThread: !reading, switchLists: false, work: isAgent };
 
   let lead: string | undefined;
-  if (threadId === undefined) lead = isAgent ? newThreadHint(who) : newRoomThreadHint(here.name);
+  if (threadId === undefined) lead = reading ? undefined : isAgent ? newThreadHint(who) : newRoomThreadHint(here.name);
   else if (live !== undefined && live.earlier > 0) lead = earlierMessages(live.earlier, threadId);
   else if (live !== undefined && messages.length === 0) lead = THREAD_EMPTY;
 
@@ -380,7 +408,8 @@ function threadScreen(model: Model, place: Place, threadId: string | undefined, 
     working,
     work: workOf(session, inFull),
     workStale: isAgent && model.agent?.state === "down",
-    commands: commandLines(isAgent ? "dm" : "room"),
+    commands: reading ? [] : commandLines(isAgent ? "dm" : "room"),
+    readOnly: reading && here.channel !== undefined ? readOnlyLine(here.channel, model.me?.name) : undefined,
     status: model.status === undefined ? undefined : statusBlock(model.status),
     notes: notesOf(model, isAgent ? here.name : undefined),
     keys: keyHints("thread", can, inFull),
