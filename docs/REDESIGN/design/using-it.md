@@ -98,6 +98,14 @@ Ctrl+O for tool output and Ctrl+T for thinking are Pi's keys, and Claude Code ha
 - **A thread is not named for a command,** nor for what an agent said about one: the list shows the first thing that was said in it.
 - **Still to come:** `/status` as a command that an agent answers, for a chat app with no screen of its own, is in [the conversation model](4-conversation.md): the terminal goes on answering it itself.
 
+**Seeing work wherever it is,** built on 2026-10-09 after two of your agents talked in a DM with each other and the terminal showed all four as idle: "i heard the inference servers under load, and i did not see anything in the tui".
+
+- The list of agents shows an agent as working when any of its sessions is, and says where when that is not with you: `working · DM with crab`, a room's name, or `trigger nightly`. It learns it from each running agent, which it asks for its sessions every two seconds while the list is on show.
+- An agent's screen says so too, in a line, when it is working somewhere that is none of your threads with it, and that Tab shows its sessions. The list of sessions opens with the one that is working chosen.
+- An agent that doesn't answer in five seconds reads as it did before, from your own threads with it.
+- The first screen's top line is Shrimpy's name, its version and the release's name, as you asked that day: `shrimpy · 0.0.0 · A Rising Tide`.
+- Still to come: the conversations you are not part of, a DM between two agents or a room you are not in, listed on the first screen and read as threads.
+
 **Watching any session from the terminal,** which you asked for on 2026-10-05, ahead of the web client, and which was built that day. The direction already says that opening the terminal, picking an agent and entering any of its sessions is core UX. Until now the terminal listed only your own threads with an agent, so a session behind a room, behind the agent's DM with another member, or a trigger's own couldn't be reached from it.
 
 - An agent's screen lists its sessions, one Tab from your threads with it: every one it has, wherever it is. Each says where it is and whether it is working: your DM with it, a room and its thread, its DM with another member, or a trigger's own.
