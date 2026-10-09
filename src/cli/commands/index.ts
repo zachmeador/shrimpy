@@ -24,12 +24,16 @@ const USING = new Map<string, Family>([
 // The commands that start, stop, inspect and repair its programs and homes.
 const RUNNING = new Map<string, Family>([
   ["agent", async () => (await import("./agent.ts")).agentCommands],
-  ["providers", async () => (await import("./providers.ts")).providersCommands],
+  ["login", async () => (await import("./login.ts")).loginCommands],
   ["sessions", async () => (await import("./sessions.ts")).sessionsCommands],
   ["triggers", async () => (await import("./triggers.ts")).triggersCommands],
   ["wake", async () => (await import("./wake.ts")).wakeCommands],
   ["members", async () => (await import("./members.ts")).membersCommands],
+  ["invite", async () => (await import("./invite.ts")).inviteCommands],
   ["join", async () => (await import("./join.ts")).joinCommands],
+  ["status", async () => (await import("./status.ts")).statusCommands],
+  ["install", async () => (await import("./install.ts")).installCommands],
+  ["uninstall", async () => (await import("./install.ts")).uninstallCommands],
   ["gateway", async () => (await import("./gateway.ts")).gatewayCommands],
   ["chat", async () => (await import("./chat.ts")).chatCommands],
 ]);

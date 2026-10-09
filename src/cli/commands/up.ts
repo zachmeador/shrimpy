@@ -54,7 +54,7 @@ export function upCommand(pace: Pace = PACE): Command {
         "change it, and this says so. When it is told to listen, by --listen or by the addresses the gateway kept, " +
         "it starts the gateway and the chat server in a folder with no agents too, since agents elsewhere can join " +
         "it. When every agent it is to start belongs to a gateway elsewhere, because it joined one with shrimpy " +
-        "agent join, this starts those agents and no gateway or chat server, unless it is told to listen: they are " +
+        "join, this starts those agents and no gateway or chat server, unless it is told to listen: they are " +
         "talked to from the gateway's machine. With some agents that belong elsewhere and some that don't, it " +
         "starts the gateway and the chat server as usual, and all the agents. Ctrl+C or SIGTERM stops what this " +
         "started, agents first, and exits 0 once they have stopped; a second request tells the agents to stop " +
@@ -211,8 +211,8 @@ async function keepUp(io: Io, plan: Plan, crew: Started[], stop: StopWatch, pace
       );
     } else {
       if (plan.homes.length > 0) io.out(`Talk to an agent with: shrimpy run ${agent ?? "<agent>"} "<text>"`);
-      else io.out("Let an agent in from another machine or user with: shrimpy members invite <name>");
-      io.out("See what is running with: shrimpy gateway status");
+      else io.out("Let an agent in from another machine or user with: shrimpy invite <name>");
+      io.out("See what is running with: shrimpy status");
     }
     if (folder !== undefined) io.out("An agent made in your Shrimpy folder starts by itself, and one that stops is started again.");
 

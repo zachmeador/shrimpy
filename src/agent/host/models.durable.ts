@@ -299,13 +299,13 @@ function missingKey(provider: Provider, declaredIn: string | undefined, files: F
       ? `The provider "${id}" signs in with an account, and ${own} holds no sign-in for it. ` +
           'An entry with "type": "oauth" there is used, and renewed when its token runs out.'
       : `The provider "${id}" signs in with an account, and no sign-in for it is in ${own} or ${folder}. ` +
-          `Run shrimpy providers login ${id} to sign in, for every agent in the Shrimpy folder.`;
+          `Run shrimpy login ${id} to sign in, for every agent in the Shrimpy folder.`;
   }
   const entry = JSON.stringify({ [id]: { type: "api_key", key: "<your key>" } });
   if (folder === undefined) return `The provider "${id}" has no API key. Add one to ${own}, for example ${entry}`;
   const verb = provider.auth.oauth === undefined ? "add a key" : "sign in or add a key";
   return (
-    `The provider "${id}" has no API key. Run shrimpy providers login ${id} to ${verb}, which keeps it in ${folder} ` +
+    `The provider "${id}" has no API key. Run shrimpy login ${id} to ${verb}, which keeps it in ${folder} ` +
     `for every agent in the Shrimpy folder, or put a key in ${own} for this agent alone, for example ${entry}`
   );
 }

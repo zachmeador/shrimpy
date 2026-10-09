@@ -73,7 +73,7 @@ export async function signInAtTerminal(io: Io, providers: string, wanted: string
 function findProvider(all: readonly ProviderToSignIn[], id: string): ProviderToSignIn {
   const found = all.find((provider) => provider.id === id);
   if (found !== undefined) return found;
-  throw new UsageError(`No provider has the ID "${id}". Run shrimpy providers login with no ID to see them.`);
+  throw new UsageError(`No provider has the ID "${id}". Run shrimpy login with no ID to see them.`);
 }
 
 /** The list of subscriptions and the IDs of the other providers, and which one a person means. */

@@ -27,7 +27,7 @@ import { shellWord } from "./shell-word.ts";
 import { alreadyRunning, type Plan, planUp } from "./up.ts";
 
 const install: Command = {
-  name: "gateway install",
+  name: "install",
   usage: "",
   summary: "Run shrimpy up for your Shrimpy folder as a service of your account, started again if it fails.",
   details: [
@@ -62,11 +62,11 @@ const install: Command = {
 };
 
 const uninstall: Command = {
-  name: "gateway uninstall",
+  name: "uninstall",
   usage: "",
   summary: "Stop your Shrimpy folder's service and remove it. Nothing of Shrimpy's is deleted.",
   details:
-    "Stops the service that gateway install set up for your Shrimpy folder, which is ~/shrimpy or the folder " +
+    "Stops the service that shrimpy install set up for your Shrimpy folder, which is ~/shrimpy or the folder " +
     "SHRIMPY_DIR names, and removes it. Your Shrimpy folder and everything in it are left as they are, and so is " +
     "the log file on macOS. On Linux it leaves lingering as it is, and says how to turn it off. With no service " +
     "installed it says so and exits 0. A service for another folder is removed with SHRIMPY_DIR set to that folder.",
@@ -117,7 +117,7 @@ function noServiceHere(account: Account, program: Program, folder: string): stri
 
 /** How to take the service away: the command, with the folder it is for when that is not the default. */
 const uninstallCommand = (service: Service): string =>
-  `${service.plain ? "" : `${FOLDER_VARIABLE}=${shellWord(service.folder)} `}shrimpy gateway uninstall`;
+  `${service.plain ? "" : `${FOLDER_VARIABLE}=${shellWord(service.folder)} `}shrimpy uninstall`;
 
 /**
  * Set up the service for the Shrimpy folder on this account and start it, or write it again and restart it if it is
@@ -151,7 +151,7 @@ export async function installService(io: Io, account: Account): Promise<number> 
 
   const { updated } = await put(account, service, program).catch((error: unknown) => {
     if (!existsSync(service.file) || !(error instanceof Error)) throw error;
-    throw new Error(`${error.message}\n${service.file} is in place. Run shrimpy gateway install again once that works.`, {
+    throw new Error(`${error.message}\n${service.file} is in place. Run shrimpy install again once that works.`, {
       cause: error,
     });
   });
@@ -203,21 +203,22 @@ export async function uninstallService(io: Io, account: Account): Promise<number
 }
 
 /**
- * The line `gateway status` ends with: whether a service is installed for the Shrimpy folder, and whether it runs.
+ * The line `status` ends with: whether a service is installed for the Shrimpy folder, and whether it runs.
  * None where Shrimpy installs no service.
  */
 export async function serviceStatusLine(account: Account): Promise<string | undefined> {
   const folder = folderPath();
   const service = serviceFor(account, folder);
   if (service === undefined) return undefined;
-  if (!existsSync(service.file)) return `No service is installed for ${folder}. shrimpy gateway install sets one up.`;
+  if (!existsSync(service.file)) return `No service is installed for ${folder}. shrimpy install sets one up.`;
   try {
     const { running, detail } = await stateOf(account, service);
     if (running) return `The service ${service.name} is installed for ${folder} and running.`;
-    return `The service ${service.name} is installed for ${folder} and not running (${detail}). shrimpy gateway install starts it again.`;
+    return `The service ${service.name} is installed for ${folder} and not running (${detail}). shrimpy install starts it again.`;
   } catch (error) {
     return `The service ${service.name} is installed for ${folder}. It could not be asked whether it runs: ${error instanceof Error ? error.message : String(error)}`;
   }
 }
 
-export const installCommands: Command[] = [install, uninstall];
+export const installCommands: Command[] = [install];
+export const uninstallCommands: Command[] = [uninstall];

@@ -44,7 +44,7 @@ async function signInAsMachine(gateway: GatewayConnection, machine: JoinedMachin
     if (whyTurnedAway(error) === TURNED_AWAY.unknownToken) {
       throw new Error(
         `The gateway at ${where} does not know this machine. Its roster may have been replaced. To join again, delete ` +
-          `${machineFile(folderPath())}, ask for a new invitation with shrimpy members invite where the gateway runs, and run the line it prints here.`,
+          `${machineFile(folderPath())}, ask for a new invitation with shrimpy invite where the gateway runs, and run the line it prints here.`,
         { cause: error },
       );
     }

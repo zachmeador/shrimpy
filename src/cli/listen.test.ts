@@ -94,7 +94,7 @@ test("an address that means every interface is refused before anything starts, a
   assert.ok(up.stderr.includes(where), up.stderr);
   const started = [...up.stdout.matchAll(/^Started .* \(pid (\d+)\)/gm)].map((found) => Number(found[1]));
   assert.deepEqual(started.map(isAlive), [], "what up started is stopped");
-  assert.equal((await shrimpy(["gateway", "status"])).code, 1, "and no gateway is left");
+  assert.equal((await shrimpy(["status"])).code, 1, "and no gateway is left");
 });
 
 test("up that is told to listen starts the gateway and the chat server where there are no agents, says where the gateway listens, and does it again from what the gateway kept; a gateway that is running keeps its own addresses", { timeout }, async (t) => {

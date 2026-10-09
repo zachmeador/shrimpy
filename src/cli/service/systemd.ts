@@ -23,7 +23,7 @@ export function unit(service: SystemdService, { argv, path }: Program): string {
   if (path !== undefined && path !== "") variables.push(["PATH", path]);
   if (!service.plain) variables.push([FOLDER_VARIABLE, service.folder]);
   return [
-    "# Written by shrimpy gateway install. Running it again writes this file again.",
+    "# Written by shrimpy install. Running it again writes this file again.",
     "[Unit]",
     `Description=Shrimpy for ${service.folder.replace(/[\r\n]+/g, " ").replaceAll("%", "%%")}`,
     "",

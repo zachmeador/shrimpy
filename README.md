@@ -90,11 +90,10 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `rooms new <name> [<member>...]` | Make a room, with you and the members you name in it. Takes an admin. |
 | `rooms add <room> <member>...` | Add members to a room you are in. Takes an admin. |
 | `agent init <agent> [--model <provider/id>] [--name <name>]` | Create an agent home. Files that already exist are left as they are. |
-| `agent join <link>` | Make an agent here that joins a gateway elsewhere, with the link of an invitation. |
 | `agent serve <agent> [--now]` | Run the agent in the foreground until it is told to stop. |
 | `agent status [--agent <agent>]` | Say whether the agent is running, and how to reach it. |
 | `agent context [--agent <agent>]` | Preview what an agent would be told, from its home's files as they are now. |
-| `providers login [<provider>]` | Sign your Shrimpy folder in to a model provider, for every agent started there. |
+| `login [<provider>]` | Sign your Shrimpy folder in to a model provider, for every agent started there. |
 | `sessions list [--agent <agent>]` | List the sessions of a running agent: each one's name (a thread's ID, or trigger: and a trigger's name), where it is (a DM with someone, a room, or a trigger's own), and whether it is working. |
 | `sessions read <session> [--json] [--agent <agent>]` | Show a session: what was said, what the tools did, and what it is doing now. |
 | `sessions steer <session> <text> [--request-id <id>] [--wait] [--agent <agent>]` | Give a session input; it joins work already running. |
@@ -108,14 +107,14 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `triggers remove <name> [--agent <agent>]` | Delete a trigger. |
 | `wake [<room> <policy>] [--agent <agent>]` | Choose what wakes an agent in a room, or list what is set. |
 | `members` | List the roster: each member's kind, whether it is an admin, and whether a program is running as it. |
-| `members invite [<name>]` | Invite an agent that will live elsewhere, or with no name another machine of yours, and print the line to run there. |
 | `members promote <name>` | Make an agent an admin. |
 | `members demote <name>` | Make an admin agent an ordinary agent again. |
-| `join <link>` | Make this machine one of yours, with the link of an invitation from another machine of yours. |
+| `invite [<name>]` | Invite an agent that will live elsewhere, or with no name another machine of yours, and print the line to run there. |
+| `join <link>` | With the link of an invitation, make an agent here that joins a gateway elsewhere, or make this machine one of yours. |
+| `status` | List the programs registered with this machine's gateway, and the members on its roster. |
+| `install` | Run shrimpy up for your Shrimpy folder as a service of your account, started again if it fails. |
+| `uninstall` | Stop your Shrimpy folder's service and remove it. Nothing of Shrimpy's is deleted. |
 | `gateway serve --data <dir> [--listen <host:port>]... [--web-port <port>] [--web-dir <dir>]` | Run the gateway in the foreground until it is told to stop. |
-| `gateway status` | List the programs registered with this machine's gateway, and the members on its roster. |
-| `gateway install` | Run shrimpy up for your Shrimpy folder as a service of your account, started again if it fails. |
-| `gateway uninstall` | Stop your Shrimpy folder's service and remove it. Nothing of Shrimpy's is deleted. |
 | `chat serve <data-dir>` | Run the chat server in the foreground until it is told to stop, registered with the gateway. |
 <!-- commands:end -->
 

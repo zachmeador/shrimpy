@@ -42,7 +42,7 @@ test("status marks a program whose version differs from the command's, and says 
   });
   const cli = captureIo();
 
-  const code = await runCli(["gateway", "status"], cli.io);
+  const code = await runCli(["status"], cli.io);
 
   assert.equal(code, 0);
   const lines = cli.out.filter((line) => line.includes("differs"));
@@ -50,7 +50,7 @@ test("status marks a program whose version differs from the command's, and says 
   assert.ok(lines[0]?.includes("scout") && lines[0].includes("8.8.8"), "the agent of another version is marked");
   assert.ok(cli.err.join("\n").includes("9.9.9"), "and so is the gateway of another version, on standard error");
   assert.ok(cli.out.some((line) => line.includes("mem_scout") && line.includes("yes")), "and the roster is listed");
-  assert.ok(cli.out.at(-1)?.includes("shrimpy gateway install"), "and it ends with a line on the service, of which this home has none");
+  assert.ok(cli.out.at(-1)?.includes("shrimpy install"), "and it ends with a line on the service, of which this home has none");
 });
 
 test("status, with no gateway on this machine, says where the gateway of the folder's agents is when they all belong to one elsewhere, and still exits 1", { timeout: 15_000 }, async (t) => {
@@ -61,17 +61,17 @@ test("status, with no gateway on this machine, says where the gateway of the fol
   saveMembership(join(agents, "crab"), { token: newToken(), gateway: address });
 
   const elsewhere = captureIo();
-  assert.equal(await runCli(["gateway", "status"], elsewhere.io), 1);
+  assert.equal(await runCli(["status"], elsewhere.io), 1);
 
   const said = elsewhere.err.join("\n");
   assert.ok(said.includes(formatAddress(address)), "it says where that gateway is");
   assert.ok(!said.includes("Start Shrimpy with"), "and not to start one here, which shrimpy up would not");
-  assert.ok(elsewhere.out.at(-1)?.includes("shrimpy gateway install"), "it ends with the line on the service");
+  assert.ok(elsewhere.out.at(-1)?.includes("shrimpy install"), "it ends with the line on the service");
 
   // A folder with an agent of its own gets the answer it always did, since shrimpy up starts the gateway for it.
   initHome(join(agents, "scout"), { name: "scout" });
   const here = captureIo();
-  assert.equal(await runCli(["gateway", "status"], here.io), 1);
+  assert.equal(await runCli(["status"], here.io), 1);
   assert.match(here.err.join("\n"), /No gateway is running on this machine\. Start Shrimpy with: shrimpy up/);
-  assert.ok(here.out.at(-1)?.includes("shrimpy gateway install"), "and it ends with the line on the service too");
+  assert.ok(here.out.at(-1)?.includes("shrimpy install"), "and it ends with the line on the service too");
 });

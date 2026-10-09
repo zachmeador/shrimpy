@@ -4,9 +4,6 @@ import {
   checkAgentName,
   type HomeAgent,
   initHome,
-  JoinFailedError,
-  type JoinedHome,
-  joinHome,
   type ModelChoice,
   modelLabel,
   parseModelChoice,
@@ -15,11 +12,9 @@ import {
   startHomeAgent,
 } from "../../agent/index.ts";
 import { readEndpoint } from "../../contracts/agent/node.ts";
-import { formatAddress, type Link, readLink } from "../../contracts/gateway/index.ts";
-import { homeInFolder, homeNamed, isPath, newHome, providersPath } from "../folder/index.ts";
+import { homeNamed, isPath, newHome, providersPath } from "../folder/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
-import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning } from "./connected.ts";
 import { folderDefault } from "./folder-default.ts";
@@ -72,7 +67,7 @@ const init: Command = {
       steps.push([
         `Give ${name} access to its model's provider. This signs in for every agent in your Shrimpy folder, ` +
           "unless it is signed in already:",
-        "     shrimpy providers login",
+        "     shrimpy login",
         `   Or, for ${name} alone, declare a server in models.json or add a key to auth.json in ${own}.`,
       ]);
     } else if (shared === undefined) {
@@ -80,7 +75,7 @@ const init: Command = {
       steps.push([
         `Choose ${name}'s model and give it access. This signs in to a provider for every agent in your Shrimpy ` +
           "folder, and asks which model they start with:",
-        "     shrimpy providers login",
+        "     shrimpy login",
         `   Or, for ${name} alone, name a model under "model" in ${paths.config}, and declare a server in ` +
           `models.json or add a key to auth.json in ${own}.`,
       ]);
@@ -123,94 +118,6 @@ function folderName(home: string): string {
 function modelFromFlag(flag: string): ModelChoice {
   try {
     return parseModelChoice(flag);
-  } catch (error) {
-    throw new UsageError((error as Error).message);
-  }
-}
-
-/** How long to wait for a gateway that does not answer, in milliseconds. */
-const GIVE_UP_MS = 15_000;
-
-const join: Command = {
-  name: "agent join",
-  usage: "<link>",
-  summary: "Make an agent here that joins a gateway elsewhere, with the link of an invitation.",
-  details:
-    "Run this where the agent will live, with the link that shrimpy members invite printed on the gateway's " +
-    "machine. The agent's home is agents/<name> in your Shrimpy folder, which is ~/shrimpy or the folder " +
-    "SHRIMPY_DIR names. If there is none, it is made as agent init <name> makes it, with no model; one that is " +
-    "there must be that agent. This makes the agent's token, shows the gateway the name, the code and the " +
-    "token, and keeps the gateway's address in the home, where shrimpy up finds it: the agent connects to " +
-    "that gateway from then on, and is talked to from the gateway's machine. It says whether the gateway let " +
-    "the agent in, and on standard error whether the gateway runs another version of Shrimpy than this command. " +
-    "It gives up on a gateway that does not answer within fifteen seconds. A failure leaves a home that was " +
-    "just made, and running this again with the same link is safe while the code is good: an invitation works " +
-    "once, for fifteen minutes, and only for the name it was made for. A home that has joined a gateway " +
-    "already is refused, and the error names the file to delete to join anew. A link for another machine of " +
-    "yours, which names no agent, is refused too: shrimpy join takes that one.",
-  async run(args, io) {
-    const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
-    const [text] = expectArguments(positionals, ["<link>"]);
-    const { name, address } = invitationIn(text);
-
-    const { home, exists } = homeInFolder(name);
-    if (!exists) initHome(home, { name });
-    const where = formatAddress(address);
-    const gaveUp = new AbortController();
-    const timer = setTimeout(() => gaveUp.abort(), GIVE_UP_MS);
-    let joined: JoinedHome;
-    try {
-      joined = await joinHome(home, text, { signal: gaveUp.signal });
-    } catch (error) {
-      // Only an attempt that was made can be made again. A link that does not fit the home is said as it is.
-      if (!(error instanceof JoinFailedError)) throw error;
-      let said = error.message;
-      if (gaveUp.signal.aborted) said = `The gateway at ${where} did not answer within fifteen seconds.`;
-      const stays = exists ? "" : `The agent's home, ${home}, was made and stays. `;
-      throw new Error(`${said}\n${stays}Running this again with the same link is safe while the code is good.`, { cause: error });
-    } finally {
-      clearTimeout(timer);
-    }
-
-    if (joined.gatewayVersion !== undefined) warnIfVersionDiffers(io, "the gateway", joined.gatewayVersion);
-    io.out(
-      `${name} joined the gateway at ${where}. ` +
-        (exists ? `Its home is ${home}.` : `Its home is ${home}, made just now with no model.`),
-    );
-    io.out("");
-    io.out("Next:");
-    const steps: string[][] = [];
-    if (folderDefault(providerPaths(providersPath()).defaultModel) === undefined) {
-      steps.push([
-        "Choose a model and sign in, which every agent started in this folder uses:",
-        "     shrimpy providers login",
-      ]);
-    }
-    steps.push([
-      `If Shrimpy is running here, ${name} starts by itself in a few seconds. If it isn't, start Shrimpy:`,
-      "     shrimpy up",
-      "   It connects to the gateway by itself from then on, and you talk to it from the gateway's machine.",
-    ]);
-    steps.forEach(([first, ...rest], index) => {
-      io.out(`  ${index + 1}. ${first}`);
-      for (const line of rest) io.out(`  ${line}`);
-    });
-    return 0;
-  },
-};
-
-/**
- * What the link says, or a usage error that says what is wrong with it: it is not a link, it is for another machine
- * of the person's own and names no agent, or it names an agent that can't be made.
- */
-function invitationIn(text: string): Link & { name: string } {
-  try {
-    const link = readLink(text);
-    if (link.name === null) {
-      throw new Error("That link is for another machine of yours, and names no agent. Use shrimpy join <link> for it.");
-    }
-    checkAgentName(link.name);
-    return { ...link, name: link.name };
   } catch (error) {
     throw new UsageError((error as Error).message);
   }
@@ -322,4 +229,4 @@ const context: Command = {
   },
 };
 
-export const agentCommands: Command[] = [init, join, serve, status, context];
+export const agentCommands: Command[] = [init, serve, status, context];

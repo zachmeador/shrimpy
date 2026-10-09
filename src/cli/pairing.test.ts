@@ -34,7 +34,7 @@ function apartEnv(t: TestContext): { SHRIMPY_DIR: string; SHRIMPY_RUNTIME_DIR: s
   };
 }
 
-test("members invite prints a line that lets an agent in from a folder of its own, where shrimpy up starts it and no gateway or chat server, and a message sent from the gateway's folder is answered", { timeout }, async (t) => {
+test("invite prints a line that lets an agent in from a folder of its own, where shrimpy up starts it and no gateway or chat server, and a message sent from the gateway's folder is answered", { timeout }, async (t) => {
   const model = await startModelServer();
   stopAfter(t, () => model.close());
 
@@ -43,16 +43,16 @@ test("members invite prints a line that lets an agent in from a folder of its ow
   assert.equal(gateway.programs().length, 2);
 
   // The line to paste where the agent will live is taken from what the command prints.
-  const invited = await shrimpy(["members", "invite", "crab"]);
+  const invited = await shrimpy(["invite", "crab"]);
   assert.equal(invited.code, 0, invited.stderr);
   const [line] = commandLines(invited.stdout);
-  assert.ok(line !== undefined && line.startsWith("shrimpy agent join "), invited.stdout);
-  const link = line.slice("shrimpy agent join ".length);
+  assert.ok(line !== undefined && line.startsWith("shrimpy join "), invited.stdout);
+  const link = line.slice("shrimpy join ".length);
   const { address } = readLink(link);
 
   // The agent's folder and runtime directory are another's, and a model is given to the folder as signing in leaves it.
   const apart = apartEnv(t);
-  const joined = await shrimpy(["agent", "join", link], { env: apart });
+  const joined = await shrimpy(["join", link], { env: apart });
   assert.equal(joined.code, 0, joined.stderr);
   const providers = join(apart.SHRIMPY_DIR, "providers");
   mkdirSync(providers, { recursive: true });
@@ -67,7 +67,7 @@ test("members invite prints a line that lets an agent in from a folder of its ow
   await until(() => there.output().stdout.includes(formatAddress(address)), "up to say which gateway the agent belongs to");
   const said = there.output().stdout;
   assert.doesNotMatch(said, /gateway \(pid|chat server \(pid/);
-  assert.ok(!said.includes("shrimpy run") && !said.includes("gateway status"), "and no hint that works only beside a gateway");
+  assert.ok(!said.includes("shrimpy run") && !said.includes("shrimpy status"), "and no hint that works only beside a gateway");
   assert.deepEqual(readdirSync(apart.SHRIMPY_RUNTIME_DIR).filter((name) => /^(gateway|chat)/.test(name)), [], "nor a socket of theirs");
 
   // From the gateway's folder, the agent is on the roster and answers.
@@ -91,7 +91,7 @@ test("a line pasted again where another folder used it is refused as the gateway
   const { code } = await person.invite("crab");
   const link = writeLink({ name: "crab", address, code });
 
-  const first = await shrimpy(["agent", "join", link], { env: apartEnv(t) });
+  const first = await shrimpy(["join", link], { env: apartEnv(t) });
   assert.equal(first.code, 0, first.stderr);
 
   // What the gateway says to a code that is used up, as another connection hears it.
@@ -104,7 +104,7 @@ test("a line pasted again where another folder used it is refused as the gateway
   assert.ok(says !== undefined, "the gateway let a second agent in with a code that was used");
 
   const folder = useShrimpyDir(t);
-  const second = await shrimpy(["agent", "join", link]);
+  const second = await shrimpy(["join", link]);
   assert.equal(second.code, 1);
   assert.ok(second.stderr.includes(says), second.stderr);
   assert.ok(existsSync(join(folder, "agents", "crab", "agent.json")), "the home it made stays");

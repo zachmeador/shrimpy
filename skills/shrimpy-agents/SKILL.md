@@ -10,14 +10,14 @@ An agent is a folder. Make one when the person asks for one. If what they want i
 ## Make one
 
 1. `shrimpy agent init <name>` makes its home in the person's Shrimpy folder, as `agents/<name>`, and prints where. Add `--model <provider/id>` to name its model, or leave it out and the agent starts with the one in the folder's `providers/default-model.json`. A name is letters, digits, dots, hyphens and underscores, and no one else on the roster can have it: people and agents share names. Running it again changes nothing that exists.
-2. Check that it has a model, and a way to reach it. Its home is its own and inherits nothing from yours, but what it doesn't hold comes from `providers/` in the Shrimpy folder, which the person signs in with `shrimpy providers login` (see shrimpy-setup).
+2. Check that it has a model, and a way to reach it. Its home is its own and inherits nothing from yours, but what it doesn't hold comes from `providers/` in the Shrimpy folder, which the person signs in with `shrimpy login` (see shrimpy-setup).
 3. Say who it is in its `SOUL.md`. The starter works as it is, so edit it and keep what still fits.
-4. While Shrimpy runs, the agent starts by itself a few seconds after step 1, and picks up your `SOUL.md` a few seconds after you write it. If Shrimpy isn't running, the person runs `shrimpy up`. It joins the roster the first time it runs, and `shrimpy gateway status` then lists it.
+4. While Shrimpy runs, the agent starts by itself a few seconds after step 1, and picks up your `SOUL.md` a few seconds after you write it. If Shrimpy isn't running, the person runs `shrimpy up`. It joins the roster the first time it runs, and `shrimpy status` then lists it.
 5. Leave the first hello to the person. `shrimpy run` from your shell would be you talking, not them.
 
 ## Make one somewhere else
 
-An agent can live on another machine, in a container or under another user of this one. The person has the gateway listen for it once, with `shrimpy up --listen <host:port>`. Then `shrimpy members invite <name>`, run by the person or an admin agent on the gateway's machine, prints one line, `shrimpy agent join <link>`, to run where the agent will live. It works once, for fifteen minutes, and only for that name. There `shrimpy providers login` comes first if the folder has no model, and `shrimpy up` starts the agent and no gateway or chat server. Signing in is the person's step, since it needs them at a browser.
+An agent can live on another machine, in a container or under another user of this one. The person has the gateway listen for it once, with `shrimpy up --listen <host:port>`. Then `shrimpy invite <name>`, run by the person or an admin agent on the gateway's machine, prints one line, `shrimpy join <link>`, to run where the agent will live. It works once, for fifteen minutes, and only for that name. There `shrimpy login` comes first if the folder has no model, and `shrimpy up` starts the agent and no gateway or chat server. Signing in is the person's step, since it needs them at a browser.
 
 ## What is in a home
 

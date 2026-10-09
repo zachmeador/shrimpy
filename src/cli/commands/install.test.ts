@@ -12,7 +12,7 @@ import { captureIo, serveChat, serveGateway, untilRegistered, useShrimpyDir } fr
 import { installService, serviceStatusLine, uninstallService } from "./install.ts";
 
 /*
- * `gateway install` and `gateway uninstall`, against an account whose folder is the test's own and a stand-in for
+ * `install` and `uninstall`, against an account whose folder is the test's own and a stand-in for
  * the service manager that records what it was asked to run. Nothing here reaches a real service manager or a real
  * service directory.
  */
@@ -138,7 +138,7 @@ test("on Linux, install writes a user unit that runs this Shrimpy's up with the 
   assert.equal(existsSync(unit), false);
   assert.ok(existsSync(join(folder, "agents", "scout", "agent.json")), "nothing of Shrimpy's is deleted");
   assert.ok(removed.out.some((line) => line.includes("disable-linger")), "and it says how to turn lingering off");
-  assert.ok((await serviceStatusLine(account))?.includes("shrimpy gateway install"), "the service is gone");
+  assert.ok((await serviceStatusLine(account))?.includes("shrimpy install"), "the service is gone");
 
   // With no service installed it says so, asks the service manager nothing, and succeeds.
   const none = captureIo();

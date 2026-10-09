@@ -59,7 +59,7 @@ function respond(body: ModelRequest["body"], response: ServerResponse): void {
   }
   response.writeHead(200, { "content-type": "text/event-stream" });
   const command = asked.includes("which shrimpy")
-    ? "command -v shrimpy && shrimpy gateway status"
+    ? "command -v shrimpy && shrimpy status"
     : asked.includes("from the shell")
       ? 'shrimpy run mechanic "hello from my shell" --no-wait'
       : asked.includes("run")

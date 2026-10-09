@@ -86,7 +86,7 @@ async function gatewayWithEntry(t: TestContext): Promise<{ gateway: TestGateway;
 
 /**
  * What an agent called `name` keeps once it has joined from apart with an
- * invitation the person asked for, the way `agent join` leaves a home: its
+ * invitation the person asked for, the way `join` leaves a home: its
  * token, who the gateway says it is and the address it joined through.
  */
 async function joinedFromApart(gateway: TestGateway, address: Address, name: string): Promise<Membership> {
@@ -113,7 +113,7 @@ test("a turned-away agent is told why once, with the advice that fits and the pa
   await until(() => copy.attempts() >= 5, "the copy to be turned away again and again");
   assert.equal(copy.told.length, 1, "and told once");
   assert.ok(copy.told[0]?.includes(copy.files("state/member.json")) && copy.told[0].includes(copy.files("agent.json")));
-  assert.ok(!copy.told[0]?.includes("shrimpy agent join"), "nothing beside the gateway asks for an invitation");
+  assert.ok(!copy.told[0]?.includes("shrimpy join"), "nothing beside the gateway asks for an invitation");
   assert.equal(copy.link.current(), undefined);
   assert.equal((await observer.ticket({ kind: "agent", name: "scout" })).serverId, original.serverId, "the first is still the one reached");
 
@@ -138,11 +138,11 @@ test("an agent apart whose token the gateway does not know is told to join again
   const apart = agentAt(t, "/homes/crab", "crab", unknown, { apart: address });
   await until(() => apart.told.length === 1, "the agent apart to be turned away");
   assert.ok(apart.told[0]?.includes(apart.files("state/member.json")));
-  assert.ok(apart.told[0]?.includes("shrimpy agent join"), apart.told.join("\n"));
+  assert.ok(apart.told[0]?.includes("shrimpy join"), apart.told.join("\n"));
 
   const beside = agentAt(t, "/homes/rex", "rex", unknown);
   await until(() => beside.told.length === 1, "the agent beside the gateway to be turned away");
-  assert.ok(!beside.told[0]?.includes("shrimpy agent join"), beside.told.join("\n"));
+  assert.ok(!beside.told[0]?.includes("shrimpy join"), beside.told.join("\n"));
 });
 
 test("an agent apart that is a copy of one that runs is told that it needs an invitation of its own, and which command uses it", { timeout }, async (t) => {
@@ -155,7 +155,7 @@ test("an agent apart that is a copy of one that runs is told that it needs an in
   await until(() => copy.told.length === 1, "the copy to be turned away");
 
   assert.ok(copy.told[0]?.includes(copy.files("state/member.json")) && copy.told[0].includes(copy.files("agent.json")));
-  assert.ok(copy.told[0]?.includes("shrimpy agent join"), copy.told.join("\n"));
+  assert.ok(copy.told[0]?.includes("shrimpy join"), copy.told.join("\n"));
 });
 
 test("an agent apart that starts while its gateway takes its connection and answers nothing says that it can't reach it within the time a try is given, and is registered once the gateway answers", { timeout }, async (t) => {

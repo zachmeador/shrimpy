@@ -27,7 +27,7 @@ async function run(...args: string[]) {
 const modelFlags = ["--model", "local/test-model"];
 
 /** What `agent init` says to type first, to give the agent a way to reach its model. */
-const SIGN_IN = "shrimpy providers login";
+const SIGN_IN = "shrimpy login";
 
 const agentFile = (home: string): unknown => JSON.parse(readFileSync(join(home, "agent.json"), "utf8"));
 

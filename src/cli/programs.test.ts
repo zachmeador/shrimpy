@@ -14,7 +14,7 @@ import { type CliResult, isAlive, serveChat, serveGateway, shrimpy } from "./tes
 
 const timeout = 60_000;
 
-/** The programs `gateway status` lists, each as its cells: kind, name and version. */
+/** The programs `status` lists, each as its cells: kind, name and version. */
 function listed(status: CliResult): string[][] {
   const programs = status.stdout.split("\n\n")[0] ?? "";
   return programs
@@ -24,16 +24,16 @@ function listed(status: CliResult): string[][] {
     .map((line) => line.split(/\s{2,}/));
 }
 
-/** `gateway status`, asked again until the chat server is on its list. */
+/** `status`, asked again until the chat server is on its list. */
 function statusWithChat(): Promise<CliResult> {
   return eventually(
-    () => shrimpy(["gateway", "status"]),
+    () => shrimpy(["status"]),
     (status) => status.stdout.includes("\nchat  "),
     { what: "the chat server to be registered with the gateway", timeoutMs: 30_000 },
   );
 }
 
-test("gateway status shows the chat server once both run, with its version and nothing of where it listens", { timeout }, async (t) => {
+test("status shows the chat server once both run, with its version and nothing of where it listens", { timeout }, async (t) => {
   const gateway = await serveGateway(t);
   await serveChat(t, tempDir(t, "chat-data"));
 
@@ -50,7 +50,7 @@ test("a gateway that was killed and started again has the chat server registered
   await statusWithChat();
 
   await first.stop("SIGKILL");
-  assert.equal((await shrimpy(["gateway", "status"])).code, 1);
+  assert.equal((await shrimpy(["status"])).code, 1);
   const second = await serveGateway(t);
 
   const again = await statusWithChat();
@@ -78,7 +78,7 @@ test("a chat server with no gateway running serves, refuses to let anyone in and
 
   await assert.rejects(connection.chat.enter("a-ticket"), { message: /can't reach the gateway/ });
 
-  assert.equal((await shrimpy(["gateway", "status"])).code, 1);
+  assert.equal((await shrimpy(["status"])).code, 1);
   await connection.close();
   const stopped = await chat.stop();
   assert.equal(stopped.code, 0, stopped.stderr);
@@ -107,7 +107,7 @@ test("a second gateway is refused, and the first keeps serving", { timeout }, as
 
   assert.equal(second.code, 1);
   assert.equal(second.stdout, "");
-  assert.equal((await shrimpy(["gateway", "status"])).code, 0);
+  assert.equal((await shrimpy(["status"])).code, 0);
 });
 
 test("a second chat server is refused before it touches its data, and the first keeps serving", { timeout }, async (t) => {

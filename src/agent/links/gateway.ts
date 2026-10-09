@@ -74,13 +74,13 @@ function adviceFor(why: TurnedAway | undefined, files: HomeFiles, apart: boolean
       return `Change the name in ${files.name} and start the agent again.`;
     case TURNED_AWAY.unknownToken:
       return apart
-        ? `To join as a new member, delete ${files.membership}, get a new invitation and join again with it: shrimpy agent join <link>`
+        ? `To join as a new member, delete ${files.membership}, get a new invitation and join again with it: shrimpy join <link>`
         : `To join as a new member, delete ${files.membership} and start the agent again.`;
     case TURNED_AWAY.agentRunning:
       return (
         `If this home is a copy that should be an agent of its own, stop it, delete ${files.membership}, ` +
         (apart
-          ? `give it another name in ${files.name}, get a new invitation for that name and join with it: shrimpy agent join <link>`
+          ? `give it another name in ${files.name}, get a new invitation for that name and join with it: shrimpy join <link>`
           : `give it another name in ${files.name} and start it again.`)
       );
     case undefined:

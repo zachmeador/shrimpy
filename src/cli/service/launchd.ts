@@ -17,7 +17,7 @@ export function plist(service: LaunchdService, { argv, path }: Program): string 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
-    "<!-- Written by shrimpy gateway install. Running it again writes this file again. -->",
+    "<!-- Written by shrimpy install. Running it again writes this file again. -->",
     '<plist version="1.0">',
     "<dict>",
     "  <key>Label</key>",

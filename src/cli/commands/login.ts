@@ -5,7 +5,7 @@ import type { Command } from "./command.ts";
 import { signInAtTerminal } from "./signing-in.ts";
 
 const login: Command = {
-  name: "providers login",
+  name: "login",
   usage: "[<provider>]",
   summary: "Sign your Shrimpy folder in to a model provider, for every agent started there.",
   details:
@@ -23,4 +23,4 @@ const login: Command = {
   },
 };
 
-export const providersCommands: Command[] = [login];
+export const loginCommands: Command[] = [login];
