@@ -190,7 +190,7 @@ Open the terminal with: shrimpy
 
 **Left for later**
 
-- **Commands about one agent, from elsewhere.** `sessions`, `triggers`, `agent reload` and the like find an agent by its home's folder and talk to it by that path, so they act on an agent only where its home is, and as its OS user. The terminal reaches an agent by its name through the gateway, so after the second step it lists, watches and stops an agent wherever it lives. Naming an agent by its roster name in a command is a change of its own.
+- **Commands about one agent, from elsewhere.** `sessions`, `triggers` and the like find an agent by its home's folder and talk to it by that path, so they act on an agent only where its home is, and as its OS user. The terminal reaches an agent by its name through the gateway, so after the second step it lists, watches and stops an agent wherever it lives. Naming an agent by its roster name in a command is a change of its own.
 - **The chat server on a machine other than the gateway's.**
 
 **Prove**

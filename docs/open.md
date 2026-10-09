@@ -172,14 +172,13 @@ Where the code falls short of what was decided.
 ### The network
 
 - Nothing lists open invitations, takes one back, shows where a gateway listens, or forgets an address.
-- Only the terminal reaches an agent apart by name; `sessions`, `triggers` and `agent reload` can't.
+- Only the terminal reaches an agent apart by name; `sessions` and `triggers` can't.
 - Nothing takes a joined machine's token back, and a joined folder with local agents conflicts.
 - On Linux three browser-bundling tests failed for want of an installed dependency.
 - The service installers have only run for real on Linux, never with administrator lingering.
 - A service gets its installer's `PATH`, which over SSH can lack `shrimpy`'s directory.
 - Two folders of one account would share one gateway.
 - `shrimpy up` treats an unreadable `agent.json` as a gone home, costing the agent a restart.
-- A new home starts within two seconds, so its edited `SOUL.md` needs a reload.
 - A new gatewayless home in a folder whose agents belong elsewhere starts with no gateway to find.
 - Untried: the gateway ending while `up` follows the folder, and a third stop mid-start.
 - Where agents all use a gateway elsewhere, commands wrongly say to run `shrimpy up`.

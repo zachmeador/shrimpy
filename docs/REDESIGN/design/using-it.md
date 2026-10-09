@@ -41,7 +41,7 @@ This is the terminal, the web client, the commands, setup and sign-in. It is tun
 | `sessions read` | `sessions read <agent> <session> [--json]` | `sessions read <session> [--json] [--agent <agent>]` |
 | `sessions steer` | `sessions steer <agent> <session> <text>` | `sessions steer <session> <text> [--agent <agent>]` |
 | `sessions stop` | `sessions stop <agent> <session>` | `sessions stop <session> [--agent <agent>]` |
-| `agent status`, `agent context`, `agent reload` | `agent status <agent>` | `agent status [--agent <agent>]` |
+| `agent status`, `agent context` | `agent status <agent>` | `agent status [--agent <agent>]` |
 | `triggers` and its six, and `wake` | `[--agent <agent>]` | As now |
 
 A name with no flag stays where it says something else. In `run <agent> "<text>"` and `threads <member>` it is who you are talking to. In `agent init <agent>`, `agent serve <agent>` and `up [<agent>...]` it is which agent to make or start, and nothing is running yet whose shell the command could be in.

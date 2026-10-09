@@ -47,6 +47,7 @@
 - A reload applies an agent's model with nothing started again, and one session can be given a model of its own. ([log, 2026-10-08](#log))
 - `/model` in the terminal tries another model in one thread. ([log, 2026-10-08](#log))
 - A text that starts with a slash in the terminal is always a command, `/model` is a message that the thread keeps and the agent acts on and answers, and an agent is told when the model it runs on has changed. ([log, 2026-10-08](#log))
+- An agent reads its files again by itself when they change, and `shrimpy agent reload` is gone. ([log, 2026-10-08](#log))
 
 ## Log
 
@@ -55,6 +56,17 @@ Newest first, roughly: the entries of one day aren't always in the order they ha
 A piece of work is done when its Prove list has evidence from real wiring, not equivalent mocks. A passing build or deleted files don't count. A newly found experience difference stays pending until it is reviewed.
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**2026-10-08: an agent reads its files again by itself, and nobody reloads.** It came out of the walk through what old Shrimpy had. You dropped a `/reload` from the terminal, "users shouldn't have to think about needing to reloading things and don't need a tui path for it", and then asked: "agents should know they have to reload things. or does it make sense to watch for fs changes for agents' context markdowns?" The coordinator proposed looking over watching, since file events aren't delivered on a folder that another machine shares, which is where your agents live, and asked whether the command should stay. "go i'd say". One builder, two commits, the second after the review. [The home](../design/5-home.md) has what it does.
+
+- A running agent looks at its files every two seconds and reads them all again once what it sees has changed and held for two looks. `shrimpy agent reload` is gone, and so is every step in a skill that told someone to reload.
+- It also made true what every agent was already told: that its `context/` notes are shown in every conversation. A note an agent wrote there was not shown until a reload.
+- The contract keeps its reload, which `shrimpy triggers` and `shrimpy wake` ask for after they write a file, so that what they print is true at once: `triggers add` and then `triggers run` would fail in the two seconds before the agent looked.
+- From the review, both things the builder named and the coordinator had told you otherwise or not at all:
+  - A file that can't be used was dropped from the prompt when it was `SOUL.md`, a context note or a skill. It now keeps what the agent last read of it, as a trigger, the wake file and the model did.
+  - A home that is not there for a moment, as when a share is not mounted, would have ended every trigger. A home whose `agent.json` can't be seen is not read.
+- Run for real on your Linux machine, in the home of the agent under the second account. A note written into `context/` was in the agent's answer with nothing told to reload. An unreadable note was said once and reached the agent as a breadcrumb, which went with the note. The three agents on the shared folder ran with it and said nothing, at a load of 0.05.
+- 703 tests: 697 pass and 6 are skipped.
 
 **2026-10-08: walking through what old Shrimpy had.** The draft of the open list has 76 lines of what a person or an agent could do with old Shrimpy and can't with this one. Fourteen, about outside chat apps, were settled when those were put aside. You are marking the rest a group at a time, and this entry grows as you do.
 
