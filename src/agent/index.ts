@@ -20,10 +20,12 @@ import { createAdmissions } from "./chat/durable.ts";
 import { channelOfThread, createDelivery, createWakes } from "./chat/index.ts";
 import { homeContext } from "./context/durable.ts";
 import { type ContextPreview, previewContext } from "./context/index.ts";
+import { type Following, follow, keepLeftOut, LOOK_EVERY_MS } from "./following.ts";
 import {
   homePaths,
   type LeftOut,
   loadHome,
+  lookAtHome,
   readBreadcrumbs,
   readTriggers,
   readWake,
@@ -108,6 +110,13 @@ export interface AgentOptions extends HostOptions {
    * declare, for a reload. Without it a reload leaves both as they are.
    */
   reloadModels?: () => Promise<ModelReload>;
+  /** The files `reloadModels` reads. The agent looks at them with its own, to know when to call it. */
+  modelFiles?: readonly string[];
+  /**
+   * How often the agent looks at its files, in milliseconds, to read again what
+   * changed. Two seconds, if not given. Tests shorten it.
+   */
+  lookEveryMs?: number;
   /** Take part in the network and in chat. Without it, nothing reaches the agent but clients that attach to its sessions. */
   join?: JoinOptions;
   /** The shortest a trigger may repeat at, in milliseconds. A minute, if not given. Tests shorten it. */
@@ -134,8 +143,9 @@ export interface HomeAgent extends RunningAgent {
 
 /**
  * Take ownership of a home and start serving it. The lock comes first. What the
- * home's files tell the agent is read before that, and read again only when
- * the agent is told to reload.
+ * home's files tell the agent is read at the start, and again whenever they
+ * change: the agent looks at them every couple of seconds, and nobody has to tell
+ * it to.
  */
 export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
   // A runtime directory too long for a socket fails here, before the home is claimed.
@@ -145,8 +155,8 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
   const report = reporter(options);
   const host = await openHost(options);
   let run: Run | undefined;
+  let following: Following<Reloaded> | undefined;
   try {
-    for (const { file, reason } of context.report.leftOut) report(new Error(`${file} was left out: ${reason}.`));
     // What the agent posts under names of its own making carries what its records are called, and only the opened
     // storage can say that. So the tools and tasks that post are made once the records are open, and installed before
     // anything runs.
@@ -213,8 +223,8 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       breadcrumbs,
     );
     const working = createWorking(host.harness);
-    // What wakes the agent in each room is read from the home's wake file, at the start and on a reload. A file that
-    // does not check out is left out and named, and the agent keeps what it last read.
+    // What wakes the agent in each room is read from the home's wake file, at the start and whenever it changes. A file
+    // that does not check out is left out and named, and the agent keeps what it last read.
     const wakes = createWakes();
     const readWakes = async (): Promise<LeftOut[]> => {
       const read = await readWake(homePaths(options.home));
@@ -229,11 +239,11 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     run = await beginRun(host.harness);
     // The triggers follow the files of the home before any of their work resumes: a trigger whose schedule changed
     // while the agent was down is not woken by its old one.
-    for (const { file, reason } of (await triggers.reload()).leftOut) report(new Error(`${file} was left out: ${reason}.`));
-    for (const { file, reason } of await readWakes()) report(new Error(`${file} was left out: ${reason}.`));
+    await triggers.reload();
+    await readWakes();
     host.resume();
-    // The model the home names is read again on a reload. When it is another, every session follows it from its next request,
-    // whatever it was given before. A model that can't be used is named, and the sessions keep the one they follow.
+    // The model the home names is read again whenever its files change. When it is another, every session follows it from its
+    // next request, whatever it was given before. A model that can't be used is named, and the sessions keep the one they follow.
     const followModel = async (): Promise<{ changedFrom: Reloaded["changedFrom"]; leftOut: LeftOut[] }> => {
       const found = await options.reloadModels?.();
       if (found === undefined) return { changedFrom: null, leftOut: [] };
@@ -251,28 +261,37 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       }
       return { changedFrom: { provider: before.provider, id: before.modelId }, leftOut };
     };
-    // Reloading reads the instructions, context files and skills, the triggers, the wake file and the model. Two reloads at
-    // once would each compare the model with a different one, so they take turns.
+    // Reading the home again reads the instructions, context files and skills, the triggers, the wake file and the model,
+    // and says which files it could not use.
+    const told = keepLeftOut({ home: options.home, report });
     const reloadHome = async (): Promise<Reloaded> => {
       const read = await context.reload();
       const followed = await triggers.reload();
       const model = await followModel();
+      const leftOut = [...read.leftOut, ...followed.leftOut, ...(await readWakes()), ...model.leftOut];
+      await told(leftOut);
       return {
         ...read,
         triggers: followed.count,
         model: { provider: defaults.model.provider, id: defaults.model.modelId },
         changedFrom: model.changedFrom,
-        leftOut: [...read.leftOut, ...followed.leftOut, ...(await readWakes()), ...model.leftOut],
+        leftOut,
       };
     };
-    let reloading: Promise<unknown> = Promise.resolve();
-    const files: HomeFiles = {
-      reload() {
-        const reloaded = reloading.then(reloadHome);
-        reloading = reloaded.catch(() => undefined);
-        return reloaded;
-      },
-    };
+    // The agent looks at the files it read and reads them again when they change, and takes turns with a reload that
+    // is asked for, which two at once would each compare the model with a different one.
+    const keeping = follow({
+      everyMs: options.lookEveryMs ?? LOOK_EVERY_MS,
+      look: () => lookAtHome(paths, options.modelFiles),
+      read: reloadHome,
+      onError: report,
+    });
+    following = keeping;
+    // The start has read the files already, and a file may have changed since the model was read, before this began. So
+    // they are read once more, now that the agent is up: what the next look is compared with is exactly what was read, and
+    // the files that can't be used are said.
+    await keeping.reload();
+    const files: HomeFiles = { reload: () => keeping.reload() };
     // The gateway is joined once the server is up, so a ticket is checked over the connection it keeps, when there is one.
     // The agent knows itself by the member ID its home keeps, which it writes as soon as the gateway says who it is, and
     // so before it registers: no ticket for the agent exists until then.
@@ -294,13 +313,14 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
           options.join,
         );
       }
-      return { endpoint: server.endpoint, close: stopper({ host, server, run, joined }) };
+      return { endpoint: server.endpoint, close: stopper({ host, server, run, joined, following: keeping }) };
     } catch (error) {
       await server.close();
       throw error;
     }
   } catch (error) {
     // A start that fails closes the engine in an orderly way too, once the records say it was running.
+    await following?.close();
     await run?.stopped().catch(report);
     await host.close();
     throw error;
@@ -319,8 +339,9 @@ function reporter(options: AgentOptions): (error: Error) => void {
  * Start the agent that lives at `home`, and have it take part in chat as the
  * agent its `agent.json` names. Its name comes from that file, and so does its
  * model, if the file names one: otherwise it starts with the folder's default.
- * A reload reads that model, and the model servers, again. Its instructions come
- * from the files of the home. A home that names a gateway address in its
+ * The agent reads that model, and the model servers, again whenever the files
+ * that name them change. Its instructions come from the files of the home, and
+ * it reads them again whenever they change. A home that names a gateway address in its
  * membership, as one does that joined from apart, reaches the gateway and chat
  * there, and answers there the calls the gateway makes for it, since the
  * gateway can't dial it. Reading `agent.json` takes no lock and changes
@@ -334,7 +355,7 @@ function reporter(options: AgentOptions): (error: Error) => void {
  */
 export async function startHomeAgent(
   home: string,
-  options: { shrimpy?: readonly string[]; providers?: string } = {},
+  options: { shrimpy?: readonly string[]; providers?: string; lookEveryMs?: number } = {},
 ): Promise<HomeAgent> {
   const loaded = loadHome(home);
   const runtime = await buildModels({
@@ -342,7 +363,7 @@ export async function startHomeAgent(
     authFile: loaded.paths.auth,
     configFile: loaded.paths.config,
     ...(options.providers === undefined ? {} : { providers: options.providers }),
-    // Asked again at every reload, so a change to the file is seen.
+    // Asked again whenever the agent reads the model again, so a change to the file is seen.
     named: () => {
       const model = loadHome(loaded.paths.root).model;
       return model === undefined ? undefined : { provider: model.provider, modelId: model.id };
@@ -355,8 +376,10 @@ export async function startHomeAgent(
     models: runtime.models,
     model: runtime.model,
     reloadModels: () => runtime.reload(),
+    modelFiles: runtime.files,
     join: gateway === undefined ? {} : { apart: gateway },
     ...(options.shrimpy === undefined ? {} : { shrimpy: options.shrimpy }),
+    ...(options.lookEveryMs === undefined ? {} : { lookEveryMs: options.lookEveryMs }),
   });
   return { ...agent, name: loaded.name, home: loaded.paths.root };
 }
@@ -371,8 +394,8 @@ export interface HomePreview extends ContextPreview {
  * What the agent whose home is `home` would be told if it started now, and how
  * many triggers it would have, read from the home's files without starting
  * anything and without a lock. A trigger file that does not check out is among
- * what is left out. An agent that is running has what it read when it started
- * or last reloaded.
+ * what is left out. An agent that is running reads the same files by itself,
+ * within a few seconds of a change.
  */
 export async function previewHomeContext(home: string): Promise<HomePreview> {
   const loaded = loadHome(home);
@@ -388,7 +411,7 @@ export async function previewHomeContext(home: string): Promise<HomePreview> {
 /**
  * What the wake file of the home of `home` chooses, for the rooms it names, or why
  * the file is left out, read without starting anything and without a lock. A
- * running agent has what it read when it started or last reloaded.
+ * running agent reads the file by itself, within a few seconds of a change.
  */
 export async function readHomeWake(home: string): Promise<WakeRead> {
   return readWake(loadHome(home).paths);
@@ -397,8 +420,8 @@ export async function readHomeWake(home: string): Promise<WakeRead> {
 /**
  * The triggers the files of the home of `home` hold, and the files that do not
  * check out, read without starting anything and without a lock. This is what a
- * running agent would have after it reloaded; it has no times and no outcomes,
- * which only a running agent knows.
+ * running agent has within a few seconds of a change; it has no times and no
+ * outcomes, which only a running agent knows.
  */
 export async function readHomeTriggers(home: string): Promise<TriggerFiles> {
   return readTriggers(loadHome(home).paths);

@@ -48,7 +48,7 @@ export interface Triggers {
   readonly extension: Extension;
   /**
    * Read the home's trigger files and make the triggers follow them, which is
-   * what the agent does when it starts and when it is told to reload. A file
+   * what the agent does when it starts and whenever the files change. A file
    * that checks out is the trigger's definition from now on: a new schedule
    * counts from now, and a new prompt is used from the next occurrence. A file
    * that is gone, or that says `enabled: false`, ends the trigger. A file that

@@ -60,7 +60,7 @@ export interface AgentConnection {
   trigger(name: string): Promise<TriggerDetail>;
   /** Fire a trigger once now. See `SessionDirectory.fire`. */
   fire(name: string): Promise<Occurrence>;
-  /** Make the agent read its home's instructions, context files, skills and triggers again. See `SessionDirectory.reload`. */
+  /** Make the agent read its home's files again now, rather than at its next look. See `SessionDirectory.reload`. */
   reload(): Promise<Reloaded>;
   /** Called once if the connection drops. Nothing reconnects by itself. */
   onDisconnect(listener: (reason: Error | undefined) => void): void;

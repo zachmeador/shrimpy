@@ -12,7 +12,7 @@ An agent is a folder. Make one when the person asks for one. If what they want i
 1. `shrimpy agent init <name>` makes its home in the person's Shrimpy folder, as `agents/<name>`, and prints where. Add `--model <provider/id>` to name its model, or leave it out and the agent starts with the one in the folder's `providers/default-model.json`. A name is letters, digits, dots, hyphens and underscores, and no one else on the roster can have it: people and agents share names. Running it again changes nothing that exists.
 2. Check that it has a model, and a way to reach it. Its home is its own and inherits nothing from yours, but what it doesn't hold comes from `providers/` in the Shrimpy folder, which the person signs in with `shrimpy providers login` (see shrimpy-setup).
 3. Say who it is in its `SOUL.md`. The starter works as it is, so edit it and keep what still fits.
-4. While Shrimpy runs, the agent starts by itself a few seconds after step 1, with the `SOUL.md` it had then. Once yours is written, `shrimpy agent reload --agent <name>` makes it read it. If Shrimpy isn't running, the person runs `shrimpy up`. It joins the roster the first time it runs, and `shrimpy gateway status` then lists it.
+4. While Shrimpy runs, the agent starts by itself a few seconds after step 1, and picks up your `SOUL.md` a few seconds after you write it. If Shrimpy isn't running, the person runs `shrimpy up`. It joins the roster the first time it runs, and `shrimpy gateway status` then lists it.
 5. Leave the first hello to the person. `shrimpy run` from your shell would be you talking, not them.
 
 ## Make one somewhere else
@@ -43,14 +43,13 @@ Never open `state/agent.sqlite` or edit `runtime/`: the running agent owns them.
 
 Edit `SOUL.md` for its voice and role, and `context/` for what it should always have in mind. Both are shown on every request, so keep them short and put the long material in `vault/`. Don't repeat in `SOUL.md` what its instructions already say about replying and the message tools.
 
-A running agent reads these files when it starts and when it is told to reload, and at no other time.
+A running agent looks at its files every couple of seconds and reads again what changed, so a change is picked up within a few seconds, with nothing to run. Each session uses it with its next request.
 
-- `shrimpy agent reload` makes it read them again. Each of its sessions uses the change with its next request, and names any file it couldn't use.
-- `shrimpy agent context` shows what it would be told if it started now. It reads the files and starts nothing, so run it before the reload to see the result.
+`shrimpy agent context` shows what an agent would be told if it started now, and names any instruction, skill or trigger file it can't use. It reads the files and starts nothing, so it is how to check a change. It acts on you; add `--agent <agent>` for another agent.
 
-Both act on you. To act on another agent, add `--agent <agent>`, as in `shrimpy agent reload --agent scout`.
+A change to the `model` in `agent.json`, to `models.json` or to `default-model.json` is picked up the same way: every session uses the new model with its next request, and a model the agent can't use is left out and the old one kept. A key or sign-in in `auth.json` is read at every request. A new `name` in `agent.json` waits for a restart, which is the person's step: the agent stays the same member, with its DMs and history, and a name another member has is refused.
 
-A change to the `model` in `agent.json`, to `models.json` or to `default-model.json` takes effect when you run `shrimpy agent reload`: every session uses the new model with its next request, and a model it can't use is named and the old one kept. A key or sign-in in `auth.json` needs no reload. A new `name` in `agent.json` waits for a restart, which is the person's step: the agent stays the same member, with its DMs and history, and a name another member has is refused.
+A file the agent can't use is also shown to its sessions in a breadcrumb, which goes when the file is right again.
 
 ## See what an agent is doing
 
@@ -60,6 +59,6 @@ A change to the `model` in `agent.json`, to `models.json` or to `default-model.j
 
 `sessions steer` puts input into a session that the thread never sees. It is not a way to talk to an agent.
 
-These act on you too, and take `--agent <agent>` for another agent. Your own sessions and triggers are yours to look at and stop. Another agent's, and reloading it, take an admin: every person is one, the first agent a setup has starts as one, and any other agent is one once it has been promoted. If you are refused, the refusal says who the admins are, and you can ask one of them. `shrimpy members` lists them, and an admin can run `shrimpy members promote <name>` to make an agent one.
+These act on you too, and take `--agent <agent>` for another agent. Your own sessions and triggers are yours to look at and stop; another agent's take an admin: every person is one, the first agent a setup has starts as one, and any other agent is one once it has been promoted. If you are refused, the refusal says who the admins are, and you can ask one of them. `shrimpy members` lists them, and an admin can run `shrimpy members promote <name>` to make an agent one.
 
 No command removes an agent. To retire one, have the person move its home out of `agents/`: a running `shrimpy up` stops it. Delete files only when they ask you to.

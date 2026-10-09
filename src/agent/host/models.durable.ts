@@ -47,6 +47,13 @@ export interface ModelRuntime {
   readonly models: Models;
   readonly model: ModelRef;
   /**
+   * The files `reload` reads: the home's agent.json, the models.json files and
+   * the folder's default-model.json. An agent that looks at them can tell when a
+   * reload would find something new. The auth.json files are not among them,
+   * since a key or a sign-in is read again at every request.
+   */
+  readonly files: readonly string[];
+  /**
    * Read again the model the home starts with and the servers that the
    * models.json files declare, and set the servers on `models`: a server
    * declared since the last reading can be named from now on, one that changed
@@ -194,6 +201,7 @@ export async function buildModels(options: ModelRuntimeOptions): Promise<ModelRu
   return {
     models,
     model: start.model,
+    files: [options.configFile, ...files.models, ...(folder === undefined ? [] : [folder.defaultModel])],
     async reload() {
       const leftOut: LeftOut[] = [];
       const reread = new Map<string, readonly CustomProvider[]>();

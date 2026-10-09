@@ -317,5 +317,5 @@ test("a person's post that mentions nobody wakes every agent in the room, any ot
   assert.equal(wrong?.reason, 'rooms.ops must be "none", "mentions", "people" or "all", not "loud"');
   await post(person, "@scout, still there?");
   assert.equal((await roomTurns()).length, 4);
-  assert.deepEqual(scout.reports, []);
+  assert.equal(scout.reports.length, 2, "the agent said each of the two files it couldn't use, once");
 });

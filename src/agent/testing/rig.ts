@@ -28,6 +28,8 @@ export interface AgentRigOptions {
   shortestEveryMs?: number;
   /** The shortest the agent may wait for another agent's answer, in milliseconds. A test whose question times out makes it short. */
   shortestWaitMs?: number;
+  /** How often the agent looks at its files, in milliseconds. A test that changes them while the agent runs makes it short. */
+  lookEveryMs?: number;
 }
 
 /** The agent, and the person who runs the gateway to talk to it. */
@@ -71,6 +73,7 @@ export async function startAgentRig(t: TestContext, options: AgentRigOptions = {
       onReport: (error) => reports.push(error),
       ...(options.shortestEveryMs === undefined ? {} : { shortestEveryMs: options.shortestEveryMs }),
       ...(options.shortestWaitMs === undefined ? {} : { shortestWaitMs: options.shortestWaitMs }),
+      ...(options.lookEveryMs === undefined ? {} : { lookEveryMs: options.lookEveryMs }),
       join: {
         backoff: () => backoff({ firstMs: 5, maxMs: 20 }),
         ...options.join,

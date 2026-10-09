@@ -60,6 +60,7 @@ export function baseInstructions({ name, home }: AgentFacts): string {
     "- breadcrumbs/ holds breadcrumbs, one small Markdown file for each fact. You may write one.",
     "- skills/ holds skills: instructions for a kind of job, each a folder with a SKILL.md. Shrimpy comes with some too, and they are how you learn to look after a Shrimpy setup. <skills> lists them all with where to read each: read one when the task calls for it.",
     "- vault/ holds longer notes and anything else you want to keep. It isn't shown to you: read it when you need it.",
+    "A change to your SOUL.md or to a file in context/, skills/ or triggers/ is picked up within a few seconds, with nothing to run.",
     "",
     "Keep it shrimple.",
   ].join("\n");

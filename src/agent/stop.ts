@@ -18,14 +18,17 @@ export interface Parts {
   server: AgentServer;
   /** The agent's run, which the stop ends in the records just before the engine closes. */
   run: Run;
+  /** The agent keeping up with its files, which stops looking before anything it reads from closes. */
+  following: { close(): Promise<void> };
   /** Absent for an agent that takes no part in chat. */
   joined?: Joined;
 }
 
 /**
- * How an agent stops: it stops taking new input, from clients and from chat,
- * gives running turns a short time to finish and their replies a moment to be
- * told to chat, then leaves the network and closes the server and the home.
+ * How an agent stops: it stops taking new input, from clients and from chat, and
+ * stops looking at its files, gives running turns a short time to finish and
+ * their replies a moment to be told to chat, then leaves the network and closes
+ * the server and the home.
  * Work that did not finish is paused and resumes at the next start, and the
  * records say the stop was an orderly one, so it does not count against the
  * turns it paused. Stopping twice does it once; the second call with `now` cuts
@@ -41,10 +44,11 @@ export function stopper(parts: Parts): (options?: CloseOptions) => Promise<void>
   };
 }
 
-async function stop({ host, server, run, joined }: Parts, graceMs: number, hurry: AbortSignal): Promise<void> {
+async function stop({ host, server, run, joined, following }: Parts, graceMs: number, hurry: AbortSignal): Promise<void> {
   server.stopIntake();
   joined?.stopTaking();
   try {
+    await following.close();
     if (!hurry.aborted) {
       const deadline = AbortSignal.any([hurry, AbortSignal.timeout(graceMs)]);
       await host.settle(deadline);

@@ -3,7 +3,7 @@ import { DEFAULT_WAKE_POLICY, type WakePolicy, type WakeSettings } from "../home
 /**
  * What wakes the agent in a room, as the agent chooses it for each room. The
  * choice is made in a file of the agent's home, which the agent reads at its
- * start and when it is told to reload; this is what the agent holds of it.
+ * start and again whenever it changes; this is what the agent holds of it.
  */
 
 /** What chat needs to know of the agent's choices. */
@@ -12,7 +12,7 @@ export interface WakePolicies {
   of(room: string): WakePolicy;
 }
 
-/** The choices the agent holds, which a reload replaces. */
+/** The choices the agent holds, which reading the file again replaces. */
 export interface Wakes extends WakePolicies {
   /** Hold these settings from now on. */
   replace(settings: WakeSettings): void;

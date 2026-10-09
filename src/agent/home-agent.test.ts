@@ -97,9 +97,12 @@ function nameModel(paths: ReturnType<typeof newHome>, provider: string, id: stri
 
 const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+/** How often the agent looks at its files in the tests that change them while it runs, in milliseconds. */
+const LOOK = 25;
+
 /** Start the home's agent. It is stopped when the test ends. */
-async function startAt(t: TestContext, home: string) {
-  return closeAfter(t, await startHomeAgent(home));
+async function startAt(t: TestContext, home: string, options: { lookEveryMs?: number } = {}) {
+  return closeAfter(t, await startHomeAgent(home, options));
 }
 
 /** Zach, in his DM with the agent called `name`, who says something and waits until the agent has left its receipt. */
@@ -183,7 +186,7 @@ test("the model gets the home's instructions as sections in a fixed order, exact
   assert.equal(system.content, preview.sections.map((section) => section.text).join("\n\n"));
 });
 
-test("editing the home takes effect at the next start, in sessions made before it too", { timeout }, async (t) => {
+test("a start reads the home as it is then, in sessions made before it too", { timeout }, async (t) => {
   const paths = newHome(t);
   writeFileSync(paths.soul, "Answer in prose.\n");
   const requests = stubChatCompletions(t, "Ok");
@@ -204,48 +207,76 @@ test("editing the home takes effect at the next start, in sessions made before i
   assert.doesNotMatch(systemPrompt(1), /Answer in prose\./);
 });
 
-test("a reload makes a session that already exists use the model agent.json names now, with nothing started again, and names a model it can't use", { timeout }, async (t) => {
-  const paths = newHome(t, { local: several });
+test("a note written into context/ while the agent runs is in what the model is shown at its next request, with nothing told to reload and nothing started again", { timeout }, async (t) => {
+  const paths = newHome(t);
   const requests = stubChatCompletions(t, "Ok");
   const { chat } = await startNetwork(t);
-  await startAt(t, paths.root);
+  await startAt(t, paths.root, { lookEveryMs: LOOK });
   const person = await talkToAgent(chat, "scout");
-  const connection = await attachLocal(paths.root);
-  t.after(() => connection.close());
+  const told = (index: number): string => String(requests[index]?.body.messages[0]?.content);
+
+  await person.ask("one");
+  writeFileSync(join(paths.context, "disk.md"), "The disk is on fire.\n");
+  const now = await eventually(
+    async () => {
+      await person.ask("and now?");
+      return told(requests.length - 1);
+    },
+    (text) => text.includes("The disk is on fire."),
+    { what: "the note to be in what the model is shown" },
+  );
+
+  assert.doesNotMatch(told(0), /The disk is on fire\./, "the request before the note did not have it");
+  assert.equal(now, (await previewHomeContext(paths.root)).sections.map((section) => section.text).join("\n\n"), "and the one after has the home as the preview shows it");
+});
+
+test("agent.json naming another model is followed by the next request with no command, and the model is told once; a model that can't be used is said and the sessions keep theirs; a server declared since can be named", { timeout }, async (t) => {
+  const paths = newHome(t, { local: several });
+  const requests = stubChatCompletions(t, "Ok");
+  const reported: string[] = [];
+  t.mock.method(console, "error", (...lines: unknown[]) => void reported.push(lines.join(" ")));
+  const { chat } = await startNetwork(t);
+  await startAt(t, paths.root, { lookEveryMs: LOOK });
+  const person = await talkToAgent(chat, "scout");
+  /** What the model was shown with the newest message of a request. */
+  const shown = (index: number): string => String(requests[index]?.body.messages.findLast((message) => message.role === "user")?.content);
+  /** The models the requests named, in order, each once for as long as it ran. */
+  const named = (): string[] => requests.map((request) => request.body.model).filter((model, index, all) => model !== all[index - 1]);
+  /** Ask until a request names `model`, which it does once the agent has read the file. */
+  const askUntil = (model: string) =>
+    eventually(
+      async () => {
+        await person.ask("again");
+        return requests.at(-1)?.body.model;
+      },
+      (found) => found === model,
+      { what: `a request to name ${model}` },
+    );
 
   await person.ask("one");
   nameModel(paths, "local", "llama");
-  const changed = await connection.reload();
-  await person.ask("two");
-  assert.deepEqual(
-    [changed.model, changed.changedFrom, changed.leftOut],
-    [{ provider: "local", id: "llama" }, { provider: "local", id: "qwen" }, []],
-  );
+  await askUntil("llama");
+  const changed = requests.findIndex((request) => request.body.model === "llama");
+  await person.ask("and again");
+  assert.ok(shown(changed).includes("local/qwen") && shown(changed).includes("local/llama"), "the model is told which model wrote its last answer and which it runs on now");
+  assert.doesNotMatch(shown(changed + 1), /local\/qwen/, "and it is told once");
 
-  // A model the agent can't use is named, and the next request names the model it had.
+  // A model the agent can't use is said in the words the start would use, and the next request names the model it had.
   nameModel(paths, "local", "llam");
-  const refused = await connection.reload();
+  await eventually(() => reported, (lines) => lines.some((line) => line.includes("agent.json") && /llam\b/.test(line)), { what: "the model that can't be used to be said" });
   await person.ask("three");
-  assert.deepEqual([refused.model, refused.changedFrom], [{ provider: "local", id: "llama" }, null]);
-  assert.equal(refused.leftOut.length, 1);
-  assert.equal(refused.leftOut[0]?.file, "agent.json");
-  assert.match(refused.leftOut[0].reason, /llam\b/);
+  assert.equal(requests.at(-1)?.body.model, "llama");
 
   // A server declared since the start can be named.
   const fresh = { ...local, baseUrl: "http://fresh.invalid/v1", models: [{ id: "newest", contextWindow: 8_000, maxTokens: 1_000 }] };
   writeFileSync(paths.models, JSON.stringify({ providers: { local: several, fresh } }));
   nameModel(paths, "fresh", "newest");
-  await connection.reload();
-  await person.ask("four");
+  await askUntil("newest");
 
-  assert.deepEqual(requests.map((request) => request.body.model), ["qwen", "llama", "llama", "newest"]);
-  assert.equal(requests[3]?.url, "http://fresh.invalid/v1/chat/completions");
-
-  // The model is told when the model that wrote its last answer is not the one it runs on, whatever changed it, and once.
-  const shown = (index: number): string => String(requests[index]?.body.messages.findLast((message) => message.role === "user")?.content);
-  assert.ok(shown(1).includes("local/qwen") && shown(1).includes("local/llama"));
-  assert.doesNotMatch(shown(2), /local\/qwen/);
-  assert.ok(shown(3).includes("local/llama") && shown(3).includes("fresh/newest"));
+  assert.deepEqual(named(), ["qwen", "llama", "newest"], "each model was named in its turn, and none came back");
+  assert.equal(requests.at(-1)?.url, "http://fresh.invalid/v1/chat/completions");
+  const last = requests.findIndex((request) => request.body.model === "newest");
+  assert.ok(shown(last).includes("local/llama") && shown(last).includes("fresh/newest"));
 });
 
 test("a thread given a model of its own by /model keeps it through a reload that finds the home naming the same model, and follows the home again after one that finds another, or after the agent is started again", { timeout }, async (t) => {

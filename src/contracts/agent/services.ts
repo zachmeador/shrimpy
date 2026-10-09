@@ -42,7 +42,8 @@ export interface SessionDirectory {
    * used when Pi's model runtime can reach it with the keys and sign-ins the
    * agent has and the servers its files declare. A key or sign-in that was
    * added since the agent started counts, and a server that was declared since
-   * it started counts after a `reload`. A thread's session is made to use one of
+   * it started counts once the agent has read its files again, which it does by
+   * itself within a few seconds. A thread's session is made to use one of
    * these by a person's `/model` in the thread, which the agent acts on as it
    * does `/stop`, and which leaves a line in the thread.
    */
@@ -51,7 +52,7 @@ export interface SessionDirectory {
    * Every standing trigger the agent has, in order of name, with its schedule,
    * whether it is on, when its next occurrence is due and how its last one
    * ended. The agent reads its triggers from the files of its home when it
-   * starts and when it reloads, and this is what it runs now.
+   * starts and whenever they change, and this is what it runs now.
    */
   triggers(context: Context): Promise<TriggerSummary[]>;
   /**
@@ -72,11 +73,16 @@ export interface SessionDirectory {
    */
   fire(name: string, context: Context): Promise<Occurrence>;
   /**
-   * Read the home's instructions, context files, skills, triggers and model
-   * again. Each session uses what changed with its next request, and what it
-   * already holds stays as it was. A trigger follows its file at once: a new
-   * schedule counts from now, a new prompt is used from the next occurrence,
-   * and a file that is gone or says `enabled: false` ends the trigger.
+   * Read the home's instructions, context files, skills, triggers, wake file and
+   * model again, now. The agent does this by itself: it looks at those files
+   * every couple of seconds and reads them again when what it sees has changed
+   * and stopped changing, so a change reaches it within a few seconds with
+   * nobody asking. This is for whoever has just changed a file and wants the
+   * answer at once, and takes its turn after a reading that is under way. Each
+   * session uses what changed with its next request, and what it already holds
+   * stays as it was. A trigger follows its file at once: a new schedule counts
+   * from now, a new prompt is used from the next occurrence, and a file that is
+   * gone or says `enabled: false` ends the trigger.
    *
    * The model is the one `agent.json` names, or else the folder's
    * `default-model.json`, and the servers it can be on are the ones the

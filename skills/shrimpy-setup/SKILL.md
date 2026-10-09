@@ -37,7 +37,7 @@ The person can use Shrimpy from a machine that isn't the gateway's. On the gatew
 
 ## A model for an agent
 
-An agent takes its model, servers and keys from two places and nowhere else: not from the environment, not from another home. Its own home comes first, and what the home doesn't hold comes from `providers/` in the Shrimpy folder, which every agent started there shares. The model and the servers are read when the agent starts and when it reloads (`shrimpy agent reload`), so changing one needs no restart. A key or a sign-in is read again at every request.
+An agent takes its model, servers and keys from two places and nowhere else: not from the environment, not from another home. Its own home comes first, and what the home doesn't hold comes from `providers/` in the Shrimpy folder, which every agent started there shares. A change to the model or the servers is picked up within a few seconds, so changing one needs no restart. A key or a sign-in is read again at every request.
 
 - `agent.json` names the model it starts with, as `"model": {"provider": "local", "id": "qwen3.8-27b"}`, which `agent init --model <provider/id>` writes. An agent whose `agent.json` names none starts with the one in `providers/default-model.json`: `{"provider": "local", "id": "qwen3.8-27b"}`. With neither it doesn't start.
 - `models.json` declares servers of your own: `state/pi/models.json` in a home, `providers/models.json` in the folder. A server that needs no key still takes a placeholder:

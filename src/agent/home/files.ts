@@ -9,6 +9,9 @@ export interface LeftOut {
   readonly reason: string;
 }
 
+/** A left-out file as a sentence, which is how the agent says it on standard error and in the breadcrumb it leaves. */
+export const leftOutSentence = ({ file, reason }: LeftOut): string => `${file} was left out: ${reason}.`;
+
 /** Where `path` is, as a left-out file says: inside `root` with `/` between folders, or its absolute path when it is not in `root`. */
 export function shownIn(root: string, path: string): string {
   const inside = relative(root, path);

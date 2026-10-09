@@ -21,9 +21,9 @@ import { shrimpyCommand } from "../programs/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
-import { connectIfRunning, withConnection } from "./connected.ts";
+import { connectIfRunning } from "./connected.ts";
 import { folderDefault } from "./folder-default.ts";
-import { leftOutLines, modelLine, whatItReads } from "./reloaded.ts";
+import { leftOutLines, whatItReads } from "./reloaded.ts";
 import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, mayActOn, WHICH_AGENT } from "./which-agent.ts";
 
 const init: Command = {
@@ -301,8 +301,9 @@ const context: Command = {
   summary: "Preview what an agent would be told, from its home's files as they are now.",
   details:
     "Prints the sections the agent's instructions are made of, in order, as a model would get them. It " +
-    "reads the files and starts nothing, so it also works while an agent runs there. A running agent has " +
-    `what it read when it started or last reloaded: make it read again with shrimpy agent reload. ${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
+    "reads the files and starts nothing, so it also works while an agent runs there. A running agent looks " +
+    "at its files every couple of seconds and reads them again when they change, so it has the same within a " +
+    `few seconds of a change. ${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     expectArguments(positionals, []);
@@ -313,7 +314,7 @@ const context: Command = {
     const { sections, leftOut, ...read } = await previewHomeContext(home);
     io.out(
       `Preview of what the agent would be told if it started now, from the files of ${home}. ` +
-        `It would read ${whatItReads(read)}. A running agent has what it read when it started or last reloaded.\n`,
+        `It would read ${whatItReads(read)}. A running agent reads the same within a few seconds of a change.\n`,
     );
     io.out(sections.map((section) => section.text).join("\n\n"));
     if (leftOut.length > 0) io.out(`\nLeft out:\n${leftOutLines(leftOut).join("\n")}`);
@@ -321,36 +322,4 @@ const context: Command = {
   },
 };
 
-const reload: Command = {
-  name: "agent reload",
-  usage: "[--agent <agent>]",
-  summary: "Make a running agent read its instructions, context files, skills, triggers and model again.",
-  details:
-    "An agent reads SOUL.md, the Markdown files in context/, the skills in skills/ and the triggers in " +
-    "triggers/ when it starts, and editing them changes nothing for it until this is run. Each session then " +
-    "uses what changed in its instructions with its next request, and what it already holds is not rewritten; " +
-    "a trigger follows its file at once. It reads its model again too: the one agent.json names, or else " +
-    "providers/default-model.json, on the servers the models.json files declare. If that is another model, " +
-    "every session uses it from its next request, whatever model it was given before. A file or a model the " +
-    "agent cannot use is left out and named, the agent keeps the model it had, and the rest is read. To see " +
-    `what a home gives an agent now, use shrimpy agent context. ${WHICH_AGENT} ` +
-    ABOUT_ANOTHER_AGENT,
-  async run(args, io) {
-    const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
-    expectArguments(positionals, []);
-    const target = agentToActOn(values.agent);
-
-    return withConnection(target, async (connection) => {
-      const reloaded = await connection.reload();
-      io.out(
-        `Reloaded. The agent at ${target.home} now reads ${whatItReads(reloaded)}. ` +
-          "Each of its sessions uses a change to its instructions with its next request; a trigger follows its file at once.",
-      );
-      io.out(modelLine(reloaded));
-      if (reloaded.leftOut.length > 0) io.out(`Left out:\n${leftOutLines(reloaded.leftOut).join("\n")}`);
-      return 0;
-    });
-  },
-};
-
-export const agentCommands: Command[] = [init, join, serve, status, reload, context];
+export const agentCommands: Command[] = [init, join, serve, status, context];

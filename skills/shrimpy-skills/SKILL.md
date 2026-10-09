@@ -20,7 +20,7 @@ A skill is a folder with a `SKILL.md`: instructions for one kind of job, read wh
    ```
 
 3. Under it, write the steps. Lead with what to do and put the common case first. Say when doing nothing is right. Keep it short enough to read in the middle of a task, about 80 lines. Check each shrimpy command in it with `--help`, as in `shrimpy agent init --help`.
-4. `shrimpy agent reload` makes you read your skills again. For another running agent, add `--agent <agent>`. Without a reload, the change waits for the agent's next start.
+4. A running agent picks up a new or changed skill within a few seconds. `shrimpy agent context` lists it as the agent will get it.
 
 ## The description decides
 
