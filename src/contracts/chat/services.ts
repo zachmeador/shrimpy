@@ -19,6 +19,21 @@ export interface Chat {
   /** The channels the caller belongs to, oldest first. */
   channels(context: Context): Promise<Channel[]>;
   /**
+   * The channels the caller reads and is not in, oldest first. A person reads
+   * every channel there is, so for a person these are all that `channels` leaves
+   * out: a DM between two agents, and a room of agents. An agent reads only the
+   * channels it is in, admin or not, so for an agent there are none.
+   *
+   * Reading is all of it. `threads` lists such a channel's threads, `read` gives
+   * their messages as they now stand, with edits, reactions and receipts, and
+   * `attach` follows a thread live, with who is working in it. The caller is not a
+   * member, so the calls that write there are refused with the reason
+   * `READ_ONLY`: posting, editing, deleting, reacting, marking work, starting,
+   * renaming or archiving a thread, and adding members. Nothing there is
+   * addressed to the caller, and `feed` never carries it.
+   */
+  readOnlyChannels(context: Context): Promise<Channel[]>;
+  /**
    * The DM between the caller and the member `otherId`, created on first use. A
    * member the chat server has not met is looked up in the gateway's roster, and
    * one the roster does not have is refused.
@@ -47,7 +62,10 @@ export interface Chat {
    */
   addMembers(channelId: string, memberIds: string[], context: Context): Promise<Channel>;
 
-  /** A channel's threads, archived ones too, the most recently updated first. */
+  /**
+   * A channel's threads, archived ones too, the most recently updated first. The
+   * channel is one the caller is in or reads.
+   */
   threads(channelId: string, context: Context): Promise<Thread[]>;
   createThread(channelId: string, name: string | null, context: Context): Promise<Thread>;
   renameThread(threadId: string, name: string, context: Context): Promise<Thread>;
@@ -69,8 +87,9 @@ export interface Chat {
   post(threadId: string, text: string, requestId: string, context: Context): Promise<Message>;
   /**
    * Change what a message says. Only its author may; for anyone else in the
-   * channel the call is refused, and for someone outside it the message does
-   * not exist. A deleted message cannot be edited. Editing to the text the
+   * channel the call is refused, for an agent outside it the message does not
+   * exist, and for a person who only reads the channel the call is refused with
+   * `READ_ONLY`. A deleted message cannot be edited. Editing to the text the
    * message already has changes nothing and adds no event, so a call whose
    * answer was lost can be made again. Which members the message mentions is
    * worked out again from the new text. Answers with the message as it now
@@ -99,7 +118,8 @@ export interface Chat {
   /**
    * Messages as they now stand: up to `limit` of a thread older than
    * `beforeSeq`, or the newest when it is null; oldest first. A page of very
-   * long messages holds fewer, the newest of them.
+   * long messages holds fewer, the newest of them. The thread is one in a channel
+   * the caller is in or reads.
    */
   read(
     threadId: string,
@@ -148,10 +168,11 @@ export interface Chat {
    */
   store(context: Context): Promise<string>;
   /**
-   * Events after `cursor` in every channel the caller belongs to, oldest
-   * first, up to `limit`, or fewer when they are very long. In each channel,
-   * only the events after the caller joined it: a room's earlier history is
-   * read in its threads, never offered. Waits until there is at least one.
+   * Events after `cursor` in every channel the caller belongs to, and in none it
+   * only reads, oldest first, up to `limit`, or fewer when they are very long. In
+   * each channel, only the events after the caller joined it: a room's earlier
+   * history is read in its threads, never offered. Waits until there is at least
+   * one.
    * Every event is offered, the caller's own included, and what to do with each
    * is the caller's call: the chat server leaves nothing out. This is how an agent is offered what happens: it asks, so the chat
    * server never has to reach an agent, and a restarted agent catches up from
@@ -159,7 +180,10 @@ export interface Chat {
    */
   feed(cursor: number, limit: number, context: Context): Promise<ChatEvent[]>;
 
-  /** Watch one thread. A connection watches one at a time. */
+  /**
+   * Watch one thread, in a channel the caller is in or reads. A connection
+   * watches one at a time.
+   */
   attach(threadId: string, context: Context): Promise<void>;
   detach(context: Context): Promise<void>;
 }

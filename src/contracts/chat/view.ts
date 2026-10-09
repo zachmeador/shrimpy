@@ -11,12 +11,18 @@ export interface Member {
 
 /**
  * A place where people and agents talk: a DM, which has two members, or a room,
- * which has a name of its own and any number of them. Only its members see it.
+ * which has a name of its own and any number of them. Its members write in it.
+ * A person also reads the channels they are not in, which `readOnlyChannels`
+ * lists apart from their own.
  */
 export interface Channel {
   id: string;
   kind: "dm" | "room";
-  /** A room's name, or in a DM the other member's name: what the caller calls it. */
+  /**
+   * A room's name, or in a DM the other member's name: what the caller calls it.
+   * In a DM the caller is not in, the names of its two members, in alphabetical
+   * order.
+   */
   name: string;
   /** In order of ID, so every member sees the same list. */
   members: Member[];

@@ -2,7 +2,8 @@
  * The chat API: what any member, person or agent, may ask of the chat server.
  * Channels, DMs and rooms, and their threads are the shared record of what was
  * said: a log of events (posted, edited, deleted, reacted, receipted) and the
- * messages they add up to. A client reaches the chat server by its name through
+ * messages they add up to. A member writes only in the channels it is in, and a
+ * person reads the others too. A client reaches the chat server by its name through
  * the gateway, which is told where it listens and nobody else is, so this
  * contract has no address in it. It carries facts, such as which members a
  * message mentions, and must not know what a fact means to whoever reads it,
@@ -20,6 +21,7 @@ export {
   connectChat,
   type ThreadHandle,
 } from "./connect.ts";
+export { READ_ONLY } from "./refusals.ts";
 export { Chat, ThreadService } from "./services.ts";
 export { MAX_MESSAGE_LENGTH, MAX_RECEIPT_DETAIL_LENGTH } from "./view.ts";
 export type {

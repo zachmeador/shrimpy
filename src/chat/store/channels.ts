@@ -30,6 +30,8 @@ export interface ChannelOperations {
   channel(id: string): ChannelRecord | undefined;
   /** The channels a member belongs to, oldest first. */
   channelsOf(memberId: string): ChannelRecord[];
+  /** The channels a member does not belong to, oldest first. */
+  channelsWithout(memberId: string): ChannelRecord[];
   /** The DM between two members, in either order. */
   directChannel(first: string, second: string): ChannelRecord | undefined;
   /** Open a DM between two members already on record, with its main thread. */
@@ -92,6 +94,15 @@ export function channelOperations(sql: Sql): ChannelOperations {
       const rows = sql.all(
         `${CHANNEL_WITH_MEMBERS}
          WHERE c.id IN (SELECT channel_id FROM memberships WHERE member_id = ?)
+         ORDER BY c.rowid, m.id`,
+        memberId,
+      ) as ChannelMemberRow[];
+      return group(rows);
+    },
+    channelsWithout(memberId) {
+      const rows = sql.all(
+        `${CHANNEL_WITH_MEMBERS}
+         WHERE c.id NOT IN (SELECT channel_id FROM memberships WHERE member_id = ?)
          ORDER BY c.rowid, m.id`,
         memberId,
       ) as ChannelMemberRow[];

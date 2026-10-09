@@ -13,6 +13,7 @@ import {
   enter,
   leaveReceipt,
   listChannels,
+  listReadOnlyChannels,
   listThreads,
   openDm,
   post,
@@ -57,6 +58,9 @@ export function serveChat(deps: ChatDeps, presentation: RoutedServerPresentation
     },
     async channels() {
       return listChannels(deps, caller());
+    },
+    async readOnlyChannels() {
+      return listReadOnlyChannels(deps, caller());
     },
     async openDm(otherId) {
       return openDm(deps, caller(), otherId);

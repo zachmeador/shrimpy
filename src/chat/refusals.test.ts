@@ -46,16 +46,18 @@ test("before a connection has come in with a ticket, every call but enter is ref
   await assert.rejects(another.chat.enter(ticket), { message: /not good/ });
 });
 
-test("a member who is not in a channel cannot see or touch it", { timeout }, async (t) => {
+test("an agent that is not in a channel cannot see or touch it, admin or not", { timeout }, async (t) => {
   const chat = await startTestChat(t);
   const zach = await chat.person();
   const shrimpy = await chat.agent("Shrimpy");
   const alice = await chat.agent("Alice");
+  await chat.setAdmin(alice.me, true);
   const dm = await zach.chat.openDm(shrimpy.me.id);
   const main = await mainThread(zach, dm.id);
   const said = await zach.chat.post(main.id, "for shrimpy only", "zach-1");
 
   assert.deepEqual(await alice.chat.channels(), []);
+  assert.deepEqual(await alice.chat.readOnlyChannels(), []);
   const refusals: [string, () => Promise<unknown>, RegExp][] = [
     ["threads", () => alice.chat.threads(dm.id), /^Unknown channel: ch_/],
     ["createThread", () => alice.chat.createThread(dm.id, "mine"), /^Unknown channel: ch_/],

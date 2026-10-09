@@ -197,6 +197,9 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
         const me = caller();
         return channels.filter((channel) => isIn(channel, me.id)).map((channel) => toChannel(channel, me));
       },
+      async readOnlyChannels() {
+        return unsupported();
+      },
       async openDm(otherId) {
         gate("openDm");
         const me = caller();

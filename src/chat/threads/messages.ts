@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { Member, Message } from "../../contracts/chat/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { fitAnswer, identifier, MAX_PAGE, messageText, whole } from "../input/index.ts";
-import { visibleThread } from "./access.ts";
+import { readableThread, visibleThread } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
 import { mentionedMembers } from "./mentions.ts";
 
@@ -52,6 +52,7 @@ export function post(deps: ChatDeps, caller: Member, threadId: unknown, text: un
   });
 }
 
+/** Messages of a thread in a channel the caller reads, whether or not it is in it. */
 export function readMessages(
   deps: ChatDeps,
   caller: Member,
@@ -63,7 +64,7 @@ export function readMessages(
   const before = beforeSeq === null ? null : whole(beforeSeq, "beforeSeq", 0);
   const count = Math.min(whole(limit, "limit", 1), MAX_PAGE);
   return deps.store.transaction((tx) => {
-    visibleThread(tx, caller, id);
+    readableThread(tx, caller, id);
     return fitAnswer(tx.messagesIn(id, before, count), "newest");
   });
 }

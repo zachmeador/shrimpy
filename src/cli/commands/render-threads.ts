@@ -1,4 +1,4 @@
-import type { Channel, Message, Receipt, Thread } from "../../contracts/chat/index.ts";
+import type { Channel, Member, Message, Receipt, Thread } from "../../contracts/chat/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { indent } from "./render.ts";
 import { renderTable } from "./table.ts";
@@ -30,6 +30,14 @@ export function renderThreads(threads: Thread[], channel: Channel): string[] {
   return renderTable(["thread", "updated", "working", "name"], rows);
 }
 
+/** Where a channel is, to the one reading it: their DM, a room, or a DM between two others. */
+function placeOf(channel: Channel, you: Member): string {
+  if (channel.kind === "room") return `the room #${channel.name}`;
+  if (channel.members.some((member) => member.id === you.id)) return `your DM with ${channel.name}`;
+  const names = channel.members.map((member) => member.name).toSorted((a, b) => a.localeCompare(b));
+  return `the DM between ${names.join(" and ")}`;
+}
+
 /**
  * A thread to read, with its messages as they now stand, oldest first: who said
  * what and when, and each message's ID. An edited message says when, a deleted
@@ -39,10 +47,9 @@ export function renderThreads(threads: Thread[], channel: Channel): string[] {
  * data nobody is shown, so neither gets a line. At the end, a line for each
  * member working in it now.
  */
-export function renderThread(thread: Thread, messages: Message[], channel: Channel): string[] {
+export function renderThread(thread: Thread, messages: Message[], channel: Channel, you: Member): string[] {
   const nameOf = namer(channel);
-  const where = channel.kind === "dm" ? `your DM with ${channel.name}` : `the room #${channel.name}`;
-  const lines = [`Thread ${thread.id} in ${where}: ${titleOf(thread)}`];
+  const lines = [`Thread ${thread.id} in ${placeOf(channel, you)}: ${titleOf(thread)}`];
   if (messages.length === 0) lines.push("", "(no messages yet)");
   for (const message of messages) {
     const edited = message.editedAt === null || message.deleted ? "" : `  edited ${localTime(message.editedAt)}`;

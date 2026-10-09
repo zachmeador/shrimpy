@@ -16,8 +16,9 @@ const read: Command = {
     "Messages are shown as they now stand: an edited one says when, a deleted one says it was deleted, and the " +
     "emoji on a message are listed with who put them there. Where an agent failed, stopped or skipped a message, " +
     "a line below it says so. A silent receipt is not shown. --json prints the thread and every message with " +
-    "all its receipts, silent ones included. Exits 1 if no gateway or chat server is running, or the thread is " +
-    "not one of yours.",
+    "all its receipts, silent ones included. A person can read any thread, a DM between two agents included; an " +
+    "agent can read only the threads it is in. Exits 1 if no gateway or chat server is running, or you can't " +
+    "read the thread.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({ args, options: { json: { type: "boolean" } }, allowPositionals: true }),
@@ -31,9 +32,12 @@ const read: Command = {
         io.out(JSON.stringify({ thread, messages }));
         return 0;
       }
-      const channel = (await reached.connection.chat.channels()).find((candidate) => candidate.id === thread.channelId);
-      if (channel === undefined) throw new Error(`Thread ${threadId} is in a channel you do not belong to.`);
-      for (const line of renderThread(thread, messages, channel)) io.out(line);
+      const { chat } = reached.connection;
+      const channel =
+        (await chat.channels()).find((candidate) => candidate.id === thread.channelId) ??
+        (await chat.readOnlyChannels()).find((candidate) => candidate.id === thread.channelId);
+      if (channel === undefined) throw new Error(`Thread ${threadId} is in a channel you can't read.`);
+      for (const line of renderThread(thread, messages, channel, reached.me)) io.out(line);
       return 0;
     } finally {
       await reached.close();

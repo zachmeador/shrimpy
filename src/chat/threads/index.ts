@@ -1,6 +1,7 @@
 /**
  * What the chat API means: how a member comes in and is recorded, which
- * channels and threads it can see, how DMs and rooms are made, which members a
+ * channels and threads it can read (its own, and for a person every other) and
+ * which it can write in (its own), how DMs and rooms are made, which members a
  * post mentions, what posting, editing, deleting, reacting, reading and leaving
  * receipts do and who may do them, who is working where, and the live view of
  * a thread. Each operation takes the caller and runs as one store transaction.
@@ -15,6 +16,7 @@ export {
   createRoom,
   createThread,
   listChannels,
+  listReadOnlyChannels,
   listThreads,
   openDm,
   renameThread,

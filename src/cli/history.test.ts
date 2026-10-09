@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Message, Thread } from "../contracts/chat/index.ts";
-import { joinRoster, memberNamed } from "../contracts/chat/testing/index.ts";
+import { enterAsAgent, joinRoster, memberNamed } from "../contracts/chat/testing/index.ts";
 import { eventually } from "../lib/testing/index.ts";
 import { type Outcome, type Posted, shrimpy, startScriptedAgent, startTalking } from "./testing/index.ts";
 
@@ -122,6 +122,25 @@ test("read shows who said what, and where an agent failed, stopped or skipped a 
     feed.flatMap((event) => (event.kind === "receipted" ? [event.status] : [])),
     ["answered", "silent", "failed", "stopped", "skipped"],
   );
+});
+
+test("read shows a thread of a DM between two agents, which the person who runs the commands is not in, and does not call it theirs", { timeout }, async (t) => {
+  await startTalking(t);
+  const scout = await enterAsAgent(t, "scout");
+  const maya = await enterAsAgent(t, "maya");
+  const dm = await scout.chat.openDm(maya.me.id);
+  const [main] = await scout.chat.threads(dm.id);
+  assert.ok(main);
+  await scout.chat.post(main.id, "Is the disk full?", "scout-1");
+  await maya.chat.post(main.id, "Nearly.", "maya-1");
+
+  const result = await shrimpy(["read", main.id]);
+
+  assert.equal(result.code, 0, result.stderr);
+  const lines = result.stdout.split("\n");
+  for (const text of ["Is the disk full?", "Nearly."]) assert.ok(lines.some((line) => line.trim() === text), text);
+  const header = lines[0] ?? "";
+  assert.ok(header.includes("maya") && header.includes("scout") && !header.includes("your"), header);
 });
 
 test("read --json prints the thread and every message with all its receipts, silent ones included", { timeout }, async (t) => {

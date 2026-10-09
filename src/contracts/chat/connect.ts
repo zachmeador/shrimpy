@@ -65,6 +65,7 @@ export async function connectChat(options: {
   const chat: ChatClient = {
     enter: (ticket, signal) => service.enter(ticket, contextFor(signal)),
     channels: (signal) => service.channels(contextFor(signal)),
+    readOnlyChannels: (signal) => service.readOnlyChannels(contextFor(signal)),
     openDm: (otherId, signal) => service.openDm(otherId, contextFor(signal)),
     createRoom: (name, memberIds, signal) => service.createRoom(name, memberIds, contextFor(signal)),
     addMembers: (channelId, memberIds, signal) => service.addMembers(channelId, memberIds, contextFor(signal)),

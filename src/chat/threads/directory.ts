@@ -2,17 +2,21 @@ import type { Channel, Member, Thread } from "../../contracts/chat/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { flag, identifier, identifiers, label, MAX_MEMBERS } from "../input/index.ts";
 import type { ChannelRecord, Transaction } from "../store/index.ts";
-import { requireAdmin, visibleChannel, visibleThread } from "./access.ts";
+import { readableChannel, readsOthers, requireAdmin, visibleChannel, visibleThread } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
 import { withWorking } from "./working.ts";
 
-/** A channel as one of its members sees it: a DM is named for the other member. */
+/**
+ * A channel as its viewer sees it: a DM is named for the other member, or, when
+ * the viewer is not in it, for both members, in alphabetical order.
+ */
 function toChannel(record: ChannelRecord, viewer: Member): Channel {
   const others = record.members.filter((member) => member.id !== viewer.id);
+  const named = others.map((member) => member.name).toSorted((a, b) => a.localeCompare(b));
   return {
     id: record.id,
     kind: record.kind,
-    name: record.name ?? others.map((member) => member.name).join(", "),
+    name: record.name ?? named.join(", "),
     members: record.members,
   };
 }
@@ -20,6 +24,18 @@ function toChannel(record: ChannelRecord, viewer: Member): Channel {
 export function listChannels(deps: ChatDeps, caller: Member): Channel[] {
   return deps.store.transaction((tx) =>
     tx.channelsOf(caller.id).map((record) => toChannel(record, caller)),
+  );
+}
+
+/**
+ * The channels the caller reads and is not in. A person reads every channel
+ * there is, so these are all the others. An agent reads only its own, so for an
+ * agent there are none.
+ */
+export function listReadOnlyChannels(deps: ChatDeps, caller: Member): Channel[] {
+  if (!readsOthers(caller)) return [];
+  return deps.store.transaction((tx) =>
+    tx.channelsWithout(caller.id).map((record) => toChannel(record, caller)),
   );
 }
 
@@ -102,10 +118,11 @@ export async function addMembers(deps: ChatDeps, caller: Member, channelId: unkn
   });
 }
 
+/** The threads of a channel the caller reads, whether or not it is in it. */
 export function listThreads(deps: ChatDeps, caller: Member, channelId: unknown): Thread[] {
   const id = identifier(channelId, "channelId");
   return deps.store.transaction((tx) => {
-    visibleChannel(tx, caller, id);
+    readableChannel(tx, caller, id);
     return tx.threadsIn(id).map((record) => withWorking(record, deps.working));
   });
 }

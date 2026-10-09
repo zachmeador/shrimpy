@@ -204,6 +204,7 @@ test("stopping run while its message is still being sent says it may have been p
       offer(Chat, {
         enter: () => Promise.resolve(you),
         channels: unsupported,
+        readOnlyChannels: unsupported,
         openDm: () => Promise.resolve({ ...channel, members: [...channel.members] }),
         createRoom: unsupported,
         addMembers: unsupported,
