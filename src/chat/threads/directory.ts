@@ -2,7 +2,7 @@ import type { Channel, Member, Thread } from "../../contracts/chat/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { flag, identifier, identifiers, label, MAX_MEMBERS } from "../input/index.ts";
 import type { ChannelRecord, Transaction } from "../store/index.ts";
-import { readableChannel, readsOthers, requireAdmin, visibleChannel, visibleThread } from "./access.ts";
+import { isMember, readableChannel, readsOthers, requireAdmin, visibleChannel, visibleThread } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
 import { withWorking } from "./working.ts";
 
@@ -93,14 +93,20 @@ export async function createRoom(deps: ChatDeps, caller: Member, name: unknown, 
 }
 
 /** A room the caller is in. A DM is refused: it has the two members and no more. */
+/**
+ * A room the caller can add members to: one it is in, and for the person any
+ * room, since a room they only read is theirs to walk into. An agent adds only
+ * to a room it is in.
+ */
 function roomOf(tx: Transaction, caller: Member, channelId: string): ChannelRecord {
-  const channel = visibleChannel(tx, caller, channelId);
+  const channel = readsOthers(caller) ? readableChannel(tx, caller, channelId) : visibleChannel(tx, caller, channelId);
   if (channel.kind !== "room") refuse("A DM has two members and takes no more. Make a room to talk with more.");
   return channel;
 }
 
 /**
- * Add members to a room the caller is in, as an admin. Whoever is added is
+ * Add members to a room, as an admin: a room the caller is in, or for the
+ * person any room, themselves included. Whoever is added is
  * offered the room's events from then on, and one who is in already stays as
  * they are.
  */
@@ -112,9 +118,11 @@ export async function addMembers(deps: ChatDeps, caller: Member, channelId: unkn
   await requireAdmin(deps, caller, "Adding members to a room");
   const added = await membersOf(deps, caller, ids);
   return deps.store.transaction((tx) => {
-    roomOf(tx, caller, id);
-    for (const member of added) tx.addMember(member);
-    return toChannel(tx.addToChannel(id, added), caller);
+    const room = roomOf(tx, caller, id);
+    // The person who names themselves and is not in the room walks into it, as anyone they name does.
+    const joining = ids.includes(caller.id) && !isMember(room, caller.id) ? [...added, caller] : added;
+    for (const member of joining) tx.addMember(member);
+    return toChannel(tx.addToChannel(id, joining), caller);
   });
 }
 

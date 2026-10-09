@@ -8,7 +8,7 @@ import { mainThread, outcome, posted, startTestChat, texts } from "./testing/ind
 const timeout = 30_000;
 const THUMBS_UP = "\u{1F44D}";
 
-test("a person is shown and reads the DMs and rooms of agents they are not in, as they stand and as they happen, and writes in none until an admin adds them to a room", { timeout }, async (t) => {
+test("a person is shown and reads the DMs and rooms of agents they are not in, as they stand and as they happen, and writes in none until they add themselves to a room", { timeout }, async (t) => {
   const chat = await startTestChat(t);
   const zach = await chat.person();
   // The first agent a roster has is an admin.
@@ -71,16 +71,15 @@ test("a person is shown and reads the DMs and rooms of agents they are not in, a
     ["createThread", () => zach.chat.createThread(dm.id, "Mine")],
     ["renameThread", () => zach.chat.renameThread(main.id, "Mine")],
     ["archiveThread", () => zach.chat.archiveThread(main.id, true)],
-    ["addMembers to the DM", () => zach.chat.addMembers(dm.id, [zach.me.id])],
     ["post in the room", () => zach.chat.post(roomMain.id, "Can I join?", "zach-3")],
-    ["addMembers to the room", () => zach.chat.addMembers(room.id, [zach.me.id])],
   ];
   for (const [what, call] of refused) await assert.rejects(call(), (error) => reasonOf(error) === READ_ONLY, what);
   await assert.rejects(zach.chat.leaveReceipt([question.event], outcome("silent")), isRefusal, "a person leaves no receipt");
+  await assert.rejects(zach.chat.addMembers(dm.id, [zach.me.id]), isRefusal, "a DM has two members and takes no more");
   assert.deepEqual([await zach.chat.read(main.id, null, 10), await zach.chat.threads(dm.id), await zach.chat.read(roomMain.id, null, 10)], before);
 
-  // An admin who is in the room adds them, and the room is theirs from then on. The DM has two members and takes no more.
-  await scout.chat.addMembers(room.id, [zach.me.id]);
+  // They add themselves to the room, and it is theirs from then on.
+  await zach.chat.addMembers(room.id, [zach.me.id]);
   assert.deepEqual((await zach.chat.channels()).map((channel) => channel.id), [own.id, room.id]);
   assert.deepEqual((await zach.chat.readOnlyChannels()).map((channel) => channel.id), [dm.id]);
   await zach.chat.post(roomMain.id, "Thanks for the update.", "zach-4");

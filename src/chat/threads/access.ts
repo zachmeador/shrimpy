@@ -53,7 +53,7 @@ function requireMember(channel: ChannelRecord, caller: Member): void {
   const names = channel.members.map((member) => member.name).toSorted((a, b) => a.localeCompare(b));
   const where = room ? `the room #${channel.name ?? ""}` : `the DM between ${names.join(" and ")}`;
   const how = room
-    ? "To write, be added: an admin who is in the room can add you with shrimpy rooms add."
+    ? `To write there, add yourself: shrimpy rooms add "#${channel.name ?? ""}" ${caller.name}`
     : "A DM has two members and takes no more.";
   refuse(`You can read ${where} but you are not in it, so you can't write there. ${how}`, "service_not_allowed", READ_ONLY);
 }
