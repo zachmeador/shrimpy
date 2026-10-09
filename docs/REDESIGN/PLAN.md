@@ -120,7 +120,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 **Now:**
 
 - Cleaning up for the release, which you said on 2026-10-08 is close: the skills cover what a person and an agent do with Shrimpy, the reference documentation shrinks to very little, and old Shrimpy is replaced.
-- Living with it. What the first evening asked for is built: `shrimpy gateway install` and `uninstall`, the first agent of a setup as an admin, and `shrimpy up` keeping its folder running. What you notice next goes on the list in [using it](design/using-it.md), and decides what is built next.
+- Living with it. What the first evening asked for is built: `shrimpy install` and `uninstall`, the first agent of a setup as an admin, and `shrimpy up` keeping its folder running. What you notice next goes on the list in [using it](design/using-it.md), and decides what is built next.
 - One proposal waits on you: [hearing a thread while working in it](proposals/hearing-a-thread.md).
 
 **Next:**

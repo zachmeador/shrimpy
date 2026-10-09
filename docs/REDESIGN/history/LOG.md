@@ -48,6 +48,7 @@
 - `/model` in the terminal tries another model in one thread. ([log, 2026-10-08](#log))
 - A text that starts with a slash in the terminal is always a command, `/model` is a message that the thread keeps and the agent acts on and answers, and an agent is told when the model it runs on has changed. ([log, 2026-10-08](#log))
 - An agent reads its files again by itself when they change, and `shrimpy agent reload` is gone. ([log, 2026-10-08](#log))
+- `shrimpy --help` is a front page of about twenty lines, and six commands have the names that say what they do: `status`, `install`, `uninstall`, `login`, `invite` and one `join`. ([log, 2026-10-09](#log))
 
 ## Log
 
@@ -56,6 +57,16 @@ Newest first, roughly: the entries of one day aren't always in the order they ha
 A piece of work is done when its Prove list has evidence from real wiring, not equivalent mocks. A passing build or deleted files don't count. A newly found experience difference stays pending until it is reviewed.
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**2026-10-09: a front page for the command line, and six names.** You said the help and "the already cluttered cli" were annoying you, and asked what a good design would be. The coordinator's answer was that the front page is for a person and the rest for agents, with a sketch of twenty lines and a table of six names, and you agreed to all of it. One builder, a commit for the names and one for the page. [Using it](../design/using-it.md) has both.
+
+- The front page is as it was sketched, with `wake` under the agents' commands. A group's help lists the group. The three programs that `up` runs are off the page and in their groups' help.
+- The names are straight replacements. No file of the code, the skills, the README or what agents are told names an old one, which was searched for, and the design files, the status list and your list here follow. The log's older entries say the names of their day.
+- Choices the build made, which the plan didn't cover:
+  - `triggers`, `members` and `rooms` are commands and groups at once, so their `--help` shows the group and ends with what the command's own help said.
+  - Putting the two `join` commands together took away two refusals, for a link of the wrong kind, since the link now says which it is.
+  - A command that doesn't exist is not guessed at: a guess could point at a name that moved.
+- 703 tests: 697 pass and 6 are skipped.
 
 **2026-10-08: an agent reads its files again by itself, and nobody reloads.** It came out of the walk through what old Shrimpy had. You dropped a `/reload` from the terminal, "users shouldn't have to think about needing to reloading things and don't need a tui path for it", and then asked: "agents should know they have to reload things. or does it make sense to watch for fs changes for agents' context markdowns?" The coordinator proposed looking over watching, since file events aren't delivered on a folder that another machine shares, which is where your agents live, and asked whether the command should stay. "go i'd say". One builder, two commits, the second after the review. [The home](../design/5-home.md) has what it does.
 

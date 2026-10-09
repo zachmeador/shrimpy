@@ -6,7 +6,7 @@ The one list of what is open in Shrimpy: what waits on the owner, what isn't bui
 
 ## Waiting on the owner
 
-1. **The lines for a machine of the owner's own.** `shrimpy members invite` with no name and `shrimpy join <link>` are built and not yet approved. The owner agreed to the way in "as long as the ux is simple and clean" (2026-10-06).
+1. **The lines for a machine of the owner's own.** `shrimpy invite` with no name and `shrimpy join <link>` are built and not yet approved. The owner agreed to the way in "as long as the ux is simple and clean" (2026-10-06).
 2. **The owner's name on a gateway run by an account made for Shrimpy.** The gateway names the person for the OS account running it, which can take an agent's name. Should the name be told to the gateway at first start, set by a command, or something else?
 3. **An agent hearing a thread while it works in it.** The owner's idea (2026-10-06): an agent working in a thread hears what anyone says there at its next step, waking nobody; details in `docs/REDESIGN/proposals/hearing-a-thread.md`. Yes, no, or just one sentence telling agents to read the thread first?
 4. **`shrimpy up` starts an agent that ends again, alone.** The owner wrote "a user expects to be able to add an agent without having to think about restarting a service or running things" (2026-10-07), and `up` now restarts an agent that ends. The owner had confirmed (2026-10-04) that `up` stops everything when any program ends, and hasn't approved the change.
@@ -165,7 +165,7 @@ Where the code falls short of what was decided.
 - Changing a model is untried between a provider's sign-in and a model server, and the usable list can omit the home's model.
 - Skills are trails only: no `/skill:name`, templates, required-tool filtering or per-agent choice.
 - The skills admit there is no setup command and no command to remove an agent.
-- Nothing lists or removes a folder's sign-ins, and `providers login` can't sign in a declared server.
+- Nothing lists or removes a folder's sign-ins, and `login` can't sign in a declared server.
 - A renewed sign-in lost when the process dies must be redone, and a symlinked `auth.json` is replaced.
 
 ### The network
@@ -223,7 +223,7 @@ Where the code falls short of what was decided.
 ### Other known gaps
 
 - A promotion or demotion reaches an agent's own check only on connections made after it.
-- From an agent's shell, `agent init`, `agent serve` and `up` skip the admin check, and `gateway status` lists no admins.
+- From an agent's shell, `agent init`, `agent serve` and `up` skip the admin check, and `status` lists no admins.
 - The chat server's `head` is server-wide, revealing message counts of channels the caller isn't in.
 - A hosted thread's view stays in the chat server's memory until the server stops.
 - Two chat servers can briefly hold one name at a restart, so the console picks the newest.
@@ -282,7 +282,7 @@ Marked by the owner on 2026-10-08. Fourteen lines were dropped and are gone from
 - Reopen the latest thread with the latest agent — later.
 - Open settings — later; there is nothing to set yet.
 - Set an agent's thinking level with `/thinking` — later; it would work as `/model` does.
-- Sign in or out from the terminal — later; `shrimpy providers login` does it from a shell.
+- Sign in or out from the terminal — later; `shrimpy login` does it from a shell.
 - Paste clipboard images into a message — later, with attachments.
 - Edit a message the agent hasn't picked up yet — later, with the ways in for edits and reactions.
 - Use a fullscreen mode — later.

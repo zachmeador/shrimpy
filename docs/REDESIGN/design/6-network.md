@@ -34,14 +34,14 @@ That opens the gateway on the address you name, which should be one that only yo
 To let an agent in, make an invitation for it:
 
 ```bash
-shrimpy members invite crab
+shrimpy invite crab
 ```
 
 A name that is taken is refused there and then. Otherwise it prints one line to run where the agent will live, with the agent's name, an address and a code. The code works once, for fifteen minutes, and for that name only. Where the agent will live, with Shrimpy at the same version, you sign the folder in if it isn't yet, paste the line and start the agent:
 
 ```bash
-shrimpy providers login
-shrimpy agent join shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD
+shrimpy login
+shrimpy join shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD
 shrimpy up
 ```
 
@@ -51,7 +51,7 @@ shrimpy up
 
 From then on the agent connects out to that address by itself, and comes back by itself after either side restarts. Nothing is opened where the agent lives. On the gateway's machine crab is in the terminal's list like any agent: you talk to it in a thread, and watch and stop its sessions.
 
-By hand that is one line on the gateway's machine and two where the agent will live, after a sign-in that a folder needs once. An admin agent can do the rest for you: it makes the invitation, reaches the other machine over SSH, runs the join, and sets up whatever keeps the agent running there. The sign-in is yours, since it needs you at a browser. `members invite` is open to an admin agent, as `members promote` is.
+By hand that is one line on the gateway's machine and two where the agent will live, after a sign-in that a folder needs once. An admin agent can do the rest for you: it makes the invitation, reaches the other machine over SSH, runs the join, and sets up whatever keeps the agent running there. The sign-in is yours, since it needs you at a browser. `invite` is open to an admin agent, as `members promote` is.
 
 **Underneath**
 
@@ -91,11 +91,11 @@ The [sandbox runtime scout](../../research/sandbox-runtime-scout-2026-08-26.md) 
 | Sandbox boundary | Agents aren't sandboxed | The whole agent process runs inside whatever sandbox or VM you pick, or none ([how](6-network.md)). No per-tool sandboxing; `bash` stays available. | Confirmed |
 | Attachments | Telegram photos and clipboard images are paths on the same machine | Attachments travel with their message. The chat server keeps them with the thread, and each is copied into an agent's home, up to a size limit, when the message is offered; the agent's tools use them from there. | Confirmed |
 | Home edits | The CLI edits workspace files directly | Homes live where their agent runs, and edits happen there: by the agent itself, by `shrimpy` run in that environment, or by an agent with the admin role over SSH to the machine hosting it. Remote clients get session operations and reload, not file editing. | Confirmed |
-| Provider login | A browser callback on the same machine | Pi's login flows already handle a browser on another machine: they show a URL or device code and accept a pasted code or redirect URL. You run `shrimpy providers login` where the agents are, over a shell there, and it signs in the folder for every agent started in it, as [providers](5-home.md) has it. Nothing is relayed through an agent. Sandboxes allow provider traffic, including login endpoints. | Confirmed, and changed on 2026-10-06 |
+| Provider login | A browser callback on the same machine | Pi's login flows already handle a browser on another machine: they show a URL or device code and accept a pasted code or redirect URL. You run `shrimpy login` where the agents are, over a shell there, and it signs in the folder for every agent started in it, as [providers](5-home.md) has it. Nothing is relayed through an agent. Sandboxes allow provider traffic, including login endpoints. | Confirmed, and changed on 2026-10-06 |
 | Letting an agent in | Only a program that can open the gateway's socket joins | By an invitation made on the gateway's machine and pasted where the agent will live. The other way round, a new machine asking and you approving it, would need the gateway open to strangers first. | Confirmed on 2026-10-06 |
 | Tailscale | — | Never needed. Shrimpy uses a network that Tailscale provides, may later read from it who is at the other end, never manages it and is never served through it. | Confirmed on 2026-10-06 |
 | Encryption | — | None of Shrimpy's own for now. On a tailnet the link is encrypted already. On a network that isn't one, a token and the messages travel in the clear, so the address you listen on should be one only your machines reach. | Confirmed for now on 2026-10-06 |
-| The commands for it | — | `members invite` and `agent join`, one option, `--listen`, and `shrimpy up` starting only the agents in a folder whose agents all belong to a gateway elsewhere. | Confirmed on 2026-10-06: you agreed to the pairing they carry out, and to the change to `up` |
+| The commands for it | — | `invite` and `join`, one option, `--listen`, and `shrimpy up` starting only the agents in a folder whose agents all belong to a gateway elsewhere. | Confirmed on 2026-10-06: you agreed to the pairing they carry out, and to the change to `up` |
 | You, from another machine | Over SSH to the gateway's machine | A machine of yours comes in by an invitation, as an agent does. It keeps a token in its Shrimpy folder and is you from then on. A Tailscale login may stand in for the token later. | Confirmed on 2026-10-06, as long as it is simple and clean. You saw its lines on 2026-10-07, and they are yours to change |
 
 **Open**
@@ -130,8 +130,8 @@ Its four steps are built, as below. What is left of it is under "Left for later"
 
 - **`--listen <host:port>`** on `shrimpy up` and `shrimpy gateway serve`, given more than once for more addresses. The gateway keeps them with its roster, so a later start with no `--listen` listens there again, and says so. Giving them again replaces what was kept. An address that means every interface is refused, since an invitation needs one that another machine can use.
 - **`shrimpy up` that is told to listen** starts the gateway and the chat server in a folder with no agents too, since agents elsewhere can join it.
-- **`shrimpy members invite <name>`** prints the line to paste, one for each address the gateway listens on, and says which is for another user of the gateway's machine.
-- **`shrimpy agent join <link>`** makes the home in the Shrimpy folder if there is none, joins, and gives up on a gateway that doesn't answer within a quarter of a minute.
+- **`shrimpy invite <name>`** prints the line to paste, one for each address the gateway listens on, and says which is for another user of the gateway's machine.
+- **`shrimpy join <link>`** makes the home in the Shrimpy folder if there is none, joins, and gives up on a gateway that doesn't answer within a quarter of a minute.
 - **`shrimpy up` where there is no gateway.** When every agent it is to start belongs to a gateway elsewhere, it starts those agents and no gateway or chat server, unless it is told to listen.
 
 **The second step, underneath,** as it was built. A client reaches an agent apart by its name, as it reaches one beside the gateway, and neither it nor the agent's own server can tell the difference.
@@ -158,7 +158,7 @@ Its four steps are built, as below. What is left of it is under "Left for later"
 **The fourth step: you, from another machine.** You agreed to it on 2026-10-06 as long as it was simple and clean, and saw these lines on 2026-10-07. You haven't said yes or no to them: it was built that day as shown, for you to change.
 
 ```text
-$ shrimpy members invite
+$ shrimpy invite
 The invitation works once, for fifteen minutes, and lets another machine of yours in as zachmeador. Run this there:
   shrimpy join shrimpy://100.101.102.103:7447/K7Q2-9FXD
 ```
@@ -169,24 +169,24 @@ This machine is zachmeador's now, on the gateway at 100.101.102.103:7447.
 Open the terminal with: shrimpy
 ```
 
-- **The invitation.** `shrimpy members invite` with no name is for a machine of your own. Only you can ask for it: on the gateway's machine, or from a machine of yours that is in already. No agent can, admin or not, since it would let the agent in as you. Its link carries no name.
+- **The invitation.** `shrimpy invite` with no name is for a machine of your own. Only you can ask for it: on the gateway's machine, or from a machine of yours that is in already. No agent can, admin or not, since it would let the agent in as you. Its link carries no name.
 - **Joining.** `shrimpy join <link>` makes a token, keeps it in the Shrimpy folder of that machine, and shows the gateway the code and the token. The gateway keeps a hash of the token with your record, beside how it knows you on its own machine. A machine that never heard the answer shows the same link again and is let in.
 - **From then on** a connection over the entry that shows that token is you, with everything you may do. A command in that folder that is not in an agent's shell reaches the gateway there as you: the terminal, `run`, `threads`, `read`, `rooms`, `members` and the rest that talk. A command about an agent's home acts on the homes of the machine it runs on, as it does everywhere.
 - **A folder that has a gateway of its own** is not joined: you are you there already, and `shrimpy join` says so.
 - **Leaving** is deleting the file the token is kept in. Nothing yet takes a machine's token back at the gateway.
 
-**A service.** You asked on 2026-10-07 for `shrimpy gateway install` and `shrimpy gateway uninstall`, after the first setup on your Linux machine was kept running by a unit written by hand. Built that day.
+**A service.** You asked on 2026-10-07 for `shrimpy gateway install` and `shrimpy gateway uninstall`, after the first setup on your Linux machine was kept running by a unit written by hand. Built that day, and named `shrimpy install` and `shrimpy uninstall` since 2026-10-09, since what is installed runs `shrimpy up`, on a machine that may have no gateway.
 
-- **`shrimpy gateway install`** sets up a service for the account that runs it, which runs `shrimpy up` for the Shrimpy folder, and starts it: a systemd user unit on Linux, a LaunchAgent on a Mac. The service starts again when it fails. On any other system the command says what to run under whatever keeps programs running there.
+- **`shrimpy install`** sets up a service for the account that runs it, which runs `shrimpy up` for the Shrimpy folder, and starts it: a systemd user unit on Linux, a LaunchAgent on a Mac. The service starts again when it fails. On any other system the command says what to run under whatever keeps programs running there.
 - **One folder has one service.** The default folder's is called `shrimpy`. Any other folder's has a name made from the folder, and is told the folder.
 - **What it runs** is what `up` would start there, and the command says which: the gateway, the chat server and the agents, or only the agents on a machine whose agents all belong to a gateway elsewhere. It runs the Shrimpy that installed it, with the `PATH` of the shell that installed it, so an agent's shell finds what yours does. Since `up` keeps its folder running, an agent made later starts within a few seconds, and one that ends is started again, with nothing restarted.
 - **A stop** is sent to `up` alone, which stops the agents, then the chat server, then the gateway, as it does at Ctrl+C. It has half a minute.
 - **Lingering.** On Linux a user service stops when the account's last login ends, unless the account lingers. `install` turns lingering on, and when that takes an administrator it installs and starts the service all the same and prints the one command that does.
 - **Run again,** it writes the service again and restarts it. It is refused while `shrimpy up` runs for the folder by hand, since the service would find everything running and start nothing, and where there is nothing for a service to start.
-- **`shrimpy gateway uninstall`** stops the service and removes it. It leaves every folder and file of Shrimpy's as it is, and lingering too.
-- **`shrimpy gateway status`** ends with a line that says whether a service is installed for the folder, and whether it is running, with or without a gateway. On a machine whose agents all belong to a gateway elsewhere it says where that gateway is, and doesn't say to start one.
+- **`shrimpy uninstall`** stops the service and removes it. It leaves every folder and file of Shrimpy's as it is, and lingering too.
+- **`shrimpy status`** ends with a line that says whether a service is installed for the folder, and whether it is running, with or without a gateway. On a machine whose agents all belong to a gateway elsewhere it says where that gateway is, and doesn't say to start one.
 
-**Linux.** The tests ran there for the first time on 2026-10-07, on a machine of yours: Ubuntu 24.04 on x86_64 with Node 22.23. Of 613, 603 passed and 7 were skipped, and of the 661 there were by the end of that day, 651: the six that call a real model and one that needs an IPv6 loopback, which that machine has none of. The other three bundle a contract for a browser and failed because the dependencies were copied from a Mac and not installed there, so the bundler's Linux binary was missing. Two things were found and fixed: Node 22 warned that SQLite is experimental at the start of every program, and a test let go of a lock it meant to hold. Since then a pairing with a second machine has run there, and so have the programs kept running by services that `shrimpy gateway install` set up, for the account with the gateway and for one whose agent belongs to it. One thing to look at: the runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway started by a service and a command typed in a shell may not look in the same place. On your machine a service and a command typed over SSH looked in the same place.
+**Linux.** The tests ran there for the first time on 2026-10-07, on a machine of yours: Ubuntu 24.04 on x86_64 with Node 22.23. Of 613, 603 passed and 7 were skipped, and of the 661 there were by the end of that day, 651: the six that call a real model and one that needs an IPv6 loopback, which that machine has none of. The other three bundle a contract for a browser and failed because the dependencies were copied from a Mac and not installed there, so the bundler's Linux binary was missing. Two things were found and fixed: Node 22 warned that SQLite is experimental at the start of every program, and a test let go of a lock it meant to hold. Since then a pairing with a second machine has run there, and so have the programs kept running by services that `shrimpy install` set up, for the account with the gateway and for one whose agent belongs to it. One thing to look at: the runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway started by a service and a command typed in a shell may not look in the same place. On your machine a service and a command typed over SSH looked in the same place.
 
 **Left for later**
 

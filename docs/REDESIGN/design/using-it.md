@@ -68,6 +68,24 @@ One addition is the coordinator's, and is yours to strike: in your own terminal,
 
 Ctrl+O for tool output and Ctrl+T for thinking are Pi's keys, and Claude Code has Ctrl+O for the same. Codex opens its whole transcript with Ctrl+T. Two things the coordinator left for later: a screen that lists every key, which waits until there are more keys than fit on the line, and scrolling keys, since what scrolls off stays in the terminal's own scrollback.
 
+**The front page of the command line,** decided and built on 2026-10-09. You said that "`shrimpy --help` and the already cluttered cli is annoying me a little bit". It printed 84 lines: all 37 commands, each with its whole usage, and two paragraphs. A front page is for a person, who uses about eight commands. The rest is for agents, who learn it from the skills and from each command's own help.
+
+- `shrimpy --help` prints about twenty lines with no option on them: the commands a person uses, and then a line for each group, under what they are for: agents, a shell, more than one machine.
+- A group's help, `shrimpy triggers --help`, lists the group with each command's usage and its one line. Nothing is harder to find for having left the front page.
+- The programs that `up` runs, `agent serve`, `gateway serve` and `chat serve`, are off the front page and in their groups' help.
+- Six commands took the names that say what they do, with no alias for the old ones, since nothing is released:
+
+| Was | Is | Why |
+|---|---|---|
+| `gateway status` | `status` | It reports the whole setup, not the gateway |
+| `gateway install`, `gateway uninstall` | `install`, `uninstall` | It installs `shrimpy up`, on a machine that may have no gateway |
+| `providers login` | `login` | A group with one command |
+| `members invite` | `invite` | It is the first half of letting someone in, not upkeep of the roster |
+| `agent join` and `join` | `join` | The link says which: one that names an agent makes that agent's home, and one with no name makes the machine yours |
+
+- What an `<agent>` can be is said in the help of the commands that take one, and what the Shrimpy folder holds in the help of `up`.
+- A command that doesn't exist says so in a line that names where to look. It doesn't guess which was meant.
+
 **Commands in a thread,** which you asked for on 2026-10-08 and which were built that day: "there should be a tui modal when you type `/` into the input box and you can see what commands there are and a brief explainer".
 
 - **The list.** While what is typed in a thread starts with `/`, the editor lists the commands that can be written there, each with one line on what it does where you are. Typing narrows it, Up and Down choose, Enter acts on the chosen one, Tab only puts it in the input, and Esc closes the list. It is the editor's own list, and its keys do what they do in Pi.
@@ -125,7 +143,7 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 - Thread and session operations: reset, archive, resume, fork, names, search, read and export.
 - Chat commands in a thread: `/new`, `/status` and `/help`, for a chat app with no screen of its own. `/stop` is built, and the terminal answers `/status` itself.
 - Reactions, edits and deletes in threads. The chat server has them. The clients need keys for them, and agents need tools: the [message tools](4-conversation.md) row names `react` and an `edit` option on `send_message`, and doesn't yet say how an agent deletes a message of its own.
-- Model selection, defaults, settings, setup and sign-in, including OAuth; status and help come from the service. You said on 2026-10-06 that this is a priority before the release: signing in to a provider's subscription made simple, with Pi's own flows; and choosing the model of a thread, or the one an agent starts with, from the terminal. Signing in was decided and built the same day: once for each folder agents are started in, with `shrimpy providers login`, as [providers](5-home.md) has it. Choosing a model from the terminal is still to come.
+- Model selection, defaults, settings, setup and sign-in, including OAuth; status and help come from the service. You said on 2026-10-06 that this is a priority before the release: signing in to a provider's subscription made simple, with Pi's own flows; and choosing the model of a thread, or the one an agent starts with, from the terminal. Signing in was decided and built the same day: once for each folder agents are started in, with `shrimpy login`, as [providers](5-home.md) has it. Choosing a model from the terminal is still to come.
 - Your own settings as a person, starting with the name you appear under. Today it is your OS user's name.
 - Attachments on messages, including clipboard files and images. An image reaches the model with its message.
 - The search tools and a tool that shows the model an image file.
