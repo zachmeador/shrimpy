@@ -141,6 +141,7 @@ Where the code falls short of what was decided.
 ### Identity and addressing
 
 - Nothing removes a member, replaces a token or renames a person.
+- Nothing refuses a second person added to the roster by hand, who could then read everything.
 - A rename reaches the chat server only when that member next enters chat.
 - A gateway refusal printed in an agent's shell gives no advice.
 - The terminal cannot watch an agent when the gateway is down.
@@ -207,6 +208,11 @@ Where the code falls short of what was decided.
 - The terminal clears scrollback on repaints, shows only the newest 200 items, and has no scrolling keys.
 - An agent's work in a room's thread isn't shown as it happens, and room threads are polled.
 - A session's place has two wordings, its order isn't promised, and a watch title goes stale.
+- On an agent's screen a trigger's session has no time and comes last, and a room you share shows only under everything.
+- A room you only read shows no agent's work, and `shrimpy threads` can't name a DM between two agents.
+- Leaving the terminal names only your own threads' work, and says to write `/stop` even from a thread you only read.
+- The terminal polls each running agent while the agents list shows, and every channel you only read on every screen.
+- Untried on an agent's screen: Kitty-protocol arrows, a list longer than the screen, an agent on another machine.
 - The fix for doubled key presses on Kitty-protocol terminals is untried on one.
 - `threads #ops` needs quotes in a shell.
 - `--no-wait` prints IDs to follow up with, but no command waits on one.
