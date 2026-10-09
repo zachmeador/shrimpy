@@ -6,13 +6,12 @@ The one list of what is open in Shrimpy: what waits on the owner, what isn't bui
 
 ## Waiting on the owner
 
-1. **A first real sign-in.** `shrimpy providers login` has only run against a made-up sign-in and an API key. The owner runs it with a real subscription and says whether an agent then answers.
-2. **The lines for a machine of the owner's own.** `shrimpy members invite` with no name and `shrimpy join <link>` are built and not yet approved. The owner agreed to the way in "as long as the ux is simple and clean" (2026-10-06).
-3. **The owner's name on a gateway run by an account made for Shrimpy.** The gateway names the person for the OS account running it, which can take an agent's name. Should the name be told to the gateway at first start, set by a command, or something else?
-4. **An agent hearing a thread while it works in it.** The owner's idea (2026-10-06): an agent working in a thread hears what anyone says there at its next step, waking nobody; details in `docs/REDESIGN/proposals/hearing-a-thread.md`. Yes, no, or just one sentence telling agents to read the thread first?
-5. **`shrimpy up` starts an agent that ends again, alone.** The owner wrote "a user expects to be able to add an agent without having to think about restarting a service or running things" (2026-10-07), and `up` now restarts an agent that ends. The owner had confirmed (2026-10-04) that `up` stops everything when any program ends, and hasn't approved the change.
-6. **What a refusal is in Shrimpy's contracts.** Refusals carry their reason inside Pi's error code, and clients see Chord's and `pi-client`'s error types. Whether contracts carry only Shrimpy's shapes is undecided and not urgent.
-7. **Choices made in the build, for the owner to strike.** `ask_agent`'s rules (30-minute default, a thread per question, five open); trigger check and breadcrumb rules; `--agent` defaulting to a folder's only agent; a reload applying the model; a reload rebuilding base instructions; first setup making one admin agent.
+1. **The lines for a machine of the owner's own.** `shrimpy members invite` with no name and `shrimpy join <link>` are built and not yet approved. The owner agreed to the way in "as long as the ux is simple and clean" (2026-10-06).
+2. **The owner's name on a gateway run by an account made for Shrimpy.** The gateway names the person for the OS account running it, which can take an agent's name. Should the name be told to the gateway at first start, set by a command, or something else?
+3. **An agent hearing a thread while it works in it.** The owner's idea (2026-10-06): an agent working in a thread hears what anyone says there at its next step, waking nobody; details in `docs/REDESIGN/proposals/hearing-a-thread.md`. Yes, no, or just one sentence telling agents to read the thread first?
+4. **`shrimpy up` starts an agent that ends again, alone.** The owner wrote "a user expects to be able to add an agent without having to think about restarting a service or running things" (2026-10-07), and `up` now restarts an agent that ends. The owner had confirmed (2026-10-04) that `up` stops everything when any program ends, and hasn't approved the change.
+5. **What a refusal is in Shrimpy's contracts.** Refusals carry their reason inside Pi's error code, and clients see Chord's and `pi-client`'s error types. Whether contracts carry only Shrimpy's shapes is undecided and not urgent.
+6. **Choices made in the build, for the owner to strike.** `ask_agent`'s rules (30-minute default, a thread per question, five open); trigger check and breadcrumb rules; `--agent` defaulting to a folder's only agent; first setup making one admin agent.
 
 ## Not built yet
 
@@ -163,7 +162,7 @@ Where the code falls short of what was decided.
 - Pi's storage never prunes finished tasks and entries, so its file only grows.
 - Nothing prunes the finished task each event leaves or a wake-up's finished sleeper.
 - Facts that come with a message are fixed at hand-over, not when the session takes it up.
-- Model reload is untried with a provider sign-in, and the usable list can omit the home's model.
+- Changing a model is untried between a provider's sign-in and a model server, and the usable list can omit the home's model.
 - Skills are trails only: no `/skill:name`, templates, required-tool filtering or per-agent choice.
 - The skills admit there is no setup command and no command to remove an agent.
 - Nothing lists or removes a folder's sign-ins, and `providers login` can't sign in a declared server.
