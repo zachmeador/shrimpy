@@ -62,7 +62,8 @@ One addition is the coordinator's, and is yours to strike: in your own terminal,
 | Ctrl+C | Clears what is typed. Twice quits |
 | Ctrl+D | Quits when nothing is typed |
 | Ctrl+N | A new thread, on the threads list and in a thread alike |
-| Tab | On an agent's screen, switches between your threads with it and its sessions |
+| Left, Right | On an agent's screen, filter its list: everything it is part of, or only your threads with it |
+| Tab | In a thread opened from an agent's screen, turns it over: the conversation, or the session as that agent sees it. With the list of commands open, completes the chosen one |
 | Ctrl+O | Tool calls in full, and back to brief, wherever work is shown |
 | Ctrl+T | Thinking in full, and back to brief |
 
@@ -101,15 +102,16 @@ Ctrl+O for tool output and Ctrl+T for thinking are Pi's keys, and Claude Code ha
 **Seeing work wherever it is,** built on 2026-10-09 after two of your agents talked in a DM with each other and the terminal showed all four as idle: "i heard the inference servers under load, and i did not see anything in the tui".
 
 - The list of agents shows an agent as working when any of its sessions is, and says where when that is not with you: `working · DM with crab`, a room's name, or `trigger nightly`. It learns it from each running agent, which it asks for its sessions every two seconds while the list is on show.
-- An agent's screen says so too, in a line, when it is working somewhere that is none of your threads with it, and that Tab shows its sessions. The list of sessions opens with the one that is working chosen.
+- An agent's screen opens with the row chosen where the agent is working, when there is one.
 - An agent that doesn't answer in five seconds reads as it did before, from your own threads with it.
 - The first screen's top line is Shrimpy's name, its version and the release's name, as you asked that day: `shrimpy · 0.0.0 · A Rising Tide`.
-- The conversations you are not part of are on the first screen, after the agents and your rooms: each DM between two agents, named for both, and each room you are not in, marked as read only. Enter opens one as any channel opens: its threads, then a thread, with what was said and what comes in. Nothing can be typed there, and a line says why: a DM has two members, and a room is joined with `shrimpy rooms add`, which the line gives whole. Joining a room while it is open turns the screen into the room's, with its input. An agent's row and its line about work elsewhere name a DM as the first screen does, so you know where to read both sides. An agent's work is still watched from its list of sessions.
+- **An agent's screen is one list of everything it is part of,** since 2026-10-09. For a day a DM between two agents sat on the first screen, and you said why that was wrong: "the dms being on the main browsing view doesn't make sense. if i go into crab, i should be seeing all of its dm threads, with me and others. and maybe arrow left/right could be used to filter just to the user's threads, or all threads". The list holds the threads of its DM with you, the threads of its DMs with other agents, the threads of rooms it has worked in, and its triggers' own sessions, newest first, each with who or where it is with. It opens on everything, and Left and Right switch to only what is with you. Enter opens a row as the conversation it is, both sides, with that agent's work beside it: with input where you are a member, and without where you are not, with a line that says why. Tab turns such a thread over, to the session as the agent sees it and back.
+- The first screen holds agents and rooms. A room you are not in is there, marked as read only, and is joined with `shrimpy rooms add`, which the line in it gives whole.
 
 **Watching any session from the terminal,** which you asked for on 2026-10-05, ahead of the web client, and which was built that day. The direction already says that opening the terminal, picking an agent and entering any of its sessions is core UX. Until now the terminal listed only your own threads with an agent, so a session behind a room, behind the agent's DM with another member, or a trigger's own couldn't be reached from it.
 
-- An agent's screen lists its sessions, one Tab from your threads with it: every one it has, wherever it is. Each says where it is and whether it is working: your DM with it, a room and its thread, its DM with another member, or a trigger's own.
-- Entering one shows the session as the agent sees it, live: what it was shown, its thinking in brief, what it wrote, and each tool call. It is for watching only. There is no input and no stop, as you decided, and Esc goes back.
+- Until 2026-10-09 an agent's screen had a second list, its sessions, one Tab from your threads with it. Every session is now a row of the agent's one list, as [seeing work wherever it is](using-it.md) has it.
+- The session as the agent sees it, live, with what it was shown, its thinking in brief, what it wrote and each tool call, is one Tab from the thread it is behind. A trigger's own session, which is behind no thread, opens as that view. It is for watching only: there is no input and no stop, as you decided, and Esc goes back.
 - Ctrl+O shows tool calls in full, the whole call and what it printed, and puts them back in brief. Ctrl+T does the same for thinking. Both work wherever work is shown, your own DM thread included.
 - The agent says where each session is. The terminal can't ask chat, which tells nobody about a channel they aren't in, and you aren't in an agent's DM with another agent. So a session's summary in the agent's contract carries the place as facts: a DM and with whom, a room and its name, the thread's name, or a trigger's name. `shrimpy sessions list` prints the same.
 - A watch shows the newest 200 items of a session and says how many came before. In full, a call, what a tool printed, thinking or an answer shows up to 100,000 characters. The sessions are listed in the agent's own order, so a row keeps its place while it works.
