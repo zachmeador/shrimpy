@@ -14,12 +14,12 @@ This is the terminal, the web client, the commands, setup and sign-in. It is tun
 | Several clients | A second terminal fails because the first owns the transcript | Clients share the agent's process and Pi orders the input. The UI shows the selected agent, thread and incoming messages. Switching views mid-turn is immediate; the previous thread's work keeps running and stays easy to find. `/stop` written in the thread from any client stops the work there for everyone. What you type in any client posts to the thread, so every client of the channel sees it. | Confirmed. Until 2026-10-08 Esc stopped the session, which no key of the terminal does any more. |
 | Terminal and web clients | Terminal only; the web app is a read-only inspector | Both talk in threads and open the sessions behind them, locally or through the gateway. Opening a view never creates an execution owner. Offline agents, lost routes and rejected input show explicitly. Navigation, controls and permissions still need review. | Confirmed |
 | `shrimpy run` | Ephemeral; prints intermediate and final assistant text | Posts to a thread, a new one in your DM with the agent unless one is selected, and prints the final settled answer. Scripts that parse today's output or exit codes need updating. | Confirmed |
-| Terminal affordances | Pi's `InteractiveMode` plus Shrimpy patches | The terminal client starts thin: talk in threads, watch the work behind them and stop it. Today's affordances come back as daily use asks for them: regular and fullscreen modes, editor history and multiline input, draft recovery, file completion, clipboard text and images, external editor, copy and suspend keys, `!` and `!!`, editing a message the agent hasn't picked up yet, tool-output expansion, hidden turn context, title, header and footer, and readable model, usage and errors. Any that hasn't come back by the release gets an explicit decision there. Ctrl+C doesn't exit immediately as Pi's demo does; Esc goes back and stops nothing. | Confirmed |
+| Terminal affordances | Pi's `InteractiveMode` plus Shrimpy patches | The terminal client starts thin: talk in threads, watch the work behind them and stop it. Today's affordances come back as daily use asks for them: regular and fullscreen modes, editor history and multiline input, draft recovery, file completion, clipboard text and images, external editor, copy and suspend keys, `!` and `!!`, editing a message the agent hasn't picked up yet, tool-output expansion, hidden turn context, title, header and footer, and readable model, usage and errors. Ctrl+C doesn't exit immediately as Pi's demo does; Esc goes back and stops nothing. | Confirmed |
 | `/agents` | Agent and chat navigation | Same, over agents, channels and threads. Helpers appear in a separate work view and never become agents. That view's labels, visibility and cancellation need review. | Keep |
 | Model selection | Favorites, no accidental cycling, Enter applies, Ctrl+S saves a default, per-agent thinking | Same gestures. Fix Ctrl+S, which today reaches a workspace Pi setter that Shrimpy's config validation forbids: it sets the current session's model and saves a one-candidate home default. Other sessions and named policies are unchanged. Policies still pick the first available candidate at open; they don't fail over after errors. | Confirmed |
 | First setup | Setup makes two agents, `shrimpy` and `mechanic`, and opens a session with the mechanic to finish | Setup makes one agent, named `shrimpy` unless you choose otherwise, and you finish setup by talking to it. It has the admin role by default: the instructions and skills for setting up and repairing a Shrimpy setup, which old Shrimpy gave to the mechanic. No second agent is made by default; you ask for more when you want them. Since 2026-10-05 admin is also a role on the roster that [a few operations take](3-identity.md). Since 2026-10-07 the first agent a roster has is an admin from the moment it joins, and any later one is promoted with `shrimpy members promote`. Every agent is shown the skills for setting up and repairing, so nothing has to move. Every new agent's starter `SOUL.md` says it enjoys the shrimp emoji, as today's `shrimpy` agent does. Where this plan says "the mechanic", it means the agent with the admin role. | Decided in the build, on your leaning of 2026-10-04 |
 | Setup and auth | — | Existing files survive; local endpoints, API keys and OAuth work; errors say what to do next; credentials belong to the folder agents are started in, or to a home that keeps its own, as [providers](5-home.md) has it. No credential copying, cache warming or per-request model routing. Signing in is the same command wherever agents run, [sandboxes and other machines](6-network.md) included. | Keep |
-| `shrimpy update` | Opens the mechanic TUI with the update skill | A deterministic preview by default. `--guide` runs the update skill in an ordinary thread. Exact tag or SHA apply stays explicit, with approval before consequential changes. The hidden `update check-mechanic` becomes ordinary preflight. | Confirmed |
+| `shrimpy update` | Opens the mechanic TUI with the update skill | A deterministic preview by default. `--guide` runs the update skill in an ordinary thread. Exact tag or SHA apply stays explicit, with approval before consequential changes. The hidden `update check-mechanic` becomes ordinary preflight. An update says first which kind it is: one that changes the Pi packages reaches every machine together, after a copy of every home, since a machine on other packages is refused; any other reaches machines one at a time. | Confirmed. The two kinds came on 2026-11-14 |
 | Web app | Read-only inspector | A client for talking and watching: browse channels, threads and agents, talk in threads, and open the work behind them. Keeps the inspector views: files, tree, context, channels, triggers, runtime, bounded transcripts, folded output, images, thinking, usage and follow-latest. Pi-backed queries replace JSONL reading. URLs, anchors, pagination and write permissions need review, including loopback, same-origin and CSRF rules once the web app can send input. | Confirmed |
 
 [Command coverage](../history/from-old-shrimpy.md#old-command-families) lists every CLI family and inherited slash command. A command missing upstream isn't removed implicitly.
@@ -97,7 +97,6 @@ Ctrl+O for tool output and Ctrl+T for thinking are Pi's keys, and Claude Code ha
 - **`/model`** is for a quick try of another model in one thread: "just for moments where i want to quickly try a different model in a thread with an agent". It was first the terminal's own, which changed the model behind the thread and posted nothing. You used it that day and found three things wrong, so it is a message now. `/model` and a space lists `default` and the models the agent can use, and Enter posts `/model provider/id`. The agent has the thread's session use that model from its next request, and answers in the thread with one line: which model the thread runs on now, and which it ran on before, or why it can't use that one. It can be the first thing in a new thread: "i'll open a thread with an agent and switch that thread's model to something at the beginning". It lasts until the agent is started again or its default model changes, and `/model default` follows the agent's model again. Bare `/model` is answered by the terminal, in a note, and posts nothing. An agent's default model is not this command's: you tell the agent, and [a reload applies it](5-home.md).
 - **In a room `/model` names who it is for,** as in `@scout /model provider/id`, and `@all` changes every agent there. With no mention it is for nobody, and the terminal doesn't post it. You weighed it changing every agent, as `/stop` stops every agent: "if someone has a big room this could get really annoying to revert if you did it accidentally".
 - **A thread is not named for a command,** nor for what an agent said about one: the list shows the first thing that was said in it.
-- **Still to come:** `/status` as a command that an agent answers, for a chat app with no screen of its own, is in [the conversation model](4-conversation.md): the terminal goes on answering it itself.
 
 **Seeing work wherever it is,** built on 2026-10-09 after two of your agents talked in a DM with each other and the terminal showed all four as idle: "i heard the inference servers under load, and i did not see anything in the tui".
 
@@ -131,17 +130,24 @@ What daily use asks for is under Not built yet below.
 
 **Not built yet**
 
+*What the move to Pi 1.5.2 brings to using it,* a step of the move in the [order of work](../PLAN.md#order-of-work).
+
+- Why a turn failed, in words, in its receipt and in `/status`, with what to do: each of Pi's reasons gets a sentence.
+- A waiting wake-up shown with the agent's work, with its time and that `/stop` cancels it.
+- Your devices, listed and taken back from your own client or a command you run, since no agent may do it for you.
+- An image in a session view: named in the terminal, shown in the web client.
+- Yours to decide when it is built: whether a room's thread shows each agent's work as it happens, as a DM does.
+
+*Using it: the web client,* under Next in the [order of work](../PLAN.md#order-of-work).
+
+A web client for talking and watching: channels, threads, agents and sessions, with history, live view and input, alongside the inspector views. Since 2026-10-08 it is how your phone reaches Shrimpy, as [the plan's direction](../PLAN.md#direction) has it, so it is built for a phone first: installed to the home screen, with a push notification when an agent answers or writes while you are away. Three things follow for how it is built, so that a companion app can wrap it later, and you agreed to them: every screen works with no browser bar around it, a phone comes in as a device of yours, with an invitation, as a machine does, and what sends a notification doesn't know whether a browser or an app receives it. Installing and push need HTTPS, which on a tailnet is a certificate for the machine's name there: how the gateway gets one is to settle. It is one web client, and one frontend that lays itself out for the width it has, a level at a time on a phone and side by side on a desk. You said you will be opinionated about how it looks and feels: "i am going to be very opinionated on the aesthetics and ux", 2026-10-08. So its look is shown to you as mockups before any of it is built, and what decides the look is kept in one place, apart from the screens' structure.
+
 *Using it: what daily use asks for.*
 
 Under Later in the [order of work](../PLAN.md#order-of-work).
 
-**Use it.** After the wire-up, try it from the command line. After the terminal client, use it for real conversations. Neither waits for the pieces that cross machines. What's rough goes on the list of what daily use asks for.
-
-**Move in.** Create homes for your dev agents, and let each bring over what it wants from the old workspace. Shrimpy converts nothing, and the old workspace stays untouched until you remove it. From here the new Shrimpy is in daily use.
-
 **From living with it.** You moved in on 2026-10-07. What you notice goes here as you say it, in your words where they help, and leaves when it is built or dropped. A thing that needs a decision of yours is on [your list](../AUTHOR-TO-REVIEW.md) instead.
 
-- Your name where an account made for Shrimpy runs the gateway. Decided on 2026-11-14: it starts as the account's name and is a setting of yours, as [identity](3-identity.md) has it. Not built yet.
 - Updating Shrimpy. "updating shrimpy will be something we want to have a good ux on, especially for people with multi-machine setups", 2026-10-08. Nothing is built: today it is new files in the checkout and a restart of the service on each machine, by hand, and programs on different machines can run different versions in between.
 - A setup command, and moving over from old Shrimpy. Neither is built, and you asked on 2026-10-08 that they be tracked with updating. Today a new setup is three commands, which the setup skill gives, and [the plan](../PLAN.md) has what moving over is meant to be.
 - Shell completion for the new commands. Old Shrimpy's is set aside with it, and a line in the shell's startup file still looks for it.
@@ -153,13 +159,12 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 - Thread and session operations: reset, archive, resume, fork, names, search, read and export.
 - Chat commands in a thread: `/new`, `/status` and `/help`, for a chat app with no screen of its own. `/stop` is built, and the terminal answers `/status` itself.
 - Reactions, edits and deletes in threads. The chat server has them. The clients need keys for them, and agents need tools: the [message tools](4-conversation.md) row names `react` and an `edit` option on `send_message`, and doesn't yet say how an agent deletes a message of its own.
-- Model selection, defaults, settings, setup and sign-in, including OAuth; status and help come from the service. You said on 2026-10-06 that this is a priority before the release: signing in to a provider's subscription made simple, with Pi's own flows; and choosing the model of a thread, or the one an agent starts with, from the terminal. Signing in was decided and built the same day: once for each folder agents are started in, with `shrimpy login`, as [providers](5-home.md) has it. Choosing a model from the terminal is still to come.
-- Your own settings, starting with the name you appear under, which [identity](3-identity.md) keeps in a settings file in the Shrimpy folder where the gateway runs. Today it is still the OS account's name.
+- Model selection, defaults, settings, setup and sign-in; status and help come from the service. Signing in is built, once for each folder agents are started in, with `shrimpy login`, as [providers](5-home.md) has it, and `/model` chooses a thread's model. Choosing the model an agent starts with, from the terminal, is still to come.
+- Your own settings, beyond the name [identity](3-identity.md) has.
 - Attachments on messages, including clipboard files and images. An image reaches the model with its message.
 - The search tools and a tool that shows the model an image file.
 - Memory breadcrumbs, with the search index behind them and the `memory-management` skill.
 - Terminal affordances from today's client, listed under [terminal, models and settings](using-it.md).
-- A web client for talking and watching: channels, threads, agents and sessions, with history, live view and input, alongside the inspector views. It doesn't hold up the first release: "definitely want this but it won't hold up the first release from this branch", 2026-10-08. Since that day it is how your phone reaches Shrimpy, as [the plan's direction](../PLAN.md#direction) has it, so it is built for a phone first: installed to the home screen, with a push notification when an agent answers or writes while you are away. Three things follow for how it is built, so that a companion app can wrap it later, and you agreed to them: every screen works with no browser bar around it, a phone comes in as a device of yours, with an invitation, as a machine does, and what sends a notification doesn't know whether a browser or an app receives it. Installing and push need HTTPS, which on a tailnet is a certificate for the machine's name there: how the gateway gets one is to settle. It is one web client, and one frontend that lays itself out for the width it has, a level at a time on a phone and side by side on a desk. You said you will be opinionated about how it looks and feels: "i am going to be very opinionated on the aesthetics and ux", 2026-10-08. So its look is shown to you as mockups before any of it is built, and what decides the look is kept in one place, apart from the screens' structure.
 
 **Prove,** for whatever gets built:
 
@@ -168,6 +173,75 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 - Web queries and subscriptions, new IDs and anchors, and large transcripts. The web client uses the same operations as the terminal.
 - Presentation content never reaches provider input.
 
-**Rule:** an affordance today's Shrimpy has comes back when it's missed. Whatever hasn't come back by the release gets an explicit decision there, with every inherited command's disposition in [command coverage](using-it.md), so nothing is dropped silently.
+**Rule:** an affordance today's Shrimpy has comes back when it's missed. What hasn't come back by the release is decided then, as [the plan](../PLAN.md#order-of-work) has it, from the command families above and what old Shrimpy had below.
 
 **Replaces:** private TUI patches, the old transcript readers and duplicated settings and lifecycle bindings.
+
+*What old Shrimpy had, and isn't back,* as you marked each on 2026-10-08: keep, later or drop.
+
+**In outside chat apps.** None is in the first release, and each comes with a chat adapter if one is ever written, as [the plan's direction](../PLAN.md#direction) has it: talking to an agent from Telegram, a bot for each agent, choosing which agent answers in a chat, limiting which chats and people may talk to an agent, typing, formatted and split replies and sender labels, merging quick bursts, photos the agent sees, a message that doesn't notify, reaching a person where they were last active, binding and unbinding a channel, guided Telegram setup, and `/new`, `/clear`, `/help` and `/thinking` in a chat app.
+
+**Conversations and sessions.**
+
+Marked on 2026-10-08. Nine lines were dropped and are gone from this list.
+
+- Archive or rename a thread — wanted: "yeah this is needed ux". The chat server does both, and nothing a person uses reaches them.
+- Post to a room from the shell — wanted: "i can think of reasons this is needed. and it's not that complicated".
+- Delete a room — wanted, and new: leaving a room and removing a member can wait "as long as you can delete a room". Nothing deletes one.
+- Search past threads and sessions — wanted as one tool for agents: "probably makes sense to add one agent tool for this".
+- Leave a room or remove a member — later.
+- Compact a session by hand — later, with the compaction work.
+- Copy the agent's last answer — later.
+
+**The terminal.**
+
+Marked on 2026-10-08. Fourteen lines were dropped and are gone from this list.
+
+- A way to show the keys — wanted: the line of keys at the bottom "is getting a bit crowded. some way to display keys is needed". You mean to restyle the terminal a little at some point.
+- The shrimp in the terminal's tab title — wanted, and soon: "move this bad boy up the priority stack".
+- See what arrived while the terminal was closed — later, and soon.
+- Reopen the latest thread with the latest agent — later.
+- Open settings — later; there is nothing to set yet.
+- Set an agent's thinking level with `/thinking` — later; it would work as `/model` does.
+- Sign in or out from the terminal — later; `shrimpy login` does it from a shell.
+- Paste clipboard images into a message — later, with attachments.
+- Edit a message the agent hasn't picked up yet — later, with the ways in for edits and reactions.
+- Use a fullscreen mode — later.
+
+**Models and signing in.**
+
+- Name several candidate models for an agent and use the first available — kept.
+- See which model an agent resolves to, and add a provider by command — undecided.
+
+**Agents, skills and memory.**
+
+- Set up Shrimpy with one guided command — tracked under the release.
+- Get a second starter agent, the mechanic — dropped; the first agent is an admin.
+- Update Shrimpy with a preview, a guided update, or an exact tag — tracked under the release.
+- Show, inspect, rename, remove and configure an agent by command — remove keeps data.
+- List, show, add, update, remove and validate skills by command — undecided.
+- Search every agent's memory from the mechanic — replaced by an admin agent using SSH.
+- Search the files of the whole workspace, track their changes, and see its status — undecided.
+- See what made up an agent's context and the exact request a turn sent — next.
+- Edit shared context files once for every agent — next.
+- Have an agent keep memory notes in its own voice — comes back with memory breadcrumbs.
+- Get default upkeep watches, daily journals, journal compaction and hygiene audits — come back with their features.
+- Ask an agent to remember, search or search the web — wait until wanted.
+- Add a command's output to an agent's context each turn — gone; small fact files replace it.
+- Be told fleet status, other sessions' activity and worker summaries unasked — dropped.
+- Hand a coding task to Codex, then follow, steer and cancel it — later, with helpers.
+- Give an agent extra tools and commands through extensions — dropped.
+
+**Looking after Shrimpy.**
+
+- Restart or stop the gateway, read its logs, and run services for each program — undecided.
+- Complete commands, agents and options with Tab in the shell — planned.
+- See the version and release name with `--version`, in help and in the header — kept.
+
+**In a browser.**
+
+- Browse an agent's files, tree, context, channels, triggers, runtime and transcripts — comes back with the web client.
+
+**Reading.**
+
+- Read a gentle getting-started guide, the reference docs and a security statement — reference docs shrink.

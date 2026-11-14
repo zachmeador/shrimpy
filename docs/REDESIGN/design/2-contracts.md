@@ -11,14 +11,20 @@ Clients use two APIs, each the same for local and gateway-routed use. The chat s
 - session inspection and selection
 - reset, fork, steer, status, wait, withdraw and stop
 - model, thinking, defaults and reload
-- raw and effective context, entry queries and committed subscriptions
+- raw and effective context, entry queries and subscriptions
 - completion against the agent's filesystem
 - publication and chat-provider status, trigger and delegation controls
 - receiving the attachments of offered messages into the agent's home
 
-Commands, clients and tools call the same operations. Which of them get a command follows the [rule for commands](using-it.md). For transport, use `pi-server`, `pi-client` and `pi-protocol` over a restricted local Unix socket first, where their public APIs fit. Coding-agent's experimental controller isn't reused wholesale because it drops durable request IDs. Pi's protocol carries everything Shrimpy ships: the console, the web client, the CLI, the chat server, and each agent's link to the gateway. Plain HTTP is added only when a program that can't speak Pi's protocol needs in, and not yet. Only a Unix socket transport ships, so the web client needs a small WebSocket bridge; the spike's was 69 lines. Sockets live in a short runtime directory, because macOS caps Unix socket paths at 104 bytes. `pi-client` never reconnects on its own, so clients reconnect with backoff and mark a disconnected view as stale. The browser bundle is about 200 KB minified and 53 KB gzipped, mostly TypeBox. The protocol makes no compatibility promises, so Shrimpy pins Pi exactly, agents and clients upgrade together, and a version mismatch between peers is reported clearly.
+Commands, clients and tools call the same operations. Which of them get a command follows the [rule for commands](using-it.md).
 
-Contracts carry Shrimpy-owned shapes only: the agent builds the session view that clients draw, so no client depends on Pi's record types. Clients talk through threads and watch through sessions. Attaching straight to an agent covers watching, steering and stopping, including while the gateway is down. Clients render committed views. Help, status and editor state stay local and never enter the transcript. Completion and shell input run against the agent's paths, never the client's cwd, so an attached console asks the agent for completions instead of reading a local directory. Clipboard files and images attach to the message you send, like any other attachment, with provenance and size limits.
+**Contracts are Chord objects,** since the move to Pi 1.5.2 decided on 2026-11-14. Pi 1.2 removed `pi-client`, `pi-server` and `pi-protocol`, which the first build used, and Chord 1.5 has one kind of contract: an object type. Its params pick which object, its members are state and methods, and every reference to it is live, the same locally and across a link. So a client follows the member list, a channel's threads, an agent's sessions or a session view by holding it, and nothing polls. Every program connects out to the gateway, which relays requests to it by address, as [the network](6-network.md) has it. Chord carries everything Shrimpy ships: the terminal, the web client, the CLI, the chat server and each agent. Plain HTTP is added only when a program that can't speak Chord needs in, and not yet. Sockets live in a short runtime directory, because macOS caps Unix socket paths at 104 bytes.
+
+Contracts carry Shrimpy-owned shapes only: the agent builds the session view that clients draw, so no client depends on Pi's record types. The session view is a window over the session's whole history, with compactions and resets marked, and a client pages back through it. Clients talk through threads and watch through sessions. Attaching straight to an agent covers watching, steering and stopping, including while the gateway is down. What a client shows of finished work is stored first. A partial answer and running tool output show as they arrive and are stored within a second, so a crash can take back up to a second of what a live session view showed. Help, status and editor state stay local and never enter the transcript. Completion and shell input run against the agent's paths, never the client's cwd, so an attached console asks the agent for completions instead of reading a local directory. Clipboard files and images attach to the message you send, like any other attachment, with provenance and size limits.
+
+**A refusal is part of the contract.** A program that says no on purpose gives words for a person, with what to do. Where a client acts differently on the case, the refusal also carries a reason that the contract lists, such as `name_taken` or `agent_running`, and a client never reads the words to tell. Chord's own errors are left for real failures: a dropped link, revoked access, a contract that doesn't match.
+
+**Peers stay compatible by versioned contracts and one set of Pi packages.** A contract carries versions, and a provider maps an older consumer's version to its own, so a release that only evolves a contract can reach machines one at a time. Chord's wire is all or nothing, and has changed without a new protocol version, so programs compare the exact set of Pi packages when they connect and refuse a mismatch, saying what to run where. A release that changes the Pi packages reaches every machine together.
 
 **A contract carries facts.** What a fact means to whoever reads it is the reader's decision. You confirmed this on 2026-10-05.
 
@@ -59,10 +65,21 @@ Leaving it had four costs. An agent's rule for DMs was written in the chat serve
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
 | Who a message is for | The chat server marks each message with who it is `addressed` to: in a room the members its text mentions, and in a DM the other member, whatever the text says. | A message records `mentions`: the members its text names as `@name`, and everyone in the channel but the author when it says `@all`, in a DM as in a room. What a mention means, and what a DM means, is each reader's decision: an agent's wake policy, its rule for a mention that joins a running turn, `/stop`, and what a client marks as for you. | Confirmed and built on 2026-10-05. |
+| The transport | `pi-server`, `pi-client` and `pi-protocol` over Unix sockets, with services and replicated state, and a WebSocket bridge for a browser | Chord 1.5 objects with live state, over links that every program opens to the gateway, as the design above has it. | Confirmed on 2026-11-14, with the move to Pi 1.5.2: "that's a given" |
+| How peers stay compatible | Every program runs the same version, and a mismatch is reported and nothing refused | Versioned contracts with mappings, and the exact set of Pi packages compared on connecting, with a mismatch refused. | Confirmed on 2026-11-14. Until then this was the open question to decide first |
+| Refusals | The reason rides inside the old Chord's error code, which passed any string | Refusals are the contracts' own shapes, with a reason only where a client acts differently. | Confirmed on 2026-11-14 |
+| What a live view shows | Only what is stored: clients render committed views | Finished work is stored before it shows. A partial answer and running tool output show at once and are stored within a second, Pi's default. | Changed on 2026-11-14 |
 
-**Open**
+**Not built yet**
 
-**Decide first:** how peers stay compatible across machines. Pi's protocol makes no compatibility promises, so every program upgrades together today. That works on one machine. With agents on other machines, updating one side breaks every agent that hasn't updated yet. The link that crosses machines is small: an agent talking to chat and the gateway. Either that link gets a stable protocol of its own, or lockstep upgrades are accepted with a clear report of the mismatch. The MVP takes the second: every program runs the same version, and a mismatch is reported.
+*The contracts on Chord 1.5,* a step of the move to Pi 1.5.2 in the [order of work](../PLAN.md#order-of-work).
+
+- The three contracts as Chord objects, held live by clients in place of every poll.
+- The session view as a window over a session's whole history, with paging.
+- Refusals as the contracts' own shapes.
+- The exact set of Pi packages compared on connecting, with a mismatch refused in words that say what to run where.
+
+*The rest of the agent's operations,* as daily use asks for them: reset, fork, withdraw, thinking level, defaults, context queries, completion, provider status, delegation and attachments.
 
 **Built on 2026-10-05**
 

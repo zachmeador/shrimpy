@@ -82,12 +82,15 @@ Inspection shows raw entries, effective model messages, selected tools, source r
 | Settings ownership | Credentials, model catalogs and policies, compaction and skill switches are workspace-wide | Home-owned defaults with session overrides. What a home doesn't set comes from the folder it is started in: sign-ins, model servers and the model it starts with, as Providers, above, has it. A sign-in is made once for a folder, and the file that holds it is the one place it is renewed. Appearance and favorite models are per-user client settings on each machine. Ambient Pi settings are ignored. | Confirmed, and changed on 2026-10-06 |
 | Where keys come from | — | The home's `auth.json` and `models.json`, then those of the folder it is started in. Environment variables aren't read, and a key written as a command or a variable is refused. | Confirmed, and changed on 2026-10-06 |
 | How much an agent is told | — | Nothing limits the size of `SOUL.md`, a context file, the list of skills or the earlier messages that come with an input. | Confirmed for now |
+| Pi's storage across the move to 1.5.2 | — | Each home keeps its files: `SOUL.md`, `context/`, skills, `triggers/`, breadcrumbs, `wake.json` and its token, and the folder keeps `providers/`. Each home's Pi storage, with its sessions and the agent's records, starts fresh on 1.5.2 and nothing converts it, so a wake-up that was waiting or a question still open is gone. The chat store and the roster are kept, so an agent that starts fresh skips every message that already carries its receipt, as any fresh start does. The folder is copied first. | Confirmed on 2026-11-14: "as long as workspace content is protected, i don't even care about old session history" |
 
 **Open**
 
 Compaction with Shrimpy's guidance, seeing the request a turn sent, and workspace context from the gateway are under Not built yet below.
 
 **Not built yet**
+
+*Each home's Pi storage started fresh on 1.5.2,* its files kept, as the row on the move says: a step of the move to Pi 1.5.2 in the [order of work](../PLAN.md#order-of-work).
 
 *The home: compaction, the request a turn sent, and workspace context.*
 

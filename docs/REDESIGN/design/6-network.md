@@ -6,7 +6,7 @@ An agent somewhere else joins the network and is reached through the gateway, wi
 
 **The design**
 
-Agents connect out to it and reconnect on their own, so they need no inbound listener. A program joins over a connection it keeps open, and counts as reachable for as long as that connection lasts. Joining carries Shrimpy's version, which is how a mismatch between peers gets reported. A connection made by name goes through the gateway, on one machine as well as across machines, so there is one path and it is used every day; a browser comes in through the gateway's WebSocket entry. The gateway gives the client a ticket for the program it asked for, and the program asks the gateway whose ticket it is. A program's own socket is used directly only by its home's path.
+Every program connects out to the gateway and reconnects on its own, so none needs an inbound listener. A program keeps one link to the gateway open, and counts as reachable for as long as that link lasts. The gateway is Chord's relay: a request for a program's object travels over that program's link, stamped with who is asking, and the program believes the stamp because it arrives on its link from the gateway. Connecting compares the exact set of Pi packages, and a mismatch is refused, as [the contracts](2-contracts.md) have it. A connection made by name goes through the gateway, on one machine as well as across machines, so there is one path and it is used every day; a browser comes in through the gateway's WebSocket entry. A program's own socket is used directly only by its home's path, as you.
 
 The agent process shares nothing with the outside except the network: no files, processes or `localhost`. Everything crosses the API. That keeps sandboxing a deployment choice, so the same agent runs natively, in a container, in a microVM or on another machine.
 
@@ -55,15 +55,15 @@ By hand that is one line on the gateway's machine and two where the agent will l
 
 **Underneath**
 
-1. **The entry.** The gateway listens on each address you chose, with the WebSocket entry it already has for a browser: `/ws/gateway` for the gateway itself, and `/ws/<kind>/<name>` for a way through to a registered program. A connection there that shows an agent's token is that agent, and may do what the agent may on the gateway's machine. One that shows the token of a device of yours is you. One that shows a code, with what the code is for, may join. One that shows neither gets nothing: only the gateway's own socket takes a connection that shows no token for you. The one other thing that opens a path there is the ID of a call, which only the agent that was called is told. A connection that says it comes from a web page is refused.
+1. **The entry.** The gateway listens on each address you chose, over WebSocket, as its entry for a browser does. A connection there that shows an agent's token is that agent, and may do what the agent may on the gateway's machine. One that shows the token of a device of yours is you. One that shows a code, with what the code is for, may join. One that shows neither gets nothing: only the gateway's own socket takes a connection that shows no token for you. A connection that says it comes from a web page is refused.
 2. **An invitation.** You or an admin agent asks the gateway for one for an agent, with a name that nobody has, and only you ask for one for a device. It is a code of eight characters from an alphabet with no look-alikes, written `K7Q2-9FXD`. It is kept in memory as a ticket is, so a gateway that restarts forgets it. The link, `shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD`, is the name, the address and the code. Once the gateway has its key, the link carries the key's fingerprint as well.
 3. **Joining.** The home makes its token and keeps it first, as it does beside the gateway. The gateway keeps a hash of the token and never the token, and a home that never heard the answer asks again with the same token and is the same member. The home keeps the gateway's address beside its token.
-4. **A way through.** A program, such as chat, is reached over the entry only with a ticket for it in hand. The gateway looks at the ticket before it opens the way, and the program then spends it. So nobody who hasn't signed in reaches a program.
-5. **Reaching an agent that only connects out.** An agent apart registers with no socket. When someone asks for it, the gateway tells the agent, over the connection the agent keeps open, and the agent opens one more connection to the gateway, which joins the two. The agent asks "who wants me" and waits, as it asks chat for events, so the gateway never has to reach it.
-6. **A dead connection.** The gateway pings each connection that comes over the entry and lets one go that stays silent for half a minute, so an agent that lost its network can register again. A registration lasts as long as its connection, which a dead network connection can outlive.
+4. **Routing.** A client's request names the object it wants, and the object's address names its program: an agent by name, or the chat server. The gateway routes the request by that address over the program's link, stamped with who is asking, and never reads the contract. A request for a program that is away waits, and binds when the program is back.
+5. **One link for each program.** An agent apart and one beside the gateway both connect out, so no program is dialed and the gateway never has to reach one. The link carries the program's own requests up and every request for it down.
+6. **A dead link.** Chord pings a link that has been silent for 15 seconds and closes one that stays silent, so a program that lost its network comes back on a new link.
 7. **Chat.** The chat server stays on the gateway's machine. An agent apart reaches it by name through the gateway, as an agent beside the gateway does.
 
-**The gateway proves itself.** A member that comes in over the entry checks that the gateway is yours, and nothing crosses the network in the clear. The gateway makes a key when it first makes its data. An invitation's link carries the key's fingerprint, the member keeps it beside its token, and every connection over the entry is encrypted and checked against it, so a gateway that isn't yours learns no token. Shrimpy's own clients and agents check it this way. A browser can't check a fingerprint and needs a certificate it trusts, which is the web client's question of HTTPS in [using it](using-it.md). You decided this on 2026-11-14 with the rest of [identity](3-identity.md), and when it is built is [waiting on you](../AUTHOR-TO-REVIEW.md). Until then a token and the messages cross a network that isn't a tailnet in the clear, so the address you listen on should be loopback or on a tailnet.
+**The gateway proves itself.** A member that comes in over the entry checks that the gateway is yours, and nothing crosses the network in the clear. The gateway makes a key when it first makes its data. An invitation's link carries the key's fingerprint, the member keeps it beside its token, and every connection over the entry is encrypted and checked against it, so a gateway that isn't yours learns no token. Shrimpy's own clients and agents check it this way. A browser can't check a fingerprint and needs a certificate it trusts, which is the web client's question of HTTPS in [using it](using-it.md). It matters more with the relay, since a program believes whatever its link from the gateway stamps on a request. You decided this on 2026-11-14 with the rest of [identity](3-identity.md), and it is built with the relay, before the release. Until then a token and the messages cross a network that isn't a tailnet in the clear, so the address you listen on should be loopback or on a tailnet.
 
 **Tailscale.** It is never needed, and it should fit like a glove: your rule of 2026-10-06. Everything here works on any network your machines share, with an invitation as the way in, and each thing Tailscale adds is one you could do without.
 
@@ -96,15 +96,14 @@ The [sandbox runtime scout](../../research/sandbox-runtime-scout-2026-08-26.md) 
 | Provider login | A browser callback on the same machine | Pi's login flows already handle a browser on another machine: they show a URL or device code and accept a pasted code or redirect URL. You run `shrimpy login` where the agents are, over a shell there, and it signs in the folder for every agent started in it, as [providers](5-home.md) has it. Nothing is relayed through an agent. Sandboxes allow provider traffic, including login endpoints. | Confirmed, and changed on 2026-10-06 |
 | Letting an agent in | Only a program that can open the gateway's socket joins | By an invitation made on the gateway's machine and pasted where the agent will live. The other way round, a new machine asking and you approving it, would need the gateway open to strangers first. | Confirmed on 2026-10-06 |
 | Tailscale | — | Never needed. Shrimpy uses a network that Tailscale provides, may later read from it who is at the other end, never manages it and is never served through it. | Confirmed on 2026-10-06 |
-| Encryption | — | The gateway makes a key with its data, an invitation carries the key's fingerprint, and every connection over the entry is encrypted and checked against it. A browser checks a certificate it trusts instead. Until the key is built, a token and the messages travel in the clear on a network that isn't a tailnet, so the address you listen on should be one only your machines reach. | Changed on 2026-11-14, from none of Shrimpy's own, which was confirmed for now on 2026-10-06. When it is built is waiting on you |
+| Encryption | — | The gateway makes a key with its data, an invitation carries the key's fingerprint, and every connection over the entry is encrypted and checked against it. A browser checks a certificate it trusts instead. Until the key is built, a token and the messages travel in the clear on a network that isn't a tailnet, so the address you listen on should be one only your machines reach. | Changed on 2026-11-14, from none of Shrimpy's own, which was confirmed for now on 2026-10-06. Built with the relay, before the release |
+| The gateway as Chord's relay | The gateway pipes bytes between a client and a program, a ticket says who the client is, an agent apart opens a connection for each call, and Shrimpy pings each connection | Every program connects out to the gateway, which routes each request by address over that program's link, stamped with who is asking. Tickets, pipes, calls and Shrimpy's pings go, and the gateway's key comes with it. A proof decides it. If routing to a program over the link it opened doesn't hold up, the fallback is Chord end to end over today's pipes, with tickets kept. | Confirmed on 2026-11-14: "decision 1 i trust your judgement on" |
 | The commands for it | — | `invite` and `join`, one option, `--listen`, and `shrimpy up` starting only the agents in a folder whose agents all belong to a gateway elsewhere. | Confirmed on 2026-10-06: you agreed to the pairing they carry out, and to the change to `up` |
-| You, from another machine | Over SSH to the gateway's machine | A machine of yours comes in as a device, by an invitation, as an agent does. It keeps a token in its Shrimpy folder and is you from then on, until you take the token back. A Tailscale login may stand in for the token later. | Confirmed on 2026-10-06, as long as it is simple and clean. You saw its lines on 2026-10-07, and they are yours to change |
+| You, from another machine | Over SSH to the gateway's machine | A machine of yours comes in as a device, by an invitation, as an agent does. It keeps a token in its Shrimpy folder and is you from then on, until you take the token back. A Tailscale login may stand in for the token later. | Confirmed on 2026-10-06, as long as it is simple and clean. Its lines are [waiting on you](../AUTHOR-TO-REVIEW.md) |
 
-**Not built yet**
+**Built**
 
-*An agent apart from the gateway.*
-
-Its four steps are built, as below. What is left of it is under "Left for later".
+*An agent apart from the gateway,* built in four steps. What is left of it is under Not built yet.
 
 **Outcome:** an agent that runs as another OS user, in a container or on another machine joins the same network with one pasted line and looks the same in the terminal: you talk to it in a thread, and watch and stop its sessions.
 
@@ -153,7 +152,7 @@ Its four steps are built, as below. What is left of it is under "Left for later"
 - **A limit on connecting.** Each try at connecting, signing in and registering gives up after a quarter of a minute, so an agent that starts while its gateway takes connections and answers nothing says so within that time.
 - **Chat follows the gateway.** When an agent loses its gateway it lets go of its connection to chat too, and comes in again with a new ticket once it has registered again, so it never waits on a feed that can't arrive.
 
-**The fourth step: you, from another machine.** You agreed to it on 2026-10-06 as long as it was simple and clean, and saw these lines on 2026-10-07. You haven't said yes or no to them: it was built that day as shown, for you to change.
+**The fourth step: you, from another machine,** built on 2026-10-07 as shown. Its lines are [waiting on you](../AUTHOR-TO-REVIEW.md).
 
 ```text
 $ shrimpy invite
@@ -184,18 +183,33 @@ Open the terminal with: shrimpy
 - **`shrimpy uninstall`** stops the service and removes it. It leaves every folder and file of Shrimpy's as it is, and lingering too.
 - **`shrimpy status`** ends with a line that says whether a service is installed for the folder, and whether it is running, with or without a gateway. On a machine whose agents all belong to a gateway elsewhere it says where that gateway is, and doesn't say to start one.
 
-**Linux.** The tests ran there for the first time on 2026-10-07, on a machine of yours: Ubuntu 24.04 on x86_64 with Node 22.23. Of 613, 603 passed and 7 were skipped, and of the 661 there were by the end of that day, 651: the six that call a real model and one that needs an IPv6 loopback, which that machine has none of. The other three bundle a contract for a browser and failed because the dependencies were copied from a Mac and not installed there, so the bundler's Linux binary was missing. Two things were found and fixed: Node 22 warned that SQLite is experimental at the start of every program, and a test let go of a lock it meant to hold. Since then a pairing with a second machine has run there, and so have the programs kept running by services that `shrimpy install` set up, for the account with the gateway and for one whose agent belongs to it. One thing to look at: the runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway started by a service and a command typed in a shell may not look in the same place. On your machine a service and a command typed over SSH looked in the same place.
+**Not built yet**
+
+*Chord's relay,* a step of the move to Pi 1.5.2 in the [order of work](../PLAN.md#order-of-work). It replaces what was built for tickets, pipes, calls, pings and the warning on another version, under Built above. Joining, invitations and the entry stay.
+
+**The proof** comes first, on Pi 1.5.2, and decides between the relay and its fallback:
+
+- The gateway, the chat server and two agents, one beside the gateway and one apart, all connecting out.
+- A client watching an agent's session live through the gateway, with the agent seeing the caller as you.
+- An agent's own command reaching another agent as itself, and refused where it should be.
+- Taking a device's token back ending its live view, with a reason that says access was revoked.
+- An agent restarting, then the gateway, and the client's view coming back by itself each time.
+- Attaching straight to an agent's socket with the gateway down.
+- A streamed session view through the relay, timed against today's pipe.
+
+**Then** every program on the relay, and the gateway's key: made with its data, its fingerprint in every invitation, and the entry encrypted and checked against it.
+
+*What is left of an agent apart from the gateway.*
 
 **Left for later**
 
 - **Commands about one agent, from elsewhere.** `sessions`, `triggers` and the like find an agent by its home's folder and talk to it by that path, so they act on an agent only where its home is, and as its OS user. The terminal reaches an agent by its name through the gateway, so after the second step it lists, watches and stops an agent wherever it lives. Naming an agent by its roster name in a command is a change of its own.
 - **The chat server on a machine other than the gateway's.**
-- **The gateway's key,** with its fingerprint in an invitation and the entry encrypted, as above.
 
 **Prove**
 
 - An agent started under another OS user, in a container with no shared files, or on another machine joins with its invitation, shows up in the terminal, answers in a thread, and has its session watched and stopped from the gateway's machine.
-- An agent with a missing or wrong token is refused, and a version that differs from the gateway's is reported.
+- An agent with a missing or wrong token is refused, and so is one whose set of Pi packages differs from the gateway's, with what to run.
 
 *The network: agents everywhere.*
 
@@ -205,9 +219,8 @@ Under Later in the [order of work](../PLAN.md#order-of-work).
 
 **Build**
 
-- No outside chat app. Until 2026-10-08 Telegram was to be the first provider. You put outside chat apps aside that day, with chat adapters kept as an idea that is not in the first release, as [the conversation model](4-conversation.md) has it. If one is ever written, it takes nothing from old Shrimpy's code.
 - Reading from Tailscale where it is there, and never needing it: which device of yours a machine is, and whether an agent connects from the machine it is expected from.
-- The tests run on Linux with dependencies installed on the machine.
+- A skill for adding a machine with Tailscale, and for pairing over SSH.
 
 **Prove**
 

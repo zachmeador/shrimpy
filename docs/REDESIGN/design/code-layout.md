@@ -73,7 +73,7 @@ src/
 | `chat/providers/<name>/` | the chat server's provider interface and `lib/` |
 | `cli/` | `contracts/` and `lib/`, plus each program's front door to start it |
 
-- **Programs never import each other.** They talk only through `contracts/`, which are Chord services carried by `pi-server` and `pi-client`.
+- **Programs never import each other.** They talk only through `contracts/`, as [the contracts](2-contracts.md) describe.
 - **Shared plumbing stays plumbing.** Shared code may remove repetition around Pi, but it adds no concepts of its own: no registry, discovery or lifecycle. `lib/connection` and `lib/offer` wrap Pi's client and server once for all three contracts. The test is whether a module could be deleted and inlined into its callers in an hour with no change in behavior. If deleting it would mean redesigning the programs, it has become the service framework this plan doesn't build. Check `lib/`'s size at each review pause.
 - **Contracts carry Shrimpy's own shapes, never Pi's.** Only `agent/` imports Pi's durable runtime, and `pi-ai` with it, apart from tests. `agent/sessions/` is the one place that turns Pi's records into the session view clients see. A Pi upgrade can then change the agent without touching a client.
 - **Inside the agent, a file that needs Pi says so in its name.** A file imports Pi's durable runtime only if it is named `*.durable.ts` or is a module's `durable.ts` door, as `*.node.ts` marks what needs Node. Inside a module, a file that isn't marked can't import one that is, so plain code never reaches the engine. The files at the top of `agent/` wire the modules together, so they may import a marked door, and still can't import the package unless they are marked themselves.
@@ -134,3 +134,7 @@ Approved on 2026-10-05 and built that day. Each module has one job.
 **Why it was reshaped.** `agent/sessions/` had grown to 2,019 lines doing eight jobs. The old rule, that only three folders may import Pi, was not the main cause. The records were private to `sessions/` and no other module could take part in a commit, so "find or make the session, take what it kept, create the task" was written there three times, and a feature spanned three folders: the change that added wake-ups touched 27 files. A rule by folder also made moving code into a listed folder the cheap way to satisfy the lint, which is what filled `sessions/`. Under a rule by file name the cheap way is a new file beside the feature.
 
 **What must not change by accident:** the names of the tasks, documents, extensions and tools, their versions, the shape of a stored input and the form of a request ID. Nothing converts records, so a drift costs a home its sessions. The reshape was checked by hand in both directions: the build before it and the build after it each ran on a home the other had left, with a wake-up and a trigger waiting.
+
+**Not built yet**
+
+- A rule for where Chord may be imported, settled with the move to Pi 1.5.2 in the [order of work](../PLAN.md#order-of-work), so that replacing Chord, or keeping a fork of it, stays as bounded as Durable is: only `agent/` imports it today.

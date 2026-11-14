@@ -40,9 +40,9 @@ The host gives each session an `ExecutionEnv`. Replayable operations need a stab
 - **Ownership.** Foreground ownership controls joins and abort; background ownership is explicit. A client disconnect, navigation or cancelled wait never aborts accepted work. Abort reports done only after cancellation settles. Controls never hold a transaction while waiting on their own running turn.
 - **Supervision.** Shutdown is bounded and accounts for tool descendants. Cooperative abort kills owned process groups, but killing the owner can leave detached processes running. Prove cleanup with a delayed-write child under the chosen supervisor before advertising it. If that can't be guaranteed, show possible continuing effects and flag the limit for review.
 - **Storage.** SQLite in WAL/NORMAL mode survives process crashes, not power loss. Back up from stopped snapshots that include the WAL. Pin Pi's package and task contracts. Before opening admission, the host checks extensions and pending task definitions and names affected sessions on failure, because Pi alone may drop a missing extension or block single tasks. The host installs Shrimpy's extensions after it opens storage and before it resumes work, since what posts to chat is made from the ID of the records. Pi advises installing before the open so recovered work can resume at once; here nothing runs until the host resumes, and this check runs after the install. Upgrading pending work needs compatible definitions or a reviewed disposition.
-- Keep the durable, AI, Chord, server, client and protocol packages pinned at `1.0.0`, and pin `pi-tui` the same way when the terminal client arrives. Use public exports only.
+- Pin every Pi package Shrimpy uses at exactly one release, 1.5.2 since the move decided on 2026-11-14, as one set: an upgrade changes them together, and stops if any package's license isn't MIT, which every one is today. Use public exports only.
 
-The gateway handles discovery, access and routing between clients, agents and the chat server. It keeps the roster, with each member's name and how it is recognized, and the workspace context. It never holds agent homes, Pi storage, execution or conversations, and it reaches agents' sessions only through their API. Losing the gateway pauses chat and remote access but never stops an agent. Watching and controlling an agent on its own machine works without a gateway; talking needs the gateway and the chat server, and on a single machine both run locally.
+The gateway handles discovery, access and routing between clients, agents and the chat server, as Chord's relay that every program connects out to, which [the network](6-network.md) describes. It keeps the roster, with each member's name and ways in, and the workspace context. It never holds agent homes, Pi storage, execution or conversations, and it reaches agents' sessions only through their API. Losing the gateway pauses chat and remote access but never stops an agent. Watching and controlling an agent on its own machine works without a gateway; talking needs the gateway and the chat server, and on a single machine both run locally.
 
 **Decisions**
 
@@ -54,4 +54,4 @@ The gateway handles discovery, access and routing between clients, agents and th
 
 **Open**
 
-The tests ran on Linux for the first time on 2026-10-07. What that showed, and what is still to try there, is under Not built yet in [the network](6-network.md).
+What the runs on Linux showed, and what is still to try there, is in [status](../STATUS.md).

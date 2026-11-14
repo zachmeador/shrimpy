@@ -1,13 +1,13 @@
 # 🦐 Pi Durable Replacement Plan
 
-Updated: 2026-10-05
-Status: experience decisions reviewed on 2026-10-03. [Where it stands](README.md#where-it-stands) says what is built. The plan was reshaped around the core pieces on 2026-10-05, and the design moved into a file for each piece the same day. The new Shrimpy is the repo's root on `wip`, and old Shrimpy is in `shrimpy-old/`. Two lists keep the build honest: what is [waiting on you](AUTHOR-TO-REVIEW.md), and where the code [trails this plan](STATUS.md#where-the-code-trails-the-plan). A few interface and command details are left for the work that builds them.
+Updated: 2026-11-14
+Status: experience decisions reviewed on 2026-10-03. The plan was reshaped around the core pieces on 2026-10-05, and the design moved into a file for each piece the same day. The new Shrimpy is the repo's root on `wip`, and old Shrimpy is in `shrimpy-old/`. A few interface and command details are left for the work that builds them.
 
 Shrimpy's session machinery gets replaced with `pi-durable`. Each agent becomes an independent program: one resident process owns its home and its Pi storage. People talk to agents in threads kept by a chat server, from the console, the web app or chat providers such as Telegram, and clients can attach to an agent to watch and steer its work. Pi owns admission, queues, transcripts, task lifetimes, cancellation, compaction, recovery and committed observation. Shrimpy owns the home, the agent's context and tools, the clients, and the routes in.
 
 The aim is fewer state machines, clearer ownership, and a smaller, better organized codebase. Switching engines doesn't license quiet changes to how people or agents use Shrimpy: every visible change is a row in a piece's Decisions table, under [the design](#the-design).
 
-This file owns why, the direction, the words and the order of work. The [design files](#the-design) own the architecture and the experience decisions, [STATUS.md](STATUS.md) lists where the code trails them, and the [log](history/LOG.md) records what was built and decided. The [Pi research note](../research/pi-agent.md#pi-durable-source-and-recovery-investigation) owns upstream findings and probes. [Reference docs](../../shrimpy-old/docs/reference/README.md) describe old Shrimpy.
+This file owns why, the direction, the words and the order of work. The [design files](#the-design) own the architecture and the experience decisions, and each one's Not built yet holds what isn't built of its piece. [STATUS.md](STATUS.md) lists where built code trails them, [your list](AUTHOR-TO-REVIEW.md) holds what waits on you, and the [log](history/LOG.md) records what was built and decided. Each of these has one home, and other files link to it instead of saying it again. The [Pi research note](../research/pi-agent.md#pi-durable-source-and-recovery-investigation) owns upstream findings and probes. [Reference docs](../../shrimpy-old/docs/reference/README.md) describe old Shrimpy.
 
 ## Why
 
@@ -33,9 +33,9 @@ Confirmed during review:
 - **A chat server keeps channels.** It's a service of its own that holds channels with their threads, messages and attachments, and bridges chat providers in: the shared record of what was said. Agents keep their sessions, their own private work. That's the split between channels and sessions Shrimpy has today.
 - **The gateway only connects things.** It handles discovery, access and routing between clients, agents and the chat server, and keeps the workspace's configuration: registrations, tokens and workspace context. It never hosts agents or conversations. Tailscale is the network to recommend for it, and is never needed.
 - **Shrimpy leaves Pi's terminal app.** Shrimpy owns its session-client contract and presentation, reusing public `pi-tui` components where they fit.
-- **Pi's durable runtime is the engine.** Shrimpy reshapes around it instead of wrapping it.
+- **Pi's durable runtime is the engine.** Shrimpy reshapes around it instead of wrapping it. Since 2026-11-14 that means Pi 1.5.2: Durable in each agent, and Chord's objects and relay between the programs. Earendil commits only its agent library and coding agent to MIT, and plans Fair Source and closed additions, so Shrimpy uses Pi's MIT libraries alone, as "Not building" below says, behind seams, with the pins and license check that [the programs](design/1-programs.md) describe. You aren't worried about ever having to fork: "i think in 1-2 years it'll be very simple to maintain something like that".
 - **Chat providers are interchangeable.** Telegram is one chat provider among possible others, such as Discord or iMessage. Shrimpy's chat behavior lives in the chat server, and each provider only translates its own API. A desktop chat app, possibly a fork Shrimpy maintains someday, would plug in the same way; it isn't part of this plan.
-- **Your phone is reached by Shrimpy's own client.** Decided in talk on 2026-10-08. Telegram was the convenient choice six months before, and you asked whether Shrimpy should supply it at all. The web client is built for a phone first, as a web app that is installed to the home screen and gets push notifications, so it reaches you where Telegram did and shows everything the terminal does. A companion app comes later and wraps the same pages with what the phone's system offers: "basically a browser view with ios integration stuff", and "home assistant's mobile app approach to me is perfect". No outside chat app is in the first release or planned after it: "forget about discord, telegram, buzz, etc. not on my radar at this point. still open to the idea of chat adapters because some people might really want to use a particular platform but they're not mvp". The web client is wanted and doesn't hold the release: "definitely want this but it won't hold up the first release from this branch".
+- **Your phone is reached by Shrimpy's own client.** Decided in talk on 2026-10-08. Telegram was the convenient choice six months before, and you asked whether Shrimpy should supply it at all. The web client is built for a phone first, as a web app that is installed to the home screen and gets push notifications, so it reaches you where Telegram did and shows everything the terminal does. A companion app comes later and wraps the same pages with what the phone's system offers: "basically a browser view with ios integration stuff", and "home assistant's mobile app approach to me is perfect". No outside chat app is in the first release or planned after it: "forget about discord, telegram, buzz, etc. not on my radar at this point. still open to the idea of chat adapters because some people might really want to use a particular platform but they're not mvp".
 - **Agents decide what wakes them.** The chat server offers each new channel message to member agents, and each agent's wake policy decides whether it starts a turn, as `channelPolicy` does today. By default an agent wakes for DMs, for mentions and for a person's message in a room that mentions nobody, and an included skill teaches agents to tune their own policy. Loop protection lives there too; nothing upstream filters conversation.
 - **Sandboxing is a deployment choice.** An agent runs the same with or without a sandbox. When it is sandboxed, the sandbox wraps the whole agent process. Shrimpy doesn't sandbox individual tools, so agents keep a real shell.
 
@@ -60,8 +60,7 @@ This direction comes from the `REDESIGN` branch (2026-09-19): independent agent 
 | Roster | The gateway's list of every member, with each one's ways in and who is reachable now. |
 | Way in | What the gateway recognizes a member by: an agent's token, a device's token, or the gateway's own socket, which is you. |
 | Device | One of your machines' Shrimpy folders, or a browser, let in as you with a token of its own. |
-| Ticket | What the gateway gives a client to hand to a program, so the program can ask the gateway who the client is. Single-use, short-lived and good for that program only. |
-| Route | Where Pi's server sends a connection that asks to watch something: a thread on the chat server, a session on an agent. Pi calls it a session. |
+| Relay | The gateway's part in Chord: it routes a request to a program by address, over the link that program keeps open, stamped with who is asking. It replaces the first build's tickets. |
 
 ## The design
 
@@ -121,9 +120,13 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
+- **The move to Pi 1.5.2,** before the release: "that's a given", 2026-11-14. Pi 1.2 removed the packages the programs talk through, and Shrimpy installs today only on its 1.0.0 pins. In order, with each step's work under Not built yet in the files named:
+  1. The relay's proof, which decides between Chord's relay and its fallback ([the network](design/6-network.md)).
+  2. The contracts on Chord 1.5 ([the contracts](design/2-contracts.md)), with a rule for where Chord may be imported ([the code's layout](design/code-layout.md)), every program on the relay with the gateway's key ([the network](design/6-network.md)), and identity as decided on 2026-11-14 ([identity](design/3-identity.md)).
+  3. Durable 1.5.2 in the agent ([the conversation model](design/4-conversation.md), [what an agent does without being asked](design/7-on-its-own.md)), with each home's Pi storage started fresh ([the home](design/5-home.md)).
+  4. What it brings to the clients ([using it](design/using-it.md)).
 - Cleaning up for the release, which you said on 2026-10-08 is close: the skills cover what a person and an agent do with Shrimpy, the reference documentation shrinks to very little, and old Shrimpy is replaced.
-- Living with it. What the first evening asked for is built: `shrimpy install` and `uninstall`, the first agent of a setup as an admin, and `shrimpy up` keeping its folder running. What you notice next goes on the list in [using it](design/using-it.md), and decides what is built next.
-- One proposal waits on you: [hearing a thread while working in it](proposals/hearing-a-thread.md).
+- Living with it: what you notice goes on the list in [using it](design/using-it.md), and decides what is built next.
 
 **Next:**
 
@@ -132,7 +135,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Later:**
 
-- The conversation model: an interface for chat adapters, with a fake one as its reference. Not in the first release, and no outside chat app is planned: the idea is kept. [Not built yet](design/4-conversation.md)
+- The conversation model: an interface for chat adapters, with a fake one as its reference, kept as an idea as the direction says. [Not built yet](design/4-conversation.md)
 - The network: agents everywhere. [Not built yet](design/6-network.md)
 - What an agent does without being asked: helpers. [Not built yet](design/7-on-its-own.md)
 - Using it: what daily use asks for. [Not built yet](design/using-it.md)
@@ -141,9 +144,10 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 Work this plan defers on purpose, to pick up after cutover:
 
-- Notifications wherever you want them (desktop, chat or phone) when work finishes while you're away.
+- Notifications on the desktop or in a chat app when work finishes while you're away. Your phone gets them with the web client.
 - Codemode, as a [later experiment](design/4-conversation.md).
-- A plain HTTP entry point, once a program that can't speak Pi's protocol needs in.
+- A plain HTTP entry point, once a program that can't speak Chord needs in.
+- Each context file as a prompt section of its own, so that a changed file is sent alone.
 - A desktop chat app as the native client for channels.
 - Seams that would let more of Shrimpy be built in parallel, to look at once the core contracts have settled: extensions in the agent as folders with one entry point that are handed the same few things; the chat provider interface with a fake provider as its reference; a client core that the terminal and the web client share; and landing a contract change on its own before the programs that follow it. No seam where only one thing will ever plug in: the gateway stays one piece.
 - Events from outside apps, such as MCP events or webhooks. They would arrive as a chat provider's messages, not as triggers, so agents keep taking nothing inbound. The [research note](../research/mcp-events-and-triggers-2026-10-04.md) says why not yet, and when to look again.
@@ -152,7 +156,7 @@ Work this plan defers on purpose, to pick up after cutover:
 
 This plan deliberately leaves these out, so they don't creep back in:
 
-- Sandboxing for individual tools. Agents keep a real shell.
+- Sandboxing for individual tools, as the [direction](#direction) says.
 - A second run queue, transcript, task manager, outcome journal or activity cache beside Pi's.
 - A receipt store beside Pi's that compares the content of retried requests. A request ID's first use wins.
 - A compatibility layer for Pi's ordinary `ExtensionAPI`, or a generic service framework.
@@ -161,10 +165,11 @@ This plan deliberately leaves these out, so they don't creep back in:
 - A global scheduler, universal worker registry or network-wide job ledger.
 - Automatic migration of old transcripts, tasks, manifests or clocks.
 - Model calls to route ordinary input.
-- Loop or flood control in the chat server or gateway. Agents' wake policies, instructions and `END` handle it.
+- Loop or flood control in the chat server or gateway, as [the conversation model](design/4-conversation.md) has it.
 - Native MCP, per-request model routing, cache warming, vector memory, journaling daemons and transcription. Each is a separate future decision; codemode is a [later experiment](design/4-conversation.md).
-- A gateway that more than one person shares. Decided on 2026-10-09: "i don't think there should be multi-person gateways. there will be external agent <-> shrimpy agent comms, but i actually don't think shrimpy needs any code for this". A gateway has one person, on however many machines of theirs. Someone else's agents talk to yours as any outside agent does, with the tools agents have, and Shrimpy has no code for it.
-- Logins with a password, or a token for you on the gateway's own socket. Your devices come in by invitation, and anything that can reach the socket could read such a token. Decided on 2026-11-14 with [identity](design/3-identity.md).
+- A gateway that more than one person shares, as [identity](design/3-identity.md) has it.
+- Logins with a password, or a token for you on the gateway's own socket, as [identity](design/3-identity.md) has it.
+- Depending on Chord's app kit, Pi's own apps or Earendil's hosted services such as Radius, or on anything that needs an Earendil account. Decided on 2026-11-14.
 - A mesh protocol, ACP product, visual redesign or mandatory hosting platform.
 
 **Release**
@@ -174,8 +179,12 @@ This plan deliberately leaves these out, so they don't creep back in:
 **Build**
 
 - Account for every CLI entry, slash command, export, setup and update recipe, service definition, template, skill, test, doc and security statement. Help and completion come from the real command surface.
-- Very little reference documentation. You said on 2026-10-08: "i'd actually like to move to very minimal reference documentation. shrimpy agents can just check the code if they need to. but instructions and skills should cover all of the core ux/agent-ex". So what an agent is told and the skills that ship carry how Shrimpy is used, by a person and by an agent, and the README and the developer docs are written for what the release ships, keeping the charming parts of today's. What becomes of this redesign folder at the release is yours to say.
-- A decision for every command and affordance of today's Shrimpy that hasn't come back.
+- Very little reference documentation. You said on 2026-10-08: "i'd actually like to move to very minimal reference documentation. shrimpy agents can just check the code if they need to. but instructions and skills should cover all of the core ux/agent-ex". So what an agent is told and the skills that ship carry how Shrimpy is used, by a person and by an agent, and the README and the developer docs are written for what the release ships, keeping the charming parts of today's. This folder goes at the release, as [its front page](README.md#when-this-folder-goes) says.
+- A decision for every command and affordance of today's Shrimpy that hasn't come back, from what [using it](design/using-it.md) has of them.
+- Updating Shrimpy, a setup command and moving over from old Shrimpy, from the list from living with it in [using it](design/using-it.md).
+- Choosing the model an agent starts with from the terminal, which you called a priority before the release on 2026-10-06 ([using it](design/using-it.md)).
+- `SECURITY.md`, `CONTRIBUTING.md` and `THIRD_PARTY_NOTICES.md` go with `shrimpy-old/` and are written anew, from [the keep list](history/keep-list.md).
+- `AGENTS.md`, `README.md`, `docs/README.md` and `lint/boundaries.js` point into this folder, and are repointed when it goes.
 - Default locations for machine-level data, and service installation for each program.
 - The changelog starts over. On 2026-10-08 you had the notes of old Shrimpy's releases and its unreleased entries removed from `CHANGELOG.md`: "i say we purge all the old stuff". The [changelog skill](../../dev-skills/shrimpy-dev-changelog/SKILL.md) says how the release that replaces old Shrimpy is written, and that from then on a change adds its line in the same change. `AGENTS.md` is to say so too, from that release.
 - Before `shrimpy-old/` goes, eleven of its idea docs come out of it. You want them rewritten for the new Shrimpy later, and left alone until then: "eventually i'll want to update these to reflect new shrimpy but not atm", 2026-10-08. From `docs/backlog/proposals/`: `session-001-generation-throughput-metrics`, `surface-009-telegram-managed-bot-skill`, `agent-003-shareable-agent-packages` and `workspace-002-tiered-checkpoint-retention`. From `docs/musings/`: `app-habitats`, `memory-design`, `story-worlds`, `promoting-browser-workflows`, `agent-specific-tui-surfaces`, `desktop-spotlight-surface` and `framework-design`. The other seventeen proposals and musings go with the folder.
@@ -185,7 +194,7 @@ This plan deliberately leaves these out, so they don't creep back in:
 
 - Build, lint, package, lifecycle and full test runs in the isolated checkout.
 - On macOS and Linux: install, first setup, tagged update, stop and restart, and uninstall without losing home data.
-- Code and dependency deletion, resource use at startup, idle and under load, and remaining deviations and evidence gaps, all recorded in [STATUS.md](STATUS.md).
+- Code and dependency deletion against old Shrimpy at `574bb2c`, resource use at startup, idle and under load, and remaining deviations and evidence gaps, all recorded in [STATUS.md](STATUS.md).
 
 **Gate:** if client and framework complexity outweigh the runtime savings, revise before going live. Reference docs describe only what the candidate implements.
 
@@ -215,9 +224,8 @@ Fable was asked about this shape on 2026-10-04 and argued against it. An agent t
 - What the tools are called: `send_message`, `read_messages`, `check_back` and `ask_agent`, beside Pi's own `read`, `write`, `edit` and `bash`.
 - What a channel's default thread is called. It is `main` today, and you may want a clearer name.
 - `send_message` and `read_messages` can't name a thread of a DM, only a room's. A result of `ask_agent` points to `shrimpy read <thread>` in the shell for that.
-- Whether an agent should be told to read a thread before it answers a message that went to everyone, which is the version of [hearing a thread](proposals/hearing-a-thread.md) with no mechanism.
 - Whether input steered into a session by `shrimpy sessions steer` should say who sent it.
-- `react`, an `edit` option and `quiet` on `send_message`, which the design names and nothing builds yet.
+- `react`, an `edit` option and `quiet` on `send_message`, as the design names them.
 
 ### A member that is neither a person nor an agent
 
