@@ -7,11 +7,13 @@ The one list of what is open in Shrimpy: what waits on the owner, what isn't bui
 ## Waiting on the owner
 
 1. **The lines for a machine of the owner's own.** `shrimpy invite` with no name and `shrimpy join <link>` are built and not yet approved. The owner agreed to the way in "as long as the ux is simple and clean" (2026-10-06).
-2. **The owner's name on a gateway run by an account made for Shrimpy.** The gateway names the person for the OS account running it, which can take an agent's name. Should the name be told to the gateway at first start, set by a command, or something else?
-3. **An agent hearing a thread while it works in it.** The owner's idea (2026-10-06): an agent working in a thread hears what anyone says there at its next step, waking nobody; details in `docs/REDESIGN/proposals/hearing-a-thread.md`. Yes, no, or just one sentence telling agents to read the thread first?
-4. **`shrimpy up` starts an agent that ends again, alone.** The owner wrote "a user expects to be able to add an agent without having to think about restarting a service or running things" (2026-10-07), and `up` now restarts an agent that ends. The owner had confirmed (2026-10-04) that `up` stops everything when any program ends, and hasn't approved the change.
-5. **What a refusal is in Shrimpy's contracts.** Refusals carry their reason inside Pi's error code, and clients see Chord's and `pi-client`'s error types. Whether contracts carry only Shrimpy's shapes is undecided and not urgent.
-6. **Choices made in the build, for the owner to strike.** `ask_agent`'s rules (30-minute default, a thread per question, five open); trigger check and breadcrumb rules; `--agent` defaulting to a folder's only agent; first setup making one admin agent.
+2. **An agent hearing a thread while it works in it.** The owner's idea (2026-10-06): an agent working in a thread hears what anyone says there at its next step, waking nobody; details in `docs/REDESIGN/proposals/hearing-a-thread.md`. Yes, no, or just one sentence telling agents to read the thread first?
+3. **`shrimpy up` starts an agent that ends again, alone.** The owner wrote "a user expects to be able to add an agent without having to think about restarting a service or running things" (2026-10-07), and `up` now restarts an agent that ends. The owner had confirmed (2026-10-04) that `up` stops everything when any program ends, and hasn't approved the change.
+4. **What a refusal is in Shrimpy's contracts.** Refusals carry their reason inside Pi's error code, and clients see Chord's and `pi-client`'s error types. Whether contracts carry only Shrimpy's shapes is undecided and not urgent.
+5. **Choices made in the build, for the owner to strike.** `ask_agent`'s rules (30-minute default, a thread per question, five open); trigger check and breadcrumb rules; `--agent` defaulting to a folder's only agent; first setup making one admin agent.
+6. **Pi removed the packages Shrimpy's programs talk through.** Pi 1.2.0 removed `pi-client`, `pi-server` and `pi-protocol`, and Shrimpy installs only on its 1.0.0 pins. Which wire replaces them, and does the release ship on the pins?
+7. **`shrimpy login` offers Anthropic's subscription sign-in,** which presents an agent to Anthropic as Claude Code, against Anthropic's terms. Take it out before the release, or keep it with a warning?
+8. **When the gateway's key is built.** The gateway proving itself with a key, and the network entry encrypted, were designed on 2026-11-14. For the first release, or after it with the entry kept to loopback or a tailnet?
 
 ## Not built yet
 
@@ -29,7 +31,11 @@ Next: the provider interface, and the home's compaction, request inspection and 
 
 ### Identity and addressing
 
-- Per-person permissions aren't modelled; admin is the only role.
+- The owner as the one person, found as that and not by OS account, with a second person refused.
+- The owner's name as a setting, in a file in the Shrimpy folder where the gateway runs.
+- Ways in that are listed, labelled and taken back.
+- Agents told to schedule with triggers and pass `SHRIMPY_AGENT_HOME` on, and the setup skill saying an agent beside the gateway has the owner's power.
+- Removing an agent and replacing its token aren't designed.
 
 ### The conversation model
 
@@ -63,7 +69,7 @@ Next: the provider interface, and the home's compaction, request inspection and 
 - Reading from Tailscale who is at the other end of a connection is not built.
 - Sandboxes are designed and untried, including grants for a host model server and Tailscale's `100.64.0.0/10`.
 - No skill yet covers `tailscale` for adding a machine, or pairing over SSH.
-- No encryption of Shrimpy's own: outside a tailnet, tokens and messages travel in the clear.
+- The gateway's key and an encrypted entry are designed and not built: outside a tailnet, tokens and messages travel in the clear.
 - On Linux a service and a shell may use different runtime directories.
 - Untested: completion against the agent's filesystem, and moving an attachment.
 - Untried: an agent in a real sandbox reaching only the gateway and its model provider.
@@ -140,8 +146,9 @@ Where the code falls short of what was decided.
 
 ### Identity and addressing
 
-- Nothing removes a member, replaces a token or renames a person.
+- The gateway finds the owner by its OS account and names them for it, so a gateway moved to another account makes a second person.
 - Nothing refuses a second person added to the roster by hand, who could then read everything.
+- Nothing removes an agent, replaces a token, or lists or takes back a way in.
 - A rename reaches the chat server only when that member next enters chat.
 - A gateway refusal printed in an agent's shell gives no advice.
 - The terminal cannot watch an agent when the gateway is down.
@@ -347,7 +354,7 @@ Nothing here is scheduled.
 - Tool names, default thread name, DM thread addressing and steered input's sender, tested once the core exists.
 - A member that is neither person nor agent, like an IRC bot; starts when something asks.
 - Tailscale policy read as who is an admin, and an agent with its own tailnet node; needs Tailscale.
-- Hearing a thread while working in it is under Waiting on the owner, item 4.
+- Hearing a thread while working in it is under Waiting on the owner, item 2.
 
 ## Not building
 
@@ -365,4 +372,5 @@ Left out on purpose, so none of it creeps back.
 - Loop or flood control in the chat server or gateway; agents' wake policies, instructions and `END` handle it.
 - Native MCP, per-request model routing, cache warming, vector memory, journaling daemons and transcription; each is a separate future decision.
 - A gateway that more than one person shares; someone else's agents talk to yours as any outside agent does, with no code of Shrimpy's (the owner, 2026-10-09).
+- Logins with a password, or a token for the owner on the gateway's own socket (2026-11-14).
 - A mesh protocol, ACP product, visual redesign or mandatory hosting platform.

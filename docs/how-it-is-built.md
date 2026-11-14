@@ -20,8 +20,9 @@ Only `src/contracts/`, which carry Shrimpy's own shapes and never Pi's, and `src
 - **Channel:** a place where people and agents talk, a DM or a room.
 - **Thread:** one conversation in a channel. Every channel has a main thread.
 - **Session:** an agent's private work behind a thread.
-- **Member:** a person or an agent, with an ID that never changes and a name that can.
-- **Roster:** the gateway's list of members, how each is recognized, and who is reachable now.
+- **Member:** you or an agent, with an ID that never changes and a name that can. A network has one person, its owner.
+- **Roster:** the gateway's list of members, each one's ways in, and who is reachable now.
+- **Way in:** what the gateway knows a member by: an agent's token, a device's token, or its own socket, which is you.
 - **Ticket:** what the gateway gives a client to hand to a program, so the program can ask who the client is. Single use, short-lived, good for one program.
 - **Trigger:** anything but a message that wakes an agent: a time, an interval, or a check whose output changed.
 - **Breadcrumb:** a small file in the home holding a fact that moves. It comes with an agent's next input, once, when new to that session.

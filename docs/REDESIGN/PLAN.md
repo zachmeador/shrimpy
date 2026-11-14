@@ -56,8 +56,10 @@ This direction comes from the `REDESIGN` branch (2026-09-19): independent agent 
 | Chat server | Keeps channels, threads, messages and attachments, and bridges chat providers in. |
 | Gateway | Connects clients, agents and the chat server, and keeps the workspace's configuration. It never hosts agents or conversations. |
 | Workspace context | The shared `context/` files every agent reads, hosted by the gateway. |
-| Member | A person or an agent on the network. It has an ID that never changes and means nothing, and a name that can change. |
-| Roster | The gateway's list of every member, with how each is recognized and who is reachable now. |
+| Member | You or an agent on the network: a network has one person, its owner, and any number of agents. A member has an ID that never changes and means nothing, and a name that can change. |
+| Roster | The gateway's list of every member, with each one's ways in and who is reachable now. |
+| Way in | What the gateway recognizes a member by: an agent's token, a device's token, or the gateway's own socket, which is you. |
+| Device | One of your machines' Shrimpy folders, or a browser, let in as you with a token of its own. |
 | Ticket | What the gateway gives a client to hand to a program, so the program can ask the gateway who the client is. Single-use, short-lived and good for that program only. |
 | Route | Where Pi's server sends a connection that asks to watch something: a thread on the chat server, a session on an agent. Pi calls it a session. |
 
@@ -162,6 +164,7 @@ This plan deliberately leaves these out, so they don't creep back in:
 - Loop or flood control in the chat server or gateway. Agents' wake policies, instructions and `END` handle it.
 - Native MCP, per-request model routing, cache warming, vector memory, journaling daemons and transcription. Each is a separate future decision; codemode is a [later experiment](design/4-conversation.md).
 - A gateway that more than one person shares. Decided on 2026-10-09: "i don't think there should be multi-person gateways. there will be external agent <-> shrimpy agent comms, but i actually don't think shrimpy needs any code for this". A gateway has one person, on however many machines of theirs. Someone else's agents talk to yours as any outside agent does, with the tools agents have, and Shrimpy has no code for it.
+- Logins with a password, or a token for you on the gateway's own socket. Your devices come in by invitation, and anything that can reach the socket could read such a token. Decided on 2026-11-14 with [identity](design/3-identity.md).
 - A mesh protocol, ACP product, visual redesign or mandatory hosting platform.
 
 **Release**
