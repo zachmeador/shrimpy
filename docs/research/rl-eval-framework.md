@@ -1,7 +1,8 @@
-# Shrimpy RL Eval Framework Watchlist
+# 🦐 Shrimpy RL Eval Framework Watchlist
 
 Date: 2026-05-20
 Status: Research / Eventually
+Trimmed: 2026-11-11. Git has the whole note.
 
 Question: if local AI is moving toward personal models that improve from private interaction streams, what should Shrimpy build, defer, or watch before committing to an RL/eval stack?
 
@@ -397,60 +398,6 @@ Adapters need metadata:
 - Reward/rubric versions
 - Known regressions
 - Rollback pointer
-
----
-
-## CLI Sketch
-
-If this becomes real, expose it through Shrimpy commands first:
-
-```bash
-shrimpy eval list
-shrimpy eval run personal-defaults --model qwen-local
-shrimpy eval capture --session <id>
-shrimpy eval signals --since 7d
-shrimpy eval export personal-defaults --format verifiers
-shrimpy eval export personal-defaults --format openenv
-shrimpy eval export personal-defaults --format art
-shrimpy adapter compare current candidate --eval personal-defaults
-shrimpy adapter promote candidate --if-evals-pass
-shrimpy adapter rollback
-```
-
-These are not implementation commitments. They are a reminder that the feature should be inspectable and automatable before it has a UI.
-
----
-
-## Suggested File Layout
-
-Possible future workspace shape:
-
-```text
-workspace/
-  evals/
-    personal-defaults/
-      taskset.json
-      cases.jsonl
-      scorers/
-        structured-output.ts
-        tests-pass.ts
-      judge-prompts/
-        tone.md
-        privacy.md
-      runs/
-        2026-05-20T120000Z.jsonl
-  training/
-    trajectories/
-      sessions-2026-05.jsonl
-    preferences/
-      accepted-rejected-2026-05.jsonl
-    adapters/
-      qwen3-4b-personal-2026-05-20/
-        adapter.json
-        eval-summary.json
-```
-
-The key point is legibility. Training artifacts should be as inspectable as Shrimpy memory and channel logs.
 
 ---
 

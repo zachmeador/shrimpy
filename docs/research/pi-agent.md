@@ -1,42 +1,153 @@
-# 🦐 Pi Coding Agent
+# 🦐 Pi
 
-Date: 2026-06-11
-Updated: 2026-10-02
+Originally researched: 2026-06-11
+Updated: 2026-10-02 and 2026-11-11. Upstream Features Left for Later and the durable investigation are as of Pi 1.0.0.
+Trimmed: 2026-11-11. Git has the whole note.
+Status: Research. The durable investigation ran probes; nothing was installed or run for the 2026-11-11 update.
 
-Pi is Shrimpy's embedded agent and session engine. Shrimpy pins the registry-published `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` packages rather than depending on a local checkout or active fork.
+Shrimpy's agents run their sessions on the durable runtime of Pi, which Earendil makes. The question: what changed in Pi and Earendil's other projects after the 1.0.0 that Shrimpy pins, and what does that mean for Shrimpy? The note also keeps Pi features left for later and a source and crash-recovery investigation of the durable runtime.
 
-This note describes the installed integration, the latest stable upgrade assessment, and a source and crash-recovery investigation of Pi's experimental durable runtime.
+The 2026-11-11 update read Earendil's repositories, the npm registry, three outside apps on `pi-durable` 1.5 and Shrimpy's `wip` branch. Its statements come from the sources linked here or under [Sources](#sources) unless marked **(I)** for this research's inference.
 
-## Architectural Position
+## Current recommendation
 
-Shrimpy should give Pi ownership of the execution machinery it actually provides. In the installed coding-agent SDK, that includes the model/tool loop, provider dispatch, transcript mechanics, session tree, compaction, extensions, and terminal foundation. The separate durable runtime also owns persisted input admission, queues, task checkpoints, child ownership, cancellation, and committed observation. Building those mechanisms again above it would undermine the main reason to adopt it.
+**Keep every Pi package Shrimpy names pinned at exactly 1.0.0 until the owner picks a wire, and bump none alone (I).** As of 2026-11-11:
 
-Shrimpy still owns an enduring agent's home and identity, actual execution authority, authenticated ingress, recurring wakeups, channel delivery, and process supervision. Ordinary coding-agent extensions can own timers, watchers, and sockets, provided their lifecycle is handled; the real constraint is whether that service should follow one session or survive independently. Durable extensions use a different API and have no service startup/shutdown contract. The [durable investigation](#pi-durable-source-and-recovery-investigation) explains the distinction. Choosing that runtime would replace the present integration, rather than adding another execution layer above it.
+- **Upstream removed what Shrimpy's programs talk through.** Pi 1.2.0 (2026-10-12) removed `pi-client`, `pi-server` and `pi-protocol`, and Chord 1.2.0, Pi's library for apps across processes, removed the service runtime Shrimpy's contracts are written in. The plan still prescribes them. Shrimpy still installs because it pins every Pi package it names at exactly 1.0.0 **(I)**.
+- **Moving `pi-durable` (Durable below) past 1.1.0 means a new wire (I):** a new transport and protocol for the three programs and their clients. The three choices and their costs are [below](#options-for-shrimpys-wire).
+- **Chord v2, the experimental runtime that has been Chord's main entry since 1.5.1, fits only the gateway's browser entry (I).** Its wire changed twice at one protocol version between 2026-11-09 and 2026-11-11. Earendil plans p3 to replace p2, its prototype web app on Chord v2, and p3's plan puts the decision on how much of Chord's app kit to keep in the week of 2026-11-16.
+- **`shrimpy login`'s Anthropic subscription presents each agent that uses it to Anthropic as Claude Code.** `pi-ai` 1.0.0 reports Claude Code 2.1.280, which Anthropic's API refused for `claude-fable-5-2` in reports of 2026-11-09 and 2026-11-10. `pi-ai` 1.5.2 reports 2.1.322, and whether it runs under Durable 1.0.0 wasn't checked.
 
-## Current Shrimpy Integration
+## Upstream After 1.0.0
 
-- Shrimpy pins all four Pi packages at `0.84.4`.
-- Shrimpy requires Node `>=22.19.0`, matching Pi's runtime requirement.
-- Pi-facing tool schemas use `typebox` `1.3.7`, aligned with the installed Pi `0.84.4`. Shrimpy-owned configuration schemas remain on `@sinclair/typebox` `0.34.41` because those types never cross the Pi tool boundary.
-- The main host boundary uses `createAgentSession()`, `createAgentSessionRuntime()`, `SessionManager`, `SettingsManager`, and `DefaultResourceLoader`.
-- `SessionBootstrap` constructs one canonical `ModelRuntime` with workspace-local auth, custom-model, and dynamic-catalog paths and passes it through session creation and replacement.
-- Shrimpy extensions register tools, commands, headers, footers, custom UI, message renderers, lifecycle hooks, model-switch rendering, activity state, turn context, session leases, and compaction interception through public extension APIs.
-- Resource-loader overrides let Shrimpy own prompt assembly and visible skill selection while Pi retains native tool definitions, provider calls, transcript mechanics, and the interactive runtime.
-- Pi's session replacement lifecycle powers Shrimpy's cross-agent and cross-session navigator.
-- Normal `npm test` does not typecheck `extensions/*.ts`; Pi upgrades need a separate extension typecheck.
-- `ToolRenderContext` remains internal. Shrimpy compact-tool renderers use local structural typing rather than importing a private type.
+### What changed, by release
 
-Each Shrimpy session gives Pi a workspace-backed `SettingsManager`. Native `/settings` changes are durable: shared Pi interaction preferences live under `pi.settings`, Shrimpy-owned runtime values keep their `runtime` fields, and Ctrl+S in `/thinking` saves the active agent's `agents[].thinking` default. User-global and project-local Pi settings remain outside the host boundary, and Shrimpy continues to pass a fixed set of bundled extensions and explicit skill paths rather than consuming normal Pi packages.
+Pi (MIT; copyable) cut eleven releases after 1.0.0 (2026-10-01), up to 1.5.2 (2026-11-10). These seven bear most on Shrimpy, and the breaking patches 1.0.3 and 1.0.4 are counted under [what upgrading takes](#what-upgrading-pi-durable-takes):
 
-## Latest Stable Pi
+| Release | Date | What changed |
+|---|---|---|
+| 1.1.0 | 2026-10-07 | The last release of `pi-client`, `pi-server` and `pi-protocol`, and the last set in which they share a Chord with `pi-durable` |
+| 1.2.0 | 2026-10-12 | `pi-client`, `pi-server` and `pi-protocol` are "removed and no longer released" ([release](https://github.com/earendil-works/pi/releases/tag/v1.2.0)). Chord replaces its service runtime with a host runtime over memory, IPC or WebSocket links |
+| 1.3.0 | 2026-10-15 | From here each `pi-durable` pins Chord at its own version |
+| 1.4.0 | 2026-10-21 | Durable moves SQLite storage to schema 2 on first open: "a deployment cannot roll back past this release" |
+| 1.5.0 | 2026-11-02 | Durable sends views as windows of the newest 50 to 100 entries, paged on a client with `ConversationTranscript`. Chord v2 appears as experimental `@earendil-works/chord/next` |
+| 1.5.1 | 2026-11-09 | A patch release makes v2 Chord's main entry, which the repository's `main` branch had since 2026-11-02, and removes v1, taking `replicatedState` with it: "Apps still on v1 pin `@earendil-works/chord@1.5.0`". The JSON helpers move to `/json` |
+| 1.5.2 | 2026-11-10 | `pi-ai` reports Claude Code 2.1.322 instead of 2.1.280 ([below](#pi-ais-anthropic-sign-in)) |
 
-The latest stable release inspected on 2026-10-02 is **`v1.0.0`**, released 2026-10-01, at `a13d35a742c6ef8462812a28fbe1d8c8b7431c32`. All four packages installed successfully from the registry at exact `1.0.0` in a disposable Shrimpy copy. Shrimpy itself remains pinned to `0.84.4`.
+Chord has had three runtimes: the service runtime up to 1.1.0, in which Shrimpy's contracts are written; v1, the host runtime of 1.2.0 to 1.5.0; and v2, experimental, the main entry since 1.5.1. In v2 an app is built from objects served by hosts, each a process or a browser tab, and a link connects two hosts ([design.md](https://github.com/earendil-works/pi/blob/main/packages/chord/docs/design.md) §2).
 
-The local reference clone at `/Users/zachmeador/gits/pi-mono` was fetched and fast-forwarded to upstream `main` at `69f0be6f0`. Analysis and candidate packages use the stable tag; the clone also contains unreleased changes. Ten releases follow the installed version: `0.85.0`, `0.85.1`, `0.86.0`, `0.86.1`, `0.87.0`, `0.87.1`, `0.99.0`, `0.99.1`, `0.99.2`, and `1.0.0`.
+On npm the three removed packages stop at 1.1.0, and none is marked deprecated as of 2026-11-11. p2's handoff notes say Chord replaced them, and list deprecating them as work to do. [#11715](https://github.com/earendil-works/pi/issues/11715) (2026-11-03) asked for a supported client and server interface, or extension points. A bot closed it automatically as not planned, and no maintainer has replied. Beyond the handoff notes, no maintainer statement about a successor, or about a Pi-level client protocol coming back, was found.
 
-A later fresh clone for the durable investigation lives at `/Users/zachmeador/gits/_clones_of_other_projects/pi`, pinned to `main` commit `a276dabe57911253350bffb93cb7d7aff6a73261`. The durable, Chord, protocol, client, server, and coding-agent experimental runtime source trees are identical to `v1.0.0` at this revision; only empty unreleased changelog headings differ in four of those packages. The source probes below therefore exercise released durable code alongside the inspected current `pi-ai` source.
+### What Shrimpy uses of the removed pieces
 
-## What Is Most Useful Now
+Of the 586 TypeScript files under `src/`, 49 import a removed package or a Chord name removed in 1.2.0, and 30 of those are outside tests and test support. Seven more, five of them outside tests, import only `replicatedState` or its types. Paths below are under `src/`:
+
+- **`pi-server`:** the three programs' servers on Unix sockets (`*/server.ts`), and the route and session offers in `lib/offer` and `agent/access`.
+- **`pi-client`:** `lib/connection`, `ServerError` in `lib/refusal`, the Unix transports, and the WebSocket transports Shrimpy wrote for browsers and for Node on `pi-client`'s `ByteTransportFactory`.
+- **`pi-protocol`:** only `DEFAULT_MAX_FRAME_LENGTH` and `isServerId`.
+- **Chord's service runtime:** the contracts' five services (`Gateway`, `SessionDirectory`, `SessionService`, `Chat`, `ThreadService`) and the connection, offer and refusal code in `lib/`.
+- **Chord's `replicatedState`:** the agent and chat contracts, the session and thread views they publish, and `lib/connection`. Since 1.5.1 it is gone from Chord altogether: it left with v1, and v2's design rejects it as public API.
+
+A move past 1.1.0 therefore also needs an answer to the item on [the author's list](../REDESIGN/AUTHOR-TO-REVIEW.md) about what a refusal is in Shrimpy's contracts, which the list calls not urgent **(I)**. `Refusal` extends Chord's `RemoteServiceError`, `isRefusal` checks `pi-client`'s `ServerError`, and both are gone.
+
+Today's install works because of Shrimpy's exact pins **(I)**:
+
+- `package.json` pins `chord`, `pi-ai`, `pi-client`, `pi-durable`, `pi-protocol`, `pi-server` and `pi-tui` at exactly 1.0.0. The lockfile holds one Chord, 1.0.0, and `pi-telemetry` 1.0.1, which `pi-ai` asks for as `^1.0.0`.
+- The lockfile matches the registry, which still serves those tarballs, so `npm ci` should rebuild today's tree **(I)**.
+- The removed packages and `pi-durable` 1.0.0 ask for `chord` only as `^1.0.0`, which now resolves to 1.5.2. Chord 1.2.0 and later lack the runtime `pi-client` and `pi-server` call, and 1.5.1 and later lack the `replicatedState` and `copyJson` that `pi-durable` 1.0.0 imports from Chord's main entry (`copyJson` moved to `/json`). Shrimpy's exact Chord pin keeps all four on 1.0.0.
+
+The plan and Shrimpy's docs still prescribe the removed packages. [PLAN.md](../REDESIGN/PLAN.md) defines a route as where Pi's server sends a connection, and defers plain HTTP until a program "can't speak Pi's protocol". [1-programs.md](../REDESIGN/design/1-programs.md) pins the packages, [2-contracts.md](../REDESIGN/design/2-contracts.md) makes them the transport, and [code-layout.md](../REDESIGN/design/code-layout.md) and [how-it-is-built.md](../how-it-is-built.md) describe the contracts as Chord services carried by `pi-server` and `pi-client`. That is a mismatch between the plan and upstream: building to the plan means building on packages upstream no longer releases **(I)**. The decision is under [For the owner](#for-the-owner).
+
+### What upgrading `pi-durable` takes
+
+- **Chord moves with it.** `pi-durable` 1.2.0 needs Chord `^1.2.0`, and later releases pin their own. Bumping `pi-durable` alone would install a second, newer Chord under it, and Shrimpy would hand that Durable contexts and state made by Chord 1.0.0, so Shrimpy's own Chord pin moves too **(I)**. Then `pi-client` and `pi-server` stop loading, and the transport and contract layer is replaced at once **(I)**.
+- **The storage move is one way.** A home's SQLite storage that 1.4.0 or later has opened can't be opened by today's build again. An update that carries 1.4.0 or later moves each home's storage the first time its agent opens it, homes in use included **(I)**.
+- **How much breaks.** Durable's changelog lists 54 breaking entries since 1.0.0, 34 of them in 1.5.0, and 5 more unreleased as of 2026-11-11. Chord's lists 34, from 1.2.0 to 1.5.1.
+- **An install snag.** Chord 1.5.1 and 1.5.2 pin their optional `ws` peer at exactly 8.21.0, and Shrimpy depends on `ws` 8.22.0, so npm likely refuses to install them together **(I)**. An unreleased fix in Chord's [changelog](https://github.com/earendil-works/pi/blob/main/packages/chord/CHANGELOG.md) makes the `ws`, `react` and `esbuild` peers ranges, so that npm "no longer refuses to install Chord" ([#12008](https://github.com/earendil-works/pi/issues/12008), filed over a newer React, closed 2026-11-11).
+
+Calls Shrimpy makes that changed, with paths under `src/`:
+
+| Change | Release | Where Shrimpy calls it |
+|---|---|---|
+| `ToolExecutionResult.content` becomes `output` | 1.2.0 | The tools' answers: `agent/message-tools/results.durable.ts`, `agent/wakeups/check-back.durable.ts`, `agent/questions/ask-agent.durable.ts` |
+| `TaskRuntime.sleep` is removed and `sleepUntil` added | 1.4.0 | Wake-ups, triggers and questions: `agent/wakeups/wakeups.durable.ts`, `agent/triggers/task.durable.ts`, `agent/questions/questions.durable.ts` |
+| `viewState()` is removed | 1.5.0 | `agent/sessions/service.durable.ts` |
+| `subscribeCommits` becomes `observeCommits` | 1.5.0 | `agent/turns/working.durable.ts` |
+| `onReport` takes one tagged `Report` | 1.5.0 | `agent/host/host.durable.ts` |
+| Tool schemas move from TypeBox to JSON Schema through `pi-schema` | 1.5.0 | Tools built with `pi-ai`'s TypeBox `Type`: `agent/message-tools/send.durable.ts` and `read.durable.ts`, `agent/wakeups/check-back.durable.ts`, `agent/questions/ask-agent.durable.ts` |
+
+### Chord v2, and how stable it is
+
+As of 1.5.2 (2026-11-10; MIT; copyable), Chord v2 offers:
+
+- **Links** over memory, IPC to a forked child and WebSocket. There is no Unix-socket link, and Shrimpy's programs talk over Unix sockets.
+- **`/http`,** a listener that denies by default; its links endpoint refuses anonymous upgrades. A host other than loopback must be allowed and counts "as https". Whether the listener serves TLS itself or needs a proxy in front wasn't checked, and [6-network.md](../REDESIGN/design/6-network.md) doesn't count on a proxy: "Shrimpy serves its own entry".
+- **`/app`,** a kit that runs one server per data directory, with owner sign-in and device pairing built in. Its sign-in and pairing code isn't exported, so using it outside the kit means copying parts and rewriting the rest. The [clients note](clients-scout-2026-11-11.md#sign-in-rules-from-the-strongest-apps) says what copies and gives Chord's request rules.
+- **`/web`, `/react` and `/tui`,** browser and terminal hosts. The terminal's sandbox needs Node 26.5.1 or later, while the package, like Shrimpy, declares Node 22.19 or later.
+- **Contract versions** (`evolve`, `checkAccepts`): a provider can accept an older version of a contract, and a peer it can't accept gets `contract_mismatch`.
+
+Only the gateway's browser entry fits the kit **(I)**. A Node app on Chord v2 has "one shape": one addressable server, workers the app starts, and clients that reach workers only through the server ([design.md](https://github.com/earendil-works/pi/blob/main/packages/chord/docs/design.md) §3). p2 runs its own server instead of the kit's. Shrimpy's agents start from their own services, some on other machines, so they are neither the kit's workers nor its clients **(I)**. Making them the gateway's children would undo the plan's direction that agents run outside any gateway and keep working without it ([PLAN.md](../REDESIGN/PLAN.md#direction)) **(I)**. It would also break attaching to an agent while the gateway is down, which [2-contracts.md](../REDESIGN/design/2-contracts.md) promises **(I)**.
+
+Chord v2 is marked experimental, and no deprecation or support policy was found:
+
+- The first line of its `src/index.ts` reads "Chord (`@earendil-works/chord`, v2, experimental)", and `pi-durable`'s README says "The API changes without notice between releases."
+- The repo's release rule is "`patch` = fixes + additions, `minor` = breaking changes. No major releases." Patch releases have carried breaking changes anyway: Durable 1.0.3 and 1.0.4, and Chord 1.5.1.
+- Its wire changed twice between 2026-11-09 and 2026-11-11 while `PROTOCOL_VERSION` stayed 1, which Chord keeps "Until p3 ships" (design.md §22). A peer of another version is refused, and "hosts update together" (§27), so a version check alone wouldn't catch those changes **(I)**.
+- 82 of the last 100 commits to Chord, from 2026-11-02 to 2026-11-11, are by one author.
+- p3's plan puts the decision on "how much of the app kit to keep" in the week of 2026-11-16. p3's status of 2026-11-09 calls the kit "too big", which reopens a decision of 2026-11-06 to keep it.
+- None of the three outside apps on Durable 1.5 that were checked uses Chord's links or objects: Pi Pocket and Ultimate (both MIT; copyable) and Cherry Studio (AGPL-3.0; study only). They import Chord's `/context` and `/json` helpers, which Durable's API takes.
+
+### Options for Shrimpy's wire
+
+The gateway's browser entry listens on loopback and pipes each WebSocket to a program's Unix socket. Its code says "Nothing authenticates a connection to the browser entry yet" ([web.ts](../../src/gateway/web/web.ts)). The costs below are this research's reading of the sources above **(I)**.
+
+| | (a) Chord v2 on Durable 1.5.x | (b) Hold at Durable 1.0.0 or 1.1.0 | (c) Shrimpy's own wire on Durable 1.5.x |
+|---|---|---|---|
+| Work | Rewrite the contracts as Chord objects, and move the connection, offer and refusal code and the gateway's entries onto hosts and links. Add a Unix-socket link: on the gateway's socket, a connection that doesn't sign in is taken for the owner ([6-network.md](../REDESIGN/design/6-network.md)), and loopback proves nothing on a shared machine. Fit three separately started programs under one Chord server without making agents the gateway's children. Then upgrade Durable from 1.0 to 1.5 | Little now: keep the exact pins; or move to the 1.1.0 set, crossing Durable's 8 breaking entries in 1.0.3, 1.0.4 and 1.1.0; or copy the three packages' MIT source (about 126 KB compiled) into Shrimpy, so the build stops depending on npm serving removed packages. In each, Chord stays pinned exactly at Durable's version | A transport of Shrimpy's own under the same contract shapes, using Chord only for the `Context`, JSON and watch types Durable's API takes. Then upgrade Durable from 1.0 to 1.5 |
+| Fits Shrimpy's programs | Only the gateway's browser entry ([above](#chord-v2-and-how-stable-it-is)) | As today | As today |
+| Sign-in and pairing | Shrimpy's invitation, issuing the kit's sessions. The kit's own pairing, where a new device asks and the owner approves, is the way round 6-network.md turned down | Shrimpy's invitation, built into the browser entry. Nothing comes from upstream | Shrimpy's invitation, on Shrimpy's own wire |
+| Long transcripts | Durable's windows as object state, paged on the client with `ConversationTranscript`, as p2 does | Shrimpy's session view pages itself; Durable 1.0 has no windows | Durable's windows, made into the session view inside the agent, or a disposable cache there that names its source ([1-programs.md](../REDESIGN/design/1-programs.md)), as Pi Pocket keeps its own |
+| Upgrades | Lockstep, on a wire that changes under one version number, so Shrimpy still needs its own mismatch check | Nothing from upstream reaches Shrimpy, and each later move crosses 1.4.0 and 1.5.0 at once | At Shrimpy's pace. The link between machines can get a stable protocol, at the cost of keeping it: Pi Pocket's wire went through versions 2 to 6 in about five weeks |
+
+The plan already decides the way in. A page on the gateway's machine gets in with a link carrying a secret only the gateway's OS user can read ([3-identity.md](../REDESIGN/design/3-identity.md)). An agent, a machine of yours and a phone get in with an invitation made at the gateway ([6-network.md](../REDESIGN/design/6-network.md), [using-it.md](../REDESIGN/design/using-it.md)). The options differ only in the code that carries it **(I)**.
+
+(b)'s copied packages and (c) each leave Shrimpy keeping a service framework of its own. [PLAN.md](../REDESIGN/PLAN.md#order-of-work) lists "a generic service framework" under Not building, and [code-layout.md](../REDESIGN/design/code-layout.md)'s test for `lib/` rules one out. (c) also reverses [2-contracts.md](../REDESIGN/design/2-contracts.md)'s "Pi's protocol carries everything Shrimpy ships". Choosing either means changing those lines first **(I)**.
+
+Under (a), a client paging with `ConversationTranscript` would import Durable, which only `src/agent/` may ([code-layout.md](../REDESIGN/design/code-layout.md), enforced by the boundary lint), and depend on Pi's record types, which [2-contracts.md](../REDESIGN/design/2-contracts.md) rules out for clients **(I)**.
+
+**What holding gives up.** Durable's additions since 1.0.0 ([changelog](https://github.com/earendil-works/pi/blob/main/packages/durable/CHANGELOG.md)) include:
+
+- Views windowed to the newest entries, with `ConversationTranscript` to page them.
+- Durable sleeps (`sleepUntil`): a sleeping task holds no invocation and survives restarts. Shrimpy's wake-ups, triggers and questions wait inside a phase, which holds an invocation.
+- A crash-loop guard: since 1.5.0 a task cut off `settings.restartLimit` times in a row ends, visibly. Shrimpy counts crashes itself (`src/agent/turns/crashes.durable.ts`) for [4-conversation.md](../REDESIGN/design/4-conversation.md)'s rule that a turn resumed and crashed twice is stopped, and [STATUS.md](../REDESIGN/STATUS.md) lists crash loops that count never breaks. Whether Durable's guard covers them wasn't checked.
+- Nested tool calls, which the plan's codemode experiment makes ([4-conversation.md](../REDESIGN/design/4-conversation.md)).
+- 40 released fixes.
+
+Whether `pi-ai` 1.5.x runs under `pi-durable` 1.0.0 wasn't checked. If it doesn't, holding also freezes the model catalog and the Claude Code version `pi-ai` reports, which Anthropic's API refused for `claude-fable-5-2` ([below](#pi-ais-anthropic-sign-in)) **(I)**.
+
+### Earendil's own apps
+
+p2 is Earendil's prototype web app on Chord v2 and Durable 1.5.2, with a server of its own, and its README calls it unsupported, soon replaced and not to be built on. It is MIT under the repo's LICENSE, so copyable. A contract p2 calls `Chat`, a session view in Shrimpy's words, carries Durable's window as state, which its client pages with `ConversationTranscript`. p2-mac wraps p2 for macOS, and p3, planned to replace p2, had nothing built as of 2026-11-06.
+
+p2 listens only on loopback. A browser signs in once with the startup token or a one-time owner link, and local clients answer an HMAC challenge with the owner's key. Other devices reach p2 through an HTTPS tunnel or proxy and keep a cookie for 30 days. [6-network.md](../REDESIGN/design/6-network.md) doesn't count on a proxy, so that part is a design to study **(I)**. Radius, Earendil's hosted service for Pi, "in early alpha", is a second way in for the owner: p2 keeps a WebSocket open to it, and requests it relays act as the owner. How p2's sign-in compares with other apps', and what it does for push, are in the clients note's [sign-in rules](clients-scout-2026-11-11.md#sign-in-rules-from-the-strongest-apps) and [Pi clients](clients-scout-2026-11-11.md#pi-and-pi-durable-clients).
+
+Through ngrok to a phone, switching conversations in p2 took 0.9 to 1.2 s and one frame of 1,560 KiB. p3's rules in answer: hold page-wide objects once, keep lists per session or paged, turn on compression and set byte budgets ([efficiency.md](https://github.com/earendil-works/pi/blob/main/apps/p3/docs/efficiency.md)).
+
+### pi-ai's Anthropic sign-in
+
+`shrimpy login` lists `pi-ai`'s "Anthropic (Claude Pro/Max)" among its subscriptions, since [sign-in.ts](../../src/agent/host/sign-in.ts) offers every provider in `pi-ai`'s `builtinProviders()`. In `pi-ai` 1.0.0, as Shrimpy pins it, and in 1.5.2, an agent that uses this sign-in is presented to Anthropic as Claude Code:
+
+- **Its system prompt opens with** "You are Claude Code, Anthropic's official CLI for Claude.", ahead of what every agent is told (`src/agent/context/base.ts`). `shrimpy agent context` doesn't show that sentence **(I)**.
+- **Sign-in** uses the client ID and scopes of Claude Code's own `claude auth login`, according to a user's report ([claude-code#93216](https://github.com/anthropics/claude-code/issues/93216)). No Anthropic page names that ID.
+- **Requests.** For any token containing `sk-ant-oat`, it sends Claude Code's user agent (`claude-cli/<version>`), `x-app: cli`, the `claude-code-20250219` and `oauth-2025-04-20` betas, and Claude Code's casing of tool names. In 1.0.0 and on `main`, the code marks the version and the tool names with the comment "Stealth mode: Mimic Claude Code's tool naming exactly". It goes by the token's text, so such a token entered as an API key goes out the same way.
+- **The version.** `pi-ai` 1.0.0 reports Claude Code 2.1.280. Pi issues [#11969](https://github.com/earendil-works/pi/issues/11969) and [#11989](https://github.com/earendil-works/pi/issues/11989) (2026-11-09 and 2026-11-10) report Anthropic's API refusing 2.1.280 for `claude-fable-5-2` with `claude_code_version_too_old`. An agent on that model signed in this way likely meets the same refusal **(I)**. `pi-ai` 1.5.2 reports 2.1.322, Claude Code's current npm version as of 2026-11-11.
+- **No warning.** Pi warns that this use "draws from extra usage and is billed per token" only in its coding agent's interactive mode, which Shrimpy doesn't use.
+
+Whether Shrimpy keeps this sign-in, with Anthropic's terms, is the first question in the [coding-agents note](coding-agents-scout-2026-11-11.md#for-the-owner).
+
+Earendil's [pi-claude-code](https://github.com/earendil-works/pi-claude-code), a Pi model provider that runs the owner's own `claude -p` for each turn so that sign-in stays `claude auth login`, is in the [coding-agents note](coding-agents-scout-2026-11-11.md#ready-made-bridges).
+
+## Upstream Features Left for Later
 
 ### Native MCP and code-based tool orchestration
 
@@ -44,129 +155,29 @@ Pi `0.99.0` added built-in extensions for MCP, `codemode`, and `tool_search`. Co
 
 MCP supports stdio and streamable HTTP, OAuth, extension registrations, resources, configurable exposure, and deferred discovery. Servers without direct tools connect in the background rather than delaying the first prompt. Pi `1.0.0` fixes deferred-tool restoration after resume/reload and strengthens OAuth server identity and scope handling. [MCP](https://github.com/earendil-works/pi/blob/v1.0.0/packages/coding-agent/docs/mcp.md).
 
-These features are **not automatically enabled by upgrading Shrimpy**. The SDK exports `createMcpExtension()`, `createCodemodeExtension()`, and `createToolSearchExtension()`; the CLI installs built-ins, while SDK hosts supply the factories. Shrimpy's `src/sessions/pi-resources.ts` currently supplies its own factories, and `src/config/pi.ts` reserves `defaultTools`, packages, and resource paths to Shrimpy policy. MCP configuration and credentials need an explicit workspace owner before exposing `/mcp` or its tools.
-
 QuickJS limits the script's direct capabilities. Calls to Bash, MCP servers, and other tools still use those tools' authority. Codemode is not containment of the Pi process or tools, and successful script rollback of its small store does not undo external tool effects.
 
 ### Canonical context and actionable turn boundaries
 
-Pi `0.86.0` records changing system prompts and tool declarations in transcript system messages. Pi `0.87.0` makes `SessionManager` the canonical source of future request context and adds append-only `context_edit` entries. A context edit can omit or replace a message for the model while retaining the raw transcript for inspection. This is a strong foundation for reducing stale context without maintaining a competing message store. [Session format](https://github.com/earendil-works/pi/blob/v1.0.0/packages/coding-agent/docs/session-format.md).
+Pi `0.87.0` adds append-only `context_edit` entries. A context edit can omit or replace a message for the model while retaining the raw transcript for inspection. This is a strong foundation for reducing stale context without maintaining a competing message store. [Session format](https://github.com/earendil-works/pi/blob/v1.0.0/packages/coding-agent/docs/session-format.md).
 
 Actionable `turn_end` and `agent_before_settle` hooks can append structural entries and request one further provider call. They expose projected context, pending input, and outcome; Pi retains queue scheduling. `context` handlers now receive conversation messages without system messages; `context_with_system` provides the explicit full-transcript transformation boundary. `pi.on()` returns an unsubscribe function. [Extension events](https://github.com/earendil-works/pi/blob/v1.0.0/packages/coding-agent/docs/extensions.md).
 
-For Shrimpy, these changes overlap `src/sessions/turn-context.ts`, context inspection, transcript cloning, compaction, and `src/sessions/turn-output.ts`. The last still resolves on the first `agent_end` and rejects cancellation without forwarding it to `session.abort()`. Prefer Pi's prompt/settlement lifecycle; the new hooks make a second Shrimpy turn-completion engine less necessary, not more.
-
-The public `message_end` hook remains useful for capturing context when queued input is actually consumed. An offline probe against `1.0.0` verified different context versions for initial and queued inputs, agreement between provider input and live/reopened transcripts, and final settlement of the original prompt. That does not prove every steering, compaction, or retry path.
-
-### Durable runtime and client/server packages
-
-Pi `1.0.0` moves the experimental harness out of agent-core into **`@earendil-works/pi-durable`**. It has a materially different contract from coding-agent's `AgentSession`: committed conversations, documents, submissions, and task checkpoints, with SQLite, JSONL, and memory storage. Inputs can have durable `requestId` deduplication; work can resume after reopening storage. Configuration is resolved per conversation and extensions are installed in a host-owned registry. [Durable runtime](https://github.com/earendil-works/pi/blob/v1.0.0/packages/durable/README.md).
-
-Tool intent is committed before execution. An interrupted tool reruns only when both its saved intent and current implementation declare replay safe; otherwise the model receives an interrupted result with retained committed output. The [source and recovery investigation](#pi-durable-source-and-recovery-investigation) includes actual process kills, external-effect duplication, Bash survival after owner death, waiter cancellation, and storage-ownership probes. These distinguish persisted runtime state from effects outside its database.
-
-The same release contains separately published **`pi-server`, `pi-client`, and `pi-protocol`**. The server routes application-owned services to durable session workers; clients attach to presentations, receive snapshots/subscriptions, and carry attachment IDs that reject stale routes. Disconnect rejects local waits without implying that admitted remote work was canceled. The client does not automatically reconnect or replay requests. The protocol uses bounded framed CBOR with opaque strict-JSON service payloads; Chord supplies typed service semantics. [Server](https://github.com/earendil-works/pi/blob/v1.0.0/packages/server/README.md), [client](https://github.com/earendil-works/pi/blob/v1.0.0/packages/client/README.md), [protocol](https://github.com/earendil-works/pi/blob/v1.0.0/packages/protocol/README.md).
-
-**These are experimental foundations, even though their package version is `1.0.0`.** Durable warns that its API can change without notice; the protocol promises no compatibility. Peer authentication remains application policy and is not implemented by the experimental Unix transport. Session discovery, management contracts, worker ownership, supervision, and application authorization remain host responsibilities. Coding-agent's experimental client/plugin subpaths have source-only conditions; they are not a supported published remote coding-agent API.
-
-This is the most consequential architectural research opportunity: compare the durable harness and routing libraries with Shrimpy's session pool, leases, channel admission, worker supervision, and client attachment before rebuilding those mechanisms. Adoption would change the transcript, extension, environment, and UI integration contracts. It is a separate decision from updating the four installed coding-agent packages, not a drop-in replacement or an implemented mesh.
-
 ### Model routing, classifiers, and images
 
-Experimental virtual models let an extension choose a physical model and thinking level for each request. Selection and dispatch are recorded separately; routing state follows the session branch, and Pi checks compaction against the physical model's limits. This could replace a bespoke router for choosing cheap or capable models. Shrimpy's configured model policies currently choose concrete models; they do not implement this per-request routing mechanism. [Virtual models](https://github.com/earendil-works/pi/blob/v1.0.0/packages/coding-agent/docs/virtual-models.md).
+Experimental virtual models let an extension choose a physical model and thinking level for each request. Selection and dispatch are recorded separately; routing state follows the session branch, and Pi checks compaction against the physical model's limits. This could replace a bespoke router for choosing cheap or capable models. [Virtual models](https://github.com/earendil-works/pi/blob/v1.0.0/packages/coding-agent/docs/virtual-models.md).
 
-The unified model runtime now supports chat, image, and classifier models. `classify()` exposes typed choice, score, and boolean answers through Jev providers and llama.cpp next-token probabilities; `generateImages()` uses the session's credential resolution. These are candidates for context selection and inexpensive decision gates, and for generating artifacts through tools. Local quality, latency, and routing cost have not been measured. Unqualified model reads remain chat-only, so Shrimpy's existing selectors need not suddenly accept image models. [Models](https://github.com/earendil-works/pi/blob/v1.0.0/packages/coding-agent/docs/models.md).
+The unified model runtime now supports chat, image, and classifier models. `classify()` exposes typed choice, score, and boolean answers through Jev providers and llama.cpp next-token probabilities; `generateImages()` uses the session's credential resolution. These are candidates for context selection and inexpensive decision gates, and for generating artifacts through tools. Local quality, latency, and routing cost have not been measured. [Models](https://github.com/earendil-works/pi/blob/v1.0.0/packages/coding-agent/docs/models.md).
 
-### Cache, compaction, and terminal improvements
+### Cache and compaction
 
 Cost-aware prompt-cache warming can keep eligible caches alive during long tool runs; the default is `streaming`, and optional `idle` warming runs between turns. It requires model lifetime metadata and an estimated avoided miss cost of at least $0.05. Warming costs count toward usage and can be controlled by `cache_warming_decision`. This is a new operational behavior to choose explicitly for long-lived agents. [Settings](https://github.com/earendil-works/pi/blob/v1.0.0/packages/coding-agent/docs/settings.md).
 
-Per-model compaction budgets, better cancellation/retry handling, overflow detection, signed-thinking replay, image limits, and earlier transcript persistence improve ordinary resident work. Shrimpy's copied compaction runner should be compared with these changes. The `session_before_compact` result still only cancels or replaces compaction; it does not add an instruction-only augmentation field, so the existing copy cannot simply be deleted on that basis.
-
-Pi now defaults to fullscreen, adds a terminal-derived system theme, embeds progress spinners in the editor, improves clipboard/file paste and autocomplete, and reduces rendering CPU/memory. These changes affect Shrimpy's theme deep imports, model selector patches, compact renderers, custom footer, and activity indicator. Set `tuiMode: "regular"` explicitly if retaining regular scrollback is the desired host behavior.
-
-## `1.0.0` Upgrade Assessment
-
-### Summary and versions
-
-Decision, 2026-10-02: Shrimpy skips this upgrade. `main` stays on `0.84.4` while Shrimpy is rebuilt on `pi-durable` per the [replacement plan](../REDESIGN/PLAN.md). The assessment below is kept as evidence.
-
-The stable upgrade is worth pursuing, but **it is not ready to land unchanged**. Source build failures and context-inspection regressions are demonstrated. Small disposable edits let the host build and start, but those edits are diagnostic accommodations, not a validated implementation.
-
-- Shrimpy source: clean `main`, `574bb2cb525e2fddabda7382c510ce048efd5b25`, `/Users/zachmeador/gits/shrimpy`.
-- Current four Pi packages: exact `0.84.4`; target: exact registry `1.0.0`, tag `a13d35a742c6ef8462812a28fbe1d8c8b7431c32`.
-- Current Pi-facing TypeBox: `1.3.7`; target Pi installs `1.3.27`. The probe retained both; alignment deserves verification. Shrimpy-owned `@sinclair/typebox` remains a separate boundary.
-- Node requirement remains `>=22.19.0`; probes used Node `26.7.0`, npm `11.19.0`. Pi's own source build now uses TypeScript 7/ES2024; that does not itself require switching Shrimpy's compiler.
-
-### Release impact map
-
-All four changelogs were read from after `0.84.4` through `1.0.0`. The map groups repeated entries by affected surface; provider-specific fixes are grouped where Shrimpy delegates their implementation to Pi. Evidence uses the stable source diff and published-package probes, not unreleased code.
-
-| Upstream change | Shrimpy surface and evidence | Assessment |
-|---|---|---|
-| `0.85.0`: restore externally stored entries with `SessionManager.inMemory()` | `src/sessions/context-inspection.ts` currently flattens projected messages into a fresh manager; stable session-manager implementation inspected | Candidate to preserve entry IDs, edits, and compaction state in inspection clones instead of flattening them. Not exercised here. |
-| `0.85.0`: tool cwd correction; fork/import/compaction-boundary fixes | `src/sessions/open.ts`, `transcript-store.ts`, `pool.ts`; sessions/runtime probes | Useful native fixes; archive metadata and leases remain Shrimpy-owned. Filesystem authority still needs host policy. |
-| `0.85.0–0.86.0`: embedded loader, status spinners, clipboard, search/autocomplete | `extensions/activity-indicator.ts`, `src/tui/model-selection.ts`, `session-selector.ts`; loader/TUI diff and startup | Activity extension compiles; fullscreen startup and selectors smoke-tested. Clipboard, image paste, custom editor, and configurable save keys not exercised. |
-| `0.85.0`: pi-tui environment defaults removed | Shrimpy normally uses Pi `InteractiveMode`; source search found no removed color-query API calls | Explicit renderer settings matter for standalone widgets. No current imported API blocker found. |
-| `0.85.0–1.0.0`: provider models, OAuth, effort/signature replay, strict schema, retry/cost/cache fixes | `src/setup/model-access.ts`, `src/sessions/models.ts`, `src/inference/quick-call.ts`, `src/tools/daemon.ts`; pi-ai changelog/source and offline fixtures | Shrimpy delegates adapters to Pi. Credential-backed providers, local Qwen, OAuth callbacks, subscription limits, and image requests remain unverified. No automatic credential migration is proposed. |
-| `0.85.0`: AI binding fetch rename and compact assistant frames | Source search found no Cloudflare binding helper or frame encoder imports | No direct breakage; frames could support a future stream transport. |
-| `0.85.1`: experimental client code removed from supported SDK packaging | Shrimpy imports the supported package root; package exports inspected | Do not treat source-only client/plugin conditions as a supported remote API. Separately published server/client libraries are assessed above. |
-| `0.86.0`: `TranscriptContext`; JSON-only tool arguments/details | `src/sessions/context-inspection.ts`, `quick-call.ts`, compaction runner and provider fixtures; compile and inspection probes | Caller-side `Context` remains supported, provider callbacks now receive transcript context. Inspection loses separate prompt/tools; test fixtures need normalization-aware assertions. Tools must return JSON-compatible details. |
-| `0.86.0`: persisted prompt/tool changes and forced prompt behavior | `src/context/contained-system-prompt.ts`, `src/sessions/open.ts`, `pi-resources.ts`, `turn-context.ts`; session tests | Provider input now includes a system message; old assumptions about top-level `systemPrompt` and user-only message arrays fail. Preserve containment and inspect normalized provider input. |
-| `0.86.0`: compaction overrides, cancellation, oversized results, retry delay cap | `src/sessions/compaction/{extension,runner,policy}.ts`, `src/config/runtime.ts`; compaction tests and upstream compaction diff | Existing focused compaction tests pass with diagnostic build fixes. Copied runner may bypass newer projection and per-model budget behavior; default behavior parity not established. |
-| `0.86.0`: cache warming and decision event | Session settings adapter passes native preferences; SDK constructs `CacheWarmer`; stable settings/source inspected | New model calls/cost behavior, default `streaming`. Choose policy explicitly; not benchmarked or exercised. |
-| `0.86.0`: `/bug`, diagnostics, handler unsubscribe, RPC input hooks | `src/tui/inline-commands.ts`, resource loader, terminal host; slash catalog diff and command-conflict probe | `/bug` is the only new core slash catalog name. No collision with Shrimpy `/agents`, `/status`, `/shrimpy`; decide how its report/export flow fits host data policy. RPC input interception now applies to steering/follow-up. |
-| `0.87.0`: canonical `SessionManager`, `context_edit`, `context_with_system` | Context inspection, transcript readers, turn-context normalizer and compaction; stable projection code and offline context probe | Assigning agent messages no longer controls future history. Use restore/projection/refresh APIs; retain raw versus effective context separately. Added union members require checking exhaustive switches and constructed events. |
-| `0.87.0`: `prepareRequest`, `finishTurn`, actionable boundaries, deferred settled actions | `src/sessions/turn-output.ts`, `recording.ts`, channel runtime; source search and queued settlement probe | No `shouldStopAfterTurn` usage found. Replace early completion wrapper through public Pi lifecycle; new boundaries provide policy hooks without replacing queue scheduling. |
-| `0.87.0`: image resize profiles | `src/skills` resource loading, media tools, provider/model configuration; changelog and model types | Native image preprocessing is reusable. Attachment limits and image cache behavior not exercised. |
-| `0.99.0–1.0.0`: MCP/codemode/tool search, exposure and nested execution | `src/sessions/pi-resources.ts`, `src/config/pi.ts`, `src/tools/daemon.ts`; exported factories, SDK/loader source, absence of local implementation | Host must opt in and own configuration. Native orchestration is a deletion candidate for any proposed custom executor; SDK upgrade alone does not install built-ins. New default-tool modifiers must not bypass Shrimpy allowlists. |
-| `0.99.0–1.0.0`: virtual/chat/image/classifier model runtime | Concrete model policy, quick calls, setup selectors, custom footer; unified types and virtual-model docs | No removed plural image-model imports found. Per-request routing and structured classification are new extension options; custom footer lacks upstream routed-model display. |
-| `0.99.0`: input admission dispositions | `src/sessions/turn-output.ts`, external input adapters; `prompt`, RPC and `RpcClient` implementations | SDK `prompt()` still returns `Promise<void>` and reports `handled/queued/started` via `preflightResult`; `steer()`/`followUp()` return queued-input disposition. Admission is not completion. |
-| `0.99.0–1.0.0`: theme/color redesign, fullscreen default, `quietStartup: "header"` | `src/app/pi-internals.ts`, `src/tui/interactive.ts`, `src/config/runtime.ts`, settings storage | Unchanged build fails for removed `detectTerminalBackgroundFromEnv` and widened `quietStartup`. Remaining private theme helpers still lack root exports. New fullscreen mode reaches the prompt. |
-| `1.0.0`: experimental harness removed from agent-core; durable/server/client/protocol packages | Source search found no old harness imports; published package imports and SQLite reopen probe | No direct removed-harness blocker. New foundations warrant separate architectural evaluation; no transport or crash-in-flight proof. |
-| Continuing gaps: collapsed custom-message spacer, built-in interception, selector decoration | Stable `CustomMessageComponent` and root exports; current turn-context and selector tests | Spacer remains and Shrimpy's patch still passes. Existing inline command/model-selector patches are not superseded by public APIs. |
-
-### Confirmed blockers and required changes
-
-The unchanged candidate build fails at three places:
-
-1. `src/app/pi-internals.ts`: `detectTerminalBackgroundFromEnv` no longer exists. Stable Pi has `detectTerminalTheme()` and terminal palette state; adapt the host initialization without claiming the environment-only fallback reproduces palette detection.
-2. `src/sessions/open.ts:282`: assignment to `session.state.systemPrompt` fails because it is read-only. Move initialization to supported prompt/resource hooks and validate pre-request inspection as well as actual provider context.
-3. `src/sessions/settings.ts:100`: `quietStartup` now has type `boolean | "header"`, while Shrimpy runtime configuration allows only boolean. Choose and persist the supported host values coherently; a cast would hide the mismatch.
-
-There is also a demonstrated runtime regression: `src/sessions/context-inspection.ts:226` copies top-level `context.systemPrompt` and `context.tools`. With normalized provider context both are absent, so it reports `""` and `[]` even while transcript system messages contain the prompt and tools. Read effective state with Pi's `getCurrentSystemPrompt()` and `getCurrentTools()` and define whether inspected messages include system entries. The existing parity test can compare two empty fields and miss this; in the probe it instead fails on a time difference embedded in system-message content.
-
-`test/sessions.test.ts` also assumes a separate provider `systemPrompt` and one user message. Two focused tests fail because context now has transcript system messages. Update their assertions to test preserved behavior rather than merely changing counts. Do not mistake these stale fixtures for proof that containment or turn-context persistence is broken.
-
-### Verification and limits
-
-Disposable candidate: clean Git archive of the Shrimpy baseline under `/tmp/shrimpy-pi100-x9w6qee6/shrimpy`. Live workspace data and credentials were not copied. All install/build/TUI writes happened there or in disposable fixture homes.
-
-- Exact four-package `1.0.0` installation: passed. `npm ls` confirmed Pi uses TypeBox `1.3.27` while Shrimpy's direct `1.3.7` remains.
-- Unchanged `npm run build`: failed with the three TypeScript errors above.
-- Independent strict extension typecheck: passed using `tsc --noEmit --target ES2022 --module Node16 --moduleResolution Node16 --strict --skipLibCheck --allowImportingTsExtensions extensions/*.ts`.
-- Diagnostic edits only in the candidate: substitute an environment fallback using `detectTerminalTheme()`, omit the forbidden state assignment, and collapse header quiet startup to boolean. With those accommodations, `npm run build` passed, including web output and generated mirrors. These edits are not offered as the upgrade patch.
-- Focused resources, context parity, runtime replacement, settings, themes, and collapsed-context slice: 11/12 passed. Parity failed because separate captures have different runtime timestamps inside new system messages. A separate assertion probe confirmed empty top-level inspection prompt/tools alongside transcript system entries.
-- Focused compaction, quick-call, models, sessions, compact-tool renderers, inline commands, and model-selection slice: 58/60 passed. Two session tests fail on old provider-context shape assumptions; compaction and rendering checks pass within their existing coverage.
-- Offline queued-context/lifecycle probe: passed against `1.0.0`; source was the checkpointed redesign probe on branch `REDESIGN`. No model network request was made.
-- Real Shrimpy terminal construction in a PTY, using the candidate's `prepareAgentTuiSession()` exposed only for the probe: reached fullscreen prompt with startup diagnostics `[]` and no extension conflict block. `/settings` opened the native menu, `/new` reported a new session, `/model` opened its empty configured-provider selector, and `/quit` exited cleanly. No credential-backed model was selected; configurable save shortcuts, theme palette response, persisted new preferences, image/clipboard behavior, and streaming UI remain unverified.
-- Published `pi-durable`, `pi-server`, `pi-client`, and `pi-protocol` imports: passed. The initial SQLite probe preserved root identity and instructions through close/reopen. The later [durable investigation](#pi-durable-source-and-recovery-investigation) records stronger, separately scoped source and process-death evidence.
-- Full test suite and lint were not run: the demonstrated build/inspection blockers already prevent an unchanged upgrade from being ready. The terminal smoke and targeted tests do not override them.
-
-### Upgrade sequence
-
-1. Fix the three compile blockers and normalized context inspection in an isolated candidate; align Pi-facing TypeBox deliberately and keep ambient resource/configuration inputs explicit.
-2. Verify containment and context through real provider-input capture, raw/effective transcript projection, compaction, reload, branch/resume, queued input, cancellation, and the prompt settlement lifecycle. Use upstream APIs to remove duplicate completion/context machinery where the behavior is proved.
-3. Exercise every changed host interaction: fullscreen/regular mode, theme detection, selectors and save shortcuts, settings persistence across process restart, tool output, clipboard/images, authentication, and extension diagnostics. Run the build, extension typecheck, focused checks, lint, and full suite.
-4. Smoke-test the actual credential-backed providers and local endpoints, including thinking replay, overflow, cache warming policy, and interrupted streaming. Only then decide whether the ordinary coding-agent upgrade is ready to land.
-5. Evaluate native MCP/codemode and the experimental durable/client/server foundations as separate capabilities, using disposable data and explicit application authority. Compare a real persisted tool turn, detach/reconnect, and process death before choosing a new hosting contract.
-
-The previous `0.84.4` integration was completed for Shrimpy `v0.6.2`: native `/thinking` and settings persistence, command-conflict checks, build/lint, and 738 automated tests passed, with credential-backed smokes still absent. Those historical results do not validate `1.0.0`.
-
-### Unreleased upstream watch
-
-Upstream `main` at `a276dabe57911253350bffb93cb7d7aff6a73261` is beyond the stable tag. Its changelogs include OAuth URL copying, MCP Client ID Metadata Documents, per-project overrides of global MCP servers, additional classifiers, removal of the published shrinkwrap, a `brace-expansion` dependency advisory fix, codemode output limits, extension image-rendering fixes, and provider/terminal corrections. These remain an upgrade watchlist; the durable probes do not validate these unrelated changes. The packaging fix is relevant to library consumers who need dependency overrides. [Unreleased coding-agent changes](https://github.com/earendil-works/pi/blob/a276dabe57911253350bffb93cb7d7aff6a73261/packages/coding-agent/CHANGELOG.md).
+The `session_before_compact` result still only cancels or replaces compaction; it does not add an instruction-only augmentation field.
 
 ## Pi Durable Source and Recovery Investigation
+
+A fresh clone for the durable investigation was pinned to `main` commit `a276dabe57911253350bffb93cb7d7aff6a73261`. The durable, Chord, protocol, client, server, and coding-agent experimental runtime source trees are identical to `v1.0.0` at this revision; only empty unreleased changelog headings differ in four of those packages. The source probes below therefore exercise released durable code alongside the inspected current `pi-ai` source.
 
 ### What the runtime owns
 
@@ -249,15 +260,13 @@ The experimental controller has a material admission gap: its prompt request has
 
 ### Executable evidence
 
-The fresh source clone is clean. Investigation data and dependencies live under `/private/tmp/pi-durable-latest-8dXvwe8u/`; the disposable source copy came from `git archive` of the pinned clone. Dependencies were installed with `npm ci --ignore-scripts`. Node was `26.7.0`. Shrimpy's existing research edits were preserved; its package files, source, live `dist/`, workspace, and credentials were not changed.
+The fresh source clone is clean. The disposable source copy came from `git archive` of the pinned clone. Dependencies were installed with `npm ci --ignore-scripts`. Node was `26.7.0`. Shrimpy's existing research edits were preserved; its package files, source, live `dist/`, workspace, and credentials were not changed.
 
 - Eleven selected upstream test files passed: **278 tests**, covering admission, queues, lifecycle, ownership, task/generation/tool recovery, registry changes, SQLite, JSONL, and storage/runtime boundaries. The tests ran against current source and freshly emitted current `pi-ai` core code. Initial source execution needed that emission because `pi-ai` exports reference `dist`; its whole-package typecheck reported missing generated provider catalogs. This was not a successful full-monorepo build.
 - Six actual SQLite process-kill scenarios passed: admitted input, unsafe external effect, declared-safe duplicate effect, task-ID-deduplicated effect, persisted partial model stream, and surviving Bash child. Each recovery used a new Node process, fresh fixture provider/registry, the same database, and no live credentials. All six also checked that retrying the admission ID returned one original input even with changed retry content.
 - A separate cancelled-wait probe passed: the waiter rejected while the submission stayed placed, then a reacquired submission returned its final answer.
 - The JSONL filesystem-spy and two-owner SQLite probes passed their assertions, confirming the limitations above.
 - Three remote-service scenarios passed using real `pi-server`, `pi-client`, the experimental session-worker services, and a durable memory Harness: cancelled wait, disconnect/reconnect/reattach with stale-route rejection, and duplicate admission after a deliberately lost reply. The byte transport and worker lifetime were supplied in process; this did not exercise Unix sockets, worker subprocess supervision, authentication, or SQLite over that transport.
-
-The retained scripts are `pi/crash-probe.mjs`, `pi/crash-worker.mjs`, `pi/wait-probe.mjs`, `pi/fsync-probe.mjs`, and `pi/remote-durable-probe.mjs` under the disposable directory. `crash-results.json` records transcripts, task IDs, external journals, and checkpoints; `remote-durable-results.json`, `tests.log`, `crash.log`, and `wait.log` record outcomes. The crash coordinator preloads Pi's `packages/coding-agent/src/experimental/source-resolver.ts` in each child, so those process probes resolve workspace packages directly to current source.
 
 These tests use the faux provider and real filesystem/SQLite/processes. They do not validate real-provider reconnects, provider-owned deferred handles after process death, power failure, OS containment, authenticated remote transport, or Shrimpy's proposed full workflow.
 
@@ -271,72 +280,27 @@ A minimal host still selects the enduring agent home, creates the model/credenti
 
 This supports evaluating a replacement based on `pi-durable`, not another compatibility layer around the present session pool. The unresolved product tradeoff is whether those runtime deletions outweigh the missing coding-agent UI/extension capabilities. The experimental host is useful prior art for answering that, not a finished Shrimpy foundation. [Experimental durable host](https://github.com/earendil-works/pi/blob/a276dabe57911253350bffb93cb7d7aff6a73261/packages/coding-agent/src/experimental/durable/README.md).
 
-## Extensibility Assessment
+## For the owner
 
-### Public Surfaces Used Well
+1. **The wire.** Which wire should Shrimpy's three programs and its web client speak: (a) Chord v2 on Durable 1.5.x, (b) Durable held at 1.0.0 or 1.1.0, or (c) Shrimpy's own wire on Durable 1.5.x? [The options](#options-for-shrimpys-wire) have the costs. (a) and (c) replace all three programs' transport, and the first update that carries either moves each home's storage one way, homes in use included. Copying the removed packages under (b), or choosing (c), means first changing the plan's line against a service framework of Shrimpy's own **(I)**.
+2. **When.** Should that choice wait for p3's decision on Chord's app kit, which p3's plan puts in the week of 2026-11-16?
+3. **The release.** Should the release, which you called close on 2026-10-08, ship on the 1.0.0 pins meanwhile? The plan's gate bears on it **(I)**: "if client and framework complexity outweigh the runtime savings, revise before going live" ([PLAN.md](../REDESIGN/PLAN.md#order-of-work)).
+4. **The plan.** [PLAN.md](../REDESIGN/PLAN.md), [1-programs.md](../REDESIGN/design/1-programs.md), [2-contracts.md](../REDESIGN/design/2-contracts.md) and [code-layout.md](../REDESIGN/design/code-layout.md) rest on `pi-client`, `pi-server` and `pi-protocol`, which upstream removed on 2026-10-12. Should the plan say so now, or once the wire is chosen?
+5. **Peers across machines.** 2-contracts.md's "Decide first" item settles the MVP on lockstep upgrades with a reported mismatch. Does the wire choice reopen it, since (c) could give the link between machines a stable protocol of its own?
 
-Shrimpy already leans heavily on Pi's public SDK and extension system:
-
-- Session creation and runtime replacement
-- Session persistence, branching, navigation, and event subscriptions
-- Tool registration, inspection, activation, and same-name overrides
-- Commands, renderers, headers, footers, widgets, and lifecycle hooks
-- Prompt and skill resource overrides
-- Provider registration and model switching
-- Context mutation and per-turn `before_agent_start` handling
-- Compaction interception and session leases
-
-These are the right seams for an application host. Shrimpy does not duplicate Pi's model loop, native tool-call protocol, transcript engine, or provider request machinery.
-
-### Private And Compatibility Seams
-
-The hackier integration points are concentrated in terminal composition and a few incomplete host APIs:
-
-- `src/tui/inline-commands.ts` patches private editor submission, changelog handling, and transcript containers because Pi cannot publicly override built-in commands or append ephemeral transcript blocks.
-- `src/tui/model-selection.ts` patches private autocomplete, key handling, selectors, and model-selector internals to hide commands, disable cycling, and add favorites.
-- `src/tui/turn-context-rendering.ts` patches `CustomMessageComponent.prototype` because a renderer with no collapsed content still leaves a reserved spacer.
-- `src/app/pi-internals.ts` deep-imports theme registry, proxy, and automatic-theme helpers outside Pi's public export contract.
-- `src/sessions/open.ts` assigns `session.state.systemPrompt` after creation. The public per-turn containment hook remains authoritative, but a host setter or stronger initialization contract would be cleaner.
-- `src/sessions/compaction/runner.ts` owns a copy-like compaction path because `session_before_compact` can replace or cancel compaction but cannot augment the default instructions.
-
-These remaining terminal and compaction gaps justify narrow upstream API requests. The useful asks are built-in command interception, model-selector decoration, ephemeral transcript components, no-spacer collapsed renderers, exported theme preparation, and compaction-instruction augmentation. Public model-runtime calls and canonical session projection have improved upstream; compare those contracts before requesting equivalent host APIs.
-
-## Pi Package Ecosystem
-
-A Pi package is an npm package or git repository contributing `extensions/`, `skills/`, `prompts/`, or `themes/`. Pi can discover those resources by convention or explicit package metadata.
-
-Shrimpy does not load the user's normal Pi package configuration. The workspace-backed settings adapter rejects Pi package and resource keys, while `createShrimpyResourceLoader()` uses fixed bundled extension paths, explicit Shrimpy skill paths, and disabled ambient skill discovery. This is a sound default for a durable home agent but leaves useful ecosystem work inaccessible.
-
-If Shrimpy retains coding-agent, prefer its existing package discovery and management mechanisms with explicit agent-home configuration over inventing a second package manager. Shrimpy should own which trusted code and resources a home selects, their provenance, and the CLI access to that selection. Extensions execute with the host process's authority; instruction files and resource allowlists are not containment.
-
-Native MCP/codemode factories can supply useful capabilities without first implementing general package installation. The durable path uses a separate registry API, so the runtime decision comes before designing a package bridge. Independent channel services, recurring wakeups, execution authority, and process supervision still need explicit owners; session/task execution should use the chosen Pi runtime.
-
-## Relevant Pi Runtime Surfaces
-
-### SDK And Sessions
-
-Pi runs as an interactive CLI, print-mode CLI, JSON event stream, RPC subprocess, or embedded SDK. Sessions persist as JSONL trees with branching, forking, naming, navigation, and compaction.
-
-Useful host objects include `createAgentSession()`, `SessionManager`, `SettingsManager`, `DefaultResourceLoader`, and `ModelRuntime`. The session exposes prompting, steering, queued follow-ups, subscriptions, aborts, compaction, model and thinking changes, tree navigation, active-tool control, reload, and disposal.
-
-### Extension API
-
-Extensions can register tools, commands, providers, renderers, shortcuts, flags, and UI components. They can persist custom session entries, inject user or system messages, inspect and activate tools, and intercept resource discovery, session lifecycle, model requests, agent turns, tool calls, input, compaction, and tree navigation.
-
-Tool policy is composable through SDK allowlists and denylists, active-tool APIs, additive custom tools, and same-name tool replacement. Pi passes active tool schemas to providers and executes validated model calls.
-
-### Prompt And Resources
-
-`DefaultResourceLoader` controls system prompts, appended prompt text, instruction files, extensions, skills, prompts, and themes. Shrimpy supplies a complete assembled system prompt, strips ambient Pi instruction and skill layers, and loads a curated extension set. Pi continues to own provider-native tool definitions and interactive command handling.
-
-The focused Pi skill handling note covers skill discovery, additional paths, slash-command expansion, and the Shrimpy integration gap in more detail.
-
-### Background Work And Multi-Agent Scope
-
-The installed coding-agent has no durable background daemon or native cross-agent orchestration layer. Pi `1.0.0` now offers experimental durable tasks, child conversations, and client/server routing through separate packages, as assessed above. Recurring wakeups, external channels, environment administration, and application authorization remain host responsibilities.
-
-The upstream `packages/mom/` example demonstrates one external messaging channel driving queued Pi sessions. It is useful prior art for routing but is narrower than Shrimpy's multi-channel, multi-agent workspace.
+The Anthropic subscription sign-in is the first question in the [coding-agents note](coding-agents-scout-2026-11-11.md#for-the-owner). Paging long transcripts is the question on long sessions in the [clients note](clients-scout-2026-11-11.md#for-the-owner), which also says what the wire means for the web client.
 
 ## Sources
 
-[Repository](https://github.com/earendil-works/pi) · [`v1.0.0` release](https://github.com/earendil-works/pi/releases/tag/v1.0.0) · [`v0.84.4...v1.0.0` comparison](https://github.com/earendil-works/pi/compare/v0.84.4...v1.0.0) · [Agent-core changelog](https://github.com/earendil-works/pi/blob/v1.0.0/packages/agent/CHANGELOG.md) · [Coding-agent changelog](https://github.com/earendil-works/pi/blob/v1.0.0/packages/coding-agent/CHANGELOG.md) · [AI changelog](https://github.com/earendil-works/pi/blob/v1.0.0/packages/ai/CHANGELOG.md) · [TUI changelog](https://github.com/earendil-works/pi/blob/v1.0.0/packages/tui/CHANGELOG.md) · [SDK](https://raw.githubusercontent.com/earendil-works/pi/v1.0.0/packages/coding-agent/docs/sdk.md) · [Extensions](https://raw.githubusercontent.com/earendil-works/pi/v1.0.0/packages/coding-agent/docs/extensions.md) · [Models](https://raw.githubusercontent.com/earendil-works/pi/v1.0.0/packages/coding-agent/docs/models.md) · [Skills](https://raw.githubusercontent.com/earendil-works/pi/v1.0.0/packages/coding-agent/docs/skills.md) · [Themes](https://raw.githubusercontent.com/earendil-works/pi/v1.0.0/packages/coding-agent/docs/themes.md)
+For the older sections: [Repository](https://github.com/earendil-works/pi) · [`v1.0.0` release](https://github.com/earendil-works/pi/releases/tag/v1.0.0) · [`v0.84.4...v1.0.0` comparison](https://github.com/earendil-works/pi/compare/v0.84.4...v1.0.0) · [Coding-agent changelog](https://github.com/earendil-works/pi/blob/v1.0.0/packages/coding-agent/CHANGELOG.md) · [AI changelog](https://github.com/earendil-works/pi/blob/v1.0.0/packages/ai/CHANGELOG.md) · [TUI changelog](https://github.com/earendil-works/pi/blob/v1.0.0/packages/tui/CHANGELOG.md) · [Models](https://raw.githubusercontent.com/earendil-works/pi/v1.0.0/packages/coding-agent/docs/models.md)
+
+For [Upstream After 1.0.0](#upstream-after-100), read on 2026-11-11:
+
+- **Pi:** [releases](https://github.com/earendil-works/pi/releases) · [`v1.2.0` release](https://github.com/earendil-works/pi/releases/tag/v1.2.0) · [removal commit](https://github.com/earendil-works/pi/commit/7472cda0d6e51dfbf53c03f46b47aa42ac64bf64) · [packages on `main`](https://github.com/earendil-works/pi/tree/main/packages) · [LICENSE](https://github.com/earendil-works/pi/blob/main/LICENSE) · [release rule](https://github.com/earendil-works/pi/blob/main/.pi/skills/release.md) · [#11715](https://github.com/earendil-works/pi/issues/11715) · [#12008](https://github.com/earendil-works/pi/issues/12008)
+- **npm:** [`pi-client`](https://registry.npmjs.org/@earendil-works/pi-client) · [`pi-server`](https://registry.npmjs.org/@earendil-works/pi-server) · [`pi-protocol`](https://registry.npmjs.org/@earendil-works/pi-protocol) · [`pi-durable`](https://registry.npmjs.org/@earendil-works/pi-durable) · [`chord`](https://registry.npmjs.org/@earendil-works/chord)
+- **Chord:** [changelog](https://github.com/earendil-works/pi/blob/main/packages/chord/CHANGELOG.md) · [README](https://github.com/earendil-works/pi/blob/main/packages/chord/README.md) · [`src/index.ts`](https://github.com/earendil-works/pi/blob/main/packages/chord/src/index.ts) · [v2 at the root](https://github.com/earendil-works/pi/commit/e9c0ff4d84a69773ae16950e6d8cb0ef224e538f) · [design](https://github.com/earendil-works/pi/blob/main/packages/chord/docs/design.md) · [app kit](https://github.com/earendil-works/pi/blob/main/packages/chord/src/node/app/README.md) · [app kit exports](https://github.com/earendil-works/pi/blob/main/packages/chord/src/node/app/index.ts) · [HTTP layer](https://github.com/earendil-works/pi/blob/main/packages/chord/src/node/http/README.md) · [links](https://github.com/earendil-works/pi/blob/main/packages/chord/src/link/README.md) · [commits](https://github.com/earendil-works/pi/commits/main/packages/chord)
+- **Durable:** [changelog](https://github.com/earendil-works/pi/blob/main/packages/durable/CHANGELOG.md) · [README](https://github.com/earendil-works/pi/blob/main/packages/durable/README.md)
+- **Apps on Durable 1.5:** [Pi Pocket architecture](https://github.com/TannerMidd/pi-pocket/blob/main/docs/architecture.md) · [Ultimate PR #126](https://github.com/HazAT/ultimate/pull/126) · [Cherry Studio harness](https://github.com/CherryHQ/cherry-studio/blob/main/packages/agent-runtime-pi-durable/src/behavior/harness.ts)
+- **Earendil's apps:** [p2 README](https://github.com/earendil-works/pi/blob/main/apps/p2/README.md) · [p2 `package.json`](https://github.com/earendil-works/pi/blob/main/apps/p2/package.json) · [p2 server](https://github.com/earendil-works/pi/blob/main/apps/p2/src/hosts/server.ts) · [p2 handoff](https://github.com/earendil-works/pi/blob/main/apps/p2/docs/handoff.md) · [p2 notes](https://github.com/earendil-works/pi/blob/main/apps/p2/docs/p2-notes.md) · [p2 chat contract](https://github.com/earendil-works/pi/blob/main/apps/p2/plugins/chat/contract.ts) · [p2-mac README](https://github.com/earendil-works/pi/blob/main/apps/p2-mac/README.md) · [p3 plan](https://github.com/earendil-works/pi/blob/main/apps/p3/docs/plan-2026-11-11.md) · [p3 efficiency](https://github.com/earendil-works/pi/blob/main/apps/p3/docs/efficiency.md) · [p3 status](https://github.com/earendil-works/pi/blob/main/apps/p3/docs/status-2026-11-09.md) · [p3 decisions](https://github.com/earendil-works/pi/blob/main/apps/p3/docs/decisions.md) · [p3 handoff](https://github.com/earendil-works/pi/blob/main/apps/p3/docs/handoff.md) · [Radius in Pi's provider docs](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/providers.md)
+- **pi-ai's Anthropic sign-in:** [OAuth](https://github.com/earendil-works/pi/blob/main/packages/ai/src/auth/oauth/anthropic.ts) · [requests](https://github.com/earendil-works/pi/blob/main/packages/ai/src/api/anthropic-messages.ts) · [version commit](https://github.com/earendil-works/pi/commit/a05e3a0776) · [#11969](https://github.com/earendil-works/pi/issues/11969) · [#11989](https://github.com/earendil-works/pi/issues/11989) · [claude-code#93216](https://github.com/anthropics/claude-code/issues/93216) · [Claude Code on npm](https://registry.npmjs.org/@anthropic-ai/claude-code/latest) · [Pi's billing warning](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/modes/interactive/interactive-mode.ts)
+- **pi-claude-code:** [repository](https://github.com/earendil-works/pi-claude-code)

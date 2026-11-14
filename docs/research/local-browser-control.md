@@ -1,7 +1,8 @@
-# Agent Web-Browsing Frameworks
+# 🦐 Agent Web-Browsing Frameworks
 
 Date: 2026-05-28
 Status: Research
+Trimmed: 2026-11-11. Git has the whole note.
 
 Survey of browser-control mechanisms and higher-level web-agent frameworks that could become Shrimpy's default browser capability. This updates the older local browser-control note rather than creating a duplicate, because the same decision has two layers:
 
@@ -24,7 +25,7 @@ Primary sources checked:
 
 ## Short answer
 
-Use **agent-browser with Chrome as the default direct browser tool** for Shrimpy. It is the best fit for Shrimpy's CLI-first architecture: one binary, shellable commands, persistent local sessions, AX-ref snapshots, broad interaction coverage, CDP attach mode, provider hooks, and no MCP server required.
+Use **agent-browser with Chrome as the default direct browser tool** for Shrimpy. It is the best fit for Shrimpy: one binary, shellable commands, persistent local sessions, AX-ref snapshots, broad interaction coverage, CDP attach mode, provider hooks, and no MCP server required.
 
 Add **Lightpanda as an opt-in engine**, not the default. It is interesting on a Pi because it is low-memory and fast, but it is still beta, has partial web API coverage, has no graphical renderer, and cannot replace Chrome for screenshot, visual verification, profiles, or full browser fidelity.
 
@@ -34,13 +35,13 @@ Treat **Webwright as a higher-level skill pattern**, not the browser backend. It
 
 Most browser-agent framework choices collapse onto these questions:
 
-- **Invocation shape.** CLI, MCP server, library import, extension bridge, or cloud API. Shrimpy should prefer CLI because every feature should be reachable by `shrimpy <command>`, and child processes compose cleanly with agents.
+- **Invocation shape.** CLI, MCP server, library import, extension bridge, or cloud API. Shrimpy should prefer CLI because child processes compose cleanly with agents.
 - **Process model.** Launch fresh browser, attach to a running user browser, run a persistent local daemon, or call a remote browser service.
 - **Action vocabulary.** Pixel coordinates, DOM selectors, AX refs from an accessibility snapshot, natural-language actions, or generated code.
 - **State model.** Is state the browser session, a saved browser profile, a workspace artifact such as a script/log/screenshot, or a remote provider session?
 - **Observability.** Can the agent inspect snapshots, screenshots, console logs, network requests, traces, videos, and saved artifacts?
 - **Failure handling.** Does the framework make stale refs, dialogs, download waits, iframe boundaries, redirects, and anti-bot failures visible?
-- **Security.** Does it isolate browser identity from the user's real browser? Does it support allowlists, confirmation gates, profile separation, and SSRF protections for cloud browsers?
+- **Security.** Does it isolate browser identity from the user's real browser? Does it support allowlists, confirmation gates (for downloads, file uploads, eval, and actions on sensitive domains), profile separation, and SSRF protections for cloud browsers?
 
 ## Layer model
 
@@ -64,7 +65,7 @@ Shrimpy's default should live at the agent-facing surface layer. Higher-level ag
 
 Relevant strengths:
 
-- CLI-first and easy to wrap behind `shrimpy browser ...`.
+- CLI-first.
 - Snapshot refs (`@e1`, `@e2`) are the primary agent vocabulary, while CSS, text, XPath, and semantic locators remain available for fallback.
 - Broad command surface: open/navigate, click, fill, type, press, scroll, screenshot, PDF, snapshot, eval, get text/html/value/attrs, cookies/storage, network routing/HAR, tabs, frames, dialogs, console/errors, traces, profiling, video, auth vault, confirmations, dashboard, CDP attach, and streaming.
 - Persistent daemon avoids paying browser startup cost on every command.
@@ -94,8 +95,7 @@ Strengths:
 
 Tradeoffs:
 
-- The command surface is less agent-specialized than `agent-browser` in places Shrimpy likely cares about: auth vault, confirmation workflow, dashboard,
-provider integration, streaming, and Lightpanda support.
+- The command surface is less agent-specialized than `agent-browser` in places Shrimpy likely cares about: auth vault, confirmation workflow, dashboard, provider integration, streaming, and Lightpanda support.
 - Still Playwright/Node centered.
 
 Default judgment: **credible second choice**. Prefer this if upstream stability, vendor trust, or cross-browser support matters more than `agent-browser`'s agent-specific command surface.
@@ -137,7 +137,7 @@ Tradeoffs:
 - Browser fidelity matters for login flows, complex SPAs, canvas/WebGL, file-pickers, visual checks, and sites with subtle Chrome assumptions.
 - It collects usage telemetry by default unless disabled with `LIGHTPANDA_DISABLE_TELEMETRY=true`.
 
-Default judgment: **opt-in engine**. On Shrimpy, expose `browser.engine: lightpanda` or `SHRIMPY_BROWSER_ENGINE=lightpanda` only after Chrome works. Fallback to Chrome for screenshots, empty snapshots, and fidelity-sensitive flows.
+Default judgment: **opt-in engine**. Fallback to Chrome for screenshots, empty snapshots, and fidelity-sensitive flows.
 
 ### Playwright MCP
 
@@ -152,7 +152,7 @@ Strengths:
 Tradeoffs:
 
 - MCP adds a long-lived tool server and schema/context overhead.
-- Shrimpy already wants CLI subcommands; MCP does not buy much for a tool that ships with the agent runtime.
+- MCP does not buy much for a tool that ships with the agent runtime.
 - The unsafe run-code tool is effectively arbitrary code execution in the Playwright server process and needs trust boundaries.
 
 Default judgment: **not Shrimpy default**. Useful only if Shrimpy later exposes external MCP servers for compatibility.
@@ -312,37 +312,10 @@ Key facts from the clone:
 
 The important pattern to borrow is not all the provider code. It is the shape: one small browser toolset, one stable ref-based contract, backend selection behind config, CDP attach as an escape hatch, and a supervisor layer for browser state that short-lived CLI calls cannot observe well.
 
-## Shrimpy recommendation
-
-Implement browser automation as a Shrimpy CLI feature first:
-
-```text
-shrimpy browser open <url>
-shrimpy browser snapshot [--full]
-shrimpy browser click <ref>
-shrimpy browser type <ref> <text>
-shrimpy browser press <key>
-shrimpy browser scroll <up|down>
-shrimpy browser screenshot [path]
-shrimpy browser console [--clear] [--eval <js>]
-shrimpy browser close
-```
-
-Under the hood, start by wrapping `agent-browser` rather than importing a browser library. Keep the Shrimpy command surface smaller than the underlying CLI at first, then add escape hatches:
-
-- `shrimpy browser raw -- ...` for unsupported `agent-browser` commands;
-- `browser.engine = chrome | lightpanda` with Chrome default;
-- `browser.cdpUrl` or `SHRIMPY_BROWSER_CDP_URL` for attach mode;
-- per-agent browser session names and profile/storage directories under the Shrimpy workspace;
-- optional confirmation policy for downloads, file uploads, eval, and actions on sensitive domains;
-- optional private-address policy before any future cloud backend exists.
-
-Do not make Browser Use, Stagehand, or Webwright the default browser tool. They are higher-level loops and should live as skills or subcommands that call the direct browser tool when their workflow shape is useful.
-
 ## Open questions
 
-- Should Shrimpy vendor a pinned `agent-browser` version or install it as an external dependency during setup or a mechanic-guided diagnostic flow?
+- Should Shrimpy vendor a pinned `agent-browser` version or install it as an external dependency during setup?
 - Should each Shrimpy agent get its own browser profile by default, or should profiles be task-scoped and ephemeral unless explicitly persisted?
 - Should Shrimpy support attach-to-user-browser in v1, or defer it until domain allowlists and confirmation UX exist?
 - Is a Hermes-style CDP supervisor necessary immediately, or can it wait until dialogs/iframes/console gaps appear in practice?
-- Should Webwright-style reusable scripts be stored as Shrimpy skills, agent vault artifacts, or workspace-level automations?
+- Should Webwright-style reusable scripts be stored as Shrimpy skills?
