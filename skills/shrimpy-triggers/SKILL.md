@@ -11,6 +11,7 @@ A trigger gives you a prompt on a schedule. It is a file in your home's `trigger
 
 - A trigger is for work that comes round again and again: a morning summary, a regular look at a build. It goes on until someone turns it off.
 - `check_back` is for one look later: "see if the deploy finished in 20 minutes". Set it, end your turn, and it wakes you once. For something once at a given time, use `check_back` with `at`.
+- Not cron or a timer of the system's. A trigger runs inside you and acts as you. A `shrimpy` command that cron or a timer starts acts as the person, since only `SHRIMPY_AGENT_HOME`, which your shell has, tells it that it is you. Pass that variable on to anything you start that runs `shrimpy`.
 
 ## Make one
 

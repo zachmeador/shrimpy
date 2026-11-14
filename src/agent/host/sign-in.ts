@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { type AuthEvent, type AuthPrompt, createModels, ModelsError, type Provider } from "@earendil-works/pi-ai";
 import { type ProviderPaths, providerPaths } from "../home/index.ts";
 import { credentialStore, NO_AMBIENT_AUTH } from "./credentials.ts";
+import { CHECKED_SUBSCRIPTIONS, type Withheld, whyWithheld } from "./subscriptions.ts";
 
 /** The two ways to sign in to a provider: with an account, or with an API key. */
 export type SignInWay = "account" | "key";
@@ -19,8 +20,10 @@ export interface ProviderToSignIn {
   readonly id: string;
   /** What the provider is called, such as "Anthropic". */
   readonly name: string;
-  /** What its subscription is called, when signing in to it with an account is one, such as "Anthropic (Claude Pro/Max)". */
+  /** What its subscription is called, when signing in to it with an account is one that is offered, such as "OpenAI (ChatGPT subscription)". */
   readonly subscription: string | undefined;
+  /** Its subscription, when that is not offered, and why, such as Anthropic's, whose terms keep it to Anthropic's own apps. */
+  readonly withheld: Withheld | undefined;
   /** The ways to sign in to it, the account first. */
   readonly ways: readonly WayToSignIn[];
   /** The way the folder is signed in to it already, if it is. */
@@ -84,8 +87,8 @@ export async function openSignIns(providers: string): Promise<SignIns> {
   return signInsOver(builtinProviders(), providers);
 }
 
-/** `openSignIns` with the providers to offer given, which a test makes up. */
-export function signInsOver(offered: readonly Provider[], providers: string): SignIns {
+/** `openSignIns` with the providers to offer given, which a test makes up, and the providers whose subscription is offered. */
+export function signInsOver(offered: readonly Provider[], providers: string, checked: ReadonlySet<string> = CHECKED_SUBSCRIPTIONS): SignIns {
   const paths = providerPaths(providers);
   const credentials = credentialStore(paths.auth);
   const models = createModels({ credentials, authContext: NO_AMBIENT_AUTH });
@@ -95,10 +98,13 @@ export function signInsOver(offered: readonly Provider[], providers: string): Si
     async providers() {
       const saved = new Map<string, SignInWay>();
       for (const { providerId, type } of await credentials.list()) saved.set(providerId, type === "oauth" ? "account" : "key");
-      return offered.map((provider) => describe(provider, saved.get(provider.id)));
+      return offered.map((provider) => describe(provider, saved.get(provider.id), checked));
     },
     modelIds: (provider) => models.getModels(provider).map(({ id }) => id),
     async signIn(provider, way, dialogue, signal) {
+      const found = offered.find(({ id }) => id === provider);
+      const withheld = found === undefined ? undefined : withheldOf(found, checked);
+      if (way === "account" && withheld !== undefined) throw new Error(`${withheld.name} isn't offered. ${withheld.why}`);
       try {
         await models.login(
           provider,
@@ -118,13 +124,21 @@ export function signInsOver(offered: readonly Provider[], providers: string): Si
   };
 }
 
-function describe(provider: Provider, saved: SignInWay | undefined): ProviderToSignIn {
+function describe(provider: Provider, saved: SignInWay | undefined, checked: ReadonlySet<string>): ProviderToSignIn {
   const { oauth, apiKey } = provider.auth;
+  const withheld = withheldOf(provider, checked);
   const ways: WayToSignIn[] = [];
-  if (oauth !== undefined) ways.push({ way: "account", label: oauth.loginLabel ?? oauth.name });
+  if (oauth !== undefined && withheld === undefined) ways.push({ way: "account", label: oauth.loginLabel ?? oauth.name });
   if (apiKey?.login !== undefined) ways.push({ way: "key", label: apiKey.name });
-  const subscription = oauth?.isSubscription === true ? oauth.name : undefined;
-  return { id: provider.id, name: provider.name, subscription, ways, saved };
+  const subscription = oauth?.isSubscription === true && withheld === undefined ? oauth.name : undefined;
+  return { id: provider.id, name: provider.name, subscription, withheld, ways, saved };
+}
+
+/** The subscription of `provider` when it is one that is not offered. */
+function withheldOf(provider: Provider, checked: ReadonlySet<string>): Withheld | undefined {
+  const { oauth } = provider.auth;
+  if (oauth?.isSubscription !== true || checked.has(provider.id)) return undefined;
+  return { name: oauth.name, why: whyWithheld(provider.id) };
 }
 
 function questionOf(prompt: AuthPrompt): Question {

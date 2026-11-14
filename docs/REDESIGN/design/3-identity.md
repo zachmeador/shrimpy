@@ -84,6 +84,5 @@ What the design of 2026-11-14 asks for. Until it is built, the gateway finds you
 - **You as the one person:** made once with the gateway's data, found as the one person, and a roster with a second refused.
 - **Your name as a setting,** in a file in the Shrimpy folder where the gateway runs. Its name and place are left to the build, which says what it chose.
 - **Ways in that are listed and taken back,** each device's with a label, with a token taken back ending its live access at once, which comes with [Chord's relay](6-network.md).
-- **What agents are told:** to schedule work with triggers and pass `SHRIMPY_AGENT_HOME` on to anything they start that runs `shrimpy`, and in the setup skill, that an agent beside the gateway is trusted with everything you may do.
 - **A browser as a device,** with the web client.
 - **The gateway's key,** in [the network](6-network.md).

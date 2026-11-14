@@ -120,11 +120,10 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- **The move to Pi 1.5.2,** before the release: "that's a given", 2026-11-14. Pi 1.2 removed the packages the programs talk through, and Shrimpy installs today only on its 1.0.0 pins. In order, with each step's work under Not built yet in the files named:
-  1. The relay's proof, which decides between Chord's relay and its fallback ([the network](design/6-network.md)).
-  2. The contracts on Chord 1.5 ([the contracts](design/2-contracts.md)), with a rule for where Chord may be imported ([the code's layout](design/code-layout.md)), every program on the relay with the gateway's key ([the network](design/6-network.md)), and identity as decided on 2026-11-14 ([identity](design/3-identity.md)).
-  3. Durable 1.5.2 in the agent ([the conversation model](design/4-conversation.md), [what an agent does without being asked](design/7-on-its-own.md)), with each home's Pi storage started fresh ([the home](design/5-home.md)).
-  4. What it brings to the clients ([using it](design/using-it.md)).
+- **The move to the latest Pi,** 1.5.2 today, before the release: "that's a given", and "my dude we're just going straight to latest pi", 2026-11-14. Pi 1.2 removed the packages the programs talk through, so the tree can't pass its check halfway: the move is made on a branch of its own, and comes into `wip` once `npm run check` passes. In order, with each step's work under Not built yet in the files named:
+  1. The contracts on Chord 1.5 ([the contracts](design/2-contracts.md)), with a rule for where Chord may be imported ([the code's layout](design/code-layout.md)), every program on the relay with the gateway's key ([the network](design/6-network.md)), and identity as decided on 2026-11-14 ([identity](design/3-identity.md)).
+  2. Durable 1.5.2 in the agent ([the conversation model](design/4-conversation.md), [what an agent does without being asked](design/7-on-its-own.md)), with each home's Pi storage started fresh ([the home](design/5-home.md)).
+  3. What it brings to the clients ([using it](design/using-it.md)).
 - Cleaning up for the release, which you said on 2026-10-08 is close: the skills cover what a person and an agent do with Shrimpy, the reference documentation shrinks to very little, and old Shrimpy is replaced.
 - Living with it: what you notice goes on the list in [using it](design/using-it.md), and decides what is built next.
 
@@ -184,7 +183,6 @@ This plan deliberately leaves these out, so they don't creep back in:
 - A decision for every command and affordance of today's Shrimpy that hasn't come back, from what [using it](design/using-it.md) has of them.
 - Updating Shrimpy, setting up through `shrimpy`, and moving over from old Shrimpy, from the list from living with it in [using it](design/using-it.md).
 - Choosing the model an agent starts with from the terminal, which you called a priority before the release on 2026-10-06 ([using it](design/using-it.md)).
-- Only subscriptions checked against their vendors' terms in `shrimpy login` ([the home](design/5-home.md)).
 - `SECURITY.md`, `CONTRIBUTING.md` and `THIRD_PARTY_NOTICES.md` go with `shrimpy-old/` and are written anew, from [the keep list](history/keep-list.md).
 - `AGENTS.md`, `README.md`, `docs/README.md` and `lint/boundaries.js` point into this folder, and are repointed when it goes.
 - Default locations for machine-level data, and service installation for each program.

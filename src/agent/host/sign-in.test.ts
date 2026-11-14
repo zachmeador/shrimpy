@@ -7,6 +7,9 @@ import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completio
 import { tempDir, until } from "../../lib/testing/index.ts";
 import { type Dialogue, type Notice, type Question, signInsOver } from "./sign-in.ts";
 
+/** The made-up provider's subscription is one that is offered, as a checked subscription is. */
+const CHECKED = new Set(["made-up"]);
+
 /**
  * A provider that is made up, so that no sign-in reaches a real one. Its sign-in
  * opens a link and takes a code, from the person who pastes it or from the
@@ -74,12 +77,13 @@ test("a sign-in takes the code that is pasted or the one the browser brings, let
   // The person pastes the code.
   const pasting = madeUp();
   const first = person();
-  const signIns = signInsOver([pasting.provider], providers);
+  const signIns = signInsOver([pasting.provider], providers, CHECKED);
   assert.deepEqual(await signIns.providers(), [
     {
       id: "made-up",
       name: "Made Up",
       subscription: "Made Up (subscription)",
+      withheld: undefined,
       ways: [{ way: "account", label: "Made Up (subscription)" }],
       saved: undefined,
     },
@@ -99,7 +103,7 @@ test("a sign-in takes the code that is pasted or the one the browser brings, let
   // The browser comes back before anything is pasted: the question that was waiting is let go of, and the sign-in finishes.
   const coming = madeUp();
   const second = person();
-  const signingInAgain = signInsOver([coming.provider], providers).signIn("made-up", "account", second.dialogue, running);
+  const signingInAgain = signInsOver([coming.provider], providers, CHECKED).signIn("made-up", "account", second.dialogue, running);
   await until(() => second.questions.length === 1, "the question for the code");
   coming.comeBack("from-the-browser");
   await signingInAgain;
@@ -112,9 +116,40 @@ test("a sign-in takes the code that is pasted or the one the browser brings, let
   const third = person();
   const empty = join(tempDir(t, "stopped"), "providers");
   const stop = new AbortController();
-  const stopped = signInsOver([stopping.provider], empty).signIn("made-up", "account", third.dialogue, stop.signal);
+  const stopped = signInsOver([stopping.provider], empty, CHECKED).signIn("made-up", "account", third.dialogue, stop.signal);
   await until(() => third.questions.length === 1, "the question for the code");
   stop.abort();
   await assert.rejects(stopped);
   assert.equal(existsSync(empty), false);
+});
+
+test("a subscription whose vendor's terms aren't checked is not offered, and the provider's API key still is", async (t) => {
+  const providers = join(tempDir(t, "withheld"), "providers");
+  const running = new AbortController().signal;
+  const provider = createProvider({
+    id: "made-up",
+    name: "Made Up",
+    auth: {
+      oauth: {
+        name: "Made Up (subscription)",
+        isSubscription: true,
+        login: () => Promise.reject(new Error("The subscription is never signed in to.")),
+        refresh: (credential) => Promise.resolve(credential),
+        toAuth: (credential) => Promise.resolve({ apiKey: credential.access }),
+      },
+      apiKey: {
+        name: "Made Up API key",
+        login: () => Promise.reject(new Error("No key is pasted here.")),
+        resolve: ({ credential }) => Promise.resolve(credential?.key === undefined ? undefined : { auth: { apiKey: credential.key } }),
+      },
+    },
+    models: [],
+    api: openAICompletionsApi(),
+  });
+  const signIns = signInsOver([provider], providers);
+  const [described] = await signIns.providers();
+  assert.equal(described?.subscription, undefined);
+  assert.equal(described?.withheld?.name, "Made Up (subscription)");
+  assert.deepEqual(described.ways.map(({ way }) => way), ["key"]);
+  await assert.rejects(signIns.signIn("made-up", "account", person().dialogue, running), /isn't offered/);
 });

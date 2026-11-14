@@ -44,6 +44,7 @@ export async function signInAtTerminal(io: Io, providers: string, wanted: string
   try {
     const provider = named ?? (await chooseProvider(io, all, folder, signal));
     if (named !== undefined) io.out(`Signing in to ${provider.name}, for every agent started in ${folder}.`);
+    if (provider.withheld !== undefined) io.out(`${provider.withheld.name} isn't offered. ${provider.withheld.why}`);
     if (provider.saved !== undefined) {
       const how = provider.saved === "key" ? " with an API key" : "";
       io.out(`The folder is signed in to ${provider.name}${how} already. Signing in again replaces that.`);

@@ -50,7 +50,7 @@ test("an agent that is an admin makes a room from its shell and the person is ad
   assert.equal(listed.length, 2);
   const [name, updated, members] = (listed[1] ?? "").split(/ {2,}/);
   assert.deepEqual([name, updated], ["#ops", localTime(main.updatedAt)], "a room is as new as its newest thread");
-  assert.ok(members?.startsWith("maya, rex, scout"));
+  assert.equal(members, [you.me.name, "maya", "rex", "scout"].sort((a, b) => a.localeCompare(b)).join(", "));
   await you.chat.post(main.id, "Is the disk full?", "you-1");
   const side = await you.chat.createThread(room.id, "Backups");
   await you.chat.post(side.id, "Last night's run?", "you-2");

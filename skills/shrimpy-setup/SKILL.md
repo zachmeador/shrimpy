@@ -23,6 +23,8 @@ Programs reach each other by name through the gateway, so people and agents can 
 
 A program that won't start says why in the terminal that started it. Ask the person to paste it.
 
+An agent beside the gateway runs under the person's own account, so it can do anything the person can: whatever runs under that account can read every token there. Shrimpy's roles keep it from doing so by accident, and nothing more. Tell the person so when you make an agent. One that should be walled off runs under an account of its own, in a container or on another machine, and comes in with an invitation, as below.
+
 There is no setup command yet. A new setup is `shrimpy login` to sign in and choose a model, then `shrimpy agent init <name>`, then `shrimpy up`. One agent that answers is a complete setup, and a second can wait until the person asks for it.
 
 ## The person on another machine
