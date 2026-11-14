@@ -26,7 +26,6 @@ At the release, once you have been through it: "agree but only after i've gone t
 | `design/4-conversation.md` to `7-on-its-own.md` | The conversation model, the home, the network and what an agent does unasked | "Not built yet", the choices that are yours to strike, and what old Shrimpy did go to the open list. The rest is built |
 | `design/using-it.md` | The terminal, the commands, the list from living with it, and what old Shrimpy had as you marked it | The candidates, that list, the old commands and your marks go to the open list |
 | `design/code-layout.md` | The layout of `src/` and why | The rules, and where the words are, go to how it is built |
-| `proposals/hearing-a-thread.md` | A proposal that waits on you | One line in the open list. Its ten details are only here |
 | `history/LOG.md`, `history/mechanics.md` | What was built and decided by date, and the small choices | History. What they left open is in the open list |
 | `history/keep-list.md` | What is kept of old Shrimpy's voice | Needed to write the release's README, security statement and contributing page, so it needs a home before this folder goes |
 | `history/from-old-shrimpy.md` | What replaces each part of old Shrimpy, and its command families | The commands, as what a person could do, are in [using it](design/using-it.md) until the release, and then in the open list. The map is history |

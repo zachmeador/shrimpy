@@ -132,6 +132,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 - Using it: the web client, built for a phone first, with push notifications. It doesn't hold up the release. [Not built yet](design/using-it.md)
 - The home: compaction, the request a turn sent, and workspace context. [Not built yet](design/5-home.md)
+- The conversation model: hearing a thread while working in it, and the demo that decides whether it stays. [Not built yet](design/4-conversation.md)
 
 **Later:**
 
@@ -181,8 +182,9 @@ This plan deliberately leaves these out, so they don't creep back in:
 - Account for every CLI entry, slash command, export, setup and update recipe, service definition, template, skill, test, doc and security statement. Help and completion come from the real command surface.
 - Very little reference documentation. You said on 2026-10-08: "i'd actually like to move to very minimal reference documentation. shrimpy agents can just check the code if they need to. but instructions and skills should cover all of the core ux/agent-ex". So what an agent is told and the skills that ship carry how Shrimpy is used, by a person and by an agent, and the README and the developer docs are written for what the release ships, keeping the charming parts of today's. This folder goes at the release, as [its front page](README.md#when-this-folder-goes) says.
 - A decision for every command and affordance of today's Shrimpy that hasn't come back, from what [using it](design/using-it.md) has of them.
-- Updating Shrimpy, a setup command and moving over from old Shrimpy, from the list from living with it in [using it](design/using-it.md).
+- Updating Shrimpy, setting up through `shrimpy`, and moving over from old Shrimpy, from the list from living with it in [using it](design/using-it.md).
 - Choosing the model an agent starts with from the terminal, which you called a priority before the release on 2026-10-06 ([using it](design/using-it.md)).
+- Only subscriptions checked against their vendors' terms in `shrimpy login` ([the home](design/5-home.md)).
 - `SECURITY.md`, `CONTRIBUTING.md` and `THIRD_PARTY_NOTICES.md` go with `shrimpy-old/` and are written anew, from [the keep list](history/keep-list.md).
 - `AGENTS.md`, `README.md`, `docs/README.md` and `lint/boundaries.js` point into this folder, and are repointed when it goes.
 - Default locations for machine-level data, and service installation for each program.

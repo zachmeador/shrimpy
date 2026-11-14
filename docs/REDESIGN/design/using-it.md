@@ -28,6 +28,10 @@ This is the terminal, the web client, the commands, setup and sign-in. It is tun
 
 **What earns a command,** decided on 2026-10-04 after old Shrimpy's rule that every feature is a command had grown it to about 65. Commands operate Shrimpy; clients and tools use it. A command starts, stops, configures, inspects or repairs a program or a home, and `run` and `read` are the shell's client. What happens inside a conversation belongs to the clients and to an agent's tools. A command is never added in the change that adds the feature: it gets a change of its own that names who asked for it, which is you, a skill that tells someone to run it, or a test that can't reach the seam from code.
 
+**A person needs one command,** decided on 2026-11-14: "this ux has to be simple for users. will be very dumb and annoying if they have to remember tons of cli just to use shrimpy". That command is `shrimpy`. Keeping Shrimpy running and starting again what ends are the service's job, and putting things right is an agent's, which you ask in a thread. Every other command is for agents and scripts, or is a line that a skill, an agent or another command hands you to paste, as `shrimpy invite` prints the line to run on the other machine.
+
+**Setting up is `shrimpy` too,** agreed on 2026-11-14. On a machine with nothing set up, `shrimpy` walks you through it in the terminal: signing in to a model provider, the one step that needs you at a browser; naming your first agent, `shrimpy` unless you choose otherwise; and keeping Shrimpy running as a service. Then it opens your DM with that agent. After that `shrimpy` opens the terminal, whose first screen says when a program is down and being started again, so you never need `status` or `up`. A new agent, a room, a trigger or another machine of yours is something you ask your admin agent for. What only you may do, such as signing in again or taking back a device, is a `/` command in the terminal. `shrimpy login`, `shrimpy agent init` and `shrimpy up` stay, for scripts and agents.
+
 | Current family | Outcome in the replacement |
 |---|---|
 | — | Rooms are new. Confirmed on 2026-10-04: `shrimpy rooms` lists the rooms you are in, `rooms new <name> [<member>...]` makes one, and `rooms add <room> <member>...` adds members. You asked for them so that making a room is something you ask an agent to do: an agent runs them from its shell as itself. Leaving and removing wait until someone needs them. |
@@ -71,7 +75,7 @@ Ctrl+O for tool output and Ctrl+T for thinking are Pi's keys, and Claude Code ha
 
 **The front page of the command line,** decided and built on 2026-10-09. You said that "`shrimpy --help` and the already cluttered cli is annoying me a little bit". It printed 84 lines: all 37 commands, each with its whole usage, and two paragraphs. A front page is for a person, who uses about eight commands. The rest is for agents, who learn it from the skills and from each command's own help.
 
-- `shrimpy --help` prints about twenty lines with no option on them: the commands a person uses, and then a line for each group, under what they are for: agents, a shell, more than one machine.
+- `shrimpy --help` prints about twenty lines with no option on them: the commands a person uses, and then a line for each group, under what they are for: agents, a shell, more than one machine. Since 2026-11-14 `shrimpy` leads it alone, and the rest sit under "for scripts and agents", as one command for a person asks.
 - A group's help, `shrimpy triggers --help`, lists the group with each command's usage and its one line. Nothing is harder to find for having left the front page.
 - The programs that `up` runs, `agent serve`, `gateway serve` and `chat serve`, are off the front page and in their groups' help.
 - Six commands took the names that say what they do, with no alias for the old ones, since nothing is released:
@@ -134,7 +138,7 @@ What daily use asks for is under Not built yet below.
 
 - Why a turn failed, in words, in its receipt and in `/status`, with what to do: each of Pi's reasons gets a sentence.
 - A waiting wake-up shown with the agent's work, with its time and that `/stop` cancels it.
-- Your devices, listed and taken back from your own client or a command you run, since no agent may do it for you.
+- Your devices, listed and taken back with a `/` command in the terminal, since no agent may do it for you.
 - An image in a session view: named in the terminal, shown in the web client.
 - Yours to decide when it is built: whether a room's thread shows each agent's work as it happens, as a DM does.
 
@@ -149,7 +153,8 @@ Under Later in the [order of work](../PLAN.md#order-of-work).
 **From living with it.** You moved in on 2026-10-07. What you notice goes here as you say it, in your words where they help, and leaves when it is built or dropped. A thing that needs a decision of yours is on [your list](../AUTHOR-TO-REVIEW.md) instead.
 
 - Updating Shrimpy. "updating shrimpy will be something we want to have a good ux on, especially for people with multi-machine setups", 2026-10-08. Nothing is built: today it is new files in the checkout and a restart of the service on each machine, by hand, and programs on different machines can run different versions in between.
-- A setup command, and moving over from old Shrimpy. Neither is built, and you asked on 2026-10-08 that they be tracked with updating. Today a new setup is three commands, which the setup skill gives, and [the plan](../PLAN.md) has what moving over is meant to be.
+- Setting up through `shrimpy`, as the commands above have it: the terminal's flow for a machine with nothing set up, its first screen saying when a program is down, `/` commands for signing in again, and the front page led by `shrimpy`. Today a new setup is three commands, which the setup skill gives.
+- Moving over from old Shrimpy, which you asked on 2026-10-08 be tracked with updating. Nothing is built, and [the plan](../PLAN.md) has what it is meant to be.
 - Shell completion for the new commands. Old Shrimpy's is set aside with it, and a line in the shell's startup file still looks for it.
 
 **Outcome:** the rough edges you found by using it are gone.
@@ -203,7 +208,7 @@ Marked on 2026-10-08. Fourteen lines were dropped and are gone from this list.
 - Reopen the latest thread with the latest agent — later.
 - Open settings — later; there is nothing to set yet.
 - Set an agent's thinking level with `/thinking` — later; it would work as `/model` does.
-- Sign in or out from the terminal — later; `shrimpy login` does it from a shell.
+- Sign in or out from the terminal — later, and since 2026-11-14 wanted, as a `/` command, since a person needs one command.
 - Paste clipboard images into a message — later, with attachments.
 - Edit a message the agent hasn't picked up yet — later, with the ways in for edits and reactions.
 - Use a fullscreen mode — later.

@@ -83,6 +83,7 @@ Inspection shows raw entries, effective model messages, selected tools, source r
 | Where keys come from | — | The home's `auth.json` and `models.json`, then those of the folder it is started in. Environment variables aren't read, and a key written as a command or a variable is refused. | Confirmed, and changed on 2026-10-06 |
 | How much an agent is told | — | Nothing limits the size of `SOUL.md`, a context file, the list of skills or the earlier messages that come with an input. | Confirmed for now |
 | Pi's storage across the move to 1.5.2 | — | Each home keeps its files: `SOUL.md`, `context/`, skills, `triggers/`, breadcrumbs, `wake.json` and its token, and the folder keeps `providers/`. Each home's Pi storage, with its sessions and the agent's records, starts fresh on 1.5.2 and nothing converts it, so a wake-up that was waiting or a question still open is gone. The chat store and the roster are kept, so an agent that starts fresh skips every message that already carries its receipt, as any fresh start does. The folder is copied first. | Confirmed on 2026-11-14: "as long as workspace content is protected, i don't even care about old session history" |
+| Which subscriptions `shrimpy login` offers | Every subscription pi-ai offers, unchecked: Anthropic's signs in to claude.ai and sends each request as Claude Code | Only a subscription checked against its vendor's terms, signing in under Shrimpy's own name. Anthropic's goes, and an `sk-ant-oat` key is refused with a pointer to an API key. OpenAI's ChatGPT sign-in stays, as Shrimpy once Pi 1.5.2 lets it. OpenAI's legacy Codex sign-in goes, and Copilot, Kimi, Meta and xAI wait until their terms are checked. An API key or a model server works for any provider, Radius included. | Confirmed on 2026-11-14: "i'd rather not risk it myself", and of signing in as Shrimpy, "good". The legacy Codex sign-in and the other four follow the same rule, and are yours to strike |
 
 **Open**
 
@@ -91,6 +92,8 @@ Compaction with Shrimpy's guidance, seeing the request a turn sent, and workspac
 **Not built yet**
 
 *Each home's Pi storage started fresh on 1.5.2,* its files kept, as the row on the move says: a step of the move to Pi 1.5.2 in the [order of work](../PLAN.md#order-of-work).
+
+*Only checked subscriptions in `shrimpy login`,* as the row on them says, before the release.
 
 *The home: compaction, the request a turn sent, and workspace context.*
 

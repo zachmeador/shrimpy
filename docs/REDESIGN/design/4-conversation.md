@@ -103,6 +103,25 @@ The provider interface with a fake provider is under Not built yet below. The wa
 - Messages behind a failed turn withdrawn by Pi, their skipped receipts carrying the reason.
 - After the move: whether Pi's `submit(tx, draft)`, public since 1.5, makes the handover one commit, keeping the feed's order.
 
+*Hearing a thread while working in it,* under Next in the [order of work](../PLAN.md#order-of-work), after the move to Pi 1.5.2. Your idea of 2026-10-06: what anyone says in a thread reaches an agent working there at its next step, as something it heard, and wakes nobody. An idle agent gets it as today, in what was said since it last looked. Decided on 2026-11-14, with the move first: "i agree but..... why wouldn't we just do the pi update first?"
+
+- **How.** When the feed brings a message that doesn't wake the agent, in a thread where its session is busy, the agent writes it into that session as an entry of Shrimpy's own kind, which Pi places at the next step and which never starts a turn. Taking the event, moving the agent's place in the feed and the write are one commit. What every agent is told gains two sentences: what is said in a thread while you work there reaches you and isn't addressed to you, and if someone has said what you were going to say, add only what is missing or write END.
+- **What it costs.** Tokens, since an agent in a busy thread reads what is said as it works. Behavior nobody has seen: agents may build on each other, or herd to the first answer. It helps only a turn with a step left. And code: the agent's side of chat, one more kind of entry in the session view and a few tests, with no contract change.
+- **The demo decides whether it stays:** three agents in a room on your LAN model, asked the same thing three ways: with nothing, with one sentence in what every agent is told to read the thread before answering a message that went to everyone, and with hearing. If they herd, hearing waits, and if the sentence does as well, the sentence is enough.
+
+| Detail | What I found | What I'd do |
+|---|---|---|
+| The entry | An entry has a kind, which can be Shrimpy's own, and the messages the model is shown for it. | A kind of Shrimpy's own, so that what was heard can be told from an input in storage, in the terminal's watch view and in a count of what a turn cost. |
+| Once only | Since Pi 1.5 a submission can be admitted inside a commit, before the commit's own writes. | Take the event, move the agent's place in the feed and write what was heard in one commit. |
+| What is heard | Posts, and edits of them, by anyone else, that the agent isn't taking up as an input. | That, in rooms. In a DM everything the other member writes is an input already. |
+| An agent's message that mentions you | It is an input that waits for your turn to end. Under this proposal it would be the one message you don't see as you work. | Hear it too, and still take it up after. The sentence about a message you have already answered covers the second sight of it. |
+| An answer that wakes whoever asked | An agent that mentioned another is woken with the answer. If it heard that answer while working, it would get it twice. | Don't wake it for an answer it has already heard. |
+| A message during the last call to the model | It is placed after the answer, so the turn that just ended never reads it. It stays in the session, and the next turn has it above its input. | Nothing. It is neither lost nor repeated. |
+| How much | A busy thread could pour into a working agent. | The backlog's limit: 20,000 characters heard in one turn, then one line that says more was said and that `read_messages` shows it. |
+| A session that went idle meanwhile | The write is appended and wakes nobody. | Nothing. |
+| A Pi edge | A write to an idle session whose inbox still holds inputs left by a failed turn could place them and start a turn. | Gone once Pi withdraws what a failed turn leaves, which the move brings, and the agent writes only to a busy session. |
+| A room's wake policy | The policy says what wakes an agent. Hearing wakes nobody. | Hear in every room the agent works in, whatever its policy. A choice per room can come if a room proves too loud. |
+
 *The conversation model: the provider interface with a fake provider,* kept as an idea, as [the plan's direction](../PLAN.md#direction) has it, under Later in the [order of work](../PLAN.md#order-of-work). What follows is kept as the idea was written. If a provider is ever written, it takes nothing from old Shrimpy's code.
 
 **Outcome:** rooms hold several members, each agent decides what wakes it, and chat can reach an outside app through a provider interface. Two agents talk in a room without going round in circles, on a small local model, and a fake provider drives the same contract a real one will.
