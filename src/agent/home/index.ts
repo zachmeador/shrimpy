@@ -12,15 +12,16 @@
  * changes and deletes the files of triggers, writes and deletes the breadcrumbs
  * the agent and a trigger leave, and writes the wake file. It also looks at the
  * files an agent reads, by their names, sizes, modes and times and never their
- * contents, so the agent can tell when to read them again. It must not know
- * about the engine, the model runtime or how the agent is reached.
+ * contents, so the agent can tell when to read them again, and says what to do
+ * with storage that another version of Shrimpy wrote. It must not know about
+ * the engine, the model runtime or how the agent is reached.
  */
 export { checkAgentName, type ModelChoice, modelLabel, parseModelChoice } from "./agent-config.ts";
 export { type BreadcrumbFile, readBreadcrumbs, removeBreadcrumb, writeBreadcrumb } from "./breadcrumbs.ts";
 export { readDefaultModel, saveDefaultModel } from "./default-model.ts";
 export { cutText, type LeftOut, leftOutSentence, shownIn } from "./files.ts";
 export { type InitOptions, type InitResult, initHome } from "./init.ts";
-export { type HomePaths, homePaths, type ProviderPaths, providerPaths } from "./layout.ts";
+export { type HomePaths, homePaths, type ProviderPaths, providerPaths, storageOfAnotherVersion } from "./layout.ts";
 export { type LoadedHome, loadHome } from "./load.ts";
 export { lookAtHome } from "./look.ts";
 export { delayMs, delayText, describeSchedule, nextOccurrence, normalizeDelay, sameSchedule } from "./schedule.ts";

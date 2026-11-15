@@ -8,9 +8,10 @@
  * finding or making a session, taking out what it kept, working out which
  * breadcrumbs are new to it, and keeping what an input that was skipped was to
  * show. It opens the records at the start, giving them an ID of their own the
- * first time, and refuses a home whose documents another version wrote, saying
- * what to do. It must not know how an input is run, how chat or the files of a
- * home are read, or what a session shows a client.
+ * first time, refuses a home whose documents another version wrote, saying
+ * what to do, and tells any other failure to read them as it is. It must not
+ * know how an input is run, how chat or the files of a home are read, or what a
+ * session shows a client.
  */
 export { agentChange, type SessionDefaults } from "./defaults.durable.ts";
 export {

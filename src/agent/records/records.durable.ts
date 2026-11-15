@@ -1,7 +1,10 @@
-import { basename } from "node:path";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Harness } from "@earendil-works/pi-durable";
+import { storageOfAnotherVersion } from "../home/index.ts";
 import { FeedDoc, QuestionsDoc, RecordsDoc, SessionsDoc, TriggersDoc } from "./documents.durable.ts";
+
+/** The kinds of Shrimpy's own documents, which the engine names when it refuses one. */
+const KINDS = new Set([SessionsDoc, FeedDoc, TriggersDoc, QuestionsDoc, RecordsDoc].map(({ definition }) => definition.kind));
 
 /**
  * Open the agent's records at the start, and say what they are called: the ID
@@ -16,9 +19,10 @@ export async function openRecords(harness: Harness, file: string): Promise<strin
 /**
  * Read each of Shrimpy's own documents once. The engine refuses a document that
  * another version wrote, in words that don't say what to do, and nothing
- * converts one, so the refusal is made here: the person is told to move the
- * file into an archive folder and start the agent again. Gives the records'
- * ID, if they have one yet.
+ * converts one, so then the person is told to move the file into an archive
+ * folder and start the agent again. Any other failure is told as it is, with
+ * the file, since that advice would lose every session for nothing. Gives the
+ * records' ID, if they have one yet.
  */
 async function read(harness: Harness, file: string): Promise<string | undefined> {
   try {
@@ -28,15 +32,19 @@ async function read(harness: Harness, file: string): Promise<string | undefined>
     await harness.snapshot(QuestionsDoc, BACKGROUND_CONTEXT);
     return (await harness.snapshot(RecordsDoc, BACKGROUND_CONTEXT))?.id;
   } catch (error) {
-    throw new Error(refusal(file, error instanceof Error ? error.message : String(error)), { cause: error });
+    const said = error instanceof Error ? error.message : String(error);
+    if (anotherVersionWrote(said)) throw new Error(`${storageOfAnotherVersion(file)} The engine said: ${said}.`, { cause: error });
+    throw new Error(`The agent's records in ${file} could not be read: ${said}`, { cause: error });
   }
 }
 
-function refusal(file: string, reason: string): string {
-  const name = basename(file);
-  return (
-    `The agent's Pi storage in ${file} was written by another version of Shrimpy, and nothing converts it. ` +
-    `Move ${file} into an archive folder, with ${name}-wal and ${name}-shm if they are beside it, and start the agent again. ` +
-    `Its sessions go with it, and the rest of the home stays. The engine said: ${reason}.`
-  );
+/**
+ * Whether the engine refused one of Shrimpy's own documents because another
+ * version of Shrimpy wrote it. Durable says so only in words: a plain error that
+ * names the document's kind and the version it holds, newer than this one, or
+ * older with nothing to convert it.
+ */
+function anotherVersionWrote(said: string): boolean {
+  const kind = /^Document \S+ \((.+)\) (?:has newer version \d+ than \d+|requires migration from version \d+)$/.exec(said)?.[1];
+  return kind !== undefined && KINDS.has(kind);
 }

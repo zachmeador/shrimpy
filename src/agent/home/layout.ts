@@ -1,4 +1,4 @@
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { AGENT_RUNTIME_DIR, membershipFile } from "../../contracts/agent/index.ts";
 
 /** Where everything lives inside one agent home. */
@@ -82,4 +82,18 @@ export function homePaths(home: string): HomePaths {
     runtime: join(root, AGENT_RUNTIME_DIR),
     bin: join(root, AGENT_RUNTIME_DIR, "bin"),
   };
+}
+
+/**
+ * What to tell a person whose home keeps its Pi storage at `database`, written
+ * by another version of Shrimpy, which nothing converts: which files to move
+ * into an archive folder, and what goes with them.
+ */
+export function storageOfAnotherVersion(database: string): string {
+  const file = basename(database);
+  return (
+    `The agent's Pi storage in ${database} was written by another version of Shrimpy, and nothing converts it. ` +
+    `Move ${database} into an archive folder, with ${file}-wal and ${file}-shm if they are beside it, and start the agent again. ` +
+    "Its sessions go with it, and the rest of the home stays."
+  );
 }
