@@ -81,6 +81,7 @@ The person signs the folder in with `shrimpy login [<provider>]`, with a subscri
 - **There are no agents in … yet**: `shrimpy up` has nothing to start. Make an agent first, or give `shrimpy up` an address with `--listen <host:port>` to start only the gateway and the chat server, for agents that live elsewhere.
 - **has other files in it and no agents/ or providers/ folder**: that folder isn't Shrimpy's, so nothing is made there. The person sets `SHRIMPY_DIR` to another folder, or moves that one.
 - **too long for a socket**: set `SHRIMPY_RUNTIME_DIR` to a shorter directory, for every shrimpy command.
+- **The runtime directory … is a symbolic link**, **is not a directory** or **belongs to another account**, or **Other accounts can open the runtime directory**: Shrimpy keeps its sockets only in a directory that no other account can open. Do what the message says: make the directory private with `chmod 700`, remove what is in the way, or set `SHRIMPY_RUNTIME_DIR` to a directory only the person can open, for every shrimpy command. A directory that belongs to another account was made by someone else, so tell the person.
 - **runs Shrimpy 0.0.1, but this command is 0.0.0**: programs of two versions are up together. Restart them together.
 - **Programs that link need the same Pi packages**: a program of another release tried to link. The message says which side to update, and to what.
 - **not valid JSON**, or **unsupported keys**: the file it names has a mistake, and the message says where.

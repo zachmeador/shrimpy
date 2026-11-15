@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, statSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, statSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { tempDir } from "../testing/index.ts";
@@ -32,6 +32,24 @@ test("a keyed socket path is stable, differs per key and stays short", (t) => {
   assert.equal(socketPathFor(long), socketPathFor(long));
   assert.notEqual(socketPathFor(long), socketPathFor(`${long}-other`));
   assert.equal(socketPathFor(long).length, namedSocketPath("0123456789abcdef").length);
+});
+
+test("a runtime directory that other accounts can open, or that is a symbolic link, is refused wherever its path is asked for", (t) => {
+  const base = tempDir(t, "rt");
+  const open = join(base, "open");
+  mkdirSync(open);
+  chmodSync(open, 0o755);
+  const link = join(base, "link");
+  mkdirSync(join(base, "private"), { mode: 0o700 });
+  symlinkSync(join(base, "private"), link);
+
+  for (const directory of [open, link]) {
+    process.env.SHRIMPY_RUNTIME_DIR = directory;
+    const named = (error: Error): boolean => error.message.includes(directory);
+    assert.throws(() => runtimeDir(), named);
+    assert.throws(() => namedSocketPath("gateway"), named);
+    assert.throws(() => socketPathFor("/a/home"), named);
+  }
 });
 
 test("a runtime directory too long for a socket is refused, saying what to shorten", (t) => {
