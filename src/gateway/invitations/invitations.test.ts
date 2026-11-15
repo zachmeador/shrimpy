@@ -29,7 +29,7 @@ test("a code is good once, for its name only and for its time, and is read witho
   assert.deepEqual(invitations.check(other.code, "rex"), { ok: false, why: "unknown" }, "and it stops being good when its time is up");
 });
 
-test("a code for a device says who it is for, is good once and for its time, and is no code for an agent, nor an agent's code one for a device", () => {
+test("a code for a device is good once and for its time, and only for a device", () => {
   let now = 1_000;
   const invitations = createInvitations({ now: () => now, ttlMs: 500 });
   const device = invitations.issueForDevice("mem_aaaaaaaaaaaa");

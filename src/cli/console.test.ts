@@ -314,7 +314,7 @@ test("the agent's view of a long turn shows its start, read back from where the 
   await leave(terminal, exited);
 });
 
-test("why a turn failed reads the same in its receipt and in /status, and a wake-up shows beside the thread and in /status", { timeout }, async (t) => {
+test("why a turn failed reads the same in its receipt and /status, and a wake-up shows in both", { timeout }, async (t) => {
   const { home, terminal, exited } = await consoleWithScout(t);
   terminal.type(CTRL_N);
 

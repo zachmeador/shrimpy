@@ -21,7 +21,7 @@ async function asSeen(t: TestContext, socket: string): Promise<{ you: Member | n
   return seen;
 }
 
-test("you are made once, with the gateway's data, named for the account it runs as then, and are the same you when it starts under another account", { timeout }, async (t) => {
+test("you are made once with the gateway's data, and stay the same you under another account", { timeout }, async (t) => {
   const dataDir = tempDir(t, "gateway-data");
   const first = await startTestGateway(t, { dataDir, account: "first-account" });
   const before = await asSeen(t, first.socket);

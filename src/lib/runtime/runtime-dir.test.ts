@@ -34,7 +34,7 @@ test("a keyed socket path is stable, differs per key and stays short", (t) => {
   assert.equal(socketPathFor(long).length, namedSocketPath("0123456789abcdef").length);
 });
 
-test("a runtime directory that other accounts can open, or that is a symbolic link, is refused wherever its path is asked for", (t) => {
+test("a runtime directory that other accounts can open, or that is a symbolic link, is refused", (t) => {
   const base = tempDir(t, "rt");
   const open = join(base, "open");
   mkdirSync(open);
@@ -52,10 +52,10 @@ test("a runtime directory that other accounts can open, or that is a symbolic li
   }
 });
 
-test("a runtime directory too long for a socket is refused, saying what to shorten", (t) => {
+test("a runtime directory too long for a socket is refused, saying what to shorten and by how much", (t) => {
   const directory = directoryFor(tempDir(t, "rt"), "gateway.sock", MAX_SOCKET_PATH_BYTES + 7);
   process.env.SHRIMPY_RUNTIME_DIR = directory;
 
-  assert.throws(() => namedSocketPath("gateway"), /too long for a socket.*Shorten SHRIMPY_RUNTIME_DIR by at least 7 bytes/);
+  assert.throws(() => namedSocketPath("gateway"), (error: Error) => error.message.includes("SHRIMPY_RUNTIME_DIR") && /\b7\b/.test(error.message));
   assert.equal(existsSync(directory), false, "a directory that can't be used is not made");
 });

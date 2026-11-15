@@ -78,7 +78,7 @@ test("taking a device's token back ends what it holds as revoked, closes its lin
   );
 });
 
-test("a roster from before the move to Pi 1.5.2 is refused, in words that name the gateway's data, and is left as it is, with no key made beside it", { timeout }, async (t) => {
+test("a roster from before the move to Pi 1.5.2 is refused and left as it is", { timeout }, async (t) => {
   const dataDir = tempDir(t, "gateway-data");
   const file = join(dataDir, "state", "roster.json");
   mkdirSync(dirname(file), { recursive: true });

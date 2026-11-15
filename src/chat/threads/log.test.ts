@@ -41,7 +41,7 @@ function startDm(t: Parameters<typeof openTestDeps>[0]) {
   return { deps, clock, know, zach, shrimpy, dm, main };
 }
 
-test("the log is what happened to messages, in order: a retry writes nothing, and a delete takes the text out of the log too", (t) => {
+test("the log is what happened to messages, in order, and a delete takes the text out of it too", (t) => {
   const { deps, zach, shrimpy, main } = startDm(t);
   const said = post(deps, zach, main.id, "The secret plan.", "zach-1");
   const other = post(deps, zach, main.id, "Something else.", "zach-2");
@@ -75,7 +75,7 @@ test("the log is what happened to messages, in order: a retry writes nothing, an
   assert.equal(answer(() => editMessage(deps, zach, main.id, said.id, "Back again.")).kind, "refused");
 });
 
-test("a receipt is an event of its own that replaces the one before, left on several events all or none, and never on a receipt", (t) => {
+test("a receipt is an event that replaces the one before, left on several events all or none", (t) => {
   const { deps, zach, shrimpy, main } = startDm(t);
   const first = post(deps, zach, main.id, "one", "zach-1");
   const second = post(deps, zach, main.id, "two", "zach-2");

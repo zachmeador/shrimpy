@@ -9,7 +9,7 @@ import { connectTestClient, Echo, startTestAgent, startTestGateway } from "./tes
 const timeout = 30_000;
 const context = BACKGROUND_CONTEXT;
 
-test("a hold of an agent's object waits while the agent isn't linked, binds when it links out, and reaches it as the client", { timeout }, async (t) => {
+test("a hold of an agent's object waits until the agent links, and reaches it as the client", { timeout }, async (t) => {
   const gateway = await startTestGateway(t);
   const place = { path: gateway.socket };
   const you = await connectTestClient(t, place);

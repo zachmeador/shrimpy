@@ -10,7 +10,7 @@ import { startTestChat, valueOf } from "./testing/index.ts";
 const timeout = 30_000;
 const context = BACKGROUND_CONTEXT;
 
-test("a second chat server here is refused and the first goes on, and holds wait while chat is away and bind again when it is back, with what was said", { timeout }, async (t) => {
+test("a second chat server is refused, and holds wait while chat is away and bind again once it is back", { timeout }, async (t) => {
   const chat = await startTestChat(t);
   const you = await chat.person();
   const scout = await chat.agent("scout");
@@ -35,7 +35,7 @@ test("a second chat server here is refused and the first goes on, and holds wait
   valueOf(await thread.post({ text: "After it.", request: "you-2" }, context));
 });
 
-test("while the gateway is away the chat server says once that it can't reach it, however often it tries, and once that it is back", { timeout }, async (t) => {
+test("while the gateway is away the chat server says so once, and once again when it is back", { timeout }, async (t) => {
   const said = t.mock.method(console, "error", () => undefined);
   const chat = await startTestChat(t);
   const you = await chat.person();
