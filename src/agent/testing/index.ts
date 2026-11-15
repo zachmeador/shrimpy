@@ -56,8 +56,8 @@ export { answered, assistantItems, toolItems } from "./views.ts";
  * time it comes back as an error, "check back in 2s" asks to be woken in 2
  * seconds (`and 5s` asks for a second wake-up), "ask maya" asks the agent maya a
  * question, and anything else is answered as `chat` answers. `gated` answers as
- * `chat` does once `releaseGate` has been called for its home, and `gatedFail`
- * fails as `fail` does once it has.
+ * `chat` does once `releaseGate` has been called for its home, which an agent
+ * rig does when its test ends, and `gatedFail` fails as `fail` does once it has.
  */
 export type FauxScenario = "chat" | "fail" | "stream" | "tool" | "waking" | "asking" | "mixed" | "gated" | "gatedFail";
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { fauxAssistantMessage, fauxToolCall, type Message } from "@earendil-works/pi-ai";
-import { eventually, stopAfter, until, waitForView } from "../lib/testing/index.ts";
+import { eventually, until, waitForView } from "../lib/testing/index.ts";
 import { callingTools, loggedRequests, releaseGate, type Script, startAgentRig, untilReleased } from "./testing/index.ts";
 
 /*
@@ -153,8 +153,6 @@ test("a wake-up and chat messages that arrive while the session is busy are answ
     return fauxAssistantMessage(`Shown:\n${messages.slice(answered + 1).map(textOf).join("\n")}`);
   };
   const rig = await startAgentRig(t, { script });
-  // The held turn lets go first when the test ends, so that stopping the agent doesn't wait for it.
-  stopAfter(t, () => releaseGate(rig.home));
   await rig.say("set a wake-up");
   await until(() => onLastStep, "the turn to reach its last step");
   const { session } = await rig.attach();

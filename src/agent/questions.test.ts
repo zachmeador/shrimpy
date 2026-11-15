@@ -265,8 +265,6 @@ test("a result that was skipped because the turn ahead of it failed is shown wit
     return fauxAssistantMessage([], { stopReason: "error", errorMessage: "The model refused the request." });
   };
   const scout = await startAgentRig(t, { script });
-  // A test that fails while the turn waits must not leave the agent unable to stop.
-  stopAfter(t, () => releaseGate(scout.home));
   const maya = await speakingAs(t, await scout.chat.agent("maya"));
   await scout.receiptOn(await scout.say("Ask maya which stanza she takes."));
   const asked = await (await dmOf(maya, "scout")).thread("Which stanza will you take?");
@@ -310,8 +308,6 @@ test("two agents each with a question open to the other each get the other's ans
   };
   const scout = await startAgentRig(t, { script: scoutModel.script });
   const maya = await startAgentRig(t, { name: "maya", chat: scout.chat, script: mayaScript });
-  // A test that fails while maya's turn waits must not leave her unable to stop.
-  stopAfter(t, () => releaseGate(maya.home));
 
   await scout.receiptOn(await scout.say("Ask maya which stanza she takes."), PATIENT);
   await maya.receiptOn(await maya.say("Ask scout which key we are in."), PATIENT);

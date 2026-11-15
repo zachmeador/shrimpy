@@ -30,8 +30,8 @@ export interface ScriptedAgentOptions {
   /**
    * What it does with each post it is offered, one at a time. It is marked
    * as working in the post's thread until this settles, so a test can hold
-   * the work by returning a promise it settles later. Work that is held must be
-   * let go before the test ends, or the agent cannot leave.
+   * the work by returning a promise it settles later. Work still held when the
+   * test ends is let go of, with no receipt.
    */
   handle(post: Posted): Outcome | Promise<Outcome>;
   /** The Shrimpy version its hello gives. The version of Shrimpy by default. */
@@ -107,12 +107,15 @@ export async function startScriptedAgent(t: TestContext, options: ScriptedAgentO
   if (self === null) throw new Error("Chat takes the scripted agent for nobody.");
   // What the agent asks of chat ends when it leaves, so that a chat server that went away holds nothing up.
   const asking = withAbortSignal(leaving.signal, context);
+  const left = new Promise<undefined>((resolve) => leaving.signal.addEventListener("abort", () => resolve(undefined), { once: true }));
 
   const work = async (post: Posted): Promise<void> => {
     const { threadId } = post.message;
     valueOf(await chat.setWorking({ thread: threadId, working: true }, asking));
     try {
-      const outcome = await options.handle(post);
+      // Work the test still holds when it ends is let go of, so the agent can leave.
+      const outcome = await Promise.race([options.handle(post), left]);
+      if (outcome === undefined) return;
       const reply =
         outcome.status === "answered"
           ? await host.get(Thread, { thread: threadId }, asking).then(async (thread) => {
@@ -164,7 +167,7 @@ export async function startScriptedAgent(t: TestContext, options: ScriptedAgentO
   });
   stopAfter(t, async () => {
     leaving.abort();
-    await within(5000, listening, "the scripted agent leaving (a handle that holds work must settle before the test ends)");
+    await within(5000, listening, "the scripted agent leaving");
     await head.stop();
     chat.release();
     await linking;

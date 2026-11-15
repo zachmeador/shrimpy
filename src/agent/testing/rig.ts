@@ -1,10 +1,10 @@
 import type { TestContext } from "node:test";
 import { backoff } from "../../lib/retry/index.ts";
-import { tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
+import { stopAfter, tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
 import { type JoinOptions, type RunningAgent, startAgent } from "../index.ts";
 import { type AgentConnection, attachThread, closeAfter, connectAgent, type SessionHandle } from "./attach.ts";
 import { type ChatServer, startChatServer } from "./chat-server.ts";
-import { type FauxScenario, fauxModels, type Script } from "./index.ts";
+import { type FauxScenario, fauxModels, releaseGate, type Script } from "./index.ts";
 import { SCOUT } from "./names.ts";
 import { type Talk, talkTo } from "./talk.ts";
 
@@ -47,8 +47,10 @@ export interface AgentRig extends Talk {
  * An agent on a home of its own, with a scripted model, taking part in the
  * network: it links to the real gateway, joins its roster and finds the real
  * chat server through it, where you have a DM with it. All of it is stopped
- * when the test ends if it is still running. A second rig can be given the
- * first one's home and chat server, to see an agent that is started again.
+ * when the test ends if it is still running, and a model held at the home's
+ * gate is let go first, so that stopping the agent never waits for it. A second
+ * rig can be given the first one's home and chat server, to see an agent that
+ * is started again.
  */
 export async function startAgentRig(t: TestContext, options: AgentRigOptions = {}): Promise<AgentRig> {
   useRuntimeDir(t);
@@ -77,6 +79,8 @@ export async function startAgentRig(t: TestContext, options: AgentRigOptions = {
       },
     }),
   );
+  // Stops run newest first, so the gate opens before the agent is stopped.
+  stopAfter(t, () => releaseGate(home));
   const talk = await talkTo(chat, options.name ?? SCOUT);
 
   return {

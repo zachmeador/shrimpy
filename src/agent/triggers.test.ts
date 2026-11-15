@@ -103,8 +103,6 @@ test("firing a trigger now makes an occurrence, keeps the schedule, and runs not
   writeTrigger(home, "weekly", ["every: 1h"], "Write the weekly summary.");
   writeTrigger(home, "parked", ["every: 1h", "enabled: false"], "Never run on its own.");
   const rig = await startAgentRig(t, { home, scenario: "gated", shortestEveryMs: SHORTEST });
-  // A model held at the gate lets go first when the test ends, so that stopping the agent doesn't wait for it.
-  stopAfter(t, () => releaseGate(home));
   const connection = await rig.connect();
 
   const listed = await connection.triggers();
@@ -236,7 +234,6 @@ test("an occurrence due while the last one still goes is skipped, or handed over
   writeTrigger(home, "queues", ["every: 1s", "overlap: allow"]);
   // The model holds every turn until the test lets it go, so the first occurrence of each is still going.
   const rig = await startAgentRig(t, { home, scenario: "gated", shortestEveryMs: SHORTEST });
-  stopAfter(t, () => releaseGate(home));
   const connection = await rig.connect();
 
   const skips = await trigger(connection, "skips", (found) => ended(found, "skipped") >= 2, "occurrences to be skipped");
