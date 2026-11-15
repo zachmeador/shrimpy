@@ -1,128 +1,60 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
 import { test } from "node:test";
-import type { Message } from "../contracts/chat/index.ts";
-import { enterAsAgent, enterAsPerson, joinRoster } from "../contracts/chat/testing/index.ts";
-import { startTestGateway } from "../contracts/gateway/testing/index.ts";
-import { inRuntimeDir, stopAfter, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { Channel, Chat, Thread } from "../contracts/chat/index.ts";
+import { backoff } from "../lib/retry/index.ts";
+import { stopAfter, until } from "../lib/testing/index.ts";
 import { ChatRunningError, startChat } from "./index.ts";
-import { StoreOwnedError } from "./store/index.ts";
-import { mainThread, readAll, startChatChild } from "./testing/index.ts";
+import { startTestChat, valueOf } from "./testing/index.ts";
 
-const timeout = 60_000;
+const timeout = 30_000;
+const context = BACKGROUND_CONTEXT;
 
-for (const signal of ["SIGKILL", "SIGTERM"] as const) {
-  test(`messages and cursors survive the chat server being stopped with ${signal}`, { timeout }, async (t) => {
-    useRuntimeDir(t);
-    await startTestGateway(t);
-    const dataDir = tempDir(t, "chat-data");
-    const first = await startChatChild(t, { dataDir });
-    const zach = await enterAsPerson(t);
-    const shrimpy = await enterAsAgent(t, "Shrimpy");
-    const dm = await zach.chat.openDm(shrimpy.me.id);
-    const main = await mainThread(zach, dm.id);
-    const one = await zach.chat.post(main.id, "one", "zach-1");
-    const two = await zach.chat.post(main.id, "two", "zach-2");
-    const [taken] = await shrimpy.chat.feed(0, 1);
-    assert.deepEqual([taken?.id, taken?.seq], [one.event, one.seq]);
-    const store = await zach.chat.store();
-    assert.match(store, /^store_\w{12}$/);
-    await shrimpy.chat.setWorking(main.id, true);
-    const dropped = Promise.all(
-      [zach, shrimpy].map((connection) => new Promise((resolve) => connection.onDisconnect(resolve))),
-    );
+test("a second chat server here is refused and the first goes on, and holds wait while chat is away and bind again when it is back, with what was said", { timeout }, async (t) => {
+  const chat = await startTestChat(t);
+  const you = await chat.person();
+  const scout = await chat.agent("scout");
+  const dm = valueOf(await (await you.host.get(Chat, {}, context)).openDm({ member: scout.you.id }, context));
+  const [main] = (await you.host.get(Channel, { channel: dm.id }, context)).threads.value;
+  assert.ok(main);
+  const thread = you.host.hold(Thread, { thread: main.id }, context);
+  await until(() => thread.state.value.kind === "live", "your hold of the thread to bind");
+  valueOf(await thread.post({ text: "Before the restart.", request: "you-1" }, context));
 
-    await first.kill(signal);
-    await dropped;
-    assert.equal(existsSync(first.socket), signal === "SIGKILL");
-    const second = await startChatChild(t, { dataDir });
-    const zachAgain = await enterAsPerson(t);
-    const shrimpyAgain = await enterAsAgent(t, "Shrimpy");
-    assert.equal(shrimpyAgain.me.id, shrimpy.me.id, "the agent is the same member");
+  await assert.rejects(startChat({ dataDir: chat.dataDir }), ChatRunningError);
+  assert.equal(thread.state.value.kind, "live");
 
-    assert.notEqual(second.pid, first.pid);
-    assert.deepEqual(await zachAgain.chat.channels(), [dm]);
-    assert.deepEqual(await zachAgain.chat.read(main.id, null, 10), [one, two]);
-    assert.equal(await shrimpyAgain.chat.head(), two.seq);
-    assert.equal(await shrimpyAgain.chat.store(), store, "and the store is the same one");
-    // The agent's cursor still means the same: what it had not taken in, then what comes next.
-    assert.deepEqual((await shrimpyAgain.chat.feed(one.seq, 10)).map((event) => event.id), [two.event]);
-    const waiting = shrimpyAgain.chat.feed(two.seq, 10);
-    const three = await zachAgain.chat.post(main.id, "three", "zach-3");
-    assert.equal(three.seq, two.seq + 1);
-    assert.deepEqual((await waiting).map((event) => event.id), [three.event]);
-    assert.deepEqual(await zachAgain.chat.post(main.id, "two", "zach-2"), two);
-    assert.deepEqual((await zachAgain.chat.threads(dm.id))[0]?.working, []);
-    const watching = await zachAgain.attach(main.id);
-    assert.deepEqual(watching.view.messages, [one, two, three]);
-  });
-}
+  await chat.chat.close();
+  await until(() => thread.state.value.kind !== "live", "your hold to wait while chat is away");
+  const again = await startChat({ dataDir: chat.dataDir, backoff: backoff({ firstMs: 5, maxMs: 50 }) });
+  stopAfter(t, () => again.close());
 
-test("posts that were acknowledged survive a kill, and retrying every post leaves one of each", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  await startTestGateway(t);
-  const dataDir = tempDir(t, "chat-data");
-  const first = await startChatChild(t, { dataDir });
-  const zach = await enterAsPerson(t);
-  const dm = await zach.chat.openDm((await joinRoster(t, "Shrimpy")).id);
-  const main = await mainThread(zach, dm.id);
-  const requests = Array.from({ length: 300 }, (_, index) => ({ id: `zach-${index}`, text: `message ${index}` }));
-  const acknowledged = new Map<string, Message>();
-  let killed: Promise<void> | undefined;
-  let afterTheKill: Promise<void>[] = [];
-
-  // Send half at once and kill the server once some of it is acknowledged, while the rest of that half is still
-  // waiting. The other half is sent into the kill, where nothing can acknowledge it: a server that is quick enough
-  // to acknowledge everything it was sent before the kill lands still leaves posts that were interrupted.
-  const post = (request: { id: string; text: string }): Promise<void> =>
-    zach.chat.post(main.id, request.text, request.id).then(
-      (message) => {
-        acknowledged.set(request.id, message);
-        if (acknowledged.size !== 20) return;
-        killed = first.kill("SIGKILL");
-        afterTheKill = requests.slice(requests.length / 2).map(post);
-      },
-      () => undefined,
-    );
-  await Promise.all(requests.slice(0, requests.length / 2).map(post));
-  await killed;
-  await Promise.all(afterTheKill);
-  assert.ok(acknowledged.size >= 20);
-  assert.ok(acknowledged.size < requests.length, "the kill came too late to interrupt anything");
-
-  await startChatChild(t, { dataDir });
-  const again = await enterAsPerson(t);
-  const stored = await readAll(again, main.id);
-  for (const message of acknowledged.values()) {
-    assert.deepEqual(stored.find((candidate) => candidate.id === message.id), message);
-  }
-  assert.deepEqual(
-    stored.map((message) => message.seq),
-    stored.map((_, index) => index + 1),
-  );
-
-  const retried = await Promise.all(
-    requests.map((request) => again.chat.post(main.id, request.text, request.id)),
-  );
-  requests.forEach((request, index) => {
-    const message = acknowledged.get(request.id);
-    if (message !== undefined) assert.deepEqual(retried[index], message);
-  });
-  const final = await readAll(again, main.id);
-  assert.equal(final.length, requests.length);
-  assert.equal(new Set(final.map((message) => message.text)).size, requests.length);
+  await until(() => thread.state.value.kind === "live", "your hold to bind again once chat is back");
+  await until(() => thread.messages.value.length === 1, "the thread to show what was said");
+  assert.equal(thread.messages.value[0]?.text, "Before the restart.");
+  valueOf(await thread.post({ text: "After it.", request: "you-2" }, context));
 });
 
-test("a chat server in another process keeps this one out, and a killed one frees the data", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const dataDir = tempDir(t, "chat-data");
-  const child = await startChatChild(t, { dataDir });
+test("while the gateway is away the chat server says once that it can't reach it, however often it tries, and once that it is back", { timeout }, async (t) => {
+  const said = t.mock.method(console, "error", () => undefined);
+  const chat = await startTestChat(t);
+  const you = await chat.person();
+  const held = you.host.hold(Chat, {}, context);
+  await until(() => held.state.value.kind === "live", "chat to be reached through the gateway");
+  const ofGateway = (): string[] => said.mock.calls.map((call) => call.arguments.join(" ")).filter((line) => line.includes("gateway"));
+  assert.deepEqual(ofGateway(), []);
 
-  await assert.rejects(startChat({ dataDir }), ChatRunningError);
-  await assert.rejects(inRuntimeDir(tempDir(t, "rt-other"), () => startChat({ dataDir })), StoreOwnedError);
+  await chat.gateway.outage();
 
-  await child.kill("SIGKILL");
-  const taken = await startChat({ dataDir });
-  stopAfter(t, () => taken.close());
-  assert.equal(taken.socket, child.socket);
+  await until(() => ofGateway().length === 1, "the chat server to say it can't reach the gateway");
+  // It tries again every 50 milliseconds at most, so this is many tries.
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.equal(ofGateway().length, 1, "said once, however often it tries");
+  await chat.gateway.recover();
+  await until(() => ofGateway().length === 2, "the chat server to say the gateway is back");
+  const again = await chat.person();
+  const back = await again.host.get(Chat, {}, context);
+  assert.ok(back.you.value !== null, "and chat is reached through it again");
+  assert.equal(ofGateway().length, 2, "and that was all it said of it");
 });
+

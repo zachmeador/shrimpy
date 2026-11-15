@@ -38,7 +38,7 @@ test("threads lists your threads with an agent, the most recently updated first,
   await startScriptedAgent(t, { name: "scout", handle: () => answered("ok") });
   const first = startedThread((await shrimpy(["run", "scout", "one"])).stderr);
   await shrimpy(["run", "scout", "two"]);
-  await (await talking.you()).chat.archiveThread(first, true);
+  await (await talking.you()).archive(first, true);
 
   const result = await shrimpy(["threads", "scout", "--json"]);
 
@@ -76,7 +76,7 @@ test("threads with an agent you have never talked to lists nothing, and makes no
 
   assert.equal(result.code, 0, result.stderr);
   assert.deepEqual(JSON.parse(result.stdout), []);
-  assert.deepEqual(await (await talking.you()).chat.channels(), []);
+  assert.deepEqual(await (await talking.you()).channels(), []);
   assert.equal(nobody.code, 1);
   assert.match(nobody.stderr, /Nobody called nobody is on the roster/);
   assert.equal(yourself.code, 1);
@@ -117,7 +117,7 @@ test("read shows who said what, and where an agent failed, stopped or skipped a 
   assert.equal(lines.filter((line) => line.startsWith("--")).length, 3, "the silent receipt is shown to nobody");
 
   // Shown to nobody is what the reader chooses. The silent receipt is an event in the feed like the others.
-  const feed = await (await talking.you()).chat.feed(0, 100);
+  const feed = await (await talking.you()).events(0, 100);
   assert.deepEqual(
     feed.flatMap((event) => (event.kind === "receipted" ? [event.status] : [])),
     ["answered", "silent", "failed", "stopped", "skipped"],
@@ -128,11 +128,11 @@ test("read shows a thread of a DM between two agents, which the person who runs 
   await startTalking(t);
   const scout = await enterAsAgent(t, "scout");
   const maya = await enterAsAgent(t, "maya");
-  const dm = await scout.chat.openDm(maya.me.id);
-  const [main] = await scout.chat.threads(dm.id);
+  const dm = await scout.openDm(maya.me.id);
+  const [main] = await scout.threads(dm.id);
   assert.ok(main);
-  await scout.chat.post(main.id, "Is the disk full?", "scout-1");
-  await maya.chat.post(main.id, "Nearly.", "maya-1");
+  await scout.post(main.id, "Is the disk full?", "scout-1");
+  await maya.post(main.id, "Nearly.", "maya-1");
 
   const result = await shrimpy(["read", main.id]);
 
@@ -167,15 +167,15 @@ test("read shows each message's ID, and a message as it now stands: edited, dele
   await startScriptedAgent(t, { name: "scout", handle: () => answered("Noted.") });
   const thread = startedThread((await shrimpy(["run", "scout", "first draft"])).stderr);
   const you = await talking.you();
-  const [asked, reply] = await you.chat.read(thread, null, 10);
+  const [asked, reply] = await you.read(thread, null, 10);
   assert.ok(asked && reply);
   const read = async (): Promise<string[]> => (await shrimpy(["read", thread])).stdout.split("\n");
   const lineOf = (lines: string[], message: Message): string => lines.find((line) => line.includes(message.id)) ?? "";
 
   const before = await read();
   assert.ok(lineOf(before, asked).includes(asked.author.name) && lineOf(before, reply).includes(reply.author.name));
-  await you.chat.edit(asked.id, "second draft");
-  await you.chat.react(reply.id, THUMBS_UP);
+  await you.edit(thread, asked.id, "second draft");
+  await you.react(thread, reply.id, THUMBS_UP);
 
   const edited = await read();
   assert.ok(edited.some((line) => line.trim() === "second draft"));
@@ -183,8 +183,8 @@ test("read shows each message's ID, and a message as it now stands: edited, dele
   assert.match(lineOf(edited, asked), /edited/);
   assert.ok(edited.some((line) => line.trim() === `${THUMBS_UP} ${you.me.name}`));
 
-  await you.chat.unreact(reply.id, THUMBS_UP);
-  await you.chat.delete(asked.id);
+  await you.unreact(thread, reply.id, THUMBS_UP);
+  await you.delete(thread, asked.id);
 
   const deleted = await read();
   assert.ok(deleted.some((line) => line.trim() === "(deleted)"));
@@ -194,10 +194,10 @@ test("read shows each message's ID, and a message as it now stands: edited, dele
 test("read goes back through a thread that is longer than the live view holds", { timeout }, async (t) => {
   const talking = await startTalking(t);
   const connection = await talking.you();
-  const dm = await connection.chat.openDm((await joinRoster(t, "scout")).id);
-  const [main] = await connection.chat.threads(dm.id);
+  const dm = await connection.openDm((await joinRoster(t, "scout")).id);
+  const [main] = await connection.threads(dm.id);
   const thread = main?.id ?? "";
-  for (let n = 0; n < 450; n++) await connection.chat.post(thread, `message ${n}`, `request-${n}`);
+  for (let n = 0; n < 450; n++) await connection.post(thread, `message ${n}`, `request-${n}`);
 
   const result = await shrimpy(["read", thread, "--json"]);
 

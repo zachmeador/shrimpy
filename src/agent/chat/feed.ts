@@ -73,33 +73,52 @@ export async function readFeed(options: FeedOptions): Promise<void> {
 
   const follow = async ({ chat, self }: LiveChat, signal: AbortSignal): Promise<void> => {
     // The agent's place in the feed is for the store it was kept with. In a store made anew the positions start again.
-    if (await admissions.readingStore(await chat.store(signal))) {
+    if (await admissions.readingStore(chat.store())) {
       reported(new Error("Chat's store is not the one the agent's place in the feed was for, so the agent reads the new store from the start."));
       cursor = stored = 0;
     }
     let at = cursor ?? 0;
+    /** The store went back to an earlier state: its log ends before the agent's place. */
+    const wentBack = async (head: number): Promise<void> => {
+      reported(
+        new Error(
+          `Chat's log ends at ${head}, before the agent's place in it at ${at}. ` +
+            "The store is the same one, back at an earlier state, as when restored from a backup, so the agent reads its log from the start.",
+        ),
+      );
+      at = await moveTo(0);
+    };
     for (;;) {
+      // Chat says where the agent's feed ends, live, and is asked for events once that is past the agent's place.
+      const head = chat.head();
+      if (head < at) {
+        await wentBack(head);
+        continue;
+      }
+      if (head === at) {
+        await chat.untilHead(at, signal);
+        continue;
+      }
       let events: ChatEvent[];
       try {
-        events = await chat.feed(at, FEED_LIMIT, signal);
+        events = await chat.events(at, FEED_LIMIT, signal);
       } catch (error) {
-        const head = isRefusal(error) ? await chat.head(signal) : at;
+        const now = isRefusal(error) ? chat.head() : at;
         // Any other refusal, or a failure of any other kind, is the next attempt's to report.
-        if (head >= at) throw error;
-        reported(
-          new Error(
-            `Chat's log ends at ${head}, before the agent's place in it at ${at}. ` +
-              "The store is the same one, back at an earlier state, as when restored from a backup, so the agent reads its log from the start.",
-          ),
-        );
-        at = await moveTo(0);
+        if (now >= at) throw error;
+        await wentBack(now);
+        continue;
+      }
+      // A head past the agent's place with nothing after it waits for the head to move again.
+      if (events.length === 0) {
+        await chat.untilHead(Math.max(head, chat.head()), signal);
         continue;
       }
       for (const event of events) {
         // What the agent did itself is the most of what the feed offers it, and is passed over without asking chat anything.
         const passed = passedOver(self, event);
         // Where the event is, which chat is asked once for each channel. A channel that chat does not list is taken for a room.
-        const channel = passed ? undefined : await channels.find(chat, event.message.channelId, signal);
+        const channel = passed ? undefined : channels.find(chat, event.message.channelId);
         const where = channel?.kind === "dm" ? "dm" : "room";
         // A command is acted on at once, ahead of anything queued, and goes no further: no wake policy turns it away, no
         // model reads it, and no session is handed it. The agent's place in the feed moves past it with the page.

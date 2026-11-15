@@ -48,9 +48,9 @@ function createTables(db: DatabaseSync, dataDir: string): void {
   if (version === SCHEMA_VERSION) return;
   if (version !== 0) {
     throw new Error(
-      `The chat store in ${dataDir} is version ${version}, and this chat server reads version ${SCHEMA_VERSION}. ` +
-        "Nothing converts a chat store written by another version. To start chat fresh, move that folder aside. " +
-        "The rooms, threads and messages in it are not kept, and each agent starts over in the new store by itself.",
+      `The chat store in ${dataDir} was written by another version of Shrimpy, and nothing converts it. ` +
+        `Move ${dataDir} into an archive folder, and start the chat server again. ` +
+        "The new store starts with no rooms, threads or messages, and each agent starts over in it by itself.",
     );
   }
   db.exec(SCHEMA);

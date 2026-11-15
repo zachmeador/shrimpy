@@ -3,10 +3,12 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { parseTrigger } from "../agent/index.ts";
-import { AGENT_HOME_VARIABLE, type AgentConnection } from "../contracts/agent/index.ts";
-import { attachLocal, saveMembership } from "../contracts/agent/node.ts";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { Agent, AGENT_HOME_VARIABLE, type TriggerDetail, type TriggerSummary } from "../contracts/agent/index.ts";
+import { connectHome, saveMembership } from "../contracts/agent/node.ts";
 import { joinRoster, memberNamed } from "../contracts/chat/testing/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
+import { linkTestAgent } from "../contracts/gateway/testing/index.ts";
 import { eventually, stopAfter, useRuntimeDir } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
 import { runCli } from "./index.ts";
@@ -36,8 +38,14 @@ async function run(...args: string[]) {
   return { code, out: cli.out.join("\n"), err: cli.err.join("\n") };
 }
 
+/** What a test asks of a running agent's triggers. */
+interface Triggering {
+  triggers(): Promise<TriggerSummary[]>;
+  trigger(name: string): Promise<TriggerDetail>;
+}
+
 /** The agent `scout`, made in the test's Shrimpy folder and serving, and its home. */
-async function servedScout(t: TestContext): Promise<{ home: string; agent: ServedAgent; connection: () => Promise<AgentConnection> }> {
+async function servedScout(t: TestContext): Promise<{ home: string; agent: ServedAgent; connection: () => Promise<Triggering> }> {
   useRuntimeDir(t);
   const model = await startModelServer();
   t.after(() => model.close());
@@ -45,10 +53,18 @@ async function servedScout(t: TestContext): Promise<{ home: string; agent: Serve
   const home = join(useShrimpyDir(t), "agents", "scout");
   declareLocalModel(home, { url: model.url, model: "test-model" });
   const agent = await serve(t, home);
-  const connection = async (): Promise<AgentConnection> => {
-    const attached = await attachLocal(home);
-    stopAfter(t, () => attached.close().catch(() => undefined));
-    return attached;
+  const connection = async (): Promise<Triggering> => {
+    const client = await connectHome(home);
+    stopAfter(t, () => client.close());
+    const agent = await client.host.get(Agent, { agent: client.name }, BACKGROUND_CONTEXT);
+    return {
+      triggers: async () => agent.triggers.value,
+      async trigger(name) {
+        const answer = await agent.trigger({ name }, BACKGROUND_CONTEXT);
+        if (answer.kind === "refused") throw new Error(answer.words);
+        return answer.value;
+      },
+    };
   };
   return { home, agent, connection };
 }
@@ -261,12 +277,12 @@ test("add with a thread, run in the agent's shell, asks chat as the agent whethe
   const home = join(useShrimpyDir(t), "agents", "scout");
   // The agent has joined the roster with a token its home keeps, which is what a command in its shell signs in with.
   const token = newToken();
-  await (await talking.gateway.connect()).join("scout", token);
+  await (await linkTestAgent(t, "scout", token)).stop();
   saveMembership(home, { token });
   const scout = await memberNamed(t, "scout");
   const maya = await joinRoster(t, "maya");
-  const [mine] = await you.chat.threads((await you.chat.openDm(scout.id)).id);
-  const [theirs] = await you.chat.threads((await you.chat.openDm(maya.id)).id);
+  const [mine] = await you.threads((await you.openDm(scout.id)).id);
+  const [theirs] = await you.threads((await you.openDm(maya.id)).id);
   assert.ok(mine && theirs, "the person can see both threads, and only one is the agent's");
   const inShell = { env: { [AGENT_HOME_VARIABLE]: home } };
   const file = join(home, "triggers", "report.md");

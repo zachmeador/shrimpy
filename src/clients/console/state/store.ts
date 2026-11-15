@@ -1,23 +1,31 @@
 import { randomUUID } from "node:crypto";
-import { setTimeout as delay } from "node:timers/promises";
-import type { AgentModels } from "../../../contracts/agent/index.ts";
-import type { Channel, ChatClient } from "../../../contracts/chat/index.ts";
-import type { GatewayConnection, Transports } from "../../../contracts/gateway/index.ts";
+import { type AgentModels, MAX_READ, type SessionItem, type SessionPage } from "../../../contracts/agent/index.ts";
+import type { Answer } from "../../../contracts/gateway/index.ts";
+import type { GatewayPlace } from "../../../contracts/gateway/node.ts";
 import { createListeners } from "../../../lib/listeners/index.ts";
 import type { Backoff } from "../../../lib/retry/index.ts";
 import {
-  type AgentLink,
+  type AgentCalls,
+  type AgentShown,
+  type ChannelCalls,
+  type ChannelShown,
   CONNECTING,
-  converge,
   Down,
-  keepAgent,
-  keepChat,
-  keepRegistry,
+  holdAgent,
+  holdChannel,
+  holdChat,
+  type Holding,
+  holdRoster,
+  holdSession,
+  holdThread,
+  keepGateway,
   problemOf,
-  type SessionUpdate,
-  type ThreadUpdate,
+  type SessionCalls,
+  type SessionShown,
+  type ThreadCalls,
+  type ThreadShown,
 } from "../network/index.ts";
-import { readChannels } from "./directory.ts";
+import { channelsOf } from "./channels.ts";
 import {
   type AgentEntry,
   agentEntries,
@@ -31,28 +39,24 @@ import {
   openedThread,
   type Place,
   readOnlyEntries,
-  type Room,
   type SendResult,
+  type SessionView,
+  type ThreadView,
   type Where,
   workingIn,
 } from "./model.ts";
-import { keepRollCall } from "./roll-call.ts";
-import { statusOf } from "./status.ts";
+import { devicesOf, statusOf } from "./status.ts";
 
 export interface ConsoleStateOptions {
-  /** How the console reaches the gateway, and the programs registered with it by their names. */
-  transports: Transports;
-  /** Run on each connection the console makes to the gateway, before anything else, to be somebody to it. See `RegistryOptions`. */
-  signIn?: (gateway: GatewayConnection) => Promise<void>;
-  /** How often what has no subscription is asked for again: what is running, the threads in the person's DMs and rooms, the sessions of the agent on show, and, while the list of agents is on show, the sessions of each running agent. 2 seconds by default. */
-  pollMs?: number;
-  /** How long an agent is waited for to say its sessions while the list of agents is on show, before it is shown as the person's own threads with it show it. 5 seconds by default. */
-  answerMs?: number;
+  /** Where the gateway is: its own socket on this machine, or its entry, with the fingerprint of its key. */
+  place: GatewayPlace;
+  /** A device's token, to be you on a machine that joined, or null to be you on the gateway's own socket. */
+  token: string | null;
   /** How long a notice stays. 6 seconds by default. */
   noticeMs?: number;
   /** How long sending a message waits for the chat server before saying it was not sent. 20 seconds by default. */
   sendMs?: number;
-  /** The pauses between attempts to reach a program. Tests shorten them. */
+  /** The pauses between attempts to link to the gateway. Tests shorten them. */
   backoff?: Backoff;
   /** The moment it is, in milliseconds since the epoch, for saying when `/status` read what it shows. The clock by default. */
   now?: () => number;
@@ -98,12 +102,21 @@ export interface ConsoleState {
   note(notice: Notice): void;
   /**
    * Read what `/status` shows for the open thread: the agent, what it is doing
-   * there and what its session has used, or the agents of a room and who of them
+   * there and what its session has used, why its last turn ended without an
+   * answer and the wake-ups it waits on, or the agents of a room and who of them
    * is working. It is kept in the model as it stood when it was read, for the
    * person alone, until they send a message or leave the thread, and reading
    * again replaces it. Posts nothing.
    */
   readStatus(): Promise<void>;
+  /** Read what `/devices` shows: the person's devices, each with its label and ID, kept in the model as `/status` is. Posts nothing. */
+  readDevices(): void;
+  /**
+   * Take back the person's device that `written` names, by its label, whatever
+   * the case, or by its ID: its link to the gateway ends at once. What came of it
+   * is said in a notice, and a list of devices on show is read again. Posts nothing.
+   */
+  takeBack(written: string): Promise<void>;
   /**
    * The models the agent of the open DM thread can use now, and the one its
    * sessions follow by default, for the list that `/model ` opens. What the
@@ -121,33 +134,40 @@ export interface ConsoleState {
    */
   showModel(): Promise<void>;
 
-  /** The work that goes on if the console is left now, if there is any. It asks chat once more, briefly. */
+  /** The work that goes on if the console is left now, if there is any. */
   farewell(): Promise<Farewell | undefined>;
-  /** Let go of every connection. The work in agents goes on. */
+  /** Let go of every object held and of the link. The work in agents goes on. */
   close(): Promise<void>;
 }
 
 /** A place as a string, for telling one from another. */
 const placeKey = (place: Place): string => (place.kind === "agent" ? `agent ${place.name}` : `${place.kind} ${place.id}`);
 
-const POLL_MS = 2000;
 const NOTICE_MS = 6000;
 const SEND_MS = 20_000;
-const ANSWER_MS = 5000;
-/** How long leaving waits for chat to say who is working. */
-const FAREWELL_MS = 500;
 /** How long the models an agent said it can use are kept before it is asked again. A list is narrowed by typing, and each key asks for the list. */
 const MODELS_KEPT_MS = 10_000;
 /** How long an agent is waited for to say its models. The editor asks for one list at a time, so one that never came would hold up every key after it. */
 const MODELS_WAIT_MS = 3000;
+/** How long taking back a device waits for the gateway. */
+const TAKE_BACK_MS = 10_000;
+/** The most items of a session shown at once, which are its newest: a watch reads back from where the window starts to as many. */
+const SHOWN_ITEMS = 200;
 
-export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
-  const pollMs = options.pollMs ?? POLL_MS;
+/** What a method did, or `Down` when it could not be asked, or the refusal it answered with, thrown with its words. */
+function valueOf<T>(answer: Answer<T>): T {
+  if (answer.kind === "refused") throw new Error(answer.words);
+  return answer.value;
+}
+
+export async function createConsoleState(options: ConsoleStateOptions): Promise<ConsoleState> {
   const noticeMs = options.noticeMs ?? NOTICE_MS;
   const sendMs = options.sendMs ?? SEND_MS;
   const clock = options.now ?? Date.now;
   const listeners = createListeners<Model>(() => undefined);
   let closed = false;
+
+  const link = await keepGateway({ place: options.place, token: options.token, ...(options.backoff === undefined ? {} : { backoff: options.backoff }) });
 
   let model: Model = {
     me: undefined,
@@ -168,6 +188,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     status: undefined,
     homes: options.homes,
   };
+
   // Counts the readings of `/status` that were asked for or dropped, so that one still on its way when the person moves on or sends a message is not shown.
   let statusReads = 0;
   const set = (patch: Partial<Model>): void => {
@@ -177,8 +198,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     if (moved) statusReads += 1;
     model = { ...model, ...(moved ? { status: undefined } : {}), ...patch };
     listeners.notify(model);
-    // Which agents are asked what they are working in follows where the person is, and which agents are running.
-    if (moved || patch.listing !== undefined) tend();
+    changed();
   };
 
   let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -188,226 +208,250 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     if (notice !== undefined) noticeTimer = setTimeout(() => set({ notice: undefined }), noticeMs);
   };
 
+  // What changed in the objects held is worked into the model once for all the changes of one turn of the event loop.
+  let scheduled = false;
+  function changed(): void {
+    if (scheduled || closed) return;
+    scheduled = true;
+    queueMicrotask(() => {
+      scheduled = false;
+      if (!closed) refresh();
+    });
+  }
+
+  const roster = holdRoster(link, changed);
+  const chat = holdChat(link, changed);
+  const stopLink = link.onChange(changed);
+  /** Each channel the person is in or only reads, held for its threads. */
+  const channels = new Map<string, Holding<ChannelShown, ChannelCalls>>();
+  /** The agent whose screen, or whose thread or session, is on show. */
+  let selected: { name: string; held: Holding<AgentShown, AgentCalls> } | undefined;
+  /** Each running agent, held for what it is working in, while the list of agents is on show. */
+  const rollCall = new Map<string, Holding<AgentShown, AgentCalls>>();
+  /** The open thread. */
+  let thread: { id: string; held: Holding<ThreadShown, ThreadCalls>; told: string | undefined } | undefined;
+  /** The session on show, and what was read of it before its window. */
+  let session:
+    | {
+        agent: string;
+        address: string;
+        held: Holding<SessionShown, SessionCalls>;
+        /** The items read back from `from`, the entry the window started after, and the entry before the oldest of them. */
+        older: { from: number; items: SessionItem[]; before: number | null } | undefined;
+        reading: number | undefined;
+      }
+    | undefined;
+
   // Whether the person has been taken to the only agent there is, or has found their own way.
   let landed = false;
-  // Whether the person's channels have been read yet, since without them it is not known whether they are in a room.
-  let channelsRead = false;
 
-  const registry = keepRegistry({ transports: options.transports, signIn: options.signIn, pollMs, backoff: options.backoff });
-  const rollCall = keepRollCall({
-    registry,
-    transports: options.transports,
-    pollMs,
-    answerMs: options.answerMs ?? ANSWER_MS,
-    backoff: options.backoff,
-    onChange: (workingSessions) => set({ workingSessions }),
-  });
+  const linkedChat = (): boolean => model.listing?.programs.some((program) => program.kind === "chat") ?? false;
+  const linkedAgent = (name: string): boolean =>
+    model.listing?.programs.some((program) => program.kind === "agent" && program.name === name) ?? false;
+
+  /** Hold the channels chat lists to the person, and let go of those it no longer lists. */
+  function followChannels(): void {
+    const shown = chat.shown();
+    if (shown === undefined) return;
+    const wanted = new Set([...shown.channels, ...shown.readOnlyChannels].map((channel) => channel.id));
+    for (const [id, held] of channels) {
+      if (wanted.has(id)) continue;
+      held.release();
+      channels.delete(id);
+    }
+    for (const id of wanted) if (!channels.has(id)) channels.set(id, holdChannel(link, id, changed));
+  }
 
   /**
-   * While the list of agents is on show, each agent that is running is asked
+   * While the list of agents is on show, each agent that is running is held for
    * what it is working in, and none is when it is not. It waits for the person to
    * have been taken to the only agent there is, or to have found their own way,
-   * so that a console that opens on that agent does not reach every agent first.
+   * so that a console that opens on that agent does not hold every agent first.
    */
-  function tend(): void {
-    const asked = model.where.screen === "agents" && landed ? agentEntries(model).filter((entry) => entry.running) : [];
-    rollCall.keep(asked.map((entry) => entry.name));
+  function tend(entries: AgentEntry[]): void {
+    const wanted = new Set(model.where.screen === "agents" && landed ? entries.filter((entry) => entry.running).map((entry) => entry.name) : []);
+    for (const [name, held] of rollCall) {
+      if (wanted.has(name)) continue;
+      held.release();
+      rollCall.delete(name);
+    }
+    for (const name of wanted) if (!rollCall.has(name)) rollCall.set(name, holdAgent(link, name, changed));
   }
 
-  const onThread = (update: ThreadUpdate): void => {
-    const { where } = model;
-    if (where.screen !== "thread" || where.thread !== update.threadId) return;
-    if ("view" in update) set({ thread: update.view });
-    else say({ kind: "not-opened", problem: update.problem });
-  };
-  const chat = keepChat({
-    registry,
-    transports: options.transports,
-    backoff: options.backoff,
-    onEntered: (me) => set({ me }),
-    onThread,
-  });
-
-  /** The address of the session that is being watched for the screen the person is on, if there is one. */
-  const watched = (where: Model["where"]): string | undefined =>
-    where.screen === "thread" ? where.thread : where.screen === "session" ? where.session : undefined;
-
-  let agent: AgentLink | undefined;
-  const closing: Promise<void>[] = [];
-  const useAgent = (name: string | undefined): void => {
-    if (agent?.name === name) return;
-    if (agent !== undefined) closing.push(agent.close());
-    if (name === undefined) {
-      agent = undefined;
-      set({ agent: undefined, session: undefined, sessions: undefined, refusal: undefined });
-      return;
+  /** What each agent of the roll call is working in, as it lists it: an agent that is not reached, refuses or works in nothing has no entry. */
+  function workingNow(): Model["workingSessions"] {
+    const working: Model["workingSessions"] = {};
+    for (const [name, held] of rollCall) {
+      const shown = held.shown();
+      if (held.status(linkedAgent(name)).state !== "up" || shown === undefined || shown.refusal !== null) continue;
+      const now = shown.sessions.filter((each) => each.working);
+      if (now.length > 0) working[name] = now;
     }
-    const link: AgentLink = keepAgent({
-      name,
-      registry,
-      transports: options.transports,
-      pollMs,
-      backoff: options.backoff,
-      onSession(update: SessionUpdate) {
-        const { where } = model;
-        if (agent !== link || watched(where) !== update.session) return;
-        if ("view" in update) set({ session: update.view, refusal: undefined });
-        else if (where.screen === "session") {
-          // The screen of a session says why it can't be watched for as long as that is so. A connection that is lost is the link's to say.
-          if ("said" in update.problem) set({ refusal: update.problem.said });
-        } else say({ kind: "not-watched", problem: update.problem });
-      },
-    });
-    link.onStatus((status) => {
-      if (agent !== link) return;
-      set({ agent: status });
-      if (status.state === "up") void refreshSessions();
-    });
-    agent = link;
-    set({ agent: link.status(), session: undefined, sessions: undefined, refusal: undefined });
-  };
+    return working;
+  }
+
+  /** Whether the session on show is watched whole, which reads back from where its window starts. */
+  const watchedWhole = (where: Where): boolean => where.screen === "session" || (where.screen === "thread" && where.turned === true);
+
+  /** The session on show as a view, with what was read back before its window when that follows on from it. */
+  function sessionViewOf(): SessionView | undefined {
+    const shown = session?.held.shown();
+    if (session === undefined || shown === undefined || shown.refusal !== null || shown.status === null) return undefined;
+    const { window } = shown;
+    const older = session.older;
+    if (window.before === null || older === undefined || older.from !== window.before || !watchedWhole(model.where)) {
+      return { items: window.items, before: window.before, status: shown.status };
+    }
+    return { items: [...older.items, ...window.items], before: older.before, status: shown.status };
+  }
 
   /**
-   * Where the person is, as it is once `rooms` are the rooms they are in: the same screen in the room, if they were
-   * reading a channel that is one of their rooms now because they joined it, and nothing otherwise.
+   * Read the session on show back from where its window starts, page after page,
+   * until as many items are shown as a watch shows or the session's start is
+   * reached, when it is watched whole and its window has moved since the last read.
    */
-  function walkedIn(rooms: Record<string, Room>): Where | undefined {
-    const { where } = model;
-    if ((where.screen !== "threads" && where.screen !== "thread") || where.place.kind !== "read-only") return undefined;
-    const { id } = where.place;
-    return rooms[id] === undefined ? undefined : { ...where, place: { kind: "room", id } };
-  }
-
-  /** The person's DMs, rooms and channels they only read, and the threads in them, asked for again whenever something suggests they changed. */
-  const refreshChannels = converge(
-    async () => {
-      if (chat.status().state !== "up") return;
-      const agents = agentEntries(model);
-      const { dms, rooms, readOnly } = await chat.call((client) => readChannels(client, agents));
-      if (
-        JSON.stringify(dms) !== JSON.stringify(model.dms) ||
-        JSON.stringify(rooms) !== JSON.stringify(model.rooms) ||
-        JSON.stringify(readOnly) !== JSON.stringify(model.readOnly)
-      ) {
-        const where = walkedIn(rooms);
-        set({ dms, rooms, readOnly, ...(where === undefined ? {} : { where }) });
+  function readBack(): void {
+    const watched = session;
+    const shown = watched?.held.shown();
+    if (watched === undefined || shown === undefined || shown.refusal !== null || !watchedWhole(model.where)) return;
+    const from = shown.window.before;
+    if (from === null || watched.older?.from === from || watched.reading === from) return;
+    watched.reading = from;
+    const wanted = SHOWN_ITEMS - shown.window.items.length;
+    void (async () => {
+      let items: SessionItem[] = [];
+      let before: number | null = from;
+      while (before !== null && items.length < wanted) {
+        const page: SessionPage = valueOf(await watched.held.calls.read(before, MAX_READ));
+        items = [...page.items, ...items];
+        before = page.before;
       }
-      if (model.notice?.kind === "not-listed") say(undefined);
-      channelsRead = true;
-      land();
-    },
-    (error) => {
-      const problem = problemOf(error);
-      // A connection that is down is the status's to tell; anything else is worth a notice.
-      if ("said" in problem) say({ kind: "not-listed", problem });
-    },
-  );
-
-  // Read through a function: where the person is changes while the sessions are asked for, which the compiler cannot see.
-  /** The agent's screen lists the sessions of the agent that is selected, among everything else it takes part in. */
-  const agentListed = (): boolean => model.where.screen === "threads" && model.where.place.kind === "agent";
-
-  /** The sessions of the agent that is selected, asked for again for as long as its screen is on show. */
-  const refreshSessions = converge(
-    async () => {
-      const link = agent;
-      if (link === undefined || !agentListed() || link.status().state !== "up") return;
-      const sessions = await link.sessions();
-      if (agent !== link) return;
-      if (JSON.stringify(sessions) !== JSON.stringify(model.sessions)) set({ sessions });
-      if (agentListed() && model.refusal !== undefined) set({ refusal: undefined });
-    },
-    (error) => {
-      const problem = problemOf(error);
-      // A connection that is down is the status's to tell. What the agent said is said on the screen.
-      if ("said" in problem && agentListed()) set({ refusal: problem.said });
-    },
-  );
-
-  // The models an agent said it can use, and when. A clock that only goes forward keeps them, so a changed system time cannot.
-  let kept: { link: AgentLink; at: number; models: AgentModels } | undefined;
-
-  /**
-   * The models the agent behind `link` can use: what it said in the last few
-   * seconds, or else what it says when asked. Undefined when it says nothing
-   * in time, or refuses; that is not kept, so the next key asks again.
-   */
-  async function modelsOf(link: AgentLink): Promise<AgentModels | undefined> {
-    if (kept?.link === link && performance.now() - kept.at < MODELS_KEPT_MS) return kept.models;
-    const waiting = new AbortController();
-    const asked = link.models().catch(() => undefined);
-    const models = await Promise.race([asked, delay(MODELS_WAIT_MS, undefined, { signal: waiting.signal }).catch(() => undefined)]);
-    waiting.abort();
-    if (models !== undefined) kept = { link, at: performance.now(), models };
-    return models;
+      return { items, before };
+    })().then(
+      (read) => {
+        if (session !== watched || watched.reading !== from) return;
+        watched.reading = undefined;
+        watched.older = { from, ...read };
+        changed();
+      },
+      () => {
+        // A read that failed is tried again when the window moves, or the session is shown again. The window alone stands.
+        if (session === watched && watched.reading === from) watched.reading = undefined;
+      },
+    );
   }
 
-  /** The agent on the roster that is called `name`. */
-  const roster = (name: string): AgentEntry => {
-    const found = agentEntries(model).find((entry) => entry.name === name);
-    if (found === undefined) throw new Error(`${name} is not on the roster.`);
-    return found;
-  };
+  /** Work what the held objects show into the model, then do what follows from it. */
+  function refresh(): void {
+    const shownRoster = roster.shown();
+    const version = link.version() ?? model.listing?.version ?? "";
+    const listing = shownRoster === undefined ? model.listing : { ...shownRoster, version };
+    model = { ...model, listing };
+    followChannels();
+    const shownChat = chat.shown();
+    const entries = agentEntries({ ...model, listing });
+    const { dms, rooms, readOnly } = channelsOf(
+      shownChat?.channels ?? [],
+      shownChat?.readOnlyChannels ?? [],
+      (id) => channels.get(id)?.shown(),
+      entries,
+    );
 
-  /**
-   * The channel a new thread goes in: the person's DM with the agent, which is
-   * made if they have none, or the room, which the console never makes.
-   */
-  async function channelOf(client: ChatClient, place: Exclude<Place, { kind: "read-only" }>, signal: AbortSignal): Promise<Channel> {
-    if (place.kind === "room") {
-      const room = model.rooms[place.id];
-      if (room === undefined) throw new Error("You are not in that room.");
-      return room.channel;
+    // A room the person joins while reading it is theirs from then on: the screen becomes the room's.
+    let { where } = model;
+    if ((where.screen === "threads" || where.screen === "thread") && where.place.kind === "read-only" && rooms[where.place.id] !== undefined) {
+      where = { ...where, place: { kind: "room", id: where.place.id } };
     }
-    return model.dms[place.name]?.channel ?? (await client.openDm(roster(place.name).id, signal));
+
+    const agentShown = selected?.held.shown();
+    const listingAgent = where.screen === "threads" && where.place.kind === "agent";
+    const shownSession = session?.held.shown();
+    let refusal: string | undefined;
+    if (listingAgent && agentShown?.refusal !== null && agentShown?.refusal !== undefined) refusal = agentShown.refusal.words;
+    if (where.screen === "session" && shownSession?.refusal !== null && shownSession?.refusal !== undefined) refusal = shownSession.refusal.words;
+
+    const shownThread = thread?.held.shown();
+    let threadView: ThreadView | undefined;
+    if (shownThread !== undefined && shownThread.refusal === null && shownThread.thread !== null) {
+      const { thread: record, messages, earlier, readOnly: only } = shownThread;
+      threadView = { thread: record, messages, earlier, readOnly: only };
+    }
+
+    model = {
+      ...model,
+      where,
+      gateway: link.status(),
+      chat: chat.status(linkedChat()),
+      me: shownChat?.you ?? model.me,
+      dms,
+      rooms,
+      readOnly,
+      agent: selected === undefined ? undefined : selected.held.status(linkedAgent(selected.name)),
+      sessions: agentShown === undefined || agentShown.refusal !== null ? undefined : agentShown.sessions,
+      refusal,
+      thread: threadView,
+      session: sessionViewOf(),
+      workingSessions: workingNow(),
+    };
+    listeners.notify(model);
+
+    // A thread that can't be had says so, once.
+    if (thread !== undefined && shownThread?.refusal !== null && shownThread?.refusal !== undefined && thread.told !== shownThread.refusal.words) {
+      thread.told = shownThread.refusal.words;
+      say({ kind: "not-opened", problem: { said: shownThread.refusal.words } });
+    }
+    land(entries);
+    tend(entries);
+    readBack();
   }
 
-  /** With one agent and no room to choose from, the person is taken to the agent, once. */
-  function land(): void {
-    if (landed || !channelsRead) return;
-    const agents: AgentEntry[] = agentEntries(model);
-    if (agents.length === 0) return;
+  /** With one agent and no room to choose from, the person is taken to the agent, once chat has said which channels they have. */
+  function land(entries: AgentEntry[]): void {
+    if (landed || chat.shown() === undefined || entries.length === 0) return;
     landed = true;
-    const [only] = agents;
-    const channels = Object.keys(model.rooms).length + readOnlyEntries(model).length;
-    if (only !== undefined && agents.length === 1 && channels === 0 && model.where.screen === "agents") {
-      select(only.name);
-    }
-    tend();
+    const [only] = entries;
+    const channelsToChoose = Object.keys(model.rooms).length + readOnlyEntries(model).length;
+    if (only !== undefined && entries.length === 1 && channelsToChoose === 0 && model.where.screen === "agents") select(only.name);
   }
 
-  registry.onChange(() => {
-    set({ gateway: registry.status(), listing: registry.listing() });
-    land();
-    void refreshChannels();
-  });
-  chat.onStatus((status) => {
-    set({ chat: status });
-    if (status.state === "up") void refreshChannels();
-  });
-  const poll = setInterval(() => {
-    void refreshChannels();
-    void refreshSessions();
-    rollCall.ask();
-  }, pollMs);
-  // The links have been trying since they were made, and may have something to say already.
-  set({ gateway: registry.status(), listing: registry.listing(), chat: chat.status() });
+  /** Hold the agent called `name`, and let go of any other, or of every one with none. */
+  function useAgent(name: string | undefined): void {
+    if (selected?.name === name) return;
+    selected?.held.release();
+    selected = name === undefined ? undefined : { name, held: holdAgent(link, name, changed) };
+  }
+
+  /** Hold the thread `id`, and let go of any other, or of every one with none. */
+  function useThread(id: string | undefined): void {
+    if (thread?.id === id) return;
+    thread?.held.release();
+    thread = id === undefined ? undefined : { id, held: holdThread(link, id, changed), told: undefined };
+  }
+
+  /** Hold the session at `address` of the agent `agent`, and let go of any other, or of every one with none. */
+  function useSession(agent: string | undefined, address: string | undefined): void {
+    if (session?.agent === agent && session?.address === address) return;
+    session?.held.release();
+    session =
+      agent === undefined || address === undefined
+        ? undefined
+        : { agent, address, held: holdSession(link, agent, address, changed), older: undefined, reading: undefined };
+  }
 
   function select(name: string): void {
     landed = true;
     useAgent(name);
-    chat.follow(undefined);
-    agent?.watch(undefined);
+    useThread(undefined);
+    useSession(undefined, undefined);
     set({ where: { screen: "threads", place: { kind: "agent", name } }, thread: undefined, session: undefined, refusal: undefined, notice: undefined });
-    void refreshChannels();
   }
 
   function selectChannel(place: Extract<Place, { id: string }>): void {
     landed = true;
     useAgent(undefined);
-    chat.follow(undefined);
+    useThread(undefined);
+    useSession(undefined, undefined);
     set({ where: { screen: "threads", place }, thread: undefined, session: undefined, notice: undefined });
-    void refreshChannels();
   }
 
   function open(threadId: string | undefined): void {
@@ -416,9 +460,11 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     // A channel the person only reads takes no new thread.
     if (threadId === undefined && where.place.kind === "read-only") return;
     landed = true;
-    chat.follow(threadId);
-    agent?.watch(threadId);
-    set({ where: openedThread(model, where, threadId), thread: undefined, session: undefined, notice: undefined });
+    const next = openedThread(model, where, threadId);
+    useThread(threadId);
+    const agent = next.screen === "thread" ? agentOfThread(next) : undefined;
+    useSession(threadId === undefined ? undefined : agent, threadId);
+    set({ where: next, thread: undefined, session: undefined, notice: undefined });
   }
 
   // The thread a person started and could not send a first message in, so that trying again does not make another.
@@ -427,6 +473,67 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
   let pending: { threadId: string; text: string; requestId: string } | undefined;
   // Which new thread is on screen, so that a first message that arrives late does not open it over something else.
   let newThreads = 0;
+
+  /** The person's devices, from the roster as it is now. */
+  const devicesNow = (): { label: string | null; id: string }[] => devicesOf(model);
+
+  // The models an agent said it can use, and when. A clock that only goes forward keeps them, so a changed system time cannot.
+  let kept: { agent: string; at: number; models: AgentModels } | undefined;
+
+  /**
+   * The models the agent held as `held` can use: what it said in the last few
+   * seconds, or else what it says when asked. Undefined when it says nothing
+   * in time, or refuses; that is not kept, so the next key asks again.
+   */
+  async function modelsOf(name: string, held: Holding<AgentShown, AgentCalls>): Promise<AgentModels | undefined> {
+    if (kept?.agent === name && performance.now() - kept.at < MODELS_KEPT_MS) return kept.models;
+    const waiting = AbortSignal.timeout(MODELS_WAIT_MS);
+    const answer = await held.calls.models(waiting).catch(() => undefined);
+    if (answer?.kind !== "done") return undefined;
+    kept = { agent: name, at: performance.now(), models: answer.value };
+    return answer.value;
+  }
+
+  /** The agent on the roster that is called `name`. */
+  const rosterAgent = (name: string): AgentEntry => {
+    const found = agentEntries(model).find((entry) => entry.name === name);
+    if (found === undefined) throw new Error(`${name} is not on the roster.`);
+    return found;
+  };
+
+  /**
+   * The ID of the channel a new thread goes in: the person's DM with the agent,
+   * which is made if they have none, or the room, which the console never makes.
+   */
+  async function channelOf(place: Exclude<Place, { kind: "read-only" }>, signal: AbortSignal): Promise<string> {
+    if (place.kind === "room") {
+      if (model.rooms[place.id] === undefined) throw new Error("You are not in that room.");
+      return place.id;
+    }
+    const dm = model.dms[place.name];
+    if (dm !== undefined) return dm.channel.id;
+    return valueOf(await chat.calls.openDm(rosterAgent(place.name).id, signal)).id;
+  }
+
+  /** Make a new thread in the channel `channelId`, holding the channel only while it does. */
+  async function newThreadIn(channelId: string, signal: AbortSignal): Promise<string> {
+    const held = channels.get(channelId) ?? holdChannel(link, channelId, () => undefined);
+    try {
+      return valueOf(await held.calls.createThread(null, signal)).id;
+    } finally {
+      if (!channels.has(channelId)) held.release();
+    }
+  }
+
+  /** Post in the thread `threadId`, holding it only while it does unless it is the open thread. */
+  async function postIn(threadId: string, text: string, requestId: string, signal: AbortSignal): Promise<void> {
+    const held = thread?.id === threadId ? thread.held : holdThread(link, threadId, () => undefined);
+    try {
+      valueOf(await held.calls.post(text, requestId, signal));
+    } finally {
+      if (thread?.held !== held) held.release();
+    }
+  }
 
   return {
     model: () => model,
@@ -451,20 +558,19 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     openSession(address) {
       const { where } = model;
       if (where.screen !== "threads" || where.place.kind !== "agent") return;
-      agent?.watch(address);
+      useThread(undefined);
+      useSession(where.place.name, address);
       set({ where: { screen: "session", agent: where.place.name, session: address }, session: undefined, notice: undefined, refusal: undefined });
     },
     back() {
       const { where } = model;
       if (where.screen === "thread" || where.screen === "session") {
-        chat.follow(undefined);
-        agent?.watch(undefined);
+        useThread(undefined);
+        useSession(undefined, undefined);
         set({ where: { screen: "threads", place: listedIn(where) }, thread: undefined, session: undefined, notice: undefined, refusal: undefined });
-        void refreshChannels();
-        void refreshSessions();
       } else if (where.screen === "threads") {
         useAgent(undefined);
-        set({ where: { screen: "agents" }, notice: undefined, refusal: undefined });
+        set({ where: { screen: "agents" }, agent: undefined, sessions: undefined, notice: undefined, refusal: undefined });
       }
     },
 
@@ -477,20 +583,16 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       // A chat server that has stopped answering must not leave the message in limbo. Sending it again is safe either way.
       const answered = AbortSignal.timeout(sendMs);
       try {
-        const threadId = await chat.call(async (client) => {
-          let id = where.thread ?? (started?.place === placeKey(place) ? started.threadId : undefined);
-          if (id === undefined) {
-            const channel = await channelOf(client, place, answered);
-            id = (await client.createThread(channel.id, null, answered)).id;
-            started = { place: placeKey(place), threadId: id };
-          }
-          const requestId =
-            pending?.threadId === id && pending.text === text ? pending.requestId : randomUUID();
-          pending = { threadId: id, text, requestId };
-          await client.post(id, text, requestId, answered);
-          pending = undefined;
-          return id;
-        });
+        if (model.chat.state === "down") throw new Down(model.chat.why);
+        let threadId = where.thread ?? (started?.place === placeKey(place) ? started.threadId : undefined);
+        if (threadId === undefined) {
+          threadId = await newThreadIn(await channelOf(place, answered), answered);
+          started = { place: placeKey(place), threadId };
+        }
+        const requestId = pending?.threadId === threadId && pending.text === text ? pending.requestId : randomUUID();
+        pending = { threadId, text, requestId };
+        await postIn(threadId, text, requestId, answered);
+        pending = undefined;
         // A message that is sent ends what `/status` read.
         statusReads += 1;
         if (model.status !== undefined) set({ status: undefined });
@@ -499,7 +601,6 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
           const now = model.where;
           if (now.screen === "thread" && now.thread === undefined && newThreads === newThread) open(threadId);
         }
-        void refreshChannels();
         return { ok: true };
       } catch (error) {
         const silent = answered.aborted ? new Down({ kind: "unreachable", message: "the chat server did not answer" }) : error;
@@ -515,52 +616,78 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       if (where.screen !== "thread") return;
       statusReads += 1;
       const read = statusReads;
-      const link = agent;
-      const asking = where.place.kind === "agent" && link?.status().state === "up" ? link : undefined;
-      // The agent is asked which sessions it has, for how many of them are working besides this thread's, and which model is its default, when the thread's is not that one. It may not answer.
+      const asking = where.place.kind === "agent" && selected !== undefined && model.agent?.state === "up" ? selected : undefined;
+      // The agent is asked which model is its default, when the thread's is not that one. It may not answer.
       const own = model.session?.status.ownModel === true;
-      const [sessions, models] = await Promise.all([
-        asking?.sessions().catch(() => undefined),
-        own && asking !== undefined ? modelsOf(asking) : undefined,
-      ]);
+      const models = own && asking !== undefined ? await modelsOf(asking.name, asking.held) : undefined;
+      const sessions = asking === undefined ? undefined : model.sessions;
       if (read === statusReads) set({ status: statusOf(model, sessions, clock(), models?.default) });
+    },
+
+    readDevices() {
+      if (model.where.screen !== "thread") return;
+      statusReads += 1;
+      set({ status: { at: clock(), about: { kind: "devices", devices: devicesNow() } } });
+    },
+
+    async takeBack(written) {
+      const devices = devicesNow();
+      const wanted = written.trim().toLowerCase();
+      const byId = devices.filter((device) => device.id.toLowerCase() === wanted);
+      const named = byId.length > 0 ? byId : devices.filter((device) => device.label?.toLowerCase() === wanted);
+      if (named.length === 0) {
+        say({ kind: "no-device", written: written.trim(), devices: devices.map((device) => device.label ?? device.id) });
+        return;
+      }
+      const [device] = named;
+      if (named.length > 1 || device === undefined) {
+        say({ kind: "devices-alike", written: written.trim() });
+        return;
+      }
+      try {
+        if (model.gateway.state === "down") throw new Down(model.gateway.why);
+        valueOf(await roster.calls.takeBack(device.id, AbortSignal.timeout(TAKE_BACK_MS)));
+      } catch (error) {
+        say({ kind: "not-taken-back", problem: problemOf(error) });
+        return;
+      }
+      if (model.status?.about.kind === "devices") {
+        const left = devicesNow().filter((each) => each.id !== device.id);
+        set({ status: { at: clock(), about: { kind: "devices", devices: left } } });
+      }
+      say({ kind: "taken-back", device: device.label ?? device.id });
     },
 
     async models() {
       const { where } = model;
-      const link = agent;
-      if (where.screen !== "thread" || where.place.kind !== "agent" || link?.status().state !== "up") return undefined;
-      return modelsOf(link);
+      const asking = selected;
+      if (where.screen !== "thread" || where.place.kind !== "agent" || asking === undefined || model.agent?.state !== "up") return undefined;
+      return modelsOf(asking.name, asking.held);
     },
 
     async showModel() {
       const { where } = model;
-      const link = agent;
+      const asking = selected;
       // A room's thread has no one agent whose model this could be, even when it was opened from an agent's screen.
-      if (where.screen !== "thread" || where.place.kind !== "agent" || link === undefined) return;
-      const { thread } = where;
+      if (where.screen !== "thread" || where.place.kind !== "agent" || asking === undefined) return;
+      const { thread: threadId } = where;
       // Where the person is changes while the agent is asked, which the compiler cannot see. What the agent said is for the thread it was asked in.
-      const stillHere = (): boolean => agent === link && model.where.screen === "thread" && model.where.thread === thread;
+      const stillHere = (): boolean => selected === asking && model.where.screen === "thread" && model.where.thread === threadId;
       const tell = (notice: Notice): void => {
         if (stillHere()) say(notice);
       };
 
-      const status = link.status();
-      if (status.state === "down") return tell({ kind: "model-not-shown", problem: { down: status.why } });
-      // The agent may have made the session since the link last looked for it, which it does every few seconds, and a link that was lost has not watched it again yet. The person is not to be told there is none when there is.
-      if (thread !== undefined) await link.look(thread);
-      const view = thread === undefined ? undefined : model.session;
-      if (view === undefined) return tell({ kind: "model-unstarted", defaultModel: (await modelsOf(link))?.default });
+      const status = model.agent;
+      if (status?.state === "down") return tell({ kind: "model-not-shown", problem: { down: status.why } });
+      const view = threadId === undefined ? undefined : model.session;
+      if (view === undefined) return tell({ kind: "model-unstarted", defaultModel: (await modelsOf(asking.name, asking.held))?.default });
       const { model: used, ownModel } = view.status;
       // The default is worth asking for when the thread's model is not it.
-      const defaultModel = ownModel ? (await modelsOf(link))?.default : undefined;
+      const defaultModel = ownModel ? (await modelsOf(asking.name, asking.held))?.default : undefined;
       tell({ kind: "model-is", model: used, own: ownModel, defaultModel });
     },
 
     async farewell() {
-      const waiting = new AbortController();
-      await Promise.race([refreshChannels(), delay(FAREWELL_MS, undefined, { signal: waiting.signal }).catch(() => undefined)]);
-      waiting.abort();
       const { where } = model;
       const entries = agentEntries(model);
       // A thread of a room has no one agent to name, unless it was opened from an agent's screen.
@@ -571,24 +698,32 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
         const id = entries.find((entry) => entry.name === name)?.id;
         if (id === undefined) continue;
         // A session that was working when the agent went away is not working now, whatever its last view says.
-        const sessionWorking = model.session?.status.busy === true && model.agent?.state !== "down";
+        const sessionWorking = model.session?.status.busy === true && model.agent?.state === "up";
         const onScreen =
           where.screen === "thread" && shown === name && where.thread !== undefined
             ? { thread: where.thread, working: sessionWorking || model.thread?.thread.working.some((mark) => mark.memberId === id) === true }
             : undefined;
         if (onScreen?.working === true) return { agent: name, thread: onScreen.thread };
-        const working = model.dms[name]?.threads.find((thread) => workingIn(thread, id));
+        const working = model.dms[name]?.threads.find((each) => workingIn(each, id));
         if (working !== undefined) return { agent: name, thread: working.id };
       }
       return undefined;
     },
 
     async close() {
+      if (closed) return;
       closed = true;
-      clearInterval(poll);
       clearTimeout(noticeTimer);
       listeners.clear();
-      await Promise.all([chat.close(), agent?.close(), rollCall.close(), registry.close(), ...closing]);
+      stopLink();
+      for (const held of rollCall.values()) held.release();
+      for (const held of channels.values()) held.release();
+      selected?.held.release();
+      thread?.held.release();
+      session?.held.release();
+      chat.release();
+      roster.release();
+      await link.close();
     },
   };
 }

@@ -56,11 +56,11 @@ export function notInRoom(name: string, rooms: string[]): string {
   return `You are not in a room called #${name}. ${where}`;
 }
 
-export function noSuchThread(room: string, thread: string, threads: Thread[]): string {
+export function noSuchThread(room: string, thread: string, threads: readonly Thread[]): string {
   return `#${room} has no thread called ${thread}. Its threads: ${threads.map(threadNamed).join(", ")}.`;
 }
 
-export function manyThreads(room: string, thread: string, threads: Thread[]): string {
+export function manyThreads(room: string, thread: string, threads: readonly Thread[]): string {
   return `More than one thread of #${room} is called ${thread}: ${threads.map(threadNamed).join(", ")}. Give its ID instead.`;
 }
 

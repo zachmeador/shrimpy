@@ -5,17 +5,20 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
-import type { AgentConnection, Occurrence, SessionView, TriggerDetail } from "../contracts/agent/index.ts";
-import { attachLocal } from "../contracts/agent/node.ts";
+import type { Occurrence, TriggerDetail } from "../contracts/agent/index.ts";
+import { isRefusal } from "../lib/refusal/index.ts";
 import { eventually, stopAfter, tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
 import { homePaths } from "./home/index.ts";
 import {
+  type AgentConnection,
   callingTools,
+  connectAgent,
   loggedRequests,
   releaseGate,
   removeTrigger,
   type Script,
+  type SessionView,
   startAgentChild,
   startAgentRig,
   startChatServer,
@@ -119,8 +122,8 @@ test("firing a trigger now makes an occurrence of it, the schedule goes on as it
   assert.equal(again.ended, "skipped", "a second one is not run over the first, which is still going");
   assert.ok(again.reason?.includes("still going"), String(again.reason));
   assert.equal((await connection.fire("parked")).ended, null, "a trigger that is off can still be run");
-  await assert.rejects(connection.fire("nothing"), { code: "service_invalid_value" });
-  await assert.rejects(connection.trigger("nothing"), { code: "service_invalid_value" });
+  await assert.rejects(connection.fire("nothing"), isRefusal);
+  await assert.rejects(connection.trigger("nothing"), isRefusal);
 
   releaseGate(home);
   const detail = await trigger(connection, "weekly", (found) => found.last?.ended === "skipped" && ended(found, "answered") === 1, "the first to be answered");
@@ -291,7 +294,7 @@ test("reloading makes the triggers follow their files: a new schedule counts fro
   assert.equal(listed[0]?.next, ran.next, "a new prompt leaves the clock alone");
   assert.equal(listed[1]?.next, null);
   assert.deepEqual(listed[2]?.schedule, { every: "1s" });
-  await assert.rejects(connection.trigger("b"), { code: "service_invalid_value" });
+  await assert.rejects(connection.trigger("b"), isRefusal);
   assert.ok((await connection.sessions()).some((session) => session.id === "trigger:b"), "what b did is still there to read");
 
   // From then on d goes on and a runs with its new prompt, while b and c do not run.
@@ -323,7 +326,7 @@ test("an agent killed while an occurrence's turn is underway comes back to it on
 
   releaseGate(home);
   await startAgentChild(t, home, "gated", 400, options);
-  const connection = await attachLocal(home);
+  const connection = await connectAgent(t, home);
   stopAfter(t, () => connection.close().catch(() => undefined));
   const detail = await trigger(connection, "tidy", (found) => ended(found, "answered") >= 1, "the occurrence to be answered");
 

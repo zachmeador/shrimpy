@@ -1,5 +1,7 @@
-import type { Context, JsonValue } from "@earendil-works/chord";
+import type { Context } from "@earendil-works/chord/context";
+import type { JsonValue } from "@earendil-works/chord/json";
 import {
+  type CommitPublication,
   type ConversationId,
   type Cursor,
   defineExtension,
@@ -71,25 +73,26 @@ export interface WakeupsOptions {
 
 /**
  * The wake-ups an agent asks for. Each is a background task of the session that
- * asked, which sleeps on the engine's timer until the wake-up is due and then
- * takes it up as an input of the session, in one commit, so it is taken up once
- * however often the agent stops meanwhile. A wake-up that came due while the
- * agent was down is taken up when it starts again. Sleeping is not work: the
- * task is a background task of a kind that nothing counts, so the session is not
- * working, and its thread is not marked, until the turn the wake-up starts is.
- * Ending a wake-up that waits keeps it, for the session's next input to tell the
- * model that it was cancelled. A session behind no thread, a trigger's own, has
- * wake-ups too.
+ * asked, which sleeps as one of the engine's sleeping tasks, stored with when
+ * the wake-up is due, and then takes it up as an input of the session, in one
+ * commit, so it is taken up once however often the agent stops meanwhile. A
+ * wake-up that came due while the agent was down is taken up when it starts
+ * again. Sleeping is not work: the task is a background task of a kind that
+ * nothing counts, so the session is not working, and its thread is not marked,
+ * until the turn the wake-up starts is. Ending a wake-up that waits keeps it,
+ * for the session's next input to tell the model that it was cancelled. A
+ * session behind no thread, a trigger's own, has wake-ups too.
  */
 export function createWakeups(turn: TurnTask, options: WakeupsOptions): Wakeups & { extension: Extension } {
-  const task = defineTask<Waiting, { phase: "sleep" }, null>({
+  const task = defineTask<Waiting, { phase: "sleep" } | { phase: "due" }, null>({
     name: WAKEUP_TASK,
     version: 1,
     initial: () => ({ phase: "sleep" }),
     phases: {
-      sleep: async (waiting, runtime, context) => {
+      sleep: (waiting, runtime, context) => runtime.sleepUntil(waiting.input.wakeup.due, { phase: "due" }, context),
+
+      due: async (waiting, runtime, context) => {
         const { wakeup } = waiting.input;
-        await runtime.sleep(wakeup.due, context);
         try {
           const crumbs = await options.breadcrumbs();
           await runtime.commit(async (tx) => {
@@ -151,6 +154,22 @@ export async function cancelWakeups(harness: Harness, conversationId: Conversati
     .map(({ record }) => record.id);
   for (const id of waiting) await harness.abortTask(id, context);
   for (const id of waiting) await harness.waitForTask(id, context);
+}
+
+/** The wake-ups a session is waiting on, the soonest first. */
+export async function waitingWakeups(harness: Harness, conversationId: ConversationId, context: Context): Promise<Wakeup[]> {
+  const { tasks } = await harness.inspect(context);
+  return tasks
+    .filter(({ record }) => record.kind === WAKEUP_TASK && record.conversationId === conversationId && isWaiting(record))
+    .map(({ record }) => (record.input as Waiting).wakeup)
+    .sort((a, b) => a.due - b.due);
+}
+
+/** Whether a commit set, took up or ended a wake-up of a session. */
+export function touchesWakeups(publication: CommitPublication, conversationId: ConversationId): boolean {
+  return publication.changes.some(
+    (change) => change.type === "task" && change.value.kind === WAKEUP_TASK && change.value.conversationId === conversationId,
+  );
 }
 
 /** Every task that waits for a wake-up of one session, ended or not. */

@@ -1,10 +1,9 @@
-import type { Context } from "@earendil-works/chord";
-import { Type } from "@earendil-works/pi-ai";
+import type { Context } from "@earendil-works/chord/context";
+import { obj, opt, str } from "@earendil-works/pi-schema";
 import { defineExtension, defineTool, type Extension, type ToolExecutionApi, type ToolExecutionResult } from "@earendil-works/pi-durable";
-import type { GatewayConnection } from "../../contracts/gateway/index.ts";
-import { isDisconnected } from "../../lib/connection/index.ts";
+import type { RosterEntry } from "../../contracts/gateway/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
-import type { LiveChat } from "../links/index.ts";
+import { isUnavailable, type LiveChat } from "../links/index.ts";
 import { addressOfPlace, placeOfSession } from "../records/durable.ts";
 import { readTo, readWithin, SHORTEST_WITHIN, startOf } from "./args.ts";
 import { agentNamed, emptyThread } from "./lookup.ts";
@@ -18,22 +17,21 @@ export interface AskToolsOptions {
   /** What the agent's records are called. The request ID of every question carries it. */
   recordsId: string;
   /**
-   * The connection to chat that is up right now, if one is. The tool uses the
-   * agent's own connection and never opens another, and never waits for one:
-   * with none up it says chat is unreachable. Who the agent is comes with it.
+   * Chat as it is up right now, if it is. The tool never waits for it: with
+   * none up it says chat is unreachable. Who the agent is comes with it.
    */
   chat(): LiveChat | undefined;
-  /** The connection to the gateway that is up right now, if one is. The tool looks the name up in the roster over it. */
-  gateway(): GatewayConnection | undefined;
+  /** Everyone on the roster, as the agent holds it, or undefined while the agent has not heard it. The tool looks the name up in it. */
+  roster(): readonly RosterEntry[] | undefined;
   /** The shortest wait for an answer a question may be given, in milliseconds. A minute, if not given. Tests shorten it. */
   shortestWaitMs?: number;
 }
 
 /** A tool's answer: just these words. */
-const answer = (text: string): ToolExecutionResult => ({ content: [{ type: "text", text }] });
+const answer = (text: string): ToolExecutionResult => ({ output: [{ type: "text", text }] });
 
 /** A tool's answer when it did not do what was asked: just these words, marked as an error. */
-const failure = (text: string): ToolExecutionResult => ({ isError: true, content: [{ type: "text", text }] });
+const failure = (text: string): ToolExecutionResult => ({ isError: true, output: [{ type: "text", text }] });
 
 /**
  * `ask_agent`: make a thread of its own for a question in the agent's DM with
@@ -52,10 +50,10 @@ export function askAgent(options: AskToolsOptions) {
   return defineTool({
     name: "ask_agent",
     description: words.ASK_DESCRIPTION,
-    parameters: Type.Object({
-      to: Type.String({ description: words.ASK_TO }),
-      text: Type.String({ description: words.ASK_TEXT }),
-      within: Type.Optional(Type.String({ description: words.ASK_WITHIN })),
+    parameters: obj({
+      to: str({ description: words.ASK_TO }),
+      text: str({ description: words.ASK_TEXT }),
+      within: opt(str({ description: words.ASK_WITHIN })),
     }),
     replay: "safe",
     executionMode: "sequential",
@@ -83,7 +81,7 @@ export function askAgent(options: AskToolsOptions) {
       const signal = callSignal(live, context);
       let posting = false;
       try {
-        const found = await agentNamed(options.gateway(), name, live.self);
+        const found = agentNamed(options.roster(), name, live.self);
         if ("problem" in found) return failure(found.problem);
         const open = await options.questions.count(api, session, context);
         if (open >= MAX_OPEN) return failure(words.tooMany(open));
@@ -158,7 +156,7 @@ function callSignal(live: LiveChat, context: Context): AbortSignal {
  */
 function chatFailure(error: unknown, live: LiveChat, context: Context): { refused: string } | { lost: true } {
   if (context.abortSignal?.aborted === true) throw error;
-  if (live.lost.aborted || isDisconnected(error)) return { lost: true };
+  if (live.lost.aborted || isUnavailable(error)) return { lost: true };
   if (isRefusal(error)) return { refused: error.message };
   throw error;
 }

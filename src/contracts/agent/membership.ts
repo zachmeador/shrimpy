@@ -1,4 +1,4 @@
-import type { Address } from "../gateway/index.ts";
+import type { Entry } from "../gateway/index.ts";
 
 /**
  * What an agent's home keeps so that the agent is the same member of the
@@ -13,15 +13,21 @@ export interface Membership {
    * shown it.
    */
   token: string;
-  /** The agent's ID in the gateway's roster, once the gateway has said it is a member. It never changes. */
+  /**
+   * The agent's ID in the gateway's roster, as the gateway last said it, once it
+   * has. It changes only when the gateway takes the token for a new member, as one
+   * whose roster was replaced does beside it.
+   */
   memberId?: string;
   /**
    * The gateway's entry, for an agent apart from the gateway: the one it joined
    * through, where it reaches the gateway and chat from then on, and where a
-   * command run in its shell does. A home with none uses the gateway on its own
-   * machine.
+   * command run in its shell does, with the fingerprint of the gateway's key,
+   * which came with the invitation. A home that joined before the gateway had a
+   * key has none, and can't check that the gateway is yours. A home with no
+   * entry uses the gateway on its own machine.
    */
-  gateway?: Address;
+  gateway?: Entry;
 }
 
 /** Where a home keeps its membership, inside the home. */
@@ -30,8 +36,7 @@ export const MEMBERSHIP_FILE = "state/member.json";
 /**
  * The environment variable that names the home whose agent is running a
  * `shrimpy` command. The agent's launcher sets it, and a command that finds it
- * acts as that agent, signing in with the home's membership, instead of as the
- * person who runs the gateway.
+ * acts as that agent, linking with the home's token, instead of as you.
  */
 export const AGENT_HOME_VARIABLE = "SHRIMPY_AGENT_HOME";
 

@@ -24,6 +24,8 @@ export interface ModelServer {
  * - "from the shell": call the bash tool to post "hello from my shell" to the agent called mechanic with `shrimpy run`, then report what it printed
  * - "slow": stream words for several seconds, until the client hangs up
  * - "refuse": answer with an HTTP 400 error
+ * - "check back": call the check_back tool to be woken in an hour, then say so
+ * - "count to thirty": call the bash tool to echo step-01 to step-30, one call to an answer, then say it counted
  * - anything else: say hello
  */
 export async function startModelServer(): Promise<ModelServer> {
@@ -51,6 +53,20 @@ function respond(body: ModelRequest["body"], response: ServerResponse): void {
   const user = [...messages].reverse().find((message) => message.role === "user");
   const asked = typeof user?.content === "string" ? user.content : "";
 
+  const lastAsked = messages.findLastIndex((message) => message.role === "user");
+  const results = messages.slice(lastAsked + 1).filter((message) => message.role === "tool").length;
+  if (asked.includes("count to thirty")) {
+    response.writeHead(200, { "content-type": "text/event-stream" });
+    if (results < 30) callTool(response, `echo step-${String(results + 1).padStart(2, "0")}`);
+    else say(response, "Counted to thirty.");
+    return;
+  }
+  if (asked.includes("check back")) {
+    response.writeHead(200, { "content-type": "text/event-stream" });
+    if (results === 0) callTool(response, { in: "1h", note: "look at the build again" }, "check_back");
+    else say(response, "I will check back later.");
+    return;
+  }
   if (asked.includes("refuse")) {
     const error = { message: "The test model refuses this request.", type: "invalid_request_error" };
     response.writeHead(400, { "content-type": "application/json" });
@@ -96,12 +112,13 @@ function say(response: ServerResponse, text: string): void {
   finish(response, "stop");
 }
 
-function callTool(response: ServerResponse, command: string): void {
+/** Call `name` with `args`: the bash tool with a command line, unless another tool and its arguments are given. */
+function callTool(response: ServerResponse, args: string | object, name = "bash"): void {
   const call = {
     index: 0,
-    id: "call_1",
+    id: `call_${String(Date.now())}`,
     type: "function",
-    function: { name: "bash", arguments: JSON.stringify({ command }) },
+    function: { name, arguments: JSON.stringify(typeof args === "string" ? { command: args } : args) },
   };
   think(response);
   chunk(response, [{ index: 0, delta: { tool_calls: [call] }, finish_reason: null }]);

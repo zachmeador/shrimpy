@@ -1,24 +1,8 @@
 /**
- * Test support for the gateway: a gateway to start in the test, a minimal
- * program and a plain socket to put behind the pipe, an agent apart from the
- * gateway that answers the calls made for it, raw HTTP requests, and child
- * processes to kill. Only tests and test fixtures import this, and it must not
- * know about any other program.
+ * Test support for the gateway: the gateway started in the test's own process,
+ * with a data directory and a runtime directory of its own; a small agent that
+ * links out to it and serves its presence and `Echo`, which shows whom a
+ * request reached it as; and a client linked in. Only tests import this.
  */
-export { type AgentApart, answerCall, startAgentApart } from "./apart.ts";
-export { type BytesTarget, canConnect, startBytesTarget } from "./bytes.ts";
-export { startGatewayChild, startRegistrantChild } from "./child.ts";
-export { connectEcho, type EchoClient, type EchoProgram, startEchoProgram } from "./echo.ts";
-export { agentUrl, openEntry } from "./entry.ts";
-export {
-  agentAnnouncement,
-  connectApart,
-  entryOf,
-  invited,
-  invitedMachine,
-  joinAndRegister,
-  LOOPBACK,
-  webPortOf,
-} from "./fixtures.ts";
-export { startGatewayInProcess } from "./gateway.ts";
-export { handshakeStatus, type RawResponse, rawRequest } from "./http.ts";
+export { Echo, type TestAgent, type TestAgentOptions, startTestAgent } from "./agent.ts";
+export { connectTestClient, startTestGateway, type TestGateway, type TestGatewayOptions } from "./gateway.ts";

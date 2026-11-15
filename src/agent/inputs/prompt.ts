@@ -225,7 +225,7 @@ function cancellations(cancelled: Wakeup[]): string {
     (wakeup) => `- for ${localTime(wakeup.due)}, asked at ${localTime(wakeup.askedAt)}: ${wakeup.note.replace(/\s+/g, " ").trim()}`,
   );
   return [
-    "Your work was stopped, so these wake-ups you had asked for were cancelled and will not come. " +
+    "Your work was stopped or a turn before them failed, so these wake-ups you had asked for will not come. " +
       "Ask again with check_back for any you still want:",
     ...lines,
   ].join("\n");

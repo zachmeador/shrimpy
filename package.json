@@ -16,15 +16,13 @@
     "test": "node --test \"src/**/*.test.ts\" \"lint/**/*.test.js\""
   },
   "dependencies": {
-    "@earendil-works/chord": "1.0.0",
-    "@earendil-works/pi-ai": "1.0.0",
-    "@earendil-works/pi-client": "1.0.0",
-    "@earendil-works/pi-durable": "1.0.0",
-    "@earendil-works/pi-protocol": "1.0.0",
-    "@earendil-works/pi-server": "1.0.0",
-    "@earendil-works/pi-tui": "1.0.0",
+    "@earendil-works/chord": "1.5.2",
+    "@earendil-works/pi-ai": "1.5.2",
+    "@earendil-works/pi-durable": "1.5.2",
+    "@earendil-works/pi-schema": "1.5.2",
+    "@earendil-works/pi-tui": "1.5.2",
     "cron-parser": "5.5.0",
-    "ws": "8.22.0"
+    "ws": "8.21.0"
   },
   "devDependencies": {
     "@types/node": "26.6.4",

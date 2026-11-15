@@ -371,9 +371,9 @@ export function isQuestion(outstanding: Outstanding): outstanding is QuestionInp
 }
 
 /**
- * The ID the agent's records know an input by, such as the count of crashes its
- * turn has lived through. It is the one its source gave it, which the source
- * does not reuse.
+ * The ID the agent's records know an input by, such as in the request ID it is
+ * handed to its session with. It is the one its source gave it, which the
+ * source does not reuse.
  */
 export function idOf(outstanding: Outstanding): string {
   if (isWakeup(outstanding)) return outstanding.wakeup.id;
@@ -418,7 +418,11 @@ export type TurnOutcome =
   | { kind: "answered"; answer: string; text: string }
   /** Someone stopped the work while the input's turn was running. */
   | { kind: "stopped" }
-  /** The input was still waiting when work was stopped. */
-  | { kind: "skipped" }
+  /**
+   * The input was still waiting when work was stopped, and has no `reason`, or
+   * when the turn ahead of it failed, and `reason`, which is short and a person
+   * can read, says so.
+   */
+  | { kind: "skipped"; reason?: string }
   /** The turn ended without an answer for any other reason: `reason` is short and a person can read it. */
   | { kind: "failed"; reason: string };

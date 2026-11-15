@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
-import type { ChatConnection, Message, Thread } from "../../contracts/chat/index.ts";
-import { reachChat } from "../talk/index.ts";
+import { type Message, Thread } from "../../contracts/chat/index.ts";
+import { contextOf, type Reached, reachChat, valueOf } from "../talk/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderThread } from "./render-threads.ts";
@@ -27,15 +27,15 @@ const read: Command = {
 
     const reached = await reachChat(io);
     try {
-      const { thread, messages } = await wholeThread(reached.connection, threadId);
+      const { thread, messages } = await wholeThread(reached, threadId);
       if (values.json === true) {
         io.out(JSON.stringify({ thread, messages }));
         return 0;
       }
-      const { chat } = reached.connection;
+      const { chat } = reached;
       const channel =
-        (await chat.channels()).find((candidate) => candidate.id === thread.channelId) ??
-        (await chat.readOnlyChannels()).find((candidate) => candidate.id === thread.channelId);
+        chat.channels.value.find((candidate) => candidate.id === thread.channelId) ??
+        chat.readOnlyChannels.value.find((candidate) => candidate.id === thread.channelId);
       if (channel === undefined) throw new Error(`Thread ${threadId} is in a channel you can't read.`);
       for (const line of renderThread(thread, messages, channel, reached.me)) io.out(line);
       return 0;
@@ -46,24 +46,28 @@ const read: Command = {
 };
 
 /** The thread and every message in it, oldest first: the live view's newest messages, and the pages before them. */
-async function wholeThread(connection: ChatConnection, threadId: string): Promise<{ thread: Thread; messages: Message[] }> {
-  let view;
+async function wholeThread(reached: Reached, threadId: string): Promise<{ thread: Thread; messages: Message[] }> {
+  const held = await reached.client.host.get(Thread, { thread: threadId }, contextOf());
   try {
-    view = (await connection.attach(threadId)).view;
-  } catch (error) {
-    const message = (error as Error).message;
-    if (!message.startsWith("Unknown thread")) throw error;
-    throw new Error(`${message}. See the threads of a conversation with: shrimpy threads <member|#room>`, { cause: error });
+    const refusal = held.refusal.value;
+    if (refusal !== null) {
+      if (!refusal.words.startsWith("Unknown thread")) throw new Error(refusal.words);
+      throw new Error(`${refusal.words.replace(/\.$/, "")}. See the threads of a conversation with: shrimpy threads <member|#room>`);
+    }
+    const thread = held.thread.value;
+    if (thread === null) throw new Error(`Chat did not say what thread ${threadId} is.`);
+    let messages = held.messages.value;
+    let remaining = held.earlier.value;
+    while (remaining > 0 && messages[0] !== undefined) {
+      const earlier = valueOf(await held.read({ before: messages[0].seq, limit: PAGE }, contextOf()));
+      if (earlier.length === 0) break;
+      messages = [...earlier, ...messages];
+      remaining -= earlier.length;
+    }
+    return { thread, messages };
+  } finally {
+    held.release();
   }
-  let messages = view.messages;
-  let remaining = view.earlier;
-  while (remaining > 0 && messages[0] !== undefined) {
-    const earlier = await connection.chat.read(threadId, messages[0].seq, PAGE);
-    if (earlier.length === 0) break;
-    messages = [...earlier, ...messages];
-    remaining -= earlier.length;
-  }
-  return { thread: view.thread, messages };
 }
 
 export const readCommands: Command[] = [read];

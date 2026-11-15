@@ -90,7 +90,7 @@ function checksOf({ last, checkedAt, quiet }: StoredTrigger): Pick<StoredTrigger
 /** The tasks that wait for a trigger and are not being ended, with what they are for. */
 async function liveTriggerTasks(tx: Tx): Promise<{ id: TaskId; name: string; revision: number }[]> {
   const found: { id: TaskId; name: string; revision: number }[] = [];
-  for (const status of ["pending", "running"] as const) {
+  for (const status of ["pending", "running", "sleeping"] as const) {
     let cursor: Cursor | undefined;
     do {
       const page = await tx.scanTasks({ kind: TRIGGER_TASK, status, abortRequested: false }, 100, cursor);

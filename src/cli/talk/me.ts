@@ -1,19 +1,8 @@
-import { AGENT_HOME_VARIABLE } from "../../contracts/agent/index.ts";
+import { AGENT_HOME_VARIABLE, membershipFile } from "../../contracts/agent/index.ts";
 import { readMembership } from "../../contracts/agent/node.ts";
-import {
-  type Address,
-  formatAddress,
-  type GatewayConnection,
-  type Machine,
-  machineFile,
-  type Transports,
-  TURNED_AWAY,
-  whyTurnedAway,
-} from "../../contracts/gateway/index.ts";
-import { entryTransports, localTransports, readMachine } from "../../contracts/gateway/node.ts";
-import { isRefusal } from "../../lib/refusal/index.ts";
+import { type Entry, formatAddress, type Machine, machineFile } from "../../contracts/gateway/index.ts";
+import { type GatewayPlace, type GatewayRefusedError, gatewaySocket, readMachine } from "../../contracts/gateway/node.ts";
 import { folderPath } from "../folder/index.ts";
-import { signInAsAgentAt } from "./shell.ts";
 
 /** A machine of a person's own that the gateway has let in: it knows who it is. */
 type JoinedMachine = Machine & Required<Pick<Machine, "member">>;
@@ -29,77 +18,82 @@ function joinedMachine(): JoinedMachine | undefined {
   return machine?.member === undefined ? undefined : { ...machine, member: machine.member };
 }
 
-/**
- * Sign in on a connection to the gateway as the person whose machine this is,
- * with the token its Shrimpy folder keeps. A gateway that does not know the
- * token says so in words that name the file to delete to join anew, since
- * nothing else lets the machine in again.
- */
-async function signInAsMachine(gateway: GatewayConnection, machine: JoinedMachine): Promise<void> {
-  try {
-    await gateway.signIn(machine.token, null);
-  } catch (error) {
-    if (!isRefusal(error)) throw error;
-    const where = formatAddress(machine.gateway);
-    if (whyTurnedAway(error) === TURNED_AWAY.unknownToken) {
-      throw new Error(
-        `The gateway at ${where} does not know this machine. Its roster may have been replaced. To join again, delete ` +
-          `${machineFile(folderPath())}, ask for a new invitation with shrimpy invite where the gateway runs, and run the line it prints here.`,
-        { cause: error },
-      );
-    }
-    throw new Error(`The gateway at ${where} did not let this machine in: ${error.message}`, { cause: error });
-  }
-}
-
 /** Who a command is, and where it reaches the gateway. */
 export interface Me {
+  /** Where the command reaches the gateway: its own socket on this machine, or its entry. */
+  readonly place: GatewayPlace;
   /**
-   * The address of the gateway's network entry, when the command reaches the
-   * gateway over the network: the entry the shell's agent joined by, when it is
-   * apart from the gateway, or the one this machine joined as the person's own.
-   * With none the command reaches the gateway on this machine, over its socket.
+   * The gateway's network entry, with the fingerprint of its key, when the
+   * command reaches the gateway over the network: the entry the shell's agent
+   * joined by, when it is apart from the gateway, or the one this machine joined
+   * as the person's own.
    */
-  readonly entry: Address | undefined;
-  /**
-   * Sign in on a connection to the gateway as who the command is: the agent
-   * whose shell it is, or the person whose machine this is. On this machine's
-   * own socket, as the person who runs the gateway, there is nothing to sign
-   * in as, since the gateway takes the connection for them.
-   */
-  signIn(gateway: GatewayConnection): Promise<void>;
-  /** How to open connections to the gateway and the programs behind it. */
-  transports(): Transports;
+  readonly entry: Entry | undefined;
+  /** What the command shows the gateway: the token of the agent whose shell it is, this machine's, or none as you on the gateway's socket. */
+  readonly token: string | null;
+  /** The home of the agent whose shell the command runs in, when it does. */
+  readonly home: string | undefined;
+  /** The gateway turned the command's hello away: what to tell the person, in words that say what to do. */
+  turnedAway(error: GatewayRefusedError): Error;
 }
 
-const transportsAt = (entry: Address | undefined): Transports =>
-  entry === undefined ? localTransports() : entryTransports(entry);
+const atThe = (entry: Entry | undefined): GatewayPlace => entry ?? { path: gatewaySocket() };
 
 /**
  * Who this command is, and how it reaches the gateway. In the shell of an agent
  * it is that agent, whatever the Shrimpy folder has: the launcher that puts
  * `shrimpy` on its path names the agent's home, which keeps its token and the
  * gateway it joined. Anywhere else in a folder that has joined a gateway as the
- * person's own it is that person, at that gateway. Anywhere else it is the
- * person who runs the gateway on this machine, whom the gateway knows by the
- * socket.
+ * person's own it is that person, at that gateway, with the machine's token.
+ * Anywhere else it is you on this machine's gateway, whose own socket takes a
+ * hello with no token for you. An agent that has not joined the network has
+ * nobody to be, which is an error that says to start it.
  */
 export function me(): Me {
   const home = process.env[AGENT_HOME_VARIABLE];
   if (home !== undefined && home !== "") {
-    const entry = readMembership(home)?.gateway;
+    const membership = readMembership(home);
+    if (membership === undefined) {
+      throw new Error(
+        `This command runs in the shell of the agent at ${home}, which has not joined the network yet, ` +
+          `so there is nobody for it to act as. Start the agent first: shrimpy agent serve ${home}`,
+      );
+    }
+    const entry = membership.gateway;
     return {
+      place: atThe(entry),
       entry,
-      signIn: async (gateway) => {
-        await signInAsAgentAt(gateway, home);
+      token: membership.token,
+      home,
+      turnedAway(error) {
+        const advice =
+          error.reason === "unknown_token"
+            ? ` To join as a new member, delete ${membershipFile(home)} and start the agent again.`
+            : "";
+        return new Error(`The gateway did not let the agent at ${home} in: ${error.message}${advice}`, { cause: error });
       },
-      transports: () => transportsAt(entry),
     };
   }
   const machine = joinedMachine();
+  if (machine === undefined) {
+    return { place: atThe(undefined), entry: undefined, token: null, home: undefined, turnedAway: (error) => new Error(error.message, { cause: error }) };
+  }
+  const where = formatAddress(machine.gateway);
   return {
-    entry: machine?.gateway,
-    signIn: machine === undefined ? () => Promise.resolve() : (gateway) => signInAsMachine(gateway, machine),
-    transports: () => transportsAt(machine?.gateway),
+    place: machine.gateway,
+    entry: machine.gateway,
+    token: machine.token,
+    home: undefined,
+    turnedAway(error) {
+      if (error.reason === "unknown_token") {
+        return new Error(
+          `The gateway at ${where} does not know this machine. Its roster may have been replaced, or the machine was taken ` +
+            `back. To join again, delete ${machineFile(folderPath())}, ask for a new invitation with shrimpy invite where the ` +
+            "gateway runs, and run the line it prints here.",
+          { cause: error },
+        );
+      }
+      return new Error(`The gateway at ${where} did not let this machine in: ${error.message}`, { cause: error });
+    },
   };
 }

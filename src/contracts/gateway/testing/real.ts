@@ -1,8 +1,9 @@
+import { join } from "node:path";
 import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { type Child, startChild, stopAfter, tempDir, useRuntimeDir } from "../../../lib/testing/index.ts";
-import { type Address, formatAddress, type GatewayConnection } from "../index.ts";
-import { connectLocalGateway } from "../node.ts";
+import { type Address, formatAddress } from "../index.ts";
+import { connectGateway, type GatewayClient, gatewaySocket } from "../node.ts";
 
 /** The command that runs Shrimpy, which is how a person starts the gateway. */
 const shrimpy = fileURLToPath(new URL("../../../cli/main.ts", import.meta.url));
@@ -21,8 +22,10 @@ export interface TestGateway {
    * recovers.
    */
   readonly listening: Address[];
-  /** Connect over its socket, as the person who runs it until the connection signs in. Closed when the test ends. */
-  connect(): Promise<GatewayConnection>;
+  /** The fingerprint of its key, which it keeps when it recovers, as an invitation's link carries it. */
+  readonly fingerprint: string;
+  /** Link a client over its socket, as you, or as the holder of `token`. Closed when the test ends. */
+  connect(token?: string): Promise<GatewayClient>;
   /** Kill the process, like a gateway that went away. What it knew stays in its data. */
   outage(): Promise<void>;
   /** Start it again on the same data, like a gateway that came back. */
@@ -57,23 +60,28 @@ export function startTestGateway(t: TestContext, options: TestGatewayOptions = {
 async function start(t: TestContext, options: TestGatewayOptions): Promise<TestGateway> {
   useRuntimeDir(t);
   const dataDir = tempDir(t, "gateway-data");
-  let running: Child<{ listen: Address[] }> | undefined;
+  // A Shrimpy folder of its own, so that settings in a real one, such as a name, never reach the test.
+  const folder = join(tempDir(t, "gateway-folder"), "shrimpy");
+  let running: Child<{ listen: Address[]; fingerprint: string }> | undefined;
   /** The first start is told where to listen, and a later one listens where it did. */
   const launch = async (listen: Address[]): Promise<void> => {
     running = await startChild(t, {
       file: shrimpy,
       args: ["gateway", "serve", "--data", dataDir, ...listen.flatMap((address) => ["--listen", formatAddress(address)])],
+      env: { SHRIMPY_DIR: folder },
     });
   };
   await launch(options.listen ?? []);
   const listening = running?.line.listen ?? [];
+  const fingerprint = running?.line.fingerprint ?? "";
   return {
     dataDir,
     listening,
-    async connect() {
-      const connection = await connectLocalGateway();
-      stopAfter(t, () => connection.close());
-      return connection;
+    fingerprint,
+    async connect(token) {
+      const client = await connectGateway({ place: { path: gatewaySocket() }, token: token ?? null });
+      stopAfter(t, () => client.close());
+      return client;
     },
     async outage() {
       const stopped = running;

@@ -4,12 +4,13 @@ import type { Working } from "../turns/index.ts";
 /**
  * Keep chat told which threads the agent is working in, as its sessions say:
  * a thread is marked from the moment an event in it is taken up until the
- * receipt on its last event is left. A mark lasts as long as the connection
- * that made it, so each new connection is told the whole list again, and while
- * there is none nothing is sent. Calls go out one at a time. Returns what stops it.
+ * receipt on its last event is left. A mark lasts as long as the agent's hold
+ * on `Chat` that made it, which ends whenever chat is lost, so each time chat
+ * comes up again it is told the whole list again, and while it is down nothing
+ * is sent. Calls go out one at a time. Returns what stops it.
  */
 export function markWorking(link: ChatLink, working: Working, onError: (error: Error) => void): () => void {
-  /** The threads marked on the connection that is up. */
+  /** The threads marked while chat is up as it is now. */
   let marked: { live: LiveChat; threads: Set<string> } | undefined;
   let syncing: Promise<void> = Promise.resolve();
 

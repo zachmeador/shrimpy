@@ -1,7 +1,6 @@
 import type { Host } from "./host/durable.ts";
 import type { Joined } from "./join.ts";
 import type { AgentServer } from "./server.ts";
-import type { Run } from "./turns/durable.ts";
 
 export interface CloseOptions {
   /** Do not wait for running turns. What they had done is kept, and they resume at the next start. */
@@ -16,8 +15,6 @@ const DEFAULT_GRACE_MS = 5_000;
 export interface Parts {
   host: Host;
   server: AgentServer;
-  /** The agent's run, which the stop ends in the records just before the engine closes. */
-  run: Run;
   /** The agent keeping up with its files, which stops looking before anything it reads from closes. */
   following: { close(): Promise<void> };
   /** Absent for an agent that takes no part in chat. */
@@ -27,12 +24,12 @@ export interface Parts {
 /**
  * How an agent stops: it stops taking new input, from clients and from chat, and
  * stops looking at its files, gives running turns a short time to finish and
- * their replies a moment to be told to chat, then leaves the network and closes
- * the server and the home.
- * Work that did not finish is paused and resumes at the next start, and the
- * records say the stop was an orderly one, so it does not count against the
- * turns it paused. Stopping twice does it once; the second call with `now` cuts
- * the wait short.
+ * their replies a moment to be told to chat, then leaves the network, closes its
+ * host and the home's socket, and closes the home.
+ * Work that did not finish is paused and resumes at the next start. The engine
+ * closes in an orderly way, so the stop does not count against the work it
+ * paused, as an unexpected end does. Stopping twice does it once; the second
+ * call with `now` cuts the wait short.
  */
 export function stopper(parts: Parts): (options?: CloseOptions) => Promise<void> {
   const hurry = new AbortController();
@@ -44,7 +41,7 @@ export function stopper(parts: Parts): (options?: CloseOptions) => Promise<void>
   };
 }
 
-async function stop({ host, server, run, joined, following }: Parts, graceMs: number, hurry: AbortSignal): Promise<void> {
+async function stop({ host, server, joined, following }: Parts, graceMs: number, hurry: AbortSignal): Promise<void> {
   server.stopIntake();
   joined?.stopTaking();
   try {
@@ -61,11 +58,7 @@ async function stop({ host, server, run, joined, following }: Parts, graceMs: nu
       try {
         await server.close();
       } finally {
-        try {
-          await run.stopped();
-        } finally {
-          await host.close();
-        }
+        await host.close();
       }
     }
   }

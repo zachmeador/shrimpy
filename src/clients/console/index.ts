@@ -9,11 +9,12 @@
  * its DMs with other agents, which are read live with no input, and the sessions
  * of its triggers, which are watched. The first screen also lists the rooms of
  * agents you are not in, and reads their threads live, with no input. It makes
- * no room and adds no member. It is a
- * client of the chat server and of agents, reaching both by their names through
- * the gateway over transports it is handed, and it never opens a home, a store
- * or a program's files. Only the command line imports this, to open it. It must
- * not know how a program works inside.
+ * no room and adds no member. It lists the person's devices and takes one back
+ * with `/devices`, which no agent may do for them. It is a client of the
+ * gateway, the chat server and agents, holding their objects through one link
+ * to the gateway, and it never opens a home, a store or a program's files. Only
+ * the command line imports this, to open it. It must not know how a program
+ * works inside.
  */
 export { type ConsoleIo, type ConsoleOptions, openConsole } from "./console.ts";
 export type { ConsoleTerminal } from "./draw/index.ts";

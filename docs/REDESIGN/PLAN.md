@@ -120,10 +120,8 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- **The move to the latest Pi,** 1.5.2 today, before the release: "that's a given", and "my dude we're just going straight to latest pi", 2026-11-14. Pi 1.2 removed the packages the programs talk through, so the tree can't pass its check halfway: the move is made on a branch of its own, and comes into `wip` once `npm run check` passes. In order, with each step's work under Not built yet in the files named:
-  1. The contracts on Chord 1.5 ([the contracts](design/2-contracts.md)), with a rule for where Chord may be imported ([the code's layout](design/code-layout.md)), every program on the relay with the gateway's key ([the network](design/6-network.md)), and identity as decided on 2026-11-14 ([identity](design/3-identity.md)).
-  2. Durable 1.5.2 in the agent ([the conversation model](design/4-conversation.md), [what an agent does without being asked](design/7-on-its-own.md)), with each home's Pi storage started fresh ([the home](design/5-home.md)).
-  3. What it brings to the clients ([using it](design/using-it.md)).
+- Putting the move to Pi 1.5.2 on a setup in use: what Shrimpy wrote before it goes into an archive beside the Shrimpy folder, an agent elsewhere joins again with a new invitation, and your name goes in `settings.json`, as [the home](design/5-home.md) has it. The move itself is in the [log](history/LOG.md#log).
+- In the terminal, a room's thread showing each agent's work, and `/devices invite`. [Not built yet](design/using-it.md)
 - Cleaning up for the release, which you said on 2026-10-08 is close: the skills cover what a person and an agent do with Shrimpy, the reference documentation shrinks to very little, and old Shrimpy is replaced.
 - Living with it: what you notice goes on the list in [using it](design/using-it.md), and decides what is built next.
 

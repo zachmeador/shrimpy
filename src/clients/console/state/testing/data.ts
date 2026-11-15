@@ -1,15 +1,9 @@
-import type { SessionSummary, SessionView } from "../../../../contracts/agent/index.ts";
-import type {
-  Channel,
-  Member,
-  Message,
-  Receipt,
-  Thread,
-  ThreadView,
-} from "../../../../contracts/chat/index.ts";
-import type { Registration, RosterEntry } from "../../../../contracts/gateway/index.ts";
+import type { SessionActivity, SessionItem, SessionStatus, SessionSummary } from "../../../../contracts/agent/index.ts";
+import { sessionStatus } from "../../../../contracts/agent/testing/index.ts";
+import type { Channel, Member, Message, Receipt, Thread } from "../../../../contracts/chat/index.ts";
+import type { Program, RosterEntry, WayIn } from "../../../../contracts/gateway/index.ts";
 import { SHRIMPY_VERSION } from "../../../../lib/version/index.ts";
-import type { Dm, Model, Room } from "../index.ts";
+import type { Dm, Model, Room, SessionView, ThreadView } from "../index.ts";
 
 /** The person, as the roster would have them. */
 export const zach: Member = { id: "mem_1", kind: "person", name: "zach" };
@@ -35,7 +29,7 @@ export function aModel(parts: Partial<Model> = {}): Model {
     me: zach,
     where: { screen: "agents" },
     gateway: { state: "up" },
-    listing: { programs: [], members: [{ ...zach, admin: true, reachable: false }], version: SHRIMPY_VERSION },
+    listing: { programs: [], members: [{ ...zach, admin: true, reachable: false }], ways: [], version: SHRIMPY_VERSION },
     chat: { state: "up" },
     agent: undefined,
     dms: {},
@@ -53,14 +47,9 @@ export function aModel(parts: Partial<Model> = {}): Model {
   };
 }
 
-/** An agent as the gateway lists it when it is running. */
-export function anAgent(name: string, version = SHRIMPY_VERSION): Registration {
-  return {
-    kind: "agent",
-    name,
-    memberId: agentMember(name).id,
-    version,
-  };
+/** An agent as the gateway lists it when it is linked. */
+export function anAgent(name: string, version = SHRIMPY_VERSION): Program {
+  return { kind: "agent", name, member: agentMember(name).id, shrimpy: version };
 }
 
 /** An agent as the roster lists it, running or not. */
@@ -73,13 +62,18 @@ export function aRosterAgent(name: string, reachable = true): RosterEntry {
  * among them on the roster as reachable. Agents that are not running are
  * added with `idle`.
  */
-export function aListing(programs: Registration[], version = SHRIMPY_VERSION, idle: string[] = []) {
+export function aListing(programs: Program[], version = SHRIMPY_VERSION, idle: string[] = [], ways: WayIn[] = []): NonNullable<Model["listing"]> {
   const running = programs.filter((program) => program.kind === "agent").map((program) => aRosterAgent(program.name));
-  return { programs, members: [{ ...zach, admin: true, reachable: false }, ...running, ...idle.map((name) => aRosterAgent(name, false))], version };
+  return { programs, members: [{ ...zach, admin: true, reachable: false }, ...running, ...idle.map((name) => aRosterAgent(name, false))], ways, version };
 }
 
-export function aChatServer(version = SHRIMPY_VERSION): Registration {
-  return { kind: "chat", name: "chat", memberId: null, version };
+export function aChatServer(version = SHRIMPY_VERSION): Program {
+  return { kind: "chat", name: "chat", member: null, shrimpy: version };
+}
+
+/** A device of the person's, as the roster lists its way in. */
+export function aDevice(label: string | null, id = `way_${(label ?? "nameless").replace(/\W/g, "")}`): WayIn {
+  return { id, kind: "device", member: zach.id, label };
 }
 
 /** A thread, with the fields a test cares about; the rest are plain. */
@@ -131,8 +125,18 @@ export function aReceipt(agent: string, status: Receipt["status"], detail: strin
   return { memberId: agentMember(agent).id, event: "evt_1", status, reply: null, detail };
 }
 
-export function aThreadView(thread: Thread, messages: Message[], earlier = 0): ThreadView {
-  return { thread, messages, earlier };
+export function aThreadView(thread: Thread, messages: Message[], earlier = 0, readOnly = false): ThreadView {
+  return { thread, messages, earlier, readOnly };
+}
+
+/** A session on show with these items, from its start, and a status that is idle unless `parts` says more. */
+export function sessionView(parts: { items?: SessionItem[]; before?: number | null; status?: Partial<SessionStatus> } = {}): SessionView {
+  return { items: parts.items ?? [], before: parts.before ?? null, status: sessionStatus(parts.status) };
+}
+
+/** A session on show that is at work on these items, doing `activity`. */
+export function workingView(items: SessionItem[], activity: SessionActivity = { kind: "working" }): SessionView {
+  return sessionView({ items, status: { activity, busy: true } });
 }
 
 /** A session as an agent lists it: behind a thread of that ID with no place yet, and idle, unless `parts` says more. */
@@ -160,6 +164,7 @@ export function onSession(
     listing: {
       programs: [anAgent(agent), aChatServer()],
       members: [{ ...zach, admin: true, reachable: false }, aRosterAgent(agent)],
+      ways: [],
       version: SHRIMPY_VERSION,
     },
     agent: { state: "up" },
@@ -176,6 +181,7 @@ export function onThread(agent: string, thread: Thread, view: ThreadView | undef
     listing: {
       programs: [anAgent(agent), aChatServer()],
       members: [{ ...zach, admin: true, reachable: false }, aRosterAgent(agent)],
+      ways: [],
       version: SHRIMPY_VERSION,
     },
     agent: { state: "up" },

@@ -125,8 +125,8 @@ export function keepMissed(session: SessionRecord, results: readonly CameBack[])
 /**
  * Keep what an input that was skipped was to show the model, for the session's
  * next input: the model never saw it. A chat event is kept with the events that
- * came with it, a wake-up is kept as one that was cancelled, because a stop is
- * what withdrew it, and the result of a question is kept as one the session
+ * came with it, a wake-up is kept as one that was cancelled, since it won't
+ * come again, and the result of a question is kept as one the session
  * missed. An occurrence of a trigger is not kept: the trigger's next one says the
  * same. What the input carried of the cancelled wake-ups and the missed results
  * is kept again too, and so are the messages of a room that came with a chat

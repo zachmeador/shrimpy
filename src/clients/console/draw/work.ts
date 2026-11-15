@@ -37,6 +37,7 @@ export function stepComponent(step: Step, theme: Theme): Component {
       view.addChild(new Text(theme.dim(step.label), 0, 0));
       if (step.earlier !== undefined) view.addChild(new Text(theme.dim(`… ${step.earlier}`), 2, 0));
       if (step.text !== "") view.addChild(new Text(step.text, 2, 0));
+      for (const image of step.images) view.addChild(new Text(theme.dim(image), 2, 0));
       break;
     case "marker":
       view.addChild(new Text(theme.dim(`-- ${step.text} --`), 0, 0));
@@ -57,6 +58,7 @@ export function stepComponent(step: Step, theme: Theme): Component {
       if (step.whole && step.call !== "") view.addChild(new Text(step.call, 2, 0));
       if (step.earlier !== undefined) view.addChild(new Text(theme.dim(`… ${step.earlier}`), 2, 0));
       if (step.output.length > 0) view.addChild(new Text(theme.dim(step.output.join("\n")), 2, 0));
+      for (const image of step.images) view.addChild(new Text(theme.dim(image), 2, 0));
       for (const note of step.notes) view.addChild(new Text(theme.dim(`· ${note}`), 2, 0));
       break;
     }

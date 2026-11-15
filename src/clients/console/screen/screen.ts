@@ -27,6 +27,7 @@ import {
   channelThreadsTitle,
   chatNote,
   DELETED,
+  devicesRows,
   editedAt,
   earlierItems,
   earlierMessages,
@@ -57,6 +58,7 @@ import {
   threadTitle,
   threadWords,
   versionWarning,
+  wakeupLine,
   workingLine,
   YOUR_DM,
 } from "./words.ts";
@@ -151,6 +153,8 @@ export interface ThreadScreen extends Chrome {
   working: string | undefined;
   /** What the agent is doing, step by step, while it works. Absent when it is not. */
   work: Work | undefined;
+  /** A line for each wake-up the agent waits on in this thread, the soonest first, with when it comes and how to cancel it. */
+  waiting: string[];
   /** The work shown may be out of date: the agent is not being reached. */
   workStale: boolean;
   /** Every command the person can write here, in order of name, each with what it does here. The editor lists them while the text starts with a slash. None in a channel they only read. */
@@ -183,6 +187,8 @@ export interface SessionScreen extends Chrome {
   idle: string | undefined;
   /** The input it has accepted and not picked up yet, a line each. */
   queued: string[];
+  /** A line for each wake-up the session waits on, the soonest first, with when it comes. */
+  waiting: string[];
   /** What is shown may be out of date: the agent is not being reached. */
   stale: boolean;
 }
@@ -214,11 +220,11 @@ export function screenOf(model: Model, options: ScreenOptions): Screen {
     case "thread": {
       const agent = agentOfThread(where);
       return where.turned === true && where.thread !== undefined && agent !== undefined
-        ? turnedScreen(model, where, agent, where.thread, inFull)
+        ? turnedScreen(model, where, agent, where.thread, options.now, inFull)
         : threadScreen(model, where, options.now, inFull);
     }
     case "session":
-      return sessionScreen(model, where.agent, where.session, inFull);
+      return sessionScreen(model, where.agent, where.session, options.now, inFull);
   }
 }
 
@@ -359,10 +365,10 @@ function partRow(part: Part, me: string | undefined, now: number): Row {
   };
 }
 
-function sessionScreen(model: Model, agent: string, address: string, inFull: InFull): SessionScreen {
+function sessionScreen(model: Model, agent: string, address: string, now: number, inFull: InFull): SessionScreen {
   const summary = model.sessions?.find((each) => each.id === address);
   const title = sessionTitle(agent, placeWords(summary?.place ?? null, address, model.me?.name));
-  return sessionScreenOf(model, agent, address, title, false, inFull);
+  return sessionScreenOf(model, agent, address, title, false, now, inFull);
 }
 
 type ThreadWhere = Extract<Where, { screen: "thread" }>;
@@ -371,17 +377,25 @@ type ThreadWhere = Extract<Where, { screen: "thread" }>;
  * A thread turned over: the session behind it as `agent` sees it, titled for the
  * thread, with Tab to turn it back.
  */
-function turnedScreen(model: Model, where: ThreadWhere, agent: string, threadId: string, inFull: InFull): SessionScreen {
+function turnedScreen(model: Model, where: ThreadWhere, agent: string, threadId: string, now: number, inFull: InFull): SessionScreen {
   const here = lookingAt(model, where.place);
   const thread = (model.thread?.thread.id === threadId ? model.thread.thread : undefined) ?? here.threads.find((each) => each.id === threadId);
   const named = thread === undefined ? oneLine(threadId) : titleOf(thread);
   // The title of a DM with the agent already has the agent's name in it, and any other conversation is named.
   const title = sessionTitle(agent, where.place.kind === "agent" ? named : `${here.label} · ${named}`);
-  return sessionScreenOf(model, agent, threadId, title, true, inFull);
+  return sessionScreenOf(model, agent, threadId, title, true, now, inFull);
 }
 
 /** A session as `agent` sees it, by its address. `turnOver` is whether it is a thread's, turned over, and so can be turned back. */
-function sessionScreenOf(model: Model, agent: string, address: string, title: string, turnOver: boolean, inFull: InFull): SessionScreen {
+function sessionScreenOf(
+  model: Model,
+  agent: string,
+  address: string,
+  title: string,
+  turnOver: boolean,
+  now: number,
+  inFull: InFull,
+): SessionScreen {
   const can: Can = { back: true, send: false, newThread: false, filter: false, turnOver, work: true };
   const view = model.session;
   // A session that was working when the agent went away is not working now, whatever its last view says.
@@ -390,7 +404,7 @@ function sessionScreenOf(model: Model, agent: string, address: string, title: st
   const watched = view === undefined ? undefined : watchOf(view, inFull);
 
   let lead: string | undefined;
-  if (watched !== undefined && watched.earlier > 0) lead = earlierItems(watched.earlier, address, agent);
+  if (watched !== undefined && watched.earlier) lead = earlierItems(address, agent);
   else if (view !== undefined && view.items.length === 0) lead = SESSION_EMPTY;
 
   return {
@@ -401,6 +415,8 @@ function sessionScreenOf(model: Model, agent: string, address: string, title: st
     working: busy ? workingLine([agent], view.status.activity, false) : undefined,
     idle: view !== undefined && !busy && !stale ? idleLine(agent) : undefined,
     queued: view?.status.queued.map(queuedLine) ?? [],
+    // A watch takes no input, so how to cancel a wake-up is said where the person can write: in the thread.
+    waiting: stale ? [] : (view?.status.wakeups ?? []).map((wakeup) => wakeupLine(agent, wakeup, whenOf(wakeup.due, now), false)),
     stale: view !== undefined && stale,
     notes: notesOf(model, agent),
     keys: keyHints("session", can, inFull),
@@ -454,6 +470,10 @@ function threadScreen(model: Model, where: ThreadWhere, now: number, inFull: InF
     messages,
     working,
     work: workOf(session, inFull),
+    waiting:
+      session === undefined || model.agent?.state === "down"
+        ? []
+        : session.status.wakeups.map((wakeup) => wakeupLine(agent ?? who, wakeup, whenOf(wakeup.due, now), !reading)),
     workStale: agent !== undefined && model.agent?.state === "down",
     commands: reading ? [] : commandLines(dm ? "dm" : "room"),
     readOnly: reading && here.channel !== undefined ? readOnlyLine(here.channel, model.me?.name) : undefined,
@@ -466,7 +486,14 @@ function threadScreen(model: Model, where: ThreadWhere, now: number, inFull: InF
 
 function statusBlock(status: Status): StatusBlock {
   const { about } = status;
-  return { header: statusHeader(status.at), rows: about.kind === "agent" ? agentStatusRows(about) : roomStatusRows(about) };
+  switch (about.kind) {
+    case "agent":
+      return { header: statusHeader(status.at), rows: agentStatusRows(about) };
+    case "room":
+      return { header: statusHeader(status.at), rows: roomStatusRows(about) };
+    case "devices":
+      return { header: statusHeader(status.at, "devices"), rows: devicesRows(about) };
+  }
 }
 
 /** A thread's name, or the start of its first message, or a word saying it has none. */
@@ -520,22 +547,22 @@ function notesOf(model: Model, agent: string | undefined): string[] {
   const watching = where.screen === "session" || (where.screen === "thread" && where.turned === true);
   // An agent's screen is made of what chat lists and what the agent says of its sessions.
   const listing = where.screen === "threads" && where.place.kind === "agent";
-  // The gateway being gone is why nothing is registered: that is not worth saying twice.
-  if (!watching && model.chat.state === "down" && !(gatewayDown && model.chat.why.kind === "not-registered")) warn(chatNote(model.chat.why));
+  // The gateway being gone is why nothing is linked: that is not worth saying twice.
+  if (!watching && model.chat.state === "down" && !(gatewayDown && model.chat.why.kind === "not-linked")) warn(chatNote(model.chat.why));
   const looking = watching || listing ? "sessions" : where.screen === "thread" ? "work" : undefined;
-  if (looking !== undefined && agent !== undefined && model.agent?.state === "down" && !(gatewayDown && model.agent.why.kind === "not-registered")) {
+  if (looking !== undefined && agent !== undefined && model.agent?.state === "down" && !(gatewayDown && model.agent.why.kind === "not-linked")) {
     warn(agentNote(oneLine(agent), model.agent.why, looking, model.homes?.(agent)));
   }
   if (model.refusal !== undefined && agent !== undefined && (listing || where.screen === "session")) {
     warn(refusalNote(listing ? "sessions" : "session", agent, model.refusal));
   }
 
-  warn(model.listing === undefined ? undefined : versionWarning("the gateway", model.listing.version));
-  const registered = model.listing?.programs ?? [];
-  const chat = registered.findLast((program) => program.kind === "chat");
-  warn(chat === undefined ? undefined : versionWarning("the chat server", chat.version));
-  const running = agent === undefined ? undefined : registered.findLast((program) => program.kind === "agent" && program.name === agent);
-  warn(running === undefined ? undefined : versionWarning(`the agent ${oneLine(agent ?? "")}`, running.version));
+  warn(model.listing === undefined || model.listing.version === "" ? undefined : versionWarning("the gateway", model.listing.version));
+  const linked = model.listing?.programs ?? [];
+  const chat = linked.findLast((program) => program.kind === "chat");
+  warn(chat === undefined ? undefined : versionWarning("the chat server", chat.shrimpy));
+  const running = agent === undefined ? undefined : linked.findLast((program) => program.kind === "agent" && program.name === agent);
+  warn(running === undefined ? undefined : versionWarning(`the agent ${oneLine(agent ?? "")}`, running.shrimpy));
 
   if (model.notice !== undefined) warn(noticeText(model.notice, oneLine(agent ?? "")));
   return notes;

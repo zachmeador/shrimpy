@@ -37,14 +37,15 @@ export function memberOperations(sql: Sql, report: ReportChange): MemberOperatio
         member.name,
       );
       if (before === undefined || before.name === member.name) return;
-      // A message carries its author's name, so every thread the member is in now reads differently.
+      // A channel and a message carry their members' names, so every channel the member is in, and its threads, now read differently.
       const threads = sql.all(
-        `SELECT t.id FROM threads t
+        `SELECT t.id, t.channel_id FROM threads t
          JOIN memberships s ON s.channel_id = t.channel_id
          WHERE s.member_id = ?`,
         member.id,
-      ) as { id: string }[];
-      for (const thread of threads) report({ kind: "thread", threadId: thread.id });
+      ) as { id: string; channel_id: string }[];
+      for (const channelId of new Set(threads.map((thread) => thread.channel_id))) report({ kind: "channel", channelId });
+      for (const thread of threads) report({ kind: "thread", channelId: thread.channel_id, threadId: thread.id });
     },
     addMember(member) {
       sql.run(

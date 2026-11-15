@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import type { SessionView } from "../contracts/agent/index.ts";
+import type { SessionStatus } from "../contracts/agent/index.ts";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
@@ -13,7 +13,7 @@ import {
   serveChat,
   startModelServer,
   talkTo,
-  untilRegistered,
+  untilLinked,
 } from "./testing/index.ts";
 
 const timeout = 60_000;
@@ -53,7 +53,7 @@ async function servedHome(t: TestContext, ...serveFlags: string[]): Promise<Serv
   const model = await startModelServer();
   await startTestGateway(t);
   await serveChat(t, tempDir(t, "chat-data"));
-  await untilRegistered("chat", "chat");
+  await untilLinked("chat", "chat");
   const home = join(tempDir(t, "flow"), "scout");
   assert.equal((await run("agent", "init", home, "--name", "scout", "--model", "local/test-model")).code, 0);
   declareLocalModel(home, { url: model.url, model: "test-model" });
@@ -144,7 +144,7 @@ test("with the gateway gone, the agent is still watched and stopped by its home'
 
   const watched = await run("sessions", "read", threadId, "--json", "--agent", home);
   assert.equal(watched.code, 0, watched.err.join("\n"));
-  assert.equal((JSON.parse(watched.out[0] ?? "{}") as SessionView).status.busy, true, "it is at work");
+  assert.equal((JSON.parse(watched.out[0] ?? "{}") as { status: SessionStatus }).status.busy, true, "it is at work");
   assert.equal((await run("sessions", "stop", threadId, "--agent", home)).code, 0);
 
   await gateway.recover();

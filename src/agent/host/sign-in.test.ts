@@ -14,8 +14,9 @@ const CHECKED = new Set(["made-up"]);
  * A provider that is made up, so that no sign-in reaches a real one. Its sign-in
  * opens a link and takes a code, from the person who pastes it or from the
  * browser coming back by itself, whichever is first, as the flows that listen on
- * a local port do. It asks for the folder's device ID twice, and keeps it. Its
- * credential has no refresh token, as OpenRouter's has none.
+ * a local port do. It asks for the folder's device ID twice, and keeps it with
+ * the name the app signed in under. Its credential has no refresh token, as
+ * OpenRouter's has none.
  */
 function madeUp() {
   let comeBack = (_code: string): void => undefined;
@@ -40,7 +41,7 @@ function madeUp() {
           if (code === undefined) throw new Error("No code came.");
           const device = options?.getDeviceId?.();
           if (device === undefined || device !== options?.getDeviceId?.()) throw new Error("The device ID changed.");
-          return { type: "oauth", access: `access-for-${code}`, refresh: "", expires: Number.MAX_SAFE_INTEGER, device };
+          return { type: "oauth", access: `access-for-${code}`, refresh: "", expires: Number.MAX_SAFE_INTEGER, device, as: options.agentName };
         },
         refresh: (credential) => Promise.resolve(credential),
         toAuth: (credential) => Promise.resolve({ apiKey: credential.access }),
@@ -68,7 +69,7 @@ function person() {
   return { dialogue, questions, notices };
 }
 
-test("a sign-in takes the code that is pasted or the one the browser brings, lets go of the question that lost, and keeps one device ID; stopped, it leaves the folder as it was", async (t) => {
+test("a sign-in is made under Shrimpy's name, takes the code that is pasted or the one the browser brings, lets go of the question that lost, and keeps one device ID; stopped, it leaves the folder as it was", async (t) => {
   const providers = join(tempDir(t, "sign-in"), "providers");
   const stored = (): Record<string, OAuthCredential> =>
     JSON.parse(readFileSync(join(providers, "auth.json"), "utf8")) as Record<string, OAuthCredential>;
@@ -96,6 +97,7 @@ test("a sign-in takes the code that is pasted or the one the browser brings, let
   first.questions[0]?.answer("pasted");
   await signingIn;
   assert.equal(stored()["made-up"]?.access, "access-for-pasted");
+  assert.equal(stored()["made-up"]?.as, "Shrimpy", "the provider's sign-in was handed Shrimpy's name, in place of Pi's");
   assert.equal((await signIns.providers())[0]?.saved, "account");
   const device = readFileSync(join(providers, "device-id"), "utf8").trim();
   assert.equal(stored()["made-up"]?.device, device);

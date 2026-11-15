@@ -1,16 +1,30 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { toolItem, userItem, workingView } from "../../../contracts/agent/testing/index.ts";
+import { toolItem, userItem } from "../../../contracts/agent/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import { statusOf } from "./status.ts";
-import { agentMember, aChatServer, aListing, aModel, anAgent, aRoom, aSession, aThread, aThreadView, onThread } from "./testing/index.ts";
+import {
+  agentMember,
+  aChatServer,
+  aListing,
+  aModel,
+  anAgent,
+  aRoom,
+  aSession,
+  aThread,
+  aThreadView,
+  onThread,
+  workingView,
+} from "./testing/index.ts";
 
 const scout = agentMember("scout");
 
-test("in an agent's DM it finds the agent, what it is doing in the thread, what its session says, and how many of its other sessions work", () => {
+test("in an agent's DM it finds the agent, what it is doing in the thread, what its session says, why its last turn failed and the wake-ups it waits on, and how many of its other sessions work", () => {
   const busy = aThread("th_1", { preview: "go", working: [{ memberId: scout.id, since: 0 }] });
   const view = workingView([userItem("go"), toolItem("bash")], { kind: "tool", name: "bash" });
   view.status.queued = [{ mode: "followUp", text: "and the logs?" }];
+  view.status.failure = { reason: "model_error", detail: "429 Too Many Requests" };
+  view.status.wakeups = [{ due: 5_000, note: "look again" }];
   const model = onThread("scout", busy, aThreadView(busy, []), { session: view });
   const sessions = [aSession("th_1", { working: true }), aSession("th_2", { working: true }), aSession("trigger:nightly", { working: true }), aSession("th_3")];
 
@@ -25,7 +39,15 @@ test("in an agent's DM it finds the agent, what it is doing in the thread, what 
       version: SHRIMPY_VERSION,
       reached: true,
       doing: { kind: "tool", name: "bash" },
-      session: { queued: 1, model: view.status.model, own: false, defaultModel: undefined, usage: view.status.usage },
+      session: {
+        queued: 1,
+        model: view.status.model,
+        own: false,
+        defaultModel: undefined,
+        usage: view.status.usage,
+        failure: { reason: "model_error", detail: "429 Too Many Requests" },
+        wakeups: [{ due: 5_000, note: "look again" }],
+      },
       othersWorking: 2,
     },
   });

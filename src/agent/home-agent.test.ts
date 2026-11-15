@@ -4,18 +4,29 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, w
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { AgentModels } from "../contracts/agent/index.ts";
-import { attachLocal, readMembership, saveMembership } from "../contracts/agent/node.ts";
+import { readMembership, saveMembership } from "../contracts/agent/node.ts";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
-import type { Registration, RosterEntry } from "../contracts/gateway/index.ts";
+import { type Program, Roster, type RosterEntry } from "../contracts/gateway/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
-import type { TestGateway } from "../contracts/gateway/testing/index.ts";
+import { linkTestAgent, type TestGateway } from "../contracts/gateway/testing/index.ts";
 import { eventually, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { homePaths } from "./home/index.ts";
 import { ModelSetupError } from "./host/durable.ts";
 import { initHome, parseModelChoice, previewHomeContext, startHomeAgent } from "./index.ts";
-import { attachThread, type ChatServer, closeAfter, roomWith, startChatServer, stubChatCompletions, talkTo, writeTrigger } from "./testing/index.ts";
+import {
+  attachThread,
+  type ChatServer,
+  closeAfter,
+  connectAgent,
+  roomWith,
+  startChatServer,
+  stubChatCompletions,
+  talkTo,
+  writeTrigger,
+} from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -56,29 +67,26 @@ async function startNetwork(t: TestContext) {
   return { gateway: chat.gateway, chat };
 }
 
-/** The programs the gateway lists, asked over a connection of its own. */
-async function registered(gateway: TestGateway): Promise<Registration[]> {
+/** The roster as you see it, held over a link of its own, for as long as `read` runs. */
+async function onRoster<T>(gateway: TestGateway, read: (roster: { programs: Program[]; members: RosterEntry[] }) => T): Promise<T> {
   const observer = await gateway.connect();
   try {
-    return await observer.list();
+    const roster = await observer.host.get(Roster, {}, BACKGROUND_CONTEXT);
+    return read({ programs: roster.programs.value, members: roster.members.value });
   } finally {
     await observer.close();
   }
 }
+
+/** The programs linked to the gateway now. */
+const registered = (gateway: TestGateway): Promise<Program[]> => onRoster(gateway, (roster) => roster.programs);
 
 /** The agents among them. */
-const agentsOf = async (gateway: TestGateway): Promise<Registration[]> =>
+const agentsOf = async (gateway: TestGateway): Promise<Program[]> =>
   (await registered(gateway)).filter((program) => program.kind === "agent");
 
-/** The roster, asked over a connection of its own. */
-async function rosterOf(gateway: TestGateway): Promise<RosterEntry[]> {
-  const observer = await gateway.connect();
-  try {
-    return await observer.members();
-  } finally {
-    await observer.close();
-  }
-}
+/** Everyone on the roster. */
+const rosterOf = (gateway: TestGateway): Promise<RosterEntry[]> => onRoster(gateway, (roster) => roster.members);
 
 /** The names of the agents on the roster, in order. */
 const agentNames = async (gateway: TestGateway): Promise<string[]> =>
@@ -128,7 +136,7 @@ async function talkToAgent(chat: ChatServer, name: string) {
   };
 }
 
-test("an agent starts from a home alone, registers with the gateway, finds chat there, and answers in the thread with the model the home declares", { timeout }, async (t) => {
+test("an agent starts from a home alone, links to the gateway, finds chat there, and answers in the thread with the model the home declares", { timeout }, async (t) => {
   const paths = newHome(t);
   const requests = stubChatCompletions(t, "Hello from qwen");
   const { gateway, chat } = await startNetwork(t);
@@ -140,7 +148,7 @@ test("an agent starts from a home alone, registers with the gateway, finds chat 
   assert.equal(agent.name, "scout");
   assert.equal(agent.home, paths.root);
   assert.deepEqual(await agentsOf(gateway), [
-    { kind: "agent", name: "scout", memberId: person.partner.id, version: SHRIMPY_VERSION },
+    { kind: "agent", name: "scout", member: person.partner.id, shrimpy: SHRIMPY_VERSION },
   ]);
   assert.equal(receipt.status, "answered");
   assert.deepEqual((await person.replies()).map((reply) => reply.text), ["Hello from qwen"]);
@@ -156,7 +164,7 @@ test("an agent starts from a home alone, registers with the gateway, finds chat 
     new RegExp(`^[^\\n]*Thread th_\\w+ in channel ch_\\w+\\.\\n\\n${escaped(person.me.name)} wrote at \\S+:\\nhi$`),
     "the facts about a message travel with it",
   );
-  const { connection, session } = await attachThread(paths.root, person.thread.id);
+  const { connection, session } = await attachThread(t, paths.root, person.thread.id);
   t.after(() => connection.close());
   assert.deepEqual(session.view.status.model, { provider: "local", id: "qwen" });
 });
@@ -217,7 +225,7 @@ test("a note written into context/ while the agent runs is in what the model is 
   const { chat } = await startNetwork(t);
   await startAt(t, paths.root, { lookEveryMs: LOOK });
   const person = await talkToAgent(chat, "scout");
-  const connection = await attachLocal(paths.root);
+  const connection = await connectAgent(t, paths.root);
   t.after(() => connection.close());
   const told = (index: number): string => String(requests[index]?.body.messages[0]?.content);
   /** Ask something, and give back the instructions the model had with it. */
@@ -309,7 +317,7 @@ test("a thread given a model of its own by /model keeps it through a reload that
   const first = await startAt(t, paths.root);
   const person = await talkToAgent(chat, "scout");
   const side = await person.newThread();
-  const connection = await attachLocal(paths.root);
+  const connection = await connectAgent(t, paths.root);
   t.after(() => connection.close());
 
   await person.ask("/model local/llama");
@@ -344,7 +352,7 @@ test("an agent says which models it can use now and which one its sessions follo
   writeFileSync(paths.auth, JSON.stringify({ groq: { type: "api_key", key: "gsk-test" } }));
   await startNetwork(t);
   await startAt(t, paths.root);
-  const connection = await attachLocal(paths.root);
+  const connection = await connectAgent(t, paths.root);
   t.after(() => connection.close());
   const providers = ({ models }: AgentModels): string[] => [...new Set(models.map((model) => model.provider))];
 
@@ -433,12 +441,12 @@ test("in a room /model is for the agent it names and for every agent when it say
   await startAt(t, bob.root);
   const toScout = await talkToAgent(chat, "scout");
   const toBob = await talkToAgent(chat, "bob");
-  const { person, main } = await roomWith(chat, "Ops", [toScout.partner, toBob.partner]);
+  const { person, main } = await roomWith(t, chat, "Ops", [toScout.partner, toBob.partner]);
   const members = { scout: toScout.partner.id, bob: toBob.partner.id };
-  const say = (text: string): Promise<Message> => person.chat.post(main.id, text, randomUUID());
+  const say = (text: string): Promise<Message> => person.post(main.id, text, randomUUID());
   /** The receipt `agent` has left on a message, if it has left one. */
   const receiptOf = async (agent: keyof typeof members, message: Message): Promise<Receipt | undefined> =>
-    (await person.chat.read(main.id, null, 200)).find((each) => each.id === message.id)?.receipts.find((receipt) => receipt.memberId === members[agent]);
+    (await person.read(main.id, null, 200)).find((each) => each.id === message.id)?.receipts.find((receipt) => receipt.memberId === members[agent]);
   const answered = (agent: keyof typeof members, message: Message): Promise<Receipt | undefined> =>
     eventually(() => receiptOf(agent, message), (found) => found !== undefined, { what: `${agent}'s receipt` });
   /** The models each agent's requests named, by the key that tells their homes apart. */
@@ -459,7 +467,7 @@ test("in a room /model is for the agent it names and for every agent when it say
   await Promise.all([answered("scout", again), answered("bob", again)]);
   assert.deepEqual([named("key-scout"), named("key-bob")], [["llama", "mistral"], ["qwen", "mistral"]]);
 
-  const lines = (await person.chat.read(main.id, null, 200)).filter((message) => message.author.kind === "agent" && message.text !== "Ok");
+  const lines = (await person.read(main.id, null, 200)).filter((message) => message.author.kind === "agent" && message.text !== "Ok");
   assert.deepEqual(lines.map((message) => message.author.id).sort(), [members.bob, members.scout, members.scout].sort(), "scout said a line for each command it was named in, and bob for the one that named everyone");
 
   // A /model that names nobody is for nobody: no agent acts on it, and no model reads it as text.
@@ -495,7 +503,7 @@ test("two homes share no keys, instructions or history", { timeout }, async (t) 
   assert.match(String(fromTwo.body.messages[0]?.content), /You are the second agent\./);
   assert.doesNotMatch(String(fromTwo.body.messages[0]?.content), /You are scout/);
   const texts = async (home: string, thread: string): Promise<string[]> => {
-    const { connection, session } = await attachThread(home, thread);
+    const { connection, session } = await attachThread(t, home, thread);
     t.after(() => connection.close());
     return session.view.items.flatMap((item) => (item.type === "user" ? [item.text.split("\n").at(-1) ?? ""] : []));
   };
@@ -570,8 +578,9 @@ test("a home that kept its token but never heard it had joined joins again as th
   // A first start that made and kept its token, joined, and ended before it wrote down the gateway's answer.
   const token = newToken();
   saveMembership(paths.root, { token });
-  const observer = await gateway.connect();
-  const joined = await observer.join("scout", token);
+  const first = await linkTestAgent(t, "scout", token);
+  const joined = first.you;
+  await first.stop();
 
   await startAt(t, paths.root);
   const person = await talkToAgent(chat, "scout");

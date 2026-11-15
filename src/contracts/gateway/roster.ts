@@ -1,0 +1,88 @@
+import { arr, bool, method, nul, num, obj, oneOf, remote, type Static, str, union } from "@earendil-works/chord";
+import { AddressSchema } from "./address.ts";
+import { answerOf } from "./answers.ts";
+import { gateway } from "./hosts.ts";
+
+/**
+ * Someone on the network: you or an agent. Its ID is minted once and never
+ * changes; its name is a label the roster binds to it, unique among members
+ * whatever the case, so `@name` means one member. Every person is an admin,
+ * the first agent on a roster starts as one, and any other agent is one once
+ * promoted.
+ */
+export const MemberSchema = obj({ id: str(), kind: oneOf("person", "agent"), name: str(), admin: bool() });
+export type Member = Static<typeof MemberSchema>;
+
+/** A member as the roster lists it, with whether it is reachable: an agent whose program is linked and answering. */
+export const RosterEntrySchema = obj({
+  id: str(),
+  kind: oneOf("person", "agent"),
+  name: str(),
+  admin: bool(),
+  reachable: bool(),
+});
+export type RosterEntry = Static<typeof RosterEntrySchema>;
+
+/** A program linked to the gateway now, with the Shrimpy version its hello gave. The chat server is no member. */
+export const ProgramSchema = obj({
+  kind: oneOf("agent", "chat"),
+  name: str(),
+  member: union([str(), nul()]),
+  shrimpy: str(),
+});
+export type Program = Static<typeof ProgramSchema>;
+
+/** A way in that a token opens, for a device of yours or an agent, with a device's label. */
+export const WayInSchema = obj({
+  id: str(),
+  kind: oneOf("device", "token"),
+  member: str(),
+  label: union([str(), nul()]),
+});
+export type WayIn = Static<typeof WayInSchema>;
+
+/**
+ * What lets an agent or a device of yours in over the gateway's entry: a code
+ * like `K7Q2-9FXD`, good once, for fifteen minutes and for what it was made
+ * for, the addresses the gateway listens on, of which there is at least one,
+ * and the fingerprint of the gateway's key, which whoever joins keeps and checks
+ * the entry against from then on.
+ */
+export const InvitationSchema = obj({ code: str(), addresses: arr(AddressSchema), fingerprint: str(), expires: num() });
+export type Invitation = Static<typeof InvitationSchema>;
+
+/**
+ * The roster as the caller sees it, at `gateway()`. Its state follows the
+ * roster live, so a promotion, a rename or a member arriving shows at once.
+ */
+export const Roster = remote("shrimpy.gateway.roster", {
+  version: 1,
+  params: {},
+  hostAddress: () => gateway(),
+  variants: {
+    all: {
+      state: {
+        /** The member the caller is, or null for a program that isn't one. */
+        you: union([MemberSchema, nul()]),
+        /** Everyone, oldest first. */
+        members: arr(RosterEntrySchema),
+        /** The programs linked now. */
+        programs: arr(ProgramSchema),
+        /** Every way in for you, the agents' for an admin, and none for anyone else. */
+        ways: arr(WayInSchema),
+      },
+      methods: {
+        /** An invitation for an agent called `name`. Only you or an admin, for a name nobody has, while the gateway listens on an address. */
+        invite: method(obj({ name: str() }), answerOf(InvitationSchema)),
+        /** An invitation for a device of yours, named for the machine it joins from. Only you. */
+        inviteDevice: method(undefined, answerOf(InvitationSchema)),
+        /** Makes an agent an admin, answering with it as it now is. Only you or an admin. */
+        promote: method(obj({ member: str() }), answerOf(MemberSchema)),
+        /** Makes an admin agent an ordinary agent again. Only you or an admin. */
+        demote: method(obj({ member: str() }), answerOf(MemberSchema)),
+        /** Ends a way in at once, and everything it holds. You take back any, and an admin an agent's. */
+        takeBack: method(obj({ way: str() }), answerOf(nul())),
+      },
+    },
+  },
+});

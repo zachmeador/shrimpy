@@ -10,10 +10,11 @@ import { useRuntimeDir } from "../lib/testing/index.ts";
 import {
   declareLocalModel,
   serve,
+  setAdmin,
   shrimpy,
   startAgentShell,
   startModelServer,
-  untilRegistered,
+  untilLinked,
   useShrimpyDir,
 } from "./testing/index.ts";
 
@@ -38,13 +39,13 @@ test("in an agent's shell, a sessions command about another agent is refused unl
     const home = join(useShrimpyDir(t), "agents", name);
     declareLocalModel(home, { url: model.url, model: "test-model" });
     served[name] = await serve(t, home);
-    await untilRegistered("agent", name);
+    await untilLinked("agent", name);
   }
   const scout = served.scout?.listening.home ?? "";
   const inScoutsShell = { env: { [AGENT_HOME_VARIABLE]: scout } };
   const noSessions = "The agent has no sessions yet.";
   // The first agent a roster has is an admin, so scout is made an ordinary agent first.
-  await (await gateway.connect()).demote((await memberNamed(t, "scout")).id);
+  await setAdmin(t, (await memberNamed(t, "scout")).id, false);
 
   // About itself, which is what it is with no --agent, it goes by the home's path, as ever. About rex it goes through the gateway as scout, and rex refuses.
   const own = await shrimpy(["sessions", "list"], inScoutsShell);
@@ -55,8 +56,8 @@ test("in an agent's shell, a sessions command about another agent is refused unl
   assert.equal((await shrimpy(["agent", "status", "--agent", "rex"], inScoutsShell)).code, 1, "and so does asking whether it is running");
   assert.equal((await shrimpy(["sessions", "list", "--agent", "rex"])).stdout.trim(), noSessions, "while the person who runs the gateway is told");
 
-  // Promoted at the gateway, scout may, with the next command.
-  await (await gateway.connect()).promote((await memberNamed(t, "scout")).id);
+  // Promoted at the gateway, scout may, at once.
+  await setAdmin(t, (await memberNamed(t, "scout")).id, true);
   const admitted = await shrimpy(["sessions", "list", "--agent", "rex"], inScoutsShell);
   assert.equal(admitted.stdout.trim(), noSessions, admitted.stderr);
   const status = await shrimpy(["agent", "status", "--agent", "rex"], inScoutsShell);
@@ -92,7 +93,7 @@ test("in an agent's shell, changing the triggers or the wake file of another age
   const own = await scout.run(["triggers", "add", "nightly", "--every", "1h", "Tidy."]);
   assert.equal(own.code, 0, own.stderr);
   assert.ok(existsSync(join(scout.home, "triggers", "nightly.md")));
-  await (await (await startTestGateway(t)).connect()).promote(scout.member.id);
+  await setAdmin(t, scout.member.id, true);
   const allowed = await scout.run(addToRex);
   assert.equal(allowed.code, 0, allowed.stderr);
   assert.ok(existsSync(trigger));

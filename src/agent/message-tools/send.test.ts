@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DisconnectedError } from "@earendil-works/pi-client";
+import { ChordError } from "@earendil-works/chord";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { until } from "../../lib/testing/index.ts";
+import { onChannel, onChat, onThread, valueOf } from "../testing/index.ts";
 import { startToolRig } from "./testing/index.ts";
 
 const timeout = 15_000;
@@ -32,16 +34,16 @@ test("a call ID with characters chat does not take, or a very long one, still na
   assert.deepEqual(saidByScout(rig, await rig.said()), ["One.", "Two."]);
 });
 
-test("a connection that dropped while the post was out is uncertain: the message may have arrived", { timeout }, async (t) => {
+test("a link that dropped while the post was out is uncertain: the message may have arrived", { timeout }, async (t) => {
   let out = false;
   const rig = await startToolRig(t, {
     through: (chat) => ({
       ...chat,
-      // The post goes out and nothing comes back until the connection is lost, as a call is then ended.
+      // The post goes out and nothing comes back until chat is lost, as a call is then ended.
       post: (_threadId, _part, _requestId, signal) =>
         new Promise<never>((_resolve, reject) => {
           out = true;
-          signal?.addEventListener("abort", () => reject(new DisconnectedError("Client is disconnected")), { once: true });
+          signal.addEventListener("abort", () => reject(new ChordError({ code: "unavailable", message: "The link closed." })), { once: true });
         }),
     }),
   });
@@ -78,16 +80,17 @@ test("a text posted in parts says how far it got when chat goes away part of the
 test("a session behind a DM posts in a room it is in, in its main thread or another, and is refused a room it is not in", { timeout }, async (t) => {
   const rig = await startToolRig(t);
   const person = await rig.chat.person();
-  const ops = await person.chat.createRoom("Ops", [rig.partner.id]);
-  const closed = await person.chat.createRoom("Closed", []);
-  const poem = await person.chat.createThread(ops.id, "Poem");
+  const context = BACKGROUND_CONTEXT;
+  const ops = await onChat(person, async (held) => valueOf(await held.createRoom({ name: "Ops", members: [rig.partner.id] }, context)));
+  const closed = await onChat(person, async (held) => valueOf(await held.createRoom({ name: "Closed", members: [] }, context)));
+  const poem = await onChannel(person, ops.id, async (held) => valueOf(await held.createThread({ name: "Poem" }, context)));
   const mainOf = async (channelId: string): Promise<string> => {
-    const main = (await person.chat.threads(channelId)).find((thread) => thread.main);
+    const main = await onChannel(person, channelId, (held) => held.threads.value.find((thread) => thread.main));
     assert.ok(main);
     return main.id;
   };
   const said = async (threadId: string): Promise<string[]> =>
-    saidByScout(rig, await person.chat.read(threadId, null, 10));
+    saidByScout(rig, await onThread(person, threadId, async (held) => valueOf(await held.read({ before: null, limit: 10 }, context))));
 
   const toRoom = await rig.call("send_message", { text: "To the room.", to: "#OPS" }, { callId: "room" });
   const toThread = await rig.call("send_message", { text: "To the thread.", to: "#ops/POEM" }, { callId: "thread" });
@@ -111,7 +114,7 @@ test("a call that is stopped while it waits for chat is stopped, not reported as
       post: (_threadId, _part, _requestId, signal) =>
         new Promise<never>((_resolve, reject) => {
           out = true;
-          signal?.addEventListener("abort", () => reject(signal.reason as Error), { once: true });
+          signal.addEventListener("abort", () => reject(signal.reason as Error), { once: true });
         }),
     }),
   });
@@ -119,7 +122,7 @@ test("a call that is stopped while it waits for chat is stopped, not reported as
 
   const calling = rig.call("send_message", { text: "Hello?" }, { signal: stop.signal });
   await until(() => out, "the post to be out");
-  stop.abort(new DisconnectedError("The turn was stopped"));
+  stop.abort(new Error("The turn was stopped"));
 
   await assert.rejects(calling);
 });

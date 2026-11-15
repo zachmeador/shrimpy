@@ -1,4 +1,4 @@
-import { Type } from "@earendil-works/pi-ai";
+import { obj, opt, str } from "@earendil-works/pi-schema";
 import { defineTool, type ToolExecutionApi } from "@earendil-works/pi-durable";
 import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
 import { inParts } from "../chat/index.ts";
@@ -18,9 +18,9 @@ export function sendMessage(options: MessageToolsOptions) {
   return defineTool({
     name: "send_message",
     description: words.SEND_DESCRIPTION,
-    parameters: Type.Object({
-      text: Type.String({ description: words.SEND_TEXT }),
-      to: Type.Optional(Type.String({ description: words.SEND_TO })),
+    parameters: obj({
+      text: str({ description: words.SEND_TEXT }),
+      to: opt(str({ description: words.SEND_TO })),
     }),
     // Messages sent in one round reach the thread in the order they were called.
     executionMode: "sequential",
@@ -41,7 +41,7 @@ export function sendMessage(options: MessageToolsOptions) {
           read: api,
           chat: live.chat,
           self: live.self,
-          gateway: options.gateway(),
+          roster: options.roster(),
           startDm: true,
           context,
           signal,

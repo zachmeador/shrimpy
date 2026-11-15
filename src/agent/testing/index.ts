@@ -1,9 +1,9 @@
 /**
  * Test support for the agent: a scripted model and a stand-in OpenAI-compatible
  * server, both without a network, the real gateway and chat server started
- * through the command, an agent taking part in the network with a person to
- * talk to it, a room for them to talk in, helpers to attach to an agent, stop it
- * and read its views, and to write the files of its triggers and its breadcrumbs.
+ * through the command, an agent taking part in the network with you to talk to
+ * it, a room to talk in, helpers to hold an agent and its sessions, stop it and
+ * read its views, and to write the files of its triggers and its breadcrumbs.
  * Only tests and test fixtures import this. The one thing it knows of another
  * program is the command that starts it.
  */
@@ -25,7 +25,16 @@ import {
 } from "@earendil-works/pi-ai";
 import type { AgentOptions } from "../index.ts";
 
-export { attachThread, closeAfter } from "./attach.ts";
+export {
+  type AgentConnection,
+  attachThread,
+  closeAfter,
+  connectAgent,
+  holdAgent,
+  holdSession,
+  type SessionHandle,
+  type SessionView,
+} from "./attach.ts";
 export { leaveBreadcrumb } from "./breadcrumbs.ts";
 export { type ChatServer, startChatServer } from "./chat-server.ts";
 export { type ChatRequest, stubChatCompletions } from "./chat-completions.ts";
@@ -33,7 +42,7 @@ export { startAgentChild } from "./child.ts";
 export { SCOUT } from "./names.ts";
 export { type AgentRig, type AgentRigOptions, startAgentRig } from "./rig.ts";
 export { roomWith } from "./rooms.ts";
-export { type Talk, talkTo } from "./talk.ts";
+export { onChannel, onChat, onThread, type Talk, talkTo, valueOf } from "./talk.ts";
 export { shownSinceLastAnswer, type Talking, talking, type Turn } from "./talking.ts";
 export { callingTools } from "./tools.ts";
 export { removeTrigger, writeTrigger } from "./triggers.ts";
@@ -43,8 +52,9 @@ export { answered, assistantItems, toolItems } from "./views.ts";
  * What the scripted model does. `chat`, `fail`, `stream`, `tool`, `waking` and
  * `asking` each do one thing. `mixed` picks one of them by what the latest
  * message says: "stream" streams a long answer, "refuse" fails, "slow command"
- * runs the slow shell call, "check back in 2s" asks to be woken in 2 seconds
- * (`and 5s` asks for a second wake-up), "ask maya" asks the agent maya a
+ * runs the slow shell call, "slow command until it finishes" runs it again each
+ * time it comes back as an error, "check back in 2s" asks to be woken in 2
+ * seconds (`and 5s` asks for a second wake-up), "ask maya" asks the agent maya a
  * question, and anything else is answered as `chat` answers. `gated` answers as
  * `chat` does once `releaseGate` has been called for its home, and `gatedFail`
  * fails as `fail` does once it has.
@@ -161,6 +171,7 @@ const SCRIPTS: Record<FauxScenario, Script> = {
     const user = lastUserText(messages);
     if (/\bstream\b/i.test(user)) return SCRIPTS.stream(messages, home);
     if (/\brefuse\b/i.test(user)) return SCRIPTS.fail(messages, home);
+    if (/\bslow command until it finishes\b/i.test(user)) return slowCommandUntilItFinishes(messages);
     if (/\bslow command\b/i.test(user)) return SCRIPTS.tool(messages, home);
     if (CHECK_BACK.test(user)) return SCRIPTS.waking(messages, home);
     if (ASK_MAYA.test(user)) return SCRIPTS.asking(messages, home);
@@ -177,6 +188,14 @@ const SCRIPTS: Record<FauxScenario, Script> = {
     return SCRIPTS.fail(messages, home);
   },
 };
+
+/** The slow shell call, and again each time it comes back as an error, then an answer that quotes the one that finished. */
+function slowCommandUntilItFinishes(messages: readonly Message[]) {
+  const result = pendingToolResult(messages);
+  if (result !== undefined && !result.isError) return fauxAssistantMessage(`The slow command finished: ${resultText(result)}`);
+  const call = fauxToolCall("bash", { command: SLOW_COMMAND }, { id: `call-slow-${String(messages.length)}` });
+  return fauxAssistantMessage([fauxText("Running the slow command."), call], { stopReason: "toolUse" });
+}
 
 /**
  * A model runtime whose only model follows `scenario`, or `script` when given.

@@ -82,7 +82,7 @@ export function receiptOperations(sql: Sql, report: ReportChange): ReceiptOperat
         replySeq: receipt.reply?.seq ?? null,
         detail: receipt.detail,
       });
-      report({ kind: "event", threadId: event.message.threadId });
+      report({ kind: "event", channelId: event.message.channelId, threadId: event.message.threadId });
     },
   };
 }

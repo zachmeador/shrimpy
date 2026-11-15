@@ -15,8 +15,8 @@ const LENGTH = 8;
  */
 export type Checked = { ok: true; spend(): void } | { ok: false; why: "unknown" | "used" };
 
-/** What asking about a code for a machine of a person's own came to: as `Checked`, with the person the machine is let in as. */
-export type CheckedForMachine = { ok: true; person: string; spend(): void } | { ok: false; why: "unknown" | "used" };
+/** What asking about a code for a device came to: as `Checked`, with the person the device is let in as. */
+export type CheckedForDevice = { ok: true; person: string; spend(): void } | { ok: false; why: "unknown" | "used" };
 
 /** A new code, and when it stops being good in milliseconds since the epoch. */
 export interface Issued {
@@ -27,7 +27,7 @@ export interface Issued {
 
 /**
  * The invitations in flight: a code that lets one agent in from apart, for one
- * name, or one machine of a person's own, for that person. A code is good once
+ * name, or one device of yours, for you. A code is good once
  * and for a short time, and only for what it was made for, so whoever holds one
  * can't take another. They are kept in memory only, so a gateway that restarts
  * forgets them, and whoever held one asks for another.
@@ -35,12 +35,12 @@ export interface Issued {
 export interface Invitations {
   /** A new code for an agent called `name`. */
   issue(name: string): Issued;
-  /** A new code for a machine of the person `memberId`, who is who the machine is from then on. */
-  issueForMachine(memberId: string): Issued;
+  /** A new code for a device of the person `memberId`, who is who the device is from then on. */
+  issueForDevice(memberId: string): Issued;
   /** Whether `code` is good for an agent called `name` now. It is read without regard to case or the hyphen, and nothing is spent. */
   check(code: unknown, name: unknown): Checked;
-  /** Whether `code` is good for a machine of a person now, read as `check` reads it, and nothing is spent. */
-  checkForMachine(code: unknown): CheckedForMachine;
+  /** Whether `code` is good for a device now, read as `check` reads it, and nothing is spent. */
+  checkForDevice(code: unknown): CheckedForDevice;
 }
 
 export interface InvitationsOptions {
@@ -49,7 +49,7 @@ export interface InvitationsOptions {
   ttlMs?: number;
 }
 
-/** Who a code lets in: an agent by its name, or a machine of the person who has this member ID. */
+/** Who a code lets in: an agent by its name, or a device of the person who has this member ID. */
 type Whom = { agent: string } | { person: string };
 
 interface Entry {
@@ -84,7 +84,7 @@ export function createInvitations(options: InvitationsOptions = {}): Invitations
 
   return {
     issue: (name) => make({ agent: name }),
-    issueForMachine: (memberId) => make({ person: memberId }),
+    issueForDevice: (memberId) => make({ person: memberId }),
     check(code, name) {
       const found = find(code);
       if (found === undefined || !("agent" in found.whom) || found.whom.agent !== name) return { ok: false, why: "unknown" };
@@ -96,7 +96,7 @@ export function createInvitations(options: InvitationsOptions = {}): Invitations
         },
       };
     },
-    checkForMachine(code) {
+    checkForDevice(code) {
       const found = find(code);
       if (found === undefined || !("person" in found.whom)) return { ok: false, why: "unknown" };
       if (found.used) return { ok: false, why: "used" };

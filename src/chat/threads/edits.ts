@@ -1,6 +1,6 @@
 import type { Member, Message } from "../../contracts/chat/index.ts";
-import { refuse } from "../../lib/refusal/index.ts";
 import { identifier, messageText } from "../input/index.ts";
+import { refuse } from "../refusal/index.ts";
 import { visibleMessage } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
 import { mentionedMembers } from "./mentions.ts";
@@ -17,11 +17,11 @@ function onlyAuthor(caller: Member, message: Message, doing: string): void {
  * makes a retry of an edit harmless. Which members the message mentions is
  * worked out again from the new text.
  */
-export function editMessage(deps: ChatDeps, caller: Member, messageId: unknown, text: unknown): Message {
-  const id = identifier(messageId, "messageId");
+export function editMessage(deps: ChatDeps, caller: Member, threadId: string, messageId: unknown, text: unknown): Message {
+  const id = identifier(messageId, "message");
   const body = messageText(text);
   return deps.store.transaction((tx) => {
-    const { message, channel } = visibleMessage(tx, caller, id);
+    const { message, channel } = visibleMessage(tx, caller, threadId, id);
     onlyAuthor(caller, message, "edit");
     if (message.deleted) refuse("That message was deleted, so it can't be edited.");
     return tx.editMessage(message, {
@@ -35,10 +35,10 @@ export function editMessage(deps: ChatDeps, caller: Member, messageId: unknown, 
 }
 
 /** Delete a message, as its author. Deleting one that is deleted already changes nothing. */
-export function deleteMessage(deps: ChatDeps, caller: Member, messageId: unknown): Message {
-  const id = identifier(messageId, "messageId");
+export function deleteMessage(deps: ChatDeps, caller: Member, threadId: string, messageId: unknown): Message {
+  const id = identifier(messageId, "message");
   return deps.store.transaction((tx) => {
-    const { message } = visibleMessage(tx, caller, id);
+    const { message } = visibleMessage(tx, caller, threadId, id);
     onlyAuthor(caller, message, "delete");
     return tx.deleteMessage(message, caller.id, deps.now());
   });

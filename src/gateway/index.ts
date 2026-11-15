@@ -1,93 +1,94 @@
 /**
- * The gateway program: one process per machine that keeps the roster of who is
- * on the network, the registry of programs that are running, the tickets that
- * tell a program who a client is, the invitations that let an agent, or a
- * machine of a person's own, in from apart, the calls it makes for an agent that
- * connects out, and a way in to each registered program, and gives browsers,
- * agents and machines apart from it a way in too. A program is reached by its
- * name through the gateway, which pipes the connection to the program's socket,
- * or for an agent apart, to the connection the agent opens when it is called,
- * and does not look at it. It keeps the addresses it listens on for agents and
- * machines apart from it, so that a start with none listens where the last one
- * did. It only connects things: it never holds an agent's home, its work or a
- * conversation. Other programs reach it through `contracts/gateway`; they never
- * import this program's modules. It must not know what the programs it connects
- * say to each other.
+ * The gateway program: one process per network that keeps the roster of who
+ * is on it and is Chord's relay between everyone else. Clients link in on its
+ * own socket or its entry, each stamped with who it is from its way in; every
+ * program links out to it, and its link is the route by which the gateway
+ * relays requests for it, stamped with who asks. It serves `Roster`, makes
+ * invitations, and takes tokens back. Over its entry it proves itself with a
+ * key it keeps in its data directory, whose fingerprint every invitation's
+ * link carries. It keeps the addresses it listens on, so that a start with
+ * none listens where the last one did, and follows your settings file for your
+ * name. It never holds an agent's home, its work or a conversation, and never
+ * reads what it relays. Other programs reach it through `contracts/gateway`;
+ * they never import this program's modules.
  */
+import { rmSync } from "node:fs";
 import { userInfo } from "node:os";
-import type { Duplex } from "node:stream";
-import { type Address, GATEWAY_SOCKET_NAME, type ProgramName } from "../contracts/gateway/index.ts";
-import { wayInSocket } from "../contracts/gateway/node.ts";
-import { namedSocketPath } from "../lib/runtime/node.ts";
-import { createCalls } from "./calls/index.ts";
-import { type Entry, startEntry } from "./entry/index.ts";
+import { createHost, type HostError } from "@earendil-works/chord";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { type Address, gateway, type Principal, type Revocation, revokedBy } from "../contracts/gateway/index.ts";
+import { gatewaySocket } from "../contracts/gateway/node.ts";
+import { type Listener, listen } from "../lib/link/node.ts";
+import { greeter } from "./hello/index.ts";
 import { createInvitations } from "./invitations/index.ts";
-import { checkListenAddresses, keep, listeningFile, readKept } from "./listening/index.ts";
+import { openKey } from "./key/index.ts";
+import { cannotListen, checkListenAddresses, keep, listeningFile, readKept } from "./listening/index.ts";
 import { takeGatewayLock } from "./lock.ts";
-import { connectUpstream } from "./pipe/index.ts";
-import { createRegistry } from "./registry/index.ts";
-import { openRoster } from "./roster/index.ts";
-import { startServer } from "./server.ts";
-import { createTickets } from "./tickets/index.ts";
-import { startWeb, type WebOptions } from "./web/index.ts";
-import { createWays } from "./ways/index.ts";
+import { createPrograms } from "./programs/index.ts";
+import { openRoster, type Roster } from "./roster/index.ts";
+import { createActions, createView, gatewayFacet } from "./served/index.ts";
+import { followSettings } from "./settings/index.ts";
 
 export { checkListenAddresses, readKept as keptListenAddresses } from "./listening/index.ts";
 export { GatewayRunningError } from "./lock.ts";
 export { RosterOwnedError } from "./roster/index.ts";
-export type { WebOptions } from "./web/index.ts";
 
 export interface GatewayOptions {
-  /** Where the gateway keeps the roster. It is made if it is missing. */
+  /** Where the gateway keeps the roster and its key. It is made if it is missing, and the key with it. */
   dataDir: string;
-  /** Open the browser entry on loopback. Without it the gateway listens only on its Unix sockets. */
-  web?: WebOptions;
   /**
-   * The addresses to open the network entry on, for agents apart from the
-   * gateway: under another user, in a container or on another machine. A port
-   * of 0 picks one. Given, they replace the addresses the gateway kept in its
-   * data directory, once it is listening on them. Without any, it listens where
-   * it did at its last start, if it kept addresses there, and otherwise only on
-   * its Unix sockets, and makes no invitations, since nobody could use one. An
-   * address that means every interface is refused, since an invitation needs
-   * one that another machine can use.
+   * The addresses to open the entry on, for whoever is apart from the gateway:
+   * an agent under another user, in a container or on another machine, and
+   * your devices. A port of 0 picks one. Given, they replace the addresses the
+   * gateway kept in its data directory, once it is listening on them. Without
+   * any, it listens where it did at its last start, if it kept addresses there,
+   * and otherwise only on its own socket, and makes no invitations, since
+   * nobody could use one. An address that means every interface is refused,
+   * since an invitation needs one that another machine can use.
    */
   listen?: Address[];
   /**
-   * How long a connection over the network entry may stay silent, answering
-   * none of the pings the gateway sends it, before the gateway lets go of it,
-   * which takes a registration made over it away too. Half a minute if not
-   * given. Tests shorten it.
+   * The OS account the gateway runs as, which names you when it first makes
+   * its data. This process's account unless a test gives another.
    */
-  silenceMs?: number;
+  account?: string;
+  /**
+   * Your settings file, which the gateway reads when it starts and again
+   * whenever it changes: your name is set there. While there is no file, your
+   * name stays as it is.
+   */
+  settings?: string;
 }
 
 export interface RunningGateway {
-  /** The Unix socket programs connect to. */
+  /** The gateway's own socket. */
   readonly socket: string;
-  /** The port of the browser entry, when it is open. */
-  readonly webPort: number | undefined;
-  /** The addresses the network entry listens on, each with the port it got. None when it is not open. */
+  /** The addresses the entry listens on, each with the port it got. None when it is not open. */
   readonly listening: Address[];
   /** The file the addresses were read from, when this start was given none and listens where an earlier one did. */
   readonly listeningAsKept: string | undefined;
+  /** The fingerprint of the gateway's key, which every invitation's link carries and a member checks the entry against. */
+  readonly fingerprint: string;
   close(): Promise<void>;
 }
 
+const context = BACKGROUND_CONTEXT;
+
 /**
- * Start serving this machine's gateway socket, and the browser entry and the
- * network entry if asked. Fails if a gateway is already serving the socket or
- * using the data directory. The socket comes first, so a refused gateway
- * touches neither the data directory nor a port. The person who runs the
- * gateway joins the roster as it starts, so no agent can take their name before
- * they are first seen. An address that can't be listened on stops the start.
+ * Start the gateway on its own socket, and on its entry if it has addresses.
+ * Fails if a gateway is already running on the socket or using the data
+ * directory; the socket's lock comes first, so a refused gateway touches
+ * neither. You are on the roster before anything links, made with its data
+ * and named for the account the gateway runs as then, and given the name your
+ * settings set, so no agent can take your name first. The gateway's key is
+ * made then too, or at the first start whose data has none, and every
+ * connection on the entry is TLS around it. An address that can't be listened
+ * on stops the start.
  */
 export async function startGateway(options: GatewayOptions): Promise<RunningGateway> {
-  // The longest path this gateway makes, so that a runtime directory too long for it is refused before anything is made.
-  wayInSocket({ kind: "agent", name: "" });
   const given = options.listen === undefined || options.listen.length === 0 ? undefined : options.listen;
   if (given !== undefined) checkListenAddresses(given);
-  const socket = namedSocketPath(GATEWAY_SOCKET_NAME);
+  const socket = gatewaySocket();
   const lock = takeGatewayLock(socket);
   const open: (() => void | Promise<void>)[] = [() => lock.release()];
   const closeAll = async (): Promise<void> => {
@@ -102,65 +103,77 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     if (errors.length === 1) throw errors[0];
     if (errors.length > 1) throw new AggregateError(errors, "The gateway did not close cleanly");
   };
-  const onError = (error: Error): void => console.error("[gateway]", error.message);
 
   try {
-    const osUser = userInfo().username;
-    const roster = openRoster(options.dataDir);
+    const roster = openRoster(options.dataDir, options.account ?? userInfo().username);
     open.push(() => roster.close());
-    roster.ensurePerson(osUser);
+    // Made or read once the data directory is held, so that no other gateway makes one at the same time.
+    const { key, fingerprint } = openKey(options.dataDir);
+    if (options.settings !== undefined) open.push(followYourName(roster, options.settings));
     // What was kept is read once the data directory is held, so that no other gateway is changing it, and before anything listens.
     const kept = given === undefined ? readKept(options.dataDir) : [];
     const wanted = given ?? (kept.length > 0 ? kept : undefined);
     const listeningAsKept = given === undefined && kept.length > 0 ? listeningFile(options.dataDir) : undefined;
-    const registry = createRegistry({ nameOf: (memberId) => roster.member(memberId)?.name });
-    const calls = createCalls();
-    open.push(() => calls.close());
-    /** A connection to the newest program registered under `target`, if there is one: dialed, or for an agent with no socket, called. */
-    const reach = (target: ProgramName, signal: AbortSignal): Promise<Duplex> | undefined => {
-      const found = registry.find(target.kind, target.name);
-      if (found === undefined) return undefined;
-      return found.socket === undefined ? calls.make(found.registrant, signal) : connectUpstream(found.socket);
+    const invitations = createInvitations();
+
+    const host = createHost<Principal, Revocation>({
+      address: gateway(),
+      principal: { kind: "gateway" },
+      revokedBy,
+      onError: (error) => report(error),
+    });
+    open.push(() => host.close(context));
+    const programs = createPrograms({
+      host,
+      agents: () => roster.members().filter((member) => member.kind === "agent"),
+      onChange: () => view.changed(),
+      context,
+    });
+    open.push(() => programs.close());
+    const report = (error: HostError): void => {
+      if (error.kind === "resolve_failed" && programs.notLinked(error.error)) return;
+      const cause = "error" in error ? error.error : "failure" in error ? error.failure.error : undefined;
+      console.error(`[gateway] ${error.kind}${cause instanceof Error ? `: ${cause.message}` : ""}`);
     };
-    const ways = createWays({ names: () => registry.names(), reach, onError });
-    open.push(() => ways.close());
-    const tickets = createTickets();
-    // The invitations ask for the addresses the entry got, which are known once it has listened.
-    let entry: Entry | undefined;
-    const server = await startServer(
-      {
-        roster,
-        registry,
-        tickets,
-        invitations: createInvitations(),
-        calls,
-        ways,
-        osUser,
-        addresses: () => entry?.addresses ?? [],
-        onError,
-      },
-      socket,
-    );
-    open.push(() => server.close());
-    const web =
-      options.web === undefined
-        ? undefined
-        : await startWeb(options.web, (target) =>
-            target === "gateway" ? server.listingSocket : registry.find(target.kind, target.name)?.socket,
-          );
-    if (web !== undefined) open.push(() => web.close());
+    const view = createView(() => ({
+      members: roster.members().map((member) => ({ ...member, reachable: programs.reachable(member.id) })),
+      programs: programs.list(),
+      ways: roster.ways(),
+    }));
+    const entries: Listener[] = [];
+    const actions = createActions({
+      roster,
+      invitations,
+      programs,
+      host,
+      addresses: () => entries.map(({ place }) => place as Address),
+      fingerprint,
+      context,
+    });
+    await host.load([{ name: "@shrimpy/gateway", facet: gatewayFacet(view, actions) }], context);
+    programs.start();
+    roster.onChange(() => {
+      programs.followRoster();
+      view.changed();
+    });
+
+    const greet = greeter({ roster, programs, invitations, host, context });
+    const onError = (error: unknown): void => console.error("[gateway]", (error as Error).message);
+    // The lock is held, so a socket left at the path belongs to a gateway that is gone.
+    rmSync(socket, { force: true });
+    const own = await listen({ path: socket }, greet("socket"), { onError });
+    open.push(() => own.close());
     if (wanted !== undefined) {
       try {
         // A file edited by hand may name an address that is refused.
         checkListenAddresses(wanted);
-        entry = await startEntry({
-          addresses: wanted,
-          gatewaySocket: server.apartSocket,
-          good: (ticket, target) => tickets.check(ticket, target),
-          reach,
-          answer: (call) => calls.answer(call),
-          ...(options.silenceMs === undefined ? {} : { silenceMs: options.silenceMs }),
-        });
+        for (const address of wanted) {
+          const entry = await listen({ ...address, key }, greet("entry"), { onError }).catch((error: unknown) => {
+            throw cannotListen(address, error);
+          });
+          open.push(() => entry.close());
+          entries.push(entry);
+        }
       } catch (error) {
         if (listeningAsKept === undefined) throw error;
         throw new Error(
@@ -169,13 +182,31 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
           { cause: error },
         );
       }
-      open.push(() => entry?.close());
-      // Only addresses that were listened on replace what was kept.
-      if (given !== undefined) keep(options.dataDir, entry.addresses);
     }
-    return { socket, webPort: web?.port, listening: entry?.addresses ?? [], listeningAsKept, close: closeAll };
+    const listening = entries.map(({ place }) => place as Address);
+    // Only addresses that were listened on replace what was kept.
+    if (given !== undefined) keep(options.dataDir, listening);
+    return { socket, listening, listeningAsKept, fingerprint, close: closeAll };
   } catch (error) {
     await closeAll().catch(() => undefined);
     throw error;
   }
+}
+
+/**
+ * Give you the name the settings in `file` set, now and each time the file
+ * changes. A name another member has, or a file that can't be used, leaves
+ * your name as it is, and the gateway says why where it reports problems.
+ */
+function followYourName(roster: Roster, file: string): () => void {
+  const stays = (): string => `[gateway] Your name stays "${roster.you().name}"`;
+  return followSettings(
+    file,
+    ({ name }) => {
+      if (name === undefined) return;
+      const renamed = roster.rename(roster.you().id, name);
+      if (renamed.kind === "refused") console.error(`${stays()}: the name in ${file} can't be used. ${renamed.words}`);
+    },
+    (error) => console.error(`${stays()}: ${error.message}`),
+  );
 }

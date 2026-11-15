@@ -103,8 +103,6 @@ Helpers are under Not built yet below.
 
 **Not built yet**
 
-*Waiting on Pi's sleeping tasks,* a step of the move to Pi 1.5.2 in the [order of work](../PLAN.md#order-of-work): wake-ups, triggers and question deadlines, with a waiting wake-up in the agent's state.
-
 *A trigger's line in its thread:* a trigger that names a thread shows a small line there when it fires, which takes a change to the chat contract.
 
 *What an agent does without being asked: helpers.*

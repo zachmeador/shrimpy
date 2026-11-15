@@ -1,5 +1,5 @@
 import { posix } from "node:path";
-import type { Context } from "@earendil-works/chord";
+import type { Context } from "@earendil-works/chord/context";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
 import { AGENT_RUNTIME_DIR, type Check } from "../../contracts/agent/index.ts";
 import { cutText, delayMs } from "../home/index.ts";

@@ -35,7 +35,7 @@ test("an agent that is an admin makes a room from its shell and the person is ad
   const added = await rex.run(["rooms", "add", "#OPS", "MAYA", you.me.name, "scout"]);
   assert.equal(added.code, 0, added.stderr);
   assert.match(added.stdout, /Added .* to #ops\. scout was in it already\./);
-  const [room] = await you.chat.channels();
+  const [room] = await you.channels();
   assert.ok(room);
   assert.deepEqual([room.kind, room.name], ["room", "ops"]);
   assert.deepEqual(
@@ -44,16 +44,16 @@ test("an agent that is an admin makes a room from its shell and the person is ad
   );
 
   // Now the person sees it, with its members and when it was updated, and its threads.
-  const [main] = await you.chat.threads(room.id);
+  const [main] = await you.threads(room.id);
   assert.ok(main);
   const listed = (await shrimpy(["rooms"])).stdout.trim().split("\n");
   assert.equal(listed.length, 2);
   const [name, updated, members] = (listed[1] ?? "").split(/ {2,}/);
   assert.deepEqual([name, updated], ["#ops", localTime(main.updatedAt)], "a room is as new as its newest thread");
   assert.equal(members, [you.me.name, "maya", "rex", "scout"].sort((a, b) => a.localeCompare(b)).join(", "));
-  await you.chat.post(main.id, "Is the disk full?", "you-1");
-  const side = await you.chat.createThread(room.id, "Backups");
-  await you.chat.post(side.id, "Last night's run?", "you-2");
+  await you.post(main.id, "Is the disk full?", "you-1");
+  const side = await you.createThread(room.id, "Backups");
+  await you.post(side.id, "Last night's run?", "you-2");
   const threads = await shrimpy(["threads", "#ops", "--json"]);
   assert.equal(threads.code, 0, threads.stderr);
   assert.deepEqual(
@@ -73,7 +73,7 @@ test("an agent that is an admin makes a room from its shell and the person is ad
   const spoken = await shrimpy(["run", "scout", "hello", "--thread", main.id]);
   assert.equal(spoken.code, 1);
   assert.match(spoken.stderr, /There is no thread .* in your DM with scout/);
-  assert.equal((await you.chat.read(main.id, null, 10)).length, 1, "and posted nothing");
+  assert.equal((await you.read(main.id, null, 10)).length, 1, "and posted nothing");
 });
 
 test("a room is made or added to only when every name is right, and the error says which name is wrong", { timeout }, async (t) => {
@@ -100,7 +100,7 @@ test("a room is made or added to only when every name is right, and the error sa
   assert.equal(elsewhere.code, 1);
   assert.match(elsewhere.stderr, /not in a room called #nowhere. The rooms you are in: #ops/);
   assert.deepEqual([none.code, nobodyToAdd.code], [2, 2], "a command used wrongly says so");
-  const rooms = await you.chat.channels();
+  const rooms = await you.channels();
   assert.deepEqual(
     rooms.map((room) => [room.name, room.members.map((member) => member.name).sort()]),
     [["ops", [you.me.name, "scout"].sort()]],

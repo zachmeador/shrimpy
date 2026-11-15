@@ -3,39 +3,44 @@ import { test } from "node:test";
 import { formatAddress } from "./address.ts";
 import { type Link, readLink, writeLink } from "./link.ts";
 
+const fingerprint = "ocKmkNBacmPG6VxrlnuW3Q";
+
 test("a link is read as it was written, with an IPv4 address, an IPv6 address, a host name, a name that needs escaping and no name at all", () => {
   const links: Link[] = [
-    { name: "crab", address: { host: "100.101.102.103", port: 7447 }, code: "K7Q2-9FXD" },
-    { name: "crab", address: { host: "fd7a:115c:a1e0::1", port: 7447 }, code: "K7Q2-9FXD" },
-    { name: "crab", address: { host: "::1", port: 65_535 }, code: "K7Q2-9FXD" },
-    { name: "crab", address: { host: "gateway.example.net", port: 1 }, code: "K7Q2-9FXD" },
-    { name: "a name/with @ odd things", address: { host: "127.0.0.1", port: 80 }, code: "K7Q2-9FXD" },
-    { name: null, address: { host: "100.101.102.103", port: 7447 }, code: "K7Q2-9FXD" },
-    { name: null, address: { host: "::1", port: 7447 }, code: "K7Q2-9FXD" },
+    { name: "crab", address: { host: "100.101.102.103", port: 7447 }, code: "K7Q2-9FXD", fingerprint },
+    { name: "crab", address: { host: "fd7a:115c:a1e0::1", port: 7447 }, code: "K7Q2-9FXD", fingerprint },
+    { name: "crab", address: { host: "::1", port: 65_535 }, code: "K7Q2-9FXD", fingerprint },
+    { name: "crab", address: { host: "gateway.example.net", port: 1 }, code: "K7Q2-9FXD", fingerprint },
+    { name: "a name/with @ odd things", address: { host: "127.0.0.1", port: 80 }, code: "K7Q2-9FXD", fingerprint },
+    { name: null, address: { host: "100.101.102.103", port: 7447 }, code: "K7Q2-9FXD", fingerprint },
+    { name: null, address: { host: "::1", port: 7447 }, code: "K7Q2-9FXD", fingerprint },
   ];
   for (const link of links) assert.deepEqual(readLink(writeLink(link)), link, writeLink(link));
 
-  assert.equal(writeLink(links[0] as Link), "shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD");
-  assert.equal(writeLink(links[1] as Link), "shrimpy://crab@[fd7a:115c:a1e0::1]:7447/K7Q2-9FXD", "an IPv6 address is in brackets");
-  assert.equal(writeLink(links[5] as Link), "shrimpy://100.101.102.103:7447/K7Q2-9FXD", "a link for a machine of the person's own has no name");
+  assert.equal(writeLink(links[0] as Link), `shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD/${fingerprint}`);
+  assert.equal(writeLink(links[1] as Link), `shrimpy://crab@[fd7a:115c:a1e0::1]:7447/K7Q2-9FXD/${fingerprint}`, "an IPv6 address is in brackets");
+  assert.equal(writeLink(links[5] as Link), `shrimpy://100.101.102.103:7447/K7Q2-9FXD/${fingerprint}`, "a link for a machine of the person's own has no name");
   assert.equal(formatAddress({ host: "::1", port: 7447 }), "[::1]:7447");
-  assert.deepEqual(readLink("  shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD\n"), links[0], "as it is pasted, with spaces around it");
+  assert.deepEqual(readLink(`  shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD/${fingerprint}\n`), links[0], "as it is pasted, with spaces around it");
 });
 
 test("text that is not a link is an error that says what a link looks like", () => {
   const wrong = [
     "",
-    "crab@100.101.102.103:7447/K7Q2-9FXD",
-    "https://crab@100.101.102.103:7447/K7Q2-9FXD",
-    "shrimpy://@100.101.102.103:7447/K7Q2-9FXD",
-    "shrimpy://crab@100.101.102.103/K7Q2-9FXD",
+    `crab@100.101.102.103:7447/K7Q2-9FXD/${fingerprint}`,
+    `https://crab@100.101.102.103:7447/K7Q2-9FXD/${fingerprint}`,
+    `shrimpy://@100.101.102.103:7447/K7Q2-9FXD/${fingerprint}`,
+    `shrimpy://crab@100.101.102.103/K7Q2-9FXD/${fingerprint}`,
     "shrimpy://crab@100.101.102.103:7447",
-    "shrimpy://crab@100.101.102.103:0/K7Q2-9FXD",
-    "shrimpy://crab@100.101.102.103:65536/K7Q2-9FXD",
-    "shrimpy://crab@::1:7447/K7Q2-9FXD",
-    "shrimpy://crab@[not-an-address]:7447/K7Q2-9FXD",
-    "shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD/more",
-    "shrimpy://%E0%A4%A@100.101.102.103:7447/K7Q2-9FXD",
+    `shrimpy://crab@100.101.102.103:0/K7Q2-9FXD/${fingerprint}`,
+    `shrimpy://crab@100.101.102.103:65536/K7Q2-9FXD/${fingerprint}`,
+    `shrimpy://crab@::1:7447/K7Q2-9FXD/${fingerprint}`,
+    `shrimpy://crab@[not-an-address]:7447/K7Q2-9FXD/${fingerprint}`,
+    `shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD/${fingerprint}/more`,
+    `shrimpy://%E0%A4%A@100.101.102.103:7447/K7Q2-9FXD/${fingerprint}`,
+    // A link from before the gateway had a key, and one cut short where it was copied.
+    "shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD",
+    `shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD/${fingerprint.slice(0, -3)}`,
   ];
-  for (const text of wrong) assert.throws(() => readLink(text), /is not an invitation link.*shrimpy:\/\/crab@100\.101\.102\.103:7447\/K7Q2-9FXD/, text);
+  for (const text of wrong) assert.throws(() => readLink(text), /is not an invitation link.*shrimpy:\/\/crab@100\.101\.102\.103:7447\/K7Q2-9FXD\//, text);
 });

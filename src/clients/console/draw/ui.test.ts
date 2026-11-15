@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { setCapabilityOverrides, visibleWidth } from "@earendil-works/pi-tui";
-import { assistantItem, sessionView, toolItem, userItem, workingView } from "../../../contracts/agent/testing/index.ts";
-import { settle, stopAfter, until } from "../../../lib/testing/index.ts";
+import { assistantItem, toolItem, userItem } from "../../../contracts/agent/testing/index.ts";
+import { eventually, settle, stopAfter, until } from "../../../lib/testing/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME } from "../../../lib/version/index.ts";
-import { agentEntries, type Model } from "../state/index.ts";
+import type { Model } from "../state/index.ts";
 import {
   aChatServer,
   agentMember,
@@ -23,7 +23,9 @@ import {
   fakeState,
   onSession,
   onThread,
+  sessionView,
   startRig,
+  workingView,
   zach,
 } from "../state/testing/index.ts";
 import { QUIT_AGAIN, READ_ONLY_TAG, screenOf, type ThreadScreen } from "../screen/index.ts";
@@ -254,81 +256,55 @@ test("a text that starts with a slash is a command and never an ordinary message
   assert.deepEqual(state.calls.slice(3), ["note takes-nothing"], "a command that takes nothing is not acted on with something after it");
 });
 
-test("/status shows the person what the agent is doing and its model, posts nothing, and goes when a message is sent or the thread is left", { timeout: 15_000 }, async (t) => {
+test("/status shows a block for the person alone, posts nothing, and goes when a message is sent or the thread is left", { timeout: 30_000 }, async (t) => {
   const rig = await startRig(t, { now: () => now });
   const thread = await rig.thread("scout", "go");
-  rig.agents.scout?.agent.session(thread.id, {
-    view: sessionView({
-      items: [userItem("go"), assistantItem("Done.")],
-      status: { model: { provider: "local", id: "big-model" }, usage: { input: 1204, output: 388, cost: 0.0231 } },
-    }),
-  });
   const terminal = new FakeTerminal(100, 30);
   const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
   stopAfter(t, () => drawing.stop());
   const drawn = (): string => visible(drawing.render(100)).join("\n");
   const seen = (text: string): Promise<void> => until(() => drawn().includes(text), `the screen to show ${text}`);
-  const posted = (): string[] => rig.chat.chat.messages(thread.id).map((message) => message.text);
+  const posted = async (): Promise<string[]> => (await (await rig.person()).read(thread.id, null, 10)).map((message) => message.text);
+  const header = "status · shown only to you";
   await rig.until((model) => model.where.screen === "threads", "the agent's screen");
   rig.state.openThread(thread.id);
-  await rig.until((model) => model.session !== undefined, "the session to be watched");
+  await rig.until((model) => model.thread?.messages.length === 1, "the thread");
 
   terminal.type("/status");
   terminal.type(ENTER);
-  await seen("big-model");
-  assert.match(drawn(), /idle/, "what the agent is doing");
-  assert.match(drawn(), /388/, "what the session has used");
+  await seen(header);
   assert.ok(drawn().includes(localTime(now)), "when it was read");
-  assert.deepEqual(posted(), ["go"], "nothing was posted");
+  assert.deepEqual(await posted(), ["go"], "nothing was posted");
 
   terminal.type("hello");
   terminal.type(ENTER);
-  await until(() => !drawn().includes("big-model"), "the reading to go when a message is sent");
-  assert.deepEqual(posted(), ["go", "hello"]);
+  await until(() => !drawn().includes(header), "the reading to go when a message is sent");
+  assert.deepEqual(await posted(), ["go", "hello"]);
 
   terminal.type("/status");
   terminal.type(ENTER);
-  await seen("big-model");
+  await seen(header);
   terminal.type(ESC);
   await rig.until((model) => model.where.screen === "threads", "the agent's screen");
   rig.state.openThread(thread.id);
   await seen("hello");
   await settle();
-  assert.ok(!drawn().includes("big-model"), "the reading is gone once the thread has been left");
+  assert.ok(!drawn().includes(header), "the reading is gone once the thread has been left");
 });
 
 const SMALL = { provider: "local", id: "small-model" };
 const BIG = { provider: "local", id: "big-model" };
 const TWO_MODELS = { models: [{ ...BIG, name: "Big Model" }, { ...SMALL, name: "Small Model" }], default: SMALL };
 
-/** The terminal in a thread of scout's, which has a session using its default model, small-model, and can use that and big-model. */
-async function onModels(t: TestContext) {
-  const rig = await startRig(t, { now: () => now });
-  const agent = rig.agents.scout?.agent;
-  assert.ok(agent);
-  agent.useModels(TWO_MODELS);
-  const thread = await rig.thread("scout", "go");
-  const session = agent.session(thread.id, {
-    view: sessionView({ items: [userItem("go"), assistantItem("Done.")], status: { model: SMALL, usage: { input: 1204, output: 388, cost: 0.02 } } }),
-  });
-  const terminal = new FakeTerminal(100, 30);
-  const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
-  stopAfter(t, () => drawing.stop());
-  const drawn = (): string => visible(drawing.render(100)).join("\n");
-  const seen = (text: string): Promise<void> => until(() => drawn().includes(text), `the screen to show ${text}`);
-  await rig.until((model) => model.where.screen === "threads", "the agent's screen");
-  rig.state.openThread(thread.id);
-  await rig.until((model) => model.session !== undefined, "the session to be watched");
-  return { rig, agent, session, terminal, drawn, seen, posted: (): string[] => rig.chat.chat.messages(thread.id).map((message) => message.text) };
-}
-
-test("/model and a space lists default and the models the agent can use, narrowed by typing, and choosing one posts the command as a message", { timeout: 15_000 }, async (t) => {
-  const { agent, terminal, drawn, seen, posted } = await onModels(t);
+test("/model and a space lists default and the models the agent can use, narrowed by typing, and choosing one posts the command as a message", async (t) => {
+  const { terminal, state, lines } = start(t, conversation(), { columns: 100 });
+  state.answers.models = TWO_MODELS;
+  const drawn = (): string => lines().join("\n");
 
   terminal.type("/model");
-  await seen(lineOf("/model"));
+  await until(() => drawn().includes(lineOf("/model")), "the command's line");
   terminal.type(" ");
-  await seen("local/big-model");
+  await until(() => drawn().includes("local/big-model"), "the list of models");
   assert.ok(drawn().includes("local/small-model"));
   assert.match(drawn(), /default.*local\/small-model/, "default says which model it is");
   assert.ok(drawn().indexOf("default") < drawn().indexOf("local/big-model"), "and comes first");
@@ -336,62 +312,23 @@ test("/model and a space lists default and the models the agent can use, narrowe
   await until(() => !drawn().includes("local/small-model"), "the list to narrow");
   terminal.type(ENTER);
 
-  await until(() => posted().length === 2, "the command to be posted");
-  assert.deepEqual(posted(), ["go", "/model local/big-model"], "it is a message, which the agent acts on");
-  assert.equal(agent.modelListings, 1, "narrowing the list did not ask the agent again");
+  assert.deepEqual(state.calls, ["send /model local/big-model"], "it is a message, which the agent acts on");
 });
 
-test("in a thread that is not started yet, /model alone says which model the agent starts it on, and choosing a model from the list posts the command, which starts the thread", { timeout: 15_000 }, async (t) => {
-  const rig = await startRig(t, { now: () => now });
-  const agent = rig.agents.scout?.agent;
-  assert.ok(agent);
-  agent.useModels(TWO_MODELS);
-  await rig.dm("scout");
-  const terminal = new FakeTerminal(100, 30);
-  const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
-  stopAfter(t, () => drawing.stop());
-  const drawn = (): string => visible(drawing.render(100)).join("\n");
-  const seen = (text: string): Promise<void> => until(() => drawn().includes(text), `the screen to show ${text}`);
-  await rig.until((model) => model.where.screen === "threads", "the agent's screen");
-  terminal.type(CTRL_N);
-  await seen("New thread with scout");
-  await rig.until((model) => model.agent?.state === "up", "the agent to be reached");
+test("/model alone is answered by the terminal and posts nothing, and in a thread that is not started yet choosing a model from the list posts the command, which starts the thread", async (t) => {
+  const { terminal, state, lines } = start(t, conversation(), { columns: 100 });
+  state.answers.models = TWO_MODELS;
+  const drawn = (): string => lines().join("\n");
 
   terminal.type("/model");
   terminal.type(ENTER);
-  await seen("no session in this thread yet");
-  assert.ok(drawn().includes("local/small-model"), "it says which model the agent's default is");
+  assert.deepEqual(state.calls, ["model"], "the terminal says which model the thread uses");
+
+  state.show(aModel({ where: { screen: "thread", place: { kind: "agent", name: "scout" }, thread: undefined }, listing: aListing([anAgent("scout"), aChatServer()]) }));
   terminal.type("/model big");
-  await seen("local/big-model");
+  await until(() => drawn().includes("local/big-model"), "the list of models");
   terminal.type(ENTER);
-
-  const started = await rig.until((model) => model.where.screen === "thread" && model.where.thread !== undefined, "the thread to start");
-  const threadId = started.where.screen === "thread" ? started.where.thread : undefined;
-  assert.ok(threadId);
-  assert.deepEqual(rig.chat.chat.messages(threadId).map((message) => message.text), ["/model local/big-model"]);
-});
-
-test("/model alone says which model the thread uses and whether that is the agent's default, and posts nothing; /status says the same, and the agent's default too while the thread's is its own", { timeout: 15_000 }, async (t) => {
-  const { rig, session, terminal, drawn, seen, posted } = await onModels(t);
-
-  terminal.type("/model");
-  terminal.type(ENTER);
-  await seen("local/small-model");
-  assert.doesNotMatch(drawn(), /local\/big-model/);
-
-  // The agent gives the thread a model when it acts on `/model local/big-model`.
-  session.update((view) => {
-    view.status.model = BIG;
-    view.status.ownModel = true;
-  });
-  await rig.until((model) => model.session?.status.model?.id === "big-model", "the thread to use big-model");
-  terminal.type("/model");
-  terminal.type(ENTER);
-  await until(() => drawn().includes("local/big-model") && drawn().includes("local/small-model"), "the note to show both models");
-  terminal.type("/status");
-  terminal.type(ENTER);
-  await until(() => drawn().includes("388") && drawn().includes("local/small-model") && drawn().includes("local/big-model"), "the reading to show the thread's model and the agent's default");
-  assert.deepEqual(posted(), ["go"], "nothing was posted");
+  assert.deepEqual(state.calls, ["model", "send /model local/big-model"]);
 });
 
 test("a model typed whole and followed by enter at once is the model chosen, whatever list the editor still has", async (t) => {
@@ -438,32 +375,21 @@ test("in a room /model is listed with the form to write it in, and written first
   assert.deepEqual(state.calls, ["note name-an-agent", "note name-an-agent", "send @scout /model local/big-model"]);
 });
 
-test("escape goes back from a thread while the agent is working there, and the work goes on", { timeout: 15_000 }, async (t) => {
-  const rig = await startRig(t);
-  const thread = await rig.thread("scout", "go");
-  const session = rig.agents.scout?.agent.session(thread.id, {
-    view: workingView([userItem("go"), toolItem("bash", { args: { command: "ls" } })], { kind: "tool", name: "bash" }),
+test("escape goes back from a thread while the agent is working there, and stops nothing", async (t) => {
+  const busy = aThread("th_1", { preview: "go", working: [{ memberId: scout.id, since: now }] });
+  const model = onThread("scout", busy, aThreadView(busy, []), {
+    session: workingView([userItem("go"), toolItem("bash", { args: { command: "ls" } })], { kind: "tool", name: "bash" }),
   });
-  assert.ok(session);
-  const terminal = new FakeTerminal(100, 30);
-  const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
-  stopAfter(t, () => drawing.stop());
-  const drawn = (): string => visible(drawing.render(100)).join("\n");
-  const seen = (text: string): Promise<void> => until(() => drawn().includes(text), `the screen to show ${text}`);
-  await rig.until((model) => model.where.screen === "threads", "the agent's screen");
-  rig.state.openThread(thread.id);
-  await seen("scout is working");
-  assert.match(drawn(), /scout is working.*\/stop/, "the line that says the agent is working says how to stop it");
-  assert.match(drawn(), /esc back/);
+  const { terminal, state, lines } = start(t, model, { columns: 100 });
+  assert.match(lines().join("\n"), /scout is working.*\/stop/, "the line that says the agent is working says how to stop it");
+  assert.match(lines().join("\n"), /esc back/);
 
   terminal.type(ESC);
   terminal.type(ESC_RELEASED);
-  await rig.until((model) => model.where.screen === "threads", "the agent's screen again");
+  await until(() => state.calls.length > 0, "escape to be pressed");
   await settle();
 
-  assert.ok(!drawn().includes(SHRIMPY_RELEASE_NAME), "a press is one press, whether or not the terminal reports the key being let go");
-  assert.equal(session.stops, 0);
-  assert.equal(session.view.status.busy, true, "the work goes on");
+  assert.deepEqual(state.calls, ["back"], "a press is one press, whether or not the terminal reports the key being let go, and nothing is stopped");
 });
 
 test("control-o shows a tool call in full and control-t the thinking in full, and each press again puts it back", (t) => {
@@ -748,8 +674,8 @@ test("text from other members and from tools can't reach the terminal, wherever 
   drawn.push(...drawing.render(80));
   await until(() => terminal.output().includes(SHRIMPY_RELEASE_NAME), "the terminal to be written");
 
-  // Styles are the console's own. Once those and the cursor are taken out, nothing but text is left.
-  const own = new RegExp("\\u001b\\[[0-9;:]*m|\\u001b_pi:c\\u0007", "g");
+  // Styles are the console's own, and so are pi-tui's markers of where the cursor is. Once those are taken out, nothing but text is left.
+  const own = new RegExp("\\u001b\\[[0-9;:]*m|\\u001b_pi:[^\\u0007]*\\u0007", "g");
   const text = drawn.join("\n").replace(own, "");
   assert.doesNotMatch(text, new RegExp("[\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]"));
   for (const wanted of ["Evil", "text", "detail", "reply", "\u{1F44D}", "answer", "thinking", "output", "note", "said", "shown", "queued", "mechanic", "thread", "refused"]) {
@@ -785,105 +711,124 @@ test("the editor's draft survives the chat server being lost and found, and the 
   assert.doesNotMatch(lines().join("\n"), /out of date/);
 });
 
-test("a trigger's own session is on the agent's list, which opens on it while it works, and it opens as the agent's view of it, with nothing to type", { timeout: 15_000 }, async (t) => {
-  const rig = await startRig(t);
-  await rig.thread("scout", "check the disk");
-  const nightly = rig.agents.scout?.agent.session("trigger:nightly", {
-    place: { kind: "trigger", trigger: "nightly" },
-    view: workingView([userItem("It is 02:00."), toolItem("bash", { args: { command: "df -h" } })], { kind: "tool", name: "bash" }),
+test("a trigger's own session is on the agent's list, which opens on it while it works, and it opens as the agent's view of it, with nothing to type", async (t) => {
+  const nightly = aSession("trigger:nightly", { place: { kind: "trigger", trigger: "nightly" }, working: true });
+  const disk = aThread("th_a", { preview: "check the disk", updatedAt: at(14, 5) });
+  const list = aModel({
+    where: { screen: "threads", place: { kind: "agent", name: "scout" } },
+    listing: aListing([anAgent("scout"), aChatServer()]),
+    agent: { state: "up" },
+    dms: { scout: aDm("scout", [disk]) },
+    sessions: [nightly],
   });
-  assert.ok(nightly);
-  const terminal = new FakeTerminal(100, 30);
-  const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
-  stopAfter(t, () => drawing.stop());
-  const drawn = (): string => visible(drawing.render(100)).join("\n");
-  const seen = (text: string): Promise<void> => until(() => drawn().includes(text), `the screen to show ${text}`);
-
-  await rig.until((model) => model.sessions?.length === 1, "scout to have said which sessions it has");
+  const { terminal, state, lines } = start(t, list, { columns: 100 });
+  const drawn = (): string => lines().join("\n");
   assert.ok(drawn().includes("check the disk") && drawn().includes("nightly"), "the trigger's session is a row beside the person's thread");
-  terminal.type(ENTER);
-  await seen("df -h");
-  assert.deepEqual(rig.state.model().where, { screen: "session", agent: "scout", session: "trigger:nightly" }, "the row that is working was the one chosen");
-  nightly.update((view) => {
-    view.items.push(assistantItem("The disk is 43% full.", { streaming: true }));
-  });
-  await seen("The disk is 43% full.");
 
+  terminal.type(ENTER);
+  assert.deepEqual(state.calls, ["watch trigger:nightly"], "the row that is working was the one chosen");
+  state.show(onSession("scout", nightly, workingView([userItem("It is 02:00."), toolItem("bash", { args: { command: "df -h" } })], { kind: "tool", name: "bash" })));
+  assert.match(drawn(), /df -h/);
   terminal.type("hello");
   terminal.type(ENTER);
   await settle();
   assert.doesNotMatch(drawn(), /hello/, "there is no editor to type in");
   assert.doesNotMatch(drawn(), /\/stop/, "and so no way to stop the work is offered");
-  assert.deepEqual(nightly.steers, []);
-  assert.equal(rig.chat.chat.messages().length, 1, "only the message the thread began with was ever posted");
+  assert.deepEqual(state.calls, ["watch trigger:nightly"], "and nothing was sent");
 
   terminal.type(ESC);
-  await rig.until((model) => model.where.screen === "threads", "the agent's screen");
-  assert.ok(drawn().includes("check the disk") && drawn().includes("nightly"));
-  assert.equal(nightly.stops, 0, "going back stops nothing");
+  await until(() => state.calls.length === 2, "escape to be pressed");
+  assert.equal(state.calls.at(-1), "back");
+  state.show(list);
   terminal.type(ENTER);
-  assert.equal(rig.state.model().where.screen, "session", "coming back to the list is not opening it again: the choice stayed where it was");
+  assert.equal(state.calls.at(-1), "watch trigger:nightly", "coming back to the list is not opening it again: the choice stayed where it was");
 });
 
-test("the list of agents shows an agent as working when any of its sessions is, where when that is one place that is not with the person and how many when it is several, and as idle when the work ends", { timeout: 15_000 }, async (t) => {
-  const rig = await startRig(t, { agents: ["scout", "mechanic"] });
-  const yours = await rig.thread("mechanic", "check the disk");
-  const sessions = rig.agents.scout?.agent;
-  assert.ok(sessions);
-  // Scout's DM with mechanic is none of the person's threads, and it is working in it.
-  const private_ = sessions.session("th_private", {
-    place: { kind: "dm", with: { name: "mechanic", kind: "agent" }, thread: { main: true, name: null } },
-    view: workingView([userItem("ping")]),
-  });
-  const terminal = new FakeTerminal(100, 30);
-  const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
-  stopAfter(t, () => drawing.stop());
+test("the list of agents shows an agent as working when any of its sessions is, where when that is one place that is not with the person and how many when it is several, and as idle when the work ends", (t) => {
+  const mechanic = agentMember("mechanic");
+  const yours = aThread("th_y", { preview: "check the disk" });
+  const elsewhere = aSession("th_private", { place: { kind: "dm", with: { name: "mechanic", kind: "agent" }, thread: { main: true, name: null } }, working: true });
+  const nightly = aSession("trigger:nightly", { place: { kind: "trigger", trigger: "nightly" }, working: true });
+  const base = agentsModel();
+  const { state, drawing } = start(t, { ...base, workingSessions: { scout: [elsewhere] } }, { columns: 100 });
   const rowOf = (agent: string): string => visible(drawing.render(100)).find((line) => line.slice(2).startsWith(agent)) ?? "";
-  const entryOf = (agent: string) => agentEntries(rig.state.model()).find((entry) => entry.name === agent);
 
-  await until(() => rowOf("scout").includes("mechanic"), "scout's row to say where it is working");
-  assert.equal(entryOf("scout")?.working, true);
-  assert.equal(entryOf("mechanic")?.working, false);
+  assert.ok(rowOf("scout").includes("mechanic"), "scout's row says where it is working");
   assert.ok(!rowOf("mechanic").includes("scout"));
 
   // Working in a thread of the person's reads as it always did: working, and nowhere else.
-  await (await rig.asAgent("mechanic")).chat.setWorking(yours.id, true);
-  await rig.until((model) => agentEntries(model).find((entry) => entry.name === "mechanic")?.working === true, "mechanic to be working");
-  assert.deepEqual(entryOf("mechanic")?.elsewhere, []);
-  assert.ok(!rowOf("mechanic").includes("scout"));
+  const busy = { ...yours, working: [{ memberId: mechanic.id, since: now }] };
+  state.show({ ...base, dms: { mechanic: aDm("mechanic", [busy]) }, workingSessions: { scout: [elsewhere] } });
+  assert.ok(rowOf("mechanic").includes("working") && !rowOf("mechanic").includes("scout"), rowOf("mechanic"));
 
   // In two places at once, the row says how many and no longer where.
-  const nightly = sessions.session("trigger:nightly", {
-    place: { kind: "trigger", trigger: "nightly" },
-    view: workingView([userItem("It is 02:00.")]),
-  });
-  await until(() => rowOf("scout").includes("2"), "scout's row to say how many sessions it is working in");
-  assert.ok(!rowOf("scout").includes("mechanic"));
+  state.show({ ...base, workingSessions: { scout: [elsewhere, nightly] } });
+  assert.ok(rowOf("scout").includes("2") && !rowOf("scout").includes("mechanic"), rowOf("scout"));
+  state.show({ ...base, workingSessions: {} });
+  assert.ok(rowOf("scout").includes("idle"), rowOf("scout"));
+});
 
-  const done = sessionView({ items: [userItem("ping"), assistantItem("pong")] });
-  private_.show(done);
-  nightly.show(done);
-  await rig.until((model) => agentEntries(model).find((entry) => entry.name === "scout")?.working === false, "scout's work to end");
-  assert.ok(!rowOf("scout").includes("mechanic"));
+test("tab turns a thread over to the session behind it as the agent sees it, with its thinking and tool calls and not the conversation, and back", (t) => {
+  const thread = aThread("th_1", { preview: "go" });
+  const session = workingView(
+    [userItem("mechanic wrote that it is done"), assistantItem("Checking.", { thinking: "Is the backup whole?", stopReason: "toolUse" }), toolItem("bash", { args: { command: "ls backups" } })],
+    { kind: "tool", name: "bash" },
+  );
+  const asSaid = onThread("scout", thread, aThreadView(thread, [aMessage("msg_1", zach, "thanks, I checked it")]), { session });
+  const { terminal, state, lines } = start(t, asSaid, { columns: 100 });
+  const drawn = (): string => lines().join("\n");
+  assert.ok(drawn().includes("thanks, I checked it") && drawn().includes("tab agent's view"));
+
+  terminal.type(TAB);
+  assert.deepEqual(state.calls, ["turn over"]);
+  state.show({ ...asSaid, where: { screen: "thread", place: { kind: "agent", name: "scout" }, thread: "th_1", turned: true } });
+  assert.ok(drawn().includes("mechanic wrote that it is done") && drawn().includes("Is the backup whole?") && drawn().includes("ls backups"));
+  assert.ok(!drawn().includes("thanks, I checked it"), "and not the conversation");
+  assert.ok(drawn().includes("tab conversation"));
+  terminal.type(TAB);
+  assert.deepEqual(state.calls, ["turn over", "turn over"]);
+});
+
+test("/devices lists the person's devices and /devices take back takes one back, by what follows; anything else after it is refused with how to write it", (t) => {
+  const { terminal, state } = start(t, conversation());
+
+  terminal.type("/devices");
+  terminal.type(ENTER);
+  terminal.type("/devices take back my laptop");
+  terminal.type(ENTER);
+  terminal.type("/devices forget it");
+  terminal.type(ENTER);
+
+  assert.deepEqual(state.calls, ["devices", "take back my laptop", "note devices-usage"]);
 });
 
 /**
  * The terminal for a person with two agents, scout and mechanic, their own DM with scout, in which they started a thread,
  * and their own room, home, and what they are not in: the DM between the two agents and a room of them, lab, each with
- * something said in it.
+ * something said in it. Scout joined first, so it is an admin and may make a room.
  */
 async function amongOthers(t: TestContext) {
   const rig = await startRig(t, { agents: ["scout", "mechanic"] });
   const scout = await rig.member("scout");
   const mechanic = await rig.member("mechanic");
-  const person = (await rig.person()).me;
+  const you = await rig.person();
   const mine = await rig.thread("scout", "check the disk");
-  const home = rig.chat.chat.room("home", [person, scout]);
-  const dm = rig.chat.chat.dm(scout, mechanic);
-  const lab = rig.chat.chat.room("lab", [scout, mechanic]);
-  rig.chat.chat.say(scout, dm.thread.id, "the backup finished");
-  rig.chat.chat.say(mechanic, dm.thread.id, "thanks, I checked it");
-  rig.chat.chat.say(mechanic, lab.thread.id, "the bench is free");
+  const homeRoom = await you.createRoom("home", [scout.id]);
+  const asScout = await rig.asAgent("scout");
+  const asMechanic = await rig.asAgent("mechanic");
+  const dmChannel = await asScout.openDm(mechanic.id);
+  const labRoom = await asScout.createRoom("lab", [mechanic.id]);
+  const main = async (channelId: string) => {
+    const found = (await you.threads(channelId)).find((each) => each.main);
+    assert.ok(found);
+    return found;
+  };
+  const home = { channel: homeRoom, thread: await main(homeRoom.id) };
+  const dm = { channel: dmChannel, thread: await main(dmChannel.id) };
+  const lab = { channel: labRoom, thread: await main(labRoom.id) };
+  await asScout.post(dm.thread.id, "the backup finished");
+  await asMechanic.post(dm.thread.id, "thanks, I checked it");
+  await asMechanic.post(lab.thread.id, "the bench is free");
   await rig.until((model) => Object.keys(model.readOnly).length === 2, "the console to have read the channels the person is not in");
   const terminal = new FakeTerminal(100, 30);
   const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
@@ -891,15 +836,12 @@ async function amongOthers(t: TestContext) {
   const lines = (): string[] => visible(drawing.render(100));
   const drawn = (): string => lines().join("\n");
   const seen = (text: string): Promise<void> => until(() => drawn().includes(text), `the screen to show ${text}`);
-  return { rig, person, scout, mechanic, mine, home, dm, lab, terminal, lines, drawn, seen };
+  const said = async (threadId: string): Promise<string[]> => (await you.read(threadId, null, 50)).map((message) => message.text);
+  return { rig, you, asScout, mine, home, dm, lab, terminal, lines, drawn, seen, said };
 }
 
-test("the first screen has a room the person only reads and no DM between agents, which is on the screen of each of the two with their threads with the person, and Right narrows that screen to the person's threads and Left widens it again", { timeout: 15_000 }, async (t) => {
-  const { rig, person, home, lab, terminal, lines, seen } = await amongOthers(t);
-  // Scout has a session of its own in each of the rooms: lab, which the person only reads, and home, which they are in.
-  rig.chat.chat.say(person, home.thread.id, "the porch light is out");
-  rig.agents.scout?.agent.session(lab.thread.id, { place: { kind: "room", room: "lab", thread: { main: true, name: null } } });
-  rig.agents.scout?.agent.session(home.thread.id, { place: { kind: "room", room: "home", thread: { main: true, name: null } } });
+test("the first screen has a room the person only reads and no DM between agents, which is on the screen of each of the two with their threads with the person, and Right narrows that screen to the person's threads and Left widens it again", { timeout: 30_000 }, async (t) => {
+  const { rig, home, lab, terminal, lines, seen, said } = await amongOthers(t);
   await seen("#lab");
   const rowOf = (text: string): string => lines().find((line) => line.includes(text)) ?? "";
   const onlyRead = lines().filter((line) => line.includes(READ_ONLY_TAG));
@@ -907,31 +849,29 @@ test("the first screen has a room the person only reads and no DM between agents
   assert.equal(onlyRead.length, 1, "the room they are not in says so, and no row but it does: the DM between the agents is not on the screen");
   assert.ok(onlyRead[0]?.includes("#lab"));
   const working = await rig.asAgent("mechanic");
-  await working.chat.setWorking(lab.thread.id, true);
+  await working.setWorking(lab.thread.id, true);
   await until(() => rowOf("#lab").includes("working"), "the room to say someone is working in it");
-  await working.chat.setWorking(lab.thread.id, false);
+  await working.setWorking(lab.thread.id, false);
 
   terminal.type(DOWN);
   terminal.type(ENTER);
-  await rig.until((model) => model.where.screen === "threads" && model.sessions?.length === 2, "scout's screen");
+  await rig.until((model) => model.where.screen === "threads" && model.where.place.kind === "agent", "scout's screen");
+  await seen("the backup finished");
   assert.ok(rowOf("check the disk") !== "" && !rowOf("check the disk").includes("mechanic"), "its thread with the person");
   assert.ok(rowOf("the backup finished").includes("mechanic"), "its DM with mechanic, which says who it is with");
-  assert.ok(rowOf("the bench is free").includes("#lab"), "and the rooms it has a session in, which say where");
 
   terminal.type(RIGHT);
   await until(() => rowOf("the backup finished") === "", "the screen to narrow to the person's threads");
   assert.ok(rowOf("check the disk") !== "");
-  assert.equal(rowOf("the bench is free"), "");
   terminal.type(LEFT);
   await seen("the backup finished");
-  assert.ok(rowOf("check the disk") !== "" && rowOf("the bench is free") !== "");
 
   // A thread of a room the person is in takes what they type, from here as from the room, and escape comes back here.
   rig.state.openThread(home.thread.id);
-  await rig.until((model) => model.thread?.messages.length === 1, "the room's thread");
+  await rig.until((model) => model.thread?.thread.id === home.thread.id, "the room's thread");
   terminal.type("is it fixed?");
   terminal.type(ENTER);
-  await until(() => rig.chat.chat.messages(home.thread.id).some((message) => message.text === "is it fixed?"), "what was typed to be posted in the room");
+  await eventually(() => said(home.thread.id), (texts) => texts.includes("is it fixed?"), { what: "what was typed to be posted in the room" });
   terminal.type(ESC);
   assert.deepEqual(rig.state.model().where, { screen: "threads", place: { kind: "agent", name: "scout" } });
 
@@ -944,31 +884,17 @@ test("the first screen has a room the person only reads and no DM between agents
   assert.ok(rowOf("the backup finished").includes("scout"));
 });
 
-test("a thread of an agent's DM with another agent opens with what both said and the agent's work beside it, takes no input, and tab turns it over to the agent's view and back, which escape leaves for the agent's screen from either side", { timeout: 15_000 }, async (t) => {
-  const { rig, mine, dm, terminal, drawn, seen } = await amongOthers(t);
-  const session = rig.agents.scout?.agent.session(dm.thread.id, {
-    place: { kind: "dm", with: { name: "mechanic", kind: "agent" }, thread: { main: true, name: null } },
-    view: workingView(
-      [
-        userItem("mechanic wrote that it is done"),
-        assistantItem("Checking.", { thinking: "Is the backup whole?", stopReason: "toolUse" }),
-        toolItem("bash", { args: { command: "ls backups" } }),
-      ],
-      { kind: "tool", name: "bash" },
-    ),
-  });
-  assert.ok(session);
-  const before = rig.chat.chat.messages().length;
-  const scoutsScreen = { screen: "threads", place: { kind: "agent", name: "scout" } };
-
+test("a thread of an agent's DM with another agent opens with what both said, takes no input, and the line where the input would be says why", { timeout: 30_000 }, async (t) => {
+  const { rig, mine, dm, terminal, drawn, seen, said } = await amongOthers(t);
   terminal.type(DOWN);
   terminal.type(ENTER);
-  await rig.until((model) => model.where.screen === "threads" && model.sessions?.length === 1, "scout's screen");
-  terminal.type(ENTER);
-  await rig.until((model) => model.thread?.messages.length === 2 && model.session !== undefined, "the DM's thread and the work behind it");
+  await rig.until((model) => model.where.screen === "threads" && model.where.place.kind === "agent", "scout's screen");
+  await seen("the backup finished");
+
+  rig.state.openThread(dm.thread.id);
+  await rig.until((model) => model.thread?.messages.length === 2, "the DM's thread");
 
   assert.ok(drawn().includes("the backup finished") && drawn().includes("thanks, I checked it"), "what both said");
-  assert.ok(drawn().includes("ls backups") && drawn().includes("scout is working"), "and the work beside it");
   const open = screenOf(rig.state.model(), { now });
   assert.equal(open.kind, "thread");
   const why = (open as ThreadScreen).readOnly;
@@ -977,82 +903,63 @@ test("a thread of an agent's DM with another agent opens with what both said and
   terminal.type(ENTER);
   terminal.type(CTRL_N);
   await settle();
-  assert.equal(rig.chat.chat.messages().length, before, "nothing typed was sent");
+  assert.deepEqual(await said(dm.thread.id), ["the backup finished", "thanks, I checked it"], "nothing typed was sent");
   assert.doesNotMatch(drawn(), /hello|\/stop|rooms add/, "what is typed goes nowhere, and no way to stop the work or to join is offered");
-
-  terminal.type(TAB);
-  await seen("mechanic wrote that it is done");
-  assert.ok(drawn().includes("Is the backup whole?") && drawn().includes("ls backups"), "the session as scout sees it has its thinking and its tool calls");
-  assert.ok(!drawn().includes("thanks, I checked it"), "and not the conversation");
-  terminal.type(TAB);
-  await seen("thanks, I checked it");
-  assert.ok(!drawn().includes("mechanic wrote that it is done"));
-
-  terminal.type(ESC);
-  assert.deepEqual(rig.state.model().where, scoutsScreen, "escape from the conversation goes to the agent's screen");
-  terminal.type(ENTER);
-  await rig.until((model) => model.thread?.messages.length === 2 && model.session !== undefined, "the DM's thread and the work behind it again");
-  terminal.type(TAB);
-  await seen("mechanic wrote that it is done");
-  terminal.type(ESC);
-  assert.deepEqual(rig.state.model().where, scoutsScreen, "and so does escape from the agent's view");
 
   // Where the agent has no session behind the thread, tab does nothing and no hint names it.
   rig.state.openThread(mine.id);
-  await rig.until((model) => model.thread?.messages.length === 1 && model.session === undefined, "the person's own thread, which scout has no session behind");
+  await rig.until((model) => model.thread?.thread.id === mine.id, "the person's own thread");
   assert.ok(screenOf(rig.state.model(), { now }).keys.every((hint) => !hint.startsWith("tab")));
   const where = rig.state.model().where;
   terminal.type(TAB);
   assert.deepEqual(rig.state.model().where, where);
 });
 
-test("in a thread of a room the person only reads nothing typed is sent and no thread is started, the line where the input would be says why, and what is said there shows as it comes", { timeout: 15_000 }, async (t) => {
-  const { rig, person, scout, lab, terminal, drawn, seen } = await amongOthers(t);
-  const said = (): number => rig.chat.chat.messages().length;
-  const threadsIn = async (channelId: string): Promise<number> => (await (await rig.person()).chat.threads(channelId)).length;
-  const before = said();
+test("in a thread of a room the person only reads nothing typed is sent and no thread is started, the line where the input would be says why, and what is said there shows as it comes", { timeout: 30_000 }, async (t) => {
+  const { rig, you, asScout, lab, terminal, drawn, seen, said } = await amongOthers(t);
+  const threadsIn = async (channelId: string): Promise<number> => (await you.threads(channelId)).length;
 
   rig.state.selectReadOnly(lab.channel.id);
   rig.state.openThread(lab.thread.id);
   await seen("the bench is free");
-  assert.ok(drawn().includes(`shrimpy rooms add "#lab" ${person.name}`), "a room says how to join it");
+  assert.ok(drawn().includes(`shrimpy rooms add "#lab" ${you.me.name}`), "a room says how to join it");
   terminal.type("hello");
   terminal.type(ENTER);
   terminal.type(CTRL_N);
   terminal.type("/");
   await settle();
   await settle();
-  assert.equal(said(), before, "nothing typed was sent");
+  assert.deepEqual(await said(lab.thread.id), ["the bench is free"], "nothing typed was sent");
   assert.equal(await threadsIn(lab.channel.id), 1, "and no thread was started");
   assert.deepEqual(rig.state.model().where, { screen: "thread", place: { kind: "read-only", id: lab.channel.id }, thread: lab.thread.id });
   assert.doesNotMatch(drawn(), /hello|\/stop|\/status/, "what is typed goes nowhere, and no list of commands opens");
   assert.doesNotMatch(drawn(), /enter send|ctrl\+n/, "and the keys do not offer what does nothing");
 
-  rig.chat.chat.say(scout, lab.thread.id, "one more thing");
+  await asScout.post(lab.thread.id, "one more thing");
   await seen("one more thing");
 
   terminal.type(ESC);
   assert.equal(rig.state.model().where.screen, "threads", "escape goes back as everywhere");
-  await (await rig.asAgent("scout")).chat.setWorking(lab.thread.id, true);
+  await asScout.setWorking(lab.thread.id, true);
   rig.state.openThread(lab.thread.id);
   await seen("scout is working");
   assert.doesNotMatch(drawn(), /\/stop/, "no way to stop the work is offered, which the person can't write");
   terminal.type("hello");
   terminal.type(ENTER);
   await settle();
-  assert.equal(said(), before + 1, "nothing typed here was sent either; only the message above was said");
+  assert.deepEqual(await said(lab.thread.id), ["the bench is free", "one more thing"], "nothing typed here was sent either");
 });
 
-test("a room the person joins while reading it is theirs from then on, with the input there", { timeout: 15_000 }, async (t) => {
-  const { rig, person, lab, terminal, seen } = await amongOthers(t);
+test("a room the person joins while reading it is theirs from then on, with the input there", { timeout: 30_000 }, async (t) => {
+  const { rig, you, lab, terminal, seen, said } = await amongOthers(t);
   rig.state.selectReadOnly(lab.channel.id);
   rig.state.openThread(lab.thread.id);
   await seen("the bench is free");
 
-  await (await rig.person()).chat.addMembers(lab.channel.id, [person.id]);
+  await you.addMembers(lab.channel.id, [you.me.id]);
   await rig.until((model) => model.where.screen === "thread" && model.where.place.kind === "room", "the screen to become the room's");
   terminal.type("hello");
   terminal.type(ENTER);
 
-  await until(() => rig.chat.chat.messages(lab.thread.id).some((message) => message.text === "hello"), "the message to be posted");
+  await eventually(() => said(lab.thread.id), (texts) => texts.includes("hello"), { what: "the message to be posted" });
 });

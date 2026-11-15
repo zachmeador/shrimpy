@@ -1,4 +1,6 @@
-import type { Message, Receipt, ThreadHandle, ThreadView } from "../../contracts/chat/index.ts";
+import type { Reference } from "@earendil-works/chord";
+import type { Message, Receipt, Thread } from "../../contracts/chat/index.ts";
+import { contextOf } from "./objects.ts";
 
 /** How waiting for a receipt ended, when nobody gave up. */
 export type Waited =
@@ -8,48 +10,51 @@ export type Waited =
   | { kind: "moved-on" };
 
 /**
- * Watch a thread until `memberId` leaves a receipt on the post of `message`,
- * and say what it was. A receipt on a later edit of the message is another
- * receipt, and not the one waited for. The receipt is thread data like any
- * other, so this reads what the agent did from the thread, never from the
+ * Watch a held thread until `memberId` leaves a receipt on the post of
+ * `message`, and say what it was. A receipt on a later edit of the message is
+ * another receipt, and not the one waited for. The receipt is thread data like
+ * any other, so this reads what the agent did from the thread, never from the
  * agent. Rejects when `signal` aborts, and stops watching either way.
  */
-export function waitForReceipt(
-  handle: Pick<ThreadHandle, "subscribe">,
+export async function waitForReceipt(
+  thread: Pick<Reference<typeof Thread>, "messages">,
   message: Pick<Message, "id" | "event">,
   memberId: string,
   signal: AbortSignal,
 ): Promise<Waited> {
-  return new Promise((resolve, reject) => {
-    // The listener can run during subscribe(), before there is anything to stop.
-    const watching: { done: boolean; stop?: () => void } = { done: false };
+  const watch = await thread.messages.watch(contextOf(signal));
+  return new Promise<Waited>((resolve, reject) => {
+    let done = false;
     const finish = (settle: () => void): void => {
-      if (watching.done) return;
-      watching.done = true;
-      watching.stop?.();
+      if (done) return;
+      done = true;
+      void watch.stop();
       signal.removeEventListener("abort", abandon);
       settle();
     };
     function abandon(): void {
       finish(() => reject(abortError(signal)));
     }
-
+    const look = (messages: readonly Message[]): void => {
+      const waited = lookFor(messages, message, memberId);
+      if (waited !== undefined) finish(() => resolve(waited));
+    };
     if (signal.aborted) return abandon();
     signal.addEventListener("abort", abandon, { once: true });
-    watching.stop = handle.subscribe((view) => {
-      const waited = lookFor(view, message, memberId);
-      if (waited !== undefined) finish(() => resolve(waited));
+    look(watch.value);
+    watch.start(async (call) => {
+      if (call.kind === "value") look(call.value);
     });
-    if (watching.done) watching.stop();
+    void watch.closed.then(() => finish(() => reject(new Error("The thread was let go of before the receipt came."))));
   });
 }
 
-function lookFor(view: ThreadView, wanted: Pick<Message, "id" | "event">, memberId: string): Waited | undefined {
-  const message = view.messages.find((candidate) => candidate.id === wanted.id);
+function lookFor(messages: readonly Message[], wanted: Pick<Message, "id" | "event">, memberId: string): Waited | undefined {
+  const message = messages.find((candidate) => candidate.id === wanted.id);
   if (message === undefined) return { kind: "moved-on" };
   const receipt = message.receipts.find((candidate) => candidate.memberId === memberId && candidate.event === wanted.event);
   if (receipt === undefined) return undefined;
-  const reply = receipt.reply === null ? undefined : view.messages.find((candidate) => candidate.id === receipt.reply);
+  const reply = receipt.reply === null ? undefined : messages.find((candidate) => candidate.id === receipt.reply);
   return { kind: "receipt", receipt, reply };
 }
 

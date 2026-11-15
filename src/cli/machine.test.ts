@@ -7,7 +7,7 @@ import { initHome, joinHome } from "../agent/index.ts";
 import { AGENT_HOME_VARIABLE } from "../contracts/agent/index.ts";
 import type { Message } from "../contracts/chat/index.ts";
 import { formatAddress, machineFile, readLink, writeLink } from "../contracts/gateway/index.ts";
-import { connectLocalGateway, newToken, readMachine, saveMachine } from "../contracts/gateway/node.ts";
+import { newToken, readMachine, saveMachine } from "../contracts/gateway/node.ts";
 import { inRuntimeDir, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { runCli } from "./index.ts";
 import { openTheConsole } from "./run.ts";
@@ -16,11 +16,12 @@ import {
   commandLines,
   declareLocalModel,
   FakeTerminal,
+  onTheRoster,
   type RunningUp,
   shrimpy,
   startModelServer,
   startUp,
-  untilRegistered,
+  untilLinked,
   useShrimpyDir,
 } from "./testing/index.ts";
 
@@ -57,7 +58,7 @@ async function startBesideTheGateway(t: TestContext): Promise<{ env: Beside; up:
   assert.equal(init.code, 0, init.stderr);
   declareLocalModel(home, { url: model.url, model: "test-model" });
   const up = await startUp(t, [home, "--data", tempDir(t, "gateway-data"), "--listen", "127.0.0.1:0"], { env });
-  await inRuntimeDir(env.SHRIMPY_RUNTIME_DIR, () => untilRegistered("agent", "scout"));
+  await inRuntimeDir(env.SHRIMPY_RUNTIME_DIR, () => untilLinked("agent", "scout"));
   return { env, up };
 }
 
@@ -73,25 +74,26 @@ function linkIn(invited: { code: number | null; stdout: string; stderr: string }
 
 /**
  * Make this test's own Shrimpy folder a machine of the person who runs the gateway beside which `env` runs, as a
- * person does: ask for the invitation there and run the line it prints here. Says where the gateway listens, and gives
- * the person's connection to it, on its own socket.
+ * person does: ask for the invitation there and run the line it prints here, which keeps the gateway's address and
+ * the fingerprint of its key. Says where the gateway listens, and gives the person's connection to it, on its own
+ * socket.
  */
 async function joinAsTheMachine(t: TestContext, env: Beside) {
   const link = linkIn(await shrimpy(["invite"], { env }));
-  const { address } = readLink(link);
+  const { address, fingerprint } = readLink(link);
   const joined = await shrimpy(["join", link]);
   assert.equal(joined.code, 0, joined.stderr);
   assert.ok(joined.stdout.includes(person) && joined.stdout.includes(formatAddress(address)), joined.stdout);
-  const onTheSocket = await inRuntimeDir(env.SHRIMPY_RUNTIME_DIR, () => connectLocalGateway());
-  stopAfter(t, () => onTheSocket.close());
-  return { address, onTheSocket };
+  assert.deepEqual(readMachine(useShrimpyDir(t))?.gateway, { ...address, fingerprint }, "the folder keeps the gateway's key with its address");
+  const onTheSocket = await inRuntimeDir(env.SHRIMPY_RUNTIME_DIR, () => onTheRoster(t));
+  return { address, fingerprint, onTheSocket };
 }
 
 const person = userInfo().username;
 
 test("commands in a folder that joined as the person reach the gateway there as the person, the same member as beside the gateway, while a command in an agent's shell is still the agent, and a gateway that is gone or does not know the machine says so", { timeout }, async (t) => {
   const { env, up } = await startBesideTheGateway(t);
-  const { address, onTheSocket } = await joinAsTheMachine(t, env);
+  const { address, fingerprint, onTheSocket } = await joinAsTheMachine(t, env);
 
   const members = await shrimpy(["members"]);
   assert.equal(members.code, 0, members.stderr);
@@ -133,7 +135,7 @@ test("commands in a folder that joined as the person reach the gateway there as 
   // In the shell of an agent a command is still the agent, whatever the folder has joined: crab is no admin, and can't make a room.
   const crabHome = join(tempDir(t, "crab-home"), "crab");
   initHome(crabHome, { name: "crab" });
-  await joinHome(crabHome, writeLink({ name: "crab", address, code: (await onTheSocket.invite("crab")).code }));
+  await joinHome(crabHome, writeLink({ name: "crab", address, code: (await onTheSocket.invite("crab")).code, fingerprint }));
   const asCrab = await shrimpy(["rooms", "new", "ops"], { env: { [AGENT_HOME_VARIABLE]: crabHome } });
   assert.equal(asCrab.code, 1);
   assert.ok(asCrab.stderr.includes("crab"), asCrab.stderr);
@@ -148,7 +150,7 @@ test("commands in a folder that joined as the person reach the gateway there as 
 
   // A gateway that does not know the machine's token says so, and which file to delete to join again.
   const lost = join(tempDir(t, "lost"), "shrimpy");
-  saveMachine(lost, { token: newToken(), gateway: address, member: { id: "mem_aaaaaaaaaaaa", name: person } });
+  saveMachine(lost, { token: newToken(), gateway: { ...address, fingerprint }, member: { id: "mem_aaaaaaaaaaaa", name: person } });
   const unknown = await shrimpy(["members"], { env: { SHRIMPY_DIR: lost } });
   assert.equal(unknown.code, 1);
   assert.ok(unknown.stderr.includes(machineFile(lost)), unknown.stderr);
@@ -171,7 +173,7 @@ test("the terminal in a folder that joined as the person signs in on its connect
   // The console is opened by the code a bare `shrimpy` runs, on a terminal of the test's own.
   const terminal = new FakeTerminal();
   const cli = captureIo({ terminal: true });
-  const exited = runCli([], cli.io, { openConsole: (io) => openTheConsole(io, { terminal, pollMs: 100 }) });
+  const exited = runCli([], cli.io, { openConsole: (io) => openTheConsole(io, { terminal }) });
   stopAfter(t, async () => {
     cli.requestStop();
     await exited.catch(() => undefined);
@@ -202,7 +204,7 @@ test("join makes nothing of text that is not a link or a folder that has a gatew
   // A folder where up keeps a gateway is the gateway's, and the person is who runs it there.
   mkdirSync(join(folder, "agents"), { recursive: true });
   mkdirSync(join(folder, "gateway"), { recursive: true });
-  const own = await shrimpy(["join", writeLink({ name: null, address, code: "K7Q2-9FXD" })]);
+  const own = await shrimpy(["join", writeLink({ name: null, address, code: "K7Q2-9FXD", fingerprint: "ocKmkNBacmPG6VxrlnuW3Q" })]);
   assert.equal(own.code, 1);
   assert.ok(own.stderr.includes(join(folder, "gateway")), own.stderr);
   assert.equal(existsSync(machineFile(folder)), false);

@@ -1,25 +1,28 @@
 /**
- * The Node-only door of the gateway contract: reaching the gateway on this
- * machine, and programs through it, over Unix sockets, or the gateway at an
- * address, over its network entry, staying registered with the gateway,
- * making an agent's token, and joining a machine to a person's own, with the
- * file in its Shrimpy folder that says so. Browser code must not import this
- * file.
+ * The Node-only door of the gateway's contract: the one dial every link to the
+ * gateway and every join starts with, at its own socket or at its entry once
+ * the gateway's key proves it; linking
+ * as a client, once or kept, or as a program; joining a machine of yours as a
+ * device, with the file in its Shrimpy folder that says so; and making a token.
+ * Browser code must not import this file.
  */
-export { entryTransports } from "./entry.node.ts";
+export { connectGateway, type ConnectGatewayOptions, type GatewayClient } from "./connect.node.ts";
 export {
-  type JoinAsMachineOptions,
-  joinAsMachine,
-  type MachineJoined,
-  MachineJoinFailedError,
-} from "./join-machine.node.ts";
+  dialGateway,
+  type DialGatewayOptions,
+  type GatewayDialed,
+  type GatewayPlace,
+  GatewayRefusedError,
+  UnknownAnswerError,
+  UnprovenGatewayError,
+} from "./dial.node.ts";
+export { type JoinAsMachineOptions, joinAsMachine, type MachineJoined, MachineJoinFailedError } from "./join-machine.node.ts";
 export {
-  type Heartbeat,
-  type KeepRegisteredOptions,
-  keepRegistered,
-  type KeptRegistration,
-} from "./keep-registered.node.ts";
-export { connectLocalGateway, GatewayNotRunningError, localTransports } from "./local.node.ts";
+  keepClientLinked,
+  type KeepClientLinkedOptions,
+  keepProgramLinked,
+  type KeepProgramLinkedOptions,
+} from "./keep.node.ts";
 export { readMachine, saveMachine } from "./machine.node.ts";
+export { gatewaySocket } from "./socket.node.ts";
 export { newToken } from "./token.node.ts";
-export { waysDirectory, wayInSocket } from "./way-in.node.ts";

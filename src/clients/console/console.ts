@@ -1,5 +1,4 @@
-import type { GatewayConnection, Transports } from "../../contracts/gateway/index.ts";
-import { localTransports } from "../../contracts/gateway/node.ts";
+import { type GatewayPlace, gatewaySocket } from "../../contracts/gateway/node.ts";
 import { type ConsoleTerminal, startDrawing } from "./draw/index.ts";
 import { farewellLine } from "./screen/index.ts";
 import { createConsoleState, type HomeLookup } from "./state/index.ts";
@@ -14,20 +13,15 @@ export interface ConsoleIo {
 
 export interface ConsoleOptions {
   io: ConsoleIo;
-  /** How to reach the gateway, and the programs registered with it by their names. This machine's sockets by default. */
-  transports?: Transports;
+  /** Where the gateway is: its own socket on this machine by default, or its entry, with the fingerprint of its key. */
+  place?: GatewayPlace;
   /**
-   * Run on each connection the console makes to the gateway, the first and every
-   * one after the gateway was lost, before anything else, to be somebody to a
-   * gateway that takes a connection for nobody until it has signed in, as one
-   * over its network entry does. Without it the console signs in as nobody, which
-   * on the gateway's own socket is the person who runs the gateway.
+   * The token the console shows the gateway: a device's, as on a machine of the
+   * person's own that joined, or none, which on the gateway's own socket is you.
    */
-  signIn?: (gateway: GatewayConnection) => Promise<void>;
+  token?: string | null;
   /** The terminal to draw on. The person's by default. */
   terminal?: ConsoleTerminal;
-  /** How often what has no subscription is asked for again, in milliseconds. 2 seconds by default. */
-  pollMs?: number;
   /** How long a notice stays, in milliseconds. */
   noticeMs?: number;
   /** How long after Ctrl+C another press still quits, in milliseconds. */
@@ -44,19 +38,17 @@ export interface ConsoleOptions {
 
 /**
  * Open the console on the person's terminal, and keep it open until they leave.
- * It finds the chat server and the agents through the gateway, and reaches them
- * over the transports it is handed. Leaving lets go of every connection and
- * stops no work; if an agent is still working, one line says so and how to stop
- * it. The result is the exit code.
+ * It links to the gateway and holds what it shows through that link. Leaving
+ * lets go of everything held and stops no work; if an agent is still working,
+ * one line says so and how to stop it. The result is the exit code.
  */
 export async function openConsole(options: ConsoleOptions): Promise<number> {
-  const state = createConsoleState({
-    transports: options.transports ?? localTransports(),
-    signIn: options.signIn,
-    pollMs: options.pollMs,
-    noticeMs: options.noticeMs,
-    now: options.now,
-    homes: options.homes,
+  const state = await createConsoleState({
+    place: options.place ?? { path: gatewaySocket() },
+    token: options.token ?? null,
+    ...(options.noticeMs === undefined ? {} : { noticeMs: options.noticeMs }),
+    ...(options.now === undefined ? {} : { now: options.now }),
+    ...(options.homes === undefined ? {} : { homes: options.homes }),
   });
   try {
     const drawing = startDrawing({

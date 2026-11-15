@@ -115,7 +115,7 @@ export function follow<T>(options: FollowOptions<T>): Following<T> {
 export async function requireSeen(home: string, file: string): Promise<void> {
   const seen = await stat(file).then((info) => info.isFile(), () => false);
   if (seen) return;
-  refuse(`The home at ${home} can't be read for now, because ${shownIn(home, file)} can't be seen, so the agent keeps what it has.`, "service_not_allowed");
+  refuse(`The home at ${home} can't be read for now, because ${shownIn(home, file)} can't be seen, so the agent keeps what it has.`);
 }
 
 /**

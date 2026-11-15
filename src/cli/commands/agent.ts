@@ -14,6 +14,7 @@ import {
 import { readEndpoint } from "../../contracts/agent/node.ts";
 import { homeNamed, isPath, newHome, providersPath } from "../folder/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
+import { onAgent } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning } from "./connected.ts";
@@ -155,7 +156,7 @@ const serve: Command = {
     });
     try {
       agent = await startHomeAgent(homeNamed(given), { shrimpy: shrimpyCommand(), providers: providersPath() });
-      io.out(JSON.stringify({ event: "listening", name: agent.name, home: agent.home, ...agent.endpoint }));
+      io.out(JSON.stringify({ event: "listening", home: agent.home, ...agent.endpoint }));
       await requested;
       await agent.close({ now: values.now === true });
       return 0;
@@ -192,13 +193,13 @@ const status: Command = {
  * that the agent is there.
  */
 async function answers(home: string): Promise<boolean> {
-  const connection = await connectIfRunning(home);
-  if (connection === undefined) return false;
+  const reached = await connectIfRunning(home);
+  if (reached === undefined) return false;
   try {
-    await connection.sessions();
+    await onAgent(reached, async () => undefined);
     return true;
   } finally {
-    await connection.close().catch(() => undefined);
+    await reached.close().catch(() => undefined);
   }
 }
 

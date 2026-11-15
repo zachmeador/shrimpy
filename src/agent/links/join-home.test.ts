@@ -12,8 +12,11 @@ import { JoinFailedError, joinHome } from "./join-home.ts";
 
 /*
  * What joining a home with a link refuses before it sends anything. Joining itself, against a gateway that lets the
- * agent in, is tried with real programs in cli/apart.test.ts.
+ * agent in, is tried with real programs in apart.test.ts.
  */
+
+/** The fingerprint of a gateway's key, as an invitation's link carries it. */
+const fingerprint = "ocKmkNBacmPG6VxrlnuW3Q";
 
 /** An address on loopback that nothing listens on. */
 async function closedAddress(): Promise<Address> {
@@ -35,24 +38,24 @@ test("a home whose agent is called something else than the link says is refused,
   const address = await closedAddress();
   const { paths } = loadHome(home);
 
-  await assert.rejects(joinHome(home, writeLink({ name: "rex", address, code: "K7Q2-9FXD" })), (error: Error) => {
+  await assert.rejects(joinHome(home, writeLink({ name: "rex", address, code: "K7Q2-9FXD", fingerprint })), (error: Error) => {
     assert.ok(error.message.includes("rex") && error.message.includes("crab"), "it names both agents");
     assert.ok(error.message.includes(paths.config), "and the file to change");
     return true;
   });
   await assert.rejects(joinHome(home, "not a link"), /is not an invitation link/);
-  await assert.rejects(joinHome(home, writeLink({ name: null, address, code: "K7Q2-9FXD" })));
+  await assert.rejects(joinHome(home, writeLink({ name: null, address, code: "K7Q2-9FXD", fingerprint })));
   assert.equal(existsSync(paths.member), false, "no token was made for any of them");
 });
 
 test("a home that is a member somewhere already is refused, with the file to delete to join anew, and nothing in it changes", async (t) => {
   const address = await closedAddress();
-  const link = writeLink({ name: "crab", address, code: "K7Q2-9FXD" });
+  const link = writeLink({ name: "crab", address, code: "K7Q2-9FXD", fingerprint });
   const kept = [
     { home: homeOf(t, "crab"), membership: { token: newToken(), memberId: "mem_aaaaaaaaaaaa" } },
     {
       home: homeOf(t, "crab"),
-      membership: { token: newToken(), memberId: "mem_bbbbbbbbbbbb", gateway: { host: "100.101.102.103", port: 7447 } },
+      membership: { token: newToken(), memberId: "mem_bbbbbbbbbbbb", gateway: { host: "100.101.102.103", port: 7447, fingerprint } },
     },
   ];
 
@@ -69,13 +72,11 @@ test("a home that is a member somewhere already is refused, with the file to del
 test("a home keeps its token before it joins, and asks again with the same token when the gateway can't be reached", async (t) => {
   const home = homeOf(t, "crab");
   const address = await closedAddress();
-  const link = writeLink({ name: "crab", address, code: "K7Q2-9FXD" });
+  const link = writeLink({ name: "crab", address, code: "K7Q2-9FXD", fingerprint });
 
   await assert.rejects(
     joinHome(home, link),
-    (error: Error) =>
-      error instanceof JoinFailedError &&
-      error.message.includes(`Could not reach the gateway at 127.0.0.1:${String(address.port)}`),
+    (error: Error) => error instanceof JoinFailedError && error.message.includes(`127.0.0.1:${String(address.port)}`),
   );
   const made = readMembership(home);
   assert.deepEqual(Object.keys(made ?? {}), ["token"], "it has a token, and is no member yet");
@@ -95,7 +96,7 @@ test("a join that is given up on while the gateway says nothing fails as an atte
     await new Promise<void>((resolve) => silent.close(() => resolve()));
   });
   const { port } = silent.address() as AddressInfo;
-  const link = writeLink({ name: "crab", address: { host: "127.0.0.1", port }, code: "K7Q2-9FXD" });
+  const link = writeLink({ name: "crab", address: { host: "127.0.0.1", port }, code: "K7Q2-9FXD", fingerprint });
 
   const giveUp = new AbortController();
   setTimeout(() => giveUp.abort(), 200);

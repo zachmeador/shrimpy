@@ -1,28 +1,28 @@
-import type { Context } from "@earendil-works/chord";
-import { createContextKey, withContextValue } from "@earendil-works/chord/context";
-import type { RoutedSessionHandle } from "@earendil-works/pi-server";
-import type { Member, SessionService } from "../../contracts/agent/index.ts";
-import { refuseNeedsAdmin } from "../../contracts/gateway/index.ts";
+import { type Member, needsAdmin, type Principal, type Refused, refused, type RosterEntry } from "../../contracts/gateway/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 
-/** Someone who came through the gateway, as the agent learned who they are when they came in. */
-export interface Asker {
-  /** Who the gateway says they are. */
-  member: Member;
-  /** Whether the roster said they are an admin then. */
-  admin: boolean;
-  /** Whether they are this agent. */
-  self: boolean;
-  /** The admins the roster listed then, for a refusal to say who to ask. */
-  admins: readonly { name: string }[];
+/** The roster as the agent holds it now: everyone on it, and the agent itself. */
+export interface RosterNow {
+  readonly members: readonly RosterEntry[];
+  readonly you: Member;
 }
 
-/** Who is on the other end of a connection to the agent. */
+/** Who is asking the agent, as the agent decides from who the request is stamped as and from the roster now. */
 export type Caller =
-  /** Came by the home's path: whoever the operating system lets reach the home's socket, which is whoever owns the home. */
-  | { via: "home" }
-  /** Came through the gateway, which said who they are. */
-  | ({ via: "gateway" } & Asker);
+  /** A client on the home's own socket: whoever the operating system lets reach it, which is whoever owns the home. */
+  | { kind: "home" }
+  /** A member, as the gateway stamped the request, with its name and whether it is an admin as the roster has them now. */
+  | {
+      kind: "member";
+      member: { id: string; kind: "person" | "agent"; name: string };
+      admin: boolean;
+      /** Whether it is this agent. */
+      self: boolean;
+      /** The admins as the roster has them now, for a refusal to say who to ask. */
+      admins: readonly { name: string }[];
+    }
+  /** A program that is no member, such as the chat server. */
+  | { kind: "program" };
 
 /**
  * What a caller may be allowed to do at an agent. Messaging is the chat
@@ -46,72 +46,43 @@ const WHAT: Record<Permission, string> = {
 };
 
 /**
- * Whether `caller` may do `permission` here. The home's owner may do anything.
- * Someone who came through the gateway may if they are a person, an admin or
- * the agent itself, and no one else: an agent looks after itself, and another
- * agent's sessions and triggers are for the people and the admins. Every
- * operation of the agent's API already asks.
+ * The caller `principal` is, by the roster as it is now, which is undefined
+ * until the agent has first heard it. A member the roster doesn't name is no
+ * admin, and goes by its ID until it does.
  */
-function permits(caller: Caller, _permission: Permission): boolean {
-  if (caller.via === "home") return true;
-  return caller.member.kind === "person" || caller.admin || caller.self;
-}
-
-/** Refuse unless `caller` may do `permission` at this agent. */
-export function check(caller: Caller, permission: Permission): void {
-  if (permits(caller, permission)) return;
-  // The home's owner is never refused, so whoever is came through the gateway.
-  if (caller.via === "home") throw new Error("The home's owner was refused.");
-  refuseNeedsAdmin(WHAT[permission], caller.member, caller.admins);
-}
-
-/** Who is making a call that reaches a session, which Pi does not tell the session's service. */
-const CALLER = createContextKey<Caller>("shrimpy.agent.caller");
-
-/** A context for a call made on behalf of `caller`. */
-export const withCaller = (context: Context, caller: Caller): Context => withContextValue(CALLER, caller, context);
-
-const callerOf = (context: Context): Caller =>
-  context.value(CALLER) ??
-  refuse("Come in with a ticket from the gateway, with enter, before anything else.", "service_not_allowed");
-
-/** `service`, with each call that follows or changes the work checked against whoever makes it. */
-export function guardSession(service: SessionService): SessionService {
+export function callerOf(principal: Principal, roster: RosterNow | undefined): Caller {
+  if (principal.kind === "home") return { kind: "home" };
+  if (principal.kind !== "person" && principal.kind !== "agent") return { kind: "program" };
+  const entry = roster?.members.find((each) => each.id === principal.member);
   return {
-    state: service.state,
-    steer(text, requestId, context) {
-      check(callerOf(context), "control");
-      return service.steer(text, requestId, context);
-    },
-    wait(submission, context) {
-      check(callerOf(context), "watch");
-      return service.wait(submission, context);
-    },
-    stop(context) {
-      check(callerOf(context), "control");
-      return service.stop(context);
-    },
+    kind: "member",
+    member: { id: principal.member, kind: principal.kind, name: entry?.name ?? principal.member },
+    admin: entry?.admin ?? false,
+    self: roster?.you.id === principal.member,
+    admins: (roster?.members ?? []).filter((each) => each.admin).map((each) => ({ name: each.name })),
   };
 }
 
 /**
- * Make every call on a session carry the caller of the connection that
- * attached it. `attach` puts the caller in the context it hands Pi, and Pi
- * gives that context back when it attaches the session, which is the only
- * moment a session's calls meet the connection they come from.
+ * Why `caller` may not do `permission` here, or null when it may. The home's
+ * owner may do anything, and so may you, an admin and the agent itself: an
+ * agent looks after itself, and another agent's sessions and triggers are for
+ * you and the admins. A program that is no member may do none of it.
  */
-export function carryCallers(handle: RoutedSessionHandle): RoutedSessionHandle {
-  return {
-    terminated: handle.terminated,
-    close: (context) => handle.close(context),
-    async attachClient(context) {
-      const lease = await handle.attachClient(context);
-      const caller = callerOf(context);
-      return {
-        release: (releaseContext) => lease.release(releaseContext),
-        invokeService: (call, publish, callContext) =>
-          lease.invokeService(call, publish, withCaller(callContext, caller)),
-      };
-    },
-  };
+export function refusalFor(caller: Caller, permission: Permission): Refused | null {
+  switch (caller.kind) {
+    case "home":
+      return null;
+    case "program":
+      return refused("Only a member, through the gateway, or a client on the agent's own socket may ask an agent anything.");
+    case "member":
+      if (caller.member.kind === "person" || caller.admin || caller.self) return null;
+      return needsAdmin(WHAT[permission], caller.member, caller.admins);
+  }
+}
+
+/** Refuse unless `caller` may do `permission` at this agent. */
+export function check(caller: Caller, permission: Permission): void {
+  const refusal = refusalFor(caller, permission);
+  if (refusal !== null) refuse(refusal.words);
 }

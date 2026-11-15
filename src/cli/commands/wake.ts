@@ -10,7 +10,7 @@ import {
 } from "../../agent/index.ts";
 import { AGENT_HOME_VARIABLE } from "../../contracts/agent/index.ts";
 import type { Io } from "../io/index.ts";
-import { type Reached, reachChat, roomNamed, roomNameWritten } from "../talk/index.ts";
+import { contextOf, onAgent, type Reached, reachChat, roomNamed, roomNameWritten, valueOf } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning } from "./connected.ts";
@@ -58,7 +58,7 @@ async function checkRoom(io: Io, target: Target, written: string): Promise<strin
     return name;
   }
   try {
-    const room = roomNamed(await reached.connection.chat.channels(), written);
+    const room = roomNamed(reached.chat.channels.value, written);
     return room.name;
   } catch (error) {
     throw new UsageError(`Nothing was written. ${error instanceof Error ? error.message : String(error)}`);
@@ -103,18 +103,18 @@ const wake: Command = {
     const { file } = await saveWake(target.home, room, policy);
     io.out(`Set #${room} to ${policy}: ${MEANING[policy]} Written to ${file}.`);
 
-    const connection = await connectIfRunning(target.home);
-    if (connection === undefined) {
+    const reached = await connectIfRunning(target.home);
+    if (reached === undefined) {
       io.out(`No agent is running at ${target.home}, so the change takes effect when the agent starts. Start one with: shrimpy agent serve ${target.given}`);
       return 0;
     }
     try {
-      const reloaded = await connection.reload();
+      const reloaded = await onAgent(reached, async (agent) => valueOf(await agent.reload(contextOf())));
       io.out("Told the agent to read its files again.");
       if (reloaded.changedFrom !== null) io.out(modelLine(reloaded));
       if (reloaded.leftOut.length > 0) io.out(`Left out:\n${leftOutLines(reloaded.leftOut).join("\n")}`);
     } finally {
-      await connection.close().catch(() => undefined);
+      await reached.close().catch(() => undefined);
     }
     return 0;
   },

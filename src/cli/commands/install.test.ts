@@ -8,7 +8,7 @@ import { tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
 import { runCli } from "../index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
 import type { Account } from "../service/index.ts";
-import { captureIo, serveChat, serveGateway, untilRegistered, useShrimpyDir } from "../testing/index.ts";
+import { captureIo, serveChat, serveGateway, untilLinked, useShrimpyDir } from "../testing/index.ts";
 import { installService, serviceStatusLine, uninstallService } from "./install.ts";
 
 /*
@@ -240,7 +240,10 @@ test("install says what the service runs: only the agents, and where their gatew
   assert.equal(existsSync(join(account.home, ".config")), false, "and nothing was written");
 
   await makeAgent("crab");
-  saveMembership(join(folder, "agents", "crab"), { token: newToken(), gateway: { host: "100.101.102.103", port: 7447 } });
+  saveMembership(join(folder, "agents", "crab"), {
+    token: newToken(),
+    gateway: { host: "100.101.102.103", port: 7447, fingerprint: "ocKmkNBacmPG6VxrlnuW3Q" },
+  });
   const installed = captureIo();
 
   assert.equal(await installService(installed.io, account), 0, installed.err.join("\n"));
@@ -255,7 +258,7 @@ test("install notices that shrimpy up already runs for the folder, and installs 
   mkdirSync(join(folder, "agents"), { recursive: true });
   await serveGateway(t, ["--listen", "127.0.0.1:0"], join(folder, "gateway"));
   await serveChat(t, join(folder, "chat"));
-  await untilRegistered("chat", "chat");
+  await untilLinked("chat", "chat");
   const { account, ran } = standIn(t, "linux", { home: dirname(folder) });
 
   await assert.rejects(installService(captureIo().io, account), (error: Error) => {

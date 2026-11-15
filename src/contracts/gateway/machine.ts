@@ -1,4 +1,4 @@
-import type { Address } from "./services.ts";
+import type { Entry } from "./address.ts";
 
 /**
  * What a machine of a person's own keeps in its Shrimpy folder, so that it is
@@ -12,8 +12,13 @@ export interface Machine {
    * be made again with the same token. Only the gateway is shown it.
    */
   token: string;
-  /** The gateway's entry: where the machine reaches the gateway, and chat and agents through it. */
-  gateway: Address;
+  /**
+   * The gateway's entry: where the machine reaches the gateway, and chat and
+   * agents through it, with the fingerprint of the gateway's key, which came
+   * with the invitation. A machine that joined before the gateway had a key
+   * has none, and can't check that the gateway is yours.
+   */
+  gateway: Entry;
   /**
    * Who the gateway said the person is, once it has said it, which is when the
    * machine has joined. A machine that has none was never answered, and is not
@@ -22,7 +27,7 @@ export interface Machine {
   member?: { id: string; name: string };
 }
 
-/** The file of the Shrimpy folder in which a machine keeps its place: the token, the gateway's address and who it is. */
+/** The file of the Shrimpy folder in which a machine keeps its place: the token, the gateway's address and key, and who it is. */
 export const MACHINE_FILE = "machine.json";
 
 /** The file in which the machine whose Shrimpy folder is `folder` keeps its place. */

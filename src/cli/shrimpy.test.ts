@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import type { SessionItem, SessionView } from "../contracts/agent/index.ts";
+import type { SessionItem, SessionStatus } from "../contracts/agent/index.ts";
 import { enterAsPerson, memberNamed } from "../contracts/chat/testing/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
@@ -36,6 +36,9 @@ const realUrl = process.env.SHRIMPY_TEST_MODEL_URL;
 const realModel = process.env.SHRIMPY_TEST_MODEL_ID;
 const skipWithoutRealModel =
   realUrl === undefined || realModel === undefined ? "set SHRIMPY_TEST_MODEL_URL and SHRIMPY_TEST_MODEL_ID" : false;
+
+/** What `sessions read --json` prints: the whole session, and what it is doing. */
+type SessionView = { items: SessionItem[]; status: SessionStatus };
 
 /** A home of its own, and a runtime directory of its own for the processes that serve it. */
 function tempHome(t: TestContext): string {

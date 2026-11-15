@@ -52,7 +52,7 @@ test("what every agent is told names the agent, its home and every tool of its o
   assert.match(text, /^You are scout, /);
   assert.ok(text.includes("/agents/scout"));
   const installed = [
-    messageTools({ recordsId: "rec_test", chat: () => undefined, gateway: () => undefined }),
+    messageTools({ recordsId: "rec_test", chat: () => undefined, roster: () => undefined }),
     wakeupTools({ wakeups: { set: () => Promise.reject(new Error("The tools are only listed here.")) } }),
     askTools({
       questions: {
@@ -62,7 +62,7 @@ test("what every agent is told names the agent, its home and every tool of its o
       },
       recordsId: "rec_test",
       chat: () => undefined,
-      gateway: () => undefined,
+      roster: () => undefined,
     }),
   ];
   const tools = installed.flatMap((extension) => (extension.tools ?? []).map((tool) => tool.name));

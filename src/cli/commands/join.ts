@@ -19,20 +19,24 @@ const join: Command = {
     "With the link of an invitation, make an agent here that joins a gateway elsewhere, or make this machine one of yours.",
   details: [
     "Run this where the agent or the machine is to live, with the link that shrimpy invite printed. The link says " +
-      "which it is for. Either way the invitation works once, for fifteen minutes, and running this again with the " +
-      "same link is safe while the code is good. It says on standard error whether the gateway runs another " +
-      "version of Shrimpy than this command, and gives up on a gateway that does not answer within fifteen seconds.",
+      "which it is for, and ends with the fingerprint of the gateway's key: the connection is encrypted, and " +
+      "nothing is sent to a gateway whose key doesn't match it. Either way the invitation works once, for fifteen " +
+      "minutes, and running this again with the same link is safe while the code is good. It says on standard " +
+      "error whether the gateway runs another version of Shrimpy than this command, and gives up on a gateway that " +
+      "does not answer within fifteen seconds.",
     "A link that names an agent, which shrimpy invite <name> printed on the gateway's machine, makes that agent's " +
       "home here: agents/<name> in your Shrimpy folder, which is ~/shrimpy or the folder SHRIMPY_DIR names. If " +
       "there is none, it is made as agent init <name> makes it, with no model; one that is there must be that " +
       "agent. This makes the agent's token, shows the gateway the name, the code and the token, and keeps the " +
-      "gateway's address in the home, where shrimpy up finds it: the agent connects to that gateway from then on, " +
-      "and is talked to from the gateway's machine. It says whether the gateway let the agent in. The invitation " +
+      "gateway's address and the fingerprint of its key in the home, where shrimpy up finds them: the agent " +
+      "connects to that gateway from then on, checking its key each time, and is talked to from the gateway's " +
+      "machine. It says whether the gateway let the agent in. The invitation " +
       "works only for the name it was made for. A failure leaves a home that was just made. A home that has " +
       "joined a gateway already is refused, and the error names the file to delete to join anew.",
     "A link that names nobody, which shrimpy invite printed with no name, on the gateway's machine or on a " +
       "machine of yours that has joined, makes this machine one of yours. It makes a token, keeps it in " +
-      "machine.json in your Shrimpy folder, and shows the gateway the code and the token. From then on the " +
+      "machine.json in your Shrimpy folder with the gateway's address and the fingerprint of its key, and shows " +
+      "the gateway the code and the token. From then on the " +
       "commands that talk (run, threads, read, rooms and members) and the terminal that a bare shrimpy opens " +
       "reach that gateway as you, wherever it runs. A command about an agent's home, such as sessions or " +
       "triggers, still acts on the homes of this machine. It says whose machine this is now. A failure leaves the " +
@@ -91,7 +95,7 @@ async function joinAsAgent(io: Io, text: string, { name, address }: Link & { nam
     clearTimeout(timer);
   }
 
-  if (joined.gatewayVersion !== undefined) warnIfVersionDiffers(io, "the gateway", joined.gatewayVersion);
+  warnIfVersionDiffers(io, "the gateway", joined.gatewayVersion);
   io.out(
     `${name} joined the gateway at ${where}. ` +
       (exists ? `Its home is ${home}.` : `Its home is ${home}, made just now with no model.`),
@@ -143,7 +147,7 @@ async function joinThisMachine(io: Io, link: Link, giveUpMs: number): Promise<nu
     clearTimeout(timer);
   }
 
-  if (joined.gatewayVersion !== undefined) warnIfVersionDiffers(io, "the gateway", joined.gatewayVersion);
+  warnIfVersionDiffers(io, "the gateway", joined.gatewayVersion);
   io.out(`This machine is ${joined.member.name}'s now, on the gateway at ${where}.`);
   io.out("Open the terminal with: shrimpy");
   return 0;

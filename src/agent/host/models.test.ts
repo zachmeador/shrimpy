@@ -172,7 +172,7 @@ test("a key added to the folder after the start is used by the next request, wit
 
 test("a sign-in makes a provider that signs in with OAuth usable, and with none the start says which files it looks in", async (t) => {
   const files = home(t);
-  const model = { provider: "openai-codex", modelId: "gpt-5.3-codex-spark" };
+  const model = { provider: "openai-codex", modelId: "gpt-6.1-sol" };
   const folder = providers(t, { auth: {} });
   await assert.rejects(
     buildModels({ ...files, providers: folder.dir, named: () => model }),

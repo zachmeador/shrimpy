@@ -1,4 +1,4 @@
-import type { Context } from "@earendil-works/chord";
+import type { Context } from "@earendil-works/chord/context";
 import { defineTask, type TaskRuntime, type Tx } from "@earendil-works/pi-durable";
 import type { Check } from "../../contracts/agent/index.ts";
 import { localTime } from "../../lib/time/index.ts";

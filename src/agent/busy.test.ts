@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
+import { speakingAs } from "../contracts/chat/testing/index.ts";
 import { until, waitForView } from "../lib/testing/index.ts";
 import {
   type AgentRig,
@@ -69,9 +70,9 @@ function heldAnswers(): { script: Script; asked(): number; answer(): void; relea
 }
 
 /** Where the person talks to the agent, which is the thread of a DM or of a room, and how they mention it there: by name, or to everyone. */
-const PLACES: { name: string; mention: string; open(rig: AgentRig): Promise<string> }[] = [
-  { name: "a DM", mention: `@${SCOUT}`, open: (rig) => Promise.resolve(rig.thread.id) },
-  { name: "a room", mention: "@all", open: async (rig) => (await roomWith(rig.chat, "Ops", [rig.partner])).main.id },
+const PLACES: { name: string; mention: string; open(t: TestContext, rig: AgentRig): Promise<string> }[] = [
+  { name: "a DM", mention: `@${SCOUT}`, open: (_t, rig) => Promise.resolve(rig.thread.id) },
+  { name: "a room", mention: "@all", open: async (t, rig) => (await roomWith(t, rig.chat, "Ops", [rig.partner])).main.id },
 ];
 
 /**
@@ -124,7 +125,7 @@ test("a person's messages, sent in one step of a turn that runs, are all read by
     await t.test(place.name, async (inner) => {
       const { script, asked } = twoSteps();
       const rig = await startAgentRig(inner, { script });
-      const threadId = await place.open(rig);
+      const threadId = await place.open(inner, rig);
 
       const { first, later, receipts, replies } = await sayWhileTurnRuns(rig, asked, threadId, async () => [
         await rig.say("one more thing", threadId),
@@ -148,10 +149,10 @@ test("a person's messages, sent in one step of a turn that runs, are all read by
 test("an agent's message that mentions the agent, sent while a turn runs, waits for the next turn", { timeout }, async (t) => {
   const { script, asked } = twoSteps();
   const rig = await startAgentRig(t, { script });
-  const bob = await rig.chat.agent("bob");
-  const { main } = await roomWith(rig.chat, "Ops", [rig.partner, bob.me]);
+  const bob = await speakingAs(t, await rig.chat.agent("bob"));
+  const { main } = await roomWith(t, rig.chat, "Ops", [rig.partner, bob.me]);
 
-  const waited = await sayWhileTurnRuns(rig, asked, main.id, async () => [await bob.chat.post(main.id, `@${SCOUT}, one more thing`, "bob-1")]);
+  const waited = await sayWhileTurnRuns(rig, asked, main.id, async () => [await bob.post(main.id, `@${SCOUT}, one more thing`, "bob-1")]);
 
   assertWaitedForNextTurn(rig, asked, waited);
 });

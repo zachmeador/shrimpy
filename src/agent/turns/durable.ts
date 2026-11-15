@@ -2,13 +2,13 @@
  * The task that follows one input to its end, whichever source it came from. It
  * takes the input up in the commit of the module that has it, hands it to its
  * session, waits for the turn to settle, and tells the input's source how it
- * ended through `Delivery`. It also says which inputs are being worked on, and
- * counts what a crash of the agent costs a turn that was underway, giving up on
- * one that has crashed too often. It must not know chat, how a reply is posted
- * or a thread is marked as working, or what a session shows a client.
+ * ended through `Delivery`. It also says which inputs are being worked on. When
+ * the engine ends the wait for a turn that the agent's unexpected ends cut off
+ * too often, it stops the turn and tells the source it failed. It must not know
+ * chat, how a reply is posted or a thread is marked as working, or what a
+ * session shows a client.
  */
 export { answerText, assistantText, describe } from "./answer.durable.ts";
-export { beginRun, type Run } from "./crashes.durable.ts";
 export { takeUp } from "./take-up.durable.ts";
 export {
   liveTurns,

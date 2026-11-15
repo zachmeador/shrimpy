@@ -81,21 +81,15 @@ async function runConsole(io: Io, open: (io: Io) => Promise<number>): Promise<nu
 /**
  * The console is only loaded when it is opened, so no other command loads the
  * terminal library. It is handed what a command that talks has: where the
- * gateway is and how to sign in to it, which is the person whose machine this
- * is when it has joined a gateway. `terminal` and `pollMs` are for a test,
- * which draws on a terminal of its own.
+ * gateway is and the token to show it, which is this machine's when the folder
+ * has joined a gateway as the person's own. `terminal` is for a test, which
+ * draws on a terminal of its own.
  */
-export async function openTheConsole(io: Io, stand: Pick<ConsoleOptions, "terminal" | "pollMs"> = {}): Promise<number> {
+export async function openTheConsole(io: Io, stand: Pick<ConsoleOptions, "terminal"> = {}): Promise<number> {
   const { openConsole } = await import("../clients/console/index.ts");
   const { me } = await import("./talk/index.ts");
   const who = me();
-  return openConsole({
-    io,
-    homes: lookForHome,
-    transports: who.transports(),
-    signIn: (gateway) => who.signIn(gateway),
-    ...stand,
-  });
+  return openConsole({ io, homes: lookForHome, place: who.place, token: who.token, ...stand });
 }
 
 /** The words that select a command: one for `up`, two for `agent serve`. */

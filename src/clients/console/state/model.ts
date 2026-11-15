@@ -1,14 +1,36 @@
 import type {
   ModelId,
   SessionActivity,
+  SessionItem,
   SessionPlace,
   SessionStatus,
   SessionSummary,
-  SessionView,
+  TurnFailure,
+  WaitingWakeup,
 } from "../../../contracts/agent/index.ts";
-import type { AgentCommand, Channel, Member, Thread, ThreadView } from "../../../contracts/chat/index.ts";
-import type { Registration, RosterEntry } from "../../../contracts/gateway/index.ts";
+import type { AgentCommand, Channel, Member, Message, Thread } from "../../../contracts/chat/index.ts";
+import type { Program, RosterEntry, WayIn } from "../../../contracts/gateway/index.ts";
 import type { LinkStatus, Problem } from "../network/index.ts";
+
+/** The open thread as it now stands: its newest messages, how many come before them, and whether the person only reads it. */
+export interface ThreadView {
+  thread: Thread;
+  messages: Message[];
+  earlier: number;
+  readOnly: boolean;
+}
+
+/**
+ * The session on show, as the agent sees it: its newest items, oldest first,
+ * read back from where its window starts to as many as are shown, and the entry
+ * just before the oldest of them, or null when they start at the session's
+ * start; and what it is doing.
+ */
+export interface SessionView {
+  items: SessionItem[];
+  before: number | null;
+  status: SessionStatus;
+}
 
 /**
  * Whose threads the person looks at, and which channel a thread is in: their DM
@@ -138,13 +160,22 @@ export type Notice =
   | { kind: "model-unstarted"; defaultModel: ModelId | undefined }
   | { kind: "model-not-shown"; problem: Problem }
   /** A command that is for nobody in a room unless an agent is named before it was written first there: nothing was posted. */
-  | { kind: "name-an-agent"; command: AgentCommand };
+  | { kind: "name-an-agent"; command: AgentCommand }
+  /** `/devices` with something after it that is not how a device is taken back. `command` has its slash. */
+  | { kind: "devices-usage"; command: string }
+  /** A device of the person's was taken back, by its label, or its ID when it has none. */
+  | { kind: "taken-back"; device: string }
+  /** No device of the person's is called `written`. `devices` are the labels of those there are. */
+  | { kind: "no-device"; written: string; devices: string[] }
+  /** Several devices of the person's are called `written`, so it names none of them. */
+  | { kind: "devices-alike"; written: string }
+  | { kind: "not-taken-back"; problem: Problem };
 
 /** An agent in its DM with the person, as `/status` found it. */
 export interface AgentStatus {
   kind: "agent";
   name: string;
-  /** Whether the agent is registered with the gateway. */
+  /** Whether the agent is linked to the gateway. */
   running: boolean;
   /** The version of Shrimpy it runs, when it is running. */
   version: string | undefined;
@@ -156,7 +187,9 @@ export interface AgentStatus {
    * What the thread's session said of itself. Undefined when the agent was not
    * reached or has no session there. `own` says that its model was given to it
    * and is not the agent's default, which `defaultModel` is when the agent was
-   * asked, and it is only asked when the model is the session's own.
+   * asked, and it is only asked when the model is the session's own. `failure`
+   * is why its last turn ended without an answer, and `wakeups` are the
+   * wake-ups it waits on, the soonest first.
    */
   session:
     | {
@@ -165,6 +198,8 @@ export interface AgentStatus {
         own: boolean;
         defaultModel: ModelId | undefined;
         usage: SessionStatus["usage"];
+        failure: TurnFailure | null;
+        wakeups: WaitingWakeup[];
       }
     | undefined;
   /** How many of its other sessions were working. Undefined when it could not be asked. */
@@ -177,24 +212,34 @@ export interface RoomStatus {
   agents: { name: string; running: boolean; working: boolean }[];
 }
 
+/** The person's devices, as `/devices` found them: each one's label, or null when it has none, and its ID. */
+export interface DevicesStatus {
+  kind: "devices";
+  devices: { label: string | null; id: string }[];
+}
+
 /**
- * What `/status` read in a thread, as it stood when it was asked. It is the
- * person's alone, and it goes when they send a message or leave the thread.
+ * What `/status` or `/devices` read in a thread, as it stood when it was
+ * asked. It is the person's alone, and it goes when they send a message or
+ * leave the thread.
  */
 export interface Status {
   /** When it was read, in milliseconds since the epoch. */
   at: number;
-  about: AgentStatus | RoomStatus;
+  about: AgentStatus | RoomStatus | DevicesStatus;
 }
 
 export interface Model {
   /** You, as the chat server says the gateway knows you. Unknown until the console has been let in to chat. */
   me: Member | undefined;
   where: Where;
-  /** The gateway, which says what is running and who is on the roster. */
+  /** The gateway, which says what is linked and who is on the roster. */
   gateway: LinkStatus;
-  /** What it last said, if it has: the programs running, the members, and the version of Shrimpy it runs. */
-  listing: { programs: Registration[]; members: RosterEntry[]; version: string } | undefined;
+  /**
+   * What it last said, if it has: the programs linked to it, the members, the
+   * person's ways in, devices included, and the version of Shrimpy it runs.
+   */
+  listing: { programs: Program[]; members: RosterEntry[]; ways: WayIn[]; version: string } | undefined;
   /** The chat server, where threads live. */
   chat: LinkStatus;
   /** The agent that is selected, once one is. */
@@ -209,12 +254,12 @@ export interface Model {
   thread: ThreadView | undefined;
   /** The live view of the session on show: the one behind the open thread, once the agent has one, or the one being watched. */
   session: SessionView | undefined;
-  /** The sessions of the agent that is selected, as it last listed them and in its order. Undefined until it has. */
+  /** The sessions of the agent that is selected, as it lists them now and in its order. Undefined until it has. */
   sessions: SessionSummary[] | undefined;
   /**
-   * The sessions each running agent said it is working in, by the agent's name,
-   * as it listed them, the last time the list of agents asked. Only an agent that
-   * answered, is reached and is working in some session has an entry here.
+   * The sessions each running agent is working in, by the agent's name, as it
+   * lists them now, while the list of agents is on show. Only an agent that is
+   * reached and is working in some session has an entry here.
    */
   workingSessions: Record<string, SessionSummary[]>;
   /**
@@ -235,7 +280,7 @@ export interface AgentEntry {
   /** The agent's ID in the roster, which chat knows it by. */
   id: string;
   name: string;
-  /** Whether the agent is registered with the gateway now. An agent that is not is still on the roster. */
+  /** Whether the agent is linked to the gateway now. An agent that is not is still on the roster. */
   running: boolean;
   /** The version of Shrimpy it runs, when it is running. */
   version: string | undefined;
@@ -264,9 +309,9 @@ function workingElsewhere(sessions: SessionSummary[], dm: Dm | undefined): Sessi
  * agent said, and in which sessions of the agent's that are none of the person's.
  */
 export function agentEntries(model: Pick<Model, "listing" | "dms" | "workingSessions">): AgentEntry[] {
-  const running = new Map<string, Registration>();
+  const running = new Map<string, Program>();
   for (const program of model.listing?.programs ?? []) {
-    if (program.kind === "agent" && program.memberId !== null) running.set(program.memberId, program);
+    if (program.kind === "agent" && program.member !== null) running.set(program.member, program);
   }
   return (model.listing?.members ?? [])
     .filter((member) => member.kind === "agent")
@@ -282,7 +327,7 @@ export function agentEntries(model: Pick<Model, "listing" | "dms" | "workingSess
         id: member.id,
         name: member.name,
         running: running.has(member.id),
-        version: running.get(member.id)?.version,
+        version: running.get(member.id)?.shrimpy,
         working: working.size > 0,
         sessions: working.size,
         elsewhere: workingElsewhere(said, dm),

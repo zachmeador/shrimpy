@@ -83,7 +83,7 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | Command | What it does |
 |---|---|
 | `up [<agent>...] [--data <dir>] [--listen <host:port>]...` | Start what is missing on this machine and keep it running: the gateway, the chat server and your agents. |
-| `status` | List the programs registered with this machine's gateway, and the members on its roster. |
+| `status` | List the programs linked to this machine's gateway, and the members on its roster. |
 | `login [<provider>]` | Sign your Shrimpy folder in to a model provider, for every agent started there. |
 | `run <agent> "<text>" [--thread <id>] [--no-wait]` | Say something to an agent and print its reply. |
 | `agent init <agent> [--model <provider/id>] [--name <name>]` | Create an agent home. Files that already exist are left as they are. |
@@ -114,8 +114,8 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `members` | List the roster: each member's kind, whether it is an admin, and whether a program is running as it. |
 | `members promote <name>` | Make an agent an admin. |
 | `members demote <name>` | Make an admin agent an ordinary agent again. |
-| `gateway serve --data <dir> [--listen <host:port>]... [--web-port <port>] [--web-dir <dir>]` | Run the gateway in the foreground until it is told to stop. shrimpy up starts it for you. |
-| `chat serve <data-dir>` | Run the chat server in the foreground until it is told to stop, registered with the gateway. shrimpy up starts it for you. |
+| `gateway serve --data <dir> [--listen <host:port>]...` | Run the gateway in the foreground until it is told to stop. shrimpy up starts it for you. |
+| `chat serve <data-dir>` | Run the chat server in the foreground until it is told to stop, linked to the gateway. shrimpy up starts it for you. |
 <!-- commands:end -->
 
 ## The shape

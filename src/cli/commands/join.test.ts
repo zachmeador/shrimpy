@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { formatAddress, writeLink } from "../../contracts/gateway/index.ts";
-import { connectLocalGateway, readMachine } from "../../contracts/gateway/node.ts";
-import { stopAfter } from "../../lib/testing/index.ts";
-import { captureIo, serveGateway, shrimpy, useShrimpyDir } from "../testing/index.ts";
+import { readMachine } from "../../contracts/gateway/node.ts";
+import { captureIo, onTheRoster, serveGateway, shrimpy, useShrimpyDir } from "../testing/index.ts";
 import { joinByLink } from "./join.ts";
 
 /*
@@ -16,9 +15,9 @@ test("join gives up on a gateway that does not answer, says where it tried, and 
   const gateway = await serveGateway(t, ["--listen", "127.0.0.1:0"]);
   const [address] = gateway.listening.listen;
   assert.ok(address);
-  const person = await connectLocalGateway();
-  stopAfter(t, () => person.close());
-  const link = writeLink({ name: null, address, code: (await person.inviteMachine()).code });
+  const person = await onTheRoster(t);
+  const { code, fingerprint } = await person.inviteDevice();
+  const link = writeLink({ name: null, address, code, fingerprint });
   const folder = useShrimpyDir(t);
   // A process that is stopped takes connections and answers none of them. Killing it, as the test's end does, works all the same.
   process.kill(gateway.listening.pid, "SIGSTOP");

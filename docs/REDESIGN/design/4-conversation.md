@@ -97,11 +97,9 @@ The provider interface with a fake provider is under Not built yet below. The wa
 
 **Not built yet**
 
-*Durable 1.5.2 in the agent,* a step of the move to Pi 1.5.2 in the [order of work](../PLAN.md#order-of-work).
+*What the move to Pi 1.5.2 left in the agent:*
 
-- Pi's restart limit in place of the two-crash rule, with a failed receipt for a turn it ends.
-- Messages behind a failed turn withdrawn by Pi, their skipped receipts carrying the reason.
-- After the move: whether Pi's `submit(tx, draft)`, public since 1.5, makes the handover one commit, keeping the feed's order.
+- Whether Pi's `submit(tx, draft)`, public since 1.5, makes the handover one commit, keeping the feed's order.
 
 *Hearing a thread while working in it,* under Next in the [order of work](../PLAN.md#order-of-work), after the move to Pi 1.5.2. Your idea of 2026-10-06: what anyone says in a thread reaches an agent working there at its next step, as something it heard, and wakes nobody. An idle agent gets it as today, in what was said since it last looked. Decided on 2026-11-14, with the move first: "i agree but..... why wouldn't we just do the pi update first?"
 
@@ -119,7 +117,7 @@ The provider interface with a fake provider is under Not built yet below. The wa
 | A message during the last call to the model | It is placed after the answer, so the turn that just ended never reads it. It stays in the session, and the next turn has it above its input. | Nothing. It is neither lost nor repeated. |
 | How much | A busy thread could pour into a working agent. | The backlog's limit: 20,000 characters heard in one turn, then one line that says more was said and that `read_messages` shows it. |
 | A session that went idle meanwhile | The write is appended and wakes nobody. | Nothing. |
-| A Pi edge | A write to an idle session whose inbox still holds inputs left by a failed turn could place them and start a turn. | Gone once Pi withdraws what a failed turn leaves, which the move brings, and the agent writes only to a busy session. |
+| A Pi edge | A write to an idle session whose inbox still holds inputs could place them and start a turn. Since the move Pi withdraws what a failed turn leaves, but not what a run leaves that Pi ended as faulted or orphaned. | The agent writes only to a busy session, so the edge is left to a session that went idle meanwhile after such a run. |
 | A room's wake policy | The policy says what wakes an agent. Hearing wakes nobody. | Hear in every room the agent works in, whatever its policy. A choice per room can come if a room proves too loud. |
 
 *The conversation model: the provider interface with a fake provider,* kept as an idea, as [the plan's direction](../PLAN.md#direction) has it, under Later in the [order of work](../PLAN.md#order-of-work). What follows is kept as the idea was written. If a provider is ever written, it takes nothing from old Shrimpy's code.

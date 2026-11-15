@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { membersNamed, reachChat, roomNamed, roomNameWritten } from "../talk/index.ts";
+import { contextOf, membersNamed, onChannel, reachChat, roomNamed, roomNameWritten, valueOf } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderRooms } from "./render-rooms.ts";
@@ -23,7 +23,7 @@ const rooms: Command = {
 
     const reached = await reachChat(io);
     try {
-      const mine = (await reached.connection.chat.channels()).filter((channel) => channel.kind === "room");
+      const mine = reached.chat.channels.value.filter((channel) => channel.kind === "room");
       if (mine.length === 0) {
         io.out("You are in no rooms. Make one with: shrimpy rooms new <name> [<member>...]");
         return 0;
@@ -32,7 +32,7 @@ const rooms: Command = {
         mine.map(async (room) => ({
           room,
           // A room is as new as its newest thread, and every room has a main thread.
-          updatedAt: Math.max(...(await reached.connection.chat.threads(room.id)).map((thread) => thread.updatedAt)),
+          updatedAt: Math.max(...(await onChannel(reached.client, room.id, (held) => held.threads.value)).map((thread) => thread.updatedAt)),
         })),
       );
       for (const line of renderRooms(listing.sort((a, b) => b.updatedAt - a.updatedAt))) io.out(line);
@@ -65,10 +65,7 @@ const roomsNew: Command = {
     const reached = await reachChat(io);
     try {
       const members = membersNamed(reached.members, named);
-      const room = await reached.connection.chat.createRoom(
-        name,
-        members.map((member) => member.id),
-      );
+      const room = valueOf(await reached.chat.createRoom({ name, members: members.map((member) => member.id) }, contextOf()));
       io.out(`Made the room #${room.name} with ${listed(room.members.map((member) => member.name))}.`);
       return 0;
     } finally {
@@ -94,13 +91,12 @@ const roomsAdd: Command = {
     const reached = await reachChat(io);
     try {
       // The person adds to any room, one they only read included, which is how they walk into it. An agent reads no others.
-      const { chat } = reached.connection;
-      const room = roomNamed([...(await chat.channels()), ...(await chat.readOnlyChannels())], written);
+      const { chat } = reached;
+      const room = roomNamed([...chat.channels.value, ...chat.readOnlyChannels.value], written);
       const members = membersNamed(reached.members, named);
       const there = new Set(room.members.map((member) => member.id));
-      await reached.connection.chat.addMembers(
-        room.id,
-        members.map((member) => member.id),
+      await onChannel(reached.client, room.id, async (held) =>
+        valueOf(await held.addMembers({ members: members.map((member) => member.id) }, contextOf())),
       );
       const newcomers = members.filter((member) => !there.has(member.id)).map((member) => member.name);
       const before = members.filter((member) => there.has(member.id)).map((member) => member.name);

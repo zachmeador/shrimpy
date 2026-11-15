@@ -1,4 +1,4 @@
-import type { Context } from "@earendil-works/chord";
+import type { Context } from "@earendil-works/chord/context";
 import type { DocumentReader } from "@earendil-works/pi-durable";
 import { type SessionRecord, SessionsDoc, triggerSession } from "./documents.durable.ts";
 

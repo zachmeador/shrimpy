@@ -2,67 +2,59 @@
 
 Where the code falls short of the [design](README.md): promises it doesn't keep yet, and rough edges that are known. Work that hasn't started isn't listed here: each design file has its own under "Not built yet". A shortfall whose fix is designed stays here until the fix is built, and says only what falls short. What was built and decided, by date, is in the [log](history/LOG.md).
 
-As of 2026-10-08. An item leaves when it is fixed or when the design changes to match the code. Before each review pause, every item is fixed, raised with the owner or left here on purpose.
+As of 2026-11-15. An item leaves when it is fixed or when the design changes to match the code. Before each review pause, every item is fixed, raised with the owner or left here on purpose.
 
 ## Where the code trails the plan
 
 ### The three programs and what each owns
 
+- Shrimpy on Pi 1.5.2 has run only in its tests, which pass on Linux with Node 22.23. It hasn't run for real, or on macOS, so every run for real named below was of the build on Pi 1.0.0.
 - After a crash nothing shows a notice, though the plan's row on recovery asks for one. Only a turn that is given up reaches the sender, as a failed receipt.
-- A crash loop while an event is being handed over, or while chat is being told, is never broken: only a turn that was underway counts.
-- Commands that go through the gateway warn about a version mismatch. Programs don't compare versions when they connect, and `sessions` and `agent status` don't check.
+- Pi counts every task that is running when the agent ends uncleanly, so five unclean ends during one chat outage end the tasks waiting on chat: a reply waiting to be posted is lost, with no receipt; a question whose time is up stays open until a receipt arrives; and a trigger has no task until the agent next reads its files.
+- A turn at Pi's limit may make one more model call or start one more tool before the agent stops it after the restart. The session's status then says `aborted`, as Pi records the stop, and the receipt says the agent stopped unexpectedly too many times.
+- The commands warn when a program they reach runs another version of Shrimpy, and say that programs are meant to be upgraded together, though [the contracts](design/2-contracts.md) let a release reach machines one at a time unless it changes the Pi packages or contracts on both sides of a link. No test covers the warning.
 - Untried: power loss, a full disk, log damage, and a kill during a tool commit.
 - The owner lock is untried on network file systems and sandbox mounts.
-- Two chat servers can briefly hold one name at a restart, so the console picks the newest.
 - `startIntake` and `stopIntake` remain in `agent/chat/`, and `host/` exports an owner lock nothing uses.
 
 ### The contracts between them
 
-- Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes, refusals included.
 - Renaming and archiving a thread carry no version, though the plan says they are versioned set-to-value updates, so an old retry could overwrite a later decision.
 - Edits, deletes and reactions carry no request ID, so a provider replaying an old edit after a newer one would undo it.
 - Only the author edits or deletes, checked against the caller, so a provider acting for a person it maps has no way to.
 - The chat server's log of events never shrinks, and nothing shows a message's earlier versions.
-- A skipped receipt carries no reason, so the sender of a message skipped behind a failed turn isn't told that writing again brings it back.
-- The terminal polls the gateway's list and your thread lists every two seconds, because the contracts have no subscription for them. The agent's client has no detach and takes no abort signal, and a hung connection is only noticed when something is sent.
-- The agent's own service is named `SessionDirectory`, though it now also reloads the home and lists and fires triggers.
-- The chat server's `head` is server-wide, so it shows how many messages there are in channels the caller isn't in.
+- A message waiting behind a turn that Pi's restart limit ended is withdrawn by the stop the agent makes then, so its skipped receipt has no reason and `shrimpy run` exits 130 for it, as if someone had stopped it. Pi records both withdrawals the same way.
+- Each post or read by an agent holds the thread's `Thread` for the call, which brings up to its newest 200 messages each time.
 
 ### Identity and addressing
 
-- **The gateway still finds you by the OS account it runs as, and names you for it,** where [identity](design/3-identity.md) has you as the one person, found as that, with a name of your own. On an account made for Shrimpy the name is wrong and takes the name an agent would have: the gateway under an account called shrimpy made a person called shrimpy, so no agent could be, and the name was changed once by hand in the roster's file with the gateway stopped. A gateway whose data moves to an account with another name finds no person for it and makes a second, and your DMs with the agents stay with the first.
-- Nothing refuses a second person on the roster: one added to the file by hand could read everything too.
-- A rename reaches the chat server only when that member next enters chat. The log of events doesn't help: an event names a message.
-- A command run from an agent's shell prints a gateway refusal with no advice, where the agent's own link now adds what to do.
 - The terminal reaches agents by name only, so with the gateway down it can't watch one. The `sessions` commands by a home's path can.
 - A command's `--agent` takes the name of a home's folder, or a path, and not the name on the roster. For an agent whose name in `agent.json` differs from its folder, the line the terminal prints about stopping its work names an agent the command can't find.
-- A promotion or demotion reaches an agent's own check only on connections made after it.
 - From an agent's shell, `agent init`, `agent serve` and `up` skip the admin check, and `status` lists no admins.
 
 ### The conversation model
 
 - A message that joined a running turn is marked answered by that turn's one reply, whether or not the reply speaks to it. You took that cost on 2026-10-05 with the rule that every message a person writes joins.
-- In a room, who a message was for and the names in what was said since the agent last looked still come from what the agent remembers of the room. A member who joined and has not been mentioned is missing from them until a mention makes the agent ask again. The opening of an input, which says who is in the room, is asked afresh and has no such gap.
 - When the chat store is replaced, an agent keeps its sessions behind the old store's threads, and goes on with what was unfinished in them. A wake-up that was waiting there, or a turn that was cut short, runs once more, calls the model, and then can't post: chat refuses the mark on the thread and the reply, and the agent reports each. It ends by itself. The agent knows the store was replaced, so it could stop that work and say so once.
 - After a fresh start an agent has forgotten where it last looked, so its first wake in a room shows up to 20,000 characters of history, from before it joined included.
 - An edit that removes a mention takes it from the original post too, for an agent that reads the feed afterwards, since an event shows its message as it now stands.
 - A message recorded in the instant between a skipped message's receipt and the session noting it is handed over without the skipped one, which then shows one turn late.
-- The message tools have no timeout, so a chat server that hangs holds a turn until someone stops it.
-- A hosted thread's view stays in the chat server's memory until the server stops.
+- Pi takes back the inputs waiting behind a turn that fails, but not those behind a run it ends as faulted or orphaned, so they wait for the session's next input.
+- An agent tells Pi storage from before the move by the version Pi keeps in its own `durable_schema` table, read before Pi opens the file, since Pi has no way to open storage without bringing it up to date. Pi doesn't promise that table.
+- The message tools have no timeout, so a chat server that stays linked and never answers a call holds a turn until someone stops it.
 - Input order in a session leans on Pi's task numbering, which Pi doesn't promise.
 - Three quick reactions to one of an agent's messages can get two answers.
 
 ### The home
 
-- Pi's storage keeps every finished task and every entry, so the file on disk only grows: about a megabyte a day for a trigger that fires every minute, and little for one that fires hourly. Compaction bounds what a model is shown, not what is stored. You judged it no concern for now on 2026-10-05. The one cost today is that listing triggers scans every finished task.
+- Pi's storage keeps every finished task and every entry, so the file on disk only grows: about a megabyte a day for a trigger that fires every minute, and little for one that fires hourly. Compaction bounds what a model is shown, not what is stored. You judged it no concern for now on 2026-10-05. The one cost today is that the list of triggers reads the task of every input the agent has taken up, and while a client holds the list it reads them all again at each commit that touches a trigger or an occurrence.
 - Nothing prunes the finished task that each event leaves in the agent's records, nor a wake-up's finished sleeper, and each `check_back` call scans the session's sleepers.
 - The facts that come with a message are fixed when it is handed to its session, not when the session takes it up. Nothing differs yet, because each fact is fixed for a message. Pi has no hook for the moment input is taken up, so a fact that changes while a message waits needs a capture of its own.
 - An agent reading its files again by itself has run for real on your Linux machine, in a home on a local disk and, with nothing changed to read, in homes on the folder shared from the machine's host. A `triggers/` folder that is there and can't be listed ends every trigger. Each change to a context note costs every session one miss of the prompt cache at its next request. The look includes a file's mode, so a file whose permissions are put right is read again.
 - A reading of the model again, and a session's own model, have run for real between two model servers on a LAN, and not with a provider's sign-in. Not tried: a server that a `models.json` no longer declares while a request to it runs, two reloads at once, a request running while a session's model is set, and a reload that fails halfway through moving the sessions. The models an agent says it can use are the ones Pi lists as available, which checks more than the start does, so the home's own model can be missing from the list.
 - Skills are trails only. `/skill:name`, templates, required-tool filtering and choosing skills for one agent aren't built.
-- The skills name what doesn't exist yet and say so: a setup command, OAuth sign-in and a command that removes an agent.
+- The skills name what doesn't exist yet and say so: a setup command and a command that removes an agent.
 - One real sign-in has run: you signed your Linux machine's folder in to an OpenAI subscription on 2026-10-08, an agent there runs on its model, and you said "it works fine". Untried: any other provider's sign-in, a renewal that anyone watched, and asking at a terminal in the tests.
-- `shrimpy login` signs in to OpenAI's ChatGPT subscription under the name Pi, which pi-ai 1.0.0 gives every app.
 - Nothing lists what a folder is signed in to, or signs it out: an entry is removed from `providers/auth.json` by hand. The command signs in the folder and never one home, can't sign in to a server that a `models.json` declares, and doesn't open a browser. When it asks for a model it lists every model the provider has, whether or not the account can use it.
 - A sign-in that is renewed at the provider and not saved, because the process died in between, is lost, and the folder has to be signed in again. A change to the credentials waits up to 30 seconds for another process to let go of the file, and that limit has no test. An `auth.json` that is a symbolic link is replaced by a plain file at the first renewal. A Shrimpy folder that the sign-in command makes is private to its owner, and one that `agent init` makes is not.
 - `models.json` takes the `openai-completions` API only, and refuses other APIs and keys it doesn't know.
@@ -71,9 +63,9 @@ As of 2026-10-08. An item leaves when it is fixed or when the design changes to 
 ### The network
 
 - An agent apart from the gateway is paired with three commands: `shrimpy up --listen`, `shrimpy invite` and `shrimpy join`. Nothing lists the invitations that are out or takes one back, nothing shows where a gateway listens but its own start, and nothing makes it forget an address but deleting the file it keeps them in. `--listen` given to `up` when a gateway is already running only warns.
-- An agent apart is reached by its name through the gateway, by the code the terminal uses, and no command reaches it: `shrimpy sessions` and `triggers` find an agent by its home's folder, and `shrimpy status` looks only on the machine it runs on. Two messages still say to start an agent apart with `shrimpy agent serve` on the gateway's machine, where it has no home. The browser's entry can't reach an agent apart. Nothing limits how many calls wait for one agent.
-- A machine of your own comes in with `shrimpy invite` and `shrimpy join`, and keeps its place in `machine.json` in its Shrimpy folder. A folder that has joined as you and also holds agents that belong to no gateway is at odds with itself: `shrimpy up` there starts a gateway and a chat server for them, and the commands that talk reach the gateway elsewhere and find nobody. On such a machine a command waits on a gateway that takes a connection and never answers for as long as the network does. The terminal's words still say "this machine's gateway".
-- It has run for real since 2026-10-07 on a Linux machine of yours: a gateway, a chat server and two agents under one account, a third agent under another account of that machine that joined over loopback, each account's kept running by a service that `shrimpy install` set up, and all on model servers on the LAN. Before that, a gateway on a Mac with Node 26 was paired with an agent, and then a machine of your own, on Linux with Node 22, through an SSH tunnel and straight over a tailnet. The tests have run on Linux, on Ubuntu 24.04 with Node 22.23, where 666 of 676 passed and three failed only for want of a dependency that was copied and not installed.
+- An agent apart is reached by its name through the gateway, by the code the terminal uses, and no command reaches it: `shrimpy sessions` and `triggers` find an agent by its home's folder, and `shrimpy status` looks only on the machine it runs on. Two messages still say to start an agent apart with `shrimpy agent serve` on the gateway's machine, where it has no home.
+- A machine of your own comes in with `shrimpy invite` and `shrimpy join`, and keeps its place in `machine.json` in its Shrimpy folder. A folder that has joined as you and also holds agents that belong to no gateway is at odds with itself: `shrimpy up` there starts a gateway and a chat server for them, and the commands that talk reach the gateway elsewhere and find nobody. The terminal's words still say "this machine's gateway".
+- It has run for real since 2026-10-07 on a Linux machine of yours: a gateway, a chat server and two agents under one account, a third agent under another account of that machine that joined over loopback, each account's kept running by a service that `shrimpy install` set up, and all on model servers on the LAN. Before that, a gateway on a Mac with Node 26 was paired with an agent, and then a machine of your own, on Linux with Node 22, through an SSH tunnel and straight over a tailnet.
 - `shrimpy install` and `uninstall` have run for real on Linux only, on your machine: a first install, an update of a unit written by hand and an uninstall, for the account with the gateway and for one whose agent belongs to a gateway elsewhere. Not run for real: lingering that takes an administrator, and everything on macOS, where the LaunchAgent passes `plutil -lint` and no `launchctl` command has run.
 - A service gets the `PATH` of the shell that ran `shrimpy install`, whatever that is. A command sent over SSH with no login shell has a shorter one than a login of the same account: on your Linux machine it has no `~/.local/bin`, where the `shrimpy` command is, so a service installed that way would leave its agents' shells without the command.
 - A service gets its folder and nothing about the runtime directory, and an account has one runtime directory. So services for two folders of one account would share one gateway: the second finds the first's and starts only its agents.
@@ -81,12 +73,12 @@ As of 2026-10-08. An item leaves when it is fixed or when the design changes to 
 - While `shrimpy up` keeps a folder running: an agent that someone else started is asked whether it still runs every two seconds. A home with no gateway of its own that appears in a folder whose agents all belong to a gateway elsewhere is started with no gateway to find, until `up` is started again.
 - Not tried: the gateway ending while `up` follows the folder, though the chat server ending is in the tests, and a third stop request while an agent is starting.
 - `shrimpy members`, the commands that talk and the terminal still say to start Shrimpy with `shrimpy up` when they find no gateway, which is wrong on a machine whose agents all belong to a gateway elsewhere. `shrimpy status` says where that gateway is.
-- A stop of an agent apart with a turn running and its gateway dead has not been tried: an idle one ends in about a second. The quarter-of-a-minute limits on connecting and on an answer ran at their real length only by hand, between two machines.
-- A gateway that runs another version than the command that joins is warned of, and that warning has no test. The browser's entry is not pinged. A single frame that takes longer than half a minute to arrive could get its connection let go of.
-- Five wrong codes end the joins on one connection, and nothing slows wrong codes across many connections or limits how many connections nobody has signed in on.
-- Over a network, an agent that restarts is turned away until its old connection times out, since an agent has one live body.
+- A stop of an agent apart with a turn running and its gateway dead has not been tried: an idle one ends in about a second. The quarter of a minute a dial waits for the gateway's answer hasn't run at its real length.
+- A single message that takes longer than half a minute to arrive could get its link closed by Chord's heartbeat.
+- A connection makes one try at a code, and nothing slows wrong codes across many connections or limits how many connections wait to say their hello.
+- Over a network, an agent that restarts is turned away until Chord's heartbeat closes its old link, since an agent has one live body.
+- The gateway's route to a program leans on Chord calling `resolve` synchronously, which Chord doesn't promise. With no link waiting, `resolve` throws at once, so the route has settled before a program that links next retries it, since Chord ignores a `retry` while a `resolve` runs.
 - The runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway a service started and a command typed in a shell may not look in the same place. On your Linux machine they did.
-- The browser entry serves dotfiles, and has no fallback page and no cache or security headers.
 - Untried: an agent apart that stops answering in the middle of a request, and many clients asking for one agent.
 
 ### What an agent does without being asked
@@ -98,24 +90,23 @@ As of 2026-10-08. An item leaves when it is fixed or when the design changes to 
 - If an agent is killed between posting a question and keeping it, the question is not kept, and its answer wakes a session behind the question's thread like any message. It wasn't hit in a hundred runs.
 - A check's standard error goes to a file in the home's `runtime/checks/`, because Pi hands a command's output and errors over as one stream. An engine that kept them apart would need no file.
 - A second run of a trigger by hand, while the check of the first is running, starts a second check. `triggers show` has no row for a check run by hand until it has ended.
-- Nothing shows a wake-up that is waiting: not `sessions list`, `sessions read` or the terminal, so nothing says that `/stop` written in its thread cancels it, which it does, and so does `shrimpy sessions stop`.
-- A failed or given-up wake-up has no receipt and is reported only on standard error.
+- A wake-up that fails or is given up has no receipt, and is reported on standard error. A turn it started that fails shows in its session's status, as any turn does, until the next one starts.
 - Untried: a real model using `ask_agent`. The spike's plumbing held through kills and chat outages with scripted models, so whether a small model asks, ends its turn and waits is untested.
 
 ### Using it
 
-- `/status` in the terminal shows what the contracts give. It doesn't show how full the context is, a wake-up that is waiting or a question that is open, the thinking level, or what went wrong at the provider last, and in a room it says only which agents are running and working. It is a command only as the whole text, so `/status now` is a message.
+- `/status` in the terminal shows what the contracts give. It doesn't show how full the context is, a question that is open or the thinking level, and in a room it says only which agents are running and working. It is a command only as the whole text, so `/status now` is a message.
 - The list of commands is the editor's own. The line of keys doesn't change while it is open, so the keys of the list aren't named. It doesn't open after a mention at the start, as in `@scout /st`, and on a terminal of 42 columns or fewer it shows the names without their lines. It, `/status` and `/model` are tested on a fake terminal with the real editor, and were driven by a script in a pseudo-terminal, `/model` on your Linux machine too, over SSH with the model servers on the LAN. You have used them at a real terminal since 2026-10-08.
 - `/model`: its list shows a model as one label, its ID and then its name, since the editor cuts a first column at 30 characters. `default` is listed even when the agent can't use that model now. After a burst of keys, Esc or Tab, the space after `/model` opens no list until the next letter, and no list opens after a mention, so `@scout /model` is written by hand. Until something is said in a thread that was started with a command, its title reads "(no messages yet)". Not tried: more than a handful of models, a narrow terminal, and an agent that doesn't answer when asked for its models, which is waited for three seconds.
 - A command that is for nobody, as `/model` with no mention in a room is when a client other than the terminal posts it, gets no answer and no receipt: nothing tells whoever wrote it. A session that `/model` made has no place in the list of sessions until its next message. Two inputs handed to a session before its next answer both say that the model changed. An answer that failed doesn't count as the last answer. Not tried: an agent that goes down between changing a model and leaving the receipt, and two inputs handed over at once.
 - `/stop` is a message, so it takes the chat server: with chat down the terminal can't stop an agent, and `shrimpy sessions stop` can.
 - On an agent's screen a trigger's own session has no time and comes last, since a session's summary in the agent's contract carries none. "With you" there means your DM with the agent, so a room you are both in shows only under everything. When the person leaves the terminal from a thread they only read, the line about work that goes on says to write `/stop`, which they can't there. Not tried: Left and Right on a terminal that speaks the Kitty keyboard protocol, a list longer than the screen, and an agent on another machine.
-- While the list of agents is on show the terminal holds a connection to each running agent, and asks each for its sessions every two seconds: six sockets with four agents. An agent apart from the gateway costs a call the gateway makes for it, held as long as the list shows. When the person leaves the terminal, the line about work that goes on names only their own threads.
-- The terminal asks chat for the threads of every channel the person only reads, every two seconds and on every screen, as it does for their rooms: with n agents that can be n(n−1)/2 DMs. A room the person only reads shows what was said and no agent's work, where a thread opened from an agent's screen shows that agent's. `shrimpy threads` can't name a DM between two agents, so from a shell its thread's ID comes from `shrimpy sessions list`.
+- When the person leaves the terminal, the line about work that goes on names only their own threads.
+- The terminal holds every channel the person only reads, with its threads, on every screen, as it does their own: with n agents that can be n(n−1)/2 DMs. A room the person only reads shows what was said and no agent's work, where a thread opened from an agent's screen shows that agent's. `shrimpy threads` can't name a DM between two agents, so from a shell its thread's ID comes from `shrimpy sessions list`.
 - Bare `shrimpy` opens the list of agents and rooms, or your threads with the only agent when you are in no room. It doesn't remember your latest thread, start programs on demand, or mark what arrived while you were away.
 - `pi-tui`'s regular mode clears the terminal's scrollback on some repaints, which the old terminal didn't do. The terminal can't scroll back past the newest 200 messages of a thread, or the newest 200 items of a session it is watching, and has no scrolling keys of its own.
 - In a room's thread an agent's work isn't shown as it happens. Its session for that thread can be watched from the agent's screen, and `/stop` written in the thread stops the agents it is for.
-- Where a session is has two wordings: `shrimpy sessions list` says "DM with scout (an agent)", and the terminal says "DM with scout", and "your DM" for the person's own. `shrimpy sessions list` is in the order the agent made its sessions, which the contract doesn't promise, and so are the triggers' rows on an agent's screen. An agent's sessions are asked for only while its screen is on show, so the title over a session that is watched keeps the place it had.
+- Where a session is has two wordings: `shrimpy sessions list` says "DM with scout (an agent)", and the terminal says "DM with scout", and "your DM" for the person's own. `shrimpy sessions list` is in the order the agent made its sessions, which the contract doesn't promise, and so are the triggers' rows on an agent's screen.
 - The terminal now ignores the release of a key, which a terminal that speaks the Kitty keyboard protocol reports and which made every press count twice there. It was fixed from reading `pi-tui` and a test, and hasn't been tried on such a terminal.
 - `threads #ops` needs quotes in a shell, or the room's name is taken for a comment and dropped.
 - `--no-wait` prints the IDs to follow up with, but no command waits on one.
@@ -126,7 +117,7 @@ As of 2026-10-08. An item leaves when it is fixed or when the design changes to 
 ### Tests
 
 - Promises in the first build's Prove list that are built and have no test: a real-provider turn uses only the shell tool, not the file tools; a request ID reused with different content is tested in the chat server and not at the agent; and nothing asserts what becomes of a shell child that outlives a killed owner.
-- The terminal client's tests still run on a stand-in for the chat server, some 300 lines, that repeats two of its rules. The agent's and the CLI's tests run on the real one.
-- Small duplicates: a pause helper in `agent/chat/` and in `lib/retry`, a helper for talking in tests in `agent/testing/` and `cli/testing/`, and two fake terminals, in `cli/testing/` and the console's `draw/testing/`.
-- A test that holds a scripted model at a gate and fails before it lets go hangs its run until the suite's timeout. The tests of a busy agent and of questions let go on the way out, and the wake-ups' test doesn't.
-- Some tests assert that nothing happened after a pause, where no later event can be waited for: about a dozen, in the console's network and state tests, the agent's chat and stop tests and the registration tests. A few bound how long something takes, which could trip on a loaded machine. One has: on 2026-10-08 the test that an agent apart says once when it loses its gateway failed once, with "Byte transport closed", while other builds had the machine's load between 20 and 40, and passed alone six times of six.
+- No test covers a link that goes silent, which Chord's heartbeat closes after half a minute, or `run` stopped while its message is being sent, which needs a chat server that takes a post and never answers.
+- Small duplicates: a pause helper in `agent/chat/` and in `lib/retry`, chat's own `refusal/` and its `live` beside `lib/refusal` and `lib/follow`, a helper for talking in tests in `agent/testing/` and `cli/testing/`, and two fake terminals, in `cli/testing/` and the console's `draw/testing/`.
+- A test that holds a scripted model at a gate and fails before it lets go hangs its run until the suite's timeout. The tests of a busy agent, of questions, of wake-ups and of triggers let go on the way out, and some others that hold one in the test's own process don't.
+- Some tests assert that nothing happened after a pause, where no later event can be waited for: about a dozen, across the console's, the agent's and the CLI's tests. A few bound how long something takes, which could trip on a loaded machine.

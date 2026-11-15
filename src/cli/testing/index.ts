@@ -3,7 +3,7 @@
  * on, a model that speaks OpenAI's protocol on a local port, an agent whose
  * side of chat a test scripts, a gateway and chat server to talk through,
  * `shrimpy up` running, also with pauses of a test's own, waiting for a program
- * to register with the gateway, the CLI itself as a child process, including
+ * to link to the gateway, the roster as you see it and roles changed on it, the CLI itself as a child process, including
  * the commands that serve a program, the shell of an agent that runs it, the
  * finding of `shrimpy` command lines in a text, free loopback addresses to
  * listen on, and a Shrimpy folder and a home directory of their own for every
@@ -18,7 +18,7 @@ export { useShrimpyDir } from "./folder.ts";
 export { declareLocalModel, localProvider } from "./home.ts";
 export { type CapturedIo, captureIo } from "./io.ts";
 export { type ModelRequest, type ModelServer, startModelServer } from "./model-server.ts";
-export { untilRegistered } from "./registered.ts";
+export { untilLinked } from "./linked.ts";
 export {
   type Outcome,
   type Posted,
@@ -41,6 +41,7 @@ export {
   shrimpy,
   shrimpyInBackground,
 } from "./process.ts";
+export { type OnTheRoster, onTheRoster, setAdmin } from "./roster.ts";
 export { type AgentShell, startAgentShell } from "./shell.ts";
 export { FakeTerminal } from "./terminal.ts";
 export { type Talk, talkTo } from "./talk.ts";

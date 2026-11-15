@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, writeFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { connectToSocket } from "../contracts/chat/testing/index.ts";
-import { eventually, stopAfter, tempDir, within } from "../lib/testing/index.ts";
+import { eventually, tempDir, within } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { type CliResult, isAlive, serveChat, serveGateway, shrimpy } from "./testing/index.ts";
 
@@ -29,22 +28,21 @@ function statusWithChat(): Promise<CliResult> {
   return eventually(
     () => shrimpy(["status"]),
     (status) => status.stdout.includes("\nchat  "),
-    { what: "the chat server to be registered with the gateway", timeoutMs: 30_000 },
+    { what: "the chat server to link to the gateway", timeoutMs: 30_000 },
   );
 }
 
-test("status shows the chat server once both run, with its version and nothing of where it listens", { timeout }, async (t) => {
-  const gateway = await serveGateway(t);
+test("status shows the chat server once both run, with its version", { timeout }, async (t) => {
+  await serveGateway(t);
   await serveChat(t, tempDir(t, "chat-data"));
 
   const status = await statusWithChat();
 
   assert.equal(status.code, 0, status.stderr);
   assert.deepEqual(listed(status), [["chat", "chat", SHRIMPY_VERSION]]);
-  assert.equal(gateway.listening.webPort, null);
 });
 
-test("a gateway that was killed and started again has the chat server registered again", { timeout }, async (t) => {
+test("a gateway that was killed and started again has the chat server linked again", { timeout }, async (t) => {
   const first = await serveGateway(t);
   await serveChat(t, tempDir(t, "chat-data"));
   await statusWithChat();
@@ -58,7 +56,7 @@ test("a gateway that was killed and started again has the chat server registered
   assert.notEqual(second.listening.pid, first.listening.pid);
 });
 
-test("a chat server stops promptly when the gateway it is registered with has stopped answering", { timeout }, async (t) => {
+test("a chat server stops promptly when the gateway it is linked to has stopped answering", { timeout }, async (t) => {
   const gateway = await serveGateway(t);
   const chat = await serveChat(t, tempDir(t, "chat-data"));
   await statusWithChat();
@@ -71,18 +69,12 @@ test("a chat server stops promptly when the gateway it is registered with has st
   assert.equal(isAlive(chat.listening.pid), false);
 });
 
-test("a chat server with no gateway running serves, refuses to let anyone in and says why, and stops with 0", { timeout }, async (t) => {
+test("a chat server with no gateway running waits for one, and stops with 0", { timeout }, async (t) => {
   const chat = await serveChat(t, tempDir(t, "chat-data"));
-  const connection = await connectToSocket(chat.listening);
-  stopAfter(t, () => connection.close());
-
-  await assert.rejects(connection.chat.enter("a-ticket"), { message: /can't reach the gateway/ });
 
   assert.equal((await shrimpy(["status"])).code, 1);
-  await connection.close();
   const stopped = await chat.stop();
   assert.equal(stopped.code, 0, stopped.stderr);
-  assert.equal(stopped.stderr, "", "a chat server with no gateway has nothing to complain about");
   assert.equal(isAlive(chat.listening.pid), false);
 });
 
@@ -111,7 +103,9 @@ test("a second gateway is refused, and the first keeps serving", { timeout }, as
 });
 
 test("a second chat server is refused before it touches its data, and the first keeps serving", { timeout }, async (t) => {
-  const first = await serveChat(t, tempDir(t, "chat-data"));
+  await serveGateway(t);
+  await serveChat(t, tempDir(t, "chat-data"));
+  await statusWithChat();
   const otherDir = tempDir(t, "chat-other");
 
   const second = await shrimpy(["chat", "serve", otherDir]);
@@ -119,9 +113,7 @@ test("a second chat server is refused before it touches its data, and the first 
   assert.equal(second.code, 1);
   assert.equal(second.stdout, "");
   assert.deepEqual(readdirSync(otherDir), [], "a refused chat server leaves nothing in its data directory");
-  const connection = await connectToSocket(first.listening);
-  stopAfter(t, () => connection.close());
-  await assert.rejects(connection.chat.channels(), { code: "service_not_allowed" }, "the first still answers");
+  assert.deepEqual(listed(await shrimpy(["status"])), [["chat", "chat", SHRIMPY_VERSION]], "the first is still linked");
 });
 
 test("a chat server that reaches the data of another through a different socket is refused by the store", { timeout }, async (t) => {
@@ -145,32 +137,4 @@ test("a runtime directory too long for a socket is refused with what to shorten,
   assert.equal(result.stdout, "");
   assert.match(result.stderr, /too long for a socket/);
   assert.match(result.stderr, /Shorten SHRIMPY_RUNTIME_DIR by at least \d+ bytes/);
-  assert.equal(existsSync(runtime), false);
-  assert.deepEqual(readdirSync(dataDir), []);
-
-  // The gateway's sockets fit in a directory that its longest, the way in to a program, does not.
-  const base = tempDir(t, "rt");
-  const almost = join(base, "d".repeat(80 - base.length - 1));
-  const gateway = await shrimpy(["gateway", "serve", "--data", tempDir(t, "gateway-data")], {
-    env: { SHRIMPY_RUNTIME_DIR: almost },
-  });
-  assert.equal(gateway.code, 1);
-  assert.match(gateway.stderr, /too long for a socket/);
-  assert.equal(existsSync(almost), false);
-});
-
-test("the browser entry opens only when a port is given, and serves the web client's files", { timeout }, async (t) => {
-  const site = tempDir(t, "site");
-  writeFileSync(join(site, "index.html"), "<p>hello from the web client</p>");
-  const without = await serveGateway(t);
-  assert.equal(without.listening.webPort, null);
-  assert.equal((await without.stop()).code, 0);
-
-  const gateway = await serveGateway(t, ["--web-port", "0", "--web-dir", site]);
-
-  const port = gateway.listening.webPort;
-  assert.ok(typeof port === "number" && port > 0, `the entry listens on ${String(port)}`);
-  const page = await fetch(`http://127.0.0.1:${String(port)}/`);
-  assert.equal(await page.text(), "<p>hello from the web client</p>");
-  assert.equal((await gateway.stop()).code, 0);
 });

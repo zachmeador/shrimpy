@@ -1,4 +1,5 @@
-import type { SessionItem, SessionView } from "../../contracts/agent/index.ts";
+import type { SessionItem } from "../../contracts/agent/index.ts";
+import type { SessionView } from "./attach.ts";
 
 /** The session has answered: it is idle and its last item is a finished answer. */
 export function answered(view: SessionView): boolean {

@@ -164,7 +164,7 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         post.threadId,
       );
       refreshPreview(sql, post.threadId);
-      report({ kind: "event", threadId: post.threadId });
+      report({ kind: "event", channelId: thread.channel_id, threadId: post.threadId });
       return loadMessage(sql, posted.seq);
     },
     message: (id) => select("WHERE m.id = ?", id)[0],
@@ -202,7 +202,7 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         message.seq,
       );
       refreshPreview(sql, message.threadId);
-      report({ kind: "event", threadId: message.threadId });
+      report({ kind: "event", channelId: message.channelId, threadId: message.threadId });
       return loadMessage(sql, message.seq);
     },
     deleteMessage(message, actorId, at) {
@@ -219,7 +219,7 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
       // The text is gone from the log as well as from the message. The events stay: that it happened is a fact.
       sql.run("UPDATE events SET text = '' WHERE message_seq = ? AND kind IN ('posted', 'edited')", message.seq);
       refreshPreview(sql, message.threadId);
-      report({ kind: "event", threadId: message.threadId });
+      report({ kind: "event", channelId: message.channelId, threadId: message.threadId });
       return loadMessage(sql, message.seq);
     },
   };

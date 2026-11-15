@@ -41,6 +41,7 @@ export class FakeTerminal implements Terminal {
   clearScreen(): void {}
   setTitle(): void {}
   setProgress(): void {}
+  setProgramStatus(): void {}
 
   /** Type as a person would: keys arrive as the terminal sends them. */
   type(data: string): void {

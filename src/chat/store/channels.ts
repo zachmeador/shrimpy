@@ -1,5 +1,6 @@
 import type { Member } from "../../contracts/chat/index.ts";
 import { newId } from "../../lib/ids/index.ts";
+import type { ReportChange } from "./changes.ts";
 import { type MemberRow, toMember } from "./members.ts";
 import type { Sql } from "./sql.ts";
 import { insertThread } from "./threads.ts";
@@ -75,7 +76,7 @@ function group(rows: ChannelMemberRow[]): ChannelRecord[] {
   return [...channels.values()];
 }
 
-export function channelOperations(sql: Sql): ChannelOperations {
+export function channelOperations(sql: Sql, report: ReportChange): ChannelOperations {
   const channel = (id: string): ChannelRecord | undefined => {
     const rows = sql.all(
       `${CHANNEL_WITH_MEMBERS} WHERE c.id = ? ORDER BY m.id`,
@@ -123,6 +124,7 @@ export function channelOperations(sql: Sql): ChannelOperations {
       );
       for (const member of [first, second]) join(sql, id, member.id);
       insertThread(sql, { channelId: id, name: null, main: true, now });
+      report({ kind: "channel", channelId: id });
       return stored(id);
     },
     roomNamed(name) {
@@ -134,11 +136,15 @@ export function channelOperations(sql: Sql): ChannelOperations {
       sql.run("INSERT INTO channels (id, kind, name, room_key) VALUES (?, 'room', ?, ?)", id, name, roomKey(name));
       for (const member of members) join(sql, id, member.id);
       insertThread(sql, { channelId: id, name: null, main: true, now });
+      report({ kind: "channel", channelId: id });
       return stored(id);
     },
     addToChannel(channelId, members) {
+      const before = stored(channelId);
       for (const member of members) join(sql, channelId, member.id);
-      return stored(channelId);
+      const after = stored(channelId);
+      if (after.members.length !== before.members.length) report({ kind: "channel", channelId });
+      return after;
     },
   };
 }

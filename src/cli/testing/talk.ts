@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { TestContext } from "node:test";
 import type { Message, Receipt, Thread } from "../../contracts/chat/index.ts";
 import { enterAsPerson, memberNamed } from "../../contracts/chat/testing/index.ts";
@@ -19,23 +18,23 @@ export interface Talk {
 }
 
 /**
- * The person who runs the gateway, connected to the chat server by its name
- * through the gateway, in a DM with the agent called `agentName`, once that has
- * joined the roster. The connection is closed when the test ends.
+ * You, linked to the gateway and in a DM with the agent called `agentName` on
+ * the chat server, once that has joined the roster. The link is closed when the
+ * test ends.
  */
 export async function talkTo(t: TestContext, agentName: string): Promise<Talk> {
-  const connection = await enterAsPerson(t);
+  const you = await enterAsPerson(t);
   const agent = await memberNamed(t, agentName);
-  const dm = await connection.chat.openDm(agent.id);
-  const thread = (await connection.chat.threads(dm.id)).find((candidate) => candidate.main);
+  const dm = await you.openDm(agent.id);
+  const thread = (await you.threads(dm.id)).find((candidate) => candidate.main);
   if (thread === undefined) throw new Error(`The DM ${dm.id} has no main thread`);
 
-  const said = (): Promise<Message[]> => connection.chat.read(thread.id, null, 200);
+  const said = (): Promise<Message[]> => you.read(thread.id, null, 200);
   const receiptOf = async (message: Message): Promise<Receipt | undefined> =>
     (await said()).find((candidate) => candidate.id === message.id)?.receipts.find((receipt) => receipt.event === message.event);
-  const talk: Talk = {
+  return {
     thread,
-    say: (text) => connection.chat.post(thread.id, text, `talk-${randomUUID()}`),
+    say: (text) => you.post(thread.id, text),
     said,
     async replies() {
       return (await said()).filter((message) => message.author.id === agent.id);
@@ -48,5 +47,4 @@ export async function talkTo(t: TestContext, agentName: string): Promise<Talk> {
       return found as Receipt;
     },
   };
-  return talk;
 }

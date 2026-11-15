@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+import { isRefusal } from "../lib/refusal/index.ts";
 import { until, waitForView } from "../lib/testing/index.ts";
 import {
   answered,
@@ -96,7 +97,7 @@ test("once stopping begins, new input is refused, from a client and from chat, a
   const { rig, session } = await startStreaming(t, 40);
 
   const closing = rig.agent.close({ graceMs: 60_000 });
-  await assert.rejects(session.steer("one more thing"), { code: "service_not_allowed" });
+  await assert.rejects(session.steer("one more thing"), isRefusal);
   const late = await rig.say("said while the agent was stopping");
   await delay(150);
   const [seen] = (await rig.said()).filter((message) => message.id === late.id);

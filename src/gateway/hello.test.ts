@@ -1,0 +1,79 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { hello, readAnswer, Roster } from "../contracts/gateway/index.ts";
+import { GatewayRefusedError, newToken } from "../contracts/gateway/node.ts";
+import { dial, type DialPlace } from "../lib/link/node.ts";
+import { until } from "../lib/testing/index.ts";
+import { PI_PACKAGES } from "../lib/version/index.ts";
+import { connectTestClient, startTestAgent, startTestGateway } from "./testing/index.ts";
+
+const timeout = 30_000;
+const context = BACKGROUND_CONTEXT;
+
+/** What the gateway at `place` answers `said`, which is sent as it is; the connection is dropped after. */
+async function answerTo(place: DialPlace, said: unknown) {
+  const { answer, linked } = await dial(place, said as Parameters<typeof dial>[1]);
+  linked.drop();
+  const read = readAnswer(answer);
+  assert.ok(read !== undefined, "the answer is one the contract knows");
+  return read;
+}
+
+test("a hello on other Pi packages is turned away in words that say what each side runs, whatever else it says", { timeout }, async (t) => {
+  const gateway = await startTestGateway(t);
+  const other = Object.fromEntries(Object.keys(PI_PACKAGES).map((name) => [name, "9.9.9"]));
+
+  const answer = await answerTo({ path: gateway.socket }, { shrimpy: "9.0.0", pi: other, who: { kind: "from-a-later-release" } });
+
+  assert.equal(answer.kind, "refused");
+  assert.equal(answer.reason, null);
+  assert.match(answer.words, /9\.9\.9/);
+  assert.deepEqual(answer.pi, PI_PACKAGES, "the answer carries the gateway's own");
+});
+
+test("a second program for one agent is turned away while the first is linked", { timeout }, async (t) => {
+  const gateway = await startTestGateway(t);
+  const place = { path: gateway.socket };
+  const token = newToken();
+  const scout = await startTestAgent(t, { place, name: "scout", token });
+  await until(() => scout.welcomes.length === 1, "scout to be let in");
+
+  const answer = await answerTo(place, hello({ kind: "agent", name: "scout", token }));
+  assert.equal(answer.kind === "refused" ? answer.reason : answer.kind, "agent_running");
+
+  const you = await connectTestClient(t, place);
+  const roster = await you.host.get(Roster, {}, context);
+  await until(() => roster.members.value.some((member) => member.name === "scout" && member.reachable), "scout to be reachable");
+  assert.equal(scout.welcomes.length, 1, "the first is undisturbed");
+});
+
+test("an agent joins over the entry with an invitation's code, once, and then links in there with its token", { timeout }, async (t) => {
+  const gateway = await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
+  const [address] = gateway.listening;
+  assert.ok(address);
+  const you = await connectTestClient(t, { path: gateway.socket });
+  const roster = await you.host.get(Roster, {}, context);
+  const invitation = await roster.invite({ name: "crab" }, context);
+  if (invitation.kind !== "done") throw new Error(invitation.words);
+  assert.deepEqual(invitation.value.addresses, [address]);
+  assert.equal(invitation.value.fingerprint, gateway.fingerprint, "with the fingerprint of the gateway's key");
+  const entry = { ...address, fingerprint: invitation.value.fingerprint };
+  const join = (token: string, code: string) => hello({ kind: "join", name: "crab", token, code, machine: "elsewhere" });
+
+  const wrong = await answerTo(entry, join(newToken(), "AAAA-AAAA"));
+  assert.equal(wrong.kind, "refused");
+  const token = newToken();
+  const joined = await answerTo(entry, join(token, invitation.value.code));
+  assert.equal(joined.kind === "welcome" ? joined.you?.name : joined.words, "crab");
+  const again = await answerTo(entry, join(newToken(), invitation.value.code));
+  assert.equal(again.kind, "refused", "the code is good once");
+  await assert.rejects(
+    connectTestClient(t, entry, newToken()),
+    (error) => error instanceof GatewayRefusedError && error.reason === "unknown_token",
+    "and a token nobody joined with opens nothing",
+  );
+
+  await startTestAgent(t, { place: entry, name: "crab", token });
+  await until(() => roster.members.value.some((member) => member.name === "crab" && member.reachable), "crab to link in");
+});

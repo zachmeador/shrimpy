@@ -43,6 +43,11 @@ export function fakeState(initial: Model): FakeState {
       calls.push("status");
       return Promise.resolve();
     },
+    readDevices: () => void calls.push("devices"),
+    takeBack(written) {
+      calls.push(`take back ${written}`);
+      return Promise.resolve();
+    },
     models: () => Promise.resolve(answers.models),
     showModel() {
       calls.push("model");

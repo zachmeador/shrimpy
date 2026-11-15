@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { userInfo } from "node:os";
 import { test } from "node:test";
 import { fauxAssistantMessage, type Message as ModelMessage } from "@earendil-works/pi-ai";
-import { type ChatConnection, connectChat, type Message, type Thread } from "../contracts/chat/index.ts";
-import type { Entered } from "../contracts/chat/testing/index.ts";
+import type { Message, Thread } from "../contracts/chat/index.ts";
+import { type Speaking, speakingAs } from "../contracts/chat/testing/index.ts";
+import type { ChatCalls } from "./links/index.ts";
 import { eventually, stopAfter, tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
 import {
   callingTools,
@@ -39,14 +40,14 @@ interface DmThread {
  * `viewer`'s DM with `other`: its main thread, the thread a question made, found by
  * its name, which is how the question starts, and everything said in all of them.
  */
-async function dmOf(viewer: Entered, other: string) {
+async function dmOf(viewer: Speaking, other: string) {
   const [channel] = await eventually(
-    async () => (await viewer.chat.channels()).filter((each) => each.kind === "dm" && each.name === other),
+    async () => (await viewer.channels()).filter((each) => each.kind === "dm" && each.name === other),
     (found) => found.length > 0,
     { what: `${viewer.me.name}'s DM with ${other}` },
   );
-  const threads = (): Promise<Thread[]> => viewer.chat.threads(channel?.id ?? "");
-  const within = (thread: Thread): DmThread => ({ threadId: thread.id, messages: () => viewer.chat.read(thread.id, null, 100) });
+  const threads = (): Promise<readonly Thread[]> => viewer.threads(channel?.id ?? "");
+  const within = (thread: Thread): DmThread => ({ threadId: thread.id, messages: () => viewer.read(thread.id, null, 100) });
   return {
     async main(): Promise<DmThread> {
       const main = (await threads()).find((thread) => thread.main);
@@ -70,9 +71,9 @@ async function dmOf(viewer: Entered, other: string) {
 }
 
 /** Answer a message in `member`'s name, as an agent does when its turn ends: post the reply, then leave a receipt on the event it answers. */
-async function answer(member: Entered, threadId: string, text: string, event: string, requestId: string): Promise<Message> {
-  const reply = await member.chat.post(threadId, text, requestId);
-  await member.chat.leaveReceipt([event], { status: "answered", reply: reply.id, detail: null });
+async function answer(member: Speaking, threadId: string, text: string, event: string, requestId: string): Promise<Message> {
+  const reply = await member.post(threadId, text, requestId);
+  await member.leaveReceipt([event], { status: "answered", reply: reply.id, detail: null });
   return reply;
 }
 
@@ -140,15 +141,12 @@ test("a question that gets no answer in time is told once, and an answer that co
   // While `held` is a promise nobody has settled, what the feed brings waits for the test.
   let held: Promise<void> = Promise.resolve();
   let release = (): void => undefined;
-  const holding = (connection: ChatConnection): ChatConnection => ({
-    ...connection,
-    chat: {
-      ...connection.chat,
-      feed: async (cursor, limit, signal) => {
-        const events = await connection.chat.feed(cursor, limit, signal);
-        await held;
-        return events;
-      },
+  const holding = (calls: ChatCalls): ChatCalls => ({
+    ...calls,
+    events: async (after, limit, signal) => {
+      const events = await calls.events(after, limit, signal);
+      await held;
+      return events;
     },
   });
   const asking = talking((shown) => {
@@ -159,11 +157,11 @@ test("a question that gets no answer in time is told once, and an answer that co
   const scout = await startAgentRig(t, {
     script: asking.script,
     shortestWaitMs: 1_000,
-    join: { connectChat: (options) => connectChat(options).then(holding) },
+    join: { chatCalls: holding },
   });
   // A test that fails while it holds the feed must not leave the agent unable to stop.
   stopAfter(t, () => release());
-  const maya = await scout.chat.agent("maya");
+  const maya = await speakingAs(t, await scout.chat.agent("maya"));
 
   const started = Date.now();
   await scout.receiptOn(await scout.say("Ask maya which stanza she takes."));
@@ -217,7 +215,7 @@ test("scout is killed after it asked and before maya answered: when it is back t
   const chat = await startChatServer(t);
   const first = await startAgentChild(t, home, "mixed", 400);
   const talk = await talkTo(chat);
-  const maya = await chat.agent("maya");
+  const maya = await speakingAs(t, await chat.agent("maya"));
   await talk.receiptOn(await talk.say("Ask maya which stanza she takes."), PATIENT);
   const dm = await dmOf(maya, "scout");
   const asked = await dm.thread("Which stanza will you take?");
@@ -243,7 +241,7 @@ test("a person can't be asked, and a sixth open question of a session is refused
   const sixth = { name: "ask_agent", args: { to: "@maya", text: "One question too many?" } };
   const model = callingTools([[person, ...asks, sixth]]);
   const scout = await startAgentRig(t, { script: model.script });
-  const maya = await scout.chat.agent("maya");
+  const maya = await speakingAs(t, await scout.chat.agent("maya"));
 
   await scout.receiptOn(await scout.say("Ask a lot of questions."));
 
@@ -270,7 +268,7 @@ test("a result that was skipped because the turn ahead of it failed is shown wit
   const scout = await startAgentRig(t, { script });
   // A test that fails while the turn waits must not leave the agent unable to stop.
   stopAfter(t, () => releaseGate(scout.home));
-  const maya = await scout.chat.agent("maya");
+  const maya = await speakingAs(t, await scout.chat.agent("maya"));
   await scout.receiptOn(await scout.say("Ask maya which stanza she takes."));
   const asked = await (await dmOf(maya, "scout")).thread("Which stanza will you take?");
   const [question] = await asked.messages();

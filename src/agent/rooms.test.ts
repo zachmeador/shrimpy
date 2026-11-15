@@ -2,11 +2,16 @@ import assert from "node:assert/strict";
 import { renameSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import type { Message } from "../contracts/chat/index.ts";
-import type { Entered } from "../contracts/chat/testing/index.ts";
+import { type Speaking, speakingAs } from "../contracts/chat/testing/index.ts";
 import { eventually } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
 import { homePaths, type WakePolicy } from "./home/index.ts";
-import { loggedRequests, roomWith, startAgentRig, talking } from "./testing/index.ts";
+import {
+  loggedRequests,
+  roomWith,
+  startAgentRig,
+  talking,
+} from "./testing/index.ts";
 
 /*
  * Agents in a room, with the real engine under them and the real chat server.
@@ -19,23 +24,23 @@ const timeout = 60_000;
 const PATIENT = 30_000;
 
 /** The messages of a thread as `viewer` sees them, once `ready` is satisfied by them. */
-function messagesWhen(viewer: Entered, threadId: string, ready: (messages: Message[]) => boolean, what: string): Promise<Message[]> {
-  return eventually(() => viewer.chat.read(threadId, null, 200), ready, { what, timeoutMs: 30_000 });
+function messagesWhen(viewer: Speaking, threadId: string, ready: (messages: Message[]) => boolean, what: string): Promise<Message[]> {
+  return eventually(() => viewer.read(threadId, null, 200), ready, { what, timeoutMs: 30_000 });
 }
 
 /** Resolve once nobody is working in a thread of `channelId`. */
-async function untilQuiet(viewer: Entered, channelId: string, threadId: string): Promise<void> {
+async function untilQuiet(viewer: Speaking, channelId: string, threadId: string): Promise<void> {
   await eventually(
-    async () => (await viewer.chat.threads(channelId)).find((thread) => thread.id === threadId)?.working.length ?? 0,
+    async () => (await viewer.threads(channelId)).find((thread) => thread.id === threadId)?.working.length ?? 0,
     (working) => working === 0,
     { what: "the agents to stop working in the thread", timeoutMs: 30_000 },
   );
 }
 
 /** Answer a message in `member`'s name, as an agent does when its turn ends: post the reply, then leave a receipt on each event it answers. */
-async function answer(member: Entered, threadId: string, text: string, events: string[], requestId: string): Promise<Message> {
-  const reply = await member.chat.post(threadId, text, requestId);
-  await member.chat.leaveReceipt(events, { status: "answered", reply: reply.id, detail: null });
+async function answer(member: Speaking, threadId: string, text: string, events: string[], requestId: string): Promise<Message> {
+  const reply = await member.post(threadId, text, requestId);
+  await member.leaveReceipt(events, { status: "answered", reply: reply.id, detail: null });
   return reply;
 }
 
@@ -48,7 +53,7 @@ test("an agent that mentioned another is woken by the answer, once, though it do
   const answering = talking(() => ({ final: "Stanza 2." }));
   const scout = await startAgentRig(t, { script: asking.script });
   const bob = await startAgentRig(t, { name: "bob", chat: scout.chat, script: answering.script });
-  const { person, main } = await roomWith(scout.chat, "Ops", [scout.partner, bob.partner]);
+  const { person, main } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.partner]);
 
   await scout.say("Ask bob in #Ops which stanza he takes.");
 
@@ -56,7 +61,7 @@ test("an agent that mentioned another is woken by the answer, once, though it do
   assert.ok(question && reply);
   assert.deepEqual([question.author.id, reply.author.id, reply.mentions], [scout.partner.id, bob.partner.id, []], "bob answered without mentioning scout");
   assert.equal((await scout.receiptOn(reply, PATIENT)).status, "answered");
-  const thanks = (await person.chat.read(main.id, null, 10)).find((message) => message.text === "Thanks, stanza 2 is yours.");
+  const thanks = (await person.read(main.id, null, 10)).find((message) => message.text === "Thanks, stanza 2 is yours.");
   assert.ok(thanks);
   assert.deepEqual(thanks.mentions, [], "the reply to an answer mentions nobody, so it wakes nobody");
 
@@ -74,13 +79,13 @@ test("in a DM an answer is taken up once: the reply wakes the agent, and the rec
     turn === 0 ? { send: { to: "@bob", text: "Which stanza will you take?" }, final: "I asked bob." } : { final: "Noted." },
   );
   const scout = await startAgentRig(t, { script: asking.script });
-  const bob = await scout.chat.agent("bob");
+  const bob = await speakingAs(t, await scout.chat.agent("bob"));
 
   await scout.say("Ask bob which stanza he takes.");
 
-  const [channel] = await eventually(() => bob.chat.channels(), (channels) => channels.length > 0, { what: "scout's DM with bob" });
+  const [channel] = await eventually(() => bob.channels(), (channels) => channels.length > 0, { what: "scout's DM with bob" });
   assert.ok(channel);
-  const [dm] = await bob.chat.threads(channel.id);
+  const [dm] = await bob.threads(channel.id);
   assert.ok(dm);
   const [question] = await messagesWhen(bob, dm.id, (messages) => messages.length > 0, "scout's question");
   assert.ok(question);
@@ -109,16 +114,16 @@ test("one reply that answers two messages from two members wakes each of them th
   );
   const scout = await startAgentRig(t, { script: scoutAsks.script });
   const maya = await startAgentRig(t, { name: "maya", chat: scout.chat, script: mayaAsks.script });
-  const bob = await scout.chat.agent("bob");
-  const { person, main } = await roomWith(scout.chat, "Ops", [scout.partner, maya.partner, bob.me]);
+  const bob = await speakingAs(t, await scout.chat.agent("bob"));
+  const { person, main } = await roomWith(t, scout.chat, "Ops", [scout.partner, maya.partner, bob.me]);
   await scout.say("Ask bob in #Ops which key.");
   await maya.say("Ask bob in #Ops which tempo.");
   const [keyQuestion, tempoQuestion] = await messagesWhen(person, main.id, (messages) => messages.length >= 2, "both questions");
   assert.ok(keyQuestion && tempoQuestion);
 
   // Bob was busy, so one reply answers both, and both questions get the one receipt each, in one call.
-  const reply = await bob.chat.post(main.id, "Key of C, tempo 90.", "bob-1");
-  await bob.chat.leaveReceipt([keyQuestion.event, tempoQuestion.event], { status: "answered", reply: reply.id, detail: null });
+  const reply = await bob.post(main.id, "Key of C, tempo 90.", "bob-1");
+  await bob.leaveReceipt([keyQuestion.event, tempoQuestion.event], { status: "answered", reply: reply.id, detail: null });
 
   await Promise.all([scout.receiptOn(reply, PATIENT), maya.receiptOn(reply, PATIENT)]);
   assert.equal(scoutAsks.shown.length, 2);
@@ -136,8 +141,8 @@ test("a fresh start passes over an answer it has dealt with, and over the rest o
     turn === 0 ? { send: { to: "#Ops", text: "@bob, which stanza will you take?" }, final: "Asked." } : { final: "Thanks." },
   );
   const first = await startAgentRig(t, { script: asking.script });
-  const bob = await first.chat.agent("bob");
-  const { person, main } = await roomWith(first.chat, "Ops", [first.partner, bob.me]);
+  const bob = await speakingAs(t, await first.chat.agent("bob"));
+  const { person, main } = await roomWith(t, first.chat, "Ops", [first.partner, bob.me]);
   await first.say("Ask bob in #Ops which stanza he takes.");
   const [question] = await messagesWhen(person, main.id, (messages) => messages.length >= 1, "scout's question");
   assert.ok(question);
@@ -153,42 +158,42 @@ test("a fresh start passes over an answer it has dealt with, and over the rest o
   await second.receiptOn(await second.say("Are you there?"), PATIENT);
 
   assert.equal(loggedRequests(first.home).length - asked, 1, "the model was asked for the new message and nothing from before");
-  const inRoom = (await person.chat.read(main.id, null, 20)).filter((message) => message.author.id === first.partner.id);
+  const inRoom = (await person.read(main.id, null, 20)).filter((message) => message.author.id === first.partner.id);
   assert.deepEqual(inRoom.map((message) => message.text), ["@bob, which stanza will you take?", "Thanks."], "and said nothing again in the room");
 });
 
 test("an agent woken in a room is shown what was said there since it last looked, then the message that woke it, and a long backlog is cut with a pointer to the rest", { timeout }, async (t) => {
   const model = talking(() => ({ final: "Seen." }));
   const scout = await startAgentRig(t, { script: model.script });
-  const bob = await scout.chat.agent("bob");
-  const { person, main } = await roomWith(scout.chat, "Ops", [scout.partner, bob.me]);
+  const bob = await speakingAs(t, await scout.chat.agent("bob"));
+  const { person, main } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.me]);
 
   // Bob talks and does not mention scout, so it is not woken until the person does.
-  await bob.chat.post(main.id, "I'll take stanza 2.", "bob-1");
-  await bob.chat.post(main.id, "Which key are we in?", "bob-2");
-  await scout.receiptOn(await person.chat.post(main.id, "@scout, where are we?", "person-1"), PATIENT);
+  await bob.post(main.id, "I'll take stanza 2.", "bob-1");
+  await bob.post(main.id, "Which key are we in?", "bob-2");
+  await scout.receiptOn(await person.post(main.id, "@scout, where are we?", "person-1"), PATIENT);
   const first = model.shown[0] ?? "";
   const [stanza, key, woke] = ["I'll take stanza 2.", "Which key are we in?", "@scout, where are we?"].map((text) => first.indexOf(text));
   assert.ok(first.includes("Since you last looked in this thread") && first.includes("Then this woke you:"), first);
   assert.ok(stanza !== undefined && key !== undefined && woke !== undefined && 0 < stanza && stanza < key && key < woke, `oldest first, then the message that woke it:\n${first}`);
 
   // What it was shown is not shown again.
-  await bob.chat.post(main.id, "Never mind, it is C.", "bob-3");
-  await scout.receiptOn(await person.chat.post(main.id, "@scout, and now?", "person-2"), PATIENT);
+  await bob.post(main.id, "Never mind, it is C.", "bob-3");
+  await scout.receiptOn(await person.post(main.id, "@scout, and now?", "person-2"), PATIENT);
   const second = model.shown[1] ?? "";
   assert.ok(second.includes("Never mind, it is C."));
   assert.ok(!second.includes("stanza 2") && !second.includes("Which key"), second);
 
   // A backlog that is longer than the model is shown keeps the newest, says how many are left out and how to read them.
-  for (let n = 1; n <= 30; n++) await bob.chat.post(main.id, `${String(n).padStart(2, "0")} ${"x".repeat(900)}`, `long-${String(n)}`);
-  await scout.receiptOn(await person.chat.post(main.id, "@scout, catch up.", "person-3"), PATIENT);
+  for (let n = 1; n <= 30; n++) await bob.post(main.id, `${String(n).padStart(2, "0")} ${"x".repeat(900)}`, `long-${String(n)}`);
+  await scout.receiptOn(await person.post(main.id, "@scout, catch up.", "person-3"), PATIENT);
   const third = model.shown[2] ?? "";
   assert.ok(third.length < 22_000, `${String(third.length)} characters`);
   const [, cut = "", before = ""] = /(\d+) earlier messages are not shown here\. To read them, call read_messages with before: (\d+)\./.exec(third) ?? [];
   const numbered = [...third.matchAll(/^(\d\d) x+/gm)].map((found) => Number(found[1]));
   assert.equal(numbered.at(-1), 30, "the newest is kept");
   assert.equal(numbered.length + Number(cut), 30, "and every one is either shown or counted");
-  const oldest = (await person.chat.read(main.id, null, 200)).find((message) => message.text.startsWith(`${String(numbered[0]).padStart(2, "0")} x`));
+  const oldest = (await person.read(main.id, null, 200)).find((message) => message.text.startsWith(`${String(numbered[0]).padStart(2, "0")} x`));
   assert.equal(Number(before), oldest?.seq, "read_messages reads what is before the oldest one shown");
   assert.deepEqual(scout.reports, []);
 });
@@ -196,15 +201,15 @@ test("an agent woken in a room is shown what was said there since it last looked
 test("what the model reads of a message in a room says who it was for, and in a DM it says nothing of it", { timeout }, async (t) => {
   const model = talking(() => ({ final: "Seen." }));
   const scout = await startAgentRig(t, { script: model.script });
-  const bob = await scout.chat.agent("bob");
-  const maya = await scout.chat.agent("maya");
-  const { person, main } = await roomWith(scout.chat, "Ops", [scout.partner, bob.me, maya.me]);
+  const bob = await speakingAs(t, await scout.chat.agent("bob"));
+  const maya = await speakingAs(t, await scout.chat.agent("maya"));
+  const { person, main } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.me, maya.me]);
 
-  const toMaya = await bob.chat.post(main.id, "@maya, the disk is full.", "bob-1");
-  const aloud = await bob.chat.post(main.id, "Thinking aloud.", "bob-2");
-  const both = await person.chat.post(main.id, "@scout and @bob: is it urgent?", "person-1");
+  const toMaya = await bob.post(main.id, "@maya, the disk is full.", "bob-1");
+  const aloud = await bob.post(main.id, "Thinking aloud.", "bob-2");
+  const both = await person.post(main.id, "@scout and @bob: is it urgent?", "person-1");
   await scout.receiptOn(both, PATIENT);
-  const everyone = await person.chat.post(main.id, "@all: status, please.", "person-2");
+  const everyone = await person.post(main.id, "@all: status, please.", "person-2");
   await scout.receiptOn(everyone, PATIENT);
   const direct = await scout.say("A word in private.");
   await scout.receiptOn(direct, PATIENT);
@@ -226,17 +231,17 @@ test("what the model reads of a message in a room says who it was for, and in a 
 test("an input tells the model where it is: its DM with a person, a thread of that DM, or a room and who else is in it, and the list of sessions says the same places", { timeout }, async (t) => {
   const model = talking(() => ({ final: "Seen." }));
   const scout = await startAgentRig(t, { script: model.script });
-  const bob = await scout.chat.agent("bob");
-  const maya = await scout.chat.agent("maya");
-  const { person, room: ops, main } = await roomWith(scout.chat, "Ops", [scout.partner, bob.me]);
+  const bob = await speakingAs(t, await scout.chat.agent("bob"));
+  const maya = await speakingAs(t, await scout.chat.agent("maya"));
+  const { person, room: ops, main } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.me]);
   const connection = await scout.connect();
 
   await scout.receiptOn(await scout.say("Hello in private."), PATIENT);
   const side = await scout.newThread("Budget");
   await scout.receiptOn(await scout.say("A side matter.", side.id), PATIENT);
-  await scout.receiptOn(await person.chat.post(main.id, "@scout, hello in the room.", "person-1"), PATIENT);
-  await person.chat.addMembers(ops.id, [maya.me.id]);
-  await scout.receiptOn(await person.chat.post(main.id, "@scout, and now?", "person-2"), PATIENT);
+  await scout.receiptOn(await person.post(main.id, "@scout, hello in the room.", "person-1"), PATIENT);
+  await person.addMembers(ops.id, [maya.me.id]);
+  await scout.receiptOn(await person.post(main.id, "@scout, and now?", "person-2"), PATIENT);
 
   // What opens each input is its first paragraph, before the message.
   const [dm = "", aside = "", room = "", later = ""] = model.shown.map((shown) => shown.split("\n\n")[0] ?? "");
@@ -260,11 +265,11 @@ test("an input tells the model where it is: its DM with a person, a thread of th
 test("a person's post that mentions nobody wakes every agent in the room, any other post only who it mentions, until the home's wake file says otherwise, which a reload reads", { timeout }, async (t) => {
   const model = talking(() => ({ final: "Seen." }));
   const scout = await startAgentRig(t, { script: model.script });
-  const bob = await scout.chat.agent("bob");
-  const { person, main } = await roomWith(scout.chat, "Ops", [scout.partner, bob.me]);
+  const bob = await speakingAs(t, await scout.chat.agent("bob"));
+  const { person, main } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.me]);
   const agent = await scout.connect();
   let posts = 0;
-  const post = (who: Entered, text: string): Promise<Message> => who.chat.post(main.id, text, `post-${String(++posts)}`);
+  const post = (who: Speaking, text: string): Promise<Message> => who.post(main.id, text, `post-${String(++posts)}`);
   /** The turns the room has woken the agent for. A message in the DM, which no policy touches, shows it is past what came before. */
   const roomTurns = async (): Promise<string[]> => {
     await scout.receiptOn(await scout.say("Are you still there?"), PATIENT);

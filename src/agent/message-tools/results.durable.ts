@@ -1,18 +1,17 @@
-import type { Context } from "@earendil-works/chord";
+import type { Context } from "@earendil-works/chord/context";
 import type { ToolExecutionResult } from "@earendil-works/pi-durable";
-import { isDisconnected } from "../../lib/connection/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
-import type { LiveChat } from "../links/index.ts";
+import { isUnavailable, type LiveChat } from "../links/index.ts";
 
 /** A tool's answer: just these words. */
-export const answer = (text: string): ToolExecutionResult => ({ content: [{ type: "text", text }] });
+export const answer = (text: string): ToolExecutionResult => ({ output: [{ type: "text", text }] });
 
 /** A tool's answer when it did not do what was asked: just these words, marked as an error. */
-export const failure = (text: string): ToolExecutionResult => ({ isError: true, content: [{ type: "text", text }] });
+export const failure = (text: string): ToolExecutionResult => ({ isError: true, output: [{ type: "text", text }] });
 
 /** How a call to chat failed. */
 export type ChatFailure =
-  /** The connection ended, or chat went away, before the call finished. */
+  /** The link dropped, or chat went away, before the call finished. */
   | { lost: true }
   /** Chat answered and said no, for this reason. */
   | { refused: string };
@@ -24,7 +23,7 @@ export type ChatFailure =
  */
 export function chatFailure(error: unknown, live: LiveChat, context: Context): ChatFailure {
   if (context.abortSignal?.aborted === true) throw error;
-  if (live.lost.aborted || isDisconnected(error)) return { lost: true };
+  if (live.lost.aborted || isUnavailable(error)) return { lost: true };
   if (isRefusal(error)) return { refused: error.message };
   throw error;
 }

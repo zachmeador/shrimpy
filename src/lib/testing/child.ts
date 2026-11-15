@@ -4,8 +4,8 @@ import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { stopAfter } from "./cleanup.ts";
 
-/** What to run in a child: a script file, or the source of a module. */
-export type ChildProgram = { file: string | URL; args?: string[] } | { source: string };
+/** What to run in a child: a script file, or the source of a module, and what it adds to the environment it inherits. */
+export type ChildProgram = ({ file: string | URL; args?: string[] } | { source: string }) & { env?: Record<string, string> };
 
 export interface Child<Line> {
   readonly process: ChildProcess;
@@ -32,7 +32,7 @@ export async function startChild<Line = unknown>(
           typeof program.file === "string" ? program.file : fileURLToPath(program.file),
           ...(program.args ?? []),
         ];
-  const child = spawn(process.execPath, argv, { stdio: ["ignore", "pipe", "inherit"] });
+  const child = spawn(process.execPath, argv, { stdio: ["ignore", "pipe", "inherit"], env: { ...process.env, ...program.env } });
   const kill = async (signal: NodeJS.Signals = "SIGTERM"): Promise<void> => {
     if (child.exitCode !== null || child.signalCode !== null) return;
     child.kill(signal);

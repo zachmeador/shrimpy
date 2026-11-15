@@ -1,7 +1,7 @@
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { readConfig } from "../../lib/json-config/node.ts";
+import type { Entry } from "./address.ts";
 import { type Machine, machineFile } from "./machine.ts";
-import type { Address } from "./services.ts";
 
 /**
  * What the machine whose Shrimpy folder is `folder` keeps, or undefined if it
@@ -15,11 +15,12 @@ export function readMachine(folder: string): Machine | undefined {
   const entry = root.object("gateway");
   const host = entry.string("host");
   const port = entry.number("port");
+  const fingerprint = entry.optionalString("fingerprint");
   entry.done();
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {
     throw entry.problem("port", "must be a port number from 1 to 65535");
   }
-  const gateway: Address = { host, port };
+  const gateway: Entry = { host, port, fingerprint };
   const who = root.optionalObject("member");
   let member: Machine["member"];
   if (who !== undefined) {

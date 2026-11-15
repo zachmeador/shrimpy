@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
 import { MAX_MESSAGE_LENGTH } from "../contracts/chat/index.ts";
+import { Roster } from "../contracts/gateway/index.ts";
 import { eventually, tempDir, until, waitForView } from "../lib/testing/index.ts";
 import { answered, assistantItems, releaseGate, type Script, startAgentRig, talkTo, untilReleased } from "./testing/index.ts";
 
@@ -78,7 +80,8 @@ test("a stop with a message waiting: the message is skipped, and the next turn i
   await session.stop();
 
   assert.equal((await rig.receiptOn(running)).status, "stopped");
-  assert.equal((await rig.receiptOn(waiting)).status, "skipped");
+  const skippedByStop = await rig.receiptOn(waiting);
+  assert.deepEqual([skippedByStop.status, skippedByStop.detail], ["skipped", null], "a skip behind a stop has no reason");
   assert.deepEqual(await rig.replies(), [], "nothing is posted for work that was stopped");
   await rig.untilIdle();
 
@@ -99,7 +102,7 @@ test("a stop with a message waiting: the message is skipped, and the next turn i
   assert.doesNotMatch((await rig.replies())[1]?.text ?? "", /this one waits behind the first/, "it is not shown twice");
 });
 
-test("a turn that fails takes back the messages waiting behind it, and the next turn in the thread shows them", { timeout }, async (t) => {
+test("a turn that fails takes back the messages waiting behind it, skipped with the reason it failed, and the next turn in the thread shows them", { timeout }, async (t) => {
   const rig = await startAgentRig(t, { script: refusesOnce() });
   const first = await rig.say("first");
   await rig.untilWorking();
@@ -110,7 +113,9 @@ test("a turn that fails takes back the messages waiting behind it, and the next 
   releaseGate(rig.home);
 
   assert.equal((await rig.receiptOn(first)).status, "failed");
-  assert.equal((await rig.receiptOn(second)).status, "skipped", "nothing runs it by itself");
+  const skipped = await rig.receiptOn(second);
+  assert.equal(skipped.status, "skipped", "nothing runs it by itself");
+  assert.ok(skipped.detail?.includes("The model refused the request."), `with the reason the turn ahead failed: ${String(skipped.detail)}`);
   assert.deepEqual(await rig.replies(), []);
   await rig.untilIdle();
   const third = await rig.say("third");
@@ -260,7 +265,7 @@ test("while chat is unreachable the sessions keep working, and clients can still
   assert.equal((await rig.replies()).length, 2, "nothing was posted for the input that came by way of the console");
 });
 
-test("a gateway that went away and came back finds the agent signed in and registered again, as the same member", { timeout }, async (t) => {
+test("a gateway that went away and came back finds the agent linked again, as the same member", { timeout }, async (t) => {
   const rig = await startAgentRig(t);
   await rig.receiptOn(await rig.say("before"));
 
@@ -268,8 +273,9 @@ test("a gateway that went away and came back finds the agent signed in and regis
   await rig.chat.gateway.recover();
 
   const observer = await rig.chat.gateway.connect();
+  const held = await observer.host.get(Roster, {}, BACKGROUND_CONTEXT);
   const roster = await eventually(
-    () => observer.members(),
+    () => held.members.value,
     (members) => members.some((member) => member.id === rig.partner.id && member.reachable),
     { what: "the agent to be reachable again" },
   );

@@ -1,6 +1,6 @@
 import type { Member } from "../../contracts/chat/index.ts";
-import { refuse } from "../../lib/refusal/index.ts";
 import { identifiers, MAX_PAGE, receipt as checkReceipt } from "../input/index.ts";
+import { refuse } from "../refusal/index.ts";
 import { visibleEvent } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
 
@@ -12,9 +12,9 @@ import type { ChatDeps } from "./deps.ts";
  * is refused, none gets the receipt. The store writes the event that records
  * each receipt that is new or different, and none for one that changes nothing.
  */
-export function leaveReceipt(deps: ChatDeps, caller: Member, eventIds: unknown, given: unknown): void {
+export function leaveReceipt(deps: ChatDeps, caller: Member, eventIds: unknown, given: unknown): null {
   if (caller.kind !== "agent") refuse("Only an agent can leave a receipt.");
-  const ids = identifiers(eventIds, "eventIds", MAX_PAGE);
+  const ids = identifiers(eventIds, "events", MAX_PAGE);
   const left = checkReceipt(given, "receipt");
   deps.store.transaction((tx) => {
     const at = deps.now();
@@ -28,4 +28,5 @@ export function leaveReceipt(deps: ChatDeps, caller: Member, eventIds: unknown, 
       tx.leaveReceipt(event, caller.id, { status: left.status, reply, detail: left.detail }, at);
     }
   });
+  return null;
 }

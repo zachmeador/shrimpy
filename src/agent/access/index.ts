@@ -1,9 +1,11 @@
 /**
- * Who may do what at the agent. Every connection to the agent has a caller:
- * the home's owner when it came by the home's path, who may do anything, or
- * the member the gateway said it is when it came through the gateway, who may
- * if they are a person, an admin or the agent itself. Every operation of the
- * agent's API checks the caller before it acts, and this is the one place that
- * decides. It must not know how a connection is made or a ticket is redeemed.
+ * Who may do what at the agent. Every request has a caller, from who it is
+ * stamped as and the roster as the agent holds it now: the home's owner on the
+ * home's own socket, who may do anything, or a member through the gateway, who
+ * may if it is you, an admin or the agent itself. A name and whether a member is
+ * an admin are read from the roster when they are needed, so a rename or a
+ * promotion counts at once. Every operation of the agent's contract checks the
+ * caller before it acts, and this is the one place that decides. It must not
+ * know how a request arrives or how the roster is held.
  */
-export { type Asker, carryCallers, type Caller, check, guardSession, type Permission, withCaller } from "./access.ts";
+export { type Caller, callerOf, check, type Permission, refusalFor, type RosterNow } from "./access.ts";

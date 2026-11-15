@@ -1,37 +1,74 @@
 import type { AssistantMessage, Message, ToolResultMessage } from "@earendil-works/pi-ai";
-import type {
-  ConversationView,
-  EntryRecord,
-  InboxState,
-  LiveState,
-  ModelRef,
-  ToolDiagnostic,
-  UsageState,
+import {
+  AssistantEntry,
+  CompactionEntry,
+  type ConversationView,
+  type EntryRecord,
+  type InboxState,
+  type LiveState,
+  type ModelRef,
+  ResetEntry,
+  type ToolDiagnostic,
+  ToolResultEntry,
+  type UsageState,
+  UserEntry,
 } from "@earendil-works/pi-durable";
 import type {
   QueuedInput,
   SessionActivity,
+  SessionImage,
   SessionItem,
+  SessionPage,
   SessionStatus,
-  SessionView,
+  WaitingWakeup,
 } from "../../contracts/agent/index.ts";
-import { assistantText } from "../turns/durable.ts";
+import { assistantText, describe } from "../turns/durable.ts";
 
 type ToolItem = Extract<SessionItem, { type: "tool" }>;
-type Content = string | readonly { type: string; text?: string }[];
+type Content = string | readonly { type: string; text?: string; mimeType?: string }[];
 
 /**
- * Build the view clients see from the engine's committed records. `home` is
- * the model the agent's home names now: the status says whether the session's
- * model is that one or its own.
+ * The newest stretch of a session, as clients see it, from the engine's view of
+ * it: the items of the entries in the view's window, a partial answer and its
+ * tool calls as they arrive, and the entry just before the window. A tool call
+ * is an item of the answer that made it, so the result of one whose answer is
+ * before the window is not shown here: it comes with that answer when a client
+ * pages back.
  */
-export function toSessionView(view: ConversationView, home: ModelRef): SessionView {
+export function windowOf(view: ConversationView): SessionPage {
   const live = (view.docs["pi.live"] ?? {}) as LiveState;
-  return {
-    items: toItems(view.entries, live),
-    status: toStatus(view, live, home),
-    entries: view.entries.length,
-  };
+  const items = toItems(view.entries, live);
+  const partial = live.generation?.message as AssistantMessage | undefined;
+  if (partial !== undefined) {
+    items.push(assistantItem(partial, null, true));
+    const shown = new Set(items.flatMap((item) => (item.type === "tool" ? [item.id] : [])));
+    for (const tool of toolItems(partial, null, live)) {
+      if (!shown.has(tool.id)) items.push(tool);
+    }
+  }
+  return { items, before: view.before ?? null };
+}
+
+/**
+ * A stretch of a session's history that a client pages back to: the items of
+ * `entries`, oldest first, the entry just before them, or null at the session's
+ * start, and `later`, the entries that follow them, where the results of their
+ * last tool calls are.
+ */
+export function pageOf(entries: readonly EntryRecord[], before: number | null, later: readonly EntryRecord[]): SessionPage {
+  const items = toItems(entries, {});
+  const open = new Map(items.flatMap((item) => (item.type === "tool" && item.status === "pending" ? [[item.id, item] as const] : [])));
+  for (const entry of later) {
+    const result = ToolResultEntry.is(entry) ? (entry.model?.[0] as ToolResultMessage | undefined) : undefined;
+    const tool = result === undefined ? undefined : open.get(result.toolCallId);
+    if (tool !== undefined && result !== undefined) finishTool(tool, entry, result);
+  }
+  return { items, before };
+}
+
+/** How many tool calls of `entries` have no result among them, which a page looks for after them. */
+export function unfinishedCalls(entries: readonly EntryRecord[]): number {
+  return toItems(entries, {}).filter((item) => item.type === "tool" && item.status === "pending").length;
 }
 
 function toItems(entries: readonly EntryRecord[], live: LiveState): SessionItem[] {
@@ -39,11 +76,11 @@ function toItems(entries: readonly EntryRecord[], live: LiveState): SessionItem[
   const tools = new Map<string, ToolItem>();
   for (const entry of entries) {
     const message = entry.model?.[0];
-    if (entry.kind === "pi.user" && message?.role === "user") {
-      items.push({ type: "user", text: textOf(message.content) });
-    } else if (entry.kind === "pi.assistant" && message?.role === "assistant") {
-      items.push(assistantItem(message, false));
-      for (const tool of toolItems(message, live)) {
+    if (UserEntry.is(entry) && message?.role === "user") {
+      items.push({ type: "user", entry: entry.id, text: textOf(message.content), images: imagesOf(message.content) });
+    } else if (AssistantEntry.is(entry) && message?.role === "assistant") {
+      items.push(assistantItem(message, entry.id, false));
+      for (const tool of toolItems(message, entry.id, live)) {
         // Only an answer that stopped to use tools runs its calls.
         if (message.stopReason !== "toolUse") {
           tool.status = "error";
@@ -52,47 +89,42 @@ function toItems(entries: readonly EntryRecord[], live: LiveState): SessionItem[
         tools.set(tool.id, tool);
         items.push(tool);
       }
-    } else if (entry.kind === "pi.tool-result" && message?.role === "toolResult") {
+    } else if (ToolResultEntry.is(entry) && message?.role === "toolResult") {
       const tool = tools.get(message.toolCallId);
       if (tool !== undefined) finishTool(tool, entry, message);
-    } else if (entry.kind === "pi.reset") {
-      items.push({ type: "marker", marker: "reset" });
-    } else if (entry.kind === "pi.compaction") {
-      items.push({ type: "marker", marker: "compaction" });
-    }
-  }
-  const partial = live.generation?.message as AssistantMessage | undefined;
-  if (partial !== undefined) {
-    items.push(assistantItem(partial, true));
-    for (const tool of toolItems(partial, live)) {
-      if (!tools.has(tool.id)) items.push(tool);
+    } else if (ResetEntry.is(entry)) {
+      items.push({ type: "marker", entry: entry.id, marker: "reset" });
+    } else if (CompactionEntry.is(entry)) {
+      items.push({ type: "marker", entry: entry.id, marker: "compaction" });
     }
   }
   return items;
 }
 
-function assistantItem(message: AssistantMessage, streaming: boolean): SessionItem {
+function assistantItem(message: AssistantMessage, entry: number | null, streaming: boolean): SessionItem {
   let thinking = "";
   for (const block of message.content) {
     if (block.type === "thinking") thinking += block.thinking;
   }
   // A partial answer has no stop reason yet.
   const stopReason = (message as { stopReason?: string }).stopReason ?? null;
-  return { type: "assistant", text: assistantText(message), thinking, streaming, stopReason };
+  return { type: "assistant", entry, text: assistantText(message), thinking, streaming, stopReason };
 }
 
-function toolItems(message: AssistantMessage, live: LiveState): ToolItem[] {
+function toolItems(message: AssistantMessage, entry: number | null, live: LiveState): ToolItem[] {
   const items: ToolItem[] = [];
   for (const block of message.content) {
     if (block.type !== "toolCall") continue;
     const slot = live.tools?.find((candidate) => candidate.callId === block.id);
     items.push({
       type: "tool",
+      entry,
       id: block.id,
       name: block.name,
       args: JSON.stringify(block.arguments),
       status: slot?.status === "running" ? "running" : "pending",
       output: slot?.output ?? "",
+      images: [],
       notes: [],
     });
   }
@@ -108,6 +140,7 @@ function finishTool(tool: ToolItem, entry: EntryRecord, result: ToolResultMessag
   const data = entry.data as { diagnostics?: ToolDiagnostic[] } | undefined;
   const diagnostics = data?.diagnostics ?? [];
   tool.output = textOf(result.content).replace(/\n?<harness>[\s\S]*<\/harness>\s*$/, "");
+  tool.images = imagesOf(result.content);
   tool.notes = diagnostics.map((diagnostic) => diagnostic.message);
   if (!result.isError) tool.status = "done";
   else if (diagnostics.some((diagnostic) => diagnostic.code === "interrupted")) {
@@ -115,11 +148,16 @@ function finishTool(tool: ToolItem, entry: EntryRecord, result: ToolResultMessag
   } else tool.status = "error";
 }
 
-function toStatus(view: ConversationView, live: LiveState, home: ModelRef): SessionStatus {
+/**
+ * What a session is doing, from the engine's view of it, and the wake-ups it is
+ * waiting on. `home` is the model the agent's home names now: the status says
+ * whether the session's model is that one or its own. Why the last turn ended
+ * without an answer is the engine's, until the next turn starts.
+ */
+export function statusOf(view: ConversationView, home: ModelRef, wakeups: readonly WaitingWakeup[]): SessionStatus {
+  const live = (view.docs["pi.live"] ?? {}) as LiveState;
   const inbox = (view.docs["pi.inbox"] ?? { items: [] }) as InboxState;
-  const agent = (view.docs["pi.agent"] ?? {}) as {
-    model?: { provider: string; modelId: string };
-  };
+  const agent = (view.docs["pi.agent"] ?? {}) as { model?: { provider: string; modelId: string } };
   const spend = (view.docs["pi.usage"] ?? { models: {}, tools: {} }) as UsageState;
   const usage = { input: 0, output: 0, cost: 0 };
   for (const used of Object.values(spend.models)) {
@@ -134,6 +172,8 @@ function toStatus(view: ConversationView, live: LiveState, home: ModelRef): Sess
     model: agent.model ? { provider: agent.model.provider, id: agent.model.modelId } : null,
     ownModel: agent.model !== undefined && (agent.model.provider !== home.provider || agent.model.modelId !== home.modelId),
     usage,
+    wakeups: wakeups.map(({ due, note }) => ({ due, note })),
+    failure: live.runFailure === undefined ? null : { reason: live.runFailure.reason, detail: describe(live.runFailure.detail) },
   };
 }
 
@@ -153,10 +193,19 @@ function toQueued(item: InboxState["items"][number]): QueuedInput {
     const kind = item.entry.kind;
     return { mode: "write", text: typeof kind === "string" ? kind : "entry" };
   }
-  return { mode: item.mode, text: textOf(item.content as Message["content"]) };
+  const content = item.content as Message["content"];
+  const text = typeof content === "string" ? content : content.map((block) => (block.type === "text" ? block.text : "[image]")).join("");
+  return { mode: item.mode, text };
 }
 
+/** The text of a message's content, without its images, which `imagesOf` names. */
 function textOf(content: Content): string {
   if (typeof content === "string") return content;
-  return content.map((block) => (block.type === "text" ? (block.text ?? "") : "[image]")).join("");
+  return content.map((block) => (block.type === "text" ? (block.text ?? "") : "")).join("");
+}
+
+/** The images in a message's content, by their media types, in order. */
+function imagesOf(content: Content): SessionImage[] {
+  if (typeof content === "string") return [];
+  return content.flatMap((block) => (block.type === "image" ? [{ mimeType: block.mimeType ?? "image" }] : []));
 }

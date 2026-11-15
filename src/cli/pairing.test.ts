@@ -3,17 +3,19 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { readMembership } from "../contracts/agent/node.ts";
-import { connectGateway, formatAddress, readLink, writeLink } from "../contracts/gateway/index.ts";
-import { connectLocalGateway, entryTransports, newToken } from "../contracts/gateway/node.ts";
+import { formatAddress, hello, readAnswer, readLink, writeLink } from "../contracts/gateway/index.ts";
+import { newToken } from "../contracts/gateway/node.ts";
+import { dial } from "../lib/link/node.ts";
 import { stopAfter, tempDir, until } from "../lib/testing/index.ts";
 import {
   commandLines,
   localProvider,
+  onTheRoster,
   serveGateway,
   shrimpy,
   startModelServer,
   startUp,
-  untilRegistered,
+  untilLinked,
   useShrimpyDir,
 } from "./testing/index.ts";
 
@@ -48,12 +50,13 @@ test("invite prints a line that lets an agent in from a folder of its own, where
   const [line] = commandLines(invited.stdout);
   assert.ok(line !== undefined && line.startsWith("shrimpy join "), invited.stdout);
   const link = line.slice("shrimpy join ".length);
-  const { address } = readLink(link);
+  const { address, fingerprint } = readLink(link);
 
   // The agent's folder and runtime directory are another's, and a model is given to the folder as signing in leaves it.
   const apart = apartEnv(t);
   const joined = await shrimpy(["join", link], { env: apart });
   assert.equal(joined.code, 0, joined.stderr);
+  assert.deepEqual(readMembership(join(apart.SHRIMPY_DIR, "agents", "crab"))?.gateway, { ...address, fingerprint }, "the home keeps the gateway's key with its address");
   const providers = join(apart.SHRIMPY_DIR, "providers");
   mkdirSync(providers, { recursive: true });
   writeFileSync(join(providers, "default-model.json"), JSON.stringify({ provider: "local", id: "test-model" }));
@@ -71,7 +74,7 @@ test("invite prints a line that lets an agent in from a folder of its own, where
   assert.deepEqual(readdirSync(apart.SHRIMPY_RUNTIME_DIR).filter((name) => /^(gateway|chat)/.test(name)), [], "nor a socket of theirs");
 
   // From the gateway's folder, the agent is on the roster and answers.
-  await untilRegistered("agent", "crab");
+  await untilLinked("agent", "crab");
   const reply = await shrimpy(["run", "crab", "hi"]);
   assert.equal(reply.code, 0, reply.stderr);
   assert.equal(reply.stdout, "Hello from the test model.\n");
@@ -86,22 +89,20 @@ test("a line pasted again where another folder used it is refused as the gateway
   const gateway = await serveGateway(t, ["--listen", "127.0.0.1:0"]);
   const [address] = gateway.listening.listen;
   assert.ok(address);
-  const person = await connectLocalGateway();
-  stopAfter(t, () => person.close());
-  const { code } = await person.invite("crab");
-  const link = writeLink({ name: "crab", address, code });
+  const person = await onTheRoster(t);
+  const { code, fingerprint } = await person.invite("crab");
+  const link = writeLink({ name: "crab", address, code, fingerprint });
 
   const first = await shrimpy(["join", link], { env: apartEnv(t) });
   assert.equal(first.code, 0, first.stderr);
 
   // What the gateway says to a code that is used up, as another connection hears it.
-  const apartConnection = await connectGateway({ transportFactory: entryTransports(address).gateway });
-  stopAfter(t, () => apartConnection.close());
-  const says = await apartConnection.join("crab", newToken(), code).then(
-    () => undefined,
-    (error: unknown) => (error as Error).message,
-  );
-  assert.ok(says !== undefined, "the gateway let a second agent in with a code that was used");
+  const said = hello({ kind: "join", name: "crab", token: newToken(), code, machine: "elsewhere" });
+  const { answer, linked } = await dial({ ...address, fingerprint }, said);
+  linked.drop();
+  const turned = readAnswer(answer);
+  assert.ok(turned?.kind === "refused", "the gateway let a second agent in with a code that was used");
+  const says = turned.words;
 
   const folder = useShrimpyDir(t);
   const second = await shrimpy(["join", link]);

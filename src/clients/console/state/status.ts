@@ -1,6 +1,6 @@
 import type { ModelId, SessionActivity, SessionSummary } from "../../../contracts/agent/index.ts";
 import type { Thread } from "../../../contracts/chat/index.ts";
-import { agentEntries, type Model, type Place, type Status, type Where, workingIn } from "./model.ts";
+import { agentEntries, type DevicesStatus, type Model, type Place, type Status, type Where, workingIn } from "./model.ts";
 
 /** The thread the person is in, as far as the console knows it: undefined for one that is not started. */
 function threadOf(model: Model, where: Extract<Where, { screen: "thread" }>, place: Exclude<Place, { kind: "read-only" }>): Thread | undefined {
@@ -68,8 +68,15 @@ export function statusOf(
               own: view.status.ownModel,
               defaultModel,
               usage: view.status.usage,
+              failure: view.status.failure,
+              wakeups: view.status.wakeups,
             },
       othersWorking: sessions?.filter((each) => each.working && each.id !== where.thread).length,
     },
   };
+}
+
+/** The person's devices, from the ways in the roster lists: each device's label and ID, in the roster's order. */
+export function devicesOf(model: Pick<Model, "listing">): DevicesStatus["devices"] {
+  return (model.listing?.ways ?? []).filter((way) => way.kind === "device").map((way) => ({ label: way.label, id: way.id }));
 }

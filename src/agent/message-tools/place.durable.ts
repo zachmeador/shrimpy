@@ -1,8 +1,8 @@
-import type { Context } from "@earendil-works/chord";
+import type { Context } from "@earendil-works/chord/context";
 import type { DocumentReader } from "@earendil-works/pi-durable";
-import type { Channel, ChatClient, Member, Thread } from "../../contracts/chat/index.ts";
-import type { GatewayConnection, RosterEntry } from "../../contracts/gateway/index.ts";
-import { isDisconnected } from "../../lib/connection/index.ts";
+import type { Channel, Member, Thread } from "../../contracts/chat/index.ts";
+import type { RosterEntry } from "../../contracts/gateway/index.ts";
+import type { ChatCalls } from "../links/index.ts";
 import { threadOfSession } from "../records/durable.ts";
 import * as words from "./words.ts";
 
@@ -28,11 +28,11 @@ export interface Find {
   /** The session the tool runs in, as the engine numbers it. */
   conversationId: number;
   read: DocumentReader;
-  chat: ChatClient;
+  chat: ChatCalls;
   /** The agent, as chat knows it. */
   self: Member;
-  /** The way to the roster, if it is up. */
-  gateway: GatewayConnection | undefined;
+  /** Everyone on the roster, or undefined while the agent has not heard it. */
+  roster: readonly RosterEntry[] | undefined;
   /** Whether a DM with a member that there is none with yet is started. Posting starts one; reading does not. */
   startDm: boolean;
   context: Context;
@@ -42,7 +42,7 @@ export interface Find {
 /**
  * The thread a tool means. With nothing given it is the thread the turn came
  * from. `@name` is the main thread of the agent's DM with that member of the
- * roster, found through the gateway and made if there is no DM yet. `#room` is
+ * roster, made if there is no DM yet. `#room` is
  * the main thread of a room the agent is in, and `#room/thread` one of that
  * room's threads, by its name or its ID.
  */
@@ -60,7 +60,7 @@ export async function placeOf(find: Find): Promise<Place | Unusable> {
   const name = /^@(.+)$/s.exec(written)?.[1]?.trim();
   if (name === undefined) return { problem: words.badPlace(argument) };
 
-  const roster = await rosterOf(find.gateway);
+  const { roster } = find;
   if (roster === undefined) return { problem: words.noRoster(name, argument) };
   const wanted = name.toLowerCase();
   const member = roster.find((each) => each.name.toLowerCase() === wanted);
@@ -70,7 +70,7 @@ export async function placeOf(find: Find): Promise<Place | Unusable> {
   const label = words.dmWith(member.name);
   const channel = find.startDm
     ? await find.chat.openDm(member.id, find.signal)
-    : (await find.chat.channels(find.signal)).find(
+    : find.chat.channels().find(
         (each) => each.kind === "dm" && each.members.some((other) => other.id === member.id),
       );
   if (channel === undefined) return { problem: words.noDmYet(member.name) };
@@ -81,7 +81,7 @@ export async function placeOf(find: Find): Promise<Place | Unusable> {
 
 /** The main thread of a room the agent is in, or one of its threads when `written` goes on after the room's name with a slash. */
 async function roomPlace(find: Find, written: string, current: string | undefined): Promise<Place | Unusable> {
-  const rooms = (await find.chat.channels(find.signal)).filter((channel) => channel.kind === "room");
+  const rooms = find.chat.channels().filter((channel) => channel.kind === "room");
   const found = roomNamed(rooms, written);
   if (found === undefined) {
     return { problem: words.notInRoom(written.split("/")[0]?.trim() ?? written, rooms.map((room) => room.name)) };
@@ -112,23 +112,11 @@ const nameOf = (thread: Thread): string => thread.name ?? thread.id;
  * may have a slash in it, so the whole text is tried first and then the longest
  * room name that it starts with.
  */
-function roomNamed(rooms: Channel[], written: string): { room: Channel; thread: string } | undefined {
+function roomNamed(rooms: readonly Channel[], written: string): { room: Channel; thread: string } | undefined {
   const lowered = written.toLowerCase();
   const named = rooms.map((room) => ({ room, name: room.name.toLowerCase() }));
   const whole = named.find((each) => each.name === lowered);
   if (whole !== undefined) return { room: whole.room, thread: "" };
   const longest = named.filter((each) => lowered.startsWith(`${each.name}/`)).sort((a, b) => b.name.length - a.name.length)[0];
   return longest === undefined ? undefined : { room: longest.room, thread: written.slice(longest.name.length + 1).trim() };
-}
-
-/** Everyone on the roster, or undefined when the gateway cannot be asked. */
-async function rosterOf(gateway: GatewayConnection | undefined): Promise<RosterEntry[] | undefined> {
-  if (gateway === undefined) return undefined;
-  try {
-    return await gateway.members();
-  } catch (error) {
-    // A connection that drops while asking is the gateway being unreachable too.
-    if (isDisconnected(error)) return undefined;
-    throw error;
-  }
 }

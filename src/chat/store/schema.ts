@@ -1,5 +1,5 @@
 /** The tables' version. A store written by any other version is refused, never changed. */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /**
  * `events` is the log, and the one thing that gives positions. AUTOINCREMENT
@@ -15,7 +15,8 @@ export const SCHEMA_VERSION = 7;
  * A receipt is an event too. It names the message of the event it answers, and
  * carries the receipt in `answers_seq`, `status`, `reply_seq` and `detail`.
  * `receipts` keeps the one that stands for each member and event, as
- * `reactions` keeps the emoji that stand.
+ * `reactions` keeps the emoji that stand. A failed receipt always has a
+ * detail, a skipped one may, and no other has one.
  *
  * A DM is found by its `direct_key`, the two members' IDs in order, and a room
  * by its `room_key`, its name in lower case, which no other room has. A member
@@ -90,7 +91,8 @@ CREATE TABLE events (
   CHECK ((kind = 'receipted') = (answers_seq IS NOT NULL)),
   CHECK ((kind = 'receipted') = (status IS NOT NULL)),
   CHECK ((kind = 'receipted' AND status = 'answered') = (reply_seq IS NOT NULL)),
-  CHECK ((kind = 'receipted' AND status = 'failed') = (detail IS NOT NULL))
+  CHECK (kind <> 'receipted' OR status <> 'failed' OR detail IS NOT NULL),
+  CHECK (detail IS NULL OR (kind = 'receipted' AND status IN ('failed', 'skipped')))
 ) STRICT;
 CREATE INDEX events_by_message ON events (message_seq, seq);
 
@@ -125,7 +127,8 @@ CREATE TABLE receipts (
   detail TEXT,
   PRIMARY KEY (event_seq, member_id),
   CHECK ((status = 'answered') = (reply_seq IS NOT NULL)),
-  CHECK ((status = 'failed') = (detail IS NOT NULL))
+  CHECK (status <> 'failed' OR detail IS NOT NULL),
+  CHECK (detail IS NULL OR status IN ('failed', 'skipped'))
 ) STRICT, WITHOUT ROWID;
 
 CREATE TABLE posts (

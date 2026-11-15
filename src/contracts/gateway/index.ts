@@ -1,45 +1,56 @@
 /**
- * The gateway API: how programs find each other, who is on the network, how a
- * program learns who is on a connection, and how a client reaches a program by
- * its name through the gateway, which is the one way to reach a program that
- * is not a home's own agent. It also has the link that invites an agent, or a
- * machine of a person's own, in from apart, what a machine keeps to be that
- * person, how an agent apart, which the gateway can't dial, is asked for and
- * answers by connecting out, the cases in which the gateway turns an agent away,
- * so that the agent can tell them apart, and the refusal every program makes for
- * a call that takes an admin. It must not know what the programs it connects say
- * to each other. This door is safe for browsers; `node.ts` adds the parts that
- * need Node, among them the ways to reach the gateway's network entry, which a
- * web page can't come in by.
+ * The gateway's contract, and what every contract shares: the hosts and their
+ * addresses, who is asking, a method's answer and refusal, the hello every
+ * caller says before Chord, the roster as `Roster`, and the invitation's link
+ * with what a machine of yours keeps. It must not know what the programs say to each other through the
+ * gateway. This door is safe for browsers; `node.ts` adds linking, which needs
+ * Node.
  */
-export { formatAddress } from "./address.ts";
-export { connectGateway, type GatewayConnection } from "./connect.ts";
+export { type Address, AddressSchema, type Entry, formatAddress } from "./address.ts";
 export {
-  answerPath,
-  GATEWAY_SERVER_ID,
-  GATEWAY_SOCKET_NAME,
-  isProgramKind,
-  parseAnswerPath,
-  parseWebSocketPath,
-  parseWebSocketRequest,
-  type WebTarget,
-  webSocketPath,
-} from "./endpoint.ts";
+  type Answer,
+  answerOf,
+  done,
+  needsAdmin,
+  type Reason,
+  ReasonSchema,
+  type Refused,
+  refused,
+  RefusedSchema,
+} from "./answers.ts";
+export {
+  type Hello,
+  type HelloAnswer,
+  hello,
+  otherPi,
+  type PiPackages,
+  readAnswer,
+  readHello,
+  readVersions,
+  samePi,
+  turnAway,
+  type TurnedAway,
+  unreadableAnswer,
+  type Versions,
+  type Welcome,
+  welcome,
+  type Who,
+} from "./hello.ts";
+export { agent, chat, gateway } from "./hosts.ts";
 export { type Link, readLink, writeLink } from "./link.ts";
 export { type Machine, MACHINE_FILE, machineFile } from "./machine.ts";
-export { reachProgram, type Transports } from "./reach.ts";
-export { NEEDS_ADMIN, refuseNeedsAdmin, TURNED_AWAY, type TurnedAway, whyTurnedAway } from "./refusals.ts";
+export { type Principal, type Revocation, revokedBy, type Way } from "./principals.ts";
 export {
-  type Address,
-  type Announcement,
-  Gateway,
   type Invitation,
-  type MachineInvitation,
+  InvitationSchema,
   type Member,
-  type ProgramName,
-  type Registration,
+  MemberSchema,
+  type Program,
+  ProgramSchema,
+  Roster,
   type RosterEntry,
-  type Ticket,
-} from "./services.ts";
+  RosterEntrySchema,
+  type WayIn,
+  WayInSchema,
+} from "./roster.ts";
 export { isToken } from "./token.ts";
-export { webSocketTransport } from "./web-socket.ts";

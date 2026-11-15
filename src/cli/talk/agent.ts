@@ -1,24 +1,53 @@
-import { type AgentConnection, connectAgent } from "../../contracts/agent/index.ts";
+import type { Host, Reference } from "@earendil-works/chord";
+import { Agent, Session } from "../../contracts/agent/index.ts";
 import { readMembership } from "../../contracts/agent/node.ts";
-import { type GatewayConnection, type Member, reachProgram, refuseNeedsAdmin } from "../../contracts/gateway/index.ts";
-import { connectLocalGateway, GatewayNotRunningError, localTransports } from "../../contracts/gateway/node.ts";
+import { type Member, needsAdmin, type Principal, type Revocation, type RosterEntry } from "../../contracts/gateway/index.ts";
+import type { GatewayClient } from "../../contracts/gateway/node.ts";
+import { refuse } from "../../lib/refusal/index.ts";
+import { GatewayNotRunningError, linkAs, viewOf } from "./gateway.ts";
 import { START_EVERYTHING } from "./hints.ts";
-import { signInAsAgentAt } from "./shell.ts";
+import { me } from "./me.ts";
+import { contextOf, holding, unlessRefused } from "./objects.ts";
+
+/** An agent a command reached: the host that holds its objects, and the name they are at. */
+export interface AgentReached {
+  /** The name the agent answers to, which its objects' `agent` param takes. */
+  readonly name: string;
+  readonly host: Host<Principal, Revocation>;
+  /** Let go of the agent. Its work goes on. */
+  close(): Promise<void>;
+}
+
+/** The agent as a whole, held through `reached` for as long as `work` runs. It is refused as the agent refuses it. */
+export function onAgent<T>(reached: AgentReached, work: (agent: Reference<typeof Agent>) => Promise<T>, signal?: AbortSignal): Promise<T> {
+  return holding(reached.host.get(Agent, { agent: reached.name }, contextOf(signal)), (agent) => {
+    unlessRefused(agent.refusal.value);
+    return work(agent);
+  });
+}
+
+/** One session of the agent, by its address, held through `reached` for as long as `work` runs. It is refused as the agent refuses it. */
+export function onSession<T>(
+  reached: AgentReached,
+  session: string,
+  work: (held: Reference<typeof Session>) => Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  return holding(reached.host.get(Session, { agent: reached.name, session }, contextOf(signal)), (held) => {
+    unlessRefused(held.refusal.value);
+    return work(held);
+  });
+}
 
 /**
- * Run `use` on a connection to the gateway that is signed in as the agent whose
- * shell is at `shell`, which is who a command run there is when it acts on the
- * agent at `home`. Without a gateway such an agent can't be reached at all, and
- * the error says so.
+ * Link to the gateway as the agent whose shell is at `shell`, which is who a
+ * command run there is when it acts on the agent at `home`. Without a gateway
+ * such an agent can't be reached at all, and the error says so.
  */
-async function asTheAgentAt<T>(
-  shell: string,
-  home: string,
-  use: (gateway: GatewayConnection, me: Member) => Promise<T>,
-): Promise<T> {
-  let gateway: GatewayConnection;
+async function asTheAgentAt(shell: string, home: string): Promise<{ client: GatewayClient; members: RosterEntry[]; linked: string[]; you: Member }> {
+  let client: GatewayClient;
   try {
-    gateway = await connectLocalGateway();
+    client = await linkAs(me());
   } catch (error) {
     if (!(error instanceof GatewayNotRunningError)) throw error;
     throw new Error(
@@ -28,44 +57,44 @@ async function asTheAgentAt<T>(
     );
   }
   try {
-    return await use(gateway, await signInAsAgentAt(gateway, shell));
-  } finally {
-    await gateway.close().catch(() => undefined);
+    const view = await viewOf(client);
+    if (view.you === null) throw new Error(`The gateway takes the agent at ${shell} for nobody.`);
+    const linked = view.programs.flatMap((program) => (program.kind === "agent" && program.member !== null ? [program.member] : []));
+    return { client, members: view.members, linked, you: view.you };
+  } catch (error) {
+    await client.close();
+    throw error;
   }
 }
 
-/** Refuse unless `me` is an admin, as the roster says now, and name the admins to ask when it is not. `what` starts a sentence. */
-async function requireAdmin(gateway: GatewayConnection, me: Member, what: string): Promise<void> {
-  if (me.admin) return;
-  refuseNeedsAdmin(what, me, (await gateway.members()).filter((member) => member.admin));
+/** Refuse unless `you` is an admin, as the roster says now, and name the admins to ask when it is not. `what` starts a sentence. */
+function requireAdmin(you: Member, members: readonly RosterEntry[], what: string): void {
+  if (you.admin) return;
+  refuse(needsAdmin(what, you, members.filter((member) => member.admin)).words);
 }
 
 /**
- * Connect to the agent that owns `home` by its name through the gateway, as the
+ * Reach the agent that owns `home` by its name through the gateway, as the
  * agent whose shell is at `shell`, which is how one agent reaches another: the
  * agent reached decides what the one that asks may do. Gives undefined when no
- * agent is running there, once the roster has said that the one that asks may
- * ask, since no agent is there to refuse it. The caller closes the connection.
+ * agent is linked as it, once the roster has said that the one that asks may
+ * ask, since no agent is there to refuse it.
  */
-export function reachAgent(shell: string, home: string): Promise<AgentConnection | undefined> {
-  return asTheAgentAt(shell, home, async (gateway, me) => {
+export async function reachAgent(shell: string, home: string): Promise<AgentReached | undefined> {
+  const { client, members, linked, you } = await asTheAgentAt(shell, home);
+  try {
     const memberId = readMembership(home)?.memberId;
-    const running = (await gateway.list()).findLast(
-      (program) => program.kind === "agent" && memberId !== undefined && program.memberId === memberId,
-    );
-    if (running === undefined) {
-      await requireAdmin(gateway, me, "Acting on another agent");
+    const target = members.find((member) => member.id === memberId);
+    if (target === undefined || !linked.includes(target.id)) {
+      requireAdmin(you, members, "Acting on another agent");
+      await client.close();
       return undefined;
     }
-    const { connection } = await reachProgram({
-      gateway,
-      transports: localTransports(),
-      target: { kind: running.kind, name: running.name },
-      connect: connectAgent,
-      enter: (opened, ticket) => opened.enter(ticket),
-    });
-    return connection;
-  });
+    return { name: target.name, host: client.host, close: () => client.close() };
+  } catch (error) {
+    await client.close();
+    throw error;
+  }
 }
 
 /**
@@ -74,6 +103,11 @@ export function reachAgent(shell: string, home: string): Promise<AgentConnection
  * no agent is there to guard. `what` is what takes an admin, written to start a
  * sentence.
  */
-export function requireAdminFor(shell: string, home: string, what: string): Promise<void> {
-  return asTheAgentAt(shell, home, (gateway, me) => requireAdmin(gateway, me, what));
+export async function requireAdminFor(shell: string, home: string, what: string): Promise<void> {
+  const { client, members, you } = await asTheAgentAt(shell, home);
+  try {
+    requireAdmin(you, members, what);
+  } finally {
+    await client.close();
+  }
 }

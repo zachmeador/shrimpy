@@ -1,4 +1,4 @@
-import type { Context } from "@earendil-works/chord";
+import type { Context } from "@earendil-works/chord/context";
 import { defineTask, type TaskRuntime, type Tx } from "@earendil-works/pi-durable";
 import type { Check } from "../../contracts/agent/index.ts";
 import { localTime } from "../../lib/time/index.ts";
@@ -26,7 +26,10 @@ export type Waiting = { name: string; revision: number; next: number };
  */
 export type Standing = { revision: number; next: number };
 
+/** The task is new, and goes to sleep until its first occurrence. */
 type Waits = Standing & { phase: "wait" };
+/** The occurrence is due: the checkpoint the task sleeps with, and wakes at. */
+type Due = Standing & { phase: "due" };
 /** An occurrence that fired at `firedAt`, with the check it runs as the trigger had it then. */
 type Dated = Standing & { firedAt: number; check: Check };
 /** The check is about to run. */
@@ -35,7 +38,7 @@ type Checks = Dated & { phase: "check" };
 type Checking = Dated & { phase: "checking" };
 /** The check has ended, with what it printed and whether that is news. */
 type Checked = Dated & { phase: "checked"; output: string; news: boolean };
-type State = Waits | Checks | Checking | Checked;
+type State = Waits | Due | Checks | Checking | Checked;
 
 type Runtime = TaskRuntime<Waiting, State, null, object>;
 
@@ -62,6 +65,9 @@ export interface TriggerTaskOptions {
 }
 
 export const ENDED = { status: "terminal", outcome: { status: "completed", result: null } } as const;
+
+/** The task asleep until its next occurrence is due at `next`, for the revision of the schedule it is for. */
+const asleep = (revision: number, next: number) => ({ status: "sleeping", until: next, checkpoint: { phase: "due", revision, next } }) as const;
 
 /**
  * What the commit that settles a check's finding needs first, which reads and
@@ -94,16 +100,17 @@ async function stillThere(tx: Tx, name: string, revision: number): Promise<Store
 }
 
 /**
- * The task that sleeps on the engine's timer until a trigger's next occurrence
- * is due, and then makes the occurrence and the next time in one commit. A
- * trigger with a check goes through the check first, with a checkpoint for each
- * step: the check is about to run; it has begun, which is on record in a commit
- * before the command starts; and it has ended, with what it printed and whether
- * that is news. A task that starts again and finds the checkpoint in the middle
- * finds that the agent ended while the command ran, so it does not run the
- * command again, and the occurrence says it was interrupted. One that finds the
- * last makes the occurrence from what was recorded, in one commit with the next
- * time, as for a trigger with no check.
+ * The task that sleeps as one of the engine's sleeping tasks until a trigger's
+ * next occurrence is due, and then makes the occurrence and the sleep until the
+ * next time in one commit. A trigger with a check goes through the check first,
+ * with a checkpoint for each step: the check is about to run; it has begun,
+ * which is on record in a commit before the command starts; and it has ended,
+ * with what it printed and whether that is news. A task that starts again and
+ * finds the checkpoint in the middle finds that the agent ended while the
+ * command ran, so it does not run the command again, and the occurrence says it
+ * was interrupted. One that finds the last makes the occurrence from what was
+ * recorded, in one commit with the sleep until the next time, as for a trigger
+ * with no check.
  */
 export function triggerTask(options: TriggerTaskOptions) {
   const { turn, defaults } = options;
@@ -111,13 +118,13 @@ export function triggerTask(options: TriggerTaskOptions) {
   /**
    * The trigger's next move in the commit `tx` belongs to: its end when it is not
    * the trigger this task is for any more, and otherwise, after `make` has made
-   * what its occurrence leaves, on to its next time, counted from now.
+   * what its occurrence leaves, asleep until its next time, counted from now.
    */
   const onward = async (tx: Tx, runtime: Runtime, name: string, revision: number, make?: (found: StoredTrigger) => Promise<void>) => {
     const found = await stillThere(tx, name, revision);
     if (found === undefined) return ENDED;
     await make?.(found);
-    return { status: "running", checkpoint: { phase: "wait", revision, next: nextOccurrence(found.definition.schedule, runtime.now()) } } as const;
+    return asleep(revision, nextOccurrence(found.definition.schedule, runtime.now()));
   };
 
   /**
@@ -137,11 +144,14 @@ export function triggerTask(options: TriggerTaskOptions) {
     version: 1,
     initial: (input) => ({ phase: "wait", revision: input.revision, next: input.next }),
     phases: {
-      wait: async (waiting, runtime, context) => {
+      wait: (waiting, runtime, context) => {
         const { revision, next } = waiting.state.checkpoint;
-        const { name } = waiting.input;
-        await runtime.sleep(next, context);
+        return runtime.sleepUntil(next, { phase: "due", revision, next }, context);
+      },
 
+      due: async (due, runtime, context) => {
+        const { revision, next } = due.state.checkpoint;
+        const { name } = due.input;
         try {
           // Asking chat where the thread is comes first, and takes no part in the commit that makes the occurrence.
           const where = await options.whereTo(name, runtime.signal);
@@ -156,7 +166,7 @@ export function triggerTask(options: TriggerTaskOptions) {
               return { status: "running", checkpoint: { phase: "check", revision, next, firedAt: now, check: plain(check) } } as const;
             }
             await fire(tx, { turn, defaults, breadcrumbs }, plain(found.definition), { due: next, firedAt: now, byHand: false }, where);
-            return { status: "running", checkpoint: { phase: "wait", revision, next: nextOccurrence(found.definition.schedule, now) } } as const;
+            return asleep(revision, nextOccurrence(found.definition.schedule, now));
           }, context);
         } catch (error) {
           await gaveUp(runtime, context, name, revision, next, error);

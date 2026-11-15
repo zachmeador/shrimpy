@@ -1,16 +1,33 @@
 /**
- * How the console reaches the programs it talks to: the gateway, which says
- * what is running, the chat server, where threads live, and an agent, whose
- * sessions it lists and watches, and whose models it asks for. The chat server and the agent are reached by
- * their names through the gateway, over the transports each link is handed
- * instead of knowing where a program is. Each link keeps its connection across
- * losses, and says what it can and cannot do meanwhile, with `converge` for
- * running an operation until nothing has asked for it again. It must not know
- * what is on screen, how anything is drawn, or what a program says beyond its
- * contract.
+ * How the console reaches the programs it talks to: one link to the gateway,
+ * kept across losses, through which it holds the roster, chat's channels and
+ * threads, and each agent's sessions, as Chord objects that stay live and come
+ * back by themselves after a loss; following what it holds; and where a link
+ * stands, as data. It must not know what is on screen, how anything is drawn,
+ * or what a program says beyond its contract. It is the one part of the
+ * console that imports Chord: the rest sees what each object shows and the
+ * calls it takes, as plain values.
  */
-export { type AgentLink, type AgentLinkOptions, keepAgent, type SessionUpdate } from "./agent.ts";
-export { type ChatLink, type ChatLinkOptions, keepChat, type ThreadUpdate } from "./chat.ts";
-export { converge } from "./converge.ts";
-export { keepRegistry, type Listing, type RegistryLink, type RegistryOptions } from "./registry.ts";
-export { CONNECTING, Down, type LinkStatus, type Problem, problemOf, type Why } from "./status.ts";
+export { type GatewayLink, type GatewayLinkOptions, keepGateway } from "./link.ts";
+export {
+  type AgentCalls,
+  type AgentShown,
+  type ChannelCalls,
+  type ChannelShown,
+  type ChatCalls,
+  type ChatShown,
+  holdAgent,
+  holdChannel,
+  holdChat,
+  type Holding,
+  holdRoster,
+  holdSession,
+  holdThread,
+  type RosterCalls,
+  type RosterShown,
+  type SessionCalls,
+  type SessionShown,
+  type ThreadCalls,
+  type ThreadShown,
+} from "./objects.ts";
+export { CONNECTING, Down, type LinkStatus, type Problem, problemOf, statusOf, UP, type Why } from "./status.ts";

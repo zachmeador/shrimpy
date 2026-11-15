@@ -1,11 +1,7 @@
 /**
- * Refusing a call so that the reason reaches the caller, and telling a call
- * that was refused from one that failed. Anything else a service throws is
- * reported as an internal error without its message, so a server throws this
- * for what a caller should be told. A refusal can also say which case it is, in
- * a reason, so that a caller never has to read that out of the message. A
- * program that has no such call, being another version, is told apart from one
- * that refuses. It must not know which program refuses or why.
+ * Saying no on purpose from deep inside an operation: `refuse` throws a
+ * `Refusal`, whose message is words for a person, and `isRefusal` tells one
+ * from a failure at the edge, which answers with the words. It must not know
+ * which program refuses, why, or how an answer travels.
  */
-export { isRefusal, isUnknownCall, reasonOf } from "./is-refusal.ts";
-export { refuse, Refusal } from "./refusal.ts";
+export { isRefusal, refuse, Refusal } from "./refusal.ts";

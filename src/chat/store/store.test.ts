@@ -98,15 +98,19 @@ test("the store's directory is private to its owner", (t) => {
   assert.equal(statSync(join(dataDir, "state")).mode & 0o777, 0o700);
 });
 
-test("a store written by another version is refused and left as it is", (t) => {
+test("a store from before the move to Pi 1.5.2 is refused, in words that name its folder, and left as it is", (t) => {
   const dataDir = tempDir(t, "chat-old");
   mkdirSync(join(dataDir, "state"));
   const file = join(dataDir, "state", "chat.sqlite");
   const old = new DatabaseSync(file);
-  old.exec("CREATE TABLE skips (message_seq INTEGER, member_id TEXT); PRAGMA user_version = 1");
+  // The version the chat server wrote until the move.
+  old.exec("CREATE TABLE skips (message_seq INTEGER, member_id TEXT); PRAGMA user_version = 7");
   old.close();
 
-  assert.throws(() => openStore(dataDir), /version 1, and this chat server reads version \d+/);
+  assert.throws(
+    () => openStore(dataDir),
+    (error: Error) => error.message.includes(dataDir),
+  );
 
   const after = new DatabaseSync(file);
   const tables = after.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all();

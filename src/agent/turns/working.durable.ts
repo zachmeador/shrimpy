@@ -36,9 +36,14 @@ export function createWorking(harness: Harness): Working {
     },
 
     onChange(listener) {
-      return harness.subscribeCommits(({ changes }) => {
-        if (changes.some(startsOrEndsATurn)) listener();
+      const observation = harness.observeCommits({
+        advance({ changes }) {
+          // Told outside the commit, so the listener may ask the engine again.
+          if (changes.some(startsOrEndsATurn)) setImmediate(listener);
+        },
+        end: () => undefined,
       });
+      return () => observation.detach();
     },
 
     async untilTold(signal) {

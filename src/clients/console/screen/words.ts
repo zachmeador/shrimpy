@@ -1,18 +1,20 @@
-import type {
-  ModelId,
-  QueuedInput,
-  SessionActivity,
-  SessionItem,
-  SessionPlace,
-  SessionSummary,
-  ThreadPlace,
-  ToolStatus,
+import {
+  failureWords,
+  type ModelId,
+  type QueuedInput,
+  type SessionActivity,
+  type SessionItem,
+  type SessionPlace,
+  type SessionSummary,
+  type ThreadPlace,
+  type ToolStatus,
+  type WaitingWakeup,
 } from "../../../contracts/agent/index.ts";
 import { AGENT_COMMANDS, type AgentCommand, type Channel, type Receipt } from "../../../contracts/chat/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import type { Problem, Why } from "../network/index.ts";
-import type { AgentStatus, Notice, RoomStatus } from "../state/index.ts";
+import type { AgentStatus, DevicesStatus, Notice, RoomStatus } from "../state/index.ts";
 import { oneLine } from "./plain.ts";
 
 /*
@@ -32,11 +34,14 @@ const STOP: AgentCommand = "stop";
 /** The command a person writes in a thread to see or change the model of the thread's session. */
 const MODEL: AgentCommand = "model";
 
+/** How a device is taken back, as the person writes it. */
+const TAKE_BACK = "/devices take back <device>";
+
 /** What `/model` is written with to have the thread follow the agent's model again. */
 export const MODEL_DEFAULT = "default";
 
 /** The program a problem is about. */
-export type Program = { kind: "chat" } | { kind: "agent"; name: string };
+export type Program = { kind: "chat" } | { kind: "gateway" } | { kind: "agent"; name: string };
 
 const CHAT = "the chat server";
 
@@ -45,12 +50,16 @@ export function gatewayNote(why: Why): string | undefined {
   switch (why.kind) {
     case "not-running":
       return `No gateway is running on this machine. Start Shrimpy with: ${START_EVERYTHING}`;
+    case "refused":
+      return `The gateway turned this terminal away: ${oneLine(why.words)}`;
+    case "unproven":
+      return oneLine(why.words);
     case "lost":
       return "Lost the connection to the gateway. The list of agents may be out of date. Trying again.";
     case "unreachable":
       return `Could not reach the gateway: ${oneLine(why.message)}`;
     case "connecting":
-    case "not-registered":
+    case "not-linked":
       return undefined;
   }
 }
@@ -58,14 +67,16 @@ export function gatewayNote(why: Why): string | undefined {
 /** What to tell about the chat server, if it is not as it should be. */
 export function chatNote(why: Why): string | undefined {
   switch (why.kind) {
-    case "not-registered":
-      return `No chat server is registered with this machine's gateway. Start one with: shrimpy chat serve <data-dir>, or start everything with: ${START_EVERYTHING}`;
+    case "not-linked":
+      return `No chat server is linked to this machine's gateway. Start one with: shrimpy chat serve <data-dir>, or start everything with: ${START_EVERYTHING}`;
     case "lost":
       return "Lost the connection to the chat server. What is shown may be out of date, and nothing can be sent. Trying again.";
     case "unreachable":
       return oneLine(why.message);
     case "connecting":
     case "not-running":
+    case "refused":
+    case "unproven":
       return undefined;
   }
 }
@@ -84,10 +95,10 @@ export function agentNote(
 ): string | undefined {
   const name = oneLine(agent);
   switch (why.kind) {
-    case "not-registered":
+    case "not-linked":
       return home?.found === false
-        ? `No agent named ${name} is registered with this machine's gateway. It has no home in ${oneLine(home.where)}, so it lives somewhere else: start it where it lives.`
-        : `No agent named ${name} is registered with this machine's gateway. Start it with: shrimpy agent serve ${name}, or start everything with: ${START_EVERYTHING}`;
+        ? `No agent named ${name} is linked to this machine's gateway. It has no home in ${oneLine(home.where)}, so it lives somewhere else: start it where it lives.`
+        : `No agent named ${name} is linked to this machine's gateway. Start it with: shrimpy agent serve ${name}, or start everything with: ${START_EVERYTHING}`;
     case "lost":
       return looking === "work"
         ? `Lost the connection to ${name}. The work shown may be out of date. Trying again.`
@@ -96,6 +107,8 @@ export function agentNote(
       return oneLine(why.message);
     case "connecting":
     case "not-running":
+    case "refused":
+    case "unproven":
       return undefined;
   }
 }
@@ -114,17 +127,21 @@ export function versionWarning(what: string, version: string): string | undefine
 
 /** Why something could not be done, as the end of a sentence. */
 function because(program: Program, problem: Problem): string {
-  const who = program.kind === "chat" ? CHAT : oneLine(program.name);
+  const who = program.kind === "chat" ? CHAT : program.kind === "gateway" ? "the gateway" : oneLine(program.name);
   if ("said" in problem) return oneLine(problem.said).replace(/\.$/, "");
   switch (problem.down.kind) {
     case "connecting":
       return `not connected to ${who} yet`;
     case "lost":
       return `lost the connection to ${who}`;
-    case "not-registered":
-      return program.kind === "chat" ? "no chat server is registered" : `${who} is not registered with the gateway`;
+    case "not-linked":
+      return program.kind === "chat" ? "no chat server is linked to the gateway" : `${who} is not linked to the gateway`;
     case "not-running":
       return "no gateway is running";
+    case "refused":
+      return `the gateway turned this terminal away: ${oneLine(problem.down.words).replace(/\.$/, "")}`;
+    case "unproven":
+      return oneLine(problem.down.words).replace(/\.$/, "");
     case "unreachable":
       return oneLine(problem.down.message).replace(/\.$/, "");
   }
@@ -159,6 +176,18 @@ export function noticeText(notice: Notice, agentName: string): string {
       return `Could not read the model of this thread: ${because({ kind: "agent", name: agent }, notice.problem)}.`;
     case "name-an-agent":
       return `Nothing was posted. ${oneLine(AGENT_COMMANDS[notice.command].room)}`;
+    case "devices-usage":
+      return `${oneLine(notice.command)} lists your devices, and ${TAKE_BACK} takes one back. Nothing was taken back.`;
+    case "taken-back":
+      return `Took back ${oneLine(notice.device)}. Its link to the gateway has ended, and it can't link again until it joins anew.`;
+    case "no-device":
+      return notice.devices.length === 0
+        ? `You have no devices, so none is called ${oneLine(notice.written)}.`
+        : `No device of yours is called ${oneLine(notice.written)}. Your devices are ${andList(notice.devices.map(oneLine))}.`;
+    case "devices-alike":
+      return `More than one device of yours is called ${oneLine(notice.written)}. Name one by its ID, which /devices lists.`;
+    case "not-taken-back":
+      return `Could not take the device back: ${because({ kind: "gateway" }, notice.problem)}.`;
   }
 }
 
@@ -283,8 +312,8 @@ export function readOnlyLine(channel: Pick<Channel, "kind" | "name" | "members">
 
 export const earlierMessages = (count: number, threadId: string): string =>
   `${String(count)} earlier ${count === 1 ? "message is" : "messages are"} not shown. Read them with: shrimpy read ${oneLine(threadId)}`;
-export const earlierItems = (count: number, address: string, agent: string): string =>
-  `${String(count)} earlier ${count === 1 ? "item is" : "items are"} not shown. Read them with: shrimpy sessions read ${oneLine(address)} --agent ${oneLine(agent)}`;
+export const earlierItems = (address: string, agent: string): string =>
+  `Earlier items are not shown. Read the whole session with: shrimpy sessions read ${shellWord(oneLine(address))} --agent ${shellWord(oneLine(agent))}`;
 
 /**
  * Where a session is, as a list says it, in the names the agent gave: `me` is
@@ -369,7 +398,7 @@ export function receiptNote(receipt: Receipt, name: string): string | undefined 
     case "stopped":
       return `${who} stopped before answering`;
     case "skipped":
-      return `${who} skipped this message`;
+      return receipt.detail === null ? `${who} skipped this message` : `${who} skipped this message: ${oneLine(receipt.detail)}`;
   }
 }
 
@@ -407,6 +436,10 @@ function activityWords(activity: SessionActivity): string | undefined {
  * the commands for agents.
  */
 export const TERMINAL_COMMANDS = {
+  devices: {
+    dm: `List your devices, or take one back: ${TAKE_BACK}`,
+    room: `List your devices, or take one back: ${TAKE_BACK}`,
+  },
   status: {
     dm: "Show what the agent is doing, its model, tokens and cost.",
     room: "Show which agents here are running and working.",
@@ -428,8 +461,8 @@ const chosenFor = (agent: string, defaultModel: ModelId | undefined): string =>
     ? " (chosen for this thread)"
     : ` (chosen for this thread; ${agent}'s default is ${modelWords(defaultModel)})`;
 
-/** The line over what `/status` read: whom it is for, and when it was read. */
-export const statusHeader = (at: number): string => `status · shown only to you · read ${localTime(at)}`;
+/** The line over what `/status` or `/devices` read: which it was, whom it is for, and when it was read. */
+export const statusHeader = (at: number, what: "status" | "devices" = "status"): string => `${what} · shown only to you · read ${localTime(at)}`;
 
 const howMany = (count: number): string => (count === 0 ? "none" : String(count));
 const withCommas = (count: number): string => count.toLocaleString("en-US");
@@ -453,9 +486,38 @@ export function agentStatusRows(status: AgentStatus): string[] {
   } else if (status.doing !== undefined) {
     rows.push(`${name} has no session in this thread yet.`);
   }
+  const failure = status.session?.failure ?? null;
+  if (failure !== null) rows.push(`Last turn: ${oneLine(failureWords(failure.reason, failure.detail))}`);
+  for (const wakeup of status.session?.wakeups ?? []) rows.push(`${wakeupWords(wakeup, localTime(wakeup.due))}. Write /${STOP} to cancel it.`);
   if (status.othersWorking !== undefined) rows.push(`Other sessions working: ${howMany(status.othersWorking)}`);
   return rows;
 }
+
+/** A wake-up a session waits on: when, as `when` writes it, and the note it brings. */
+export const wakeupWords = (wakeup: WaitingWakeup, when: string): string => `Checks back at ${when}: ${oneLine(wakeup.note).replace(/\.$/, "")}`;
+
+/**
+ * The line under a thread's work for a wake-up the agent waits on there: when
+ * it comes, the note it brings, and, where the person can write, that `/stop`
+ * cancels it.
+ */
+export function wakeupLine(agent: string, wakeup: WaitingWakeup, when: string, inThread: boolean): string {
+  return `${oneLine(agent)} ${wakeupWords(wakeup, when).replace(/^Checks/, "checks")}${inThread ? ` · write /${STOP} to cancel it` : ""}`;
+}
+
+/** What `/devices` read, one device to a line, with how to take one back. */
+export function devicesRows(status: DevicesStatus): string[] {
+  if (status.devices.length === 0) {
+    return ["You have no devices. Another machine of yours joins with the line that shrimpy invite prints, run there."];
+  }
+  return [
+    ...status.devices.map((device) => (device.label === null ? oneLine(device.id) : `${oneLine(device.label)} · ${oneLine(device.id)}`)),
+    `To take one back, write ${TAKE_BACK}. It is let go at once.`,
+  ];
+}
+
+/** An image the model was shown, named by its media type. */
+export const imageWords = (mimeType: string): string => `[image: ${oneLine(mimeType)}]`;
 
 /** What `/status` read about the agents of a room, one to a line. */
 export function roomStatusRows(status: RoomStatus): string[] {

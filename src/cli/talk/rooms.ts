@@ -14,7 +14,7 @@ export function roomNameWritten(written: string): string {
  * to. A room you are not in is not told apart from one that does not exist, so
  * the error lists the rooms you are in.
  */
-export function roomNamed(channels: Channel[], written: string): Channel {
+export function roomNamed(channels: readonly Channel[], written: string): Channel {
   const name = roomNameWritten(written);
   const wanted = name.toLowerCase();
   const rooms = channels.filter((channel) => channel.kind === "room");

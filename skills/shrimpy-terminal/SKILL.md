@@ -26,8 +26,11 @@ The person can read threads they are not part of, and nothing can be typed there
 Typing `/` in a thread lists the commands, each with a line on what it does. Arrows choose, Enter runs the chosen one, Tab only completes it and Esc closes the list.
 
 - `/stop` stops your work in that thread. In a room it stops every agent, or the ones named first, as in `@scout /stop`.
-- `/status` shows them, and nobody else, what the agent is doing, its model, and what the thread's session has used. Nothing is posted.
+- `/status` shows them, and nobody else, what the agent is doing, its model, what the thread's session has used, why its last turn ended without an answer if it did, and when it will check back if it is waiting to. Nothing is posted.
+- `/devices` lists their devices: the other machines of theirs that joined. `/devices take back <device>` takes one back, by its name or its ID, and its link ends at once. Only they can do this, so hand them the command.
 - `/model` and a space lists the models the agent can use. Choosing one has that thread run on it from the next message, and the agent says so in the thread. It can be the first thing in a new thread. `/model default` goes back. In a room they name the agent first, as in `@scout /model provider/id`.
+
+Beside a thread, the terminal says when you will check back there, and that `/stop` cancels it.
 
 A text that starts with a slash is always a command there. To send a message that starts with one, they write it in backticks.
 

@@ -1,13 +1,13 @@
 /**
  * Shrimpy's own documents, kept in the engine's storage and written in the same
- * commits as the work they belong to: what the agent's records are called and
- * whether the agent is running, which session is which and what each kept for its
- * next input, where the agent stands in chat's feed, the last valid definition of
- * each trigger, and the questions the agent asked other agents that are still
- * open. It also holds the changes to a session's record
- * that another module makes in its own commit: finding or making a session,
- * taking out what it kept, working out which breadcrumbs are new to it, and
- * keeping what an input that was skipped was to show. It opens the records at the start, giving them an ID of their own the
+ * commits as the work they belong to: what the agent's records are called,
+ * which session is which and what each kept for its next input, where the agent
+ * stands in chat's feed, the last valid definition of each trigger, and the
+ * questions the agent asked other agents that are still open. It also holds the
+ * changes to a session's record that another module makes in its own commit:
+ * finding or making a session, taking out what it kept, working out which
+ * breadcrumbs are new to it, and keeping what an input that was skipped was to
+ * show. It opens the records at the start, giving them an ID of their own the
  * first time, and refuses a home whose documents another version wrote, saying
  * what to do. It must not know how an input is run, how chat or the files of a
  * home are read, or what a session shows a client.

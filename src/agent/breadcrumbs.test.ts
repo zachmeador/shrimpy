@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import type { AgentConnection, Occurrence, TriggerDetail } from "../contracts/agent/index.ts";
+import type { Occurrence, TriggerDetail } from "../contracts/agent/index.ts";
 import { eventually, tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
 import { homePaths } from "./home/index.ts";
 import {
+  type AgentConnection,
   type AgentRig,
   assistantItems,
   attachThread,
@@ -119,7 +120,7 @@ test("an agent killed between taking an input up and its turn shows the breadcru
   // This message is taken up while the first turn runs, and waits behind it. The kill falls before its turn begins.
   leaveBreadcrumb(home, "build", "build: failing");
   const two = await talk.say("and then this");
-  const watching = await attachThread(home, talk.thread.id);
+  const watching = await attachThread(t, home, talk.thread.id);
   await waitForView(watching.session, (view) => view.status.queued.length === 1);
   await watching.connection.close();
   await first.kill("SIGKILL");

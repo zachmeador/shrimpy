@@ -9,6 +9,7 @@ import { CodingTools } from "@earendil-works/pi-durable/tools";
 import { homePaths } from "../home/index.ts";
 import { shellWithShrimpy } from "./launcher.ts";
 import { takeOwnerLock } from "./owner-lock.ts";
+import { refuseOlderStorage } from "./storage.ts";
 
 export interface HostOptions {
   home: string;
@@ -47,12 +48,17 @@ export interface Host {
 
 const context = BACKGROUND_CONTEXT;
 
-/** Take ownership of a home and open its storage and engine, with the stock coding tools installed. */
+/**
+ * Take ownership of a home and open its storage and engine, with the stock
+ * coding tools installed. Storage written before the move to Pi 1.5.2 is
+ * refused before it is opened.
+ */
 export async function openHost(options: HostOptions): Promise<Host> {
   const { home } = options;
   const { database } = homePaths(home);
   const lock = takeOwnerLock(home);
   try {
+    refuseOlderStorage(database);
     mkdirSync(dirname(database), { recursive: true });
     const shell = options.shrimpy === undefined ? undefined : shellWithShrimpy(home, options.shrimpy);
     const registry = createRegistry();
@@ -63,8 +69,9 @@ export async function openHost(options: HostOptions): Promise<Host> {
         models: options.models,
         registry,
         // Messages that queued up while a session was busy are picked up together, so they get one answer. So are the
-        // ones that join a turn that is running: a second mention in the same step is read at the same next step.
-        settings: { followUpMode: "all", steeringMode: "all" },
+        // ones that join a turn that is running: a second mention in the same step is read at the same next step. The
+        // inputs waiting behind a turn that fails are taken back, as a stop does, and nothing runs them by themselves.
+        settings: { followUpMode: "all", steeringMode: "all", afterFailedRun: "withdraw" },
         env: () => new NodeExecutionEnv({ cwd: home, shellEnv: shell }),
         onReport: options.onReport ?? reportToStderr,
       },

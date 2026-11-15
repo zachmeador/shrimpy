@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { fauxAssistantMessage, fauxToolCall, type Message } from "@earendil-works/pi-ai";
-import { eventually, until, waitForView } from "../lib/testing/index.ts";
+import { eventually, stopAfter, until, waitForView } from "../lib/testing/index.ts";
 import { callingTools, loggedRequests, releaseGate, type Script, startAgentRig, untilReleased } from "./testing/index.ts";
 
 /*
@@ -98,6 +98,42 @@ test("a stop cancels the wake-ups a session is waiting on, and the next input te
   assert.ok(!(await rig.replies())[2]?.text.includes("look at the build again"), "and only once");
 });
 
+test("a session's status shows the wake-ups it is waiting on, the soonest first, and why its last turn failed until its next turn starts", { timeout }, async (t) => {
+  const script: Script = (messages) => {
+    const latest = latestUserText(messages);
+    if (latest.includes("set two wake-ups") && !hasToolResult(messages)) {
+      return fauxAssistantMessage(
+        [
+          fauxToolCall("check_back", { in: "2h", note: "the later one" }, { id: "call-0" }),
+          fauxToolCall("check_back", { in: "1h", note: "the sooner one" }, { id: "call-1" }),
+        ],
+        { stopReason: "toolUse" },
+      );
+    }
+    if (latest.includes("refuse")) return fauxAssistantMessage([], { stopReason: "error", errorMessage: "The model refused the request." });
+    return fauxAssistantMessage("Done.");
+  };
+  const rig = await startAgentRig(t, { script });
+  await rig.receiptOn(await rig.say("set two wake-ups"));
+  const { session } = await rig.attach();
+
+  const waiting = await waitForView(session, (view) => view.status.wakeups.length === 2);
+  assert.deepEqual(waiting.status.wakeups.map(({ note }) => note), ["the sooner one", "the later one"]);
+  const due = waiting.status.wakeups[0]?.due ?? 0;
+  assert.ok(Math.abs(due - Date.now() - 3_600_000) < 60_000, "with when it is due");
+  assert.equal(waiting.status.failure, null);
+
+  await rig.receiptOn(await rig.say("please refuse"));
+  const failed = await waitForView(session, (view) => view.status.failure !== null);
+  assert.equal(failed.status.failure?.reason, "model_error");
+  assert.ok(failed.status.failure.detail?.includes("The model refused the request."), String(failed.status.failure.detail));
+
+  await session.stop();
+  await waitForView(session, (view) => view.status.wakeups.length === 0);
+  await rig.receiptOn(await rig.say("and now?"));
+  await waitForView(session, (view) => view.status.failure === null && !view.status.busy);
+});
+
 test("a wake-up and chat messages that arrive while the session is busy are answered in the order they came in", { timeout }, async (t) => {
   // The turn that asks for the wake-up stays open on its last step until the test lets it go. A person's message
   // joins a turn that has a step left, so everything after this has to wait for the next turn.
@@ -117,6 +153,8 @@ test("a wake-up and chat messages that arrive while the session is busy are answ
     return fauxAssistantMessage(`Shown:\n${messages.slice(answered + 1).map(textOf).join("\n")}`);
   };
   const rig = await startAgentRig(t, { script });
+  // The held turn lets go first when the test ends, so that stopping the agent doesn't wait for it.
+  stopAfter(t, () => releaseGate(rig.home));
   await rig.say("set a wake-up");
   await until(() => onLastStep, "the turn to reach its last step");
   const { session } = await rig.attach();

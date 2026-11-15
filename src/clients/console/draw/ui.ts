@@ -139,6 +139,12 @@ export function startDrawing(options: DrawingOptions): Drawing {
       case "model":
         void state.showModel();
         return;
+      case "devices":
+        state.readDevices();
+        return;
+      case "take-back":
+        void state.takeBack(written.device);
+        return;
       case "refuse":
         state.note(written.notice);
         restore(draftKey, text);
@@ -269,6 +275,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
     if (screen.idle !== undefined) status.push(new Text(theme.dim(screen.idle), 0, 0));
     if (screen.stale) status.push(new Text(theme.warn(`(${OUT_OF_DATE})`), 0, 0));
     for (const queued of screen.queued) status.push(new Text(theme.dim(queued), 0, 0));
+    for (const waiting of screen.waiting) status.push(new Text(theme.dim(waiting), 0, 0));
     // The spinner has a blank line of its own above it.
     if (line !== undefined) parts.push(line);
     else if (status.length > 0 && screen.steps.length > 0) parts.push(new Spacer(1));
@@ -293,6 +300,10 @@ export function startDrawing(options: DrawingOptions): Drawing {
     }
     const line = working(screen.working);
     if (line !== undefined) parts.push(line);
+    if (screen.waiting.length > 0) {
+      if (line === undefined) parts.push(new Spacer(1));
+      for (const waiting of screen.waiting) parts.push(new Text(theme.dim(waiting), 0, 0));
+    }
     if (screen.status !== undefined) parts.push(statusComponent(screen.status, theme));
     editor.borderColor = screen.working === undefined ? theme.editor.borderColor : theme.editorBusy;
     return parts;

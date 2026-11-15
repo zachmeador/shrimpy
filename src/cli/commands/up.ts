@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { AgentNotRunningError, attachLocal, readEndpoint, readMembership } from "../../contracts/agent/node.ts";
+import { AgentNotRunningError, connectHome, readEndpoint, readMembership } from "../../contracts/agent/node.ts";
 import { type Address, formatAddress } from "../../contracts/gateway/index.ts";
 import { keptListenAddresses } from "../../gateway/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
@@ -46,8 +46,9 @@ export function upCommand(pace: Pace = PACE): Command {
     summary: "Start what is missing on this machine and keep it running: the gateway, the chat server and your agents.",
     details: [
       "Your Shrimpy folder is ~/shrimpy or the folder SHRIMPY_DIR names. Its agents/ holds the home of each " +
-        "agent, providers/ the sign-ins and model servers they share, and gateway/ and chat/ the data of those " +
-        "programs. If this machine joined a gateway as yours, machine.json says which.",
+        "agent, providers/ the sign-ins and model servers they share, gateway/ and chat/ the data of those " +
+        "programs, and settings.json your own settings, such as your name. If this machine joined a gateway as " +
+        "yours, machine.json says which.",
       "With no agents named, it starts every agent in your Shrimpy folder: each folder of agents/ that holds an " +
         "agent.json. The gateway keeps its roster in gateway/ and the chat server its store in chat/, in that " +
         "folder or in the directory --data names, which is made if it is missing. Each program runs as a process " +
@@ -287,7 +288,7 @@ async function startGatewayAndChat(io: Io, here: NonNullable<Plan["here"]>, crew
     crew.push({ role: "chat", what: "the chat server", program });
     io.out(`Started the chat server (pid ${program.pid}), keeping its data in ${join(here.data, "chat")}.`);
   } else {
-    warnIfVersionDiffers(io, "the chat server", chat.version);
+    warnIfVersionDiffers(io, "the chat server", chat.shrimpy);
     io.out("The chat server is already running; using it as it is.");
   }
 }
@@ -345,7 +346,7 @@ async function runningAgent(home: string): Promise<number | undefined> {
   const endpoint = readEndpoint(home);
   if (endpoint === undefined) return undefined;
   try {
-    await (await attachLocal(home)).close();
+    await (await connectHome(home)).close();
     return endpoint.pid;
   } catch (error) {
     if (error instanceof AgentNotRunningError) return undefined;

@@ -1,75 +1,92 @@
-import { type ChatConnection, connectChat, type Member } from "../../contracts/chat/index.ts";
-import { formatAddress, reachProgram, type Registration, type RosterEntry } from "../../contracts/gateway/index.ts";
-import { isRefusal } from "../../lib/refusal/index.ts";
+import type { Reference } from "@earendil-works/chord";
+import { Chat, type Member } from "../../contracts/chat/index.ts";
+import { formatAddress, type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
+import type { GatewayClient } from "../../contracts/gateway/node.ts";
 import type { Io } from "../io/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
-import { view, withGateway } from "./gateway.ts";
+import { GatewayNotRunningError, linkAs, viewOf } from "./gateway.ts";
 import { START_EVERYTHING } from "./hints.ts";
+import { me } from "./me.ts";
+import { contextOf } from "./objects.ts";
 
-/** A connection to the chat server, made through the gateway, as whoever the gateway says this is. */
+/** How long a command waits for the chat server to answer, once the gateway lists it. */
+const CHAT_MS = 15_000;
+
+/** Chat, reached through the gateway, as whoever the gateway says this is. */
 export interface Reached {
   /** You, as the chat server knows you. */
   readonly me: Member;
-  readonly connection: ChatConnection;
+  /** The link to the gateway, through which channels and threads are held too. */
+  readonly client: GatewayClient;
+  /** You as a member of chat. */
+  readonly chat: Reference<typeof Chat>;
   /** Every program the gateway listed, oldest first. */
-  readonly programs: Registration[];
+  readonly programs: Program[];
   /** Everyone the gateway's roster listed, oldest first. */
   readonly members: RosterEntry[];
-  /** Drop the connection. Whatever was posted stays posted. */
+  /** Let go of chat and drop the link. Whatever was posted stays posted. */
   close(): Promise<void>;
 }
 
 /**
- * Reach the chat server the way every command that talks does: by its name
- * through the gateway, which gives a ticket to hand it, so that the chat server
- * asks the gateway who is talking. The gateway is this machine's, or the one
- * that the shell's agent, when it is apart from the gateway, or this machine,
- * when it joined one as the person's own, reaches over its entry. Nobody says
- * who they are: the gateway decides. A command run from an agent's shell signs
- * in with that agent's token and is the agent; one run on a machine that joined
- * signs in with the machine's token and is the person; any other is the person
- * who runs the gateway. A gateway or chat server of another
- * version than this command is
- * named on standard error, and the command carries on. When nothing is running
- * the error says what to start. Aborting `signal` gives up, even on a server
- * that is not answering.
+ * Reach the chat server the way every command that talks does: through the
+ * gateway, which stamps every request with who is asking. The gateway is this
+ * machine's, or the one that the shell's agent, when it is apart from the
+ * gateway, or this machine, when it joined one as the person's own, reaches over
+ * its entry. Nobody says who they are: the gateway decides from the token the
+ * command shows, the agent's in its shell and the machine's on a machine that
+ * joined, and on this machine's socket with none it is you. A gateway or chat
+ * server of another version than this command is named on standard error, and
+ * the command carries on. When nothing is running the error says what to start.
+ * Aborting `signal` gives up, even on a server that is not answering.
  */
 export async function reachChat(io: Io, signal?: AbortSignal): Promise<Reached> {
-  const reached = await withGateway(signal, async (gateway, who) => {
-    await who.signIn(gateway);
-    const listing = await view(gateway);
+  const who = me();
+  let client: GatewayClient;
+  try {
+    client = await linkAs(who, signal);
+  } catch (error) {
+    if (error instanceof GatewayNotRunningError) throw new Error(`No gateway is running on this machine. Start Shrimpy with: ${START_EVERYTHING}`, { cause: error });
+    throw error;
+  }
+  try {
+    const listing = await viewOf(client, signal);
     warnIfVersionDiffers(io, "the gateway", listing.version);
-    const chat = listing.programs.findLast((program) => program.kind === "chat");
-    if (chat === undefined) {
+    const server = listing.programs.findLast((program) => program.kind === "chat");
+    if (server === undefined) {
       throw new Error(
         who.entry === undefined
-          ? "No chat server is registered with this machine's gateway. " +
+          ? "No chat server is linked to this machine's gateway. " +
               `Start one with: shrimpy chat serve <data-dir>, or start everything with: ${START_EVERYTHING}`
-          : `No chat server is registered with the gateway at ${formatAddress(who.entry)}.`,
+          : `No chat server is linked to the gateway at ${formatAddress(who.entry)}.`,
       );
     }
-    warnIfVersionDiffers(io, "the chat server", chat.version);
+    warnIfVersionDiffers(io, "the chat server", server.shrimpy);
+    let chat: Reference<typeof Chat>;
     try {
-      const { connection, entered } = await reachProgram({
-        gateway,
-        transports: who.transports(),
-        target: { kind: chat.kind, name: chat.name },
-        connect: connectChat,
-        enter: (opened, ticket, enterSignal) => opened.chat.enter(ticket, enterSignal),
-        signal,
-      });
-      return { connection, me: entered, listing };
+      chat = await client.host.get(Chat, {}, contextOf(signal), { readyTimeout: CHAT_MS });
     } catch (error) {
-      // A refusal says what to do, and an abort is the caller's own doing.
-      if (signal?.aborted === true || isRefusal(error)) throw error;
-      throw new Error(`Could not reach the chat server through the gateway: ${(error as Error).message}`, {
-        cause: error,
-      });
+      if (signal?.aborted === true) throw error;
+      throw new Error(`Could not reach the chat server through the gateway: ${(error as Error).message}`, { cause: error });
     }
-  });
-  if (reached === undefined) {
-    throw new Error(`No gateway is running on this machine. Start Shrimpy with: ${START_EVERYTHING}`);
+    const you = chat.you.value;
+    if (you === null) {
+      chat.release();
+      throw new Error("The chat server takes this command for nobody: only the network's members use chat.");
+    }
+    return {
+      me: you,
+      client,
+      chat,
+      programs: listing.programs,
+      members: listing.members,
+      async close() {
+        chat.release();
+        await client.close();
+      },
+    };
+  } catch (error) {
+    await client.close();
+    throw error;
   }
-  const { connection, me, listing } = reached;
-  return { me, connection, programs: listing.programs, members: listing.members, close: () => connection.close() };
 }

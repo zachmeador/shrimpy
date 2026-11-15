@@ -1,7 +1,6 @@
-import type { Channel, ChatClient, Thread } from "../../contracts/chat/index.ts";
-import { isDisconnected } from "../../lib/connection/index.ts";
+import type { Channel, Thread } from "../../contracts/chat/index.ts";
 import type { Place } from "../inputs/index.ts";
-import type { LiveChat } from "../links/index.ts";
+import { type ChatCalls, isUnavailable, type LiveChat } from "../links/index.ts";
 import { describePlace } from "./place.ts";
 
 /** Where a thread is, among the channels whoever asks is in. */
@@ -9,7 +8,7 @@ export type ThreadPlace =
   | { kind: "found"; channelId: string; channel: Channel; thread: Thread }
   /** None of those channels has it: there is no such thread, or the asker is not in its channel. Chat does not tell the two apart. */
   | { kind: "missing" }
-  /** The connection to chat dropped while asking. */
+  /** Chat was lost while asking. */
   | { kind: "unreachable" };
 
 /**
@@ -18,15 +17,15 @@ export type ThreadPlace =
  * looks like a thread that is not there. This is the one way the agent, and a
  * command that checks a thread for an agent, finds a thread's channel.
  */
-export async function placeOfThread(chat: ChatClient, threadId: string, signal?: AbortSignal): Promise<ThreadPlace> {
+export async function placeOfThread(chat: ChatCalls, threadId: string, signal: AbortSignal): Promise<ThreadPlace> {
   try {
-    for (const channel of await chat.channels(signal)) {
+    for (const channel of chat.channels()) {
       const found = (await chat.threads(channel.id, signal)).find((thread) => thread.id === threadId);
       if (found !== undefined) return { kind: "found", channelId: found.channelId, channel, thread: found };
     }
     return { kind: "missing" };
   } catch (error) {
-    if (isDisconnected(error)) return { kind: "unreachable" };
+    if (isUnavailable(error)) return { kind: "unreachable" };
     throw error;
   }
 }

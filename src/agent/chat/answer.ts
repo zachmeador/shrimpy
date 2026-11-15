@@ -1,6 +1,7 @@
-import type { ChatClient, Member, Message } from "../../contracts/chat/index.ts";
+import type { Member, Message } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import type { WakePolicy } from "../home/index.ts";
+import type { ChatCalls } from "../links/index.ts";
 import { type Receipted, type Taken, wakesInRoom } from "./wake.ts";
 
 /** Messages asked for at a time when looking for a reply, and how many times: a reply is posted just before its receipt, so it is among the newest. */
@@ -19,7 +20,7 @@ const PAGES = 4;
  * reply and one receipt, because the reply's event names each of them.
  */
 export async function takeUpAnswer(
-  chat: ChatClient,
+  chat: ChatCalls,
   self: Member,
   policy: WakePolicy,
   receipt: Receipted,
@@ -61,7 +62,7 @@ export async function takeUpAnswer(
  * among the newest of all when it is null.
  */
 export async function findReply(
-  chat: ChatClient,
+  chat: ChatCalls,
   threadId: string,
   before: number | null,
   reply: string,

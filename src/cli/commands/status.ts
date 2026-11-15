@@ -1,11 +1,10 @@
 import { parseArgs } from "node:util";
-import { type Address, formatAddress, type Registration, type RosterEntry } from "../../contracts/gateway/index.ts";
-import { connectLocalGateway, GatewayNotRunningError } from "../../contracts/gateway/node.ts";
+import { type Address, formatAddress, type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { folderPath } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { thisAccount } from "../service/index.ts";
-import { START_EVERYTHING } from "../talk/index.ts";
+import { askLocalGateway, GatewayNotRunningError, START_EVERYTHING } from "../talk/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
@@ -16,11 +15,11 @@ import { planUp } from "./up.ts";
 const status: Command = {
   name: "status",
   usage: "",
-  summary: "List the programs registered with this machine's gateway, and the members on its roster.",
+  summary: "List the programs linked to this machine's gateway, and the members on its roster.",
   details:
-    "The programs are listed by kind, name and version: where a program listens is told to the gateway alone. " +
+    "The programs are listed by kind, name and version. " +
     "The members are everyone the gateway knows, " +
-    "people and agents, by ID, kind and name, with whether a program is registered as each. A version that " +
+    "people and agents, by ID, kind and name, with whether a program is linked as each. A version that " +
     "differs from this command's own is marked, and so is the gateway's, on standard error. It ends with a " +
     "line that says whether a service is installed for your Shrimpy folder, which shrimpy install sets up, " +
     "and whether it is running. If no gateway is running it says how to start Shrimpy, or, when none is meant " +
@@ -29,13 +28,8 @@ const status: Command = {
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     expectArguments(positionals, []);
-    let inspected;
-    try {
-      inspected = await inspectGateway();
-    } catch (error) {
-      if (error instanceof GatewayNotRunningError) return noGatewayHere(io, error);
-      throw error;
-    }
+    const inspected = await askLocalGateway();
+    if (inspected === undefined) return noGatewayHere(io, new GatewayNotRunningError());
     const { programs, members, version } = inspected;
     warnIfVersionDiffers(io, "the gateway", version);
     for (const line of renderPrograms(programs, SHRIMPY_VERSION)) io.out(line);
@@ -49,16 +43,6 @@ const status: Command = {
     return 0;
   },
 };
-
-/** What this machine's gateway says is running and who is on its roster, and the version it runs. */
-async function inspectGateway(): Promise<{ programs: Registration[]; members: RosterEntry[]; version: string }> {
-  const gateway = await connectLocalGateway();
-  try {
-    return { programs: await gateway.list(), members: await gateway.members(), version: await gateway.version() };
-  } finally {
-    await gateway.close().catch(() => undefined);
-  }
-}
 
 /** The gateways the agents of the Shrimpy folder belong to, when they all belong to one elsewhere and `up` starts none here. */
 function gatewaysElsewhere(): Address[] {
@@ -96,21 +80,21 @@ async function noGatewayHere(io: Io, error: GatewayNotRunningError): Promise<num
 }
 
 /** The programs as a table, each one whose version is not `own` followed by a note saying so. */
-function renderPrograms(programs: Registration[], own: string): string[] {
-  if (programs.length === 0) return ["Programs:", "No programs are registered."];
-  const rows = programs.map((program) => [program.kind, program.name, program.version]);
+function renderPrograms(programs: readonly Program[], own: string): string[] {
+  if (programs.length === 0) return ["Programs:", "No programs are linked."];
+  const rows = programs.map((program) => [program.kind, program.name, program.shrimpy]);
   const [header, ...lines] = renderTable(["kind", "name", "version"], rows);
   return [
     "Programs:",
     header ?? "",
     ...lines.map((line, index) =>
-      programs[index]?.version === own ? line : `${line}  (differs from this command's ${own})`,
+      programs[index]?.shrimpy === own ? line : `${line}  (differs from this command's ${own})`,
     ),
   ];
 }
 
-/** The roster as a table: ID, kind, name, and whether a program is registered as the member. */
-function renderMembers(members: RosterEntry[]): string[] {
+/** The roster as a table: ID, kind, name, and whether a program is linked as the member. */
+function renderMembers(members: readonly RosterEntry[]): string[] {
   const rows = members.map((member) => [member.id, member.kind, member.name, member.reachable ? "yes" : "no"]);
   return ["Members:", ...renderTable(["id", "kind", "name", "reachable"], rows)];
 }

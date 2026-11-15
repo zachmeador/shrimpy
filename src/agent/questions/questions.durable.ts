@@ -1,4 +1,5 @@
-import type { Context, JsonValue } from "@earendil-works/chord";
+import type { Context } from "@earendil-works/chord/context";
+import type { JsonValue } from "@earendil-works/chord/json";
 import {
   type ConversationId,
   type Cursor,
@@ -49,7 +50,8 @@ export interface QuestionsOptions {
 /**
  * The questions the agent asks other agents. Each open question is in the
  * agent's records, and has a background task of the session that asked, which
- * sleeps on the engine's timer until the time to wait is up. Then it looks at the
+ * sleeps as one of the engine's sleeping tasks, stored with when the time to
+ * wait is up. Then it looks at the
  * question's message in chat once, since the other agent's receipt may be there
  * that the agent's feed has not brought yet, and closes the question, if it is
  * still open: with what the receipt says, if the other agent left one, and
@@ -63,14 +65,15 @@ export interface QuestionsOptions {
  * question, as a stop does, closes it and tells nobody.
  */
 export function createQuestions(turn: TurnTask, options: QuestionsOptions): Questions & { extension: Extension } {
-  const task = defineTask<Question, { phase: "sleep" }, null>({
+  const task = defineTask<Question, { phase: "sleep" } | { phase: "due" }, null>({
     name: QUESTION_TASK,
     version: 1,
     initial: () => ({ phase: "sleep" }),
     phases: {
-      sleep: async (waiting, runtime, context) => {
+      sleep: (waiting, runtime, context) => runtime.sleepUntil(waiting.input.due, { phase: "due" }, context),
+
+      due: async (waiting, runtime, context) => {
         const question = waiting.input;
-        await runtime.sleep(question.due, context);
         try {
           const looked = await options.looking.look(question, runtime.signal);
           const crumbs = await options.breadcrumbs();

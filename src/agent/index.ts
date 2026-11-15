@@ -1,8 +1,9 @@
 /**
- * The agent program: one process that owns one home, serves the agent API for
- * it on two sockets (the home's own, and the one that connections made by its
- * name through the gateway come in on), and takes part in the network as a
- * member and in chat.
+ * The agent program: one process that owns one home and serves the agent's
+ * contract for it as a Chord host at `agent({ name })`: through the gateway,
+ * which it links out to and which relays every request for it stamped with who
+ * asks, and on the home's own socket, where a client is `home`. Over the same
+ * link it takes part in the network as a member and in chat.
  * Other programs reach an agent only through `contracts/agent`; they never
  * import this program's modules, except that the CLI starts an agent, creates a
  * home, previews what a home would tell an agent, reads, checks and
@@ -36,15 +37,16 @@ import {
 } from "./home/index.ts";
 import { buildModels, type HostOptions, type ModelReload, openHost } from "./host/durable.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
-import { whoseTicket } from "./links/index.ts";
+import { createRoster } from "./links/index.ts";
 import { messageTools } from "./message-tools/durable.ts";
 import { askTools, createQuestions } from "./questions/durable.ts";
 import { openRecords, type SessionDefaults } from "./records/durable.ts";
-import { type HomeFiles, startServer } from "./server.ts";
+import { agentFacet, type HomeFiles } from "./served.ts";
+import { startServer } from "./server.ts";
 import { createSessions, requireModel, stopWork } from "./sessions/durable.ts";
 import { type CloseOptions, stopper } from "./stop.ts";
 import { createTriggers } from "./triggers/durable.ts";
-import { beginRun, createWorking, type Run, turnTask } from "./turns/durable.ts";
+import { createWorking, turnTask } from "./turns/durable.ts";
 import { createWakeups, wakeupTools } from "./wakeups/durable.ts";
 
 export { placeOfThread, type ThreadPlace } from "./chat/index.ts";
@@ -124,7 +126,7 @@ export interface AgentOptions extends HostOptions {
    * changed. Two seconds, if not given. Tests shorten it.
    */
   lookEveryMs?: number;
-  /** Take part in the network and in chat. Without it, nothing reaches the agent but clients that attach to its sessions. */
+  /** Take part in the network and in chat. Without it, nothing reaches the agent but clients on the home's own socket. */
   join?: JoinOptions;
   /** The shortest a trigger may repeat at, in milliseconds. A minute, if not given. Tests shorten it. */
   shortestEveryMs?: number;
@@ -157,11 +159,9 @@ export interface HomeAgent extends RunningAgent {
 export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
   // A runtime directory too long for a socket fails here, before the home is claimed.
   socketPathFor(options.home);
-  socketPathFor(options.home, "gw");
   const context = await homeContext({ name: options.name, home: options.home });
   const report = reporter(options);
   const host = await openHost(options);
-  let run: Run | undefined;
   let following: Following<Reloaded> | undefined;
   try {
     // What the agent posts under names of its own making carries what its records are called, and only the opened
@@ -169,12 +169,15 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     // anything runs.
     const recordsId = await openRecords(host.harness, homePaths(options.home).database);
     // They are installed before the agent has a link to chat. The tools ask for the one it has when they run, and say
-    // chat is unreachable if there is none; the tasks wait for the link `join` gives them.
+    // chat is unreachable if there is none; the tasks wait for the link `join` gives them. The roster is held at the
+    // gateway once the agent joins, and says who a caller is to the agent's objects.
     let joined: Joined | undefined;
+    const roster = createRoster(report);
+    const members = () => roster.now()?.members;
     const messages = messageTools({
       recordsId,
       chat: () => joined?.chat(),
-      gateway: () => joined?.gateway(),
+      roster: members,
       ...(options.join?.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit }),
     });
     const delivery = createDelivery({
@@ -194,7 +197,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       questions,
       recordsId,
       chat: () => joined?.chat(),
-      gateway: () => joined?.gateway(),
+      roster: members,
       ...(options.shortestWaitMs === undefined ? {} : { shortestWaitMs: options.shortestWaitMs }),
     });
     const defaults: SessionDefaults = { model: options.model, cwd: host.home };
@@ -241,9 +244,6 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     };
     // Sessions from an earlier start follow the home as it is now, before any of their work resumes.
     await sessions.applyDefaults();
-    // The records say the agent is running, and what the last run's end cost the turns it interrupted, before any of
-    // them resumes: a turn that has crashed too often is stopped here and does not run again.
-    run = await beginRun(host.harness);
     // The triggers follow the files of the home before any of their work resumes: a trigger whose schedule changed
     // while the agent was down is not woken by its old one.
     await triggers.reload();
@@ -300,11 +300,13 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     // the files that can't be used are said.
     await keeping.reload();
     const files: HomeFiles = { reload: () => keeping.reload() };
-    // The gateway is joined once the server is up, so a ticket is checked over the connection it keeps, when there is one.
-    // The agent knows itself by the member ID its home keeps, which it writes as soon as the gateway says who it is, and
-    // so before it registers: no ticket for the agent exists until then.
-    const server = await startServer(host, sessions, triggers, files, {
-      whose: (ticket) => whoseTicket(() => joined?.gateway(), ticket, () => readMembership(homePaths(options.home).root)?.memberId),
+    // The agent's objects are served once its host has loaded them, on the home's socket at once, and through the gateway
+    // once it links there.
+    const server = await startServer({
+      home: options.home,
+      name: options.name,
+      facet: (takingInput) => agentFacet({ sessions, triggers, files, roster, takingInput }),
+      onError: report,
     });
     try {
       if (options.join !== undefined) {
@@ -312,7 +314,8 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
           {
             name: options.name,
             home: options.home,
-            listening: { serverId: server.endpoint.serverId, socket: server.gatewaySocket },
+            host: server.host,
+            roster,
             admissions: { ...admissions, wakes },
             working,
             delivery,
@@ -321,15 +324,14 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
           options.join,
         );
       }
-      return { endpoint: server.endpoint, close: stopper({ host, server, run, joined, following: keeping }) };
+      return { endpoint: server.endpoint, close: stopper({ host, server, joined, following: keeping }) };
     } catch (error) {
       await server.close();
       throw error;
     }
   } catch (error) {
-    // A start that fails closes the engine in an orderly way too, once the records say it was running.
+    // A start that fails closes the engine in an orderly way too.
     await following?.close();
-    await run?.stopped().catch(report);
     await host.close();
     throw error;
   }
@@ -350,9 +352,8 @@ function reporter(options: AgentOptions): (error: Error) => void {
  * The agent reads that model, and the model servers, again whenever the files
  * that name them change. Its instructions come from the files of the home, and
  * it reads them again whenever they change. A home that names a gateway address in its
- * membership, as one does that joined from apart, reaches the gateway and chat
- * there, and answers there the calls the gateway makes for it, since the
- * gateway can't dial it. Reading `agent.json` takes no lock and changes
+ * membership, as one does that joined from apart, links to the gateway there,
+ * with its token, and reaches chat through it. Reading `agent.json` takes no lock and changes
  * nothing, so a home that does not load, or a model that is missing or cannot
  * be used, fails before the agent claims the home. `shrimpy` is the program and arguments that run Shrimpy, which the agent's
  * shell finds as the `shrimpy` command. `providers` is the `providers/`

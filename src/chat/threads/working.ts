@@ -4,24 +4,25 @@ import type { ThreadRecord } from "../store/index.ts";
 
 interface Mark {
   since: number;
-  /** The connections that marked the member and have not cleared it or ended. */
-  connections: Set<object>;
+  /** The holders that marked the member and have not cleared it or ended. */
+  holders: Set<string>;
 }
 
 /**
- * Who is working in which thread, kept in memory for as long as the connections
- * that said so. It is never stored: when the chat server restarts nobody is
- * connected, so nobody is working.
+ * Who is working in which thread, kept in memory for as long as the holders
+ * that said so. A holder is a caller's hold of `Chat`, by a key its owner
+ * chooses. It is never stored: when the chat server restarts nobody holds
+ * anything, so nobody is working.
  */
 export interface WorkingMarks {
   /**
    * Mark a member as working in a thread, or clear that, on behalf of one
-   * connection. A member stays marked until every connection that marked it has
-   * cleared it or ended, and keeps the `since` of its first mark meanwhile.
+   * holder. A member stays marked until every holder that marked it has cleared
+   * it or ended, and keeps the `since` of its first mark meanwhile.
    */
-  set(connection: object, memberId: string, threadId: string, working: boolean, now: number): void;
-  /** Drop every mark a connection made. */
-  end(connection: object): void;
+  set(holder: string, memberId: string, threadId: string, working: boolean, now: number): void;
+  /** Drop every mark a holder made. */
+  end(holder: string): void;
   /** Who is working in a thread, the longest first. */
   list(threadId: string): Working[];
   /** Be told a thread's ID whenever the members working in it change. */
@@ -39,38 +40,38 @@ export function createWorkingMarks(options: WorkingMarksOptions = {}): WorkingMa
   const watchers = createListeners<string>(onError);
   const changed = (threadId: string): void => watchers.notify(threadId);
 
-  /** Take one connection's hold off a member's mark. True when that cleared the mark. */
-  const release = (threadId: string, memberId: string, connection: object): boolean => {
+  /** Take one holder off a member's mark. True when that cleared the mark. */
+  const release = (threadId: string, memberId: string, holder: string): boolean => {
     const marks = byThread.get(threadId);
     const mark = marks?.get(memberId);
     if (marks === undefined || mark === undefined) return false;
-    if (!mark.connections.delete(connection) || mark.connections.size > 0) return false;
+    if (!mark.holders.delete(holder) || mark.holders.size > 0) return false;
     marks.delete(memberId);
     if (marks.size === 0) byThread.delete(threadId);
     return true;
   };
 
   return {
-    set(connection, memberId, threadId, working, now) {
+    set(holder, memberId, threadId, working, now) {
       if (!working) {
-        if (release(threadId, memberId, connection)) changed(threadId);
+        if (release(threadId, memberId, holder)) changed(threadId);
         return;
       }
       const marks = byThread.get(threadId) ?? new Map<string, Mark>();
       byThread.set(threadId, marks);
       const mark = marks.get(memberId);
       if (mark === undefined) {
-        marks.set(memberId, { since: now, connections: new Set([connection]) });
+        marks.set(memberId, { since: now, holders: new Set([holder]) });
         changed(threadId);
       } else {
-        mark.connections.add(connection);
+        mark.holders.add(holder);
       }
     },
-    end(connection) {
+    end(holder) {
       const cleared: string[] = [];
       for (const [threadId, marks] of [...byThread]) {
         for (const memberId of [...marks.keys()]) {
-          if (release(threadId, memberId, connection)) cleared.push(threadId);
+          if (release(threadId, memberId, holder)) cleared.push(threadId);
         }
       }
       for (const threadId of cleared) changed(threadId);

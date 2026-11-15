@@ -1,7 +1,7 @@
 import { parseArgs } from "node:util";
 import type { RosterEntry } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
-import { askGateway, memberNamed, START_EVERYTHING, withGatewayAsMe } from "../talk/index.ts";
+import { askGateway, contextOf, memberNamed, onRoster, START_EVERYTHING, valueOf, withGatewayAsMe } from "../talk/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderTable } from "./table.ts";
@@ -27,8 +27,8 @@ const members: Command = {
   },
 };
 
-/** The roster as a table: each member's name and kind, whether it is an admin, and whether a program is registered as it. */
-function renderMembers(roster: RosterEntry[]): string[] {
+/** The roster as a table: each member's name and kind, whether it is an admin, and whether a program is linked as it. */
+function renderMembers(roster: readonly RosterEntry[]): string[] {
   const yesNo = (flag: boolean): string => (flag ? "yes" : "no");
   const rows = roster.map((member) => [member.name, member.kind, yesNo(member.admin), yesNo(member.reachable)]);
   return renderTable(["name", "kind", "admin", "reachable"], rows);
@@ -40,15 +40,18 @@ function renderMembers(roster: RosterEntry[]): string[] {
  * says who the admins are.
  */
 async function changeRole(io: Io, name: string, admin: boolean): Promise<number> {
-  await withGatewayAsMe(async (gateway) => {
-    const member = memberNamed(await gateway.members(), name);
-    if (member.admin === admin) {
-      io.out(admin ? `${member.name} is an admin already.` : `${member.name} is not an admin.`);
-      return;
-    }
-    await (admin ? gateway.promote(member.id) : gateway.demote(member.id));
-    io.out(admin ? `${member.name} is an admin now.` : `${member.name} is no longer an admin.`);
-  });
+  await withGatewayAsMe((client) =>
+    onRoster(client, async (roster) => {
+      const member = memberNamed(roster.members.value, name);
+      if (member.admin === admin) {
+        io.out(admin ? `${member.name} is an admin already.` : `${member.name} is not an admin.`);
+        return;
+      }
+      const asked = { member: member.id };
+      valueOf(admin ? await roster.promote(asked, contextOf()) : await roster.demote(asked, contextOf()));
+      io.out(admin ? `${member.name} is an admin now.` : `${member.name} is no longer an admin.`);
+    }),
+  );
   return 0;
 }
 

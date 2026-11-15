@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
 import type { Channel } from "../../contracts/chat/index.ts";
-import { dmWith, memberNamed, type Reached, reachChat, roomNamed } from "../talk/index.ts";
+import { dmWith, memberNamed, onChannel, type Reached, reachChat, roomNamed } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderThreads } from "./render-threads.ts";
@@ -30,12 +30,12 @@ const threads: Command = {
 
     const reached = await reachChat(io);
     try {
-      const channel = channelNamed(reached, await reached.connection.chat.channels(), name);
+      const channel = channelNamed(reached, reached.chat.channels.value, name);
       if (channel === undefined) {
         io.out(json ? "[]" : `You have not talked to ${name} yet. Start with: shrimpy run ${name} "<text>"`);
         return 0;
       }
-      const list = await reached.connection.chat.threads(channel.id);
+      const list = await onChannel(reached.client, channel.id, (held) => held.threads.value);
       if (json) io.out(JSON.stringify(list));
       else for (const line of renderThreads(list, channel)) io.out(line);
       return 0;
@@ -46,7 +46,7 @@ const threads: Command = {
 };
 
 /** The channel `name` means: a room written #name, or your DM with a member, which you may not have yet. */
-function channelNamed(reached: Reached, channels: Channel[], name: string): Channel | undefined {
+function channelNamed(reached: Reached, channels: readonly Channel[], name: string): Channel | undefined {
   if (name.startsWith("#")) return roomNamed(channels, name);
   const member = memberNamed(reached.members, name);
   if (member.id === reached.me.id) {

@@ -16,8 +16,15 @@ const PROVIDERS = "providers";
 /** The folder of the Shrimpy folder that holds the gateway's data, where `up` keeps it unless it is told another place. */
 const GATEWAY = "gateway";
 
-/** What marks a folder as Shrimpy's: a new setup starts with a home, a sign-in or the file of a machine that joined a gateway as the person's own. */
-const MARKS = [AGENTS, PROVIDERS, MACHINE_FILE];
+/** The file of the Shrimpy folder that holds the person's own settings, such as their name, which the gateway started there reads. */
+const SETTINGS = "settings.json";
+
+/**
+ * What marks a folder as Shrimpy's: a new setup starts with a home, a sign-in,
+ * the person's settings or the file of a machine that joined a gateway as the
+ * person's own.
+ */
+const MARKS = [AGENTS, PROVIDERS, SETTINGS, MACHINE_FILE];
 
 /** The file that makes a folder of `agents/` an agent's home. */
 const HOME_FILE = "agent.json";
@@ -45,6 +52,15 @@ export function folderPath(): string {
  */
 export function providersPath(): string {
   return join(folderPath(), PROVIDERS);
+}
+
+/**
+ * Where the person's settings are: `settings.json` in the Shrimpy folder, which
+ * the gateway started there reads when it starts and whenever it changes.
+ * Nothing is read or made.
+ */
+export function settingsPath(): string {
+  return join(folderPath(), SETTINGS);
 }
 
 /**

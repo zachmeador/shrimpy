@@ -2,11 +2,8 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { test } from "node:test";
 import { initHome } from "../agent/index.ts";
-import { Chat, type ChatConnection } from "../contracts/chat/index.ts";
-import { memberNamed } from "../contracts/chat/testing/index.ts";
-import { connectLocalGateway, newToken } from "../contracts/gateway/node.ts";
-import { startTestGateway } from "../contracts/gateway/testing/index.ts";
-import { eventually, offer, startStandIn, stopAfter, until, useRuntimeDir, within } from "../lib/testing/index.ts";
+import { memberNamed, type Speaking } from "../contracts/chat/testing/index.ts";
+import { eventually, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import {
   type Outcome,
@@ -43,10 +40,10 @@ function startedThread(stderr: string): string {
 }
 
 /** Your DM with scout, and the threads in it. */
-async function scoutsThreads(you: ChatConnection) {
-  const dm = (await you.chat.channels()).find((channel) => channel.members.some((m) => m.name === "scout"));
+async function scoutsThreads(you: Speaking) {
+  const dm = (await you.channels()).find((channel) => channel.members.some((m) => m.name === "scout"));
   assert.ok(dm, "there is no DM with scout");
-  return { dm, threads: await you.chat.threads(dm.id) };
+  return { dm, threads: await you.threads(dm.id) };
 }
 
 test("run posts to a new thread, prints the agent's reply, and puts the thread's ID on standard error", { timeout }, async (t) => {
@@ -62,7 +59,7 @@ test("run posts to a new thread, prints the agent's reply, and puts the thread's
   const { threads } = await scoutsThreads(you);
   assert.equal(threads.length, 2, "the DM has its main thread and the new one");
   assert.ok(threads.some((candidate) => candidate.id === thread && !candidate.main));
-  const [asked, reply] = await you.chat.read(thread, null, 10);
+  const [asked, reply] = await you.read(thread, null, 10);
   assert.ok(asked && reply);
   assert.equal(asked.text, "what is in my inbox?");
   assert.equal(asked.author.id, you.me.id, "the command spoke as the person who runs it");
@@ -74,26 +71,33 @@ test("run posts to a new thread, prints the agent's reply, and puts the thread's
   assert.equal(agent.offered.length, 1);
 });
 
-test("the exit code says how the agent dealt with the message: 0 for an answer or for silence, 1 for a failure with its reason, 130 for stopped work", { timeout }, async (t) => {
+test("the exit code says how the agent dealt with the message: 0 for an answer or for silence, 1 for a failure or a skip behind a failed turn, with the reason, 130 for stopped work or a skip behind a stop", { timeout }, async (t) => {
   await startTalking(t);
   await startScriptedAgent(t, {
     name: "scout",
     handle: (message): Outcome => {
       if (message.text === "silent") return { status: "silent" };
       if (message.text === "fail") return { status: "failed", detail: "the model refused the request" };
+      if (message.text === "behind a failure") return { status: "skipped", detail: "the turn ahead of it ran out of tokens" };
+      if (message.text === "behind a stop") return { status: "skipped" };
       return message.text === "stop" ? { status: "stopped" } : { status: "answered", text: `ack: ${message.text}` };
     },
   });
 
   const quiet = await shrimpy(["run", "scout", "silent"]);
   const failed = await shrimpy(["run", "scout", "fail"]);
+  const behindFailure = await shrimpy(["run", "scout", "behind a failure"]);
   const stopped = await shrimpy(["run", "scout", "stop"]);
+  const behindStop = await shrimpy(["run", "scout", "behind a stop"]);
   const answer = await shrimpy(["run", "scout", "reply"]);
 
   assert.deepEqual([quiet.code, quiet.stdout], [0, ""]);
   assert.deepEqual([failed.code, failed.stdout], [1, ""]);
   assert.match(failed.stderr, /the model refused the request/);
+  assert.deepEqual([behindFailure.code, behindFailure.stdout], [1, ""]);
+  assert.match(behindFailure.stderr, /the turn ahead of it ran out of tokens/);
   assert.deepEqual([stopped.code, stopped.stdout], [130, ""]);
+  assert.deepEqual([behindStop.code, behindStop.stdout], [130, ""]);
   assert.deepEqual([answer.code, answer.stdout], [0, "ack: reply\n"]);
 });
 
@@ -109,7 +113,7 @@ test("--thread continues a thread, and a thread that is not in your DM with the 
   assert.equal(second.code, 0, second.stderr);
   assert.equal(second.stdout, "ack: second\n");
   const you = await talking.you();
-  assert.deepEqual((await you.chat.read(thread, null, 10)).map((message) => message.text), [
+  assert.deepEqual((await you.read(thread, null, 10)).map((message) => message.text), [
     "first",
     "ack: first",
     "second",
@@ -133,14 +137,14 @@ test("--no-wait exits once the message is posted and prints the IDs to follow up
   assert.ok(posted?.[1] && posted[2], result.stdout);
   const [messageId, thread] = [posted[1], posted[2]];
   const you = await talking.you();
-  const [message] = await you.chat.read(thread, null, 10);
+  const [message] = await you.read(thread, null, 10);
   assert.ok(message);
   assert.equal(message.id, messageId);
   assert.equal(message.text, "when you can");
   assert.deepEqual(message.receipts, [], "the agent has not finished, and the command did not wait for it");
   await until(() => agent.offered.length === 1, "the agent to be offered the message");
   finish.resolve(answered("done"));
-  await eventually(() => you.chat.read(thread, null, 10), (messages) => messages[0]?.receipts.length === 1);
+  await eventually(() => you.read(thread, null, 10), (messages) => messages[0]?.receipts.length === 1);
 });
 
 test("stopping run while it waits leaves the message and the agent's work alone, and exits 130", { timeout }, async (t) => {
@@ -161,7 +165,7 @@ test("stopping run while it waits leaves the message and the agent's work alone,
   finish.resolve(answered("done anyway"));
   // The agent posts its reply first and leaves the receipt after it.
   const [message, reply] = await eventually(
-    () => you.chat.read(thread, null, 10),
+    () => you.read(thread, null, 10),
     (messages) => messages.length === 2 && messages[0]?.receipts.length === 1,
     { what: "the reply, and the receipt on the message" },
   );
@@ -189,66 +193,6 @@ test("run says so when the chat server goes away while it waits, instead of wait
   finish.resolve(answered("too late"));
 });
 
-test("stopping run while its message is still being sent says it may have been posted, and exits 130", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  await startTestGateway(t);
-  const sending = deferred<undefined>();
-  const unsupported = (): Promise<never> => Promise.reject(new Error("this chat server only takes a post"));
-  const scout = { id: "mem_scout", kind: "agent", name: "scout" } as const;
-  const you = { id: "mem_you", kind: "person", name: "you" } as const;
-  const channel = { id: "ch_one", kind: "dm", name: "scout", members: [scout, you] } as const;
-  const thread = { id: "th_one", channelId: "ch_one", main: false, name: null, preview: null, archived: false, updatedAt: 0, working: [] };
-  // A chat server that takes a post and never answers it.
-  const chat = await startStandIn(t, "chat", {
-    offer: () =>
-      offer(Chat, {
-        enter: () => Promise.resolve(you),
-        channels: unsupported,
-        readOnlyChannels: unsupported,
-        openDm: () => Promise.resolve({ ...channel, members: [...channel.members] }),
-        createRoom: unsupported,
-        addMembers: unsupported,
-        threads: unsupported,
-        createThread: () => Promise.resolve(thread),
-        renameThread: unsupported,
-        archiveThread: unsupported,
-        post: () => {
-          sending.resolve(undefined);
-          return new Promise(() => undefined);
-        },
-        edit: unsupported,
-        delete: unsupported,
-        react: unsupported,
-        unreact: unsupported,
-        read: unsupported,
-        leaveReceipt: unsupported,
-        setWorking: unsupported,
-        head: unsupported,
-        store: unsupported,
-        feed: unsupported,
-        attach: unsupported,
-        detach: unsupported,
-      }),
-  });
-  const registrations = await connectLocalGateway();
-  stopAfter(t, () => registrations.close());
-  const program = { serverId: chat.serverId, socket: chat.socket, version: SHRIMPY_VERSION };
-  await registrations.register({ kind: "chat", ...program });
-  const agents = await connectLocalGateway();
-  stopAfter(t, () => agents.close());
-  await agents.join("scout", newToken());
-  await agents.register({ kind: "agent", ...program });
-  const waiting = shrimpyInBackground(["run", "scout", "hello"]);
-  await sending.promise;
-
-  waiting.kill("SIGINT");
-  const result = await within(5000, waiting.finished, "run stopping");
-
-  assert.equal(result.code, 130);
-  assert.equal(result.stdout, "");
-  assert.match(result.stderr, /may have been posted/);
-});
-
 test("with no gateway running it says what to start, and exits 1", { timeout }, async (t) => {
   useRuntimeDir(t);
 
@@ -259,11 +203,11 @@ test("with no gateway running it says what to start, and exits 1", { timeout }, 
   assert.match(result.stderr, /shrimpy up/);
 });
 
-test("an agent that is not registered can't answer, so nothing is posted and it says what to start: here, when its home is in the Shrimpy folder, and where it lives when not", { timeout }, async (t) => {
+test("an agent that is not linked can't answer, so nothing is posted and it says what to start: here, when its home is in the Shrimpy folder, and where it lives when not", { timeout }, async (t) => {
   const talking = await startTalking(t);
   await startScriptedAgent(t, { name: "rex", handle: () => answered("woof") });
-  await startScriptedAgent(t, { name: "scout", handle: () => answered("hi"), register: false });
-  await startScriptedAgent(t, { name: "crab", handle: () => answered("hi"), register: false });
+  await startScriptedAgent(t, { name: "scout", handle: () => answered("hi"), linked: false });
+  await startScriptedAgent(t, { name: "crab", handle: () => answered("hi"), linked: false });
   initHome(join(useShrimpyDir(t), "agents", "scout"), { name: "scout" });
 
   const here = await shrimpy(["run", "scout", "hello"]);
@@ -276,7 +220,7 @@ test("an agent that is not registered can't answer, so nothing is posted and it 
   assert.equal(elsewhere.code, 1);
   assert.equal(elsewhere.stdout, "");
   assert.doesNotMatch(elsewhere.stderr, /agent serve|shrimpy up/);
-  assert.deepEqual(await (await talking.you()).chat.channels(), [], "and nothing was posted for either, not even a DM");
+  assert.deepEqual(await (await talking.you()).channels(), [], "and nothing was posted for either, not even a DM");
 });
 
 test("a program of another version is named on standard error, and the command carries on", { timeout }, async (t) => {

@@ -8,12 +8,12 @@ import { serveUntilStopped } from "./serve.ts";
 const serve: Command = {
   name: "chat serve",
   usage: "<data-dir>",
-  summary: "Run the chat server in the foreground until it is told to stop, registered with the gateway. shrimpy up starts it for you.",
+  summary: "Run the chat server in the foreground until it is told to stop, linked to the gateway. shrimpy up starts it for you.",
   details:
     "The chat server keeps its store in the data directory, which is made if it does not exist. Prints one " +
-    "JSON line when it is listening. SIGTERM or Ctrl+C stops it. It starts with no gateway running and " +
-    "registers when it finds one, and again each time the gateway comes back. Until it has, nobody can " +
-    "come in, because only the gateway can say who they are.",
+    "JSON line when it has started. SIGTERM or Ctrl+C stops it. It starts with no gateway running and " +
+    "links to the gateway's socket when it finds one, and again each time the gateway comes back. Until it " +
+    "has, nobody can reach it, because everyone reaches chat through the gateway.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     const [given] = expectArguments(positionals, ["<data-dir>"]);
@@ -21,7 +21,7 @@ const serve: Command = {
     return serveUntilStopped(
       io,
       () => startChat({ dataDir }),
-      (chat) => ({ event: "listening", dataDir, serverId: chat.serverId, socket: chat.socket, pid: process.pid }),
+      () => ({ event: "started", dataDir, pid: process.pid }),
     );
   },
 };

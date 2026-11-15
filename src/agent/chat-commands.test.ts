@@ -3,9 +3,16 @@ import { writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { fauxAssistantMessage } from "@earendil-works/pi-ai";
 import type { Message } from "../contracts/chat/index.ts";
+import { speakingAs } from "../contracts/chat/testing/index.ts";
 import { until, waitForView } from "../lib/testing/index.ts";
 import { homePaths } from "./home/index.ts";
-import { roomWith, SCOUT, type Script, shownSinceLastAnswer, startAgentRig } from "./testing/index.ts";
+import {
+  roomWith,
+  SCOUT,
+  type Script,
+  shownSinceLastAnswer,
+  startAgentRig,
+} from "./testing/index.ts";
 
 /*
  * What a person can write in a thread to make the agent do something without asking a
@@ -72,7 +79,7 @@ test("/stop in a room stops every agent there when it mentions nobody, and only 
   const bobModel = streaming();
   const scout = await startAgentRig(t, { script: scoutModel.script, tokensPerSecond: SLOWLY });
   const bob = await startAgentRig(t, { name: "bob", chat: scout.chat, script: bobModel.script, tokensPerSecond: SLOWLY });
-  const { main } = await roomWith(scout.chat, "Ops", [scout.partner, bob.partner]);
+  const { main } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.partner]);
   const say = (text: string): Promise<Message> => scout.say(text, main.id);
   /** Say something that mentions nobody, which wakes both, and wait until the model has been asked about it for the `turn`th time by each. */
   const startBoth = async (text: string, turn: number): Promise<Message> => {
@@ -117,7 +124,7 @@ test("/stop in a room stops every agent there when it mentions nobody, and only 
 test("a room that wakes the agent for nothing does not turn /stop away", { timeout }, async (t) => {
   const model = streaming();
   const rig = await startAgentRig(t, { script: model.script, tokensPerSecond: SLOWLY });
-  const { main } = await roomWith(rig.chat, "Ops", [rig.partner]);
+  const { main } = await roomWith(t, rig.chat, "Ops", [rig.partner]);
   const working = await rig.say("get started", main.id);
   await until(() => model.asked.length === 1, "the turn to be at work");
   writeFileSync(homePaths(rig.home).wake, JSON.stringify({ rooms: { ops: "none" } }));
@@ -133,13 +140,13 @@ test("a room that wakes the agent for nothing does not turn /stop away", { timeo
 test("an agent's message that says /stop is only text, and stops nothing", { timeout }, async (t) => {
   const model = streaming(lines(10));
   const rig = await startAgentRig(t, { script: model.script, tokensPerSecond: 200 });
-  const bob = await rig.chat.agent("bob");
-  const { main } = await roomWith(rig.chat, "Ops", [rig.partner, bob.me]);
+  const bob = await speakingAs(t, await rig.chat.agent("bob"));
+  const { main } = await roomWith(t, rig.chat, "Ops", [rig.partner, bob.me]);
   const working = await rig.say("get started", main.id);
   await until(() => model.asked.length === 1, "the first turn to be at work");
 
-  await bob.chat.post(main.id, "/stop", "bob-1");
-  const mention = await bob.chat.post(main.id, `@${SCOUT} /stop`, "bob-2");
+  await bob.post(main.id, "/stop", "bob-1");
+  const mention = await bob.post(main.id, `@${SCOUT} /stop`, "bob-2");
 
   assert.equal((await rig.receiptOn(working)).status, "answered", "the turn went on to its end");
   assert.equal((await rig.receiptOn(mention)).status, "answered", "and the message was answered like any other");

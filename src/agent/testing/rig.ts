@@ -1,10 +1,8 @@
 import type { TestContext } from "node:test";
-import type { AgentConnection, SessionHandle } from "../../contracts/agent/index.ts";
-import { attachLocal } from "../../contracts/agent/node.ts";
 import { backoff } from "../../lib/retry/index.ts";
-import { stopAfter, tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
+import { tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
 import { type JoinOptions, type RunningAgent, startAgent } from "../index.ts";
-import { attachThread, closeAfter } from "./attach.ts";
+import { type AgentConnection, attachThread, closeAfter, connectAgent, type SessionHandle } from "./attach.ts";
 import { type ChatServer, startChatServer } from "./chat-server.ts";
 import { type FauxScenario, fauxModels, type Script } from "./index.ts";
 import { SCOUT } from "./names.ts";
@@ -32,26 +30,25 @@ export interface AgentRigOptions {
   lookEveryMs?: number;
 }
 
-/** The agent, and the person who runs the gateway to talk to it. */
+/** The agent, and you, to talk to it. */
 export interface AgentRig extends Talk {
   readonly home: string;
   readonly agent: RunningAgent;
   readonly chat: ChatServer;
   /** What the agent reported, apart from the engine's own notices being among them. Empty when all went well. */
   readonly reports: unknown[];
-  /** Connect to the agent's API and attach to the session behind a thread. The connection is closed when the test ends. */
+  /** Link to the agent by the home's path and hold the session behind a thread. Closed when the test ends. */
   attach(threadId?: string): Promise<{ connection: AgentConnection; session: SessionHandle }>;
-  /** Connect to the agent's API, by the home's path. The connection is closed when the test ends. */
+  /** Link to the agent by the home's path. Closed when the test ends. */
   connect(): Promise<AgentConnection>;
 }
 
 /**
  * An agent on a home of its own, with a scripted model, taking part in the
- * network: it joins the real gateway's roster, registers there and finds the
- * real chat server through it, where the person who runs the gateway has a DM
- * with it. All of it is stopped when the test ends if it is still running. A
- * second rig can be given the first one's home and chat server, to see an
- * agent that is started again.
+ * network: it links to the real gateway, joins its roster and finds the real
+ * chat server through it, where you have a DM with it. All of it is stopped
+ * when the test ends if it is still running. A second rig can be given the
+ * first one's home and chat server, to see an agent that is started again.
  */
 export async function startAgentRig(t: TestContext, options: AgentRigOptions = {}): Promise<AgentRig> {
   useRuntimeDir(t);
@@ -88,15 +85,7 @@ export async function startAgentRig(t: TestContext, options: AgentRigOptions = {
     agent,
     chat,
     reports,
-    async attach(threadId = talk.thread.id) {
-      const attached = await attachThread(home, threadId);
-      stopAfter(t, () => attached.connection.close().catch(() => undefined));
-      return attached;
-    },
-    async connect() {
-      const connection = await attachLocal(home);
-      stopAfter(t, () => connection.close().catch(() => undefined));
-      return connection;
-    },
+    attach: (threadId = talk.thread.id) => attachThread(t, home, threadId),
+    connect: () => connectAgent(t, home),
   };
 }

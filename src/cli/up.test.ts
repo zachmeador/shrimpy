@@ -21,7 +21,7 @@ import {
   startModelServer,
   startUp,
   startUpWithPace,
-  untilRegistered,
+  untilLinked,
   useShrimpyDir,
 } from "./testing/index.ts";
 
@@ -67,8 +67,8 @@ test("up starts the gateway, the chat server and an agent per home, says how to 
   const [gateway, chat, agent] = up.programs();
   assert.ok(gateway && chat && agent);
   // A program says it is listening a moment before the gateway lists it.
-  await untilRegistered("chat", "chat");
-  await untilRegistered("agent", "scout");
+  await untilLinked("chat", "chat");
+  await untilLinked("agent", "scout");
   assert.ok(up.output().stdout.includes('shrimpy run scout "<text>"'), "it says how to talk to the agent");
   const agentStatus = JSON.parse((await shrimpy(["agent", "status", "--agent", home])).stdout) as { running: boolean; pid: number };
   assert.deepEqual([agentStatus.running, agentStatus.pid], [true, agent]);
@@ -90,7 +90,7 @@ test("up stops agents first, gives a running turn the time agent serve does, and
   const up = await startUp(t, [home, "--data", tempDir(t, "up-data")]);
   const [gateway, chat, agent] = up.programs();
   assert.ok(gateway && chat && agent);
-  await untilRegistered("agent", "scout");
+  await untilLinked("agent", "scout");
   assert.equal((await shrimpy(["run", "scout", "go slow", "--no-wait"])).code, 0);
   await until(() => model.requests.length > 0, "the model to start answering");
 
@@ -175,8 +175,8 @@ test("up with no arguments starts every agent in the Shrimpy folder, and keeps t
   const up = await startUp(t, []);
 
   assert.equal(up.programs().length, 4, "the gateway, the chat server and the two agents");
-  await untilRegistered("agent", "scout");
-  await untilRegistered("agent", "rex");
+  await untilLinked("agent", "scout");
+  await untilLinked("agent", "rex");
   const status = JSON.parse((await shrimpy(["agent", "status", "--agent", "scout"])).stdout) as { home: string };
   assert.equal(status.home, scout, "an agent is reached by its name");
   assert.equal((await shrimpy(["sessions", "list", "--agent", "rex"])).code, 0, "and so are its sessions");
@@ -194,7 +194,7 @@ test("run right after up gets its reply from the agent up started, even one sent
   const home = await agentHome(t, await testModel(t));
   await startUp(t, [home, "--data", tempDir(t, "up-data")]);
   // The agent is registered before it has connected to chat, so this message can arrive first.
-  await untilRegistered("agent", "scout");
+  await untilLinked("agent", "scout");
 
   const result = await shrimpy(["run", "scout", "hi"]);
 
@@ -222,7 +222,7 @@ test("up starts no gateway or chat server for agents that all belong to a gatewa
   const scout = await agentHome(t, model, "scout");
   const rex = await agentHome(t, model, "rex");
   // Rex joined a gateway that is somewhere else, and nothing answers there now, so it keeps trying.
-  saveMembership(rex, { token: newToken(), gateway: elsewhere });
+  saveMembership(rex, { token: newToken(), gateway: { ...elsewhere, fingerprint: "ocKmkNBacmPG6VxrlnuW3Q" } });
   // Each start has a data directory of its own, so that what one gateway kept is not another's to listen on.
   const data = (): string => tempDir(t, "up-data");
 
@@ -269,11 +269,11 @@ test("a home made while up runs is started by itself and joins the roster, nothi
   await agentInFolder(t, model, "scout");
   const up = await startUpWithPace(t, [], quick);
   const before = ["the gateway", "the chat server", "the agent scout"].map((what) => startedPid(up, what));
-  await untilRegistered("agent", "scout");
+  await untilLinked("agent", "scout");
 
   // The home is whole when it appears, as one is that is finished elsewhere and moved in.
   renameSync(await agentHome(t, model, "rex"), join(folder, "agents", "rex"));
-  await untilRegistered("agent", "rex");
+  await untilLinked("agent", "rex");
 
   assert.equal(up.programs().length, 4, "only the agent of the new home was started");
   assert.deepEqual(before.map(isAlive), [true, true, true]);
@@ -303,14 +303,14 @@ test("an agent that is killed is started again alone and answers, while the gate
     startedPid(up, what),
   );
   assert.ok(gateway && chat && scout && rex);
-  await untilRegistered("agent", "scout");
+  await untilLinked("agent", "scout");
 
   process.kill(scout, "SIGKILL");
   await until(() => startedPid(up, "the agent scout") !== scout, "up to start scout again", 30_000);
 
   const again = startedPid(up, "the agent scout");
   assert.match(up.output().stderr, new RegExp(`The agent scout \\(pid ${String(scout)}\\) ended by itself \\(signal SIGKILL\\)`));
-  await untilRegistered("agent", "scout");
+  await untilLinked("agent", "scout");
   const said = await shrimpy(["run", "scout", "hi"]);
   assert.equal(said.stdout, "Hello from the test model.\n", said.stderr);
   assert.equal(await pidOfAgent("scout"), again);
@@ -361,7 +361,7 @@ test("a home that can't start for want of a model is said with the agent's words
   // The pause is a minute, so only the change to agent.json can start rex in the time the test has.
   const up = await startUpWithPace(t, [], { ...quick, pauseMs: 60_000, longestPauseMs: 60_000 });
   const before = ["the gateway", "the chat server", "the agent scout"].map((what) => startedPid(up, what));
-  await untilRegistered("agent", "scout");
+  await untilLinked("agent", "scout");
 
   const said = up.output().stderr;
   assert.match(said, /\[agent rex\] The agent has no model to start with/, "it says what the agent said");
@@ -371,7 +371,7 @@ test("a home that can't start for want of a model is said with the agent's words
 
   const named = { name: "rex", model: { provider: "local", id: "test-model" } };
   writeFileSync(join(rex, "agent.json"), `${JSON.stringify(named, null, 2)}\n`);
-  await untilRegistered("agent", "rex");
+  await untilLinked("agent", "rex");
 
   assert.equal(up.programs().length, 4);
   assert.deepEqual(before.map(isAlive), [true, true, true], "the rest was left as it was");
@@ -396,7 +396,7 @@ test("a home that can't start is said once however often it is tried, and starts
   // A default model for the folder is found by trying again.
   mkdirSync(join(folder, "providers"));
   writeFileSync(join(folder, "providers", "default-model.json"), JSON.stringify({ provider: "local", id: "test-model" }));
-  await untilRegistered("agent", "rex");
+  await untilLinked("agent", "rex");
   assert.match(up.output().stdout, /^Started the agent rex \(pid \d+\)/m);
 });
 
@@ -415,7 +415,7 @@ test("an agent that someone else started is used as it is, and when it ends up s
 
   const itself = startedPid(up, "the agent scout");
   assert.notEqual(itself, byHand.listening.pid);
-  await untilRegistered("agent", "scout");
+  await untilLinked("agent", "scout");
   assert.equal(await pidOfAgent("scout"), itself);
   assert.equal(up.output().code, null);
 });

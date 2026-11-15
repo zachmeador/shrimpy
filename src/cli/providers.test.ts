@@ -12,7 +12,7 @@ import {
   shrimpy,
   startModelServer,
   startUp,
-  untilRegistered,
+  untilLinked,
   useShrimpyDir,
 } from "./testing/index.ts";
 
@@ -57,8 +57,8 @@ test("agents take the model, server and key their homes don't hold from the fold
   writeFileSync(join(rex, "state", "pi", "auth.json"), JSON.stringify({ local: { type: "api_key", key: "rex-key" } }));
 
   await startUp(t, []);
-  await untilRegistered("agent", "scout");
-  await untilRegistered("agent", "rex");
+  await untilLinked("agent", "scout");
+  await untilLinked("agent", "rex");
   for (const name of ["scout", "rex"]) {
     const reply = await shrimpy(["run", name, "hi"]);
     assert.equal(reply.code, 0, reply.stderr);

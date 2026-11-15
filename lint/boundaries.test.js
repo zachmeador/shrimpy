@@ -63,6 +63,22 @@ tester.run("imports", importsRule, {
     // piTui, piTuiDraw and drawing: only the console's drawing knows pi-tui, and the top of the console starts the drawing.
     allowed("clients/console/draw/screen.ts", "@earendil-works/pi-tui"),
     allowed("clients/console/console.ts", "./draw/index.ts"),
+    // chord: Chord stays where programs meet, its context, json and delta go where the engine may, and tests and test support use any of it.
+    allowed("contracts/chat/thread.ts", "@earendil-works/chord"),
+    allowed("lib/follow/index.ts", "@earendil-works/chord"),
+    allowed("lib/link/linked.node.ts", "@earendil-works/chord"),
+    allowed("gateway/index.ts", "@earendil-works/chord"),
+    allowed("agent/served.ts", "@earendil-works/chord"),
+    allowed("gateway/programs/programs.ts", "@earendil-works/chord/watch"),
+    allowed("chat/identity/roster.ts", "@earendil-works/chord"),
+    allowed("agent/links/chat.ts", "@earendil-works/chord"),
+    allowed("clients/console/network/link.ts", "@earendil-works/chord"),
+    allowed("cli/talk/objects.ts", "@earendil-works/chord"),
+    allowed("agent/turns/turn-task.durable.ts", "@earendil-works/chord/json"),
+    allowed("agent/sessions/sessions.durable.ts", "@earendil-works/chord/delta"),
+    allowed("agent/questions/durable.ts", "@earendil-works/chord/context"),
+    allowed("cli/flow.test.ts", "@earendil-works/chord"),
+    allowed("cli/testing/scripted-agent.ts", "@earendil-works/chord"),
     // browser: a Node door may use Node, and so may tests and test support, which are never shipped.
     allowed("contracts/agent/node.ts", "node:fs"),
     allowed("lib/testing/child.ts", "node:child_process"),
@@ -104,6 +120,20 @@ tester.run("imports", importsRule, {
     refused("clients/console/draw/screen.ts", "@earendil-works/pi-tui/dist/index.js", "piTui"),
     refused("clients/console/state/store.ts", "@earendil-works/pi-tui", "piTuiDraw"),
     refused("clients/console/state/store.ts", "../draw/index.ts", "drawing"),
+    // Chord stays out of the rest of a program, a type included, and only the entry points the engine is written in go where it may.
+    refused("agent/sessions/sessions.durable.ts", "@earendil-works/chord", "chord"),
+    refused("agent/inputs/prompt.ts", "@earendil-works/chord/context", "chord"),
+    refused("chat/threads/store.ts", "@earendil-works/chord/json", "chord"),
+    refused("gateway/roster/roster.ts", "@earendil-works/chord", "chord"),
+    refused("clients/console/state/store.ts", "@earendil-works/chord/context", "chord"),
+    refused("cli/commands/run.ts", "@earendil-works/chord", "chord"),
+    refused("cli/main.ts", "@earendil-works/chord", "chord"),
+    refused("lib/retry/keep-running.ts", "@earendil-works/chord", "chord"),
+    {
+      filename: file("agent/triggers/triggers.durable.ts"),
+      code: 'import type { FollowAttach } from "@earendil-works/chord";',
+      errors: [{ messageId: "chord" }],
+    },
     // Code that must run in a browser reaches Node neither directly nor through a door that says it needs Node.
     refused("contracts/agent/connect.ts", "node:fs", "browser"),
     refused("contracts/agent/index.ts", "./node.ts", "browser"),

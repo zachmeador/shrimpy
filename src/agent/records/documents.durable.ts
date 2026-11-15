@@ -28,25 +28,19 @@ import {
  */
 
 /**
- * What the agent's records are called, and how the agent's runs have gone.
- *
- * The ID is made with the records and never changes. The engine numbers its
- * entries and tasks again in a new database, so a name built from those numbers
- * alone repeats one that an earlier set of records already posted under, and
- * chat takes the post for a retry of that one. What the agent posts under such a
- * name carries this too.
- *
- * `running` is set at every start and cleared by an orderly stop, so a start
- * that finds it set follows a run that ended in some other way. `crashes` counts,
- * for each input whose task is live, the runs that ended that way while the
- * input's turn was underway, under the input's ID. Records written before either
- * existed have neither, which reads as not running and no crashes.
+ * What the agent's records are called. The ID is made with the records and
+ * never changes. The engine numbers its entries and tasks again in a new
+ * database, so a name built from those numbers alone repeats one that an earlier
+ * set of records already posted under, and chat takes the post for a retry of
+ * that one. What the agent posts under such a name carries this too.
  */
-export const RecordsDoc = defineDoc<{ id: string; running?: boolean; crashes?: Record<string, number> }>({
+export const RecordsDoc = defineDoc<{ id: string }>({
   kind: "shrimpy.records",
   version: 3,
   scope: "session",
   initial: () => ({ id: newId("rec") }),
+  // Every change is kept as a change, never a whole copy.
+  checkpointWhen: () => false,
 });
 
 /**
@@ -124,6 +118,8 @@ export const SessionsDoc = defineDoc<{ sessions: Record<string, SessionRecord> }
   version: 3,
   scope: "session",
   initial: () => ({ sessions: {} }),
+  // Every change is kept as a change, never a whole copy.
+  checkpointWhen: () => false,
 });
 
 /** The address of the session of its own that a trigger's occurrences go to when the trigger names no thread. */
@@ -164,6 +160,8 @@ export const QuestionsDoc = defineDoc<{ open: Record<string, OpenQuestion> }>({
   version: 1,
   scope: "session",
   initial: () => ({ open: {} }),
+  // Every change is kept as a change, never a whole copy.
+  checkpointWhen: () => false,
 });
 
 /**
@@ -193,6 +191,8 @@ export const TriggersDoc = defineDoc<{ owner: number | null; revisions: number; 
   version: 1,
   scope: "session",
   initial: () => ({ owner: null, revisions: 0, triggers: {} }),
+  // Every change is kept as a change, never a whole copy.
+  checkpointWhen: () => false,
 });
 
 /**
@@ -205,6 +205,8 @@ export const FeedDoc = defineDoc<{ cursor: number | null; store?: string }>({
   version: 3,
   scope: "session",
   initial: () => ({ cursor: null }),
+  // Every change is kept as a change, never a whole copy.
+  checkpointWhen: () => false,
 });
 
 /** A plain copy of something read from a document, safe to keep after the commit. */

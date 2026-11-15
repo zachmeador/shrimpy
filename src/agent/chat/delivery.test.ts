@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { ServerError } from "@earendil-works/pi-client";
+import { Refusal } from "../../lib/refusal/index.ts";
 import { startChatRig } from "./testing/index.ts";
 
 const timeout = 15_000;
@@ -22,15 +22,15 @@ test("a reply is posted once however delivery goes wrong: a post that fails, one
   assert.deepEqual([receipt.status, receipt.reply], ["answered", replies[0]?.id]);
   assert.deepEqual(
     rig.errors.map((error) => error.message),
-    ["overloaded", "chat hiccuped", "chat hiccuped"],
-    "each failure was reported, and a lost connection is not one",
+    ["overloaded", "The answer to the post was lost.", "chat hiccuped", "chat hiccuped"],
+    "each failure was reported",
   );
 });
 
 test("a reply that chat refuses for good is not posted again: the event gets a failed receipt with chat's reason, and a report", { timeout }, async (t) => {
   const rig = await startChatRig(t);
   const said = await rig.say("hello");
-  rig.faults.fail("post", new ServerError({ code: "service_invalid_value", message: "Unknown thread: th_gone" }), 10);
+  rig.faults.fail("post", new Refusal("Unknown thread: th_gone"), 10);
 
   await rig.delivery.tell(rig.outstanding(said), { kind: "answered", answer: "1", text: "Too late." }, never);
 

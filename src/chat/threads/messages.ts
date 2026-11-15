@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Member, Message } from "../../contracts/chat/index.ts";
-import { refuse } from "../../lib/refusal/index.ts";
 import { fitAnswer, identifier, MAX_PAGE, messageText, whole } from "../input/index.ts";
+import { refuse } from "../refusal/index.ts";
 import { readableThread, visibleThread } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
 import { mentionedMembers } from "./mentions.ts";
@@ -27,10 +27,10 @@ const digestOf = (threadId: string, text: string): string =>
  * message is not a retry, and posting it again would hide the mistake, so it is
  * refused.
  */
-export function post(deps: ChatDeps, caller: Member, threadId: unknown, text: unknown, requestId: unknown): Message {
-  const id = identifier(threadId, "threadId");
+export function post(deps: ChatDeps, caller: Member, threadId: string, text: unknown, requestId: unknown): Message {
+  const id = threadId;
   const body = messageText(text);
-  const request = identifier(requestId, "requestId");
+  const request = identifier(requestId, "request");
   const digest = digestOf(id, body);
   return deps.store.transaction((tx) => {
     const earlier = tx.postedBy(caller.id, request);
@@ -56,12 +56,12 @@ export function post(deps: ChatDeps, caller: Member, threadId: unknown, text: un
 export function readMessages(
   deps: ChatDeps,
   caller: Member,
-  threadId: unknown,
+  threadId: string,
   beforeSeq: unknown,
   limit: unknown,
 ): Message[] {
-  const id = identifier(threadId, "threadId");
-  const before = beforeSeq === null ? null : whole(beforeSeq, "beforeSeq", 0);
+  const id = threadId;
+  const before = beforeSeq === null ? null : whole(beforeSeq, "before", 0);
   const count = Math.min(whole(limit, "limit", 1), MAX_PAGE);
   return deps.store.transaction((tx) => {
     readableThread(tx, caller, id);

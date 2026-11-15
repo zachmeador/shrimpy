@@ -17,6 +17,26 @@ const AGENT_TIERS = [
   ["sessions", "message-tools", "context"],
 ];
 const tierOf = (module) => AGENT_TIERS.findIndex((tier) => tier.includes(module));
+/**
+ * Where Chord may be imported, apart from contracts/, the files at the top of
+ * each program, tests and test support: the modules that make a program's host,
+ * serve its objects or hold another program's, and the two lib/ modules that
+ * wrap Chord for everyone.
+ */
+const CHORD_MODULES = [
+  "lib/link/",
+  "lib/follow/",
+  "gateway/hello/",
+  "gateway/programs/",
+  "gateway/served/",
+  "chat/served/",
+  "chat/identity/",
+  "agent/links/",
+  "clients/console/network/",
+  "cli/talk/",
+];
+/** Chord's entry points that Pi's durable runtime is written in, which go wherever the runtime may. */
+const CHORD_WITH_DURABLE = ["@earendil-works/chord/context", "@earendil-works/chord/json", "@earendil-works/chord/delta"];
 
 const messages = {
   outside: "Import only from inside src/, not {{target}}.",
@@ -30,6 +50,8 @@ const messages = {
     "A chat provider may import only chat/providers/index.ts and lib/, not {{target}}.",
   testing: "Only tests and test support import a testing/ module, not {{target}}.",
   durable: "Only agent/ imports Pi's durable runtime.",
+  chord:
+    "Chord stays where programs meet: contracts/, lib/link and lib/follow, the files at the top of each program, the gateway's hello/, programs/ and served/, the chat server's served/ and identity/, the agent's links/, the terminal's network/ and the CLI's talk/. Its context, json and delta go wherever Pi's durable runtime may. Take what this file needs from one of those modules, or move the code that talks to another program into one.",
   durableInAgent:
     "Inside agent/, only a file named *.durable.ts, or a durable.ts door, imports Pi's durable runtime: name this file so, or move what needs the engine into one that is, and let the rest see only Shrimpy's own types.",
   plain:
@@ -81,12 +103,23 @@ function isBrowserSafe(path) {
 
 const reachesNode = (specifier) => isBuiltin(specifier) || /^node:|\/unix$|\/node$/.test(specifier);
 
+/** A file at the top of a program, which makes its host and wires its modules, as opposed to one inside a module. */
+const atProgramTop = (path) => /^(agent|chat|gateway)\/[^/]+$/.test(path);
+
+/** Whether `from` may import `specifier`, an entry point of Chord. */
+function mayImportChord(from, specifier) {
+  if (isTest(from) || isTestSupport(from) || from.startsWith("contracts/") || atProgramTop(from)) return true;
+  if (CHORD_MODULES.some((module) => from.startsWith(module))) return true;
+  return CHORD_WITH_DURABLE.includes(specifier) && ownerOf(from) === "agent" && needsDurable(from);
+}
+
 function checkPackage(from, specifier) {
   const owner = ownerOf(from);
   if (/^@earendil-works\/pi-durable(\/|$)/.test(specifier)) {
     if (owner !== "agent") return { messageId: "durable" };
     if (!isTest(from) && !isTestSupport(from) && !needsDurable(from)) return { messageId: "durableInAgent" };
   }
+  if (/^@earendil-works\/chord(\/|$)/.test(specifier) && !mayImportChord(from, specifier)) return { messageId: "chord" };
   if (/^@earendil-works\/pi-ai(\/|$)/.test(specifier) && owner !== "agent" && !isTest(from) && !isTestSupport(from)) {
     return { messageId: "piAi" };
   }

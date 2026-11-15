@@ -100,6 +100,13 @@ export interface EventOperations {
   eventsAfter(memberId: string, cursor: number, limit: number): ChatEvent[];
   /** The position of the newest event, or 0 while there are none. */
   head(): number;
+  /**
+   * The position of the newest event after `after` in the channels a member
+   * belongs to, counting in each only those after it joined, or `after` when
+   * there is none. Positions only grow, so a caller that knew the answer once
+   * asks only about what came after it.
+   */
+  headOf(memberId: string, after: number): number;
 }
 
 export function eventOperations(sql: Sql): EventOperations {
@@ -123,6 +130,18 @@ export function eventOperations(sql: Sql): EventOperations {
     },
     head() {
       const row = sql.one("SELECT coalesce(max(seq), 0) AS head FROM events") as { head: number };
+      return row.head;
+    },
+    headOf(memberId, after) {
+      const row = sql.one(
+        `SELECT coalesce(max(e.seq), ?) AS head FROM events e
+         WHERE e.seq > ?
+           AND EXISTS (SELECT 1 FROM memberships s
+                        WHERE s.channel_id = e.channel_id AND s.member_id = ? AND s.since_seq < e.seq)`,
+        after,
+        after,
+        memberId,
+      ) as { head: number };
       return row.head;
     },
   };

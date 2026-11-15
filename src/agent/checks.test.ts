@@ -3,10 +3,17 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
-import type { AgentConnection, Occurrence, TriggerDetail } from "../contracts/agent/index.ts";
-import { attachLocal } from "../contracts/agent/node.ts";
+import type { Occurrence, TriggerDetail } from "../contracts/agent/index.ts";
 import { eventually, stopAfter, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
-import { type Script, startAgentChild, startAgentRig, startChatServer, writeTrigger } from "./testing/index.ts";
+import {
+  type AgentConnection,
+  connectAgent,
+  type Script,
+  startAgentChild,
+  startAgentRig,
+  startChatServer,
+  writeTrigger,
+} from "./testing/index.ts";
 
 /*
  * A trigger's check: the real engine under an agent, a scripted model that
@@ -169,7 +176,7 @@ test("an agent killed while a check runs says at its next start that the occurre
   writeFileSync(join(home, "gate"), "");
 
   await startAgentChild(t, home, "chat", 400, { shortestEveryMs: SHORTEST });
-  const connection = await attachLocal(home);
+  const connection = await connectAgent(t, home);
   stopAfter(t, () => connection.close().catch(() => undefined));
   const detail = await trigger(connection, "watch", (found) => ended(found, "interrupted") >= 1, "the occurrence to say it was interrupted");
 

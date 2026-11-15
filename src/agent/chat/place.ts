@@ -1,6 +1,7 @@
-import type { Channel, ChatClient, Member, Thread } from "../../contracts/chat/index.ts";
+import type { Channel, Member, Thread } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import type { Named, Place } from "../inputs/index.ts";
+import type { ChatCalls } from "../links/index.ts";
 import type { Taken } from "./wake.ts";
 
 /** How many of the others in a room are named to the model. The rest are counted. */
@@ -8,7 +9,7 @@ const NAMED = 12;
 
 /** What telling where an event's thread is needs, apart from the event. */
 export interface PlaceContext {
-  chat: ChatClient;
+  chat: ChatCalls;
   self: Member;
   signal: AbortSignal;
   /** Told when chat refused to say, and the event goes ahead with the place its session has. */
@@ -45,7 +46,7 @@ export async function inPlace(context: PlaceContext, taken: Taken): Promise<Take
   const { chat, self, signal } = context;
   let place: Place | undefined;
   try {
-    const channel = (await chat.channels(signal)).find((each) => each.id === taken.channelId);
+    const channel = chat.channels().find((each) => each.id === taken.channelId);
     const threads = channel === undefined ? [] : await chat.threads(channel.id, signal);
     const thread = threads.find((each) => each.id === taken.threadId);
     place = channel === undefined || thread === undefined ? undefined : describePlace(self, channel, thread);

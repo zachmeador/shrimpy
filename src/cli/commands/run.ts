@@ -1,8 +1,21 @@
 import { randomUUID } from "node:crypto";
 import { parseArgs } from "node:util";
-import type { Channel, ChatClient, Thread } from "../../contracts/chat/index.ts";
+import { type Channel, Thread } from "../../contracts/chat/index.ts";
 import type { Io } from "../io/index.ts";
-import { agentNamed, type Reached, reachChat, runningAgent, type Waited, waitForReceipt } from "../talk/index.ts";
+import {
+  agentNamed,
+  contextOf,
+  type HeldThread,
+  isLost,
+  onChannel,
+  type Reached,
+  reachChat,
+  runningAgent,
+  unlessRefused,
+  valueOf,
+  type Waited,
+  waitForReceipt,
+} from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
@@ -17,10 +30,11 @@ const run: Command = {
   details:
     "Posts the text in your DM with the agent, to a new thread unless --thread names one, and waits for the " +
     "agent's receipt on it. When the agent answered, its reply is printed and the exit code is 0; a silent " +
-    "agent prints nothing and exits 0; a failure prints its reason on standard error and exits 1; stopped or " +
-    "skipped work says so and exits 130. A new thread's ID is printed on standard error. --no-wait exits 0 " +
-    "once the message is posted, and prints its IDs. Stopping the command while it waits leaves the message and " +
-    "the agent's work alone, and exits 130.",
+    "agent prints nothing and exits 0; a failure, or a message skipped because the turn ahead of it failed, " +
+    "prints the reason on standard error and exits 1; work that was stopped, or a message a stop skipped, says " +
+    "so and exits 130. A new thread's ID is printed on standard error. --no-wait exits 0 once the message is " +
+    "posted, and prints its IDs. Stopping the command while it waits leaves the message and the agent's work " +
+    "alone, and exits 130.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({
@@ -50,58 +64,72 @@ async function say(io: Io, request: Request): Promise<number> {
   const stopped = new AbortController();
   const stopListening = io.onStop(() => stopped.abort());
   const { signal } = stopped;
-  // Ended by the chat server going away, which nothing else would notice while waiting for a receipt.
+  // Ended by the link to the gateway or chat going away, which nothing else would notice while waiting for a receipt.
   const lost = new AbortController();
   let progress: Progress = { stage: "reaching" };
   let reached: Reached | undefined;
+  let held: HeldThread | undefined;
   try {
     reached = await reachChat(io, signal);
-    reached.connection.onDisconnect(() => lost.abort());
+    void reached.client.closed.then(() => lost.abort());
     const agent = agentNamed(reached.members, request.agent);
-    const registered = runningAgent(reached.programs, agent);
-    warnIfVersionDiffers(io, `the agent ${agent.name}`, registered.version);
+    const linked = runningAgent(reached.programs, agent);
+    warnIfVersionDiffers(io, `the agent ${agent.name}`, linked.shrimpy);
 
-    const { chat } = reached.connection;
-    const dm = await chat.openDm(agent.id, signal);
-    const thread = await chooseThread(chat, dm, request.thread, signal);
+    const dm = valueOf(await reached.chat.openDm({ member: agent.id }, contextOf(signal)));
+    const threadId = await chooseThread(reached, dm, request.thread, signal);
+    held = await reached.client.host.get(Thread, { thread: threadId }, contextOf(signal));
+    unlessRefused(held.refusal.value);
+    whenFailed(held, () => lost.abort());
     progress = { stage: "sending" };
-    const message = await chat.post(thread.id, request.text, randomUUID(), signal);
-    progress = { stage: "waiting", thread: thread.id };
+    const message = valueOf(await held.post({ text: request.text, request: randomUUID() }, contextOf(signal)));
+    progress = { stage: "waiting", thread: threadId };
     if (!request.wait) {
-      io.out(`Posted ${message.id} in thread ${thread.id}. Read it with: shrimpy read ${thread.id}`);
+      io.out(`Posted ${message.id} in thread ${threadId}. Read it with: shrimpy read ${threadId}`);
       return 0;
     }
     if (request.thread === undefined) {
-      io.err(`Thread ${thread.id} started. Continue it with: shrimpy run ${request.agent} "<text>" --thread ${thread.id}`);
+      io.err(`Thread ${threadId} started. Continue it with: shrimpy run ${request.agent} "<text>" --thread ${threadId}`);
     }
-    const watched = await reached.connection.attach(thread.id);
-    const waiting = AbortSignal.any([signal, lost.signal]);
-    const waited = await waitForReceipt(watched, message, agent.id, waiting);
-    return report(io, request.agent, thread.id, waited);
+    const waited = await waitForReceipt(held, message, agent.id, AbortSignal.any([signal, lost.signal]));
+    return report(io, request.agent, threadId, waited);
   } catch (error) {
     if (signal.aborted) return interrupted(io, request.agent, progress);
-    if (lost.signal.aborted) throw new Error(lostConnection(request.agent, progress), { cause: error });
+    if (lost.signal.aborted || (progress.stage !== "reaching" && isLost(error))) {
+      throw new Error(lostConnection(request.agent, progress), { cause: error });
+    }
     throw error;
   } finally {
-    // A second stop request ends the command at once, while the connection is let go.
+    // A second stop request ends the command at once, while the link is let go.
     stopListening();
+    held?.release();
     await reached?.close();
   }
 }
 
+/** Call `lost` once `held` fails, as a thread does when chat goes away, which a link to the gateway that holds keeps quiet about. */
+function whenFailed(held: HeldThread, lost: () => void): void {
+  void held.state.watch(contextOf()).then((watch) => {
+    watch.start(async (call) => {
+      if (call.kind === "value" && call.value.kind === "failed") lost();
+    });
+  });
+}
+
 /** A new thread in the DM, or the one that was asked for, which must be in the DM. */
-async function chooseThread(
-  chat: ChatClient,
-  dm: Channel,
-  id: string | undefined,
-  signal: AbortSignal,
-): Promise<Thread> {
-  if (id === undefined) return chat.createThread(dm.id, null, signal);
-  const found = (await chat.threads(dm.id, signal)).find((thread) => thread.id === id);
-  if (found === undefined) {
-    throw new Error(`There is no thread ${id} in your DM with ${dm.name}. List yours with: shrimpy threads ${dm.name}`);
-  }
-  return found;
+async function chooseThread(reached: Reached, dm: Channel, id: string | undefined, signal: AbortSignal): Promise<string> {
+  return onChannel(
+    reached.client,
+    dm.id,
+    async (channel) => {
+      if (id === undefined) return valueOf(await channel.createThread({ name: null }, contextOf(signal))).id;
+      if (!channel.threads.value.some((thread) => thread.id === id)) {
+        throw new Error(`There is no thread ${id} in your DM with ${dm.name}. List yours with: shrimpy threads ${dm.name}`);
+      }
+      return id;
+    },
+    signal,
+  );
 }
 
 /** Say what became of the message: the reply on standard output, anything else on standard error. */
@@ -130,8 +158,13 @@ function report(io: Io, agent: string, thread: string, waited: Waited): number {
     case "stopped":
       io.err(`${agent} stopped before answering your message.`);
       return CANCELLED;
+    // A skipped receipt with a reason was left behind a turn that failed, and one with none behind a stop.
     case "skipped":
-      io.err(`${agent} skipped your message.`);
+      if (receipt.detail !== null) {
+        io.err(`${agent} skipped your message: ${receipt.detail}`);
+        return 1;
+      }
+      io.err(`${agent} skipped your message, because its work was stopped.`);
       return CANCELLED;
   }
 }

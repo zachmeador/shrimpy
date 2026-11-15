@@ -3,13 +3,13 @@ import {
   type AgentCommand,
   agentCommandIn,
   type Channel,
-  type ChatClient,
   type ChatEvent,
   MAX_RECEIPT_DETAIL_LENGTH,
   type Member,
   type Receipt,
 } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
+import type { ChatCalls } from "../links/index.ts";
 import type { Admissions } from "./admissions.ts";
 import { actOnModel } from "./model-command.ts";
 import { clip, commandReplyRequestId } from "./reply.ts";
@@ -51,7 +51,7 @@ export function commandFor(self: Member, event: ChatEvent, where: Channel["kind"
 
 /** What acting on a command needs, apart from the command. */
 export interface Obeying {
-  chat: ChatClient;
+  chat: ChatCalls;
   admissions: Admissions;
   signal: AbortSignal;
   /** Told when chat refuses the receipt or the line, which is then not left or posted. */

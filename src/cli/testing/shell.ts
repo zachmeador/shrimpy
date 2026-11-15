@@ -1,10 +1,11 @@
 import type { TestContext } from "node:test";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { initHome } from "../../agent/index.ts";
 import { AGENT_HOME_VARIABLE } from "../../contracts/agent/index.ts";
 import { saveMembership } from "../../contracts/agent/node.ts";
-import type { Member } from "../../contracts/gateway/index.ts";
+import { type Member, Roster } from "../../contracts/gateway/index.ts";
 import { newToken } from "../../contracts/gateway/node.ts";
-import { startTestGateway } from "../../contracts/gateway/testing/index.ts";
+import { linkTestAgent, startTestGateway } from "../../contracts/gateway/testing/index.ts";
 import { tempDir } from "../../lib/testing/index.ts";
 import { type CliResult, shrimpy } from "./process.ts";
 
@@ -27,16 +28,22 @@ export interface AgentShell {
  * the gateway of its own.
  */
 export async function startAgentShell(t: TestContext, name: string, options: { admin?: true } = {}): Promise<AgentShell> {
-  const gateway = await (await startTestGateway(t)).connect();
   const token = newToken();
-  let member = await gateway.join(name, token);
+  // Linked once, so that the roster has the agent with its token, and let go, since no agent runs there.
+  const joined = await linkTestAgent(t, name, token);
+  await joined.stop();
+  let member = joined.you;
   const home = tempDir(t, `${name}-home`);
   initHome(home, { name, model: { provider: "local", id: "test-model" } });
   saveMembership(home, { token, memberId: member.id });
   const wanted = options.admin === true;
   if (member.admin !== wanted) {
     const person = await (await startTestGateway(t)).connect();
-    member = await (wanted ? person.promote(member.id) : person.demote(member.id));
+    const roster = await person.host.get(Roster, {}, BACKGROUND_CONTEXT);
+    const answer = await (wanted ? roster.promote({ member: member.id }, BACKGROUND_CONTEXT) : roster.demote({ member: member.id }, BACKGROUND_CONTEXT));
+    roster.release();
+    if (answer.kind === "refused") throw new Error(answer.words);
+    member = answer.value;
   }
   return { member, home, run: (args) => shrimpy(args, { env: { [AGENT_HOME_VARIABLE]: home } }) };
 }

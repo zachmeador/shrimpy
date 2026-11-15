@@ -45,10 +45,17 @@ export type Written =
   /** It is a message, or a command for agents: it is posted as it was written. */
   | { do: "post" }
   | { do: "status" }
+  /** `/devices` alone: the terminal lists the person's devices. */
+  | { do: "devices" }
+  /** `/devices take back` and a device: the terminal takes back the device `device` names, by its label or ID. */
+  | { do: "take-back"; device: string }
   /** `/model` alone: the terminal says which model the thread runs on. */
   | { do: "model" }
   /** It is posted nowhere, and the text stays in the editor. */
   | { do: "refuse"; notice: Notice };
+
+/** What follows `/devices` to take a device back: the words and the device. */
+const TAKE_BACK = /^take\s+back\s+(.+)$/isu;
 
 /** A slash first, the name after it, and whatever follows the name. A name is made of what the names of the commands for agents are made of. */
 const SLASH_FIRST = /^\s*\/([\p{L}\p{N}_-]*)(.*)$/su;
@@ -75,6 +82,11 @@ export function writtenIn(text: string, where: "dm" | "room"): Written {
   if (found === null) return { do: "post" };
   const name = (found[1] ?? "").toLowerCase();
   const rest = (found[2] ?? "").trim();
+  if (name === "devices") {
+    if (rest === "") return { do: "devices" };
+    const device = TAKE_BACK.exec(rest)?.[1]?.trim();
+    return device === undefined || device === "" ? { do: "refuse", notice: { kind: "devices-usage", command: "/devices" } } : { do: "take-back", device };
+  }
   if (isTerminalCommand(name)) {
     return rest === "" ? { do: "status" } : { do: "refuse", notice: { kind: "takes-nothing", command: `/${name}` } };
   }

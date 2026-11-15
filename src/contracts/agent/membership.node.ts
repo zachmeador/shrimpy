@@ -1,7 +1,7 @@
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { readConfig } from "../../lib/json-config/node.ts";
-import type { Address } from "../gateway/index.ts";
+import type { Entry } from "../gateway/index.ts";
 import { type Membership, membershipFile } from "./membership.ts";
 
 /**
@@ -16,15 +16,16 @@ export function readMembership(home: string): Membership | undefined {
   const token = root.string("token");
   const memberId = root.optionalString("memberId");
   const entry = root.optionalObject("gateway");
-  let gateway: Address | undefined;
+  let gateway: Entry | undefined;
   if (entry !== undefined) {
     const host = entry.string("host");
     const port = entry.number("port");
+    const fingerprint = entry.optionalString("fingerprint");
     entry.done();
     if (!Number.isInteger(port) || port < 1 || port > 65_535) {
       throw entry.problem("port", "must be a port number from 1 to 65535");
     }
-    gateway = { host, port };
+    gateway = { host, port, fingerprint };
   }
   root.done();
   return {

@@ -1,4 +1,4 @@
-import type { Member, Receipt } from "../../contracts/chat/index.ts";
+import type { LeftReceipt, Member, Receipt } from "../../contracts/chat/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 
 const made = new Map<string, Member>();
@@ -28,7 +28,7 @@ export const agent = (name: string): Member => member("agent", name);
 export const outcome = (
   status: Receipt["status"],
   given: { reply?: string; detail?: string } = {},
-): Omit<Receipt, "memberId" | "event"> => ({ status, reply: given.reply ?? null, detail: given.detail ?? null });
+): LeftReceipt => ({ status, reply: given.reply ?? null, detail: given.detail ?? null });
 
 export interface Clock {
   readonly now: () => number;

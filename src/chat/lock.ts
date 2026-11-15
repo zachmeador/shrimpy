@@ -1,26 +1,27 @@
+import { join } from "node:path";
 import { type Lock, takeLock } from "../lib/lock/node.ts";
+import { runtimeDir } from "../lib/runtime/node.ts";
 
-/** Another chat server is already serving this machine's socket. */
+/** Another chat server is already running with this runtime directory. */
 export class ChatRunningError extends Error {
-  readonly socket: string;
+  readonly lock: string;
 
-  constructor(socket: string, options?: ErrorOptions) {
-    super(
-      `A chat server is already running on ${socket}. Use that one, or stop it before starting another.`,
-      options,
-    );
+  constructor(lock: string, options?: ErrorOptions) {
+    super(`A chat server is already running here, holding ${lock}. Use that one, or stop it before starting another.`, options);
     this.name = "ChatRunningError";
-    this.socket = socket;
+    this.lock = lock;
   }
 }
 
 /**
- * One chat server per socket, with the lock in a file beside the socket. Take
+ * One chat server per runtime directory, with the lock in a file there. Take
  * it first, before the data directory is touched: a server that is refused has
  * made nothing, servers that start at the same moment cannot both get through,
  * and a killed server leaves nothing to clean up. The store's own lock is the
- * guard for two servers that share a data directory but not a socket.
+ * guard for two servers that share a data directory but not a runtime
+ * directory, and the gateway takes one chat server.
  */
-export function takeChatLock(socket: string): Lock {
-  return takeLock(`${socket}.lock`, (cause) => new ChatRunningError(socket, { cause }));
+export function takeChatLock(): Lock {
+  const path = join(runtimeDir(), "chat.lock");
+  return takeLock(path, (cause) => new ChatRunningError(path, { cause }));
 }

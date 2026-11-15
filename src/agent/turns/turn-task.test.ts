@@ -63,7 +63,7 @@ function paced(turn: ReturnType<typeof turnTask>, pace: NonNullable<OpenOptions[
   return { task, extension: defineExtension({ name: "turns", tasks: [task] }) };
 }
 
-/** An agent's host and admissions on `home`, stopped when the test ends. `stop` ends it earlier, as a crash would. */
+/** An agent's host and admissions on `home`, stopped when the test ends. `stop` stops it earlier. */
 async function open(t: TestContext, home: string, scenario: FauxScenario, options: OpenOptions = {}) {
   const delivery = options.delivery ?? recordingDelivery().delivery;
   const reports: Error[] = [];
@@ -113,7 +113,7 @@ async function endedTasks(host: Opened["host"]) {
 test("taking an event up makes its session, the task that follows it and the cursor's move in one commit", { timeout }, async (t) => {
   const { host, admissions } = await open(t, tempDir(t, "turns"), "mixed");
   const published: CommitPublication[] = [];
-  host.harness.subscribeCommits((publication) => published.push(publication));
+  host.harness.observeCommits({ advance: (publication) => published.push(publication), end: () => undefined });
 
   await admissions.admit(draft(1));
 
@@ -174,7 +174,7 @@ test("a failure while handing an event over leaves a failed receipt with the rea
   await until(() => told.length === 2, "the second event to be told");
   const outcome = told[1]?.outcome;
   assert.ok(outcome?.kind === "failed");
-  assert.match(outcome.reason, /^The agent hit an internal error: .*already identifies a submission/);
+  assert.match(outcome.reason, /already identifies a submission/);
   assert.equal(reports.length, 1);
   assert.ok(reports[0]?.message.includes("evt_2") && reports[0].message.includes("already identifies"), String(reports[0]?.message));
   await eventually(() => endedTasks(host), (ended) => ended.length === 2, { what: "both tasks to end" });
@@ -188,11 +188,27 @@ test("a failure while telling chat is told as a failure, once, and is reported",
   await admissions.admit(draft(1));
 
   await until(() => told.length === 1, "the event to be told");
-  assert.deepEqual(told[0]?.outcome, { kind: "failed", reason: "The agent hit an internal error: The disk is full." });
+  const outcome = told[0]?.outcome;
+  assert.ok(outcome?.kind === "failed" && outcome.reason.includes("The disk is full."), JSON.stringify(outcome));
   assert.equal(reports.length, 1);
   assert.ok(reports[0]?.message.includes("evt_1") && reports[0].message.includes("The disk is full."), String(reports[0]?.message));
   await eventually(() => endedTasks(host), (ended) => ended.length === 1, { what: "the task to end" });
   assert.deepEqual(await endedTasks(host), ["completed"]);
+});
+
+test("an event waiting behind a turn that fails is taken back and told it was skipped, saying why that turn failed", { timeout }, async (t) => {
+  const { delivery, told } = recordingDelivery();
+  const { host, admissions } = await open(t, tempDir(t, "turns"), "gatedFail", { delivery });
+  await admissions.admit(draft(1));
+  await admissions.admit(draft(2));
+  await eventually(() => handedOver(host), (found) => found.length === 2, { what: "both events to reach the session" });
+
+  releaseGate(host.home);
+
+  await until(() => told.length === 2, "both events to be told");
+  const [first, second] = [told.find(({ id }) => id === "evt_1")?.outcome, told.find(({ id }) => id === "evt_2")?.outcome];
+  assert.equal(first?.kind, "failed");
+  assert.ok(second?.kind === "skipped" && second.reason?.includes("The model refused the request."), JSON.stringify(second));
 });
 
 test("a task that is aborted stops its event's turn, tells chat it was stopped, and ends as aborted", { timeout }, async (t) => {

@@ -23,12 +23,14 @@ async function leaveOlderRecords(home: string): Promise<void> {
     version: SessionsDoc.definition.version - 1,
     scope: "session",
     initial: () => ({ sessions: {} }),
+    checkpointWhen: () => false,
   });
   const feed = defineDoc<{ cursor: number | null }>({
     kind: FeedDoc.definition.kind,
     version: FeedDoc.definition.version - 1,
     scope: "session",
     initial: () => ({ cursor: 7 }),
+    checkpointWhen: () => false,
   });
   const host = await openHost({ home, models: createModels() });
   try {
@@ -41,20 +43,16 @@ async function leaveOlderRecords(home: string): Promise<void> {
   }
 }
 
-test("records another version wrote are refused at the start, the message says what to move aside, and the agent starts fresh without them", { timeout }, async (t) => {
+test("records another version wrote are refused at the start, in words that name the file, and the agent starts fresh without them", { timeout }, async (t) => {
   useRuntimeDir(t);
   const home = tempDir(t, "records");
   const { database } = homePaths(home);
   await leaveOlderRecords(home);
   const start = () => startAgent({ home, name: SCOUT, ...fauxModels({ home }) });
 
-  await assert.rejects(start(), (error: Error) => {
-    assert.ok(error.message.includes(database), `names the file: ${error.message}`);
-    assert.match(error.message, /Nothing converts/);
-    return true;
-  });
+  await assert.rejects(start(), (error: Error) => error.message.includes(database));
 
-  renameSync(database, `${database}.aside`);
+  renameSync(database, `${database}.archived`);
   closeAfter(t, await start());
 });
 

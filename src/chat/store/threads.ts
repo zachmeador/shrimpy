@@ -1,6 +1,6 @@
 import { agentCommandIn, type Thread } from "../../contracts/chat/index.ts";
-import type { ReportChange } from "./changes.ts";
 import { newId } from "../../lib/ids/index.ts";
+import type { ReportChange } from "./changes.ts";
 import type { Sql } from "./sql.ts";
 
 type ThreadRow = {
@@ -128,18 +128,20 @@ export function threadOperations(sql: Sql, report: ReportChange): ThreadOperatio
     },
     addThread(channelId, name, now) {
       const id = insertThread(sql, { channelId, name, main: false, now });
-      report({ kind: "thread", threadId: id });
+      report({ kind: "thread", channelId, threadId: id });
       return get(id);
     },
     renameThread(id, name) {
       sql.run("UPDATE threads SET name = ? WHERE id = ?", name, id);
-      report({ kind: "thread", threadId: id });
-      return get(id);
+      const thread = get(id);
+      report({ kind: "thread", channelId: thread.channelId, threadId: id });
+      return thread;
     },
     archiveThread(id, archived) {
       sql.run("UPDATE threads SET archived = ? WHERE id = ?", archived ? 1 : 0, id);
-      report({ kind: "thread", threadId: id });
-      return get(id);
+      const thread = get(id);
+      report({ kind: "thread", channelId: thread.channelId, threadId: id });
+      return thread;
     },
     messageCount(id) {
       const row = sql.one("SELECT message_count FROM threads WHERE id = ?", id) as

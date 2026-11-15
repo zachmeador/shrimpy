@@ -1,17 +1,14 @@
 /**
- * The agent's links to the other programs: being a member of the network and
- * staying registered with the gateway, saying when an agent apart loses it and
- * finds it again, joining it from apart with an invitation, answering the
- * calls the gateway makes for an agent it can't dial, asking the gateway whose
- * a ticket is, and keeping a connection to the chat server that is made by its
- * name through the gateway, entered with a ticket from it, and lost and found
- * again. Each link is handed how to reach the program on the other end, so none
- * of this assumes it is on this machine. It must not know what the agent says
- * to chat or does with what chat offers, or what the bytes of a call mean.
+ * The agent's links to the other programs, over its own host: keeping it linked
+ * to the gateway as the agent, which is how it is a member and how requests for
+ * it arrive, and saying when an agent apart loses the gateway and finds it
+ * again; joining from apart with an invitation; following the roster it holds
+ * at the gateway; and holding chat, with the calls the agent makes there. Each
+ * is handed the host and where the gateway is, so none of this assumes it is on
+ * this machine. It must not know what the agent says to chat or does with what
+ * chat offers, or who may do what.
  */
-export { type Answering, type AnsweringOptions, answerCalls } from "./answering.ts";
-export { type ChatLink, type ChatLinkOptions, type LiveChat, openChatLink } from "./chat.ts";
-export { type GatewayLinkOptions, joinGateway, type MembershipStore } from "./gateway.ts";
-export { whoseTicket } from "./identity.ts";
+export { type ChatCalls, type ChatLink, isUnavailable, type LiveChat, openChatLink } from "./chat.ts";
+export { type GatewayLink, type GatewayLinkOptions, linkToGateway, type MembershipStore } from "./gateway.ts";
 export { JoinFailedError, joinHome, type JoinedHome, type JoinHomeOptions } from "./join-home.ts";
-export { ChatUnavailableError } from "./unavailable.ts";
+export { createRoster, type LiveRoster } from "./roster.ts";

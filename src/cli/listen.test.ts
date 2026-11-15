@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import { type AddressInfo, createServer } from "node:net";
 import { networkInterfaces } from "node:os";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 import { type Address, formatAddress } from "../contracts/gateway/index.ts";
-import { connectLocalGateway } from "../contracts/gateway/node.ts";
 import { stopAfter, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
 import {
   canConnect,
   freeAddresses,
   isAlive,
   launchUp,
+  onTheRoster,
   serveGateway,
   shrimpy,
   startUp,
@@ -28,13 +28,8 @@ const hasIPv6Loopback = Object.values(networkInterfaces()).some((addresses) =>
 );
 
 /** Where the gateway on this machine says it listens, which every invitation it makes carries. */
-async function whereItListens(): Promise<Address[]> {
-  const gateway = await connectLocalGateway();
-  try {
-    return (await gateway.invite("probe")).addresses;
-  } finally {
-    await gateway.close();
-  }
+async function whereItListens(t: TestContext): Promise<Address[]> {
+  return (await (await onTheRoster(t)).invite("probe")).addresses;
 }
 
 test("a gateway started again with no --listen listens where it did, says so and where that is kept, and --listen given again replaces it", { timeout }, async (t) => {
@@ -107,7 +102,7 @@ test("up that is told to listen starts the gateway and the chat server where the
 
   const told = await startUp(t, ["--listen", "127.0.0.1:0"]);
   assert.equal(told.programs().length, 2, "the gateway and the chat server");
-  const [first] = await whereItListens();
+  const [first] = await whereItListens(t);
   assert.ok(first);
   assert.ok(told.output().stdout.includes(formatAddress(first)), "it says where the gateway listens");
   assert.equal(await canConnect(first), true);
@@ -118,7 +113,7 @@ test("up that is told to listen starts the gateway and the chat server where the
   // No --listen this time: the gateway listens where it did, and that is why up starts it in a folder with no agents.
   const kept = await startUp(t, []);
   assert.equal(kept.programs().length, 2);
-  assert.deepEqual(await whereItListens(), [first]);
+  assert.deepEqual(await whereItListens(t), [first]);
   assert.ok(kept.output().stdout.includes(formatAddress(first)));
 
   // A gateway that is running can't be told to listen elsewhere. Saying so, and what to do, is what it does.
@@ -130,7 +125,7 @@ test("up that is told to listen starts the gateway and the chat server where the
   assert.deepEqual(meanwhile.programs(), []);
   assert.ok(result.stderr.includes(formatAddress(second)), result.stderr);
   assert.equal(await canConnect(second), false);
-  assert.deepEqual(await whereItListens(), [first], "and the gateway is as it was");
+  assert.deepEqual(await whereItListens(t), [first], "and the gateway is as it was");
   kept.kill("SIGTERM");
   assert.equal((await kept.finished).code, 0);
 });

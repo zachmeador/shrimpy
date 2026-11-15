@@ -24,7 +24,7 @@ Contracts carry Shrimpy-owned shapes only: the agent builds the session view tha
 
 **A refusal is part of the contract.** A program that says no on purpose gives words for a person, with what to do. Where a client acts differently on the case, the refusal also carries a reason that the contract lists, such as `name_taken` or `agent_running`, and a client never reads the words to tell. Chord's own errors are left for real failures: a dropped link, revoked access, a contract that doesn't match.
 
-**Peers stay compatible by versioned contracts and one set of Pi packages.** A contract carries versions, and a provider maps an older consumer's version to its own, so a release that only evolves a contract can reach machines one at a time. Chord's wire is all or nothing, and has changed without a new protocol version, so programs compare the exact set of Pi packages when they connect and refuse a mismatch, saying what to run where. A release that changes the Pi packages reaches every machine together.
+**Peers stay compatible by versioned contracts and one set of Pi packages.** A contract carries versions, and a provider maps an older consumer's version to its own, so a release that only evolves a contract can reach machines one at a time, unless it changes contracts on both sides of a link between machines, as the design below says. Chord's wire is all or nothing, and has changed without a new protocol version, so programs compare the exact set of Pi packages when they connect and refuse a mismatch, saying what to run where. A release that changes the Pi packages reaches every machine together.
 
 **A contract carries facts.** What a fact means to whoever reads it is the reader's decision. You confirmed this on 2026-10-05.
 
@@ -60,24 +60,210 @@ Leaving it had four costs. An agent's rule for DMs was written in the chat serve
 
 *Ways it wasn't done.* Carrying both fields would fix the lost fact and leave the chat server deciding what a DM message is for, with two fields that mostly agree. Recording neither and letting each reader read the text can't be done right later: names change and members come and go, so who `@maya` or `@all` meant is known only when the message is written, by the program that has the room's members then. That is why mentions are a fact the chat server records.
 
+**The contracts as Chord objects**
+
+The design for the move to the latest Pi, written by a builder on 2026-11-14 and settled by the coordinator the same day, under "decision 1 i trust your judgement on". The choices listed below are yours to strike. It builds on what was decided that day: the gateway is Chord's relay, every program links out to it, and clients hold live objects.
+
+*Hosts.* Chord calls every participant a host, and routes each request by the address of the host that serves it. Three kinds of host have addresses:
+
+| Host | Address | Its parent link | Takes links from |
+|---|---|---|---|
+| The gateway | `gateway()` | None | Clients, on its own socket and its entry, and programs, as their routes |
+| The chat server | `chat()` | To the gateway | Nobody |
+| An agent | `agent({ name })`, with its name on the roster | To the gateway, while it is linked | Clients, on its home's own socket |
+
+Clients are hosts with no address: the terminal, each `shrimpy` command that talks, and later the web client. A client serves nothing. It holds objects over one link, to the gateway, or by a home's path to that one agent. An object's params pick it, and its host's address is worked out from them, so every type an agent serves has an `agent` param: `Session({ agent: "scout", session: "th_8" })` reaches scout wherever scout runs. Each program loads its object types once, when it starts, and nothing reloads.
+
+*Who is asking.* Chord stamps a principal on every request and keeps a separate object for each principal. A host believes the principal a request carries only on its parent link, which for a program is its link from the gateway.
+
+```ts
+type Principal =
+  | { kind: "person"; member: string; way: Way } // you
+  | { kind: "agent"; member: string; way: Way }  // an agent's program, or a command in its shell
+  | { kind: "home" }    // a client on an agent's home socket, and the agent's own requests
+  | { kind: "chat" }    // the chat server's own requests
+  | { kind: "gateway" } // the gateway's own requests
+
+type Way =
+  | { kind: "socket" }             // the gateway's own socket, with no token
+  | { kind: "page" }               // a page on the gateway's machine, with its secret, when the web client comes
+  | { kind: "device"; id: string } // a device's token
+  | { kind: "token"; id: string }  // an agent's token
+
+type Revocation = { way: string }  // a token taken back
+```
+
+| Link | Who stamps it | With |
+|---|---|---|
+| A client's, to the gateway | The gateway, from the client's way in | `person` or `agent` |
+| A program's, to the gateway | The gateway, from the program's hello | `agent` or `chat` |
+| The gateway's, to a program | The gateway, on each request it relays | Whoever asked |
+| A client's, to an agent's home socket | The agent | `home` |
+
+- No principal carries a name or whether it is an admin. Names change and a promotion counts at once, so the program that is asked reads both from the roster, which it holds live.
+- `way` is the provenance. Two of your devices hold separate objects, and taking one device's token back ends only what it holds.
+- `revokedBy` gives `[{ way: id }]` for a device's token or an agent's, and nothing for the rest, which the operating system guards. Taking a token back is Chord's `revoke` at the gateway: it ends every object that way holds there at once, closes its clients' links, and passes down to every program, which ends that way's objects too. Its objects at the gateway end as `forbidden/revoked`, which a client shows as access revoked. Chord closes the client's link in the same turn, so its holds at programs end with the link rather than as revoked. Chord leaves a route link open, so for an agent's token the gateway closes the agent's own link as well.
+
+*Answers and refusals.* A method answers `{ kind: "done", value }` or `{ kind: "refused", words, reason }`. The words are for a person and say what to do. The reason is null unless the contract lists the case. `Channel`, `Thread`, `Agent` and `Session` each have a `refusal` member: null, or a refusal like a method's when the object doesn't exist or the caller may not see it, and then the rest of its state is empty. It follows the live roster, so a promotion shows at once. Chord's own errors stay for a dropped link, revoked access, a contract that doesn't fit and a program that isn't connected.
+
+The contracts list three reasons. All three come when connecting, and the agent and the CLI answer each with advice about the home's files: `name_taken`, `unknown_token` and `agent_running`. `needs_admin` and `read_only` go, since no client acts on them. Their refusals still say who the admins are, and a thread says whether its caller only reads it.
+
+*The gateway's contract.* `register`, `calls`, `ticket`, `redeem` and `version` go. A program's link is its registration, requests reach it over that link, the relay's stamp says who is asking, and the hello and Chord's heartbeat do what `version` did. `join`, `joinMachine` and `signIn` become the hello, below.
+
+`Roster`, at `gateway()`, with no params:
+
+| Member | What it is | Today |
+|---|---|---|
+| `you` | The member the caller is, or null for a program that isn't one | What `signIn` answered |
+| `members` | Everyone on the roster, oldest first, each with whether it is an admin and whether it is reachable | `members` |
+| `programs` | The programs linked now: kind, name, member and the Shrimpy version each gave in its hello | `list` |
+| `ways` | Each way in, with its ID, its member and a device's label: all of them for you, the agents' for an admin, and none for anyone else | New, from [identity](3-identity.md) |
+| `invite({ name })` | An invitation for an agent. Only you or an admin, for a name nobody has, while the gateway listens on an address | `invite` |
+| `inviteDevice()` | An invitation for a device of yours. Only you. The device is named for the machine it joins from | `inviteMachine` |
+| `promote({ member })`, `demote({ member })` | The agent as it now is. Only you or an admin | The same |
+| `takeBack({ way })` | Ends a way in at once. You take back any, and an admin an agent's | New, from [identity](3-identity.md) |
+
+*The chat contract.* `enter` goes: the relay says who is asking, and `you` says whom chat takes the caller for. Holding a `Thread` is what attaching to it was.
+
+`Chat`, at `chat()`, with no params, is the caller as a member of chat:
+
+| Member | What it is | Today |
+|---|---|---|
+| `you` | Whom chat takes the caller for | What `enter` answered |
+| `channels` | The caller's channels, oldest first | `channels` |
+| `readOnlyChannels` | The channels the caller reads and isn't in: every other one for you, none for an agent | `readOnlyChannels` |
+| `head` | The position of the newest event in the caller's channels | `head`, which was the whole server's |
+| `store` | The chat store's ID | `store` |
+| `events({ after, limit })` | The events after a position, oldest first, at once, and maybe none. An agent watches `head` and asks when it passes its place | `feed`, which waited |
+| `leaveReceipt({ events, receipt })` | Leaves the caller's receipt on events | `leaveReceipt` |
+| `setWorking({ thread, working })` | Marks the caller at work in a thread, until it says otherwise or the hold on `Chat` of the program that set it ends, as when its link drops. An agent and a command in its shell are two holds | `setWorking` |
+| `openDm({ member })` | The DM with a member, made on first use | `openDm` |
+| `createRoom({ name, members })` | A new room. Only an admin | `createRoom` |
+
+`Channel`, at `chat()`, with params `{ channel }`:
+
+| Member | What it is | Today |
+|---|---|---|
+| `refusal` | Null, or why the caller can't have this channel | Each call's refusals |
+| `channel` | The channel: its kind, name and members | In `channels` |
+| `threads` | Its threads, archived ones too, the most recently updated first, each with who is working in it | `threads`, which clients polled |
+| `createThread({ name })` | A new thread | `createThread` |
+| `addMembers({ members })` | Adds members to a room. Only an admin | `addMembers` |
+
+`Thread`, at `chat()`, with params `{ thread }`:
+
+| Member | What it is | Today |
+|---|---|---|
+| `refusal` | Null, or why the caller can't have this thread | `attach`'s refusals |
+| `thread` | The thread, with who is working in it | The thread view's `thread` |
+| `messages` | Its newest messages, at most 200 | The thread view's `messages` |
+| `earlier` | How many older messages there are | The thread view's `earlier` |
+| `readOnly` | Whether the caller only reads it | Worked out from `readOnlyChannels` |
+| `read({ before, limit })` | Older messages, oldest first | `read` |
+| `post({ text, request })` | Posts a message. A request ID's first use wins | `post` |
+| `edit`, `delete`, `react` and `unreact` | As today, each naming its message, and each answering with the message as it now stands | The same |
+| `rename({ name })`, `archive({ archived })` | The thread as it now stands | `renameThread`, `archiveThread` |
+
+`Presence`, at `chat()`, has no params and no members. The gateway holds it, as below.
+
+*The agent's contract.* `enter` goes: a request through the gateway carries its stamp, and one on the home's socket is `home`. Holding a `Session` is what attaching to it was.
+
+`Agent`, at `agent({ name: agent })`, with params `{ agent }`:
+
+| Member | What it is | Today |
+|---|---|---|
+| `refusal` | Null, or why the caller may not watch this agent | Each call's check |
+| `sessions` | Its sessions, each with where it is and whether it is working | `list` |
+| `triggers` | Its triggers, each with when it is due and how its last occurrence ended | `triggers`, now live |
+| `models()` | The models it can use now, and the one its sessions follow | `models` |
+| `trigger({ name })` | One trigger, with its definition and its recent occurrences | `trigger` |
+| `fire({ name })` | Fires a trigger once, now | `fire` |
+| `reload()` | Reads the home's files again, now | `reload` |
+
+`Session`, at `agent({ name: agent })`, with params `{ agent, session }`, where `session` is its address at the agent: a thread's ID, or `trigger:` and a trigger's name.
+
+| Member | What it is | Today |
+|---|---|---|
+| `refusal` | Null, or why the caller can't have this session: the agent hasn't made it yet, or the caller may not watch | `attach`'s refusals |
+| `window` | The newest items, each naming the entry it came from, and the entry just before them, or null at the session's start. A partial answer shows before it is stored | The session view's `items` and `entries` |
+| `status` | What it is doing, what waits, the wake-ups it waits on, why its last turn ended without an answer, its model and its usage | The session view's `status` |
+| `read({ before, limit })` | The items from an entry back, that entry included, and the entry before them, so pages chain from `window.before` | New: paging |
+| `steer({ text, request })` | Puts input into the session. A request ID's first use wins | `steer` |
+| `wait({ submission })` | How an input ended, once it has. A dropped link fails the call, and the caller asks again | `wait` |
+| `stop()` | Stops the session's work | `stop` |
+
+`Presence`, at `agent({ name: agent })`, with params `{ agent }`, has no members. The gateway holds it.
+
+Server IDs go, with the paths that carried tickets and answered calls, `reachProgram`, `keepRegistered`, and an agent's second socket, the one the gateway piped to. The invitation's link, `machine.json`, a home's `state/member.json`, `SHRIMPY_AGENT_HOME` and the commands for agents stay. A home's `runtime/endpoint.json` keeps its socket's path and gains the name the agent answers to.
+
+*Versions.* Every type starts at version 1. Any change bumps it with Chord's `evolve`, and the program that serves the type maps each older version it still takes with `checkAccepts`. A consumer newer than the program that serves it waits with `contract_mismatch`, so a provider updates before its consumers. An agent apart serves the agent contract to the gateway's machine and uses the chat and gateway contracts served there, so a release that changes contracts on both sides of a link between machines reaches every machine together, as a change of Pi packages does. Any other release reaches the machines one at a time, each provider before its consumers, and `shrimpy update` says which kind a release is from what it changes. `Presence` has no members, so it never needs a new version.
+
+*Connecting.* Before any of Chord's traffic, a caller and the gateway trade one JSON text frame each.
+
+**The transport** is a WebSocket: over the gateway's Unix socket on its machine, over its entry from anywhere else, and later over its entry for a browser.
+
+**The hello** gives the caller's Shrimpy version, the exact set of Pi packages it runs, and who it is:
+
+| Who it is | Means | Where |
+|---|---|---|
+| `{ kind: "agent", name, token }` | An agent's program. A name that differs from the roster's renames it. A token the gateway doesn't know joins it, on the gateway's socket only | Either |
+| `{ kind: "chat" }` | The chat server, which shows no token | The gateway's socket |
+| `{ kind: "client", token }` | A client: you with no token or a device's token, and an agent with its token | Either. With no token, the gateway's socket only |
+| `{ kind: "join", name, token, code, machine }` | `shrimpy join`. The agent `name`, or a device of yours when it is null, joins with an invitation, and the gateway closes the connection. `machine` is the joining machine's name, which a device is labelled with | The entry |
+
+**The answer** is `{ kind: "welcome", you }` or `{ kind: "refused", words, reason }`, either one with the gateway's Shrimpy version and its Pi packages. A different set of Pi packages is refused with what to run where, and so is a second program for one agent (`agent_running`) or a second chat server.
+
+**Then Chord.** The caller wraps the socket as a Chord link and connects with the gateway as its parent. The gateway accepts a client's link, stamped with its principal, and takes a program's link as its route.
+
+An agent's home socket takes the same hello, with no token. The agent compares the Pi packages there too, and stamps `home`. Chord sends a hold that the agent doesn't serve up the agent's own link, where it acts as the agent, so a client there holds only that agent's types. Nothing is lost by it: the home's socket opens only to the account the agent runs under, which can be the agent anyway, as [where trust ends](3-identity.md) has it.
+
+Agents are addressed by name, as everything on the network is reached by name. A rename moves an agent's address, so a client reads the roster again, and since Chord matches addresses exactly and names are unique whatever their case, a client takes the roster's spelling. Once the gateway has its key, the entry is TLS checked against the fingerprint a member keeps, and the hello happens inside it.
+
+*A program's link as its route.* The gateway has a Chord route for each kind of program, `agent` and `chat`. Chord resolves an address only when something holds an object there, and a program closes a link whose handshake goes unanswered for 30 seconds. So the gateway holds the `Presence` of every program it knows, every agent on the roster and the chat server, from when it starts or an agent joins:
+
+1. When a program's hello is welcomed, the gateway keeps its socket, wrapped as a link, as the one waiting for that address, and retries the address.
+2. The route's `resolve` answers with the waiting link, stamped with the program's principal. With none waiting it refuses, saying the program isn't connected, and every holder waits with those words.
+3. From then on the link carries the program's own requests up and every request for it down. The gateway's hold of its `Presence` being live is what `reachable` says.
+4. When the link drops, Chord resolves the address once more, finds nothing waiting, and holders wait until the program's next hello.
+
+`authorize` lets any principal through: what a caller may do is up to the program it asks.
+
+*Links.* Chord provides `webSocketLink`, which takes Node's `ws` or a browser's WebSocket, `ipcLink`, and `memoryLinkPair`, which tests use. Over any link it brings its binary codec, the heartbeat, which pings after 15 seconds of silence and closes after 30, flow control, limits on each part and compression. It has no link for a Unix socket and no listener: an entry point checks who is calling and hands the link to the host. Shrimpy writes the rest, in a small module of `lib/`:
+
+- A listener: an HTTP server on a Unix socket's path or an address, which upgrades to a WebSocket and turns away a web page that doesn't belong there.
+- Dialing: a WebSocket to a socket's path, with `ws+unix:`, or to an address.
+- The text frames before Chord, then `webSocketLink`, which takes binary frames only. The hello's shapes belong to the gateway's contract.
+- Keeping a link: dialing again after a drop, after a pause that grows, and dropping the socket at once when the program stops.
+
+So every link is a WebSocket, on one machine as well. Every link is untrusted, so Chord checks every message. `lib/connection` and `lib/offer` go with `pi-client` and `pi-server`.
+
+*Choices you may want to see.*
+
+1. The Unix socket carries a WebSocket, so Shrimpy frames nothing itself. Raw frames on the socket would be as small, and a second path to keep.
+2. The gateway holds a `Presence` at every program it knows, so a program's route is there the moment it connects, and a request for one that isn't connected fails at once with words and binds when it connects.
+3. Admin is read from the live roster by the program that is asked, never stamped, so a promotion or demotion counts at once on links made before it too, and an object's `refusal` changes with it. That closes a line on [status](../STATUS.md#identity-and-addressing).
+4. `needs_admin` and `read_only` lose their reasons. `readOnly` on a thread is the fact a client acts on.
+5. The feed is `head`, kept live, and `events`, which answers at once, in place of a call that waits, as Chord advises. `head` is the caller's own, which closes a line on [status](../STATUS.md#the-contracts-between-them). `wait` stays a call that waits.
+6. A device is labelled with the name of the machine it joins from, so `shrimpy invite` takes nothing more, as one command for a person asks.
+7. A connection makes one try at a code, so the guard of five wrong codes on one connection goes. A code's length and its fifteen minutes stay.
+8. A refusal is an answer, not a thrown error. Chord's `PluginError` could carry one, but its details are outside the contract's schema.
+
+*Open.*
+
+- Removing an agent and replacing its token would add `{ member }` to `Revocation`, once [identity](3-identity.md) designs them.
+- The rest of the agent's operations become members of `Agent` and `Session` as they are built.
+
 **Decisions**
 
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
 | Who a message is for | The chat server marks each message with who it is `addressed` to: in a room the members its text mentions, and in a DM the other member, whatever the text says. | A message records `mentions`: the members its text names as `@name`, and everyone in the channel but the author when it says `@all`, in a DM as in a room. What a mention means, and what a DM means, is each reader's decision: an agent's wake policy, its rule for a mention that joins a running turn, `/stop`, and what a client marks as for you. | Confirmed and built on 2026-10-05. |
 | The transport | `pi-server`, `pi-client` and `pi-protocol` over Unix sockets, with services and replicated state, and a WebSocket bridge for a browser | Chord 1.5 objects with live state, over links that every program opens to the gateway, as the design above has it. | Confirmed on 2026-11-14, with the move to Pi 1.5.2: "that's a given" |
-| How peers stay compatible | Every program runs the same version, and a mismatch is reported and nothing refused | Versioned contracts with mappings, and the exact set of Pi packages compared on connecting, with a mismatch refused. | Confirmed on 2026-11-14. Until then this was the open question to decide first |
+| How peers stay compatible | Every program runs the same version, and a mismatch is reported and nothing refused | Versioned contracts with mappings, and the exact set of Pi packages compared on connecting, with a mismatch refused. A release that changes contracts on both sides of a link between machines reaches every machine together. | Confirmed on 2026-11-14. Until then this was the open question to decide first |
 | Refusals | The reason rides inside the old Chord's error code, which passed any string | Refusals are the contracts' own shapes, with a reason only where a client acts differently. | Confirmed on 2026-11-14 |
 | What a live view shows | Only what is stored: clients render committed views | Finished work is stored before it shows. A partial answer and running tool output show at once and are stored within a second, Pi's default. | Changed on 2026-11-14 |
 
 **Not built yet**
-
-*The contracts on Chord 1.5,* a step of the move to Pi 1.5.2 in the [order of work](../PLAN.md#order-of-work).
-
-- The three contracts as Chord objects, held live by clients in place of every poll.
-- The session view as a window over a session's whole history, with paging.
-- Refusals as the contracts' own shapes.
-- The exact set of Pi packages compared on connecting, with a mismatch refused in words that say what to run where.
 
 *The rest of the agent's operations,* as daily use asks for them: reset, fork, withdraw, thinking level, defaults, context queries, completion, provider status, delegation and attachments.
 

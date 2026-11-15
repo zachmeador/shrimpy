@@ -1,5 +1,6 @@
-import type { Channel, ChatClient, Member, Message } from "../../contracts/chat/index.ts";
+import type { Channel, Member, Message } from "../../contracts/chat/index.ts";
 import { type Backlog, type Said, written } from "../inputs/index.ts";
+import type { ChatCalls } from "../links/index.ts";
 import { audienceOf } from "./audience.ts";
 import { clip } from "./reply.ts";
 
@@ -21,7 +22,7 @@ const LEAST_CLIPPED = 200;
  * event itself is about and shows.
  */
 export async function readUnseen(options: {
-  chat: ChatClient;
+  chat: ChatCalls;
   self: Member;
   threadId: string;
   /** The position of the event: only what came before it is read. */

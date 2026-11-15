@@ -1,6 +1,7 @@
-import type { ChatClient, ChatEvent, Message, Receipt } from "../../contracts/chat/index.ts";
+import type { ChatEvent, Message, Receipt } from "../../contracts/chat/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import type { Question, QuestionResult } from "../inputs/index.ts";
+import type { ChatCalls } from "../links/index.ts";
 import type { Looked } from "../questions/index.ts";
 import { findReply } from "./answer.ts";
 import type { Receipted } from "./wake.ts";
@@ -68,7 +69,7 @@ async function fromReceipt(
  * feed. `onError` is told when the reply it points to can't be found.
  */
 export function resultOf(
-  chat: ChatClient,
+  chat: ChatCalls,
   receipt: Receipted,
   signal: AbortSignal,
   onError: (error: Error) => void,
@@ -96,7 +97,7 @@ export function resultOf(
  * `onError` is told when the reply the receipt points to can't be found.
  */
 export async function lookAt(
-  chat: ChatClient,
+  chat: ChatCalls,
   question: Question,
   signal: AbortSignal,
   onError: (error: Error) => void,
@@ -116,5 +117,5 @@ export async function lookAt(
         ),
       ),
   );
-  return result === undefined ? undefined : { result, through: await chat.head(signal) };
+  return result === undefined ? undefined : { result, through: chat.head() };
 }

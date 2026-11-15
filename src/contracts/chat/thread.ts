@@ -1,0 +1,99 @@
+import { arr, bool, int, method, nul, num, obj, remote, type Static, str, union } from "@earendil-works/chord";
+import { answerOf, chat, RefusedSchema } from "../gateway/index.ts";
+import { MessageSchema, WorkingSchema } from "./shapes.ts";
+
+/** One conversation inside a channel, as a record. Every channel has a main thread. */
+export const ThreadSchema = obj({
+  id: str(),
+  channelId: str(),
+  main: bool(),
+  /** Null until someone names it; show `preview` instead. */
+  name: union([str(), nul()]),
+  /**
+   * The start of the thread's first message that is still there and is not a
+   * command for agents, as it now reads, or null when it has none. A thread
+   * that was started with a command is named for the first thing said in it
+   * after.
+   */
+  preview: union([str(), nul()]),
+  archived: bool(),
+  /**
+   * When the thread last got a message, or was made if it has none, in
+   * milliseconds since the epoch. Edits, deletes and reactions do not change it.
+   */
+  updatedAt: num(),
+  /** Who is working in this thread right now, longest first. */
+  working: arr(WorkingSchema),
+});
+
+/**
+ * A thread as a record. The object a client holds to follow a thread and talk
+ * in it is the value `Thread`.
+ */
+export type Thread = Static<typeof ThreadSchema>;
+
+/**
+ * One thread as the caller sees it, at `chat()`: its newest messages, kept
+ * live, older ones a page at a time, and what a member does in it. Holding it
+ * is what attaching to a thread was.
+ *
+ * `refusal` is null, or why the caller can't have this thread, and then the
+ * rest of its state is empty and every method answers with that refusal. An
+ * agent has only the threads of its own channels, and to an agent a thread that
+ * doesn't exist and one in a channel it isn't in look the same. You read every
+ * thread, and in a channel you aren't in, `readOnly` is true and every write is
+ * refused.
+ */
+export const Thread = remote("shrimpy.chat.thread", {
+  version: 1,
+  params: { thread: str() },
+  hostAddress: () => chat(),
+  variants: {
+    all: {
+      state: {
+        /** Null, or why the caller can't have this thread. */
+        refusal: union([RefusedSchema, nul()]),
+        /** The thread, with who is working in it. */
+        thread: union([ThreadSchema, nul()]),
+        /** Its newest messages, oldest first: at most 200, and fewer when they are very long. */
+        messages: arr(MessageSchema),
+        /** How many older messages there are, which `read` gives. */
+        earlier: int(),
+        /** Whether the caller only reads it, as you read a channel you aren't in. */
+        readOnly: bool(),
+      },
+      methods: {
+        /** Up to `limit` messages older than the position `before`, or the newest when it is null, oldest first. A page of very long ones holds fewer. */
+        read: method(obj({ before: union([int(), nul()]), limit: int() }), answerOf(arr(MessageSchema))),
+        /**
+         * Posts a message of at most `MAX_MESSAGE_LENGTH` characters. A request
+         * ID's first use wins: a retry from the same member answers with the
+         * first message as it now stands, even if it was edited or deleted
+         * since, and the same ID with another thread or text is refused. The
+         * message records the members its text mentions.
+         */
+        post: method(obj({ text: str(), request: str() }), answerOf(MessageSchema)),
+        /**
+         * Changes what one of the caller's messages in this thread says, and
+         * which members it mentions. A deleted message can't be edited. Editing
+         * to the text it has changes nothing and adds no event.
+         */
+        edit: method(obj({ message: str(), text: str() }), answerOf(MessageSchema)),
+        /**
+         * Deletes one of the caller's messages in this thread. It keeps its
+         * place and loses its text, its reactions and the text its earlier
+         * events carried. Deleting it again changes nothing.
+         */
+        delete: method(obj({ message: str() }), answerOf(MessageSchema)),
+        /** Puts one emoji on a message in this thread. The same emoji twice is one reaction. A deleted message takes none. */
+        react: method(obj({ message: str(), emoji: str() }), answerOf(MessageSchema)),
+        /** Takes the caller's emoji off a message in this thread. Taking one that isn't there changes nothing. */
+        unreact: method(obj({ message: str(), emoji: str() }), answerOf(MessageSchema)),
+        /** Names the thread, answering with it as it now stands. */
+        rename: method(obj({ name: str() }), answerOf(ThreadSchema)),
+        /** Archives the thread, which hides it from lists and leaves it readable, or brings it back. */
+        archive: method(obj({ archived: bool() }), answerOf(ThreadSchema)),
+      },
+    },
+  },
+});

@@ -2,18 +2,28 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import type { SessionView } from "../contracts/agent/index.ts";
-import { attachLocal } from "../contracts/agent/node.ts";
-import { eventually, tempDir, waitForView } from "../lib/testing/index.ts";
-import { answered, assistantItems, attachThread, releaseGate, startAgentRig, toolItems } from "./testing/index.ts";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { Session, type SessionItem } from "../contracts/agent/index.ts";
+import { isRefusal } from "../lib/refusal/index.ts";
+import { eventually, tempDir, until, waitForView } from "../lib/testing/index.ts";
+import {
+  answered,
+  assistantItems,
+  attachThread,
+  releaseGate,
+  SCOUT,
+  type SessionView,
+  startAgentRig,
+  toolItems,
+  valueOf,
+} from "./testing/index.ts";
 
 const timeout = 30_000;
 
 test("an agent has no sessions until it is talked to, then one for each thread, each with a history of its own", { timeout }, async (t) => {
   const rig = await startAgentRig(t);
   const side = await rig.newThread();
-  const connection = await attachLocal(rig.home);
-  t.after(() => connection.close());
+  const connection = await rig.connect();
   assert.deepEqual(await connection.sessions(), []);
 
   const one = await rig.say("only in the main thread");
@@ -21,7 +31,7 @@ test("an agent has no sessions until it is talked to, then one for each thread, 
   await rig.receiptOn(one);
   await rig.receiptOn(two);
 
-  const threads = (await connection.sessions()).map((session) => session.threadId);
+  const threads = (await eventually(() => connection.sessions(), (sessions) => sessions.length === 2)).map((session) => session.threadId);
   assert.deepEqual(threads.toSorted(), [rig.thread.id, side.id].toSorted());
   const said = (view: SessionView): string[] =>
     view.items.flatMap((item) => (item.type === "user" ? [item.text.split("\n").at(-1) ?? ""] : []));
@@ -44,16 +54,14 @@ test("a client steers the session behind a thread, a retry with the same request
   assert.deepEqual(toolItems(view).map((tool) => tool.status), ["done", "done"]);
   assert.equal(view.items.filter((item) => item.type === "user").length, 2, "the retry was not a third input");
   assert.equal((await rig.replies()).length, 1, "what a client steers in is not a message, so its answer is not posted");
-  const second = await attachThread(rig.home, rig.thread.id);
-  t.after(() => second.connection.close());
+  const second = await attachThread(t, rig.home, rig.thread.id);
   assert.deepEqual(second.session.view, view);
 });
 
 test("a session in the middle of a turn is listed as working, and as idle once it is answered", { timeout }, async (t) => {
   const rig = await startAgentRig(t, { scenario: "gated" });
   const asked = await rig.say("hello");
-  const connection = await attachLocal(rig.home);
-  t.after(() => connection.close());
+  const connection = await rig.connect();
 
   await eventually(() => connection.sessions(), (sessions) => sessions[0]?.working === true, {
     what: "the session to be working",
@@ -105,7 +113,7 @@ test("a client that leaves while waiting does not stop the work, or wait for it"
   const second = await rig.attach();
 
   const { submission } = await first.session.steer("stream a long answer");
-  const abandoned = assert.rejects(first.session.wait(submission), /Client is disposed/);
+  const abandoned = assert.rejects(first.session.wait(submission));
   await waitForView(first.session, (view) => (assistantItems(view).at(-1)?.text.length ?? 0) > 20);
 
   const started = Date.now();
@@ -122,12 +130,11 @@ test("a client that leaves while waiting does not stop the work, or wait for it"
 test("a thread the agent has no session for yet is refused, and the connection is still good", { timeout }, async (t) => {
   const rig = await startAgentRig(t);
   await rig.receiptOn(await rig.say("first"));
-  const connection = await attachLocal(rig.home);
-  t.after(() => connection.close());
+  const connection = await rig.connect();
 
-  await assert.rejects(connection.attach("th_nothing"), { code: "service_invalid_value" });
+  await assert.rejects(connection.attach("th_nothing"), isRefusal);
   // The sessions are looked up by the thread's ID, which no client-sent name may mistake for anything else.
-  await assert.rejects(attachThread(rig.home, "constructor"), { code: "service_invalid_value" });
+  await assert.rejects(attachThread(t, rig.home, "constructor"), isRefusal);
   assert.equal((await connection.attach(rig.thread.id)).id, rig.thread.id);
 });
 
@@ -141,4 +148,54 @@ test("a file of the home that can't be used is left out and reported when the ag
   assert.equal(rig.reports.length, 1);
   assert.match((rig.reports[0] as Error).message, /^skills\/broken\/SKILL\.md was left out/);
   await rig.receiptOn(await rig.say("hello"));
+});
+
+test("a client holding a session through the gateway sees it once the agent makes it, and its turn live, a partial answer before it is stored", { timeout }, async (t) => {
+  // About a thousand characters a second, so the answer streams for a few seconds.
+  const rig = await startAgentRig(t, { tokensPerSecond: 100, tokenSize: { min: 10, max: 10 } });
+  const person = await rig.chat.gateway.connect();
+  // Held before the agent has the session: refused for now, and followed.
+  const session = await person.host.get(Session, { agent: SCOUT, session: rig.thread.id }, BACKGROUND_CONTEXT);
+  assert.notEqual(session.refusal.value, null);
+
+  const asked = await rig.say("stream a long answer");
+  await until(() => session.refusal.value === null, "the session to show once the agent makes it");
+  // A partial answer names no entry, since it is not stored yet, and grows as it arrives.
+  await until(() => {
+    const last = session.window.value.items.at(-1);
+    return last?.type === "assistant" && last.streaming && last.entry === null && last.text.length > 20;
+  }, "a partial answer to show as it arrives");
+  assert.equal(session.status.value?.busy, true);
+  await rig.receiptOn(asked);
+  await until(() => session.status.value?.busy === false, "the session to be idle");
+  const answer = session.window.value.items.at(-1);
+  assert.ok(answer?.type === "assistant" && !answer.streaming && answer.entry !== null, "the answer, stored, names its entry");
+  assert.ok(answer.text.endsWith("line 40: the quick brown fox jumps over the lazy dog"));
+});
+
+test("a client pages back through a session's whole history with read, each page following on from the window or the page before it", { timeout: 60_000 }, async (t) => {
+  const rig = await startAgentRig(t);
+  await rig.receiptOn(await rig.say("number 0"));
+  const { session } = await rig.attach();
+  for (let index = 1; index < 40; index++) {
+    const { submission } = await session.steer(`number ${String(index)}`);
+    await session.wait(submission);
+  }
+
+  const person = await rig.chat.gateway.connect();
+  const held = await person.host.get(Session, { agent: SCOUT, session: rig.thread.id }, BACKGROUND_CONTEXT);
+  const asked = (items: readonly SessionItem[]): string[] =>
+    items.flatMap((item) => (item.type === "user" ? [/number \d+/.exec(item.text)?.[0] ?? item.text] : []));
+  const window = held.window.value;
+  assert.notEqual(window.before, null, "a long session's window starts after its start");
+  let before = window.before;
+  let earlier: SessionItem[] = [];
+  while (before !== null) {
+    const page = valueOf(await held.read({ before, limit: 7 }, BACKGROUND_CONTEXT));
+    earlier = [...page.items, ...earlier];
+    before = page.before;
+  }
+  assert.deepEqual(asked([...earlier, ...window.items]), Array.from({ length: 40 }, (_, index) => `number ${String(index)}`));
+  const entries = [...earlier, ...window.items].flatMap((item) => (item.type === "user" ? [item.entry] : []));
+  assert.deepEqual(entries, entries.toSorted((a, b) => (a ?? 0) - (b ?? 0)), "in the order of their entries");
 });

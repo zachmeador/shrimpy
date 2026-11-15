@@ -1,204 +1,175 @@
-import { type ChatClient, type ChatConnection, connectChat, type Member } from "../../contracts/chat/index.ts";
-import { type GatewayConnection, reachProgram, type Transports } from "../../contracts/gateway/index.ts";
-import type { KeptRegistration } from "../../contracts/gateway/node.ts";
-import { disconnected, isDisconnected, isNotListening } from "../../lib/connection/index.ts";
-import { createListeners } from "../../lib/listeners/index.ts";
-import { type Backoff, keepRunning } from "../../lib/retry/index.ts";
-import { ChatUnavailableError } from "./unavailable.ts";
+import { ChordError, type Held, type Host, type Reference } from "@earendil-works/chord";
+import { BACKGROUND_CONTEXT, type Context, withAbortSignal } from "@earendil-works/chord/context";
+import {
+  Channel,
+  Chat,
+  type ChatEvent,
+  type LeftReceipt,
+  type Member,
+  type Message,
+  Thread,
+} from "../../contracts/chat/index.ts";
+import type { Answer, Principal, Refused, Revocation } from "../../contracts/gateway/index.ts";
+import { createListeners, type Listeners } from "../../lib/listeners/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
 
-export interface ChatLinkOptions {
-  /**
-   * The agent's connection to the gateway, which says whether the chat server is
-   * registered and makes the tickets the agent comes in with, as the member it
-   * signed in as.
-   */
-  gateway: Pick<KeptRegistration, "untilUp">;
-  /** How to reach the chat server through the gateway, by its name. */
-  transports: Pick<Transports, "program">;
-  /** Open a connection to the chat server over what the gateway offers. `connectChat`, unless a test wraps it. */
-  connect?: typeof connectChat;
-  /** Told of failures worth knowing about. It is not told that chat is not there: that is an ordinary state. */
-  onError?: (error: Error) => void;
-  /** The pauses between attempts to reach chat. Tests shorten them. */
-  backoff?: Backoff;
+/**
+ * What the agent does in chat, over the `Chat` it holds and the channels and
+ * threads it asks for. Every call that takes a signal ends when it aborts. What
+ * chat refuses, a call throws as a `Refusal` with chat's words; anything else
+ * thrown is a failure, such as the link dropping while the call was out.
+ */
+export interface ChatCalls {
+  /** The chat store's ID, made with it and never changed. */
+  store(): string;
+  /** The position of the newest event in the agent's channels, or 0. */
+  head(): number;
+  /** Resolves once `head` is past the position `after`, at once if it is. Rejects when `signal` aborts first. */
+  untilHead(after: number, signal: AbortSignal): Promise<void>;
+  /** The agent's channels, oldest first. */
+  channels(): readonly Channel[];
+  /** Up to `limit` events after the position `after`, oldest first, and maybe none. A position past `head` is refused. */
+  events(after: number, limit: number, signal: AbortSignal): Promise<ChatEvent[]>;
+  /** Leave the agent's receipt on 1 to 200 events, all or none. */
+  leaveReceipt(events: readonly string[], receipt: LeftReceipt, signal: AbortSignal): Promise<void>;
+  /** Mark the agent at work in a thread, or not, for as long as its hold on `Chat` lasts. */
+  setWorking(thread: string, working: boolean, signal: AbortSignal): Promise<void>;
+  /** The DM with a member, made on first use. */
+  openDm(member: string, signal: AbortSignal): Promise<Channel>;
+  /** A channel's threads, archived ones too, the most recently updated first. */
+  threads(channel: string, signal: AbortSignal): Promise<readonly Thread[]>;
+  /** A new thread in a channel. */
+  createThread(channel: string, name: string | null, signal: AbortSignal): Promise<Thread>;
+  /** Post a message. A request ID's first use wins. */
+  post(thread: string, text: string, request: string, signal: AbortSignal): Promise<Message>;
+  /** Up to `limit` messages older than the position `before`, or the newest when it is null, oldest first. */
+  read(thread: string, before: number | null, limit: number, signal: AbortSignal): Promise<Message[]>;
 }
 
-/** A connection that is up, who the agent is on it, and a signal that aborts when it is lost. */
+/** Chat as it is up: its calls, who the agent is there, and a signal that aborts when it is lost. */
 export interface LiveChat {
-  readonly chat: ChatClient;
-  /** The agent as the roster has it, which is what chat answered when the agent came in. */
+  readonly chat: ChatCalls;
+  /** The agent as chat takes it, by the roster's name now. */
   readonly self: Member;
+  /** Aborts when what this was up on is lost: the agent's link, or chat's own. */
   readonly lost: AbortSignal;
 }
 
 /** The agent's way to chat, whether or not chat is reachable right now. */
 export interface ChatLink {
-  /** The connection that is up, if one is. */
+  /** Chat as it is up now, if it is. */
   current(): LiveChat | undefined;
   /**
-   * Run `use` on a live connection, waiting for one if there is none. If the
-   * connection is lost while it runs, `use` is cancelled through its signal and
-   * runs again on the next connection, so what it does has to be safe to repeat.
-   * A failure `use` has while the connection holds is its own business.
+   * Run `use` on chat that is up, waiting for it if it is not. If chat is lost
+   * while it runs, `use` is cancelled through its signal and runs again once
+   * chat is up again, so what it does has to be safe to repeat. A failure `use`
+   * has while chat holds is its own business.
    */
   use<T>(use: (live: LiveChat, signal: AbortSignal) => Promise<T>, signal: AbortSignal): Promise<T>;
-  /**
-   * Call `listener` with the connection that is up now, if any, and with each
-   * one that comes up later. Returns what stops that.
-   */
+  /** Call `listener` with chat as it is up now, if it is, and each time it comes up again. Returns what stops that. */
   onUp(listener: (live: LiveChat) => void): () => void;
-  /** Leave chat and stop trying to reach it. Resolves once the connection is closed. */
+  /** Let go of chat. Resolves once it is let go. */
   close(): Promise<void>;
 }
 
+/** What a call answered, or the refusal it answered with, thrown. */
+function valueOf<T>(answer: Answer<T>): T {
+  if (answer.kind === "refused") refuse(answer.words);
+  return answer.value;
+}
+
+/** Throw the refusal an object is held with, if it has one. */
+function unlessRefused(refusal: Refused | null): void {
+  if (refusal !== null) refuse(refusal.words);
+}
+
+const contextFor = (signal: AbortSignal): Context => withAbortSignal(signal, BACKGROUND_CONTEXT);
+
 /**
- * Keep a connection to chat for as long as the link is open: find the chat
- * server through the gateway, take a ticket from it and come in with that, hold
- * the connection, and when it is lost try again, pausing longer after each
- * failure. The connection goes through the gateway, so it is held only as long
- * as the connection to the gateway that it came in on: a gateway that was lost
- * may have closed the way to chat without a word that reached here, and a
- * connection that waits for a feed on it would wait for good. Once the agent is
- * registered again it comes in again, with a new ticket. It never gives up, and
- * it never delays anything that does not need chat.
+ * Whether `error` is a call that failed because its link dropped, or because
+ * what it was made on went away: the agent's link to the gateway, or chat's.
  */
-export function openChatLink(options: ChatLinkOptions): ChatLink {
-  const stopping = new AbortController();
-  let live: LiveChat | undefined;
-  const waiting = new Set<(live: LiveChat) => void>();
-  const arrivals = createListeners<LiveChat>((error) => options.onError?.(error));
+export function isUnavailable(error: unknown): boolean {
+  return error instanceof ChordError && (error.code === "unavailable" || error.code === "released");
+}
 
-  const running = keepRunning({
-    signal: stopping.signal,
-    backoff: options.backoff,
-    onError(error) {
-      // Chat not being there, or going away, is an ordinary state: the link just tries again.
-      if (error instanceof ChatUnavailableError || isDisconnected(error)) return;
-      options.onError?.(error instanceof Error ? error : new Error(String(error)));
-    },
-    async attempt(established, signal) {
-      const { connection, self, via } = await comeIn(options, signal);
-      const closed = new AbortController();
-      connection.onDisconnect((reason) => closed.abort(reason ?? new Error("The connection to chat was closed.")));
-      // Lost when chat closes the connection, and when the gateway connection it came in on ends.
-      const lost = AbortSignal.any([closed.signal, via]);
-      try {
-        // The gateway may have been lost on the way, which has ended this connection too.
-        if (lost.aborted) return;
-        const next: LiveChat = { chat: connection.chat, self, lost };
-        live = next;
-        established();
-        for (const wake of [...waiting]) wake(next);
-        arrivals.notify(next);
-        await ended(lost, signal);
-      } finally {
-        live = undefined;
-        // Whatever still runs on this connection is cancelled; it runs again on the next one.
-        closed.abort(new Error("The connection to chat was closed."));
-        await connection.close().catch(() => undefined);
-      }
-    },
-  });
-
-  const up = (signal: AbortSignal): Promise<LiveChat> => {
-    if (live !== undefined && !live.lost.aborted) return Promise.resolve(live);
-    if (stopping.signal.aborted) return Promise.reject(new Error("The link to chat is closed."));
-    return new Promise((resolve, reject) => {
-      const arrived = (next: LiveChat): void => {
-        cleanup();
-        resolve(next);
-      };
-      const cancel = (): void => {
-        cleanup();
-        reject(reasonOf(signal));
-      };
-      function cleanup(): void {
-        waiting.delete(arrived);
-        signal.removeEventListener("abort", cancel);
-      }
-      if (signal.aborted) return cancel();
-      waiting.add(arrived);
-      signal.addEventListener("abort", cancel, { once: true });
-    });
-  };
+/**
+ * The calls over the `Chat` that `host` holds, asking `host` for a channel's or
+ * a thread's object as a call needs one. `moved` hears each new head.
+ */
+function callsOver(host: Host<Principal, Revocation>, chat: Held<typeof Chat>, moved: Listeners<undefined>): ChatCalls {
+  /** Run `work` on the object `get` gives, held for as long as it runs. */
+  async function on<T, O extends { release(): void }>(
+    get: (context: Context) => Promise<O>,
+    signal: AbortSignal,
+    work: (held: O, context: Context) => Promise<T>,
+  ): Promise<T> {
+    const context = contextFor(signal);
+    const held = await get(context);
+    try {
+      return await work(held, context);
+    } finally {
+      held.release();
+    }
+  }
+  const channel = <T>(id: string, signal: AbortSignal, work: (held: Reference<typeof Channel>, context: Context) => Promise<T>) =>
+    on((context) => host.get(Channel, { channel: id }, context), signal, work);
+  const thread = <T>(id: string, signal: AbortSignal, work: (held: Reference<typeof Thread>, context: Context) => Promise<T>) =>
+    on((context) => host.get(Thread, { thread: id }, context), signal, work);
 
   return {
-    current: () => (live !== undefined && !live.lost.aborted ? live : undefined),
-    async use(use, signal) {
-      for (;;) {
-        const current = await up(signal);
-        try {
-          return await use(current, AbortSignal.any([signal, current.lost]));
-        } catch (error) {
-          // Read through functions: both change while this waits.
-          const cancelled = (): boolean => signal.aborted;
-          const lost = (): boolean => current.lost.aborted;
-          // A call can fail for the lost connection a moment before the loss is known here.
-          if (!cancelled() && !lost() && isDisconnected(error)) await ended(current.lost, signal);
-          if (cancelled() || !lost()) throw error;
+    store: () => chat.store.value,
+    head: () => chat.head.value,
+    untilHead(after, signal) {
+      if (chat.head.value > after) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const stop = moved.add(() => {
+          if (chat.head.value <= after) return;
+          cleanup();
+          resolve();
+        });
+        const cancel = (): void => {
+          cleanup();
+          reject(reasonOf(signal));
+        };
+        function cleanup(): void {
+          stop();
+          signal.removeEventListener("abort", cancel);
         }
-      }
+        if (signal.aborted) return cancel();
+        signal.addEventListener("abort", cancel, { once: true });
+      });
     },
-    onUp(listener) {
-      const stop = arrivals.add(listener);
-      if (live !== undefined && !live.lost.aborted) listener(live);
-      return stop;
+    channels: () => chat.channels.value,
+    async events(after, limit, signal) {
+      return valueOf(await chat.events({ after, limit }, contextFor(signal)));
     },
-    async close() {
-      stopping.abort();
-      arrivals.clear();
-      await running;
+    async leaveReceipt(events, receipt, signal) {
+      valueOf(await chat.leaveReceipt({ events: [...events], receipt }, contextFor(signal)));
     },
+    async setWorking(id, working, signal) {
+      valueOf(await chat.setWorking({ thread: id, working }, contextFor(signal)));
+    },
+    async openDm(member, signal) {
+      return valueOf(await chat.openDm({ member }, contextFor(signal)));
+    },
+    threads: (id, signal) =>
+      channel(id, signal, async (held) => {
+        unlessRefused(held.refusal.value);
+        return held.threads.value;
+      }),
+    createThread: (id, name, signal) =>
+      channel(id, signal, async (held, context) => valueOf(await held.createThread({ name }, context))),
+    post: (id, text, request, signal) => thread(id, signal, async (held, context) => valueOf(await held.post({ text, request }, context))),
+    read: (id, before, limit, signal) =>
+      thread(id, signal, async (held, context) => valueOf(await held.read({ before, limit }, context))),
   };
 }
 
-/** What aborts when each connection to the gateway ends, made once for each, since one is asked about on every try. */
-const endings = new WeakMap<GatewayConnection, AbortSignal>();
+/** How long a call that failed for want of its link waits for the loss of chat to be known, before it counts as its own failure. */
+const LOSS_FOLLOWS_MS = 5_000;
 
-function endOf(gateway: GatewayConnection): AbortSignal {
-  let ending = endings.get(gateway);
-  if (ending === undefined) {
-    const ended = new AbortController();
-    gateway.onDisconnect(() => ended.abort(disconnected("The connection to the gateway that chat is reached through ended.")));
-    ending = ended.signal;
-    endings.set(gateway, ending);
-  }
-  return ending;
-}
-
-/**
- * One way in: find the chat server in the gateway's list, then reach it by its
- * name through the gateway and hand it a ticket. Whoever the agent is comes
- * from chat's answer and from nothing the agent says. `via` aborts when the
- * connection to the gateway that this comes in on ends, whenever that is, and
- * giving up on the way in is then no failure: it is the gateway that was lost.
- */
-async function comeIn(
-  options: ChatLinkOptions,
-  signal: AbortSignal,
-): Promise<{ connection: ChatConnection; self: Member; via: AbortSignal }> {
-  const gateway = await options.gateway.untilUp(signal);
-  const via = endOf(gateway);
-  const coming = AbortSignal.any([signal, via]);
-  const registered = (await gateway.list()).findLast((program) => program.kind === "chat");
-  if (registered === undefined) throw new ChatUnavailableError("The gateway lists no chat server.");
-  try {
-    const { connection, entered } = await reachProgram({
-      gateway,
-      transports: options.transports,
-      target: { kind: registered.kind, name: registered.name },
-      connect: options.connect ?? connectChat,
-      enter: (opened, ticket, enterSignal) => opened.chat.enter(ticket, enterSignal),
-      signal: coming,
-    });
-    return { connection, self: entered, via };
-  } catch (error) {
-    if (!isNotListening(error)) throw error;
-    throw new ChatUnavailableError("The gateway lists the chat server, but its way in is not there.", { cause: error });
-  }
-}
-
-/** Resolves when either signal aborts. */
+/** Resolves when any of `signals` aborts. */
 function ended(...signals: AbortSignal[]): Promise<void> {
   return new Promise((resolve) => {
     const finish = (): void => {
@@ -213,4 +184,143 @@ function ended(...signals: AbortSignal[]): Promise<void> {
 function reasonOf(signal: AbortSignal): Error {
   const reason: unknown = signal.reason;
   return reason instanceof Error ? reason : new DOMException("The wait was cancelled", "AbortError");
+}
+
+/**
+ * Hold `Chat` through `host`, which has loaded, for as long as the link is
+ * open: the hold goes up the agent's link to the gateway, so chat takes it for
+ * the agent, and it is what keeps the agent's working marks. Chat is up while
+ * the hold is live and chat takes the agent for a member, and is lost whenever
+ * the hold stops being live, as when the agent's link or chat's own drops, which
+ * also ends the marks: each time chat comes up again is a new `LiveChat`.
+ * `through` stands between the agent and chat's calls, which tests use.
+ */
+export function openChatLink(
+  host: Host<Principal, Revocation>,
+  onError: (error: Error) => void,
+  through: (calls: ChatCalls) => ChatCalls = (calls) => calls,
+): ChatLink {
+  const context = BACKGROUND_CONTEXT;
+  const held = host.hold(Chat, {}, context);
+  const moved = createListeners<undefined>(onError);
+  const calls = through(callsOver(host, held, moved));
+  const arrivals = createListeners<LiveChat>(onError);
+  const watches: { stop(): unknown }[] = [];
+  let up: { live: LiveChat; lost: AbortController } | undefined;
+  let closed = false;
+
+  /** Who chat takes the agent for while the hold is live, or undefined. */
+  const member = (): Member | undefined => {
+    if (held.state.value.kind !== "live") return undefined;
+    try {
+      return held.you.value ?? undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const recheck = (): void => {
+    if (closed) return;
+    const self = member();
+    if (up !== undefined && self?.id === up.live.self.id) return;
+    if (up !== undefined) {
+      up.lost.abort(new Error("Chat was lost."));
+      up = undefined;
+    }
+    if (self === undefined) return;
+    const lost = new AbortController();
+    const live: LiveChat = {
+      chat: calls,
+      get self() {
+        return member() ?? self;
+      },
+      lost: lost.signal,
+    };
+    up = { live, lost };
+    arrivals.notify(live);
+  };
+
+  void held.state.watch(context).then((watch) => {
+    if (closed) return void watch.stop();
+    watches.push(watch);
+    recheck();
+    watch.start(async () => recheck());
+  });
+  void held.you.watch(context).then(
+    (watch) => {
+      if (closed) return void watch.stop();
+      watches.push(watch);
+      recheck();
+      watch.start(async () => recheck());
+    },
+    () => undefined,
+  );
+  void held.head.watch(context).then(
+    (watch) => {
+      if (closed) return void watch.stop();
+      watches.push(watch);
+      moved.notify(undefined);
+      watch.start(async () => moved.notify(undefined));
+    },
+    () => undefined,
+  );
+
+  const current = (): LiveChat | undefined => (up !== undefined && !up.lost.signal.aborted ? up.live : undefined);
+
+  const untilUp = (signal: AbortSignal): Promise<LiveChat> => {
+    const now = current();
+    if (now !== undefined) return Promise.resolve(now);
+    if (closed) return Promise.reject(new Error("The link to chat is closed."));
+    return new Promise((resolve, reject) => {
+      const stop = arrivals.add((live) => {
+        cleanup();
+        resolve(live);
+      });
+      const cancel = (): void => {
+        cleanup();
+        reject(reasonOf(signal));
+      };
+      function cleanup(): void {
+        stop();
+        signal.removeEventListener("abort", cancel);
+      }
+      if (signal.aborted) return cancel();
+      signal.addEventListener("abort", cancel, { once: true });
+    });
+  };
+
+  return {
+    current,
+    async use(use, signal) {
+      for (;;) {
+        const live = await untilUp(signal);
+        try {
+          return await use(live, AbortSignal.any([signal, live.lost]));
+        } catch (error) {
+          // Read through functions: both change while this waits.
+          const cancelled = (): boolean => signal.aborted;
+          const lost = (): boolean => live.lost.aborted;
+          // A call can fail for the lost link a moment before the loss is known here. A failure that no loss follows
+          // soon is the call's own.
+          if (!cancelled() && !lost() && isUnavailable(error)) await ended(live.lost, signal, AbortSignal.timeout(LOSS_FOLLOWS_MS));
+          if (cancelled() || !lost()) throw error;
+        }
+      }
+    },
+    onUp(listener) {
+      const stop = arrivals.add(listener);
+      const now = current();
+      if (now !== undefined) listener(now);
+      return stop;
+    },
+    async close() {
+      closed = true;
+      up?.lost.abort(new Error("The link to chat is closed."));
+      up = undefined;
+      for (const watch of watches.splice(0)) await watch.stop();
+      arrivals.clear();
+      moved.clear();
+      held.release();
+    },
+  };
 }

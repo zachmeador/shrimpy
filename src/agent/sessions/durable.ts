@@ -2,18 +2,18 @@
  * The agent's sessions as clients see them: one for each thread it takes part
  * in, addressed by the thread's ID, and one of its own for each trigger whose
  * occurrences go to no thread. It says which there are, where each is and whether
- * it is working, says which models the agent can use and refuses one it can't,
- * makes the sessions follow the home's model and working directory, turns the
- * engine's records of a session into the contract's session view and keeps it
- * published, and takes a client's steer, wait and stop to the engine. A stop ends
- * the turn that is running, takes back the inputs that wait, cancels the wake-ups
- * the session is waiting on and closes the questions it asked other agents, and it
- * is what a person's `/stop` in a thread does too, through the function this
- * exports. A person's `/model` gives a session a model of its own through chat,
- * which asks this module only whether the agent can use the model. It must not
- * know how an input is taken up, followed or told to its source, or about
- * transports and chat.
+ * a turn is underway in it, kept live from the engine's commits; turns the
+ * engine's view of a session into the contract's window and status, kept live as
+ * the engine shows each change, a partial answer included, and pages back through
+ * a session's history; says which models the agent can use and refuses one it
+ * can't; makes the sessions follow the home's model and working directory; and
+ * takes a client's steer, wait and stop to the engine. A stop ends the turn that
+ * is running, takes back the inputs that wait, cancels the wake-ups the session is
+ * waiting on and closes the questions it asked other agents, and it is what a
+ * person's `/stop` in a thread does too, through the function this exports. It
+ * must not know how an input is taken up, followed or told to its source, who may
+ * ask, or how a client reaches the agent.
  */
 export { requireModel } from "./models.durable.ts";
-export { type ServedSession, stopWork } from "./service.durable.ts";
-export { createSessions, type Sessions } from "./sessions.durable.ts";
+export { stopWork } from "./service.durable.ts";
+export { createSessions, type Sessions, type SessionShown } from "./sessions.durable.ts";

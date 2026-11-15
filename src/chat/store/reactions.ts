@@ -37,7 +37,7 @@ export function reactionOperations(sql: Sql, report: ReportChange): ReactionOper
         emoji,
         event.seq,
       );
-      report({ kind: "event", threadId: message.threadId });
+      report({ kind: "event", channelId: message.channelId, threadId: message.threadId });
       return loadMessage(sql, message.seq);
     },
     removeReaction(message, memberId, emoji, at) {
@@ -56,7 +56,7 @@ export function reactionOperations(sql: Sql, report: ReportChange): ReactionOper
         memberId,
         emoji,
       );
-      report({ kind: "event", threadId: message.threadId });
+      report({ kind: "event", channelId: message.channelId, threadId: message.threadId });
       return loadMessage(sql, message.seq);
     },
   };

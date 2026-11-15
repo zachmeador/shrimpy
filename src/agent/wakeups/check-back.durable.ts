@@ -1,4 +1,4 @@
-import { Type } from "@earendil-works/pi-ai";
+import { obj, opt, str } from "@earendil-works/pi-schema";
 import { defineExtension, defineTool, type Extension, type ToolExecutionResult } from "@earendil-works/pi-durable";
 import type { Wakeups } from "./wakeups.durable.ts";
 import { readWhen } from "./when.ts";
@@ -13,10 +13,10 @@ export interface WakeupToolsOptions {
 const MAX_NOTE = 1_000;
 
 /** A tool's answer: just these words. */
-const answer = (text: string): ToolExecutionResult => ({ content: [{ type: "text", text }] });
+const answer = (text: string): ToolExecutionResult => ({ output: [{ type: "text", text }] });
 
 /** A tool's answer when it did not do what was asked: just these words, marked as an error. */
-const failure = (text: string): ToolExecutionResult => ({ isError: true, content: [{ type: "text", text }] });
+const failure = (text: string): ToolExecutionResult => ({ isError: true, output: [{ type: "text", text }] });
 
 /**
  * `check_back`: wake the session that calls it, once, after a delay or at a
@@ -28,10 +28,10 @@ export function checkBack(options: WakeupToolsOptions) {
   return defineTool({
     name: "check_back",
     description: words.CHECK_DESCRIPTION,
-    parameters: Type.Object({
-      in: Type.Optional(Type.String({ description: words.CHECK_IN })),
-      at: Type.Optional(Type.String({ description: words.CHECK_AT })),
-      note: Type.String({ description: words.CHECK_NOTE }),
+    parameters: obj({
+      in: opt(str({ description: words.CHECK_IN })),
+      at: opt(str({ description: words.CHECK_AT })),
+      note: str({ description: words.CHECK_NOTE }),
     }),
     // The wake-up is named for the call, so running it again after a crash sets no second one.
     replay: "safe",

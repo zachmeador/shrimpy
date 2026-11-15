@@ -1,11 +1,17 @@
-import { randomUUID } from "node:crypto";
-import { join } from "node:path";
 import type { TestContext } from "node:test";
-import type { ChatEvent } from "../../contracts/chat/index.ts";
-import { enterAsAgent, gatewayAsAgent } from "../../contracts/chat/testing/index.ts";
-import { runtimeDir } from "../../lib/runtime/node.ts";
+import { ChordError, createHost, defineFacet, type Reference } from "@earendil-works/chord";
+import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
+import { AgentPresence } from "../../contracts/agent/index.ts";
+import { Chat, type ChatEvent, Thread } from "../../contracts/chat/index.ts";
+import { agent, type Answer, hello, type Principal, readAnswer, type Revocation, revokedBy } from "../../contracts/gateway/index.ts";
+import { gatewaySocket, newToken } from "../../contracts/gateway/node.ts";
+import { linkTestAgent } from "../../contracts/gateway/testing/index.ts";
+import { dial, keepLink } from "../../lib/link/node.ts";
+import { backoff } from "../../lib/retry/index.ts";
 import { stopAfter, within } from "../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
+
+const context = BACKGROUND_CONTEXT;
 
 /** A post the scripted agent was offered: a message as first written, by someone else. */
 export type Posted = Extract<ChatEvent, { kind: "posted" }>;
@@ -15,7 +21,8 @@ export type Outcome =
   | { status: "answered"; text: string }
   | { status: "silent" }
   | { status: "stopped" }
-  | { status: "skipped" }
+  /** A skip with a detail was behind a turn that failed; one without, behind a stop. */
+  | { status: "skipped"; detail?: string }
   | { status: "failed"; detail: string };
 
 export interface ScriptedAgentOptions {
@@ -27,13 +34,13 @@ export interface ScriptedAgentOptions {
    * let go before the test ends, or the agent cannot leave.
    */
   handle(post: Posted): Outcome | Promise<Outcome>;
-  /** The version in its registration. The version of Shrimpy by default. */
+  /** The Shrimpy version its hello gives. The version of Shrimpy by default. */
   version?: string;
   /**
-   * Do not register with the gateway, as an agent that is not running does not.
-   * It is a member of the roster all the same.
+   * Do not stay linked to the gateway, as an agent that is not running is not:
+   * it joins the roster, and is offered nothing.
    */
-  register?: false;
+  linked?: false;
 }
 
 export interface ScriptedAgent {
@@ -41,59 +48,108 @@ export interface ScriptedAgent {
   readonly offered: Posted[];
 }
 
+/** The reason a receipt gives: a failure's, or a skip's when it has one. */
+const detailOf = (outcome: Outcome): string | null =>
+  outcome.status === "failed" || outcome.status === "skipped" ? (outcome.detail ?? null) : null;
+
+function valueOf<T>(answer: Answer<T>): T {
+  if (answer.kind === "refused") throw new Error(`Refused: ${answer.words}`);
+  return answer.value;
+}
+
 /**
- * Stand in for an agent whose side of chat is not under test: it joins the
- * gateway's roster as the agent called `name`, registers there as that agent,
- * comes in to the chat server by its name through the gateway, and for each
- * post others make it works as `handle` says and leaves the receipt. It needs
- * the test's runtime directory, with the gateway and the chat server running,
- * and it leaves when the test ends.
+ * Stand in for an agent whose side of chat is not under test: its program
+ * links to the gateway as the agent called `name`, joining the roster, with the
+ * Shrimpy version the test asks for in its hello, holds chat through its link
+ * as the agent, and for each post others make it works as `handle` says and
+ * leaves the receipt. It needs the test's runtime directory, with the gateway
+ * and the chat server running, and it leaves when the test ends.
  */
 export async function startScriptedAgent(t: TestContext, options: ScriptedAgentOptions): Promise<ScriptedAgent> {
-  // Joined first, so that it is a member of the roster whether it registers or not.
-  const gateway = await gatewayAsAgent(t, options.name);
-  if (options.register !== false) {
-    await gateway.register({
-      kind: "agent",
-      serverId: randomUUID(),
-      socket: join(runtimeDir(), `${options.name}.sock`),
-      version: options.version ?? SHRIMPY_VERSION,
-    });
-  }
-  const connection = await enterAsAgent(t, options.name);
-  const self = connection.me;
-
   const offered: Posted[] = [];
+  if (options.linked === false) {
+    const joined = await linkTestAgent(t, options.name);
+    await joined.stop();
+    return { offered };
+  }
+
+  const host = createHost<Principal, Revocation>({
+    address: agent({ name: options.name }),
+    principal: { kind: "home" },
+    revokedBy,
+    onError: () => undefined,
+  });
+  const facet = defineFacet<Principal>((serving) => {
+    serving.serve(AgentPresence, () => ({ variant: "present", members: {} }));
+  });
+  await host.load([{ name: "@shrimpy/scripted-agent", facet }], context);
   const leaving = new AbortController();
+  const token = newToken();
+  // Its own hello, since it gives the version the test asks for.
+  const said = { ...hello({ kind: "agent", name: options.name, token }), shrimpy: options.version ?? SHRIMPY_VERSION };
+  const linking = keepLink({
+    signal: leaving.signal,
+    backoff: backoff({ firstMs: 5, maxMs: 50 }),
+    async link(signal) {
+      const { answer: raw, linked } = await dial({ path: gatewaySocket() }, said, { signal });
+      const answer = readAnswer(raw);
+      if (answer?.kind !== "welcome") {
+        linked.drop();
+        throw new Error(answer?.words ?? "The gateway answered with something else.");
+      }
+      host.connect(linked.link, { principal: { kind: "gateway" } }, context);
+      return linked;
+    },
+  });
+
+  const chat: Reference<typeof Chat> = await host.get(Chat, {}, context);
+  const self = chat.you.value;
+  if (self === null) throw new Error("Chat takes the scripted agent for nobody.");
+  // What the agent asks of chat ends when it leaves, so that a chat server that went away holds nothing up.
+  const asking = withAbortSignal(leaving.signal, context);
+
   const work = async (post: Posted): Promise<void> => {
     const { threadId } = post.message;
-    await connection.chat.setWorking(threadId, true);
+    valueOf(await chat.setWorking({ thread: threadId, working: true }, asking));
     try {
       const outcome = await options.handle(post);
       const reply =
         outcome.status === "answered"
-          ? await connection.chat.post(threadId, outcome.text, `${self.id}-reply-${post.id}`)
+          ? await host.get(Thread, { thread: threadId }, asking).then(async (thread) => {
+              try {
+                return valueOf(await thread.post({ text: outcome.text, request: `${self.id}-reply-${post.id}` }, asking));
+              } finally {
+                thread.release();
+              }
+            })
           : undefined;
-      await connection.chat.leaveReceipt([post.id], {
-        status: outcome.status,
-        reply: reply?.id ?? null,
-        detail: outcome.status === "failed" ? outcome.detail : null,
-      });
+      valueOf(
+        await chat.leaveReceipt(
+          { events: [post.id], receipt: { status: outcome.status, reply: reply?.id ?? null, detail: detailOf(outcome) } },
+          asking,
+        ),
+      );
     } finally {
-      await connection.chat.setWorking(threadId, false);
+      await chat.setWorking({ thread: threadId, working: false }, asking).catch(() => undefined);
     }
   };
+
   // Read through a function, so the compiler does not assume the answer it saw first still holds.
   const hasLeft = (): boolean => leaving.signal.aborted;
-  // A chat server that goes away ends the agent's listening without being a failure of the test.
-  let dropped = false;
-  connection.onDisconnect(() => {
-    dropped = true;
-  });
-  let cursor = await connection.chat.head();
+  let cursor = chat.head.value;
+  let moved: () => void = () => undefined;
+  const head = await chat.head.watch(context);
+  head.start(async () => moved());
   const listening = (async () => {
     while (!hasLeft()) {
-      for (const event of await connection.chat.feed(cursor, 50, leaving.signal)) {
+      if (chat.head.value <= cursor) {
+        await new Promise<void>((resolve) => {
+          moved = resolve;
+          leaving.signal.addEventListener("abort", () => resolve(), { once: true });
+        });
+        continue;
+      }
+      for (const event of valueOf(await chat.events({ after: cursor, limit: 50 }, asking))) {
         if (hasLeft()) return;
         cursor = event.seq;
         if (event.kind !== "posted" || event.actor.id === self.id) continue;
@@ -102,11 +158,17 @@ export async function startScriptedAgent(t: TestContext, options: ScriptedAgentO
       }
     }
   })().catch((error: unknown) => {
-    if (!hasLeft() && !dropped) throw error;
+    // A chat server or a gateway that goes away ends the agent's listening without being a failure of the test.
+    const lost = error instanceof ChordError && (error.code === "unavailable" || error.code === "released");
+    if (!hasLeft() && !lost) throw error;
   });
   stopAfter(t, async () => {
     leaving.abort();
     await within(5000, listening, "the scripted agent leaving (a handle that holds work must settle before the test ends)");
+    await head.stop();
+    chat.release();
+    await linking;
+    await host.close(context);
   });
   return { offered };
 }

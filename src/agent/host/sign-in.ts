@@ -80,6 +80,12 @@ export interface SignIns {
   signIn(provider: string, way: SignInWay, dialogue: Dialogue, signal: AbortSignal): Promise<void>;
 }
 
+/**
+ * The name Shrimpy signs in under, in place of Pi's: OpenAI's ChatGPT sign-in
+ * shows it to the person, as it shows "Pi" for Pi.
+ */
+const SIGNS_IN_AS = "Shrimpy";
+
 /** Sign in to Pi's own providers, keeping what is signed in to in the `providers/` directory at `providers`. */
 export async function openSignIns(providers: string): Promise<SignIns> {
   // Loaded here because it brings in every provider's model list.
@@ -115,7 +121,7 @@ export function signInsOver(offered: readonly Provider[], providers: string, che
               dialogue.ask(questionOf(prompt), prompt.signal === undefined ? signal : AbortSignal.any([signal, prompt.signal])),
             notify: (event) => dialogue.tell(noticeOf(event)),
           },
-          { getDeviceId: deviceId },
+          { getDeviceId: deviceId, agentName: SIGNS_IN_AS },
         );
       } catch (error) {
         throw explained(error);

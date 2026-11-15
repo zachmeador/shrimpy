@@ -1,0 +1,108 @@
+import type { Host } from "@earendil-works/chord";
+import type { Context } from "@earendil-works/chord/context";
+import {
+  type Address,
+  type Answer,
+  done,
+  type Invitation,
+  type Member,
+  needsAdmin,
+  type Principal,
+  refused,
+  type Revocation,
+} from "../../contracts/gateway/index.ts";
+import type { Invitations } from "../invitations/index.ts";
+import type { Programs } from "../programs/index.ts";
+import type { Roster } from "../roster/index.ts";
+
+export interface ActionsDeps {
+  readonly roster: Roster;
+  readonly invitations: Invitations;
+  readonly programs: Programs;
+  readonly host: Host<Principal, Revocation>;
+  /** The addresses the gateway's entry listens on now, which an invitation sends whoever uses it to. */
+  addresses(): Address[];
+  /** The fingerprint of the gateway's key, which an invitation carries for whoever uses it to check the entry against. */
+  readonly fingerprint: string;
+  readonly context: Context;
+}
+
+/** What a caller of `Roster` may do with it, each checked against the roster as it is now. */
+export interface Actions {
+  invite(caller: Principal, name: string): Answer<Invitation>;
+  inviteDevice(caller: Principal): Answer<Invitation>;
+  setAdmin(caller: Principal, member: string, admin: boolean): Answer<Member>;
+  takeBack(caller: Principal, way: string): Answer<null>;
+}
+
+export function createActions(deps: ActionsDeps): Actions {
+  const { roster, invitations, programs, host } = deps;
+
+  /** The member the caller is, as the roster has it now, so a promotion counts at once. */
+  const memberOf = (caller: Principal): Member | undefined =>
+    caller.kind === "person" || caller.kind === "agent" ? roster.member(caller.member) : undefined;
+
+  const admins = (): Member[] => roster.members().filter((member) => member.admin);
+
+  const you = (): string => roster.you().name;
+
+  const notAMember = refused("Only a member of the network may do that, and a program that isn't one may not.");
+
+  const listening = (): Address[] | undefined => {
+    const addresses = deps.addresses();
+    return addresses.length === 0 ? undefined : addresses;
+  };
+
+  const nowhere = refused(
+    "This gateway listens on no address, so nobody could use an invitation. Start it with one, such as its tailnet address.",
+  );
+
+  return {
+    invite(caller, name) {
+      const asking = memberOf(caller);
+      if (asking === undefined) return notAMember;
+      if (!asking.admin) return needsAdmin("Inviting an agent", asking, admins());
+      const addresses = listening();
+      if (addresses === undefined) return nowhere;
+      const vacant = roster.vacant(name);
+      if (vacant.kind === "refused") return vacant;
+      const { code, expires } = invitations.issue(vacant.value);
+      return done({ code, addresses, fingerprint: deps.fingerprint, expires });
+    },
+    inviteDevice(caller) {
+      if (caller.kind !== "person") {
+        return refused(
+          `Only ${you()} may invite a device: whoever uses the invitation comes in as ${you()}, with everything ${you()} may do, ` +
+            "so no agent may ask for one, an admin included.",
+        );
+      }
+      const addresses = listening();
+      if (addresses === undefined) return nowhere;
+      const { code, expires } = invitations.issueForDevice(caller.member);
+      return done({ code, addresses, fingerprint: deps.fingerprint, expires });
+    },
+    setAdmin(caller, member, admin) {
+      const asking = memberOf(caller);
+      if (asking === undefined) return notAMember;
+      if (!asking.admin) return needsAdmin(admin ? "Promoting an agent" : "Demoting an agent", asking, admins());
+      return roster.setAdmin(member, admin);
+    },
+    takeBack(caller, id) {
+      const way = roster.ways().find((each) => each.id === id);
+      if (way === undefined) return refused(`There is no way in ${id} on the roster. It may have been taken back already.`);
+      if (caller.kind !== "person") {
+        const asking = memberOf(caller);
+        if (asking === undefined) return notAMember;
+        if (way.kind === "device") {
+          return refused(`Only ${you()} may take back a device's token, since a device is ${you()}: no agent may, an admin included.`);
+        }
+        if (!asking.admin) return needsAdmin("Taking back an agent's token", asking, admins());
+      }
+      roster.takeBack(id);
+      host.revoke({ way: id }, deps.context);
+      // Chord leaves a route link open, so the agent's own link is closed here.
+      if (way.kind === "token") programs.dropAgent(way.member);
+      return done(null);
+    },
+  };
+}

@@ -1,10 +1,11 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { defineExtension, type Extension, type Harness } from "@earendil-works/pi-durable";
+import { type CommitPublication, defineExtension, type Extension, type Harness } from "@earendil-works/pi-durable";
 import type { Occurrence as OccurrenceView, TriggerDetail, TriggerSummary } from "../../contracts/agent/index.ts";
+import { type FollowAttach, follow } from "../../lib/follow/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import type { LeftOut, TriggerFiles } from "../home/index.ts";
-import type { Breadcrumb, Place } from "../inputs/index.ts";
+import { type Breadcrumb, isOccurrence, type Outstanding, type Place } from "../inputs/index.ts";
 import {
   plain,
   type SessionDefaults,
@@ -13,11 +14,11 @@ import {
   triggerSession,
   TriggersDoc,
 } from "../records/durable.ts";
-import type { TurnTask } from "../turns/durable.ts";
+import { TURN_TASK, type TurnTask } from "../turns/durable.ts";
 import { reconcile } from "./follow.durable.ts";
 import { fire, ownerOf, type Where } from "./occurrence.durable.ts";
-import { runTask } from "./run.durable.ts";
-import { triggerTask } from "./task.durable.ts";
+import { RUN_TASK, runTask } from "./run.durable.ts";
+import { TRIGGER_TASK, triggerTask } from "./task.durable.ts";
 import { nextTimes, occurrences, RECENT, summaryOf } from "./views.durable.ts";
 
 export interface TriggersOptions {
@@ -58,6 +59,8 @@ export interface Triggers {
   reload(): Promise<{ count: number; leftOut: LeftOut[] }>;
   /** Every trigger the agent has, in order of name. */
   list(): Promise<TriggerSummary[]>;
+  /** The list, kept live from the engine's commits, as Chord's `self.follow` takes it. */
+  readonly listed: FollowAttach<TriggerSummary[]>;
   /** One trigger with its definition and recent occurrences. Refused when there is none of that name. */
   show(name: string): Promise<TriggerDetail>;
   /**
@@ -74,12 +77,12 @@ const context = BACKGROUND_CONTEXT;
 /**
  * The triggers an agent runs. A trigger and each of its occurrences are
  * separate tasks of the engine. The trigger's task is a background task of a
- * conversation of its own that sleeps on the engine's timer until the next
- * occurrence is due, and keeps the revision of the trigger's schedule that it is
- * for and that time. When it wakes it makes the occurrence and the next time in
- * one commit, so an occurrence happens once however often the agent is killed
- * meanwhile, and one that fell due while the agent was down happens once at the
- * next start: the next time counts from when it fired. An occurrence is an input
+ * conversation of its own that sleeps as one of the engine's sleeping tasks until
+ * the next occurrence is due, and keeps the revision of the trigger's schedule
+ * that it is for and that time. When it wakes it makes the occurrence and the
+ * sleep until the next time in one commit, so an occurrence happens once however
+ * often the agent is killed meanwhile, and one that fell due while the agent was
+ * down happens once at the next start: the next time counts from when it fired. An occurrence is an input
  * of a session, followed by the same task as any input, and that task's record
  * is the occurrence's record. A trigger with no thread has a session of its
  * own, made at its first occurrence; with a thread, its occurrences go to the
@@ -133,23 +136,39 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
     return Object.hasOwn(triggers, name) ? triggers[name] : undefined;
   }
 
+  const list = async (): Promise<TriggerSummary[]> => {
+    const triggers = (await harness.snapshot(TriggersDoc, context))?.triggers ?? {};
+    const times = await nextTimes(harness);
+    const last = new Map<string, OccurrenceView>();
+    for (const { trigger, view } of await occurrences(harness)) last.set(trigger, view);
+    return Object.keys(triggers)
+      .sort(byName)
+      .map((name) => summaryOf(triggers[name]!, times.get(name), last.get(name)));
+  };
+
   return {
     extension: defineExtension({ name: "triggers", tasks: [task, run] }),
+
+    list,
+
+    listed: follow({
+      read: list,
+      watch(changed) {
+        const observation = harness.observeCommits({
+          advance(publication) {
+            // Asked again outside the commit, where the engine may be asked.
+            if (changesTriggers(publication)) setImmediate(changed);
+          },
+          end: () => undefined,
+        });
+        return () => observation.detach();
+      },
+    }),
 
     reload() {
       const reloaded = queue.then(async () => reconcile(harness, task, await options.read()));
       queue = reloaded.catch(() => undefined);
       return reloaded;
-    },
-
-    async list() {
-      const triggers = (await harness.snapshot(TriggersDoc, context))?.triggers ?? {};
-      const times = await nextTimes(harness);
-      const last = new Map<string, OccurrenceView>();
-      for (const { trigger, view } of await occurrences(harness)) last.set(trigger, view);
-      return Object.keys(triggers)
-        .sort(byName)
-        .map((name) => summaryOf(triggers[name]!, times.get(name), last.get(name)));
     },
 
     async show(name) {
@@ -192,6 +211,19 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
       }, context);
     },
   };
+}
+
+/**
+ * Whether a commit changed what the list of triggers says: their definitions and
+ * what their checks left, when one is next due, or an occurrence.
+ */
+function changesTriggers(publication: CommitPublication): boolean {
+  return publication.changes.some((change) => {
+    if (change.type === "document") return change.record.kind === TriggersDoc.definition.kind;
+    if (change.type !== "task") return false;
+    const { kind } = change.value;
+    return kind === TRIGGER_TASK || kind === RUN_TASK || (kind === TURN_TASK && isOccurrence(change.value.input as Outstanding));
+  });
 }
 
 const noTrigger = (name: string): string => `This agent has no trigger called ${name}.`;

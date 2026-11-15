@@ -1,50 +1,45 @@
 import { closeSync, fsyncSync, mkdirSync, openSync, renameSync, writeSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { Member } from "../../contracts/gateway/index.ts";
 import type { ConfigObject } from "../../lib/json-config/index.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
 
 /**
- * A machine of a person's own, which keeps a token and shows it to be that
- * person. Only a hash of the token is kept.
+ * A device of yours, which keeps a token and shows it to be you, with its
+ * label: the name of the machine it joined from. Only a hash of the token is
+ * kept.
  */
-export interface MachineRecord {
+export interface DeviceRecord {
   tokenHash: string;
+  label: string;
 }
 
 /**
- * How a member is recognized. A person is the operating system user of the
- * gateway's own socket, and also each of the person's machines that shows the
- * token it keeps, if the person has any: a file written before there were
- * machines has none, and that is all it means. An agent is whoever presents its
- * token. Only a hash of a token is kept: the token itself is shown to the
- * gateway and never stored.
+ * A member as the roster keeps it. You are the one person: on the gateway's
+ * own socket you show no token, and elsewhere you are recognized by each of
+ * your devices' tokens. An agent is recognized by its token, until it is taken
+ * back. Only a hash of a token is kept. Every person is an admin and the file
+ * does not say so; an agent's record says whether it is one.
  */
-export type Recognition = { osUser: string; machines?: MachineRecord[] } | { tokenHash: string };
-
-/**
- * A member as the roster keeps it. Every person is an admin and the file does
- * not say so, so only an agent's record has `admin`. A file written before the
- * role existed has none, and every agent in it is not an admin.
- */
-export interface MemberRecord extends Omit<Member, "admin"> {
-  recognizedBy: Recognition;
-  admin?: boolean;
-}
+export type MemberRecord =
+  | { id: string; kind: "person"; name: string; recognizedBy: { machines?: DeviceRecord[] } }
+  | { id: string; kind: "agent"; name: string; admin: boolean; recognizedBy: { tokenHash?: string } };
 
 /** The file's format. A roster of any other version is refused, never changed. */
-const VERSION = 1;
+const VERSION = 2;
 
 /** Where the roster is kept inside the gateway's data directory. */
 export const rosterFile = (dataDir: string): string => join(dataDir, "state", "roster.json");
 
-/** The members in the file, oldest first, or none when there is no file yet. */
-export function readRoster(file: string): MemberRecord[] {
-  const root = readConfig(file);
+/** The members in the roster of the gateway's data directory, oldest first, or none when there is no file yet. */
+export function readRoster(dataDir: string): MemberRecord[] {
+  const root = readConfig(rosterFile(dataDir));
   if (root === undefined) return [];
-  const version = root.number("version");
-  if (version !== VERSION) {
-    throw new Error(`${file} is version ${String(version)}, and this gateway reads version ${String(VERSION)}.`);
+  if (root.number("version") !== VERSION) {
+    throw new Error(
+      `The roster in ${dataDir} was written by another version of Shrimpy, and nothing converts it. ` +
+        `Move ${dataDir} into an archive folder, and start the gateway again. ` +
+        "Whatever joined with an invitation, an agent or a machine of yours, needs a new one.",
+    );
   }
   const members = root.objects("members").map(parseMember);
   root.done();
@@ -55,29 +50,30 @@ function parseMember(entry: ConfigObject): MemberRecord {
   const id = entry.string("id");
   const kind = entry.choice("kind", ["person", "agent"] as const);
   const name = entry.string("name");
-  const admin = kind === "agent" ? (entry.optionalBoolean("admin") ?? false) : undefined;
+  const admin = kind === "agent" ? entry.optionalBoolean("admin") : undefined;
   const by = entry.object("recognizedBy");
-  const osUser = by.optionalString("osUser");
   const tokenHash = by.optionalString("tokenHash");
-  const machines = by.optionalObjects("machines")?.map(parseMachine);
+  const machines = by.optionalObjects("machines")?.map(parseDevice);
   by.done();
   entry.done();
-  if (kind === "person" && osUser !== undefined && tokenHash === undefined) {
-    return { id, kind, name, recognizedBy: { osUser, ...(machines === undefined ? {} : { machines }) } };
+  if (kind === "person" && tokenHash === undefined) {
+    return { id, kind, name, recognizedBy: machines === undefined ? {} : { machines } };
   }
-  if (kind === "agent" && tokenHash !== undefined && osUser === undefined && machines === undefined) {
-    return { id, kind, name, admin: admin === true, recognizedBy: { tokenHash } };
+  if (kind === "agent" && machines === undefined) {
+    if (admin === undefined) throw entry.problem("admin", "is required for an agent");
+    return { id, kind, name, admin, recognizedBy: tokenHash === undefined ? {} : { tokenHash } };
   }
   throw entry.problem(
     "recognizedBy",
-    `must be an osUser, with machines if it has any, for a person and a tokenHash for an agent, and this is the ${kind} ${name}`,
+    `must be machines or nothing for a person, and a tokenHash or nothing for an agent, and this is the ${kind} ${name}`,
   );
 }
 
-function parseMachine(entry: ConfigObject): MachineRecord {
+function parseDevice(entry: ConfigObject): DeviceRecord {
   const tokenHash = entry.string("tokenHash");
+  const label = entry.string("label");
   entry.done();
-  return { tokenHash };
+  return { tokenHash, label };
 }
 
 /**

@@ -120,7 +120,6 @@ export type ServedAgent = Served<{
   event: string;
   name: string;
   home: string;
-  serverId: string;
   socket: string;
   pid: number;
 }>;
@@ -139,9 +138,9 @@ export type ServedGateway = Served<{
   event: string;
   dataDir: string;
   socket: string;
-  webPort: number | null;
   listen: Address[];
   listenKept: string | null;
+  fingerprint: string;
   pid: number;
 }>;
 
@@ -157,7 +156,7 @@ export function serveGateway(
   return serving(t, ["gateway", "serve", "--data", dataDir, ...extra]);
 }
 
-export type ServedChat = Served<{ event: string; dataDir: string; serverId: string; socket: string; pid: number }>;
+export type ServedChat = Served<{ event: string; dataDir: string; pid: number }>;
 
 /** Start `shrimpy chat serve <dataDir>` and wait until it is listening. */
 export function serveChat(t: TestContext, dataDir: string): Promise<ServedChat> {

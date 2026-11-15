@@ -51,7 +51,7 @@ When a turn for an event ends, the agent leaves a receipt on it. The receipt nam
 - **answered**: it replied, and the receipt points at the reply.
 - **silent**: it ended with END, or wrote nothing. This is recorded and shown to nobody unless they ask for `--json`.
 - **stopped**: someone stopped its work.
-- **skipped**: the message was taken back before the agent reached it, because work was stopped or an earlier turn failed. The agent sees it with the next message.
+- **skipped**: the message was taken back before the agent reached it, because work was stopped or an earlier turn failed. When a turn failed, the receipt says why. The agent sees the message with the next one.
 - **failed**: the turn failed. The receipt says why in a few words.
 
 ## Why didn't it answer?

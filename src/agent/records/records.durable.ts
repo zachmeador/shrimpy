@@ -17,7 +17,8 @@ export async function openRecords(harness: Harness, file: string): Promise<strin
  * Read each of Shrimpy's own documents once. The engine refuses a document that
  * another version wrote, in words that don't say what to do, and nothing
  * converts one, so the refusal is made here: the person is told to move the
- * file aside to start fresh. Gives the records' ID, if they have one yet.
+ * file into an archive folder and start the agent again. Gives the records'
+ * ID, if they have one yet.
  */
 async function read(harness: Harness, file: string): Promise<string | undefined> {
   try {
@@ -34,9 +35,8 @@ async function read(harness: Harness, file: string): Promise<string | undefined>
 function refusal(file: string, reason: string): string {
   const name = basename(file);
   return (
-    `Shrimpy can't read the agent's records in ${file}: ${reason}. ` +
-    "Nothing converts records written by another version. " +
-    `To start the agent fresh, move that file aside, with ${name}-wal and ${name}-shm if they are beside it. ` +
-    "The sessions and unfinished work in it are not kept."
+    `The agent's Pi storage in ${file} was written by another version of Shrimpy, and nothing converts it. ` +
+    `Move ${file} into an archive folder, with ${name}-wal and ${name}-shm if they are beside it, and start the agent again. ` +
+    `Its sessions go with it, and the rest of the home stays. The engine said: ${reason}.`
   );
 }

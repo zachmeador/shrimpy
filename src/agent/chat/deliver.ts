@@ -1,11 +1,7 @@
-import {
-  type ChatClient,
-  MAX_RECEIPT_DETAIL_LENGTH,
-  type Message,
-  type Receipt,
-} from "../../contracts/chat/index.ts";
+import { MAX_RECEIPT_DETAIL_LENGTH, type Message, type Receipt } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { isChat, type Outstanding, readFinalText, type TurnOutcome } from "../inputs/index.ts";
+import type { ChatCalls } from "../links/index.ts";
 import { clip, inParts, replyRequestId } from "./reply.ts";
 
 /** Events one receipt call takes, as the chat contract describes. */
@@ -38,7 +34,7 @@ export function hasReply(outcome: TurnOutcome): boolean {
  * receipt says it failed; parts of it that were posted stay.
  */
 export async function deliver(
-  chat: ChatClient,
+  chat: ChatCalls,
   outstanding: Outstanding,
   threadId: string,
   outcome: TurnOutcome,
@@ -66,7 +62,7 @@ export async function deliver(
 
 /** Post what the turn answered, in as many parts as it takes, and say what receipt it earns. */
 async function postReply(
-  chat: ChatClient,
+  chat: ChatCalls,
   threadId: string,
   outcome: TurnOutcome,
   { messageLimit, recordsId }: Posting,
@@ -87,8 +83,9 @@ async function postReply(
         : { status: "answered", reply: first.id, detail: null };
     }
     case "stopped":
+      return { status: "stopped", reply: null, detail: null };
     case "skipped":
-      return { status: outcome.kind, reply: null, detail: null };
+      return { status: "skipped", reply: null, detail: outcome.reason === undefined ? null : clip(outcome.reason, MAX_RECEIPT_DETAIL_LENGTH) };
     case "failed":
       return { status: "failed", reply: null, detail: clip(outcome.reason, MAX_RECEIPT_DETAIL_LENGTH) };
   }

@@ -21,7 +21,7 @@ import {
   startScriptedAgent,
   startTalking,
   startUp,
-  untilRegistered,
+  untilLinked,
 } from "./testing/index.ts";
 
 /*
@@ -36,6 +36,8 @@ const CTRL_C = "\u0003";
 const CTRL_N = "\u000e";
 const DOWN = "\u001b[B";
 const ENTER = "\r";
+const ESC = "\u001b";
+const TAB = "\t";
 
 async function testModel(t: TestContext): Promise<ModelServer> {
   const model = await startModelServer();
@@ -56,7 +58,7 @@ async function agentHome(t: TestContext, model: ModelServer): Promise<string> {
 function openOn(terminal: FakeTerminal) {
   const cli = captureIo({ terminal: true });
   const exited = runCli([], cli.io, {
-    openConsole: (io) => openConsole({ io, terminal, pollMs: 100 }),
+    openConsole: (io) => openConsole({ io, terminal }),
   });
   return { cli, exited };
 }
@@ -65,12 +67,43 @@ function openOn(terminal: FakeTerminal) {
 const seen = (terminal: FakeTerminal, text: string, what = text, timeoutMs = 30_000): Promise<void> =>
   until(() => terminal.text().includes(text), `the console to show ${what}`, timeoutMs);
 
+/** Wait until what was drawn after the first `from` characters includes `text`. */
+const seenAfter = (terminal: FakeTerminal, from: number, text: string, what = text, timeoutMs = 30_000): Promise<void> =>
+  until(() => terminal.text().slice(from).includes(text), `the console to show ${what}`, timeoutMs);
+
+/**
+ * Up with one agent, scout, on the test model, and the console open on a terminal of the test's own, on scout's
+ * screen, which it goes to since scout is the only agent. Left when the test ends.
+ */
+async function consoleWithScout(t: TestContext) {
+  const model = await testModel(t);
+  const home = await agentHome(t, model);
+  await startUp(t, [home, "--data", tempDir(t, "console-data")]);
+  await untilLinked("chat", "chat");
+  await untilLinked("agent", "scout");
+  const terminal = new FakeTerminal(100, 40);
+  const { cli, exited } = openOn(terminal);
+  stopAfter(t, async () => {
+    cli.requestStop();
+    await exited.catch(() => undefined);
+  });
+  await seen(terminal, "You have not talked to scout yet.");
+  return { home, model, terminal, exited };
+}
+
+/** Leave the console with Ctrl+C twice, and wait for it to be left. */
+async function leave(terminal: FakeTerminal, exited: Promise<number>): Promise<void> {
+  terminal.type(CTRL_C);
+  terminal.type(CTRL_C);
+  assert.equal(await within(30_000, exited, "the console to be left"), 0);
+}
+
 test("a bare shrimpy at a terminal opens the console, in which a person can see the agent, talk, watch the work, stop it and leave it working", { timeout }, async (t) => {
   const model = await testModel(t);
   const home = await agentHome(t, model);
   await startUp(t, [home, "--data", tempDir(t, "console-data")]);
-  await untilRegistered("chat", "chat");
-  await untilRegistered("agent", "scout");
+  await untilLinked("chat", "chat");
+  await untilLinked("agent", "scout");
   const terminal = new FakeTerminal();
   const { cli, exited } = openOn(terminal);
 
@@ -123,9 +156,9 @@ test("the gateway killed while an agent works: the turn finishes, its reply is p
   const data = tempDir(t, "console-gateway");
   const gateway = await serveGateway(t, [], data);
   await serveChat(t, tempDir(t, "console-chat"));
-  await untilRegistered("chat", "chat");
+  await untilLinked("chat", "chat");
   await serve(t, home);
-  await untilRegistered("agent", "scout");
+  await untilLinked("agent", "scout");
   const terminal = new FakeTerminal();
   const { cli, exited } = openOn(terminal);
   // A test that fails must not leave the console open, or its process never ends.
@@ -179,8 +212,8 @@ test("the console lists the rooms a person is in beside the agents, and a thread
   });
   const scout = await startScriptedAgent(t, { name: "scout", handle: () => working });
   const you = await talking.you();
-  const room = await you.chat.createRoom("ops", [(await memberNamed(t, "scout")).id]);
-  const [main] = await you.chat.threads(room.id);
+  const room = await you.createRoom("ops", [(await memberNamed(t, "scout")).id]);
+  const [main] = await you.threads(room.id);
   assert.ok(main);
   const terminal = new FakeTerminal();
   const { cli, exited } = openOn(terminal);
@@ -204,7 +237,7 @@ test("the console lists the rooms a person is in beside the agents, and a thread
   terminal.type("is the disk full?");
   terminal.type(ENTER);
   await seen(terminal, "scout is working", "who is working");
-  const [posted] = await eventually(() => you.chat.read(main.id, null, 10), (messages) => messages.length === 1, {
+  const [posted] = await eventually(() => you.read(main.id, null, 10), (messages) => messages.length === 1, {
     what: "the message to be posted in the room",
   });
   assert.ok(posted);
@@ -221,12 +254,12 @@ test("the console lists the rooms a person is in beside the agents, and a thread
   terminal.type("and the backups?");
   terminal.type(ENTER);
   const [side] = await eventually(
-    async () => (await you.chat.threads(room.id)).filter((thread) => !thread.main),
+    async () => (await you.threads(room.id)).filter((thread) => !thread.main),
     (threads) => threads.length === 1,
     { what: "a second thread in the room" },
   );
   assert.ok(side);
-  const [first] = await eventually(() => you.chat.read(side.id, null, 10), (messages) => messages.length > 0, {
+  const [first] = await eventually(() => you.read(side.id, null, 10), (messages) => messages.length > 0, {
     what: "its first message",
   });
   assert.equal(first?.text, "and the backups?");
@@ -234,6 +267,66 @@ test("the console lists the rooms a person is in beside the agents, and a thread
   terminal.type(CTRL_C);
   terminal.type(CTRL_C);
   assert.equal(await within(30_000, exited, "the console to be left"), 0);
+});
+
+test("the agent's view of a long turn has its start, which the terminal reads back from where the session's window starts", { timeout }, async (t) => {
+  const { terminal, exited } = await consoleWithScout(t);
+  terminal.type(CTRL_N);
+  await seen(terminal, "New thread with scout. Type below to start it.");
+
+  // Thirty tool calls, each its own answer and result, make far more entries than a session's window holds.
+  terminal.type("count to thirty");
+  terminal.type(ENTER);
+  await seen(terminal, "Counted to thirty.", "the agent's answer", 60_000);
+  const before = terminal.text().length;
+  terminal.type(TAB);
+
+  await seenAfter(terminal, before, "step-01", "the turn's first call, from before the window");
+  assert.doesNotMatch(terminal.text().slice(before), /Earlier items are not shown/, "the whole session is shown");
+  await leave(terminal, exited);
+});
+
+test("a failed turn says why in its receipt and in /status, in words with what to do, and a wake-up the agent waits on shows beside the thread and in /status with how to cancel it", { timeout }, async (t) => {
+  const { terminal, exited } = await consoleWithScout(t);
+  terminal.type(CTRL_N);
+  await seen(terminal, "New thread with scout. Type below to start it.");
+
+  terminal.type("please refuse");
+  terminal.type(ENTER);
+  await seen(terminal, "scout failed: The model failed", "the failed receipt");
+  terminal.type("/status");
+  terminal.type(ENTER);
+  await seen(terminal, "Last turn: The model failed", "why the last turn failed, in /status");
+  assert.match(terminal.text().replace(/\s+/g, " "), /Last turn: The model failed.*try another model with \/model/, "with what to do");
+
+  terminal.type("check back later");
+  terminal.type(ENTER);
+  await seen(terminal, "I will check back later.", "the agent's answer");
+  await seen(terminal, "scout checks back at", "the wake-up beside the thread");
+  assert.match(terminal.text(), /scout checks back at \d\d:\d\d: look at the build again · write \/stop to cancel it/);
+  const before = terminal.text().length;
+  terminal.type("/status");
+  terminal.type(ENTER);
+  await seenAfter(terminal, before, "Checks back at", "the wake-up in /status");
+  assert.ok(!terminal.text().slice(before).includes("Last turn:"), "the next turn cleared why the last one failed");
+  await leave(terminal, exited);
+});
+
+test("the list of agents shows an agent working in a session that is none of the person's threads, and where, as the agent says it while it works", { timeout }, async (t) => {
+  const { home, terminal, exited } = await consoleWithScout(t);
+  const added = await shrimpy(["triggers", "add", "nightly", "--every", "1h", "go slow", "--agent", home]);
+  assert.equal(added.code, 0, added.stderr);
+  const fired = await shrimpy(["triggers", "run", "nightly", "--agent", home]);
+  assert.equal(fired.code, 0, fired.stderr);
+  await seen(terminal, "trigger nightly", "the trigger's session on scout's screen");
+
+  terminal.type(ESC);
+  await seen(terminal, "working · trigger nightly", "scout's row on the list of agents");
+  const before = terminal.text().length;
+  const stopped = await shrimpy(["sessions", "stop", "trigger:nightly", "--agent", home]);
+  assert.equal(stopped.code, 0, stopped.stderr);
+  await seenAfter(terminal, before, "idle", "scout to be idle once the work is stopped");
+  await leave(terminal, exited);
 });
 
 test("a console that cannot start says why, exits with 1, and leaves nothing running", { timeout }, async (t) => {

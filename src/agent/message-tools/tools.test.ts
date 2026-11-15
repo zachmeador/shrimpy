@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { userInfo } from "node:os";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { Chat } from "../../contracts/chat/index.ts";
 import { until } from "../../lib/testing/index.ts";
 import { localTime } from "../../lib/time/index.ts";
-import { callingTools, startAgentRig } from "../testing/index.ts";
+import { callingTools, onChannel, onThread, startAgentRig, valueOf } from "../testing/index.ts";
 
 const timeout = 30_000;
 
@@ -136,16 +138,20 @@ test("an agent starts a DM with a member it has never talked to, by name, and sa
   ]);
   const rig = await startAgentRig(t, { script: model.script });
   const mechanic = await rig.chat.agent("mechanic");
-  assert.deepEqual(await mechanic.chat.channels(), [], "they have never talked");
+  const theirs = await mechanic.host.get(Chat, {}, BACKGROUND_CONTEXT);
+  assert.equal(theirs.channels.value.length, 0, "they have never talked");
 
   await rig.receiptOn(await rig.say("tell the mechanic"));
 
-  const [channel] = await mechanic.chat.channels();
+  await until(() => theirs.channels.value.length > 0, "the mechanic to see the DM");
+  const [channel] = theirs.channels.value;
   assert.ok(channel);
   assert.equal(channel.name, "scout", "the mechanic sees a DM with the agent");
-  const [main] = await mechanic.chat.threads(channel.id);
+  const main = await onChannel(mechanic, channel.id, (held) => held.threads.value.find((thread) => thread.main));
   assert.ok(main);
-  const [sent, ...others] = await mechanic.chat.read(main.id, null, 10);
+  const [sent, ...others] = await onThread(mechanic, main.id, async (held) =>
+    valueOf(await held.read({ before: null, limit: 10 }, BACKGROUND_CONTEXT)),
+  );
   assert.deepEqual(others, []);
   assert.equal(sent?.text, "The build is red.");
   assert.equal(sent.author.id, rig.partner.id);

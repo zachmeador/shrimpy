@@ -1,10 +1,12 @@
-import type { SessionItem, SessionView } from "../../../contracts/agent/index.ts";
+import type { SessionItem } from "../../../contracts/agent/index.ts";
+import type { SessionView } from "../state/index.ts";
 import { countLines, firstCharacters, lastCharacters, lastLines, oneLine, plain } from "./plain.ts";
 import {
   answerNote,
   hiddenCharacters,
   hiddenLines,
   hiddenSteps,
+  imageWords,
   type InFull,
   markerWords,
   moreCharacters,
@@ -22,6 +24,8 @@ export type Step =
       text: string;
       /** How much of the start of it is left out, in words, when it was too long to show. */
       earlier: string | undefined;
+      /** Each image it was shown with, named. */
+      images: string[];
     }
   | {
       kind: "thinking";
@@ -52,6 +56,8 @@ export type Step =
       output: string[];
       /** How much of the start of the output is left out, in words, when there was more. */
       earlier: string | undefined;
+      /** Each image the tool gave back, named. */
+      images: string[];
       notes: string[];
     }
   /** Where a session being watched was reset or compacted. */
@@ -100,10 +106,10 @@ export function workOf(session: SessionView | undefined, inFull: InFull): Work |
 /** The most items of a session shown at once, which are its newest. */
 const MAX_ITEMS = 200;
 
-/** A session being watched: its newest items as steps, oldest first, and how many items come before them. */
+/** A session being watched: its newest items as steps, oldest first, and whether items come before them. */
 export interface Watched {
   steps: Step[];
-  earlier: number;
+  earlier: boolean;
 }
 
 /**
@@ -113,7 +119,7 @@ export interface Watched {
  */
 export function watchOf(session: SessionView, inFull: InFull): Watched {
   const shown = session.items.slice(-MAX_ITEMS);
-  return { steps: shown.flatMap((item) => stepsOf(item, inFull, true)), earlier: session.items.length - shown.length };
+  return { steps: shown.flatMap((item) => stepsOf(item, inFull, true)), earlier: session.items.length > shown.length || session.before !== null };
 }
 
 /**
@@ -126,7 +132,8 @@ function stepsOf(item: SessionItem, inFull: InFull, transcript: boolean): Step[]
     case "user": {
       if (!transcript) return [];
       const { text, cut } = lastCharacters(item.text.trimEnd(), FULL_CHARACTERS);
-      return [{ kind: "shown", label: SHOWN, text: plain(text), earlier: cut > 0 ? hiddenCharacters(cut) : undefined }];
+      const images = item.images.map((image) => imageWords(image.mimeType));
+      return [{ kind: "shown", label: SHOWN, text: plain(text), earlier: cut > 0 ? hiddenCharacters(cut) : undefined, images }];
     }
     case "marker":
       return transcript ? [{ kind: "marker", text: markerWords(item.marker) }] : [];
@@ -179,6 +186,7 @@ function toolStep(item: Extract<SessionItem, { type: "tool" }>, whole: boolean):
     tone: status.tone,
     output: lines.length === 1 && lines[0] === "" ? [] : lines,
     earlier,
+    images: item.images.map((image) => imageWords(image.mimeType)),
     notes: item.notes.map(oneLine),
   };
 }

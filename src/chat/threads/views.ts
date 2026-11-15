@@ -1,0 +1,96 @@
+import type { Channel, Member, Message, Thread } from "../../contracts/chat/index.ts";
+import { type Answer, refused, type Refused } from "../../contracts/gateway/index.ts";
+import { fitAnswer } from "../input/index.ts";
+import { answer } from "../refusal/index.ts";
+import { isMember, readableChannel, readableThread, readsOthers } from "./access.ts";
+import type { ChatDeps } from "./deps.ts";
+import { toChannel } from "./directory.ts";
+import { withWorking } from "./working.ts";
+
+/** Messages a thread shows at once. Older ones are counted in `earlier` and read with `read`. */
+export const VIEW_MESSAGES = 200;
+
+/** What a program that is no member is told when it asks chat for anything. */
+export const NOT_A_MEMBER = refused("Only the network's members use chat, and the roster has no member for whoever is asking.");
+
+/** What `Chat` shows its caller. */
+export type ChatView = {
+  you: Member | null;
+  channels: Channel[];
+  readOnlyChannels: Channel[];
+  head: number;
+};
+
+/**
+ * `Chat` as `caller` sees it, or as a program that is no member does when it is
+ * undefined. `since` is a position the caller's head is known to have reached,
+ * so only what came after it is looked through.
+ */
+export function chatView(deps: ChatDeps, caller: Member | undefined, since: number): ChatView {
+  if (caller === undefined) return { you: null, channels: [], readOnlyChannels: [], head: 0 };
+  return deps.store.transaction((tx) => ({
+    you: caller,
+    channels: tx.channelsOf(caller.id).map((record) => toChannel(record, caller)),
+    readOnlyChannels: readsOthers(caller) ? tx.channelsWithout(caller.id).map((record) => toChannel(record, caller)) : [],
+    head: tx.headOf(caller.id, since),
+  }));
+}
+
+/** What `Channel` shows its caller. */
+export type ChannelView = {
+  refusal: Refused | null;
+  channel: Channel | null;
+  threads: Thread[];
+};
+
+/** `Channel` for `channelId` as `caller` sees it: the channel and its threads, or why it can't have them. */
+export function channelView(deps: ChatDeps, caller: Member | undefined, channelId: string): ChannelView {
+  const found: Answer<ChannelView> =
+    caller === undefined
+      ? NOT_A_MEMBER
+      : answer(() =>
+          deps.store.transaction((tx) => {
+            const record = readableChannel(tx, caller, channelId);
+            return {
+              refusal: null,
+              channel: toChannel(record, caller),
+              threads: tx.threadsIn(channelId).map((thread) => withWorking(thread, deps.working)),
+            };
+          }),
+        );
+  return found.kind === "done" ? found.value : { refusal: found, channel: null, threads: [] };
+}
+
+/** What `Thread` shows its caller. */
+export type ThreadView = {
+  refusal: Refused | null;
+  thread: Thread | null;
+  messages: Message[];
+  earlier: number;
+  readOnly: boolean;
+};
+
+/**
+ * `Thread` for `threadId` as `caller` sees it: the thread, its newest messages
+ * and how many come before them, and whether the caller only reads it; or why
+ * it can't have them.
+ */
+export function threadView(deps: ChatDeps, caller: Member | undefined, threadId: string): ThreadView {
+  const found: Answer<ThreadView> =
+    caller === undefined
+      ? NOT_A_MEMBER
+      : answer(() =>
+          deps.store.transaction((tx) => {
+            const { thread, channel } = readableThread(tx, caller, threadId);
+            const messages = fitAnswer(tx.messagesIn(threadId, null, VIEW_MESSAGES), "newest");
+            return {
+              refusal: null,
+              thread: withWorking(thread, deps.working),
+              messages,
+              earlier: tx.messageCount(threadId) - messages.length,
+              readOnly: !isMember(channel, caller.id),
+            };
+          }),
+        );
+  return found.kind === "done" ? found.value : { refusal: found, thread: null, messages: [], earlier: 0, readOnly: false };
+}

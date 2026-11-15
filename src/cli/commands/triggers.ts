@@ -4,16 +4,21 @@ import {
   describeSchedule,
   draftTrigger,
   NoTriggerError,
-  placeOfThread,
   readHomeTriggers,
   removeTrigger,
   saveTrigger,
   switchTrigger,
   TriggerFileError,
 } from "../../agent/index.ts";
-import { AGENT_HOME_VARIABLE, type AgentConnection, type TriggerSchedule } from "../../contracts/agent/index.ts";
+import {
+  AGENT_HOME_VARIABLE,
+  type Occurrence,
+  type Reloaded,
+  type TriggerDetail,
+  type TriggerSchedule,
+} from "../../contracts/agent/index.ts";
 import type { Io } from "../io/index.ts";
-import { type Reached, reachChat } from "../talk/index.ts";
+import { type AgentReached, contextOf, type HeldAgent, onAgent, onChannel, type Reached, reachChat, valueOf } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning, noAgentRunning } from "./connected.ts";
@@ -56,19 +61,34 @@ function saysFilesOnly(io: Io, target: Target): void {
   );
 }
 
-/** Run `use` with the connection to the agent, if one is running, and let the connection go. */
-async function whileRunning<T>(target: Target, use: (connection: AgentConnection | undefined) => Promise<T>): Promise<T> {
-  const connection = await connectIfRunning(target.home);
-  try {
-    return await use(connection);
-  } finally {
-    await connection?.close().catch(() => undefined);
-  }
+/** What a command does with a running agent's triggers, over the `Agent` it holds. */
+interface Triggering {
+  triggers(): ReturnType<typeof triggerList>;
+  names(): string[];
+  trigger(name: string): Promise<TriggerDetail>;
+  fire(name: string): Promise<Occurrence>;
+  reload(): Promise<Reloaded>;
 }
 
-/** The names of the triggers a running agent has. */
-async function triggersOf(connection: AgentConnection): Promise<string[]> {
-  return (await connection.triggers()).map((trigger) => trigger.name);
+const triggerList = (agent: HeldAgent) => agent.triggers.value;
+
+/** Run `use` with the agent's triggers, if an agent is running, and let the agent go. */
+async function whileRunning<T>(target: Target, use: (agent: Triggering | undefined) => Promise<T>): Promise<T> {
+  const reached: AgentReached | undefined = await connectIfRunning(target.home);
+  if (reached === undefined) return use(undefined);
+  try {
+    return await onAgent(reached, (agent) =>
+      use({
+        triggers: () => triggerList(agent),
+        names: () => triggerList(agent).map((trigger) => trigger.name),
+        trigger: async (name) => valueOf(await agent.trigger({ name }, contextOf())),
+        fire: async (name) => valueOf(await agent.fire({ name }, contextOf())),
+        reload: async () => valueOf(await agent.reload(contextOf())),
+      }),
+    );
+  } finally {
+    await reached.close().catch(() => undefined);
+  }
 }
 
 /**
@@ -80,22 +100,22 @@ async function triggersOf(connection: AgentConnection): Promise<string[]> {
 async function followed(
   io: Io,
   target: Target,
-  then?: (connection: AgentConnection) => Promise<void>,
+  then?: (running: Triggering) => Promise<void>,
   afterStart = "",
 ): Promise<void> {
-  await whileRunning(target, async (connection) => {
-    if (connection === undefined) {
+  await whileRunning(target, async (running) => {
+    if (running === undefined) {
       io.out(
         `No agent is running at ${target.home}, so the change takes effect when the agent starts${afterStart}. ` +
           `Start one with: shrimpy agent serve ${target.given}`,
       );
       return;
     }
-    const reloaded = await connection.reload();
+    const reloaded = await running.reload();
     io.out(`Told the agent to read its files again. It now reads ${whatItReads(reloaded)}.`);
     if (reloaded.changedFrom !== null) io.out(modelLine(reloaded));
     if (reloaded.leftOut.length > 0) io.out(`Left out:\n${leftOutLines(reloaded.leftOut).join("\n")}`);
-    await then?.(connection);
+    await then?.(running);
   });
 }
 
@@ -127,20 +147,25 @@ async function checkThread(io: Io, target: Target, thread: string): Promise<void
     return;
   }
   try {
-    const place = await placeOfThread(reached.connection.chat, thread);
-    if (place.kind === "missing") {
+    if (!(await inOneOf(reached, thread))) {
       throw new UsageError(
         `Nothing was written: you are in no channel that has the thread ${thread}. There is no such thread, or you ` +
           "are not in its channel. Give --thread one of yours: shrimpy threads <name> lists your threads with a member, " +
           'and shrimpy threads "#room" those of a room.',
       );
     }
-    if (place.kind === "unreachable") {
-      io.out(`Thread ${thread} was not checked, because chat dropped the connection. If the agent is not in its channel, each occurrence fails and says so.`);
-    }
   } finally {
     await reached.close();
   }
+}
+
+/** Whether one of the channels whoever reached chat is in has the thread, as the agent finds a thread's channel. */
+async function inOneOf(reached: Reached, thread: string): Promise<boolean> {
+  for (const channel of reached.chat.channels.value) {
+    const threads = await onChannel(reached.client, channel.id, (held) => held.threads.value);
+    if (threads.some((each) => each.id === thread)) return true;
+  }
+  return false;
 }
 
 /** Make a change to a trigger's file, and turn what can go wrong with it into what to say. */
@@ -195,9 +220,9 @@ const list: Command = {
     const target = agentToActOn(values.agent);
     const none = `No triggers yet. Make one with: ${command(target, MAKE_ONE)}`;
 
-    return whileRunning(target, async (connection) => {
-      if (connection !== undefined) {
-        const triggers = await connection.triggers();
+    return whileRunning(target, async (running) => {
+      if (running !== undefined) {
+        const triggers = running.triggers();
         for (const line of triggers.length === 0 ? [none] : renderTriggers(triggers)) io.out(line);
         return 0;
       }
@@ -307,8 +332,8 @@ const add: Command = {
     await followed(
       io,
       target,
-      async (connection) => {
-        const { next } = await connection.trigger(name);
+      async (running) => {
+        const { next } = await running.trigger(name);
         if (next !== null) io.out(`It ${replaced ? "next" : "first"} runs at ${when(next, Date.now())}.`);
       },
       // A trigger that is new counts from the start. One that replaces another may keep the clock of the one before.
@@ -341,11 +366,11 @@ const show: Command = {
     const [name] = expectArguments(positionals, ["<name>"]);
     const target = agentToActOn(values.agent);
 
-    return whileRunning(target, async (connection) => {
-      if (connection !== undefined) {
-        const known = await triggersOf(connection);
+    return whileRunning(target, async (running) => {
+      if (running !== undefined) {
+        const known = running.names();
         if (!known.includes(name)) throw new Error(noTrigger(target, name, known));
-        for (const line of renderTrigger(await connection.trigger(name), Date.now())) io.out(line);
+        for (const line of renderTrigger(await running.trigger(name), Date.now())) io.out(line);
         return 0;
       }
       saysFilesOnly(io, target);
@@ -385,12 +410,12 @@ const run: Command = {
     const [name] = expectArguments(positionals, ["<name>"]);
     const target = agentToActOn(values.agent);
 
-    return whileRunning(target, async (connection) => {
-      if (connection === undefined) throw new Error(noAgentRunning(target.home, target.given));
-      const known = await triggersOf(connection);
+    return whileRunning(target, async (running) => {
+      if (running === undefined) throw new Error(noAgentRunning(target.home, target.given));
+      const known = running.names();
       if (!known.includes(name)) throw new Error(noTrigger(target, name, known));
-      const { check } = await connection.trigger(name);
-      const occurrence = await connection.fire(name);
+      const { check } = await running.trigger(name);
+      const occurrence = await running.fire(name);
       if (occurrence.ended !== null) {
         io.err(`The trigger ${name} did not run. ${occurrence.reason ?? `It ended as ${occurrence.ended}.`}`);
         return 1;

@@ -1,10 +1,9 @@
 /**
  * The agent's message tools: `send_message`, which posts to a thread, to the
  * agent's DM with someone or to a room it is in right away, and `read_messages`,
- * which reads one. They reach chat over the connection the agent already has,
- * handed to them, and never open another or wait for one to come back. They must
- * not know how chat is found or kept, how a turn's reply is posted, or what the
- * sessions store.
+ * which reads one. They reach chat as the agent already has it, handed to them,
+ * and never wait for it to come back. They must not know how chat is found or
+ * kept, how a turn's reply is posted, or what the sessions store.
  */
 import { defineExtension, type Extension } from "@earendil-works/pi-durable";
 import type { MessageToolsOptions } from "./options.ts";

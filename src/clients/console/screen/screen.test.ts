@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { assistantItem, sessionView, toolItem, userItem, workingView } from "../../../contracts/agent/testing/index.ts";
+import { assistantItem, toolItem, userItem } from "../../../contracts/agent/testing/index.ts";
 import type { Notice, Status } from "../state/index.ts";
 import {
   aChatServer,
@@ -15,7 +15,10 @@ import {
   aSession,
   aThread,
   aThreadView,
+  onSession,
   onThread,
+  sessionView,
+  workingView,
   zach,
 } from "../state/testing/index.ts";
 import {
@@ -24,6 +27,7 @@ import {
   modelLines,
   type Screen,
   screenOf,
+  type SessionScreen,
   type ThreadScreen,
   type ThreadsScreen,
 } from "./index.ts";
@@ -45,6 +49,10 @@ const threads = (screen: Screen): ThreadsScreen => {
 const thread = (screen: Screen): ThreadScreen => {
   assert.equal(screen.kind, "thread");
   return screen as ThreadScreen;
+};
+const session = (screen: Screen): SessionScreen => {
+  assert.equal(screen.kind, "session");
+  return screen as SessionScreen;
 };
 
 test("the agents are listed by name, with whether each is working, and the list says nothing is wrong when nothing is", () => {
@@ -87,7 +95,7 @@ test("with no agents it says what to start, and with no gateway it says that ins
   assert.match(none.empty ?? "", /shrimpy agent serve/);
 
   const away = agents(
-    screenOf(aModel({ gateway: { state: "down", why: { kind: "not-running" } }, listing: undefined, chat: { state: "down", why: { kind: "not-registered" } } }), { now }),
+    screenOf(aModel({ gateway: { state: "down", why: { kind: "not-running" } }, listing: undefined, chat: { state: "down", why: { kind: "not-linked" } } }), { now }),
   );
   assert.equal(away.empty, undefined);
   const [note, ...more] = away.notes;
@@ -408,12 +416,12 @@ test("an agent that went away is not said to be working because of what its sess
   assert.notEqual(stillMarked.working, undefined, "chat still says it is working, so that is said");
 });
 
-test("the gateway being gone explains why nothing is registered, and is said once", () => {
+test("the gateway being gone explains why nothing is linked, and is said once", () => {
   const open = aThread("th_1", { preview: "go" });
   const model = onThread("scout", open, undefined, {
     gateway: { state: "down", why: { kind: "not-running" } },
-    chat: { state: "down", why: { kind: "not-registered" } },
-    agent: { state: "down", why: { kind: "not-registered" } },
+    chat: { state: "down", why: { kind: "not-linked" } },
+    agent: { state: "down", why: { kind: "not-linked" } },
   });
 
   assert.equal(thread(screenOf(model, { now })).notes.length, 1);
@@ -422,7 +430,7 @@ test("the gateway being gone explains why nothing is registered, and is said onc
 
 test("an agent that is not running is said to start here when this machine has its home, and where it lives when it has none", () => {
   const open = aThread("th_1", { preview: "go" });
-  const gone = { state: "down" as const, why: { kind: "not-registered" as const } };
+  const gone = { state: "down" as const, why: { kind: "not-linked" as const } };
   const homes = (agent: string) => ({ found: agent === "scout", where: "/folder/agents" });
   const noteOn = (name: string, parts: Parameters<typeof onThread>[3]) =>
     thread(screenOf(onThread(name, open, undefined, { agent: gone, ...parts }), { now })).notes;
@@ -475,6 +483,98 @@ function* stringsIn(value: unknown): Generator<string> {
     for (const [key, each] of Object.entries(value)) if (key !== "id") yield* stringsIn(each);
   }
 }
+
+test("a wake-up the agent waits on is shown with its work, with when it comes and, where the person writes, that /stop cancels it", () => {
+  const idle = aThread("th_1", { preview: "go" });
+  const waiting = sessionView({ items: [userItem("go"), assistantItem("Asking to be woken.")], status: { wakeups: [{ due: at(10, 3, 15, 30), note: "look at the build again" }] } });
+
+  const inDm = thread(screenOf(onThread("scout", idle, aThreadView(idle, []), { session: waiting }), { now }));
+  assert.equal(inDm.waiting.length, 1);
+  assert.ok(inDm.waiting[0]?.includes("15:30") && inDm.waiting[0].includes("look at the build again"), inDm.waiting.join("\n"));
+  assert.match(inDm.waiting[0] ?? "", /\/stop/, "in a thread the person writes in, it says how to cancel it");
+
+  const reading = aModel({
+    where: { screen: "thread", place: { kind: "read-only", id: "ch_3" }, thread: "th_1", agent: "scout" },
+    listing: aListing([anAgent("scout"), aChatServer()]),
+    agent: { state: "up" },
+    readOnly: { ch_3: { channel: { id: "ch_3", kind: "dm", name: "mechanic and scout", members: [scout, agentMember("mechanic")] }, threads: [idle] } },
+    session: waiting,
+  });
+  const onlyRead = thread(screenOf(reading, { now }));
+  assert.ok(onlyRead.waiting[0]?.includes("15:30"));
+  assert.doesNotMatch(onlyRead.waiting[0] ?? "", /\/stop/, "where the person can't write, it doesn't say to");
+
+  const watched = session(screenOf(onSession("scout", aSession("trigger:nightly"), waiting), { now }));
+  assert.ok(watched.waiting[0]?.includes("look at the build again"));
+});
+
+test("an image a session was shown, or a tool gave back, is named in the watch by its media type", () => {
+  const view = sessionView({
+    items: [
+      userItem("what is in this picture?", 1, [{ mimeType: "image/png" }]),
+      toolItem("read", { status: "done", output: "shot.jpg", images: [{ mimeType: "image/jpeg" }], entry: 2 }),
+    ],
+  });
+
+  const { steps } = session(screenOf(onSession("scout", aSession("th_1"), view), { now }));
+
+  assert.ok(steps.some((step) => step.kind === "shown" && step.images.some((image) => image.includes("image/png"))), JSON.stringify(steps));
+  assert.ok(steps.some((step) => step.kind === "tool" && step.images.some((image) => image.includes("image/jpeg"))), JSON.stringify(steps));
+});
+
+test("a watch that starts after the session's start says earlier items are not shown, and how to read them", () => {
+  const view = sessionView({ items: [userItem("the newest", 140)], before: 139 });
+
+  const watched = session(screenOf(onSession("scout", aSession("trigger:nightly"), view), { now }));
+
+  assert.ok(watched.lead?.includes("shrimpy sessions read trigger:nightly --agent scout"), JSON.stringify(watched));
+  const whole = session(screenOf(onSession("scout", aSession("trigger:nightly"), sessionView({ items: [userItem("the first", 1)] })), { now }));
+  assert.equal(whole.lead, undefined, "one that starts at the session's start says nothing of earlier items");
+});
+
+test("/status says why the last turn ended without an answer, in words with what to do, and each wake-up that waits", () => {
+  const open = aThread("th_1", { preview: "go" });
+  const status: Status = {
+    at: now,
+    about: {
+      kind: "agent",
+      name: "scout",
+      running: true,
+      version: "0.0.0",
+      reached: true,
+      doing: { kind: "idle" },
+      session: {
+        queued: 0,
+        model: { provider: "local", id: "small" },
+        own: false,
+        defaultModel: undefined,
+        usage: { input: 0, output: 0, cost: 0 },
+        failure: { reason: "model_error", detail: "429 Too Many Requests" },
+        wakeups: [{ due: now + 60_000, note: "look again" }],
+      },
+      othersWorking: 0,
+    },
+  };
+
+  const rows = thread(screenOf(onThread("scout", open, aThreadView(open, []), { status }), { now })).status?.rows ?? [];
+
+  assert.ok(rows.some((row) => row.includes("429 Too Many Requests") && row.includes("/model")), rows.join("\n"));
+  assert.ok(rows.some((row) => row.includes("look again") && row.includes("/stop")), rows.join("\n"));
+});
+
+test("/devices lists each device of the person's by its label and ID, and says how to take one back, or that there are none", () => {
+  const open = aThread("th_1", { preview: "go" });
+  const listed: Status = { at: now, about: { kind: "devices", devices: [{ label: "laptop", id: "way_aaaaaaaaaaaa" }, { label: null, id: "way_bbbbbbbbbbbb" }] } };
+
+  const block = thread(screenOf(onThread("scout", open, aThreadView(open, []), { status: listed }), { now })).status;
+
+  assert.ok(block?.header.startsWith("devices"));
+  assert.ok(block?.rows.some((row) => row.includes("laptop") && row.includes("way_aaaaaaaaaaaa")));
+  assert.ok(block?.rows.some((row) => row.includes("way_bbbbbbbbbbbb")));
+  assert.ok(block?.rows.some((row) => row.includes("/devices take back")), "it says how to take one back");
+  const none = thread(screenOf(onThread("scout", open, aThreadView(open, []), { status: { at: now, about: { kind: "devices", devices: [] } } }), { now })).status;
+  assert.equal(none?.rows.length, 1);
+});
 
 test("text from other members and from tools can't act on a terminal, wherever it appears", () => {
   const ESC = "\u001b";
@@ -539,6 +639,8 @@ test("text from other members and from tools can't act on a terminal, wherever i
           own: true,
           defaultModel: { provider: `home${hostile}`, id: `default${hostile}` },
           usage: { input: 1, output: 2, cost: 0.5 },
+          failure: { reason: `reason${hostile}`, detail: `detail${hostile}` },
+          wakeups: [{ due: now, note: `note${hostile}` }],
         },
         othersWorking: 1,
       },

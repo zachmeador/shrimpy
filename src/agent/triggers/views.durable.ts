@@ -1,4 +1,4 @@
-import type { JsonValue } from "@earendil-works/chord";
+import type { JsonValue } from "@earendil-works/chord/json";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Cursor, Harness, TaskRecord } from "@earendil-works/pi-durable";
 import type { Occurrence as OccurrenceView, TriggerSummary } from "../../contracts/agent/index.ts";

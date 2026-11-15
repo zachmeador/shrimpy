@@ -4,9 +4,7 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { readMembership } from "../contracts/agent/node.ts";
 import { formatAddress, writeLink } from "../contracts/gateway/index.ts";
-import { connectLocalGateway } from "../contracts/gateway/node.ts";
-import { stopAfter } from "../lib/testing/index.ts";
-import { commandLines, serveGateway, shrimpy, useShrimpyDir } from "./testing/index.ts";
+import { commandLines, onTheRoster, serveGateway, shrimpy, useShrimpyDir } from "./testing/index.ts";
 
 /*
  * `join` with the link of an agent's invitation, as a command in a process of its own, against a gateway that listens
@@ -21,15 +19,17 @@ async function gatewayThatLetsIn(t: TestContext) {
   const gateway = await serveGateway(t, ["--listen", "127.0.0.1:0"]);
   const [address] = gateway.listening.listen;
   assert.ok(address);
-  const person = await connectLocalGateway();
-  stopAfter(t, () => person.close());
+  const person = await onTheRoster(t);
   /** The link of an invitation for `name`, as `invite` prints it. */
-  const linkFor = async (name: string): Promise<string> => writeLink({ name, address, code: (await person.invite(name)).code });
+  const linkFor = async (name: string): Promise<string> => {
+    const { code, fingerprint } = await person.invite(name);
+    return writeLink({ name, address, code, fingerprint });
+  };
   return { address, gateway, person, linkFor };
 }
 
-test("join makes the home with no model for the agent the link names and joins with it, keeps where the gateway is, and says what to do next, which is less once the folder has a model; the same link in that folder is refused", { timeout }, async (t) => {
-  const { address, person, linkFor } = await gatewayThatLetsIn(t);
+test("join makes the home with no model for the agent the link names and joins with it, keeps where the gateway is and its key, and says what to do next, which is less once the folder has a model; the same link in that folder is refused", { timeout }, async (t) => {
+  const { address, gateway, person, linkFor } = await gatewayThatLetsIn(t);
   const folder = useShrimpyDir(t);
   const link = await linkFor("crab");
 
@@ -40,7 +40,7 @@ test("join makes the home with no model for the agent the link names and joins w
   assert.deepEqual(JSON.parse(readFileSync(join(home, "agent.json"), "utf8")), { name: "crab" }, "a home that names no model");
   const crab = (await person.members()).find((member) => member.name === "crab");
   assert.equal(crab?.kind, "agent");
-  assert.deepEqual(readMembership(home)?.gateway, address);
+  assert.deepEqual(readMembership(home)?.gateway, { ...address, fingerprint: gateway.listening.fingerprint });
   assert.equal(readMembership(home)?.memberId, crab.id);
   assert.deepEqual(commandLines(joined.stdout), ["shrimpy login", "shrimpy up"], "the folder has no model, so signing in is first");
 
@@ -61,12 +61,13 @@ test("join makes the home with no model for the agent the link names and joins w
 test("join makes nothing of text that is not a link or a name no agent can have", { timeout }, async (t) => {
   const folder = useShrimpyDir(t);
   const address = { host: "127.0.0.1", port: 7447 };
+  const fingerprint = "ocKmkNBacmPG6VxrlnuW3Q";
 
   for (const wrong of [
     "not a link",
     "crab",
-    writeLink({ name: "../elsewhere", address, code: "K7Q2-9FXD" }),
-    writeLink({ name: "Scout Bot", address, code: "K7Q2-9FXD" }),
+    writeLink({ name: "../elsewhere", address, code: "K7Q2-9FXD", fingerprint }),
+    writeLink({ name: "Scout Bot", address, code: "K7Q2-9FXD", fingerprint }),
   ]) {
     assert.equal((await shrimpy(["join", wrong])).code, 2, wrong);
   }

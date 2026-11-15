@@ -1,114 +1,134 @@
 /**
  * The chat server program: one process that keeps channels, threads, the log of
- * events and the messages they add up to in its own store and serves the chat
- * API for everyone on this machine. Other programs reach chat only through
- * `contracts/chat`, by its name through the gateway; they never import this
- * program's modules. It must not know what a member does with an event, or
- * anything about an agent's sessions. Of the gateway it knows only its
- * contract: it registers there with the one socket it listens on, which only
- * the gateway is told, and asks it who a ticket belongs to and who the admins
- * are, over the one connection it keeps.
+ * events and the messages they add up to in its own store, and serves the chat
+ * contract's objects at `chat()`. It links out to the gateway, which relays
+ * every request for chat over that link, stamped with who asks, and it holds
+ * the gateway's roster over the same link to know who members are and who is
+ * an admin. Other programs reach chat only through `contracts/chat`; they never
+ * import this program's modules. It must not know what a member does with an
+ * event, or anything about an agent's sessions.
  */
-import { type KeptRegistration, keepRegistered } from "../contracts/gateway/node.ts";
+import { createHost, type HostError } from "@earendil-works/chord";
+import { nodeCompression } from "@earendil-works/chord/compression";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { chat, type Principal, type Revocation, revokedBy } from "../contracts/gateway/index.ts";
+import { GatewayRefusedError, gatewaySocket, keepProgramLinked, UnknownAnswerError } from "../contracts/gateway/node.ts";
 import type { Backoff } from "../lib/retry/index.ts";
-import { namedSocketPath } from "../lib/runtime/node.ts";
-import { SHRIMPY_VERSION } from "../lib/version/index.ts";
-import { identityFromGateway } from "./identity/index.ts";
+import { createIdentity } from "./identity/index.ts";
 import { takeChatLock } from "./lock.ts";
+import { chatFacet } from "./served/index.ts";
 import { openStore } from "./store/index.ts";
-import { startServer } from "./server.ts";
-import { type ChatDeps, createWorkingMarks } from "./threads/index.ts";
+import { createWorkingMarks, renameMembers } from "./threads/index.ts";
 
 export { ChatRunningError } from "./lock.ts";
 
 export interface ChatOptions {
   /** Where the chat server keeps its store. */
   dataDir: string;
-  /** The pauses between attempts to reach the gateway. Tests shorten them. */
+  /** The pauses between attempts to link to the gateway. Tests shorten them. */
   backoff?: Backoff;
 }
 
 export interface RunningChat {
-  /** The Unix socket it listens on, which it tells the gateway and no one else. */
-  readonly socket: string;
-  /** The server ID it answers as, which the gateway gives to whoever is let in. */
-  readonly serverId: string;
   close(): Promise<void>;
 }
 
+const context = BACKGROUND_CONTEXT;
+
 /**
- * Take this machine's chat socket, then the data directory, then start
- * serving. The socket's lock comes first, so a second chat server on this
- * machine is refused with `ChatRunningError` before it touches its data
- * directory. The store's own lock still guards a data directory that two
- * servers reach through different sockets, and refuses with `StoreOwnedError`.
+ * Take the runtime directory's chat lock, then the data directory, then serve
+ * and link out to the gateway's own socket. A runtime directory too long for
+ * that socket is refused before anything is made, and the lock comes next, so
+ * a second chat server here is refused with `ChatRunningError` before it
+ * touches its data directory. The store's own lock still guards a data
+ * directory that two servers reach from different runtime directories, and
+ * refuses with `StoreOwnedError`.
  *
- * The chat server starts whether or not a gateway is running. It registers
- * when it finds one, and again each time the gateway comes back. Without a
- * gateway nobody can come in, because the gateway is the only one who can say
- * who they are, and they are told so.
+ * The chat server starts whether or not a gateway is running. It links when it
+ * finds one, and again each time the gateway comes back. Without a gateway
+ * nobody can reach it, since every request comes through the gateway. It says
+ * once that it can't reach the gateway, however long that lasts, and once that
+ * it is back, and a refusal once until it changes or the gateway lets it in.
  */
 export async function startChat(options: ChatOptions): Promise<RunningChat> {
-  const socket = namedSocketPath("chat");
-  const lock = takeChatLock(socket);
-  try {
-    const chat = await serveStore(options, socket);
-    return {
-      socket,
-      serverId: chat.serverId,
-      async close() {
-        try {
-          await chat.close();
-        } finally {
-          lock.release();
-        }
-      },
-    };
-  } catch (error) {
-    lock.release();
-    throw error;
-  }
-}
+  const socket = gatewaySocket();
+  const lock = takeChatLock();
+  const open: (() => void | Promise<void>)[] = [() => lock.release()];
+  const closeAll = async (): Promise<void> => {
+    const errors: unknown[] = [];
+    for (const close of open.splice(0).reverse()) {
+      try {
+        await close();
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    if (errors.length === 1) throw errors[0];
+    if (errors.length > 1) throw new AggregateError(errors, "The chat server did not close cleanly");
+  };
 
-async function serveStore(options: ChatOptions, socket: string): Promise<RunningChat> {
-  const onError = (error: Error): void => console.error("[chat]", error.message);
-  const store = openStore(options.dataDir, { onError });
   try {
-    // The connection to the gateway is kept once the server is listening, and the server asks it through here.
-    const gateway: { kept?: KeptRegistration } = {};
-    const deps: ChatDeps = {
-      store,
-      working: createWorkingMarks({ onError }),
-      identity: identityFromGateway(() => gateway.kept?.current()),
-      now: () => Date.now(),
+    const onError = (error: Error): void => console.error("[chat]", error.message);
+    const store = openStore(options.dataDir, { onError });
+    open.push(() => store.close());
+    const identity = createIdentity(onError);
+    const working = createWorkingMarks({ onError });
+    const report = (error: HostError): void => {
+      const cause = "error" in error ? error.error : "failure" in error ? error.failure.error : undefined;
+      console.error(`[chat] ${error.kind}${cause instanceof Error ? `: ${cause.message}` : ""}`);
     };
-    const server = await startServer(deps, socket, onError);
-    const kept = keepRegistered(
-      { kind: "chat", serverId: server.serverId, socket, version: SHRIMPY_VERSION },
-      {
-        backoff: options.backoff,
-        onError: (error) => onError(new Error(`Could not register with the gateway: ${error.message}`)),
-      },
+    const host = createHost<Principal, Revocation>({
+      address: chat(),
+      principal: { kind: "chat" },
+      revokedBy,
+      compression: nodeCompression,
+      onError: report,
+    });
+    open.push(() => host.close(context));
+    await host.load([{ name: "@shrimpy/chat", facet: chatFacet({ store, working, identity, now: () => Date.now() }) }], context);
+    identity.follow(host, context);
+    open.push(() => identity.close());
+    // The store keeps the names the roster has, so channels and messages name members as they are called now.
+    open.push(
+      identity.subscribe(() => {
+        const members = identity.members();
+        if (members !== undefined) renameMembers(store, members);
+      }),
     );
-    gateway.kept = kept;
-    return {
-      socket,
-      serverId: server.serverId,
-      async close() {
-        try {
-          // The registration goes first, so the gateway stops pointing at a server that is closing.
-          await kept.stop();
-        } finally {
-          try {
-            await server.close();
-          } finally {
-            store.close();
-          }
-        }
+    const stopping = new AbortController();
+    let away = false;
+    let reported: string | undefined;
+    const linking = keepProgramLinked({
+      host,
+      place: { path: socket },
+      who: () => ({ kind: "chat" }),
+      signal: stopping.signal,
+      onWelcome() {
+        reported = undefined;
+        if (away) onError(new Error(`The gateway at ${socket} is back.`));
+        away = false;
       },
-    };
+      onError(error) {
+        if (error instanceof GatewayRefusedError || error instanceof UnknownAnswerError) {
+          const told = error instanceof GatewayRefusedError ? `Could not link to the gateway: ${error.message}` : error.message;
+          if (told === reported) return;
+          reported = told;
+          onError(new Error(told));
+          return;
+        }
+        if (away) return;
+        away = true;
+        onError(new Error(`Can't reach the gateway at ${socket}. The chat server keeps trying, and nobody can reach chat until it is back.`));
+      },
+      ...(options.backoff === undefined ? {} : { backoff: options.backoff }),
+    });
+    open.push(async () => {
+      stopping.abort();
+      await linking;
+    });
+    return { close: closeAll };
   } catch (error) {
-    store.close();
+    await closeAll().catch(() => undefined);
     throw error;
   }
 }

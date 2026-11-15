@@ -1,5 +1,5 @@
 import type { Member } from "../../contracts/chat/index.ts";
-import type { Registration } from "../../contracts/gateway/index.ts";
+import type { Program } from "../../contracts/gateway/index.ts";
 import { lookForHome } from "../folder/index.ts";
 import { START_EVERYTHING } from "./hints.ts";
 
@@ -8,7 +8,7 @@ import { START_EVERYTHING } from "./hints.ts";
  * thing that is looked up, so that a name always means one member. When nobody
  * is called that, the error says who there is.
  */
-export function memberNamed<T extends Member>(members: T[], name: string): T {
+export function memberNamed<T extends Member>(members: readonly T[], name: string): T {
   const found = find(members, name);
   if (found !== undefined) return found;
   throw nobodyCalled(members, [name]);
@@ -19,7 +19,7 @@ export function memberNamed<T extends Member>(members: T[], name: string): T {
  * checked before any is used, and the error names each one the roster does not
  * have, and says who there is.
  */
-export function membersNamed(members: Member[], names: string[]): Member[] {
+export function membersNamed(members: readonly Member[], names: string[]): Member[] {
   const found = new Map<string, Member>();
   const nobody: string[] = [];
   for (const name of names) {
@@ -31,12 +31,12 @@ export function membersNamed(members: Member[], names: string[]): Member[] {
   return [...found.values()];
 }
 
-function find<T extends Member>(members: T[], name: string): T | undefined {
+function find<T extends Member>(members: readonly T[], name: string): T | undefined {
   const wanted = name.toLowerCase();
   return members.find((member) => member.name.toLowerCase() === wanted);
 }
 
-function nobodyCalled(members: Member[], names: string[]): Error {
+function nobodyCalled(members: readonly Member[], names: string[]): Error {
   const agents = members.filter((member) => member.kind === "agent").map((member) => member.name);
   const others = agents.length === 0 ? "No agent has joined yet." : `The agents are: ${agents.join(", ")}.`;
   const who = names.length === 1 ? names.join("") : `${names.slice(0, -1).join(", ")} or ${names.at(-1) ?? ""}`;
@@ -47,22 +47,22 @@ function nobodyCalled(members: Member[], names: string[]): Error {
 }
 
 /** The agent called `name` on the roster. A person called that is an error that says so. */
-export function agentNamed(members: Member[], name: string): Member {
+export function agentNamed(members: readonly Member[], name: string): Member {
   const found = memberNamed(members, name);
   if (found.kind !== "agent") throw new Error(`${found.name} is a person, not an agent.`);
   return found;
 }
 
 /**
- * The registration of `agent`, the newest if there are several. An agent that is
- * not registered can't answer, so when there is none the error says to start it:
- * here, if its home is in the Shrimpy folder, and where it lives if not, since
- * an agent can be on the roster with its home on another machine, or under
- * another user, and nothing here can start it.
+ * The program linked as `agent`. An agent that is not linked can't answer, so
+ * when there is none the error says to start it: here, if its home is in the
+ * Shrimpy folder, and where it lives if not, since an agent can be on the
+ * roster with its home on another machine, or under another user, and nothing
+ * here can start it.
  */
-export function runningAgent(programs: Registration[], agent: Member): Registration {
-  const registered = programs.findLast((program) => program.kind === "agent" && program.memberId === agent.id);
-  if (registered !== undefined) return registered;
+export function runningAgent(programs: readonly Program[], agent: Member): Program {
+  const linked = programs.findLast((program) => program.kind === "agent" && program.member === agent.id);
+  if (linked !== undefined) return linked;
   const { found, where } = lookForHome(agent.name);
   throw new Error(
     `The agent ${agent.name} is on the roster but is not running. ` +

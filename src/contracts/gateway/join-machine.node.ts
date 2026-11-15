@@ -1,11 +1,11 @@
-import { isRefusal, isUnknownCall } from "../../lib/refusal/index.ts";
-import { formatAddress } from "./address.ts";
-import { connectGateway, type GatewayConnection } from "./connect.ts";
-import { entryTransports } from "./entry.node.ts";
+import { hostname } from "node:os";
+import { type Entry, formatAddress } from "./address.ts";
+import { dialGateway, GatewayRefusedError, UnknownAnswerError, UnprovenGatewayError } from "./dial.node.ts";
+import type { Welcome } from "./hello.ts";
 import type { Link } from "./link.ts";
 import { machineFile } from "./machine.ts";
 import { readMachine, saveMachine } from "./machine.node.ts";
-import type { Member } from "./services.ts";
+import type { Member } from "./roster.ts";
 import { newToken } from "./token.node.ts";
 
 /**
@@ -22,51 +22,38 @@ export class MachineJoinFailedError extends Error {
 }
 
 export interface JoinAsMachineOptions {
-  /** Abort to give up on a gateway that does not answer, whether the connection was still being made or the join was waiting for its answer. */
+  /** Abort to give up on a gateway that does not answer. */
   signal?: AbortSignal;
+  /** What the device is labelled on the roster: the machine's name if not given. */
+  machine?: string;
 }
 
 /** What joining as a machine came to. */
 export interface MachineJoined {
-  /** Who the gateway says the machine is: the person. */
+  /** Who the gateway says the machine is: you. */
   member: Member;
-  /** The version of Shrimpy the gateway runs, when it said. */
-  gatewayVersion: string | undefined;
-}
-
-/** What went wrong when the gateway at `where` was asked to let the machine in, said so that a person knows what to do. */
-function failureOf(error: unknown, where: string): string {
-  if (isRefusal(error)) return `The gateway at ${where} did not let this machine in: ${error.message}`;
-  if (isUnknownCall(error)) {
-    return (
-      `The gateway at ${where} does not know how to let a machine in, so it runs an older version of Shrimpy than this command. ` +
-      "Programs are meant to be upgraded together."
-    );
-  }
-  return `The gateway at ${where} stopped answering before this machine was let in: ${(error as Error).message}`;
+  /** The version of Shrimpy the gateway runs. */
+  gatewayVersion: string;
 }
 
 /**
- * Make the machine whose Shrimpy folder is `folder` one of a person's own, with
- * the link of an invitation that the person asked for. The machine makes its
- * token and keeps it first, as an agent's home does, so that a join whose
- * answer never arrives can be made again with the same link and finds the same
- * machine, as long as it is at the same gateway: a token is shown to one
- * gateway only. It then shows the gateway the code and the token, and keeps who
- * the gateway says it is, with the gateway's address and the token, so that
- * commands run in the folder are that person at that gateway from then on. A
- * link that names an agent, and a folder that has joined already, are refused
- * before anything is changed or sent. After that, a gateway that can't be
- * reached, that doesn't answer before `signal` aborts, or that turns the
- * machine away is a `MachineJoinFailedError`.
+ * Make the machine whose Shrimpy folder is `folder` a device of yours, with
+ * the link of an invitation you asked for. The machine makes its token and
+ * keeps it first, with the gateway's address and the fingerprint of its key,
+ * so that a join whose answer never arrives can be made again with the same
+ * link and finds the same device, as long as it is at the same gateway, by its
+ * address and its key: a token is shown to one gateway only. Its hello goes
+ * only to the key the link names, and shows the gateway the code, the token and
+ * the machine's name, which labels the device, and the folder keeps who the
+ * gateway says it is, so that commands run there are you at that gateway from
+ * then on. A link that names an agent, and a folder that has joined already,
+ * are refused before anything is changed or sent. After that, a gateway that
+ * can't be reached, that doesn't answer before `signal` aborts, that shows
+ * another key or that turns the machine away is a `MachineJoinFailedError`.
  */
-export async function joinAsMachine(
-  folder: string,
-  link: Link,
-  options: JoinAsMachineOptions = {},
-): Promise<MachineJoined> {
+export async function joinAsMachine(folder: string, link: Link, options: JoinAsMachineOptions = {}): Promise<MachineJoined> {
   if (link.name !== null) {
-    throw new Error(`The invitation is for an agent called ${link.name}, and not for another machine of the person's own.`);
+    throw new Error(`The invitation is for an agent called ${link.name}, and not for a device of yours.`);
   }
   const saved = readMachine(folder);
   if (saved?.member !== undefined) {
@@ -76,29 +63,25 @@ export async function joinAsMachine(
     );
   }
   const where = formatAddress(link.address);
-  const token = saved !== undefined && formatAddress(saved.gateway) === where ? saved.token : newToken();
-  saveMachine(folder, { token, gateway: link.address });
+  const gateway: Entry = { ...link.address, fingerprint: link.fingerprint };
+  const same = saved !== undefined && formatAddress(saved.gateway) === where && saved.gateway.fingerprint === link.fingerprint;
+  const token = same ? saved.token : newToken();
+  saveMachine(folder, { token, gateway });
 
-  const { signal } = options;
-  let gateway: GatewayConnection;
+  const who = { kind: "join", name: null, token, code: link.code, machine: options.machine ?? hostname() } as const;
+  let answer: Welcome;
   try {
-    gateway = await connectGateway({ transportFactory: entryTransports(link.address).gateway, signal });
+    const dialed = await dialGateway(gateway, who, options.signal === undefined ? {} : { signal: options.signal });
+    dialed.linked.drop();
+    answer = dialed.welcome;
   } catch (error) {
-    throw new MachineJoinFailedError(`Could not reach the gateway at ${where}: ${(error as Error).message}`, { cause: error });
+    if (error instanceof GatewayRefusedError) {
+      throw new MachineJoinFailedError(`The gateway at ${where} did not let this machine in: ${error.message}`);
+    }
+    if (error instanceof UnknownAnswerError || error instanceof UnprovenGatewayError) throw new MachineJoinFailedError(error.message);
+    throw new MachineJoinFailedError(`Could not join the gateway at ${where}: ${(error as Error).message}`, { cause: error });
   }
-  // Closing the connection ends a join that is still waiting for its answer.
-  const hangUp = (): void => void gateway.close().catch(() => undefined);
-  signal?.addEventListener("abort", hangUp, { once: true });
-  try {
-    const member = await gateway.joinMachine(token, link.code).catch((error: unknown) => {
-      throw new MachineJoinFailedError(failureOf(error, where), { cause: error });
-    });
-    saveMachine(folder, { token, gateway: link.address, member: { id: member.id, name: member.name } });
-    // Once the machine is in, a gateway that won't say its version is no reason to say it failed.
-    const gatewayVersion = await gateway.version().catch(() => undefined);
-    return { member, gatewayVersion };
-  } finally {
-    signal?.removeEventListener("abort", hangUp);
-    await gateway.close().catch(() => undefined);
-  }
+  if (answer.you === null) throw new MachineJoinFailedError(`The gateway at ${where} let this machine in as nobody.`);
+  saveMachine(folder, { token, gateway, member: { id: answer.you.id, name: answer.you.name } });
+  return { member: answer.you, gatewayVersion: answer.shrimpy };
 }

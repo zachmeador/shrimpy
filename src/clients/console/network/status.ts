@@ -1,25 +1,29 @@
-import { AgentConnectionLostError } from "../../../contracts/agent/index.ts";
-import { isDisconnected } from "../../../lib/connection/index.ts";
+import { ChordError, type RefState } from "@earendil-works/chord";
 
-/** Why the console has no connection to a program. */
+/** Why the console has no link to a program, or to the gateway. */
 export type Why =
   /** It has not tried yet, or is trying. */
   | { kind: "connecting" }
   /** Nothing is listening where the gateway should be. */
   | { kind: "not-running" }
-  /** The gateway lists no such program. */
-  | { kind: "not-registered" }
-  /** The program was reached, and the connection ended. */
+  /** The gateway turned the console away, with its words. */
+  | { kind: "refused"; words: string }
+  /** The gateway's entry didn't prove it is yours, so the console sent it nothing, with the words of why. */
+  | { kind: "unproven"; words: string }
+  /** The gateway lists no such program as linked. */
+  | { kind: "not-linked" }
+  /** The program was reached, and the link to it ended. */
   | { kind: "lost" }
-  /** The program is listed, and could not be reached or used for the reason given. */
+  /** The program is linked, and could not be reached or used for the reason given. */
   | { kind: "unreachable"; message: string };
 
 /** Where a link to a program stands. */
 export type LinkStatus = { state: "up" } | { state: "down"; why: Why };
 
+export const UP: LinkStatus = { state: "up" };
 export const CONNECTING: LinkStatus = { state: "down", why: { kind: "connecting" } };
 
-/** A call that could not be made, or a connection that could not be opened, for a reason a person can be given. */
+/** A call that could not be made, for a reason a person can be given. */
 export class Down extends Error {
   readonly why: Why;
 
@@ -30,11 +34,25 @@ export class Down extends Error {
   }
 }
 
-/** What went wrong with a call or a connection, as data for the screen to put in words. */
+/** What went wrong with a call, as data for the screen to put in words. */
 export type Problem = { down: Why } | { said: string };
 
+/** A call's failure as a problem: a refusal says its words, and a call lost with its link is the link's. */
 export function problemOf(error: unknown): Problem {
   if (error instanceof Down) return { down: error.why };
-  if (error instanceof AgentConnectionLostError || isDisconnected(error)) return { down: { kind: "lost" } };
+  if (error instanceof ChordError && (error.code === "unavailable" || error.code === "released")) return { down: { kind: "lost" } };
   return { said: error instanceof Error ? error.message : String(error) };
+}
+
+/**
+ * Where a link to a program stands, from the state of an object the console
+ * holds there: up while it is live; not linked when the gateway lists no such
+ * program, which `linked` says; lost when it was live before and is not now;
+ * and otherwise still being reached, or failing with the words of why.
+ */
+export function statusOf(state: RefState, linked: boolean, wasUp: boolean): LinkStatus {
+  if (state.kind === "live") return UP;
+  if (!linked) return { state: "down", why: { kind: "not-linked" } };
+  if (state.kind === "failed") return { state: "down", why: { kind: "unreachable", message: state.cause.error.message } };
+  return { state: "down", why: wasUp ? { kind: "lost" } : { kind: "connecting" } };
 }

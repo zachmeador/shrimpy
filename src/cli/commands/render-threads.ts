@@ -83,6 +83,8 @@ function receiptNote(receipt: Receipt, who: string): string | undefined {
     case "stopped":
       return `-- ${who} stopped before answering --`;
     case "skipped":
-      return `-- ${who} skipped this message --`;
+      return receipt.detail === null
+        ? `-- ${who} skipped this message --`
+        : `-- ${who} skipped this message: ${receipt.detail.replace(/\s*\n\s*/g, " ")} --`;
   }
 }

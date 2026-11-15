@@ -1,5 +1,5 @@
 import type { Receipt } from "../../contracts/chat/index.ts";
-import { refuse } from "../../lib/refusal/index.ts";
+import { refuse } from "../refusal/index.ts";
 import { MAX_DETAIL, MAX_ID, MAX_NAME, MAX_TEXT } from "./limits.ts";
 
 // Arguments arrive off the wire, so their TypeScript types promise nothing. Each
@@ -83,8 +83,9 @@ const absent = (value: unknown): boolean => value === undefined || value === nul
 
 /**
  * What an agent says it did with messages: a status, and the reply or reason
- * that goes with it. Only an answered receipt has a reply and only a failed one
- * a detail; the others carry null in both. A reply or detail left out counts as null.
+ * that goes with it. Only an answered receipt has a reply. A failed one always
+ * has a detail and a skipped one may; the others carry null in both. A reply
+ * or detail left out counts as null.
  */
 export function receipt(value: unknown, what: string): Omit<Receipt, "memberId" | "event"> {
   if (typeof value !== "object" || value === null) {
@@ -100,8 +101,8 @@ export function receipt(value: unknown, what: string): Omit<Receipt, "memberId" 
   if (status !== "answered" && !absent(reply)) {
     refuse(`Only an answered receipt has a reply, and this one is ${status}.`);
   }
-  if (status !== "failed" && !absent(detail)) {
-    refuse(`Only a failed receipt has a detail, and this one is ${status}.`);
+  if (status !== "failed" && status !== "skipped" && !absent(detail)) {
+    refuse(`Only a failed or skipped receipt has a detail, and this one is ${status}.`);
   }
   if (status === "failed" && absent(detail)) {
     refuse("A failed receipt needs a detail: a short reason a person can read.");
@@ -113,7 +114,7 @@ export function receipt(value: unknown, what: string): Omit<Receipt, "memberId" 
   };
 }
 
-/** The reason a turn failed, as text a person can read. */
+/** A receipt's reason, as text a person can read. */
 function reason(value: unknown, what: string): string {
   if (typeof value !== "string" || value.trim() === "") refuse(`${what} must be some text, or null.`);
   if (value.length > MAX_DETAIL) {

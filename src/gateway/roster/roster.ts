@@ -1,11 +1,19 @@
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { isToken, type Member, TURNED_AWAY } from "../../contracts/gateway/index.ts";
+import {
+  type Answer,
+  done,
+  isToken,
+  type Member,
+  type Refused,
+  refused,
+  type Way,
+  type WayIn,
+} from "../../contracts/gateway/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { type Lock, takeLock } from "../../lib/lock/node.ts";
-import { refuse } from "../../lib/refusal/index.ts";
-import { type MemberRecord, readRoster, rosterFile, writeRoster } from "./file.ts";
+import { type DeviceRecord, type MemberRecord, readRoster, rosterFile, writeRoster } from "./file.ts";
 
 /** Another gateway is already using this data directory. */
 export class RosterOwnedError extends Error {
@@ -18,63 +26,71 @@ export class RosterOwnedError extends Error {
   }
 }
 
-/** Characters in a member's name. */
+/** Characters in a member's name or a device's label. */
 const MAX_NAME = 200;
 
 const TOKEN_RULE = "A token is 32 to 200 letters, digits, hyphens or underscores, such as 32 random bytes in base64url.";
 
+/** A member who showed a token, and the way in the token is. */
+export interface Recognized {
+  readonly member: Member;
+  readonly way: Extract<Way, { kind: "device" | "token" }>;
+}
+
 /**
  * Who is on the network: every member with its ID, its name, whether it is an
- * admin and how it is recognized, kept in one file that survives restarts.
- * Nothing here holds a connection. Anything a caller got wrong is refused with a
- * reason it can act on.
+ * admin and its ways in, kept in one file that survives restarts. Nothing here
+ * holds a connection. What a caller got wrong is answered with a refusal.
  */
 export interface Roster {
   /** Everyone, oldest first. */
   members(): Member[];
   member(id: string): Member | undefined;
-  /** The agent whose token this is. */
-  memberWithToken(token: string): Member | undefined;
-  /** The person who has a machine that keeps this token. */
-  personWithMachine(token: string): Member | undefined;
-  /** The person who is the operating system user `osUser`. */
-  person(osUser: string): Member | undefined;
-  /** Make the person for `osUser` if there is none yet. */
-  ensurePerson(osUser: string): Member;
+  /** You: the one person there is. */
+  you(): Member;
+  /** Who shows `token`: an agent by its token, or you by a device's. */
+  recognize(token: string): Recognized | undefined;
   /**
    * Make a new agent called `name` that is recognized by `token`, which the
    * caller made. The first agent a roster has is an admin from the moment it
-   * joins, and any other is not. When the roster has the member that holds the
-   * token already, that is the member, renamed to `name` if it is not called
+   * joins, and any other is not. When the roster has the agent that holds the
+   * token already, that is the agent, renamed to `name` if it is not called
    * that.
    */
-  join(name: string, token: string): Member;
+  join(name: string, token: string): Answer<Member>;
   /**
-   * Let a machine of the person `id` in: keep the hash of the token it made,
-   * with the person. A machine that is in already is the same machine, and the
-   * person is the answer. A token is one member's, so one that an agent or
-   * another person's machine has is refused.
+   * Let a device of the person `id` in: keep the hash of the token it made,
+   * with `label`. A device that is in already is the same device. A token is
+   * one member's, so one that an agent has is refused.
    */
-  addMachine(id: string, token: string): Member;
+  addDevice(id: string, token: string, label: string): Answer<Member>;
   /** Give a member a new name. The name it has already, or a change of case in it, is fine. */
-  rename(id: string, name: string): Member;
-  /** The name as it would be kept, when no member has it. A name that is not fit to keep, or that a member has, is refused. */
-  vacant(name: string): string;
-  /** Make an agent an admin, or an ordinary agent again. Doing what is done already changes nothing. A person is always one and is refused. */
-  setAdmin(id: string, admin: boolean): Member;
+  rename(id: string, name: string): Answer<Member>;
+  /** The name as it would be kept, when no member has it. */
+  vacant(name: string): Answer<string>;
+  /** Make an agent an admin, or an ordinary agent again. Doing what is done already changes nothing. A person is always one. */
+  setAdmin(id: string, admin: boolean): Answer<Member>;
+  /** Every way in a token opens, oldest member first. */
+  ways(): WayIn[];
+  /** Forget the token of the way `id`, so it opens nothing from now on. Says which way it was, or undefined for none. */
+  takeBack(id: string): WayIn | undefined;
+  /** Hear of every change, after it is written. */
+  onChange(listener: () => void): () => void;
   /** Let go of the data directory. */
   close(): void;
 }
 
 /**
  * Open the roster in `dataDir`, taking the directory for this process alone. A
- * file that cannot be read stops the gateway: guessing at who is who would be
- * worse.
+ * roster with nobody for you yet, as when the gateway first makes its data,
+ * gets you, called `firstName`. A file that cannot be read stops the gateway,
+ * and so does one with a second person, or a first name another member has:
+ * guessing at who is who would be worse.
  */
-export function openRoster(dataDir: string): Roster {
+export function openRoster(dataDir: string, firstName: string): Roster {
   const lock = takeOwnerLock(dataDir);
   try {
-    return keep(rosterFile(dataDir), lock);
+    return keep(dataDir, lock, firstName);
   } catch (error) {
     lock.release();
     throw error;
@@ -91,10 +107,25 @@ const fold = (name: string): string => name.toLowerCase();
 
 const hashOf = (token: string): string => `sha256:${createHash("sha256").update(token).digest("hex")}`;
 
-const publicly = ({ id, kind, name, admin }: MemberRecord): Member => ({ id, kind, name, admin: kind === "person" || admin === true });
+/** A way's ID, from its token's hash: it means nothing, never changes and gives nothing of the token away. */
+const wayId = (tokenHash: string): string => `way_${tokenHash.slice("sha256:".length, "sha256:".length + 12)}`;
 
-function keep(file: string, lock: Lock): Roster {
-  let records = readRoster(file);
+const publicly = (record: MemberRecord): Member => ({
+  id: record.id,
+  kind: record.kind,
+  name: record.name,
+  admin: record.kind === "person" || record.admin,
+});
+
+/** A name or a label that is fit to keep, or undefined. */
+function fit(label: string): string | undefined {
+  const trimmed = label.trim();
+  return trimmed === "" || trimmed.length > MAX_NAME || /\p{Cc}/u.test(trimmed) ? undefined : trimmed;
+}
+
+function keep(dataDir: string, lock: Lock, firstName: string): Roster {
+  const file = rosterFile(dataDir);
+  let records = readRoster(dataDir);
   const seen = new Map<string, string>();
   for (const record of records) {
     const clash = seen.get(fold(record.name));
@@ -103,86 +134,103 @@ function keep(file: string, lock: Lock): Roster {
     }
     seen.set(fold(record.name), record.id);
   }
+  const people = records.filter((record) => record.kind === "person");
+  if (people.length > 1) {
+    const named = people.map((person) => `"${person.name}" (${person.id})`);
+    throw new Error(
+      `${file} has more than one person on it: ${named.slice(0, -1).join(", ")} and ${named.at(-1) ?? ""}. ` +
+        "A gateway has one person, you: keep yours, take the others out of the file, and start the gateway again.",
+    );
+  }
+  const listeners = new Set<() => void>();
 
   const save = (next: MemberRecord[]): void => {
     writeRoster(file, next);
     records = next;
+    for (const listener of [...listeners]) listener();
   };
 
-  /** A name that is fit to keep, or a refusal that says what is wrong with it. */
-  const checked = (name: unknown): string => {
-    const label = typeof name === "string" ? name.trim() : "";
-    if (label === "" || label.length > MAX_NAME || /\p{Cc}/u.test(label)) {
-      refuse(`A name must be 1 to ${String(MAX_NAME)} characters on one line.`);
-    }
-    return label;
-  };
+  const replace = (changed: MemberRecord): void => save(records.map((record) => (record.id === changed.id ? changed : record)));
 
-  /** Refuse a name that another member than `except` has. */
-  const available = (name: string, except?: string): void => {
+  /** Why `name` can't be the name of a member other than `except`, if it can't. */
+  const unavailable = (name: string, except?: string): Refused | undefined => {
     const holder = records.find((record) => record.id !== except && fold(record.name) === fold(name));
-    if (holder === undefined) return;
-    refuse(
+    if (holder === undefined) return undefined;
+    return refused(
       `The name "${name}" is taken: it belongs to ${holder.kind === "agent" ? "the agent" : "the person"} "${holder.name}". ` +
         "Names are shared by people and agents, whatever the case. Choose another.",
-      "service_invalid_value",
-      TURNED_AWAY.nameTaken,
+      "name_taken",
     );
   };
 
-  const find = (matches: (record: MemberRecord) => boolean): Member | undefined => {
-    const record = records.find(matches);
-    return record === undefined ? undefined : publicly(record);
-  };
+  const badName = refused(`A name must be 1 to ${String(MAX_NAME)} characters on one line.`);
 
-  const person = (osUser: string): Member | undefined =>
-    find((record) => "osUser" in record.recognizedBy && record.recognizedBy.osUser === osUser);
+  // You are made with the roster, and found from then on as the one person there is, whoever the gateway runs as.
+  if (people.length === 0) {
+    const taken = unavailable(firstName);
+    if (taken !== undefined) throw new Error(taken.words);
+    save([...records, { id: newId("mem"), kind: "person", name: firstName, recognizedBy: {} }]);
+  }
+  // Nothing takes you off the roster.
+  const you = (): Member => publicly(records.find((record) => record.kind === "person")!);
 
-  const memberWithToken = (token: string): Member | undefined => {
+  const recognize = (token: string): Recognized | undefined => {
     const hash = hashOf(token);
-    return find((record) => "tokenHash" in record.recognizedBy && record.recognizedBy.tokenHash === hash);
+    for (const record of records) {
+      if (record.kind === "agent" && record.recognizedBy.tokenHash === hash) {
+        return { member: publicly(record), way: { kind: "token", id: wayId(hash) } };
+      }
+      if (record.kind === "person" && (record.recognizedBy.machines ?? []).some((device) => device.tokenHash === hash)) {
+        return { member: publicly(record), way: { kind: "device", id: wayId(hash) } };
+      }
+    }
+    return undefined;
   };
 
-  const personWithMachine = (token: string): Member | undefined => {
-    const hash = hashOf(token);
-    return find(
-      (record) =>
-        "osUser" in record.recognizedBy && (record.recognizedBy.machines ?? []).some((machine) => machine.tokenHash === hash),
-    );
-  };
-
-  const rename = (id: string, name: string): Member => {
-    const label = checked(name);
+  const rename = (id: string, name: string): Answer<Member> => {
+    const label = fit(name);
+    if (label === undefined) return badName;
     const current = records.find((record) => record.id === id);
-    if (current === undefined) refuse(`There is no member ${id}.`);
-    if (current.name === label) return publicly(current);
-    available(label, id);
+    if (current === undefined) return refused(`There is no member ${id}.`);
+    if (current.name === label) return done(publicly(current));
+    const taken = unavailable(label, id);
+    if (taken !== undefined) return taken;
     const renamed = { ...current, name: label };
-    save(records.map((record) => (record.id === id ? renamed : record)));
-    return publicly(renamed);
+    replace(renamed);
+    return done(publicly(renamed));
   };
+
+  const ways = (): WayIn[] =>
+    records.flatMap((record): WayIn[] => {
+      if (record.kind === "agent") {
+        const hash = record.recognizedBy.tokenHash;
+        return hash === undefined ? [] : [{ id: wayId(hash), kind: "token", member: record.id, label: null }];
+      }
+      return (record.recognizedBy.machines ?? []).map((device) => ({
+        id: wayId(device.tokenHash),
+        kind: "device",
+        member: record.id,
+        label: device.label,
+      }));
+    });
 
   return {
     members: () => records.map(publicly),
-    member: (id) => find((record) => record.id === id),
-    memberWithToken,
-    personWithMachine,
-    person,
-    ensurePerson(osUser) {
-      const existing = person(osUser);
-      if (existing !== undefined) return existing;
-      available(osUser);
-      const record: MemberRecord = { id: newId("mem"), kind: "person", name: osUser, recognizedBy: { osUser } };
-      save([...records, record]);
-      return publicly(record);
+    member(id) {
+      const record = records.find((each) => each.id === id);
+      return record === undefined ? undefined : publicly(record);
     },
+    you,
+    recognize,
     join(name, token) {
-      if (!isToken(token)) refuse(TOKEN_RULE);
-      const holder = memberWithToken(token);
-      if (holder !== undefined) return rename(holder.id, name);
-      if (personWithMachine(token) !== undefined) refuse("That token belongs to a machine of a person, and a token belongs to one member.");
-      const label = checked(name);
-      available(label);
+      if (!isToken(token)) return refused(TOKEN_RULE);
+      const holder = recognize(token);
+      if (holder?.way.kind === "token") return rename(holder.member.id, name);
+      if (holder !== undefined) return refused("That token belongs to a device of yours, and a token belongs to one member.");
+      const label = fit(name);
+      if (label === undefined) return badName;
+      const taken = unavailable(label);
+      if (taken !== undefined) return taken;
       const record: MemberRecord = {
         id: newId("mem"),
         kind: "agent",
@@ -191,40 +239,55 @@ function keep(file: string, lock: Lock): Roster {
         recognizedBy: { tokenHash: hashOf(token) },
       };
       save([...records, record]);
-      return publicly(record);
+      return done(publicly(record));
     },
-    addMachine(id, token) {
-      if (!isToken(token)) refuse(TOKEN_RULE);
+    addDevice(id, token, label) {
+      if (!isToken(token)) return refused(TOKEN_RULE);
       const current = records.find((record) => record.id === id);
-      if (current === undefined || !("osUser" in current.recognizedBy)) refuse(`There is no person ${id}.`);
-      if (memberWithToken(token) !== undefined) refuse("That token belongs to an agent, and a token belongs to one member.");
-      const holder = personWithMachine(token);
-      if (holder !== undefined) {
-        if (holder.id === id) return holder;
-        refuse("That token belongs to a machine of another person, and a token belongs to one member.");
+      if (current?.kind !== "person") return refused(`There is no person ${id}.`);
+      const holder = recognize(token);
+      if (holder?.way.kind === "token") return refused("That token belongs to an agent, and a token belongs to one member.");
+      if (holder !== undefined) return done(holder.member);
+      const kept = fit(label);
+      if (kept === undefined) {
+        return refused(`A device is labelled with the name of the machine it joins from, which must be 1 to ${String(MAX_NAME)} characters on one line.`);
       }
+      const device: DeviceRecord = { tokenHash: hashOf(token), label: kept };
       const by = current.recognizedBy;
-      const changed: MemberRecord = {
-        ...current,
-        recognizedBy: { ...by, machines: [...(by.machines ?? []), { tokenHash: hashOf(token) }] },
-      };
-      save(records.map((record) => (record.id === id ? changed : record)));
-      return publicly(changed);
+      replace({ ...current, recognizedBy: { ...by, machines: [...(by.machines ?? []), device] } });
+      return done(publicly(current));
     },
     rename,
     vacant(name) {
-      const label = checked(name);
-      available(label);
-      return label;
+      const label = fit(name);
+      if (label === undefined) return badName;
+      return unavailable(label) ?? done(label);
     },
     setAdmin(id, admin) {
       const current = records.find((record) => record.id === id);
-      if (current === undefined) refuse(`There is no member ${id}.`);
-      if (current.kind === "person") refuse(`${current.name} is a person, and every person is an admin.`);
-      if ((current.admin === true) === admin) return publicly(current);
+      if (current === undefined) return refused(`There is no member ${id} on the roster.`);
+      if (current.kind === "person") return refused(`${current.name} is a person, and every person is an admin.`);
+      if (current.admin === admin) return done(publicly(current));
       const changed = { ...current, admin };
-      save(records.map((record) => (record.id === id ? changed : record)));
-      return publicly(changed);
+      replace(changed);
+      return done(publicly(changed));
+    },
+    ways,
+    takeBack(id) {
+      const way = ways().find((each) => each.id === id);
+      if (way === undefined) return undefined;
+      const current = records.find((record) => record.id === way.member);
+      if (current?.kind === "agent") replace({ ...current, recognizedBy: {} });
+      if (current?.kind === "person") {
+        const by = current.recognizedBy;
+        const machines = (by.machines ?? []).filter((device) => wayId(device.tokenHash) !== id);
+        replace({ ...current, recognizedBy: { ...by, machines } });
+      }
+      return way;
+    },
+    onChange(listener) {
+      listeners.add(listener);
+      return () => void listeners.delete(listener);
     },
     close: () => lock.release(),
   };
