@@ -10,10 +10,9 @@ As of 2026-11-15. An item leaves when it is fixed or when the design changes to 
 
 Four reviewers read the code on 2026-11-15, and you asked for what they found to be fixed. The order is in the [plan](PLAN.md#order-of-work).
 
-- About one test in six pins wording or an internal shape. Two thirds of those are the terminal's, which test each feature at three or four layers. Some test Pi rather than Shrimpy, one by building Pi's records by hand, and one pins the whole prompt.
-- The helpers for `up`'s tests read process IDs and readiness out of what `up` prints, so rewording a line would silently stop the cleanup of leftover processes.
+- The tests of `up`, of listening and of pairing read process IDs, pauses and readiness out of what `up` prints, so rewording a line would silently stop the cleanup of leftover processes.
 - The test model picks what to do by searching the whole message, the person's name included, which defaults to the OS account's. Under an account called `runner`, every message would run a command.
-- About two dozen tests assert after a fixed pause or a fixed number of ticks, where no later event can be waited for. A few bound how long something takes, which could trip on a loaded machine.
+- About two dozen tests assert after a fixed pause or a fixed number of ticks, where no later event can be waited for. A few bound how long something takes, which could trip on a loaded machine. The terminal gives its tests no sign that a screen is ready, so one presses Tab every 100 ms until a view appears.
 - Test support is written twice: two gateways for tests with different process models, two ways to run the CLI, two test agents, and two fake terminals.
 - The contracts carry Pi's codes: why an answer stopped, `followUp` for input that waits, and failure reasons passed on from Pi as they come. The clients match on some of them, so a Pi upgrade can reach a client.
 - The CLI uses the agent's and the gateway's entry points for more than starting them: the trigger files, the wake file, the default model, the gateway's kept addresses, making and joining a home, previewing what it tells an agent, and signing in. So `shrimpy wake` loads Pi's engine to change a JSON file. The lint lets any import of an entry point through.
@@ -134,5 +133,6 @@ Four reviewers read the code on 2026-11-15, and you asked for what they found to
 ### Tests
 
 - Promises in the first build's Prove list that are built and have no test: a real-provider turn uses only the shell tool, not the file tools; a request ID reused with different content is tested in the chat server and not at the agent; and nothing asserts what becomes of a shell child that outlives a killed owner.
+- Since the tests that failed the bar were cut on 2026-11-15, nothing tests how a session's status shows images, usage, its own model and a retry, or that a cut-off answer's tool calls show as not run. Those were tested on Pi's records built by hand, and a test through the real engine could cover them. Nothing tests most of `/status` either, or how the terminal shows edits, deletes and reactions.
 - No test covers a link that goes silent, which Chord's heartbeat closes after half a minute, or `run` stopped while its message is being sent, which needs a chat server that takes a post and never answers.
 - A test that holds a scripted model at a gate and fails before it lets go hangs its run until the suite's timeout. The tests of a busy agent, of questions, of wake-ups and of triggers let go on the way out, and some others that hold one in the test's own process don't.
