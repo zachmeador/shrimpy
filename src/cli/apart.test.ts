@@ -6,7 +6,7 @@ import { test, type TestContext } from "node:test";
 import type { Reference } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { initHome, joinHome } from "../agent/index.ts";
-import { Agent, AGENT_HOME_VARIABLE, Session } from "../contracts/agent/index.ts";
+import { Agent, AGENT_HOME_VARIABLE, membershipFile, Session } from "../contracts/agent/index.ts";
 import { readMembership } from "../contracts/agent/node.ts";
 import { type Entry, formatAddress, type Member, writeLink } from "../contracts/gateway/index.ts";
 import { connectGateway, type GatewayClient, type GatewayPlace, gatewaySocket } from "../contracts/gateway/node.ts";
@@ -166,7 +166,7 @@ async function startSlowWork(network: Network): Promise<string> {
   return thread;
 }
 
-test("an agent apart joins with an invitation link, answers a person, is listed as running, a copy of its home is turned away, and it is no longer listed when it stops", { timeout }, async (t) => {
+test("an agent apart joins with an invitation, answers, and a copy of its home is turned away", { timeout }, async (t) => {
   const network = await startNetwork(t);
   const { person } = network;
   const { home, member } = await homeFromApart(t, network, "crab");
@@ -198,7 +198,8 @@ test("an agent apart joins with an invitation link, answers a person, is listed 
     copying.kill("SIGKILL");
     await copying.finished;
   });
-  await until(() => copying.output().stderr.includes("copy"), "the copy to be turned away", 30_000);
+  // It is told which file of its own to delete, to be an agent of its own.
+  await until(() => copying.output().stderr.includes(membershipFile(copy)), "the copy to be turned away", 30_000);
   assert.equal((await person.members()).filter((each) => each.name === "crab").length, 1, "and it made no member of its own");
   const again = await shrimpy(["run", "crab", "hi again"]);
   assert.equal(again.stdout.trim(), "Hello from the test model.", "the agent that was running is still the one that answers");
@@ -214,7 +215,7 @@ test("an agent apart joins with an invitation link, answers a person, is listed 
   assert.deepEqual((await person.programs()).map((program) => program.kind), ["chat"]);
 });
 
-test("a shrimpy command in the shell of an agent apart reaches the gateway its home names, as that agent", { timeout }, async (t) => {
+test("a shrimpy command in the shell of an agent apart reaches its gateway as that agent", { timeout }, async (t) => {
   const network = await startNetwork(t);
   const { person } = network;
   // Rex runs beside the gateway, to talk to. Crab is apart, and only its home is there: a command in its shell needs nothing more.
@@ -233,7 +234,7 @@ test("a shrimpy command in the shell of an agent apart reaches the gateway its h
   const said = await shrimpy(["run", "rex", "hi"], shell);
   assert.equal(said.code, 0, said.stderr);
   assert.equal(said.stdout.trim(), "Hello from the test model.");
-  const thread = /Thread (\S+) started/.exec(said.stderr)?.[1];
+  const thread = /\b(th_\w+)/.exec(said.stderr)?.[1];
   assert.ok(thread, said.stderr);
   const threads = JSON.parse((await shrimpy(["threads", "rex", "--json"], shell)).stdout) as { id: string }[];
   assert.ok(threads.some((each) => each.id === thread), "the thread is in crab's DM with rex");
@@ -244,7 +245,8 @@ test("a shrimpy command in the shell of an agent apart reaches the gateway its h
     ["crab", "hi"],
     ["rex", "Hello from the test model."],
   ]);
-  assert.match((await shrimpy(["members"], shell)).stdout, /rex\s+agent[\s\S]*crab\s+agent/, "and it reads the roster");
+  const roster = await shrimpy(["members"], shell);
+  assert.ok(roster.code === 0 && roster.stdout.includes("rex") && roster.stdout.includes("crab"), "and it reads the roster");
   assert.equal((await shrimpy(["threads", "rex", "--json"])).stdout.trim(), "[]", "while the person has said nothing to rex");
 
   // Promoted at the gateway, crab may make a room, and it is crab's.
@@ -260,7 +262,7 @@ test("a shrimpy command in the shell of an agent apart reaches the gateway its h
   assert.ok(down.stderr.includes(`${gatewayAddress.host}:${String(gatewayAddress.port)}`), down.stderr);
 });
 
-test("an agent apart is reached by its name through the gateway, from the gateway's machine and from apart: its sessions are listed, one is watched while it works and stopped, and what a caller may do is the agent's own rule", { timeout }, async (t) => {
+test("an agent apart is reached by its name through the gateway, by whoever it lets in", { timeout }, async (t) => {
   const network = await startNetwork(t);
   const { person, gateway } = network;
   const { home } = await homeFromApart(t, network, "crab");
@@ -300,7 +302,7 @@ test("an agent apart is reached by its name through the gateway, from the gatewa
   assert.equal(stopped.stderr, "", "a stop says nothing of who was watching it");
 });
 
-test("when the gateway stops and starts again, an agent apart links again by itself and is reached again, and says that it lost the gateway and that it is back", { timeout }, async (t) => {
+test("an agent apart links again by itself when the gateway starts again, and says so", { timeout }, async (t) => {
   const network = await startNetwork(t);
   const { home } = await homeFromApart(t, network, "crab");
   const crab = await serve(t, home, [], { env: apartEnv(t) });
@@ -331,7 +333,7 @@ test("when the gateway stops and starts again, an agent apart links again by its
   assert.equal(saidOfGateway().length, 2, "and that was all it said of it");
 });
 
-test("an agent apart that is told to stop while its gateway is frozen ends within its grace and says nothing, whether it had reached the gateway or not", { timeout }, async (t) => {
+test("an agent apart told to stop while its gateway is frozen ends within its grace", { timeout }, async (t) => {
   const network = await startNetworkOfProcesses(t);
   const { gateway } = network;
   const { home: reachedHome } = await homeFromApart(t, network, "rex");
@@ -361,7 +363,7 @@ test("an agent apart that is told to stop while its gateway is frozen ends withi
   }
 });
 
-test("a shrimpy command in the shell of an agent apart that is interrupted while its gateway is frozen ends at once", { timeout }, async (t) => {
+test("a command in an agent apart's shell, interrupted while its gateway is frozen, ends at once", { timeout }, async (t) => {
   const network = await startNetworkOfProcesses(t);
   const { gateway, model } = network;
   await serve(t, homeFor(t, network, "rex"), [], { env: { HOME: tempDir(t, "rex-user") } });

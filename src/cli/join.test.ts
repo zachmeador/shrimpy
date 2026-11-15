@@ -28,7 +28,7 @@ async function gatewayThatLetsIn(t: TestContext) {
   return { address, gateway, person, linkFor };
 }
 
-test("join makes the home with no model for the agent the link names and joins with it, keeps where the gateway is and its key, and says what to do next, which is less once the folder has a model; the same link in that folder is refused", { timeout }, async (t) => {
+test("join makes the home for the agent the link names, joins with it, and says what to do next", { timeout }, async (t) => {
   const { address, gateway, person, linkFor } = await gatewayThatLetsIn(t);
   const folder = useShrimpyDir(t);
   const link = await linkFor("crab");
@@ -75,7 +75,7 @@ test("join makes nothing of text that is not a link or a name no agent can have"
   assert.equal(existsSync(folder), false, "and the Shrimpy folder is as it was");
 });
 
-test("join gives up on a gateway that does not answer for an agent, says where it tried, leaves the home it made, and the same link joins once the gateway answers", { timeout }, async (t) => {
+test("join gives up on a gateway that does not answer, and the same link joins once it does", { timeout }, async (t) => {
   const { address, gateway, person, linkFor } = await gatewayThatLetsIn(t);
   const link = await linkFor("crab");
   const pid = gateway.listening.pid;

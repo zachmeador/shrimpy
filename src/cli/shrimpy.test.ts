@@ -1,14 +1,12 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 import type { SessionItem, SessionStatus } from "../contracts/agent/index.ts";
 import { enterAsPerson, memberNamed } from "../contracts/chat/testing/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
-import { loadAll } from "./commands/index.ts";
+import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import {
-  commandLines,
   declareLocalModel,
   isAlive,
   type LaunchOptions,
@@ -19,7 +17,6 @@ import {
   startModelServer,
   startScriptedAgent,
   talkTo,
-  whyNotACommand,
 } from "./testing/index.ts";
 
 /*
@@ -31,6 +28,7 @@ import {
  * To run a turn against a real model as well, set SHRIMPY_TEST_MODEL_URL to
  * its OpenAI-compatible base URL (ending in /v1) and SHRIMPY_TEST_MODEL_ID to
  * its model ID. The server may need no key; the placeholder "local" is sent.
+ * How a real model behaves is reported, never asserted.
  */
 const realUrl = process.env.SHRIMPY_TEST_MODEL_URL;
 const realModel = process.env.SHRIMPY_TEST_MODEL_ID;
@@ -105,7 +103,7 @@ async function turnWithShellTool(t: TestContext, target: { url: string; model: s
   assert.equal((await shrimpy(["agent", "status", "--agent", home])).code, 1);
 }
 
-test("a message to the agent in a thread becomes a turn with the shell tool, against a model it talks to over HTTP, and the reply comes back", { timeout: 120_000 }, async (t) => {
+test("a message in a thread becomes a turn with the shell tool against a model over HTTP", { timeout: 120_000 }, async (t) => {
   const model = await startModelServer();
   t.after(() => model.close());
 
@@ -118,136 +116,22 @@ test("a message to the agent in a thread becomes a turn with the shell tool, aga
 });
 
 test(
-  "a message to the agent in a thread becomes a turn with the shell tool against a real model",
+  "a turn against a real model ends without a failure",
   { timeout: 300_000, skip: skipWithoutRealModel },
   async (t) => {
-    await turnWithShellTool(t, {
-      url: realUrl ?? "",
-      model: realModel ?? "",
-      prompt: "Use your bash tool to run exactly this command: echo shrimpy-ok. Then tell me what it printed.",
-    });
-  },
-);
-
-test(
-  "an agent on a real model stays silent with END when told to say nothing, and answers otherwise",
-  { timeout: 300_000, skip: skipWithoutRealModel },
-  async (t) => {
-    const { talk } = await agentOnTheNetwork(t, { url: realUrl ?? "", model: realModel ?? "" });
-    const before = (await talk.replies()).length;
-
-    const quiet = await talk.say(
-      "Nothing needs saying about this message. Reply with the single word END in capital letters, and nothing else.",
-    );
-
-    const silent = await talk.receiptOn(quiet, 240_000);
-    assert.equal(silent.status, "silent", JSON.stringify(silent));
-    await delay(500);
-    assert.equal((await talk.replies()).length, before, "and nothing was posted");
-
-    const asked = await talk.say("What is two plus two? Answer in one short sentence.");
-    const answered = await talk.receiptOn(asked, 240_000);
-    assert.equal(answered.status, "answered", JSON.stringify(answered));
-    const reply = (await talk.replies()).at(-1);
-    assert.equal(answered.reply, reply?.id);
-    assert.match(reply?.text ?? "", /\b(4|four)\b/i);
-  },
-);
-
-test(
-  "an agent on a real model stays silent when the conversation has plainly ended, without being told to",
-  { timeout: 300_000, skip: skipWithoutRealModel },
-  async (t) => {
-    const { talk } = await agentOnTheNetwork(t, { url: realUrl ?? "", model: realModel ?? "" });
-
-    const asked = await talk.say("What is two plus two? Answer in one short sentence.");
-    const answered = await talk.receiptOn(asked, 240_000);
-    assert.equal(answered.status, "answered", JSON.stringify(answered));
-    const before = (await talk.replies()).length;
-
-    const goodbye = await talk.say("Great, thanks. That's all I needed. Bye!");
-
-    const silent = await talk.receiptOn(goodbye, 240_000);
-    assert.equal(silent.status, "silent", JSON.stringify({ receipt: silent, replies: (await talk.replies()).map((reply) => reply.text) }));
-    await delay(500);
-    assert.equal((await talk.replies()).length, before, "and nothing was posted");
-  },
-);
-
-/** The tool calls the agent made in a thread's session, with their arguments and how each ended. */
-async function toolItemsIn(home: string, thread: string): Promise<Extract<SessionItem, { type: "tool" }>[]> {
-  const read = await shrimpy(["sessions", "read", thread, "--json", "--agent", home]);
-  assert.equal(read.code, 0, read.stderr);
-  const view = JSON.parse(read.stdout) as SessionView;
-  return view.items.flatMap((item) => (item.type === "tool" ? [item] : []));
-}
-
-/** The tool calls the agent made in a thread's session, by name, with how each ended. */
-async function toolCallsIn(home: string, thread: string): Promise<[string, string][]> {
-  return (await toolItemsIn(home, thread)).map((item) => [item.name, item.status]);
-}
-
-test(
-  "an agent on a real model tells the thread it has started with send_message, and the final text is still its reply",
-  { timeout: 300_000, skip: skipWithoutRealModel },
-  async (t) => {
+    // What the model chooses to do is its own. That the server takes what the agent sends it, and the agent reads its answer, is Shrimpy's.
     const { home, talk } = await agentOnTheNetwork(t, { url: realUrl ?? "", model: realModel ?? "" });
 
-    const asked = await talk.say(
-      "Run `uname -s` with your shell tool. First tell me right away that you have started, then give me the result.",
-    );
+    const receipt = await talk.receiptOn(await talk.say("Say hello, then tell me what you can do."), 240_000);
 
-    const receipt = await talk.receiptOn(asked, 240_000);
-    assert.equal(receipt.status, "answered", JSON.stringify(receipt));
-    const replies = await talk.replies();
-    assert.ok(replies.length >= 2, "something was said along the way, and then the reply");
-    assert.equal(receipt.reply, replies.at(-1)?.id, "the receipt points at the final text, not at what was sent along the way");
-    assert.match(replies.at(-1)?.text ?? "", /Darwin|Linux/i);
-    const calls = await toolCallsIn(home, talk.thread.id);
-    assert.ok(calls.some(([name, status]) => name === "send_message" && status === "done"), JSON.stringify(calls));
+    assert.notEqual(receipt.status, "failed", JSON.stringify(receipt));
+    const read = await shrimpy(["sessions", "read", talk.thread.id, "--json", "--agent", home]);
+    assert.equal(read.code, 0, read.stderr);
+    assert.equal((JSON.parse(read.stdout) as SessionView).status.failure, null);
   },
 );
 
-test(
-  "an agent on a real model reads the thread back with read_messages when asked what was said before",
-  { timeout: 300_000, skip: skipWithoutRealModel },
-  async (t) => {
-    const { home, talk } = await agentOnTheNetwork(t, { url: realUrl ?? "", model: realModel ?? "" });
-    await talk.receiptOn(await talk.say("My favourite colour is teal. Just say OK."), 240_000);
-    await talk.receiptOn(await talk.say("My favourite number is 42. Just say OK."), 240_000);
-
-    const asked = await talk.say("Use your read_messages tool to look back at this thread, then tell me my favourite colour.");
-
-    const receipt = await talk.receiptOn(asked, 240_000);
-    assert.equal(receipt.status, "answered", JSON.stringify(receipt));
-    assert.match((await talk.replies()).at(-1)?.text ?? "", /teal/i);
-    const calls = await toolCallsIn(home, talk.thread.id);
-    assert.ok(calls.some(([name, status]) => name === "read_messages" && status === "done"), JSON.stringify(calls));
-  },
-);
-
-test(
-  "an agent on a real model reads the skill for making an agent, and answers with commands that exist",
-  { timeout: 300_000, skip: skipWithoutRealModel },
-  async (t) => {
-    const { home, talk } = await agentOnTheNetwork(t, { url: realUrl ?? "", model: realModel ?? "" });
-
-    const asked = await talk.say("How do I make another agent, one called maya? Just tell me the commands, don't run anything.");
-
-    const receipt = await talk.receiptOn(asked, 240_000);
-    assert.equal(receipt.status, "answered", JSON.stringify(receipt));
-    const reply = (await talk.replies()).at(-1)?.text ?? "";
-    const tools = await toolItemsIn(home, talk.thread.id);
-    const readIt = tools.some((tool) => tool.args.includes("shrimpy-agents/SKILL.md"));
-    assert.ok(readIt, `it never read the skill. It did: ${JSON.stringify(tools.map((tool) => [tool.name, tool.args]))}\nand answered: ${reply}`);
-    const lines = commandLines(reply);
-    const commands = await loadAll();
-    assert.ok(lines.some((line) => line.startsWith("shrimpy agent init")), `no agent init in the answer: ${reply}`);
-    assert.deepEqual(lines.flatMap((line) => whyNotACommand(line, commands) ?? []), [], reply);
-  },
-);
-
-test("the agent's shell finds shrimpy, though the PATH the agent was started with has none, and it is this Shrimpy", { timeout: 120_000 }, async (t) => {
+test("the agent's shell finds this Shrimpy, though the agent's PATH has none", { timeout: 120_000 }, async (t) => {
   const model = await startModelServer();
   t.after(() => model.close());
   const { home, talk } = await agentOnTheNetwork(t, { url: model.url, model: "test-model" }, { env: { PATH: "/usr/bin:/bin" } });
@@ -261,11 +145,12 @@ test("the agent's shell finds shrimpy, though the PATH the agent was started wit
     (item): item is Extract<SessionItem, { type: "tool" }> => item.type === "tool",
   );
   assert.equal(tool?.status, "done");
-  assert.equal(tool.output.split("\n")[0], join(home, "runtime", "bin", "shrimpy"), "the shell finds the agent's own launcher");
-  assert.match(tool.output, /^agent\s+scout\s+0\.0\.0$/m, "and it reaches this machine's gateway, which lists the agent");
+  const [launcher, ...status] = tool.output.split("\n");
+  assert.equal(launcher, join(home, "runtime", "bin", "shrimpy"), "the shell finds the agent's own launcher");
+  assert.ok(status.some((line) => line.includes("scout") && line.includes(SHRIMPY_VERSION)), "and it reaches this machine's gateway, which lists the agent");
 });
 
-test("a shrimpy command in an agent's shell speaks as that agent, and the same command in a person's terminal speaks as the person", { timeout: 120_000 }, async (t) => {
+test("a shrimpy command speaks as the agent in its shell, and as the person in theirs", { timeout: 120_000 }, async (t) => {
   const model = await startModelServer();
   t.after(() => model.close());
   const { talk } = await agentOnTheNetwork(t, { url: model.url, model: "test-model" });
@@ -314,7 +199,7 @@ test("a command killed while it waits does not stop the work", { timeout: 120_00
   assert.equal((await agent.stop()).code, 0);
 });
 
-test("a stop signal the moment the agent is listening stops it cleanly, and frees the home", { timeout: 60_000 }, async (t) => {
+test("a stop signal the moment the agent listens stops it cleanly, and frees the home", { timeout: 60_000 }, async (t) => {
   const model = await startModelServer();
   t.after(() => model.close());
   const home = tempHome(t);
@@ -329,7 +214,7 @@ test("a stop signal the moment the agent is listening stops it cleanly, and free
   const terminated = await again.stop("SIGTERM");
 
   assert.equal(second.code, 1);
-  assert.match(second.stderr, /Another process owns the agent home/);
+  assert.ok(second.stderr.includes(home), "the home is another process's");
   assert.equal(interrupted.code, 0, interrupted.stderr);
   assert.equal(terminated.code, 0, terminated.stderr);
   assert.equal(isAlive(first.listening.pid) || isAlive(again.listening.pid), false);

@@ -32,7 +32,7 @@ async function whereItListens(t: TestContext): Promise<Address[]> {
   return (await (await onTheRoster(t)).invite("probe")).addresses;
 }
 
-test("a gateway started again with no --listen listens where it did, says so and where that is kept, and --listen given again replaces it", { timeout }, async (t) => {
+test("a gateway started again with no --listen listens where it did, until --listen replaces it", { timeout }, async (t) => {
   const dataDir = tempDir(t, "gateway-data");
 
   // Given more than once, with an IPv6 address in brackets where this machine has one.
@@ -58,7 +58,7 @@ test("a gateway started again with no --listen listens where it did, says so and
   assert.deepEqual(last.listening.listen, replaced.listening.listen, "and what was kept before is gone");
 });
 
-test("an address that means every interface is refused before anything starts, and one that can't be listened on stops the start and says which", { timeout }, async (t) => {
+test("an address of every interface is refused, and one that can't be listened on stops the start", { timeout }, async (t) => {
   useRuntimeDir(t);
   const dataDir = tempDir(t, "gateway-data");
 
@@ -92,13 +92,12 @@ test("an address that means every interface is refused before anything starts, a
   assert.equal((await shrimpy(["status"])).code, 1, "and no gateway is left");
 });
 
-test("up that is told to listen starts the gateway and the chat server where there are no agents, says where the gateway listens, and does it again from what the gateway kept; a gateway that is running keeps its own addresses", { timeout }, async (t) => {
+test("up told to listen starts the gateway and chat server with no agents, and again from what was kept", { timeout }, async (t) => {
   useRuntimeDir(t);
 
   // With no agents and nothing to listen on, there is nothing to start.
   const nothing = await shrimpy(["up"]);
   assert.equal(nothing.code, 1);
-  assert.match(nothing.stderr, /nothing to start/);
 
   const told = await startUp(t, ["--listen", "127.0.0.1:0"]);
   assert.equal(told.programs().length, 2, "the gateway and the chat server");

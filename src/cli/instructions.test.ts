@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { readdir, readFile } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { previewHomeContext } from "../agent/index.ts";
 import { loadAll } from "./commands/index.ts";
 import { runCli } from "./index.ts";
@@ -24,7 +25,9 @@ test("every shrimpy command line in what an agent is told is a command the CLI h
   texts.set("the instructions", sections.find((section) => section.key === "shrimpy")?.text ?? "");
   const trails = sections.find((section) => section.key === "skills")?.text ?? "";
   for (const [, file = ""] of trails.matchAll(/^ {2}(\/\S.*SKILL\.md)$/gm)) texts.set(file, await readFile(file, "utf8"));
-  assert.equal(texts.size, 8, "the instructions, what init prints and the six skills");
+  const shipped = await readdir(fileURLToPath(new URL("../../skills", import.meta.url)));
+  const read = [...texts.keys()].filter((where) => where.endsWith("SKILL.md")).map((file) => basename(dirname(file)));
+  assert.deepEqual(read.toSorted(), shipped.toSorted(), "every skill that ships is read");
 
   const commands = await loadAll();
   const problems: string[] = [];

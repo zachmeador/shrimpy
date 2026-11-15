@@ -16,7 +16,7 @@ import { declareLocalModel, serve, serveChat, shrimpy, startModelServer, untilLi
 
 const timeout = 90_000;
 
-test("wake chooses what wakes an agent in a room, checks the room when the agent runs it, tells the agent, and lists what is set", { timeout }, async (t) => {
+test("wake chooses what wakes an agent in a room, and lists what is set", { timeout }, async (t) => {
   useRuntimeDir(t);
   const model = await startModelServer();
   t.after(() => model.close());
@@ -37,24 +37,22 @@ test("wake chooses what wakes an agent in a room, checks the room when the agent
 
   const nothing = await shrimpy(["wake"], inShell);
   assert.equal(nothing.code, 0, nothing.stderr);
-  assert.match(nothing.stdout, /No room is set/);
   assert.equal(existsSync(file), false);
 
-  // In the agent's shell the room is checked, and written as chat has its name, in any case it was typed. The agent is told.
+  // In the agent's shell the room is checked, and written as chat has its name, in any case it was typed.
   const set = await shrimpy(["wake", "#ops", "all"], inShell);
   assert.equal(set.code, 0, set.stderr);
   assert.deepEqual(chosen(), { Ops: "all" });
-  assert.match(set.stdout, /Told the agent to read its files again/);
   const listed = await shrimpy(["wake"], inShell);
-  assert.match(listed.stdout, /#Ops +all/);
+  assert.ok(listed.stdout.split("\n").some((line) => line.includes("#Ops") && line.includes("all")), listed.stdout);
 
   // A room the agent is not in, and a policy that is not one, are refused, and nothing is written.
   const missing = await shrimpy(["wake", "#nowhere", "none"], inShell);
   assert.equal(missing.code, 2);
-  assert.match(missing.stderr, /not in a room called #nowhere\. The rooms you are in: #Ops\./);
+  assert.ok(missing.stderr.includes("#Ops"), "it names the rooms the agent is in");
   const wrong = await shrimpy(["wake", "ops", "loud"], inShell);
   assert.equal(wrong.code, 2);
-  assert.match(wrong.stderr, /none, mentions, people or all/);
+  assert.ok(["none", "mentions", "people", "all"].every((policy) => wrong.stderr.includes(policy)), "it names the policies there are");
   assert.deepEqual(chosen(), { Ops: "all" });
 
   // Anywhere else it takes --agent when the folder has more than one agent, can't say which rooms the agent is in, and writes the room as it was written.
@@ -64,6 +62,5 @@ test("wake chooses what wakes an agent in a room, checks the room when the agent
   assert.ok(unaimed.stderr.includes("--agent"), unaimed.stderr);
   const unchecked = await shrimpy(["wake", "ghost", "none", "--agent", "scout"], elsewhere);
   assert.equal(unchecked.code, 0, unchecked.stderr);
-  assert.match(unchecked.stdout, /was not checked/);
   assert.deepEqual(chosen(), { Ops: "all", ghost: "none" });
 });

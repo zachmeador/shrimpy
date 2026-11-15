@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { stopAfter, tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
 import { startProgram } from "./index.ts";
 
-test("a program runs in a process group of its own, so the terminal's Ctrl+C reaches only the command that started it", { timeout: 30_000 }, async (t) => {
+test("a program runs in a process group of its own, so Ctrl+C reaches only the command", { timeout: 30_000 }, async (t) => {
   useRuntimeDir(t);
   const gateway = await startProgram(["gateway", "serve", "--data", tempDir(t, "gateway-data")], () => undefined);
   stopAfter(t, async () => {

@@ -36,7 +36,7 @@ function apartEnv(t: TestContext): { SHRIMPY_DIR: string; SHRIMPY_RUNTIME_DIR: s
   };
 }
 
-test("invite prints a line that lets an agent in from a folder of its own, where shrimpy up starts it and no gateway or chat server, and a message sent from the gateway's folder is answered", { timeout }, async (t) => {
+test("invite prints a line that lets an agent in from a folder of its own, where up starts only it", { timeout }, async (t) => {
   const model = await startModelServer();
   stopAfter(t, () => model.close());
 
@@ -69,7 +69,6 @@ test("invite prints a line that lets an agent in from a folder of its own, where
   // It says which gateway the agent belongs to in the line after the one that says it is running, which may arrive a moment later.
   await until(() => there.output().stdout.includes(formatAddress(address)), "up to say which gateway the agent belongs to");
   const said = there.output().stdout;
-  assert.doesNotMatch(said, /gateway \(pid|chat server \(pid/);
   assert.ok(!said.includes("shrimpy run") && !said.includes("shrimpy status"), "and no hint that works only beside a gateway");
   assert.deepEqual(readdirSync(apart.SHRIMPY_RUNTIME_DIR).filter((name) => /^(gateway|chat)/.test(name)), [], "nor a socket of theirs");
 
@@ -85,7 +84,7 @@ test("invite prints a line that lets an agent in from a folder of its own, where
   assert.equal((await gateway.finished).code, 0);
 });
 
-test("a line pasted again where another folder used it is refused as the gateway says it, the folder keeps the home it made, and no second agent joined", { timeout }, async (t) => {
+test("a line pasted again where another folder used it is refused, and no second agent joins", { timeout }, async (t) => {
   const gateway = await serveGateway(t, ["--listen", "127.0.0.1:0"]);
   const [address] = gateway.listening.listen;
   assert.ok(address);

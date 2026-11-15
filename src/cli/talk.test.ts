@@ -32,9 +32,9 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-/** The ID of the thread a `run` started, from the line it printed on standard error. */
+/** The ID of the thread a `run` started, which it prints on standard error. */
 function startedThread(stderr: string): string {
-  const started = /^Thread (th_\w+) started\./m.exec(stderr);
+  const started = /\b(th_\w+)/.exec(stderr);
   assert.ok(started?.[1], `no new thread was announced:\n${stderr}`);
   return started[1];
 }
@@ -71,7 +71,7 @@ test("run posts to a new thread, prints the agent's reply, and puts the thread's
   assert.equal(agent.offered.length, 1);
 });
 
-test("the exit code says how the agent dealt with the message: 0 for an answer or for silence, 1 for a failure or a skip behind a failed turn, with the reason, 130 for stopped work or a skip behind a stop", { timeout }, async (t) => {
+test("the exit code says how the agent dealt with the message", { timeout }, async (t) => {
   await startTalking(t);
   await startScriptedAgent(t, {
     name: "scout",
@@ -133,9 +133,9 @@ test("--no-wait exits once the message is posted and prints the IDs to follow up
   const result = await shrimpy(["run", "scout", "when you can", "--no-wait"]);
 
   assert.equal(result.code, 0, result.stderr);
-  const posted = /Posted (msg_\w+) in thread (th_\w+)\./.exec(result.stdout);
-  assert.ok(posted?.[1] && posted[2], result.stdout);
-  const [messageId, thread] = [posted[1], posted[2]];
+  const messageId = /\b(msg_\w+)/.exec(result.stdout)?.[1];
+  const thread = /\b(th_\w+)/.exec(result.stdout)?.[1];
+  assert.ok(messageId !== undefined && thread !== undefined, result.stdout);
   const you = await talking.you();
   const [message] = await you.read(thread, null, 10);
   assert.ok(message);
@@ -181,7 +181,7 @@ test("run says so when the chat server goes away while it waits, instead of wait
   const agent = await startScriptedAgent(t, { name: "scout", handle: () => finish.promise });
   const waiting = shrimpyInBackground(["run", "scout", "take your time"]);
   await until(() => agent.offered.length === 1, "the agent to be offered the message");
-  await until(() => waiting.output().stderr.includes(" started."), "run to say which thread it started");
+  await until(() => /\bth_\w+/.test(waiting.output().stderr), "run to say which thread it started");
 
   await talking.chat.stop("SIGKILL");
   const result = await within(15_000, waiting.finished, "run ending");
@@ -203,7 +203,7 @@ test("with no gateway running it says what to start, and exits 1", { timeout }, 
   assert.match(result.stderr, /shrimpy up/);
 });
 
-test("an agent that is not linked can't answer, so nothing is posted and it says what to start: here, when its home is in the Shrimpy folder, and where it lives when not", { timeout }, async (t) => {
+test("nothing is posted to an agent that is not linked, and the error says where to start it", { timeout }, async (t) => {
   const talking = await startTalking(t);
   await startScriptedAgent(t, { name: "rex", handle: () => answered("woof") });
   await startScriptedAgent(t, { name: "scout", handle: () => answered("hi"), linked: false });

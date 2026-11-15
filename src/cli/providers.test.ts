@@ -35,7 +35,7 @@ async function testModel(t: TestContext): Promise<ModelServer> {
 const sent = (model: ModelServer): { model: string; authorization: string | undefined }[] =>
   model.requests.map((request) => ({ model: request.body.model, authorization: request.headers.authorization }));
 
-test("agents take the model, server and key their homes don't hold from the folder's providers/, and a home's own files win", { timeout }, async (t) => {
+test("agents take what their homes don't hold from the folder's providers/, and a home's own files win", { timeout }, async (t) => {
   const folder = useShrimpyDir(t);
   const shared = await testModel(t);
   const own = await testModel(t);

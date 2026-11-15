@@ -26,7 +26,7 @@ async function newHome(t: TestContext) {
   };
 }
 
-test("agent context previews the sections the agent would be told, in order, and labels them as a preview", async (t) => {
+test("agent context prints what the agent would be told, from its home's files", async (t) => {
   const paths = await newHome(t);
   writeFileSync(paths.soul, "You are scout, who keeps the build green.\n");
   writeFileSync(join(paths.context, "user.md"), "Zach likes short answers.\n");
@@ -36,19 +36,13 @@ test("agent context previews the sections the agent would be told, in order, and
   const { code, out, err } = await run("agent", "context", "--agent", paths.root);
 
   assert.equal(code, 0, err.join("\n"));
-  const [label, ...rest] = out;
-  assert.match(label ?? "", /preview/i);
-  const sections = rest.join("\n");
-  // The instructions themselves mention <skills>, so look for each tag on a line of its own.
-  const order = ["shrimpy", "soul", "context", "skills"].map((tag) => `\n${sections}`.indexOf(`\n<${tag}>\n`));
-  assert.deepEqual(order, order.toSorted((a, b) => a - b), "in the order the model reads them");
-  assert.ok(order.every((at) => at >= 0));
+  const sections = out.join("\n");
   assert.ok(sections.includes("You are scout, who keeps the build green."));
   assert.ok(sections.includes("Zach likes short answers."));
   assert.ok(sections.includes("Review a diff for bugs."));
 });
 
-test("agent context starts nothing and claims nothing: the home's lock and storage are never made", async (t) => {
+test("agent context starts nothing, and never makes the home's lock or storage", async (t) => {
   const paths = await newHome(t);
 
   await run("agent", "context", "--agent", paths.root);

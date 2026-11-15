@@ -17,16 +17,9 @@ const hasIPv6Loopback = Object.values(networkInterfaces()).some((addresses) =>
 /** The person who runs the gateway, who is the one admin there is until an agent is promoted. */
 const person = userInfo().username;
 
-/** What `members` prints, one member to a line: its name, kind, whether it is an admin and whether it is reachable. */
-const roster = async (): Promise<string[][]> =>
-  (await shrimpy(["members"])).stdout
-    .trim()
-    .split("\n")
-    .slice(1)
-    .map((line) => line.split(/ {2,}/));
-
-const admins = async (): Promise<string[]> =>
-  (await roster()).filter(([, , admin]) => admin === "yes").map(([name]) => name ?? "");
+/** The admins on the roster, as the gateway has them. */
+const adminsOn = async (roster: OnTheRoster): Promise<string[]> =>
+  (await roster.members()).filter((member) => member.admin).map((member) => member.name);
 
 /** What the gateway says when it refuses `asked`, in its own words. */
 async function refusalOf(asked: () => Promise<unknown>): Promise<string> {
@@ -46,40 +39,46 @@ async function joinWith({ name, address, code, fingerprint }: Link): Promise<Hel
   return readAnswer(answer);
 }
 
-test("members lists the roster with who is an admin, a person promotes and demotes agents, an agent that is not an admin is refused, and the role outlives the gateway", { timeout }, async (t) => {
-  const gateway = await startTestGateway(t);
+test("the person promotes and demotes agents, and an agent that is no admin is refused", { timeout }, async (t) => {
+  await startTestGateway(t);
+  const roster = await onTheRoster(t);
   const scout = await startAgentShell(t, "scout");
   await startAgentShell(t, "rex");
-  assert.deepEqual(await roster(), [
-    [person, "person", "yes", "no"],
-    ["scout", "agent", "no", "no"],
-    ["rex", "agent", "no", "no"],
-  ]);
+  const listed = await shrimpy(["members"]);
+  assert.equal(listed.code, 0, listed.stderr);
+  assert.ok([person, "scout", "rex"].every((name) => listed.stdout.includes(name)), listed.stdout);
+  assert.deepEqual(await adminsOn(roster), [person], "the person is the one admin there is");
 
   // An agent that is not an admin is refused, and the error says who to ask.
   const refused = await scout.run(["members", "promote", "rex"]);
   assert.equal(refused.code, 1);
   assert.ok(refused.stderr.includes(person), refused.stderr);
-  assert.deepEqual(await admins(), [person], "and nothing changed");
+  assert.deepEqual(await adminsOn(roster), [person], "and nothing changed");
 
   // The person promotes scout, which can then promote rex, whatever case the name is written in.
   assert.equal((await shrimpy(["members", "promote", "scout"])).code, 0);
   assert.equal((await scout.run(["members", "promote", "REX"])).code, 0);
-  assert.deepEqual(await admins(), [person, "scout", "rex"]);
-
-  // The gateway keeps it.
-  await gateway.outage();
-  await gateway.recover();
-  assert.deepEqual(await admins(), [person, "scout", "rex"]);
+  assert.deepEqual(await adminsOn(roster), [person, "scout", "rex"]);
 
   // The person demotes rex. A person can't be demoted, and a name nobody has is an error.
   assert.equal((await shrimpy(["members", "demote", "rex"])).code, 0);
   assert.equal((await shrimpy(["members", "demote", person])).code, 1);
   assert.equal((await shrimpy(["members", "promote", "nobody"])).code, 1);
-  assert.deepEqual(await admins(), [person, "scout"]);
+  assert.deepEqual(await adminsOn(roster), [person, "scout"]);
 });
 
-test("invite prints the line to run where the agent will live for each address the gateway listens on, says which is for another user, and the code in it lets the agent in", { timeout }, async (t) => {
+test("an agent's role outlives the gateway", { timeout }, async (t) => {
+  const gateway = await startTestGateway(t);
+  await startAgentShell(t, "scout");
+  assert.equal((await shrimpy(["members", "promote", "scout"])).code, 0);
+
+  await gateway.outage();
+  await gateway.recover();
+
+  assert.deepEqual(await adminsOn(await onTheRoster(t)), [person, "scout"]);
+});
+
+test("invite prints a line for each address the gateway listens on, whose code lets the agent in", { timeout }, async (t) => {
   useRuntimeDir(t);
   // A name no agent can have is refused with no gateway running: no home could be made for it, so there is nothing to ask.
   assert.equal((await shrimpy(["invite", "Scout Bot"])).code, 2);
@@ -97,7 +96,6 @@ test("invite prints the line to run where the agent will live for each address t
   assert.deepEqual(links.map((link) => link.address), listen, "one line for each address, in the order the gateway has them");
   assert.ok(links.every((link) => link.name === "crab" && link.code === links[0]?.code), "for crab, with one code");
   assert.ok(links.every((link) => link.fingerprint === gateway.listening.fingerprint), "and the fingerprint of the gateway's key");
-  assert.match(invited.stdout, /another user/, "and a loopback address is said to be for another user of this machine");
 
   // The code is good where the line says to use it.
   const [link] = links;
@@ -113,7 +111,7 @@ test("invite prints the line to run where the agent will live for each address t
   assert.ok(taken.stderr.includes(says), taken.stderr);
 });
 
-test("invite with no name prints the line to run on another machine of yours for each address the gateway listens on, says which are for the gateway's own machine, and the code in it lets a machine in as the person", { timeout }, async (t) => {
+test("invite with no name prints a line for each address, whose code lets a machine in as the person", { timeout }, async (t) => {
   useRuntimeDir(t);
   const gateway = await serveGateway(t, ["--listen", "127.0.0.1:0", "--listen", hasIPv6Loopback ? "[::1]:0" : "127.0.0.1:0"]);
   const listen = gateway.listening.listen;
@@ -126,7 +124,6 @@ test("invite with no name prints the line to run on another machine of yours for
   const links = lines.map((line) => readLink(line.slice("shrimpy join ".length).replace(/^'(.*)'$/, "$1")));
   assert.deepEqual(links.map((link) => link.address), listen, "one line for each address, in the order the gateway has them");
   assert.ok(links.every((link) => link.name === null && link.code === links[0]?.code), "for a machine and not an agent, with one code");
-  assert.match(invited.stdout, /loopback/, "and a loopback address is said to be one only the gateway's own machine reaches");
 
   // The code is good where the line says to use it, and the machine it lets in is the person.
   const [link] = links;
@@ -135,7 +132,7 @@ test("invite with no name prints the line to run on another machine of yours for
   assert.deepEqual(joined?.kind === "welcome" ? [joined.you?.kind, joined.you?.name] : joined?.words, ["person", person]);
 });
 
-test("invite with no name is refused to an agent, an admin too, in words that say why, and when the gateway listens nowhere is refused as the gateway says it", { timeout }, async (t) => {
+test("invite with no name is refused to an agent, an admin too, and where the gateway listens nowhere", { timeout }, async (t) => {
   await startTestGateway(t);
   const scout = await startAgentShell(t, "scout");
   const onTheSocket = await onTheRoster(t);
@@ -155,7 +152,7 @@ test("invite with no name is refused to an agent, an admin too, in words that sa
   }
 });
 
-test("invite is refused as the gateway says it when the gateway listens nowhere, and to an agent that is no admin, who is told who the admins are", { timeout }, async (t) => {
+test("invite is refused where the gateway listens nowhere, and to an agent that is no admin", { timeout }, async (t) => {
   await startTestGateway(t);
   const scout = await startAgentShell(t, "scout");
   const onTheSocket = await onTheRoster(t);

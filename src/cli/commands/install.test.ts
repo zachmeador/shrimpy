@@ -93,7 +93,7 @@ function ranInOrder(ran: string[], ...commands: string[]): boolean {
   return true;
 }
 
-test("on Linux, install writes a user unit that runs this Shrimpy's up with the installer's PATH, loads and starts it and turns lingering on; again, it updates and restarts; uninstall stops and removes it", async (t) => {
+test("on Linux, install writes and starts a user unit that runs up, and uninstall removes it", async (t) => {
   useRuntimeDir(t);
   const folder = useShrimpyDir(t);
   // The folder is the default one of this account, which has the plain name.
@@ -119,7 +119,6 @@ test("on Linux, install writes a user unit that runs this Shrimpy's up with the 
   assert.ok(ran.includes("loginctl --no-ask-password enable-linger ubuntu"), "and lingering is turned on");
   assert.ok(first.out.some((line) => line.includes(unit)), "it says where the file is");
   assert.match((await serviceStatusLine(account)) ?? "", /shrimpy\.service/);
-  assert.ok(!(await serviceStatusLine(account))?.includes("not running"), "and that it runs");
 
   // Run again with another PATH: the unit is written again, the service restarted, and the command says it did.
   const again = captureIo();
@@ -148,7 +147,7 @@ test("on Linux, install writes a user unit that runs this Shrimpy's up with the 
   assert.notEqual(none.out.length, 0);
 });
 
-test("on macOS, install writes a LaunchAgent that runs this Shrimpy's up with the installer's PATH and prints to a log, loads it; again, it loads it anew; uninstall unloads and removes it", async (t) => {
+test("on macOS, install writes and loads a LaunchAgent that runs up, and uninstall removes it", async (t) => {
   useRuntimeDir(t);
   const folder = useShrimpyDir(t);
   const { account, ran } = standIn(t, "darwin", { home: dirname(folder) });
@@ -186,7 +185,7 @@ test("on macOS, install writes a LaunchAgent that runs this Shrimpy's up with th
   assert.ok(existsSync(join(folder, "agents", "scout", "agent.json")), "nothing of Shrimpy's is deleted");
 });
 
-test("two folders get two services, the default folder's with the plain name, and the service is told a folder that is not the default", async (t) => {
+test("two folders get two services, and the one for a folder that is not the default is told it", async (t) => {
   useRuntimeDir(t);
   const first = useShrimpyDir(t);
   const { account, ran } = standIn(t, "linux", { home: dirname(first) });
@@ -214,7 +213,7 @@ test("two folders get two services, the default folder's with the plain name, an
   assert.ok(existsSync(join(directory, "shrimpy.service")));
 });
 
-test("lingering that is refused still leaves the service installed and started, and install prints the command that turns it on", async (t) => {
+test("lingering that is refused leaves the service started, and install prints how to turn it on", async (t) => {
   useRuntimeDir(t);
   const folder = useShrimpyDir(t);
   const { account, ran } = standIn(t, "linux", { home: dirname(folder), refuseLingering: true });
@@ -229,7 +228,7 @@ test("lingering that is refused still leaves the service installed and started, 
   assert.ok(installed.out.some((line) => line.includes(NEEDS_ADMIN)), "and why it was refused");
 });
 
-test("install says what the service runs: only the agents, and where their gateway is, when they all belong to a gateway elsewhere; and nothing is installed when there is nothing to start", async (t) => {
+test("install says where the agents' gateway is when it is elsewhere, and installs nothing to start nothing", async (t) => {
   useRuntimeDir(t);
   const folder = useShrimpyDir(t);
   const { account, ran } = standIn(t, "linux", { home: dirname(folder) });

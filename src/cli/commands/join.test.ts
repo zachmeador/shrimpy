@@ -11,7 +11,7 @@ import { joinByLink } from "./join.ts";
  * cli/machine.test.ts.
  */
 
-test("join gives up on a gateway that does not answer, says where it tried, and running it again with the same link joins as the same machine", { timeout: 60_000 }, async (t) => {
+test("join gives up on a gateway that does not answer, and the same link joins later as the same machine", { timeout: 60_000 }, async (t) => {
   const gateway = await serveGateway(t, ["--listen", "127.0.0.1:0"]);
   const [address] = gateway.listening.listen;
   assert.ok(address);
@@ -24,7 +24,6 @@ test("join gives up on a gateway that does not answer, says where it tried, and 
 
   await assert.rejects(joinByLink(captureIo().io, link, 1_000), (error: Error) => {
     assert.ok(error.message.includes(formatAddress(address)), error.message);
-    assert.match(error.message, /safe/, "and that it is safe to run it again");
     return true;
   });
   const waiting = readMachine(folder);

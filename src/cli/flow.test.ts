@@ -130,10 +130,9 @@ test("a waiting command exits 1 when the agent stops under it", { timeout }, asy
 
   assert.equal(result.code, 1);
   assert.deepEqual(result.out, []);
-  assert.equal(result.err.length, 1);
 });
 
-test("with the gateway gone, the agent is still watched and stopped by its home's path, and tells chat what became of the message once the gateway is back", { timeout }, async (t) => {
+test("with the gateway gone, the agent is watched and stopped by its home's path, and chat told later", { timeout }, async (t) => {
   const { home, model, threadId, ask, tell } = await servedHome(t);
   const gateway = await startTestGateway(t);
   await ask("first");

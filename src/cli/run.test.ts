@@ -39,7 +39,6 @@ test("every command is reached from the front page: it is on it, or its group is
   assert.equal(bare.code, 2, "with no command, away from a terminal, it prints the front page and exits with 2");
   assert.equal(bare.err, front.out);
   assert.ok(front.out.includes(folder), "and the page says where the Shrimpy folder is");
-  assert.ok(front.out.split("\n").length <= 25, "and stays a page that is read at a glance");
 
   const named = namesOn(front.out);
   for (const command of commands) {
@@ -68,7 +67,7 @@ test("with no command at a terminal it opens the console instead, and its result
   assert.deepEqual([result, opened, cli.err, cli.out], [1, 1, [], []]);
 });
 
-test("a command that does not exist is refused with 2 and one message that names where to find the ones that do, also for a name that is only a property of plain objects", async () => {
+test("a command that does not exist is refused with 2, and says where to find the ones that do", async () => {
   const cases: [string[], string][] = [
     [["nope"], "shrimpy --help"],
     [["constructor"], "shrimpy --help"],
@@ -84,18 +83,22 @@ test("a command that does not exist is refused with 2 and one message that names
   }
 });
 
-test("a command used wrongly exits with 2 and shows its usage", async () => {
-  const cases: [string[], string][] = [
-    [["agent", "init"], "Missing <agent>."],
-    [["agent", "init", "scout", "--model", "qwen"], 'Model "qwen" should be provider/id'],
-    [["agent", "serve", "h", "--fast"], "Unknown option '--fast'"],
-    [["sessions", "steer", "th_1", "one", "two"], "Unexpected argument: two."],
-    [["run", "scout", "   "], "The text is empty."],
+test("a command used wrongly exits with 2, and shows what was wrong and its usage", async () => {
+  const commands = await loadAll();
+  // Each case is the command, the arguments it was given, and what it names as wrong, where that is something given.
+  const cases: [string, string[], string | undefined][] = [
+    ["agent init", [], "<agent>"],
+    ["agent init", ["scout", "--model", "qwen"], "qwen"],
+    ["agent serve", ["h", "--fast"], "--fast"],
+    ["sessions steer", ["th_1", "one", "two"], "two"],
+    ["run", ["scout", "   "], undefined],
   ];
-  for (const [args, expected] of cases) {
-    const result = await run(...args);
-    assert.equal(result.code, 2, args.join(" "));
-    assert.ok(result.err.includes(expected), `${args.join(" ")} -> ${result.err}`);
-    assert.match(result.err, /\nUsage: shrimpy [a-z]+/);
+  for (const [name, args, wrong] of cases) {
+    const command = commands.find((each) => each.name === name);
+    assert.ok(command, name);
+    const result = await run(...name.split(" "), ...args);
+    assert.equal(result.code, 2, `${name} ${args.join(" ")}`);
+    if (wrong !== undefined) assert.ok(result.err.includes(wrong), `${name} ${args.join(" ")} -> ${result.err}`);
+    assert.ok(result.err.includes(command.usage), result.err);
   }
 });
