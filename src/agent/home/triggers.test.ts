@@ -8,7 +8,7 @@ const THREAD = "th_4k9x2m7q0b3d";
 /** A trigger's file: the lines between the dashes, then a prompt. */
 const file = (lines: string[], prompt = "Tidy up."): string => ["---", ...lines, "---", prompt, ""].join("\n");
 
-test("a trigger's file is read as written, and one that doesn't check out is refused with the key that is wrong and what is allowed", () => {
+test("a trigger's file is read as written, and one that doesn't check out is refused with its key", () => {
   assert.deepEqual(parseTrigger("nightly", file(["every: 90 m", `thread: ${THREAD}`, "overlap: allow", "enabled: false"], "\n  Tidy up.  \n")), {
     name: "nightly",
     schedule: { every: "90m" },

@@ -19,7 +19,7 @@ const timeout = 30_000;
 /** How often the agent looks at its files here, in milliseconds. */
 const LOOK = 250;
 
-test("a file that is still being written is not read until it stops changing; one that can't be used leaves what the agent had, is said once and reaches its sessions as a breadcrumb, which goes when the file is right again", { timeout }, async (t) => {
+test("a file being written is read once it stops changing, and one that can't be used keeps what the agent had", { timeout }, async (t) => {
   const home = tempDir(t, "agent");
   writeTrigger(home, "tidy", ["every: 1h"], "Tidy the notes.");
   const model = talking(() => ({ final: "Seen." }));
@@ -74,7 +74,7 @@ test("a file that is still being written is not read until it stops changing; on
   assert.equal(said().length, 1, "and nothing more was said");
 });
 
-test("SOUL.md, a note and a folder of notes that can't be read are still in what the model is shown, as they were last read, and the new text is shown once they can be read again; a file that is gone is gone, and one that was never read has nothing to show", { timeout }, async (t) => {
+test("files of the home that can't be read are shown as they were last read, until they can be read again", { timeout }, async (t) => {
   const home = tempDir(t, "agent");
   const paths = homePaths(home);
   const put = (file: string, text: string): string => {
@@ -143,7 +143,7 @@ test("SOUL.md, a note and a folder of notes that can't be read are still in what
   assert.equal(has(seen.soul, "build green") || has(seen.context, "on fire") || has(seen.context, "owns the release"), false, "and the old text is gone");
 });
 
-test("a skill whose front matter is broken stays listed with the description it had, and its new description is shown once it is right", { timeout }, async (t) => {
+test("a skill whose front matter breaks keeps the description it had until it is right again", { timeout }, async (t) => {
   const home = tempDir(t, "agent");
   const file = join(homePaths(home).skills, "garden", "SKILL.md");
   const write = (text: string): void => {

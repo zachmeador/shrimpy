@@ -120,7 +120,7 @@ function assertWaitedForNextTurn(
   assert.deepEqual(rig.reports, []);
 }
 
-test("a person's messages, sent in one step of a turn that runs, are all read by that turn at its next step, whether or not they mention the agent, and the turn's one reply answers them", { timeout }, async (t) => {
+test("a person's messages sent while a turn runs are read at its next step, and its reply answers them", { timeout }, async (t) => {
   for (const place of PLACES) {
     await t.test(place.name, async (inner) => {
       const { script, asked } = twoSteps();

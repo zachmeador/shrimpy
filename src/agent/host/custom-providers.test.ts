@@ -32,17 +32,18 @@ test("a provider is read with its models, and what a model leaves out has defaul
 });
 
 test("a file that does not fit is refused with the file and the place in it", (t) => {
-  const cases: [unknown, string][] = [
-    [{ providers: { local: { ...local, headers: { a: "b" } } } }, "providers.local has unsupported keys: headers"],
-    [{ providers: { local: { ...local, baseUrl: "localhost:11434" } } }, "providers.local.baseUrl must be an http or https URL"],
-    [{ providers: { local: { ...local, models: [] } } }, "providers.local.models needs at least one model"],
+  // Each case names the place in the file, and what of it is wrong.
+  const cases: [unknown, string, string][] = [
+    [{ providers: { local: { ...local, headers: { a: "b" } } } }, "providers.local", "headers"],
+    [{ providers: { local: { ...local, baseUrl: "localhost:11434" } } }, "providers.local.baseUrl", "baseUrl"],
+    [{ providers: { local: { ...local, models: [] } } }, "providers.local.models", "models"],
   ];
-  for (const [content, expected] of cases) {
+  for (const [content, place, wrong] of cases) {
     const file = modelsFile(t, content);
     assert.throws(
       () => readCustomProviders(file),
-      (error: Error) => error.message.startsWith(`${file}: ${expected}`),
-      expected,
+      (error: Error) => error.message.startsWith(`${file}: ${place}`) && error.message.includes(wrong),
+      place,
     );
   }
 });

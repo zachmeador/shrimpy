@@ -43,7 +43,7 @@ async function leaveOlderRecords(home: string): Promise<void> {
   }
 }
 
-test("records another version wrote are refused at the start, in words that name the file, and the agent starts fresh without them", { timeout }, async (t) => {
+test("records another version wrote are refused at the start, and the agent starts fresh without them", { timeout }, async (t) => {
   useRuntimeDir(t);
   const home = tempDir(t, "records");
   const { database } = homePaths(home);
@@ -56,7 +56,7 @@ test("records another version wrote are refused at the start, in words that name
   closeAfter(t, await start());
 });
 
-test("an agent started fresh answers in a thread that its old records already posted a reply in, though the engine numbers its entries as it did before", { timeout }, async (t) => {
+test("an agent started fresh answers in a thread its old records already replied in", { timeout }, async (t) => {
   const first = await startAgentRig(t);
   await first.receiptOn(await first.say("A, before the agent started fresh"));
   await first.agent.close();

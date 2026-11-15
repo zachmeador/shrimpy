@@ -33,7 +33,7 @@ function homeOf(t: TestContext, name: string): string {
   return home;
 }
 
-test("a home whose agent is called something else than the link says is refused, and so is text that is not a link or a link that names no agent, before the home is touched", async (t) => {
+test("a link for another agent's name, or no link at all, is refused before the home is touched", async (t) => {
   const home = homeOf(t, "crab");
   const address = await closedAddress();
   const { paths } = loadHome(home);
@@ -48,7 +48,7 @@ test("a home whose agent is called something else than the link says is refused,
   assert.equal(existsSync(paths.member), false, "no token was made for any of them");
 });
 
-test("a home that is a member somewhere already is refused, with the file to delete to join anew, and nothing in it changes", async (t) => {
+test("a home that is a member somewhere already is refused, and nothing in it changes", async (t) => {
   const address = await closedAddress();
   const link = writeLink({ name: "crab", address, code: "K7Q2-9FXD", fingerprint });
   const kept = [
@@ -85,7 +85,7 @@ test("a home keeps its token before it joins, and asks again with the same token
   assert.equal(readMembership(home)?.token, made?.token);
 });
 
-test("a join that is given up on while the gateway says nothing fails as an attempt that can be made again, with the token kept", async (t) => {
+test("a join given up on while the gateway says nothing can be made again, with the token kept", async (t) => {
   const home = homeOf(t, "crab");
   // A server that takes the connection and never answers.
   const taken = new Set<Socket>();

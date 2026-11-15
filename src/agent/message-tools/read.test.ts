@@ -23,5 +23,5 @@ test("a long thread is read a page at a time, newest first, and each page says w
 
   const start = await rig.call("read_messages", { limit: 10, before: messages[5]!.seq });
   assert.deepEqual(lines(start.text), Array.from({ length: 5 }, (_, i) => `message ${String(1 + i)}`));
-  assert.doesNotMatch(start.text, /older messages/, "the last page says nothing about more");
+  assert.ok(!start.text.includes("before:"), "the last page says nothing about more");
 });

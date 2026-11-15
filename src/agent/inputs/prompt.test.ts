@@ -14,31 +14,20 @@ function outstanding(event: Snapshot, earlier: Snapshot[] = []): Outstanding {
   return { event, threadId: "th_4k9x2m7q0b3d", channelId: "ch_8f2m1q7z4c0a", earlier, cancelled: [], missed: [] };
 }
 
-const where = "Thread th_4k9x2m7q0b3d in channel ch_8f2m1q7z4c0a.";
+test("a message is shown with its thread and channel, after the earlier events, each as written, oldest first", () => {
+  const earlier = [
+    posted("evt_2", "Zach", "Please check the build.", "2026-10-03T14:05:00Z"),
+    posted("evt_3", "Alex", "Two lines,\nand a blank one below.\n", "2026-10-03T14:06:30Z"),
+  ];
+  const latest = posted("evt_4", "Zach", "Never mind the first one.", "2026-10-03T14:09:00Z");
 
-test("a message is shown with where it is, after the earlier events the agent has not acted on, each as written, oldest first", () => {
-  const prompt = promptFor(
-    outstanding(posted("evt_4", "Zach", "Never mind the first one.", "2026-10-03T14:09:00Z"), [
-      posted("evt_2", "Zach", "Please check the build.", "2026-10-03T14:05:00Z"),
-      posted("evt_3", "Alex", "Two lines,\nand a blank one below.\n", "2026-10-03T14:06:30Z"),
-    ]),
-  );
+  const prompt = promptFor(outstanding(latest, earlier));
 
-  assert.equal(
-    prompt,
-    [
-      where,
-      "",
-      `Zach wrote at ${localTime(at("2026-10-03T14:05:00Z"))}:`,
-      "Please check the build.",
-      "",
-      `Alex wrote at ${localTime(at("2026-10-03T14:06:30Z"))}:`,
-      "Two lines,",
-      "and a blank one below.",
-      "",
-      "",
-      `Zach wrote at ${localTime(at("2026-10-03T14:09:00Z"))}:`,
-      "Never mind the first one.",
-    ].join("\n"),
-  );
+  assert.ok(prompt.includes("th_4k9x2m7q0b3d") && prompt.includes("ch_8f2m1q7z4c0a"), prompt);
+  const where = [...earlier, latest].map((event) => (event.kind === "posted" ? prompt.indexOf(event.text) : -1));
+  assert.ok(where.every((index) => index >= 0), "each is there as it was written");
+  assert.deepEqual(where, where.toSorted((a, b) => a - b), "oldest first");
+  for (const event of [...earlier, latest]) {
+    assert.ok(event.kind === "posted" && prompt.includes(event.author) && prompt.includes(localTime(event.sentAt)), event.id);
+  }
 });

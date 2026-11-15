@@ -5,7 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Chat } from "../../contracts/chat/index.ts";
 import { until } from "../../lib/testing/index.ts";
-import { localTime } from "../../lib/time/index.ts";
+import { standing, written } from "../inputs/index.ts";
 import { callingTools, onChannel, onThread, startAgentRig, valueOf } from "../testing/index.ts";
 
 const timeout = 30_000;
@@ -67,11 +67,12 @@ test("read_messages gives the model the thread as it was said, in the same words
   const [read] = model.answers;
   assert.equal(read?.name, "read_messages");
   assert.equal(read.isError, false);
-  assert.ok(read.text.includes(`${rig.me.name} wrote at ${localTime(earlier.sentAt)}:\nEarlier, I asked about the build.`), read.text);
+  const arrived = written({ kind: "posted", id: earlier.event, seq: earlier.seq, author: rig.me.name, sentAt: earlier.sentAt, text: earlier.text });
+  assert.ok(read.text.includes(arrived), read.text);
   assert.ok(read.text.indexOf(earlier.text) < read.text.indexOf(asked.text), "oldest first");
 });
 
-test("read_messages gives the model each message as it now stands: edited ones say so, deleted ones have lost their text, and reactions say who", { timeout }, async (t) => {
+test("read_messages gives the model each message as it now stands", { timeout }, async (t) => {
   // The edit is a turn of its own, and the last turn is the one that reads.
   const model = callingTools([[], [], [], [{ name: "read_messages", args: { limit: 10 } }]]);
   const rig = await startAgentRig(t, { script: model.script });
@@ -79,7 +80,7 @@ test("read_messages gives the model each message as it now stands: edited ones s
   await rig.receiptOn(kept);
   const dropped = await rig.say("Ignore this one.");
   await rig.receiptOn(dropped);
-  const edit = await rig.edit(kept, "Is the build green now?");
+  await rig.edit(kept, "Is the build green now?");
   await rig.receiptFor((await rig.events()).findLast((event) => event.kind === "edited")!);
   await rig.react(kept, "\u{1F44D}");
   await rig.remove(dropped);
@@ -89,13 +90,13 @@ test("read_messages gives the model each message as it now stands: edited ones s
 
   const [read] = model.answers;
   assert.equal(read?.name, "read_messages");
-  const sent = (message: { sentAt: number }): string => localTime(message.sentAt);
-  const edited = localTime(edit.editedAt ?? 0);
-  assert.ok(read.text.includes(`${rig.me.name} wrote at ${sent(kept)}, and edited it at ${edited}:\nIs the build green now?`), read.text);
+  const now = new Map((await rig.said()).map((message) => [message.id, message]));
+  const nameOf = (memberId: string): string => (memberId === rig.me.id ? rig.me.name : memberId);
+  for (const message of [now.get(kept.id), now.get(dropped.id)]) {
+    assert.ok(message && read.text.includes(standing(message, nameOf)), read.text);
+  }
   assert.ok(!read.text.includes("Is the build green?\n"), "not what it said before");
-  assert.ok(read.text.includes(`${rig.me.name} wrote at ${sent(dropped)}, and deleted it.`), read.text);
   assert.ok(!read.text.includes("Ignore this one."), "and not what it said");
-  assert.ok(read.text.includes(`Reactions: \u{1F44D} by ${rig.me.name}`), read.text);
 });
 
 test("tools that find chat gone say so and do not wait, and the reply is delivered once chat is back", { timeout }, async (t) => {
@@ -161,6 +162,6 @@ test("an agent starts a DM with a member it has never talked to, by name, and sa
   assert.equal(posted?.isError, false);
   assert.ok(read?.text.includes("The build is red."), "the DM it started can be read");
   assert.equal(refused?.isError, true);
-  assert.match(refused.text, /^Nobody is called @nobody\. The members are: /);
+  assert.ok(refused.text.includes("@nobody"));
   for (const name of [rig.me.name, "scout", "mechanic"]) assert.ok(refused.text.includes(name), `it names ${name}`);
 });

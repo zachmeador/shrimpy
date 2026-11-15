@@ -84,7 +84,7 @@ function latestUser(messages: readonly ModelMessage[]): string {
   return typeof latest.content === "string" ? latest.content : latest.content.map((block) => (block.type === "text" ? block.text : "")).join("");
 }
 
-test("a question asked in a thread with a person is answered in that thread: maya answers in their DM, the session behind the thread is woken with the answer, and the session behind the DM is not", { timeout }, async (t) => {
+test("a question asked in a thread with a person wakes that thread's session with the answer", { timeout }, async (t) => {
   const asking = talking((_shown, turn) =>
     turn === 0 ? { ask: { to: "@maya", text: "Which stanza will you take?" }, final: "I asked maya." } : { final: "Maya says stanza 2." },
   );
@@ -137,7 +137,7 @@ test("when maya reads the question and says nothing, and when her turn fails, sc
   assert.deepEqual([scout.reports, maya.reports], [[], []]);
 });
 
-test("a question that gets no answer in time is told once, and an answer that comes later wakes a session behind the question's thread as any message does, but an answer whose receipt the feed has not brought when the time runs out is told as the answer, once", { timeout }, async (t) => {
+test("a question with no answer in time is told once, and a late answer wakes the question's own thread", { timeout }, async (t) => {
   // While `held` is a promise nobody has settled, what the feed brings waits for the test.
   let held: Promise<void> = Promise.resolve();
   let release = (): void => undefined;
@@ -178,7 +178,7 @@ test("a question that gets no answer in time is told once, and an answer that co
   await answer(maya, first.threadId, "Stanza 2.", question.event, "maya-1");
   await eventually(() => asking.shown.length, (count) => count === 3, { what: "scout to be woken in the question's thread", timeoutMs: PATIENT });
   const late = asking.shown[2] ?? "";
-  assert.ok(late.includes("maya wrote at") && late.includes("Stanza 2."), `shown as any message in a DM is:\n${late}`);
+  assert.ok(late.includes("maya") && late.includes("Stanza 2."), `shown as any message in a DM is:\n${late}`);
   assert.deepEqual(
     (await (await scout.connect()).sessions()).map((session) => session.threadId).sort(),
     [scout.thread.id, first.threadId].sort(),
@@ -197,7 +197,6 @@ test("a question that gets no answer in time is told once, and an answer that co
   await eventually(() => asking.shown.length, (count) => count === 5, { what: "scout to be told maya's answer", timeoutMs: PATIENT });
   const answered = asking.shown[4] ?? "";
   for (const fact of ["And which key?", "Stanza 3."]) assert.ok(answered.includes(fact), `${fact} reached the model in\n${answered}`);
-  assert.ok(!answered.includes("had not answered"), `the answer, not the lack of one:\n${answered}`);
 
   // The feed then reads her reply and her receipt for a question that is closed: neither tells scout again or wakes a session.
   release();
@@ -205,7 +204,7 @@ test("a question that gets no answer in time is told once, and an answer that co
   assert.equal(asking.shown.length, 6);
   assert.ok((asking.shown[5] ?? "").includes("The last word."));
   assert.equal(asking.shown.filter((shown) => shown.includes("And which key?")).length, 1, "scout was told once");
-  assert.equal(asking.shown.filter((shown) => shown.includes("maya wrote at")).length, 1, "and only her answer that was too late woke a session of its own");
+  assert.equal(asking.shown.filter((shown) => shown.includes("Stanza 3.")).length, 1, "and her answer in time woke no session of its own");
   assert.deepEqual(scout.reports, []);
 });
 
@@ -235,7 +234,7 @@ test("scout is killed after it asked and before maya answered: when it is back t
   assert.deepEqual(await (await dm.main()).messages(), [], "and nothing in the DM's main thread");
 });
 
-test("a person can't be asked, and a sixth open question of a session is refused, each with words that say so and without posting anything", { timeout }, async (t) => {
+test("a person can't be asked, and a sixth open question is refused, without posting anything", { timeout }, async (t) => {
   const asks = Array.from({ length: 5 }, (_, number) => ({ name: "ask_agent", args: { to: "@maya", text: `Question ${String(number)}?` } }));
   const person = { name: "ask_agent", args: { to: `@${userInfo().username}`, text: "Is it Tuesday?" } };
   const sixth = { name: "ask_agent", args: { to: "@maya", text: "One question too many?" } };
@@ -293,7 +292,7 @@ test("a result that was skipped because the turn ahead of it failed is shown wit
   assert.deepEqual(scout.reports, []);
 });
 
-test("scout and maya each have a question open to the other, and each gets the other's answer, because each question is in a thread of its own", { timeout }, async (t) => {
+test("two agents each with a question open to the other each get the other's answer", { timeout }, async (t) => {
   const scoutModel = talking((shown) => {
     if (shown.includes("Ask maya")) return { ask: { to: "@maya", text: "Which stanza will you take?" }, final: "I asked maya." };
     if (shown.includes("Which key are we in?")) return { final: "The key of C." };

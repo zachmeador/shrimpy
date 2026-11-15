@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+import { failureWords } from "../contracts/agent/index.ts";
 import { eventually, stopAfter, tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
 import {
   answered,
@@ -137,8 +138,8 @@ test("killed between the turn ending and the reply being posted: the reply arriv
   assert.equal((await talk.receiptOn(asked)).status, "answered");
   const replies = await talk.replies();
   assert.equal(replies.length, 1);
-  assert.match(replies[0]?.text ?? "", /^You said: [^\n]*Thread th_\w+ in channel ch_\w+\.\n\n/);
-  assert.ok(replies[0]?.text.includes(`${talk.me.name} wrote at `));
+  const reply = replies[0]?.text ?? "";
+  assert.ok(reply.includes(talk.thread.id) && reply.includes(talk.thread.channelId) && reply.includes(talk.me.name), reply);
   assert.equal(loggedRequests(home).length, 1, "the model was not asked again");
 });
 
@@ -197,7 +198,7 @@ test("killed every time a turn's command runs: Pi ends the turn at its limit, an
 
   const receipt = await talk.receiptOn(asked);
   assert.equal(receipt.status, "failed");
-  assert.match(receipt.detail ?? "", /unexpectedly/);
+  assert.equal(receipt.detail, failureWords("restart_limit", null));
   await talk.untilIdle();
   assert.deepEqual(await talk.replies(), []);
   const again = await talk.say("hello again");

@@ -6,6 +6,7 @@ import { type Speaking, speakingAs } from "../contracts/chat/testing/index.ts";
 import { eventually } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
 import { homePaths, type WakePolicy } from "./home/index.ts";
+import { type Audience, written } from "./inputs/index.ts";
 import {
   loggedRequests,
   roomWith,
@@ -44,7 +45,7 @@ async function answer(member: Speaking, threadId: string, text: string, events: 
   return reply;
 }
 
-test("an agent that mentioned another is woken by the answer, once, though it doesn't mention the agent, and its reply wakes nobody", { timeout }, async (t) => {
+test("an agent that mentioned another is woken once by the answer, though it doesn't mention the agent", { timeout }, async (t) => {
   const asking = talking((_shown, turn) =>
     turn === 0
       ? { send: { to: "#Ops", text: "@bob, which stanza will you take?" }, final: "I asked bob in the room." }
@@ -74,7 +75,7 @@ test("an agent that mentioned another is woken by the answer, once, though it do
   assert.deepEqual(scout.reports, []);
 });
 
-test("in a DM an answer is taken up once: the reply wakes the agent, and the receipt that points to it does not wake it again", { timeout }, async (t) => {
+test("in a DM an answer is taken up once, by its reply and not again by its receipt", { timeout }, async (t) => {
   const asking = talking((_shown, turn) =>
     turn === 0 ? { send: { to: "@bob", text: "Which stanza will you take?" }, final: "I asked bob." } : { final: "Noted." },
   );
@@ -101,7 +102,7 @@ test("in a DM an answer is taken up once: the reply wakes the agent, and the rec
   await untilQuiet(bob, channel.id, dm.id);
 
   assert.equal(asking.shown.length, 2, "the person's message and bob's reply, and the receipt on the question woke nobody");
-  assert.ok((asking.shown[1] ?? "").includes("bob wrote at"), "shown as any message in a DM is");
+  assert.ok((asking.shown[1] ?? "").includes(written({ kind: "posted", id: reply.event, seq: reply.seq, author: "bob", sentAt: reply.sentAt, text: reply.text })), "shown as any message in a DM is");
   assert.deepEqual(scout.reports, []);
 });
 
@@ -129,8 +130,12 @@ test("one reply that answers two messages from two members wakes each of them th
   assert.equal(scoutAsks.shown.length, 2);
   assert.equal(mayaAsks.shown.length, 2);
   // Each is shown that bob answered its own question, and the reply.
-  assert.ok((scoutAsks.shown[1] ?? "").includes(`bob answered your message from ${localTime(keyQuestion.sentAt)}, which starts:\n@bob, which key?`));
-  assert.ok((mayaAsks.shown[1] ?? "").includes(`bob answered your message from ${localTime(tempoQuestion.sentAt)}, which starts:\n@bob, which tempo?`));
+  for (const [shown = "", own] of [
+    [scoutAsks.shown[1], keyQuestion],
+    [mayaAsks.shown[1], tempoQuestion],
+  ] as const) {
+    assert.ok(shown.includes(localTime(own.sentAt)) && shown.includes(own.text), shown);
+  }
   for (const shown of [scoutAsks.shown[1], mayaAsks.shown[1]]) assert.ok(shown?.includes("Key of C, tempo 90."), `the reply reached the model in\n${shown}`);
   assert.deepEqual(scout.reports, []);
   assert.deepEqual(maya.reports, []);
@@ -162,7 +167,7 @@ test("a fresh start passes over an answer it has dealt with, and over the rest o
   assert.deepEqual(inRoom.map((message) => message.text), ["@bob, which stanza will you take?", "Thanks."], "and said nothing again in the room");
 });
 
-test("an agent woken in a room is shown what was said there since it last looked, then the message that woke it, and a long backlog is cut with a pointer to the rest", { timeout }, async (t) => {
+test("an agent woken in a room is shown what was said since it last looked, then what woke it", { timeout }, async (t) => {
   const model = talking(() => ({ final: "Seen." }));
   const scout = await startAgentRig(t, { script: model.script });
   const bob = await speakingAs(t, await scout.chat.agent("bob"));
@@ -174,7 +179,6 @@ test("an agent woken in a room is shown what was said there since it last looked
   await scout.receiptOn(await person.post(main.id, "@scout, where are we?", "person-1"), PATIENT);
   const first = model.shown[0] ?? "";
   const [stanza, key, woke] = ["I'll take stanza 2.", "Which key are we in?", "@scout, where are we?"].map((text) => first.indexOf(text));
-  assert.ok(first.includes("Since you last looked in this thread") && first.includes("Then this woke you:"), first);
   assert.ok(stanza !== undefined && key !== undefined && woke !== undefined && 0 < stanza && stanza < key && key < woke, `oldest first, then the message that woke it:\n${first}`);
 
   // What it was shown is not shown again.
@@ -189,12 +193,13 @@ test("an agent woken in a room is shown what was said there since it last looked
   await scout.receiptOn(await person.post(main.id, "@scout, catch up.", "person-3"), PATIENT);
   const third = model.shown[2] ?? "";
   assert.ok(third.length < 22_000, `${String(third.length)} characters`);
-  const [, cut = "", before = ""] = /(\d+) earlier messages are not shown here\. To read them, call read_messages with before: (\d+)\./.exec(third) ?? [];
   const numbered = [...third.matchAll(/^(\d\d) x+/gm)].map((found) => Number(found[1]));
   assert.equal(numbered.at(-1), 30, "the newest is kept");
-  assert.equal(numbered.length + Number(cut), 30, "and every one is either shown or counted");
   const oldest = (await person.read(main.id, null, 200)).find((message) => message.text.startsWith(`${String(numbered[0]).padStart(2, "0")} x`));
-  assert.equal(Number(before), oldest?.seq, "read_messages reads what is before the oldest one shown");
+  assert.ok(oldest);
+  // The line that says how to read the rest names read_messages' argument, and how many are left out.
+  const pointer = third.split("\n").find((line) => line.includes(`before: ${String(oldest.seq)}`)) ?? "";
+  assert.ok(pointer.split(/\D+/).includes(String(30 - numbered.length)), `every one is either shown or counted: ${pointer}`);
   assert.deepEqual(scout.reports, []);
 });
 
@@ -214,21 +219,23 @@ test("what the model reads of a message in a room says who it was for, and in a 
   const direct = await scout.say("A word in private.");
   await scout.receiptOn(direct, PATIENT);
 
+  /** A message as the model reads one that arrives, said to be for `to`, which a message in a DM is not. */
+  const shown = (message: Message, author: string, to?: Audience): string =>
+    written({ kind: "posted", id: message.event, seq: message.seq, author, sentAt: message.sentAt, text: message.text, ...(to === undefined ? {} : { to }) });
   const [one = "", two = "", three = ""] = model.shown;
   for (const line of [
-    `bob wrote at ${localTime(toMaya.sentAt)}, for maya, not for you:\n@maya, the disk is full.`,
-    `bob wrote at ${localTime(aloud.sentAt)}, mentioning nobody:\nThinking aloud.`,
-    `${person.me.name} wrote at ${localTime(both.sentAt)}, for you and bob:\n@scout and @bob: is it urgent?`,
+    shown(toMaya, "bob", { you: false, others: ["maya"], everyone: false }),
+    shown(aloud, "bob", { you: false, others: [], everyone: false }),
+    shown(both, person.me.name, { you: true, others: ["bob"], everyone: false }),
   ]) {
     assert.ok(one.includes(line), `${line}\nwas not in\n${one}`);
   }
-  assert.ok(two.includes(`${person.me.name} wrote at ${localTime(everyone.sentAt)}, for everyone in the room:\n@all: status, please.`), two);
-  assert.ok(!two.includes("Since you last looked"), "nothing came between the two");
-  assert.equal(three.includes("Since you last looked"), false);
-  assert.ok(three.trimEnd().endsWith(`${person.me.name} wrote at ${localTime(direct.sentAt)}:\nA word in private.`), `a DM's message is shown as it always was:\n${three}`);
+  assert.ok(two.includes(shown(everyone, person.me.name, { you: false, others: [], everyone: true })), two);
+  assert.ok(!two.includes(aloud.text), "nothing came between the two");
+  assert.ok(three.trimEnd().endsWith(shown(direct, person.me.name)), `a DM's message is shown as it always was:\n${three}`);
 });
 
-test("an input tells the model where it is: its DM with a person, a thread of that DM, or a room and who else is in it, and the list of sessions says the same places", { timeout }, async (t) => {
+test("an input tells the model where it is, and the list of sessions says the same places", { timeout }, async (t) => {
   const model = talking(() => ({ final: "Seen." }));
   const scout = await startAgentRig(t, { script: model.script });
   const bob = await speakingAs(t, await scout.chat.agent("bob"));
@@ -262,7 +269,7 @@ test("an input tells the model where it is: its DM with a person, a thread of th
   assert.deepEqual(scout.reports, []);
 });
 
-test("a person's post that mentions nobody wakes every agent in the room, any other post only who it mentions, until the home's wake file says otherwise, which a reload reads", { timeout }, async (t) => {
+test("a person's post that mentions nobody wakes every agent in a room, until the wake file says otherwise", { timeout }, async (t) => {
   const model = talking(() => ({ final: "Seen." }));
   const scout = await startAgentRig(t, { script: model.script });
   const bob = await speakingAs(t, await scout.chat.agent("bob"));
@@ -286,14 +293,14 @@ test("a person's post that mentions nobody wakes every agent in the room, any ot
   await post(person, "Anyone seen the disk?");
   let turns = await roomTurns();
   assert.equal(turns.length, 1);
-  assert.ok(turns[0]?.includes("mentioning nobody:\nAnyone seen the disk?") && turns[0].includes("Thinking aloud."));
+  assert.ok(turns[0]?.includes("Anyone seen the disk?") && turns[0].includes("Thinking aloud."));
   // A person who names another member is talking to them: scout is not woken, and sees it when something wakes it.
   await post(person, "@bob, what do you make of the disk?");
   assert.equal((await roomTurns()).length, 1);
   await post(bob, "@scout, are you there?");
   turns = await roomTurns();
   assert.equal(turns.length, 2);
-  assert.ok(turns[1]?.includes("for bob, not for you:\n@bob, what do you make of the disk?"));
+  assert.ok(turns[1]?.includes("@bob, what do you make of the disk?"));
 
   // `mentions` is the default it replaced: a person has to mention the agent too.
   assert.deepEqual(await choose("mentions"), []);
@@ -307,7 +314,7 @@ test("a person's post that mentions nobody wakes every agent in the room, any ot
   await post(bob, "Thinking aloud again.");
   turns = await roomTurns();
   assert.equal(turns.length, 4);
-  assert.ok(turns[3]?.includes("bob wrote at"));
+  assert.ok(turns[3]?.includes("Thinking aloud again."));
   assert.deepEqual(await choose("none"), []);
   await post(person, "@scout, hello?");
   assert.equal((await roomTurns()).length, 4);

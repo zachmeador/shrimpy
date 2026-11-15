@@ -11,7 +11,7 @@ import { lookAtHome } from "./look.ts";
  * show a change to every file that reading the home reads, and none to the rest.
  */
 
-test("a look changes when a file that reading the home reads is changed, made, deleted or made unreadable, and not for any other file of the home", async (t) => {
+test("a look changes when a file the home is read from changes, and not for any other file", async (t) => {
   const paths = homePaths(join(tempDir(t, "look"), "scout"));
   const outside = join(tempDir(t, "folder"), "models.json");
   const write = (path: string, text: string): void => {

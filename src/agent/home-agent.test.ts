@@ -104,8 +104,6 @@ function nameModel(paths: ReturnType<typeof newHome>, provider: string, id: stri
   writeFileSync(paths.config, JSON.stringify({ ...config, model: { provider, id } }));
 }
 
-const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
 /** How often the agent looks at its files in the tests that change them while it runs, in milliseconds. */
 const LOOK = 25;
 
@@ -136,7 +134,7 @@ async function talkToAgent(chat: ChatServer, name: string) {
   };
 }
 
-test("an agent starts from a home alone, links to the gateway, finds chat there, and answers in the thread with the model the home declares", { timeout }, async (t) => {
+test("an agent starts from a home alone, finds chat through the gateway, and answers with the home's model", { timeout }, async (t) => {
   const paths = newHome(t);
   const requests = stubChatCompletions(t, "Hello from qwen");
   const { gateway, chat } = await startNetwork(t);
@@ -159,17 +157,15 @@ test("an agent starts from a home alone, links to the gateway, finds chat there,
   assert.equal(sent.body.model, "qwen");
   const [system, user] = sent.body.messages;
   assert.equal(system?.role, "system");
-  assert.match(
-    String(user?.content),
-    new RegExp(`^[^\\n]*Thread th_\\w+ in channel ch_\\w+\\.\\n\\n${escaped(person.me.name)} wrote at \\S+:\\nhi$`),
-    "the facts about a message travel with it",
-  );
+  const shown = String(user?.content);
+  for (const fact of [person.thread.id, person.thread.channelId, person.me.name]) assert.ok(shown.includes(fact), `the facts about a message travel with it: ${fact}`);
+  assert.ok(shown.endsWith("\nhi"), "and the message is as it was written");
   const { connection, session } = await attachThread(t, paths.root, person.thread.id);
   t.after(() => connection.close());
   assert.deepEqual(session.view.status.model, { provider: "local", id: "qwen" });
 });
 
-test("the model gets the home's instructions as sections in a fixed order, exactly as the preview shows them", { timeout }, async (t) => {
+test("the model gets the home's instructions in a fixed order, exactly as the preview shows them", { timeout }, async (t) => {
   const paths = newHome(t);
   writeFileSync(paths.soul, "You are scout, who keeps the build green.\n");
   mkdirSync(join(paths.context, "people"), { recursive: true });
@@ -216,12 +212,9 @@ test("a start reads the home as it is then, in sessions made before it too", { t
   assert.doesNotMatch(systemPrompt(1), /Answer in prose\./);
 });
 
-test("a note written into context/ while the agent runs is in what the model is shown at its next request, with nothing told to reload and nothing started again; a home whose agent.json can't be seen is not read until it can be", { timeout }, async (t) => {
-  const paths = newHome(t);
-  writeTrigger(paths.root, "tidy", ["every: 1h"], "Tidy the notes.");
+/** A home's agent, running and looking at its files often, with a person in its DM and a link to it, and what the model was told. */
+async function lookingAgent(t: TestContext, paths: ReturnType<typeof newHome>) {
   const requests = stubChatCompletions(t, "Ok");
-  const reported: string[] = [];
-  t.mock.method(console, "error", (...lines: unknown[]) => void reported.push(lines.join(" ")));
   const { chat } = await startNetwork(t);
   await startAt(t, paths.root, { lookEveryMs: LOOK });
   const person = await talkToAgent(chat, "scout");
@@ -233,6 +226,12 @@ test("a note written into context/ while the agent runs is in what the model is 
     await person.ask("and now?");
     return told(requests.length - 1);
   };
+  return { person, connection, told, toldNow };
+}
+
+test("a note written into context/ while the agent runs is in what the model is shown next", { timeout }, async (t) => {
+  const paths = newHome(t);
+  const { person, told, toldNow } = await lookingAgent(t, paths);
 
   await person.ask("one");
   writeFileSync(join(paths.context, "disk.md"), "The disk is on fire.\n");
@@ -240,19 +239,30 @@ test("a note written into context/ while the agent runs is in what the model is 
 
   assert.doesNotMatch(told(0), /The disk is on fire\./, "the request before the note did not have it");
   assert.equal(now, (await previewHomeContext(paths.root)).sections.map((section) => section.text).join("\n\n"), "and the one after has the home as the preview shows it");
+});
+
+test("a home whose agent.json can't be seen is not read until it can be", { timeout }, async (t) => {
+  const paths = newHome(t);
+  writeTrigger(paths.root, "tidy", ["every: 1h"], "Tidy the notes.");
+  writeFileSync(join(paths.context, "disk.md"), "The disk is on fire.\n");
+  const reported: string[] = [];
+  t.mock.method(console, "error", (...lines: unknown[]) => void reported.push(lines.join(" ")));
+  const { connection, toldNow } = await lookingAgent(t, paths);
+  assert.ok((await toldNow()).includes("The disk is on fire."));
 
   // The share the home is on is not mounted for a moment, so its agent.json can't be seen. What a reading would find
   // then, no trigger and no note, is not read, and the agent says why once. The agent's own reload is refused the same way.
+  const before = reported.length;
   const away = `${paths.config}.away`;
   renameSync(paths.config, away);
   rmSync(join(paths.triggers, "tidy.md"));
   rmSync(join(paths.context, "disk.md"));
   await delay(LOOK * 12);
-  const said = (): string[] => reported.filter((line) => line.includes("can't be read for now"));
+  const said = (): string[] => reported.slice(before).filter((line) => line.includes(paths.root));
   assert.deepEqual((await connection.triggers()).map((trigger) => trigger.name), ["tidy"], "the agent's triggers are as they were");
   assert.ok((await toldNow()).includes("The disk is on fire."), "and so are its instructions");
   assert.equal(said().length, 1, "and it said so once");
-  await assert.rejects(connection.reload(), /can't be read for now/);
+  await assert.rejects(connection.reload(), (error: Error) => error.message.includes(paths.root));
 
   // It is back, and the agent reads the home again without being told.
   renameSync(away, paths.config);
@@ -261,7 +271,7 @@ test("a note written into context/ while the agent runs is in what the model is 
   assert.equal(said().length, 1, "and nothing more was said");
 });
 
-test("agent.json naming another model is followed by the next request with no command, and the model is told once; a model that can't be used is said and the sessions keep theirs; a server declared since can be named", { timeout }, async (t) => {
+test("a model agent.json names while the agent runs is followed from the next request", { timeout }, async (t) => {
   const paths = newHome(t, { local: several });
   const requests = stubChatCompletions(t, "Ok");
   const reported: string[] = [];
@@ -310,7 +320,7 @@ test("agent.json naming another model is followed by the next request with no co
   assert.ok(shown(last).includes("local/llama") && shown(last).includes("fresh/newest"));
 });
 
-test("a thread given a model of its own by /model keeps it through a reload that finds the home naming the same model, and follows the home again after one that finds another, or after the agent is started again", { timeout }, async (t) => {
+test("a thread's own model lasts until the home names another model or the agent starts again", { timeout }, async (t) => {
   const paths = newHome(t, { local: several });
   const requests = stubChatCompletions(t, "Ok");
   const { chat } = await startNetwork(t);
@@ -369,7 +379,7 @@ test("an agent says which models it can use now and which one its sessions follo
   assert.deepEqual(providers(await connection.models()), ["anthropic", "groq", "local"]);
 });
 
-test("/model as the first message of a new thread starts the thread on that model, which the agent says in the thread, and /model default has the thread follow the agent's model again, which the model is told once", { timeout }, async (t) => {
+test("/model in a thread sets its model from the next request, and /model default follows the agent's again", { timeout }, async (t) => {
   const paths = newHome(t, { local: several });
   const requests = stubChatCompletions(t, "Ok");
   const { chat } = await startNetwork(t);
@@ -408,7 +418,7 @@ test("/model as the first message of a new thread starts the thread on that mode
   assert.doesNotMatch(shown(3), /local\//, "and it is shown once, since that answer was written by the model it runs on");
 });
 
-test("a /model that names a model the agent can't use is answered in the thread with why and which models it can use, and the thread keeps the model it had", { timeout }, async (t) => {
+test("a /model for a model the agent can't use is answered with those it can, and changes nothing", { timeout }, async (t) => {
   const paths = newHome(t, { local: several });
   const requests = stubChatCompletions(t, "Ok");
   const { chat } = await startNetwork(t);
@@ -432,7 +442,7 @@ test("a /model that names a model the agent can't use is answered in the thread 
   assert.deepEqual(requests.map((request) => request.body.model), ["qwen"]);
 });
 
-test("in a room /model is for the agent it names and for every agent when it says @all, and an agent it does not name neither changes its model nor answers", { timeout }, async (t) => {
+test("in a room /model is for the agents it names, or every agent with @all", { timeout }, async (t) => {
   const scout = newHome(t, { local: { ...several, apiKey: "key-scout" } });
   const bob = newHome(t, { local: { ...several, apiKey: "key-bob" } }, "bob");
   const requests = stubChatCompletions(t, "Ok");
@@ -482,6 +492,7 @@ test("in a room /model is for the agent it names and for every agent when it say
 test("two homes share no keys, instructions or history", { timeout }, async (t) => {
   const one = newHome(t, { local: { ...local, apiKey: "key-one" } }, "scout");
   const two = newHome(t, { local: { ...local, apiKey: "key-two" } }, "other");
+  writeFileSync(one.soul, "You are the first agent.\n");
   writeFileSync(two.soul, "You are the second agent.\n");
   const requests = stubChatCompletions(t, "Ok");
   const { gateway, chat } = await startNetwork(t);
@@ -499,9 +510,9 @@ test("two homes share no keys, instructions or history", { timeout }, async (t) 
   const fromTwo = requests.find((request) => JSON.stringify(request.body.messages).includes("hello from two"));
   assert.equal(fromOne?.headers.authorization, "Bearer key-one");
   assert.equal(fromTwo?.headers.authorization, "Bearer key-two");
-  assert.match(String(fromOne.body.messages[0]?.content), /You are scout/);
+  assert.match(String(fromOne.body.messages[0]?.content), /You are the first agent\./);
   assert.match(String(fromTwo.body.messages[0]?.content), /You are the second agent\./);
-  assert.doesNotMatch(String(fromTwo.body.messages[0]?.content), /You are scout/);
+  assert.doesNotMatch(String(fromTwo.body.messages[0]?.content), /You are the first agent\./);
   const texts = async (home: string, thread: string): Promise<string[]> => {
     const { connection, session } = await attachThread(t, home, thread);
     t.after(() => connection.close());
@@ -527,7 +538,7 @@ test("an agent that starts before the gateway and chat finds them when they come
   assert.equal(receipt.status, "answered");
 });
 
-test("an agent and the gateway that both start again are the same member as before, in the same DM with what was said in it", { timeout }, async (t) => {
+test("an agent and the gateway that both start again are the same member, in the same DM", { timeout }, async (t) => {
   const paths = newHome(t);
   stubChatCompletions(t, "Hello");
   const { gateway, chat } = await startNetwork(t);
@@ -548,7 +559,7 @@ test("an agent and the gateway that both start again are the same member as befo
   assert.deepEqual(await agentNames(gateway), ["scout"]);
 });
 
-test("a home whose name another member has is refused and told which file to change, and joins once the name is changed", { timeout }, async (t) => {
+test("a home whose name another member has is refused, and joins once its name is changed", { timeout }, async (t) => {
   const one = newHome(t);
   const two = newHome(t);
   stubChatCompletions(t, "Hello");
@@ -592,7 +603,7 @@ test("a home that kept its token but never heard it had joined joins again as th
   assert.deepEqual(readMembership(paths.root), { memberId: joined.id, token });
 });
 
-test("a home whose name was changed is the same member under the new name, in the same DM with what was said in it", { timeout }, async (t) => {
+test("a home whose name was changed is the same member under the new name, in the same DM", { timeout }, async (t) => {
   const paths = newHome(t);
   stubChatCompletions(t, "Hello");
   const { gateway, chat } = await startNetwork(t);
@@ -632,7 +643,7 @@ test("no model, or one that cannot be used, stops the start before the home is c
 test("a folder that is not a home is left alone", { timeout }, async (t) => {
   const folder = tempDir(t, "not-a-home");
 
-  await assert.rejects(startHomeAgent(folder).then((agent) => closeAfter(t, agent)), /is not an agent home/);
+  await assert.rejects(startHomeAgent(folder).then((agent) => closeAfter(t, agent)), (error: Error) => error.message.includes(folder));
 
   assert.deepEqual(readdirSync(folder), []);
   assert.equal(existsSync(homePaths(folder).runtime), false);

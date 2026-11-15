@@ -98,7 +98,7 @@ test("a stop cancels the wake-ups a session is waiting on, and the next input te
   assert.ok(!(await rig.replies())[2]?.text.includes("look at the build again"), "and only once");
 });
 
-test("a session's status shows the wake-ups it is waiting on, the soonest first, and why its last turn failed until its next turn starts", { timeout }, async (t) => {
+test("a session's status shows the wake-ups it waits on, and why its last turn failed", { timeout }, async (t) => {
   const script: Script = (messages) => {
     const latest = latestUserText(messages);
     if (latest.includes("set two wake-ups") && !hasToolResult(messages)) {

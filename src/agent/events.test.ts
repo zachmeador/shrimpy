@@ -5,6 +5,7 @@ import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
 import { speakingAs } from "../contracts/chat/testing/index.ts";
 import { tempDir, until } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
+import { written } from "./inputs/index.ts";
 import {
   type AgentRig,
   callingTools,
@@ -51,7 +52,7 @@ function restart(t: TestContext, rig: AgentRig) {
   return startAgentRig(t, { home: rig.home, chat: rig.chat, script: echoes });
 }
 
-test("an edit of a message the agent already answered reaches it as an event and is answered on its own, and the two receipts name different events", { timeout }, async (t) => {
+test("an edit of a message the agent answered is answered on its own, with a receipt of its own", { timeout }, async (t) => {
   const rig = await startAgentRig(t, { script: echoes });
   const asked = await rig.say("Is the build green?");
   const first = await rig.receiptOn(asked);
@@ -68,7 +69,7 @@ test("an edit of a message the agent already answered reaches it as an event and
   assert.deepEqual([first.reply, second.reply], [firstReply?.id, secondReply?.id], "two answers, told apart");
   assert.ok(firstReply?.text.includes("Is the build green?"));
   // The model is shown that it is an edit, of which message, and what the message says now.
-  assert.match(secondReply?.text ?? "", /edited their message/);
+  assert.ok(secondReply?.text.includes(localTime(edit.at)), "when it was edited");
   assert.ok(secondReply?.text.includes(localTime(asked.sentAt)));
   assert.ok(secondReply?.text.includes("Is the build green now?"));
   const [message] = await rig.said();
@@ -96,11 +97,11 @@ test("an edit that arrives while its original waits behind a running turn: both 
   assert.equal(replies.length, 2, "the first message, and then the other two together");
   assert.equal(receipts[1].reply, receipts[2].reply);
   const shown = replies[1]?.text ?? "";
-  assert.ok(shown.indexOf("as first written") !== -1 && shown.indexOf("as first written") < shown.indexOf("edited their message"));
-  assert.ok(shown.indexOf("edited their message") < shown.indexOf("as corrected"));
+  const asEdited = written({ kind: "edited", id: edit.id, seq: edit.seq, author: rig.me.name, sentAt: second.sentAt, at: edit.at, text: "second, as corrected" });
+  assert.ok(shown.indexOf("as first written") !== -1 && shown.indexOf("as first written") < shown.indexOf(asEdited), shown);
 });
 
-test("a reaction to a message the agent wrote wakes it and is shown to it, and a reaction to anyone else's, one taken back and a delete wake nobody", { timeout }, async (t) => {
+test("a reaction to a message the agent wrote wakes it, and other reactions and deletes wake nobody", { timeout }, async (t) => {
   const rig = await startAgentRig(t, { script: echoes });
   const hello = await rig.say("Hello there");
   await rig.receiptOn(hello);
@@ -166,11 +167,11 @@ test("an agent that was down catches up on the events from its cursor, in order,
   // The post starts a turn at once, and the edit and the reaction wait behind it and are answered together, in order.
   assert.equal(replies.length, 3);
   const together = replies[2]?.text ?? "";
-  assert.ok(replies[1]?.text.includes("While you were away") && !replies[1].text.includes("edited their message"));
-  assert.ok(together.indexOf("edited their message") !== -1 && together.indexOf("edited their message") < together.indexOf("reacted with"));
+  assert.ok(replies[1]?.text.includes("While you were away") && !replies[1].text.includes("While you were away, again"));
+  assert.ok(together.indexOf("While you were away, again") !== -1 && together.indexOf("While you were away, again") < together.indexOf(THUMBS_UP));
 });
 
-test("a chat store restored from an older copy gives new events the positions of ones the agent has answered, and they are answered all the same", { timeout }, async (t) => {
+test("new events in a chat store restored from an older copy are answered, though their positions were used", { timeout }, async (t) => {
   const rig = await startAgentRig(t, { script: echoes });
   await rig.receiptOn(await rig.say("before the copy"));
   await rig.chat.outage();

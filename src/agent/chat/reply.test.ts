@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { clip, inParts } from "./reply.ts";
 
-test("longer text is split into parts that each fit and together hold all of it, at a line break when one falls in the later half", () => {
+test("longer text is split into parts that each fit and together hold all of it", () => {
   assert.deepEqual(inParts("0123456789", 10), ["0123456789"]);
   const text = "first line here\nsecond line is longer than the rest\nthird";
   const parts = inParts(text, 25);
@@ -12,7 +12,7 @@ test("longer text is split into parts that each fit and together hold all of it,
   for (const part of parts) assert.ok(part.length <= 25, part);
 });
 
-test("a character that takes two code units is never split, and a part with nothing in it is dropped, because chat does not take one", () => {
+test("a character of two code units is never split, and an empty part is dropped", () => {
   const text = "ab😀cd😀ef";
   for (const limit of [2, 3, 4, 5]) {
     const parts = inParts(text, limit);

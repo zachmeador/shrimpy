@@ -45,7 +45,7 @@ async function shown(rig: AgentRig, text: string, threadId?: string): Promise<st
   return (await rig.replies(threadId)).at(-1)?.text ?? "";
 }
 
-test("a breadcrumb that changed is shown once to each session and not again, and a session idle through several changes is shown the latest once", { timeout }, async (t) => {
+test("a breadcrumb that changed is shown once to each session, the latest one to a session that was idle", { timeout }, async (t) => {
   const rig = await startAgentRig(t);
   const side = (await rig.newThread("Side")).id;
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFinalText } from "./ending.ts";
 
-test("END counts when it is wrapped in whitespace, quotes, backticks or asterisks, or ends with a period, and so does nothing at all", () => {
+test("END counts wrapped in whitespace, quotes, backticks or asterisks, or with a period, and so does nothing", () => {
   for (const form of ["END", " END ", '"END"', "“END”", "`END`", "**END**", "END.", " `END`. ", "", "\n\n"]) {
     assert.deepEqual(readFinalText(form), { kind: "silent" }, JSON.stringify(form));
   }

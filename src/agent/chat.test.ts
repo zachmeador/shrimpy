@@ -102,7 +102,7 @@ test("a stop with a message waiting: the message is skipped, and the next turn i
   assert.doesNotMatch((await rig.replies())[1]?.text ?? "", /this one waits behind the first/, "it is not shown twice");
 });
 
-test("a turn that fails takes back the messages waiting behind it, skipped with the reason it failed, and the next turn in the thread shows them", { timeout }, async (t) => {
+test("a turn that fails skips the messages behind it with its reason, and the next turn shows them", { timeout }, async (t) => {
   const rig = await startAgentRig(t, { script: refusesOnce() });
   const first = await rig.say("first");
   await rig.untilWorking();
@@ -224,7 +224,7 @@ test("a chat server whose store was replaced under the agent makes it read the n
   assert.equal(message.seq, 1);
 });
 
-test("a chat store that has grown past the agent's place before the agent reads it is read from the start all the same, and the agent says so", { timeout }, async (t) => {
+test("a chat store that grew past the agent's place before it reads it is read from the start, and said so", { timeout }, async (t) => {
   const first = await startAgentRig(t);
   await first.receiptOn(await first.say("before"));
   // Where the old store ends, which is where the agent stands in it, or a step before.

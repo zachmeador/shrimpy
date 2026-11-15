@@ -58,7 +58,7 @@ function anEvent({
 /** Whether an event in a room wakes the agent. */
 const wakes = (event: ChatEvent, policy: WakePolicy = DEFAULT_WAKE_POLICY): boolean => wakingOf(scout, event, policy, "room") !== undefined;
 
-test("what wakes the agent depends on the room's policy, and the default wakes it for a mention, a person's message that mentions nobody, an answer to its own and a reaction to one", () => {
+test("what wakes the agent in a room is the room's policy, and the default is people", () => {
   // What each policy does with one kind of message: the agent is mentioned, someone else is, nobody is, by a person or an agent.
   const messages = {
     "a person mentions the agent": anEvent({ mentions: [scout.id] }),

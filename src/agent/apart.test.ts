@@ -18,7 +18,7 @@ import { SCOUT, startAgentRig, startChatServer, valueOf } from "./testing/index.
 const timeout = 30_000;
 const context = BACKGROUND_CONTEXT;
 
-test("an agent apart joins with an invitation, keeps the gateway's key, links in at the entry with its token, answers in a thread, sends nothing to another key at the gateway's address, and links in again when the gateway comes back", { timeout }, async (t) => {
+test("an agent apart joins with an invitation, and links in with its token and the gateway's key, again later", { timeout }, async (t) => {
   const gateway = await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
   const [address] = gateway.listening;
   assert.ok(address);

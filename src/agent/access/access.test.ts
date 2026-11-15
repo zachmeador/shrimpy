@@ -31,7 +31,7 @@ async function readSteerAndStop(connection: AgentConnection, rig: AgentRig): Pro
   session.release();
 }
 
-test("through the gateway, another agent may watch and control the agent's sessions only once it is an admin, which counts at once, and the agent itself always may", { timeout }, async (t) => {
+test("through the gateway another agent may watch and control the sessions only as an admin", { timeout }, async (t) => {
   const rig = await startAgentRig(t);
   await rig.receiptOn(await rig.say("hello"));
   const person = await rig.chat.gateway.connect();
@@ -112,7 +112,7 @@ test("a client on the home's own socket holds what the agent doesn't serve throu
   await readSteerAndStop(await holdAgent(client.host, client.name, async () => undefined), rig);
 });
 
-test("the home's own socket turns away a client of other Pi packages, saying what to run where, and one that shows a token", { timeout }, async (t) => {
+test("the home's own socket turns away a client of other Pi packages, and one that shows a token", { timeout }, async (t) => {
   const rig = await startAgentRig(t);
   const endpoint = readEndpoint(rig.home);
   assert.ok(endpoint !== undefined);

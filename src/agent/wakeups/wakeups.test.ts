@@ -94,7 +94,7 @@ const wakeupsTold = (told: { input: Outstanding }[]): number => told.filter(({ i
 /** How many times the model has been asked so far. */
 const requests = (home: string): number => (existsSync(join(home, "requests.jsonl")) ? loggedRequests(home).length : 0);
 
-test("a call of check_back that runs again after the agent stopped in the middle of it finds the wake-up it set, and sets no second one", { timeout }, async (t) => {
+test("a check_back that runs again after the agent stopped in it sets no second wake-up", { timeout }, async (t) => {
   const home = tempDir(t, "wakeups");
   const model = callingTools([[{ name: "check_back", args: { in: "1s", note: "look at the build" } }]]);
   let set: () => void = () => undefined;

@@ -93,7 +93,7 @@ test("a turn that outlasts the grace period is paused, not lost", { timeout }, a
   assert.equal(loggedRequests(rig.home).length, 2);
 });
 
-test("once stopping begins, new input is refused, from a client and from chat, and chat's message waits for the next start", { timeout }, async (t) => {
+test("once stopping begins new input is refused, and chat's message waits for the next start", { timeout }, async (t) => {
   const { rig, session } = await startStreaming(t, 40);
 
   const closing = rig.agent.close({ graceMs: 60_000 });

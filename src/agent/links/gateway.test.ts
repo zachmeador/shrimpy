@@ -52,7 +52,7 @@ async function agentAt(t: TestContext, home: string, name: string, membership?: 
   return { link, told, stop, membership: () => kept, files: (file: string) => `${home}/${file}` };
 }
 
-test("a copy of a running agent is told why once, with what to do in the paths of its home, keeps trying, and takes the agent's place once that one stops", { timeout }, async (t) => {
+test("a copy of a running agent is told why once, and takes the agent's place once that one stops", { timeout }, async (t) => {
   await startTestGateway(t);
   const original = await agentAt(t, "/homes/scout", "scout");
   await until(() => original.link.you() !== undefined, "the agent to be let in");
@@ -73,7 +73,7 @@ test("a copy of a running agent is told why once, with what to do in the paths o
   await until(() => copy.link.you()?.id === kept.memberId, "the copy to take the agent's place");
 });
 
-test("an agent apart whose token the gateway doesn't know is told to join again with a new invitation, where one beside the gateway joins with it", { timeout }, async (t) => {
+test("an agent apart whose token the gateway doesn't know is told to join again with a new invitation", { timeout }, async (t) => {
   const gateway = await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
   const [address] = gateway.listening;
   assert.ok(address);

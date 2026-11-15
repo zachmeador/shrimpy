@@ -91,7 +91,7 @@ test("agents that share a sign-in renew it once, and each then uses the new toke
   assert.equal(renewals, 1);
 });
 
-test("the home's file comes first, a change goes to the file that holds the entry, and a file is written whole and privately", async (t) => {
+test("the home's file comes first, and a change goes, whole and private, to the file that holds the entry", async (t) => {
   const root = tempDir(t, "files");
   const homeFile = join(root, "home", "state", "pi", "auth.json");
   const folderFile = join(root, "folder", "providers", "auth.json");
@@ -132,7 +132,7 @@ test("the home's file comes first, a change goes to the file that holds the entr
   assert.deepEqual(await store.read("both"), { type: "api_key", key: "sk-folder" });
 });
 
-test("a change waits for the process that holds a file, gives up when told to, and goes through once that process is gone, whatever ended it", async (t) => {
+test("a change waits for the process that holds the file, and goes through once that process is gone", async (t) => {
   const file = join(tempDir(t, "held"), "auth.json");
   const before = signIn({ access: "access-1", refresh: "refresh-1", expiresIn: 60_000 });
   writeFileSync(file, JSON.stringify({ sub: before }));

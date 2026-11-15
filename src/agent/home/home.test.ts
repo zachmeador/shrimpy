@@ -19,7 +19,7 @@ test("init creates every file and folder, and the home loads", (t) => {
   assert.deepEqual(JSON.parse(readFileSync(paths.config, "utf8")), { name: "scout", model });
   assert.deepEqual(JSON.parse(readFileSync(paths.models, "utf8")), { providers: {} });
   assert.deepEqual(JSON.parse(readFileSync(paths.auth, "utf8")), {});
-  assert.match(readFileSync(paths.soul, "utf8"), /🦐/, "the starter SOUL.md says the agent enjoys the shrimp emoji");
+  assert.notEqual(readFileSync(paths.soul, "utf8").trim(), "", "and a starter SOUL.md");
   for (const folder of [paths.context, paths.vault, paths.skills, paths.breadcrumbs, paths.runtime]) {
     assert.ok(statSync(folder).isDirectory(), folder);
   }

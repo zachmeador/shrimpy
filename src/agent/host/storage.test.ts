@@ -20,7 +20,7 @@ async function leaveStorageOfPi1(database: string): Promise<void> {
   }
 }
 
-test("Pi storage from before the move to Pi 1.5.2 is refused before anything changes it, in words that name it, and the agent starts fresh once it is moved away", { timeout }, async (t) => {
+test("Pi storage from before the move to Pi 1.5.2 is refused untouched, and the agent starts fresh without it", { timeout }, async (t) => {
   useRuntimeDir(t);
   const home = tempDir(t, "home");
   const { database } = homePaths(home);

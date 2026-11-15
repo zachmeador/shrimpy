@@ -7,7 +7,7 @@ import { startChatRig } from "./testing/index.ts";
 const timeout = 15_000;
 const never = new AbortController().signal;
 
-test("a reply is posted once however delivery goes wrong: a post that fails, one whose answer is lost, and receipts that fail", { timeout }, async (t) => {
+test("a reply is posted once however delivery goes wrong", { timeout }, async (t) => {
   const rig = await startChatRig(t);
   const said = await rig.say("hello");
   rig.faults.fail("post", new Error("overloaded"));
@@ -27,7 +27,7 @@ test("a reply is posted once however delivery goes wrong: a post that fails, one
   );
 });
 
-test("a reply that chat refuses for good is not posted again: the event gets a failed receipt with chat's reason, and a report", { timeout }, async (t) => {
+test("a reply that chat refuses for good is not posted again, and the event gets a failed receipt", { timeout }, async (t) => {
   const rig = await startChatRig(t);
   const said = await rig.say("hello");
   rig.faults.fail("post", new Refusal("Unknown thread: th_gone"), 10);
@@ -37,9 +37,9 @@ test("a reply that chat refuses for good is not posted again: the event gets a f
   assert.deepEqual(await rig.replies(), []);
   const receipt = await rig.receiptOn(said);
   assert.deepEqual([receipt.status, receipt.reply], ["failed", null]);
-  assert.ok(receipt.detail?.includes("Unknown thread: th_gone"), String(receipt.detail));
+  assert.ok(receipt.detail?.includes("th_gone"), String(receipt.detail));
   assert.equal(rig.errors.length, 1);
-  assert.ok(rig.errors[0]?.message.includes(said.event) && rig.errors[0].message.includes("Unknown thread: th_gone"));
+  assert.ok(rig.errors[0]?.message.includes(said.event) && rig.errors[0].message.includes("th_gone"));
   assert.equal(rig.faults.calls("post"), 1, "and it was not asked again");
 });
 

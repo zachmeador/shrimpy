@@ -69,7 +69,7 @@ function person() {
   return { dialogue, questions, notices };
 }
 
-test("a sign-in is made under Shrimpy's name, takes the code that is pasted or the one the browser brings, lets go of the question that lost, and keeps one device ID; stopped, it leaves the folder as it was", async (t) => {
+test("a sign-in takes the code that is pasted or the one the browser brings, and keeps one device ID", async (t) => {
   const providers = join(tempDir(t, "sign-in"), "providers");
   const stored = (): Record<string, OAuthCredential> =>
     JSON.parse(readFileSync(join(providers, "auth.json"), "utf8")) as Record<string, OAuthCredential>;
