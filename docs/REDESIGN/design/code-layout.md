@@ -73,7 +73,7 @@ src/
     talk/           linking to the gateway as whoever a command is, and the objects it holds there: apart from
                     tests, the only code in the CLI that imports Chord, with `me.ts` the one place that decides
                     who a command or the terminal is
-  lib/              helpers with no knowledge of Shrimpy's domain: locks, retries, IDs, refusals, times, config
+  lib/              helpers with no knowledge of Shrimpy's domain: locks, retries, IDs, refusals, times, config, text made harmless for a terminal
                     checking, the runtime directory, versions and test support
     link/           links for Chord: a WebSocket on a socket's path, or over TLS at an address, with the hello
                     before Chord; listening, dialing and keeping a link

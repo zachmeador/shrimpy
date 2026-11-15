@@ -77,7 +77,7 @@ The thinnest of the [core pieces](../PLAN.md#the-design). The first column is wh
 
 How an agent is removed, and how an agent's token is replaced, aren't designed yet. Until they are, an agent whose token is taken back keeps its entry and its name with no way in, so it can't join again under that name. Removing an agent keeps its data, as you marked on 2026-10-08.
 
-Nor is a way back in for an agent elsewhere that can't check the gateway's key: one that joined before the gateway had a key, or whose gateway lost its key or its data. An invitation can't be made for a name in use, so such an agent has no way in until this is designed. A device of yours joins again with a new invitation.
+Nor is a way back in for an agent elsewhere whose gateway lost its key or its data, so that it can't check the gateway's key. An invitation can't be made for a name in use, so such an agent has no way in until this is designed. A device of yours joins again with a new invitation.
 
 **Not built yet**
 

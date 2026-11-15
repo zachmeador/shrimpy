@@ -10,11 +10,6 @@ As of 2026-11-15. An item leaves when it is fixed or when the design changes to 
 
 Four reviewers read the code on 2026-11-15, and you asked for what they found to be fixed. The order is in the [plan](PLAN.md#order-of-work).
 
-- Nothing checks that the runtime directory is Shrimpy's own. On macOS, and wherever `XDG_RUNTIME_DIR` isn't set, it is `/tmp/shrimpy-<uid>`, which another account could make first and use to stand in for the gateway's socket.
-- A connection to the gateway's entry can send a first frame of up to 64 MiB before it has said who it is.
-- `shrimpy read`, `run` and `sessions read` print other members' text and tool output as it came, escape sequences and all. The terminal makes the same text harmless.
-- Any failure to read an agent's records is reported as storage another version wrote, with the advice to move it into an archive, which loses every session.
-- Code is kept for data from before the move, which every program refuses: a membership or a machine with no fingerprint, and fields of an agent's records left optional for records written before them.
 - About one test in six pins wording or an internal shape. Two thirds of those are the terminal's, which test each feature at three or four layers. Some test Pi rather than Shrimpy, one by building Pi's records by hand, and one pins the whole prompt.
 - The helpers for `up`'s tests read process IDs and readiness out of what `up` prints, so rewording a line would silently stop the cleanup of leftover processes.
 - The test model picks what to do by searching the whole message, the person's name included, which defaults to the OS account's. Under an account called `runner`, every message would run a command.
@@ -62,7 +57,7 @@ Four reviewers read the code on 2026-11-15, and you asked for what they found to
 - An edit that removes a mention takes it from the original post too, for an agent that reads the feed afterwards, since an event shows its message as it now stands.
 - A message recorded in the instant between a skipped message's receipt and the session noting it is handed over without the skipped one, which then shows one turn late.
 - Pi takes back the inputs waiting behind a turn that fails, but not those behind a run it ends as faulted or orphaned, so they wait for the session's next input.
-- An agent tells Pi storage from before the move by the version Pi keeps in its own `durable_schema` table, read before Pi opens the file, since Pi has no way to open storage without bringing it up to date. Pi doesn't promise that table.
+- An agent tells Pi storage from before the move by the version Pi keeps in its own `durable_schema` table, read before Pi opens the file, since Pi has no way to open storage without bringing it up to date. Pi doesn't promise that table. A document another version wrote is told by the words Durable refuses it with, which Pi doesn't promise either: if they change, the advice to move the storage away stops showing, and the engine's error shows as it is.
 - The message tools have no timeout, so a chat server that stays linked and never answers a call holds a turn until someone stops it.
 - Input order in a session leans on Pi's task numbering, which Pi doesn't promise.
 - Three quick reactions to one of an agent's messages can get two answers.
@@ -97,7 +92,7 @@ Four reviewers read the code on 2026-11-15, and you asked for what they found to
 - `shrimpy members`, the commands that talk and the terminal still say to start Shrimpy with `shrimpy up` when they find no gateway, which is wrong on a machine whose agents all belong to a gateway elsewhere. `shrimpy status` says where that gateway is.
 - A stop of an agent apart with a turn running and its gateway dead has not been tried: an idle one ends in about a second. The quarter of a minute a dial waits for the gateway's answer hasn't run at its real length.
 - A single message that takes longer than half a minute to arrive could get its link closed by Chord's heartbeat.
-- A connection makes one try at a code, and nothing slows wrong codes across many connections or limits how many connections wait to say their hello.
+- A connection makes one try at a code, and nothing slows wrong codes across many connections. Connections still in their TLS handshake aren't counted with those waiting to say their hello: Node's handshake timeout bounds each.
 - Over a network, an agent that restarts is turned away until Chord's heartbeat closes its old link, since an agent has one live body.
 - The gateway's route to a program leans on Chord calling `resolve` synchronously, which Chord doesn't promise. With no link waiting, `resolve` throws at once, so the route has settled before a program that links next retries it, since Chord ignores a `retry` while a `resolve` runs.
 - The runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway a service started and a command typed in a shell may not look in the same place. On your Linux machine they did.
