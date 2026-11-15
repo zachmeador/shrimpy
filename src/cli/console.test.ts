@@ -12,6 +12,7 @@ import { runCli } from "./index.ts";
 import {
   agentHome,
   captureIo,
+  launchUp,
   onTheRoster,
   type Outcome,
   serve,
@@ -19,7 +20,6 @@ import {
   startModelServer,
   startScriptedAgent,
   startTalking,
-  startUp,
   untilLinked,
 } from "./testing/index.ts";
 
@@ -94,9 +94,9 @@ async function messagesOf(thread: string): Promise<Message[]> {
 async function consoleWithScout(t: TestContext) {
   const model = await startModelServer(t);
   const home = await agentHome(t, model);
-  await startUp(t, [home, "--data", tempDir(t, "console-data")]);
-  await untilLinked("chat", "chat");
-  await untilLinked("agent", "scout");
+  const up = launchUp(t, [home, "--data", tempDir(t, "console-data")]);
+  await up.until(untilLinked("chat", "chat"));
+  await up.until(untilLinked("agent", "scout"));
   await threadFromBefore(t);
   // Wide enough that a line of the conversation is never wrapped.
   const terminal = new FakeTerminal(200, 40);
@@ -119,9 +119,9 @@ async function leave(terminal: FakeTerminal, exited: Promise<number>): Promise<v
 test("a bare shrimpy at a terminal opens the console, to talk, watch the work, stop it and leave it working", { timeout }, async (t) => {
   const model = await startModelServer(t);
   const home = await agentHome(t, model);
-  await startUp(t, [home, "--data", tempDir(t, "console-data")]);
-  await untilLinked("chat", "chat");
-  await untilLinked("agent", "scout");
+  const up = launchUp(t, [home, "--data", tempDir(t, "console-data")]);
+  await up.until(untilLinked("chat", "chat"));
+  await up.until(untilLinked("agent", "scout"));
   await threadFromBefore(t);
   const terminal = new FakeTerminal(100, 40);
   const { cli, exited } = openOn(terminal);

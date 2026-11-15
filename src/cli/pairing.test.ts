@@ -9,11 +9,12 @@ import { dial } from "../lib/link/node.ts";
 import { tempDir, until } from "../lib/testing/index.ts";
 import {
   commandLines,
+  launchUp,
   localProvider,
   onTheRoster,
   shrimpy,
   startModelServer,
-  startUp,
+  untilAnswering,
   untilLinked,
   useShrimpyDir,
 } from "./testing/index.ts";
@@ -40,8 +41,9 @@ test("invite prints a line that lets an agent in from a folder of its own, where
   const model = await startModelServer(t);
 
   // The gateway's folder has no agents. It is told to listen, so up starts the gateway and the chat server all the same.
-  const gateway = await startUp(t, ["--listen", "127.0.0.1:0"]);
-  assert.equal(gateway.programs().length, 2);
+  const gateway = launchUp(t, ["--listen", "127.0.0.1:0"]);
+  await gateway.until(untilLinked("chat", "chat"));
+  assert.equal((await gateway.programs()).length, 2);
 
   // The line to paste where the agent will live is taken from what the command prints.
   const invited = await shrimpy(["invite", "crab"]);
@@ -63,8 +65,9 @@ test("invite prints a line that lets an agent in from a folder of its own, where
   writeFileSync(join(providers, "auth.json"), JSON.stringify({ local: { type: "api_key", key: "folder-key" } }));
 
   // Where the agent lives, up starts the agent, and neither a gateway nor a chat server, and says who it is talked to from.
-  const there = await startUp(t, [], { env: apart });
-  assert.equal(there.programs().length, 1, "only the agent");
+  const there = launchUp(t, [], { env: apart });
+  await there.until(untilAnswering(join(apart.SHRIMPY_DIR, "agents", "crab")));
+  assert.equal((await there.programs()).length, 1, "only the agent");
   // It says which gateway the agent belongs to in the line after the one that says it is running, which may arrive a moment later.
   await until(() => there.output().stdout.includes(formatAddress(address)), "up to say which gateway the agent belongs to");
   const said = there.output().stdout;

@@ -15,11 +15,11 @@ import {
   captureIo,
   commandLines,
   declareLocalModel,
+  launchUp,
   onTheRoster,
   type RunningUp,
   shrimpy,
   startModelServer,
-  startUp,
   untilLinked,
   useShrimpyDir,
 } from "./testing/index.ts";
@@ -55,8 +55,8 @@ async function startBesideTheGateway(t: TestContext): Promise<{ env: Beside; up:
   const init = await shrimpy(["agent", "init", home, "--name", "scout", "--model", "local/test-model"], { env });
   assert.equal(init.code, 0, init.stderr);
   declareLocalModel(home, { url: model.url, model: "test-model" });
-  const up = await startUp(t, [home, "--data", tempDir(t, "gateway-data"), "--listen", "127.0.0.1:0"], { env });
-  await inRuntimeDir(env.SHRIMPY_RUNTIME_DIR, () => untilLinked("agent", "scout"));
+  const up = launchUp(t, [home, "--data", tempDir(t, "gateway-data"), "--listen", "127.0.0.1:0"], { env });
+  await up.until(inRuntimeDir(env.SHRIMPY_RUNTIME_DIR, () => untilLinked("agent", "scout")));
   return { env, up };
 }
 

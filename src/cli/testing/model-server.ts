@@ -26,7 +26,8 @@ export interface ModelServer {
  * - "run": call the bash tool to echo `shrimpy-ok`, then report what it printed
  * - "which shrimpy": call the bash tool to find `shrimpy` and list what is running, then report what it printed
  * - "from the shell": call the bash tool to post "hello from my shell" to the agent called mechanic with `shrimpy run`, then report what it printed
- * - "slow": stream words for several seconds, until the client hangs up
+ * - "slow": stream words for ten seconds, until the client hangs up
+ * - "a moment": stream words for a second, then end the answer
  * - "refuse": answer with an HTTP 400 error
  * - "check back": call the check_back tool to be woken in an hour, then say so
  * - "count to thirty": call the bash tool to echo step-01 to step-30, one call to an answer, then say it counted
@@ -91,7 +92,8 @@ function respond(body: ModelRequest["body"], response: ServerResponse): void {
       : asked.includes("run")
         ? "echo shrimpy-ok"
         : undefined;
-  if (asked.includes("slow")) streamWords(response);
+  if (asked.includes("slow")) streamWords(response, 200);
+  else if (asked.includes("a moment")) streamWords(response, 20);
   else if (command !== undefined && last?.role === "tool") {
     say(response, `The command printed: ${String(last.content).trim()}`);
   } else if (command !== undefined) callTool(response, command);
@@ -135,10 +137,11 @@ function callTool(response: ServerResponse, args: string | object, name = "bash"
   finish(response, "tool_calls");
 }
 
-function streamWords(response: ServerResponse): void {
+/** Stream `count` words, one every 50 milliseconds, and then end the answer. */
+function streamWords(response: ServerResponse, count: number): void {
   let sent = 0;
   const timer = setInterval(() => {
-    if (sent === 200) {
+    if (sent === count) {
       clearInterval(timer);
       return finish(response, "stop");
     }

@@ -6,12 +6,12 @@ import { runCli } from "./index.ts";
 import {
   captureIo,
   declareLocalModel,
+  launchUp,
   localProvider,
   type ModelServer,
   serve,
   shrimpy,
   startModelServer,
-  startUp,
   untilLinked,
   useShrimpyDir,
 } from "./testing/index.ts";
@@ -49,9 +49,9 @@ test("agents take what their homes don't hold from the folder's providers/, and 
   declareLocalModel(rex, { url: own.url, model: "other-model" });
   writeFileSync(join(rex, "state", "pi", "auth.json"), JSON.stringify({ local: { type: "api_key", key: "rex-key" } }));
 
-  await startUp(t, []);
-  await untilLinked("agent", "scout");
-  await untilLinked("agent", "rex");
+  const up = launchUp(t, []);
+  await up.until(untilLinked("agent", "scout"));
+  await up.until(untilLinked("agent", "rex"));
   for (const name of ["scout", "rex"]) {
     const reply = await shrimpy(["run", name, "hi"]);
     assert.equal(reply.code, 0, reply.stderr);

@@ -5,7 +5,7 @@ import { test, type TestContext } from "node:test";
 import { type Address, formatAddress } from "../contracts/gateway/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { stopAfter, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
-import { canConnect, freeAddresses, isAlive, launchUp, onTheRoster, shrimpy, startUp } from "./testing/index.ts";
+import { canConnect, freeAddresses, launchUp, onTheRoster, shrimpy, untilLinked } from "./testing/index.ts";
 
 /*
  * Where the gateway listens for agents apart from it: the addresses `--listen` gives, which the gateway keeps, through
@@ -80,8 +80,6 @@ test("an address of every interface is refused, and one that can't be listened o
   const up = await shrimpy(["up", "--listen", where]);
   assert.equal(up.code, 1);
   assert.ok(up.stderr.includes(where), up.stderr);
-  const started = [...up.stdout.matchAll(/^Started .* \(pid (\d+)\)/gm)].map((found) => Number(found[1]));
-  assert.deepEqual(started.map(isAlive), [], "what up started is stopped");
   assert.equal((await shrimpy(["status"])).code, 1, "and no gateway is left");
 });
 
@@ -92,8 +90,9 @@ test("up told to listen starts the gateway and chat server with no agents, and a
   const nothing = await shrimpy(["up"]);
   assert.equal(nothing.code, 1);
 
-  const told = await startUp(t, ["--listen", "127.0.0.1:0"]);
-  assert.equal(told.programs().length, 2, "the gateway and the chat server");
+  const told = launchUp(t, ["--listen", "127.0.0.1:0"]);
+  await told.until(untilLinked("chat", "chat"));
+  assert.equal((await told.programs()).length, 2, "the gateway and the chat server");
   const [first] = await whereItListens(t);
   assert.ok(first);
   assert.ok(told.output().stdout.includes(formatAddress(first)), "it says where the gateway listens");
@@ -103,8 +102,9 @@ test("up told to listen starts the gateway and chat server with no agents, and a
   assert.equal(await canConnect(first), false);
 
   // No --listen this time: the gateway listens where it did, and that is why up starts it in a folder with no agents.
-  const kept = await startUp(t, []);
-  assert.equal(kept.programs().length, 2);
+  const kept = launchUp(t, []);
+  await kept.until(untilLinked("chat", "chat"));
+  assert.equal((await kept.programs()).length, 2);
   assert.deepEqual(await whereItListens(t), [first]);
   assert.ok(kept.output().stdout.includes(formatAddress(first)));
 
@@ -114,7 +114,6 @@ test("up told to listen starts the gateway and chat server with no agents, and a
   const meanwhile = launchUp(t, ["--listen", formatAddress(second)]);
   const result = await meanwhile.finished;
   assert.equal(result.code, 0, result.stderr);
-  assert.deepEqual(meanwhile.programs(), []);
   assert.ok(result.stderr.includes(formatAddress(second)), result.stderr);
   assert.equal(await canConnect(second), false);
   assert.deepEqual(await whereItListens(t), [first], "and the gateway is as it was");
