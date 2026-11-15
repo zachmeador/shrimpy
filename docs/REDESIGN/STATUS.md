@@ -6,6 +6,28 @@ As of 2026-11-15. An item leaves when it is fixed or when the design changes to 
 
 ## Where the code trails the plan
 
+### Found by the review of 2026-11-15
+
+Four reviewers read the code on 2026-11-15, and you asked for what they found to be fixed. The order is in the [plan](PLAN.md#order-of-work).
+
+- Nothing checks that the runtime directory is Shrimpy's own. On macOS, and wherever `XDG_RUNTIME_DIR` isn't set, it is `/tmp/shrimpy-<uid>`, which another account could make first and use to stand in for the gateway's socket.
+- A connection to the gateway's entry can send a first frame of up to 64 MiB before it has said who it is.
+- `shrimpy read`, `run` and `sessions read` print other members' text and tool output as it came, escape sequences and all. The terminal makes the same text harmless.
+- Any failure to read an agent's records is reported as storage another version wrote, with the advice to move it into an archive, which loses every session.
+- Code is kept for data from before the move, which every program refuses: a membership or a machine with no fingerprint, and fields of an agent's records left optional for records written before them.
+- About one test in six pins wording or an internal shape. Two thirds of those are the terminal's, which test each feature at three or four layers. Some test Pi rather than Shrimpy, one by building Pi's records by hand, and one pins the whole prompt.
+- The helpers for `up`'s tests read process IDs and readiness out of what `up` prints, so rewording a line would silently stop the cleanup of leftover processes.
+- The test model picks what to do by searching the whole message, the person's name included, which defaults to the OS account's. Under an account called `runner`, every message would run a command.
+- About two dozen tests assert after a fixed pause or a fixed number of ticks, where no later event can be waited for. A few bound how long something takes, which could trip on a loaded machine.
+- Test support is written twice: two gateways for tests with different process models, two ways to run the CLI, two test agents, and two fake terminals.
+- The contracts carry Pi's codes: why an answer stopped, `followUp` for input that waits, and failure reasons passed on from Pi as they come. The clients match on some of them, so a Pi upgrade can reach a client.
+- The CLI uses the agent's and the gateway's entry points for more than starting them: the trigger files, the wake file, the default model, the gateway's kept addresses, making and joining a home, previewing what it tells an agent, and signing in. So `shrimpy wake` loads Pi's engine to change a JSON file. The lint lets any import of an entry point through.
+- The agent repeats itself: five loops over Pi's tasks, seven waits for something or a stop, three copies of a tool's answer and failure, and two roster lookups. The home's files are walked by four readers and again by the look for changes, so a file a reader starts reading can change unseen.
+- Saving a file whole is written nine times, with different care for crashes. `lib/follow` serves only the agent, while the gateway and chat each have their own. Four layers keep a link. A contract holds the CLI's way of joining a machine, and `Member`, an address's words and the dial to a home are each written twice. A pause helper is in `agent/chat/` and in `lib/retry`, and chat has its own `refusal/` beside `lib/refusal`.
+- The CLI repeats itself: `wake` and `triggers`, `invite` and `join`, and the clients' plumbing. The terminal and the CLI word sessions and receipts each their own way, and already differ. `read` tells a refusal by its words.
+- `up` is one 650-line file, and may lose track of an agent whose home goes while it starts. The terminal's state is one 730-line closure that draws every change twice.
+- Dead code: notices nothing emits, exports nothing uses, interfaces that are the same under three names, and guards for cases that can't happen. Comments tell what the code below them says, and some no longer hold.
+
 ### The three programs and what each owns
 
 - Shrimpy on Pi 1.5.2 has run only in its tests, which pass on Linux with Node 22.23. It hasn't run for real, or on macOS, so every run for real named below was of the build on Pi 1.0.0.
@@ -118,6 +140,4 @@ As of 2026-11-15. An item leaves when it is fixed or when the design changes to 
 
 - Promises in the first build's Prove list that are built and have no test: a real-provider turn uses only the shell tool, not the file tools; a request ID reused with different content is tested in the chat server and not at the agent; and nothing asserts what becomes of a shell child that outlives a killed owner.
 - No test covers a link that goes silent, which Chord's heartbeat closes after half a minute, or `run` stopped while its message is being sent, which needs a chat server that takes a post and never answers.
-- Small duplicates: a pause helper in `agent/chat/` and in `lib/retry`, chat's own `refusal/` and its `live` beside `lib/refusal` and `lib/follow`, a helper for talking in tests in `agent/testing/` and `cli/testing/`, and two fake terminals, in `cli/testing/` and the console's `draw/testing/`.
 - A test that holds a scripted model at a gate and fails before it lets go hangs its run until the suite's timeout. The tests of a busy agent, of questions, of wake-ups and of triggers let go on the way out, and some others that hold one in the test's own process don't.
-- Some tests assert that nothing happened after a pause, where no later event can be waited for: about a dozen, across the console's, the agent's and the CLI's tests. A few bound how long something takes, which could trip on a loaded machine.

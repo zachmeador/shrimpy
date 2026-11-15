@@ -1,6 +1,6 @@
 # 🦐 Pi Durable Replacement Plan
 
-Updated: 2026-11-14
+Updated: 2026-11-15
 Status: experience decisions reviewed on 2026-10-03. The plan was reshaped around the core pieces on 2026-10-05, and the design moved into a file for each piece the same day. The new Shrimpy is the repo's root on `wip`, and old Shrimpy is in `shrimpy-old/`. A few interface and command details are left for the work that builds them.
 
 Shrimpy's session machinery gets replaced with `pi-durable`. Each agent becomes an independent program: one resident process owns its home and its Pi storage. People talk to agents in threads kept by a chat server, from the console, the web app or chat providers such as Telegram, and clients can attach to an agent to watch and steer its work. Pi owns admission, queues, transcripts, task lifetimes, cancellation, compaction, recovery and committed observation. Shrimpy owns the home, the agent's context and tools, the clients, and the routes in.
@@ -120,6 +120,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
+- Fixing what [the review of 2026-11-15](STATUS.md#found-by-the-review-of-2026-11-15) found, as you asked that day: first security and correctness, then the tests, then the two rules the code drifted from, which you said are there to keep Shrimpy maintainable, and then the repetition. One builder at a time, each step checked in the dev container.
 - Putting the move to Pi 1.5.2 on a setup in use: what Shrimpy wrote before it goes into an archive beside the Shrimpy folder, an agent elsewhere joins again with a new invitation, and your name goes in `settings.json`, as [the home](design/5-home.md) has it. The move itself is in the [log](history/LOG.md#log).
 - In the terminal, a room's thread showing each agent's work, and `/devices invite`. [Not built yet](design/using-it.md)
 - Cleaning up for the release, which you said on 2026-10-08 is close: the skills cover what a person and an agent do with Shrimpy, the reference documentation shrinks to very little, and old Shrimpy is replaced.
