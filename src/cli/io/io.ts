@@ -53,6 +53,19 @@ export function forPeople(io: Io): Io {
   };
 }
 
+/**
+ * `value` as JSON that means the same and is safe at a terminal too.
+ * `JSON.stringify` leaves DEL, the C1 controls, the line and paragraph
+ * separators and the characters that reorder text as they are. Each can only
+ * be inside a string, where its escape means the same.
+ */
+function jsonLine(value: unknown): string {
+  return JSON.stringify(value).replace(
+    /[\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]/g,
+    (found) => `\\u${found.charCodeAt(0).toString(16).padStart(4, "0")}`,
+  );
+}
+
 export function processIo(): Io {
   const terminal = process.stdin.isTTY && process.stdout.isTTY;
   let lines: Lines | undefined;
@@ -63,7 +76,7 @@ export function processIo(): Io {
   return {
     out: (line) => void process.stdout.write(`${line}\n`),
     err: (line) => void process.stderr.write(`${line}\n`),
-    json: (value) => void process.stdout.write(`${JSON.stringify(value)}\n`),
+    json: (value) => void process.stdout.write(`${jsonLine(value)}\n`),
     ask(question, options = {}) {
       if (terminal) return askPerson(question, options);
       lines ??= readLines(process.stdin);
