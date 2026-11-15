@@ -17,7 +17,10 @@ export interface ModelServer {
 /**
  * A model on a local port that speaks OpenAI's chat-completions protocol, for
  * tests that run the whole CLI. It streams its thinking first, as reasoning
- * models do. What it does after that depends on the latest user message:
+ * models do. What it does after that depends only on what the person wrote,
+ * which is the last line of the latest user message: the agent puts who wrote
+ * it, when and where before it, so no name, time or place changes what the
+ * model does.
  *
  * - "run": call the bash tool to echo `shrimpy-ok`, then report what it printed
  * - "which shrimpy": call the bash tool to find `shrimpy` and list what is running, then report what it printed
@@ -47,11 +50,18 @@ export async function startModelServer(): Promise<ModelServer> {
   };
 }
 
+/** What the person wrote: the last line of the latest user message, whether its content is text or parts. */
+function writtenLast(messages: ModelRequest["body"]["messages"]): string {
+  const content = messages.findLast((message) => message.role === "user")?.content;
+  const parts: unknown[] = typeof content === "string" ? [{ type: "text", text: content }] : Array.isArray(content) ? content : [];
+  const text = parts.map((part) => (typeof part === "object" && part !== null && "text" in part && typeof part.text === "string" ? part.text : "")).join("");
+  return text.trimEnd().split("\n").at(-1) ?? "";
+}
+
 function respond(body: ModelRequest["body"], response: ServerResponse): void {
   const messages = body.messages;
   const last = messages.at(-1);
-  const user = [...messages].reverse().find((message) => message.role === "user");
-  const asked = typeof user?.content === "string" ? user.content : "";
+  const asked = writtenLast(messages);
 
   const lastAsked = messages.findLastIndex((message) => message.role === "user");
   const results = messages.slice(lastAsked + 1).filter((message) => message.role === "tool").length;

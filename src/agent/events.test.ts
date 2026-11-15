@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { cpSync } from "node:fs";
 import { test, type TestContext } from "node:test";
-import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage } from "@earendil-works/pi-ai";
 import { speakingAs } from "../contracts/chat/testing/index.ts";
 import { tempDir, until } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
@@ -13,6 +13,7 @@ import {
   loggedRequests,
   releaseGate,
   type Script,
+  shownSinceLastAnswer,
   startAgentRig,
   talkTo,
   untilReleased,
@@ -27,17 +28,6 @@ import {
 
 const timeout = 30_000;
 const THUMBS_UP = "\u{1F44D}";
-
-function textOf(message: Message): string {
-  if (message.role !== "user") return "";
-  return typeof message.content === "string" ? message.content : message.content.map((block) => (block.type === "text" ? block.text : "")).join("");
-}
-
-/** Everything the model was shown since it last answered, oldest first. */
-function shownSinceLastAnswer(messages: readonly Message[]): string {
-  const answered = messages.findLastIndex((message) => message.role === "assistant");
-  return messages.slice(answered + 1).map(textOf).join("\n");
-}
 
 const echoes: Script = (messages) => fauxAssistantMessage(`Shown:\n${shownSinceLastAnswer(messages)}`);
 

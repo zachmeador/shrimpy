@@ -2,11 +2,21 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage } from "@earendil-works/pi-ai";
 import { MAX_MESSAGE_LENGTH } from "../contracts/chat/index.ts";
 import { Roster } from "../contracts/gateway/index.ts";
 import { eventually, tempDir, until, waitForView } from "../lib/testing/index.ts";
-import { answered, assistantItems, releaseGate, type Script, startAgentRig, talkTo, untilReleased } from "./testing/index.ts";
+import {
+  answered,
+  assistantItems,
+  latestUserText,
+  releaseGate,
+  type Script,
+  startAgentRig,
+  talkTo,
+  untilReleased,
+  writtenLast,
+} from "./testing/index.ts";
 
 /*
  * An agent taking part in chat, with the real engine under it: what a message
@@ -16,15 +26,9 @@ import { answered, assistantItems, releaseGate, type Script, startAgentRig, talk
 
 const timeout = 30_000;
 
-/** What the latest user message says. */
-function latestUserText(messages: readonly Message[]): string {
-  const content = messages.findLast((message) => message.role === "user")?.content ?? "";
-  return typeof content === "string" ? content : content.map((block) => (block.type === "text" ? block.text : "")).join("");
-}
-
-/** A model that answers with the JSON text after "reply with:" in the latest message it is sent. */
+/** A model that answers with the JSON text after "reply with:" in what was written last. */
 const saysWhatItIsToldTo: Script = (messages) => {
-  const wanted = /reply with: (.*)$/s.exec(latestUserText(messages))?.[1];
+  const wanted = /reply with: (.*)$/.exec(writtenLast(messages))?.[1];
   return fauxAssistantMessage(wanted === undefined ? "no instruction" : (JSON.parse(wanted) as string));
 };
 

@@ -2,7 +2,17 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { fauxAssistantMessage, fauxToolCall, type Message } from "@earendil-works/pi-ai";
 import { eventually, until, waitForView } from "../lib/testing/index.ts";
-import { callingTools, loggedRequests, releaseGate, type Script, startAgentRig, untilReleased } from "./testing/index.ts";
+import {
+  callingTools,
+  latestUserText,
+  loggedRequests,
+  releaseGate,
+  type Script,
+  shownSinceLastAnswer,
+  startAgentRig,
+  untilReleased,
+  writtenLast,
+} from "./testing/index.ts";
 
 /*
  * An agent waking itself later with `check_back`: the real engine under it and
@@ -11,22 +21,13 @@ import { callingTools, loggedRequests, releaseGate, type Script, startAgentRig, 
 
 const timeout = 30_000;
 
-/** What a message of a person, or a wake-up, says; nothing for any other message. */
-function textOf(message: Message | undefined): string {
-  if (message?.role !== "user") return "";
-  return typeof message.content === "string" ? message.content : message.content.map((block) => (block.type === "text" ? block.text : "")).join("");
-}
-
-/** What the latest message of a person, or a wake-up, says. */
-const latestUserText = (messages: readonly Message[]): string => textOf(messages.findLast((message) => message.role === "user"));
-
 /** Whether the model has just been handed the results of its tool calls. */
 const hasToolResult = (messages: readonly Message[]): boolean => messages.at(-1)?.role === "toolResult";
 
 test("a wake-up wakes the session after its delay, and the final text of the turn it starts is posted in the thread", { timeout }, async (t) => {
   // Three wake-ups in one turn. The first is answered, the second ends its turn with END, and the turn of the third fails.
   const script: Script = (messages) => {
-    const latest = latestUserText(messages);
+    const latest = writtenLast(messages);
     if (latest.includes("set three wake-ups")) {
       if (hasToolResult(messages)) return fauxAssistantMessage("All three are set.");
       return fauxAssistantMessage(
@@ -41,7 +42,7 @@ test("a wake-up wakes the session after its delay, and the final text of the tur
     if (latest.includes("be refused")) {
       return fauxAssistantMessage([], { stopReason: "error", errorMessage: "The model refused the request." });
     }
-    return fauxAssistantMessage(latest.includes("stay quiet") ? "END" : `Awake. ${latest}`);
+    return fauxAssistantMessage(latest.includes("stay quiet") ? "END" : `Awake. ${latestUserText(messages)}`);
   };
   const rig = await startAgentRig(t, { script });
 
@@ -67,8 +68,7 @@ test("a stop cancels the wake-ups a session is waiting on, and the next input te
   // The first message asks to be woken in an hour, and keeps what the tool said. Everything else is echoed.
   let answer = "";
   const script: Script = (messages) => {
-    const latest = latestUserText(messages);
-    if (latest.includes("set a wake-up")) {
+    if (writtenLast(messages).includes("set a wake-up")) {
       const result = messages.at(-1);
       if (result?.role !== "toolResult") {
         const call = fauxToolCall("check_back", { in: "1h", note: "look at the build again" }, { id: "call-0" });
@@ -77,7 +77,7 @@ test("a stop cancels the wake-ups a session is waiting on, and the next input te
       answer = result.content.map((block) => (block.type === "text" ? block.text : "")).join("");
       return fauxAssistantMessage("It is set.");
     }
-    return fauxAssistantMessage(`Shown:\n${latest}`);
+    return fauxAssistantMessage(`Shown:\n${latestUserText(messages)}`);
   };
   const rig = await startAgentRig(t, { script });
   await rig.receiptOn(await rig.say("set a wake-up"));
@@ -100,7 +100,7 @@ test("a stop cancels the wake-ups a session is waiting on, and the next input te
 
 test("a session's status shows the wake-ups it waits on, and why its last turn failed", { timeout }, async (t) => {
   const script: Script = (messages) => {
-    const latest = latestUserText(messages);
+    const latest = writtenLast(messages);
     if (latest.includes("set two wake-ups") && !hasToolResult(messages)) {
       return fauxAssistantMessage(
         [
@@ -139,8 +139,7 @@ test("a wake-up and chat messages that arrive while the session is busy are answ
   // joins a turn that has a step left, so everything after this has to wait for the next turn.
   let onLastStep = false;
   const script: Script = async (messages, home) => {
-    const latest = latestUserText(messages);
-    if (latest.includes("set a wake-up")) {
+    if (writtenLast(messages).includes("set a wake-up")) {
       if (!hasToolResult(messages)) {
         const call = fauxToolCall("check_back", { in: "2s", note: "the wake-up" }, { id: "call-0" });
         return fauxAssistantMessage([call], { stopReason: "toolUse" });
@@ -149,8 +148,7 @@ test("a wake-up and chat messages that arrive while the session is busy are answ
       await untilReleased(home);
       return fauxAssistantMessage("It is set.");
     }
-    const answered = messages.findLastIndex((message) => message.role === "assistant");
-    return fauxAssistantMessage(`Shown:\n${messages.slice(answered + 1).map(textOf).join("\n")}`);
+    return fauxAssistantMessage(`Shown:\n${shownSinceLastAnswer(messages)}`);
   };
   const rig = await startAgentRig(t, { script });
   await rig.say("set a wake-up");

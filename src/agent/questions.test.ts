@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { userInfo } from "node:os";
 import { test } from "node:test";
-import { fauxAssistantMessage, type Message as ModelMessage } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage } from "@earendil-works/pi-ai";
 import type { Message, Thread } from "../contracts/chat/index.ts";
 import { type Speaking, speakingAs } from "../contracts/chat/testing/index.ts";
 import type { ChatCalls } from "./links/index.ts";
@@ -17,6 +17,7 @@ import {
   talking,
   talkTo,
   untilReleased,
+  writtenLast,
 } from "./testing/index.ts";
 
 /*
@@ -75,13 +76,6 @@ async function answer(member: Speaking, threadId: string, text: string, event: s
   const reply = await member.post(threadId, text, requestId);
   await member.leaveReceipt([event], { status: "answered", reply: reply.id, detail: null });
   return reply;
-}
-
-/** What the latest message to a model says. */
-function latestUser(messages: readonly ModelMessage[]): string {
-  const latest = messages.findLast((message) => message.role === "user");
-  if (latest === undefined) return "";
-  return typeof latest.content === "string" ? latest.content : latest.content.map((block) => (block.type === "text" ? block.text : "")).join("");
 }
 
 test("a question asked in a thread with a person wakes that thread's session with the answer", { timeout }, async (t) => {
@@ -260,7 +254,7 @@ test("a result that was skipped because the turn ahead of it failed is shown wit
   );
   // The turn that is asked to think it over waits until the test lets it go, and then fails.
   const script: Script = async (messages, home) => {
-    if (!latestUser(messages).includes("Think it over")) return asking.script(messages, home);
+    if (!writtenLast(messages).includes("Think it over")) return asking.script(messages, home);
     await untilReleased(home);
     return fauxAssistantMessage([], { stopReason: "error", errorMessage: "The model refused the request." });
   };
@@ -303,7 +297,7 @@ test("two agents each with a question open to the other each get the other's ans
   });
   // Maya holds her answer to scout's question until the test lets it go, so that scout's question is open when hers arrives.
   const mayaScript: Script = async (messages, home) => {
-    if (latestUser(messages).includes("Which stanza will you take?")) await untilReleased(home);
+    if (writtenLast(messages).includes("Which stanza will you take?")) await untilReleased(home);
     return mayaModel.script(messages, home);
   };
   const scout = await startAgentRig(t, { script: scoutModel.script });

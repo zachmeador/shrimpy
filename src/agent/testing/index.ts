@@ -50,8 +50,9 @@ export { answered, assistantItems, toolItems } from "./views.ts";
 
 /**
  * What the scripted model does. `chat`, `fail`, `stream`, `tool`, `waking` and
- * `asking` each do one thing. `mixed` picks one of them by what the latest
- * message says: "stream" streams a long answer, "refuse" fails, "slow command"
+ * `asking` each do one thing. Each decides only by what was written, never by
+ * who wrote it, when or where. `mixed` picks one of them by what the person
+ * wrote: "stream" streams a long answer, "refuse" fails, "slow command"
  * runs the slow shell call, "slow command until it finishes" runs it again each
  * time it comes back as an error, "check back in 2s" asks to be woken in 2
  * seconds (`and 5s` asks for a second wake-up), "ask maya" asks the agent maya a
@@ -130,7 +131,7 @@ const SCRIPTS: Record<FauxScenario, Script> = {
   /** `check_back` once for each delay the message names, each with a note that says which, then an answer that says so. */
   waking: (messages) => {
     if (pendingToolResult(messages) !== undefined) return fauxAssistantMessage("Wake-ups set.");
-    const delays = (CHECK_BACK.exec(lastUserText(messages))?.[1] ?? "").split(" and ");
+    const delays = (CHECK_BACK.exec(writtenLast(messages))?.[1] ?? "").split(" and ");
     const calls = delays.map((delay, index) =>
       fauxToolCall("check_back", { in: delay, note: `look again (${delay})` }, { id: `call-${String(index)}` }),
     );
@@ -146,11 +147,11 @@ const SCRIPTS: Record<FauxScenario, Script> = {
     );
   },
 
-  /** Thinking, a short shell call when asked about files, and a markdown answer. */
+  /** Thinking, a short shell call when asked about files, and a markdown answer that repeats the latest message. */
   chat: (messages) => {
     const result = pendingToolResult(messages);
-    const user = lastUserText(messages);
-    if (result === undefined && /\bfiles?\b/i.test(user)) {
+    const user = latestUserText(messages);
+    if (result === undefined && /\bfiles?\b/i.test(writtenLast(messages))) {
       return fauxAssistantMessage(
         [
           fauxThinking("The user wants a listing, so I will run a short shell command."),
@@ -168,7 +169,7 @@ const SCRIPTS: Record<FauxScenario, Script> = {
   },
 
   mixed: (messages, home) => {
-    const user = lastUserText(messages);
+    const user = writtenLast(messages);
     if (/\bstream\b/i.test(user)) return SCRIPTS.stream(messages, home);
     if (/\brefuse\b/i.test(user)) return SCRIPTS.fail(messages, home);
     if (/\bslow command until it finishes\b/i.test(user)) return slowCommandUntilItFinishes(messages);
@@ -243,13 +244,24 @@ export function loggedRequests(home: string): { pid: number; digest: string }[] 
     .map((line) => JSON.parse(line) as { pid: number; digest: string });
 }
 
-function lastUserText(messages: readonly Message[]): string {
+/** The text of the latest user message, as the model is given it: what was written, with who, when and where before it. */
+export function latestUserText(messages: readonly Message[]): string {
   for (const message of messages.toReversed()) {
     if (message.role !== "user") continue;
     if (typeof message.content === "string") return message.content;
     return message.content.map((block) => (block.type === "text" ? block.text : "")).join("");
   }
   return "";
+}
+
+/**
+ * What was written, without who wrote it, when or where: the last line of the
+ * latest user message, since the agent puts those facts before what was
+ * written. A scripted model decides by this, so no name, time or place changes
+ * what it does.
+ */
+export function writtenLast(messages: readonly Message[]): string {
+  return latestUserText(messages).trimEnd().split("\n").at(-1) ?? "";
 }
 
 /** The newest tool result after the latest user message, if any. */
