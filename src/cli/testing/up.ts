@@ -54,7 +54,7 @@ function stopWhenDone(t: TestContext, up: RunningUp): void {
  */
 export function launchUp(t: TestContext, args: string[], options: Pick<LaunchOptions, "env"> = {}): RunningUp {
   useRuntimeDir(t);
-  const command = shrimpyInBackground(["up", ...args], { ...options, untilStopped: true });
+  const command = shrimpyInBackground(t, ["up", ...args], { ...options, untilStopped: true });
   const up = { ...command, programs: () => startedIn(command.output().stdout) };
   stopWhenDone(t, up);
   return up;
@@ -72,7 +72,7 @@ export function launchUpWithPace(t: TestContext, args: string[], pace: Pace): Ru
   const cli = captureIo();
   const lines = (said: string[]): string => (said.length === 0 ? "" : `${said.join("\n")}\n`);
   let code: number | null = null;
-  const output = (): CliResult => ({ code, stdout: lines(cli.out), stderr: lines(cli.err) });
+  const output = (): CliResult => ({ code, signal: null, stdout: lines(cli.out), stderr: lines(cli.err) });
   // As the command line does, a command that throws has said why and ended with 1.
   const finished = loadUpWithPace(pace)
     .then((command) => command.run(args, cli.io))
@@ -84,7 +84,7 @@ export function launchUpWithPace(t: TestContext, args: string[], pace: Pace): Ru
       code = result;
       return output();
     });
-  const up: RunningUp = { kill: () => cli.requestStop(), output, finished, programs: () => startedIn(lines(cli.out)) };
+  const up: RunningUp = { pid: process.pid, kill: () => cli.requestStop(), output, finished, programs: () => startedIn(lines(cli.out)) };
   stopWhenDone(t, up);
   return up;
 }

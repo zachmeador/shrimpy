@@ -3,17 +3,9 @@ import { type AddressInfo, createServer } from "node:net";
 import { networkInterfaces } from "node:os";
 import { test, type TestContext } from "node:test";
 import { type Address, formatAddress } from "../contracts/gateway/index.ts";
+import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { stopAfter, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
-import {
-  canConnect,
-  freeAddresses,
-  isAlive,
-  launchUp,
-  onTheRoster,
-  serveGateway,
-  shrimpy,
-  startUp,
-} from "./testing/index.ts";
+import { canConnect, freeAddresses, isAlive, launchUp, onTheRoster, shrimpy, startUp } from "./testing/index.ts";
 
 /*
  * Where the gateway listens for agents apart from it: the addresses `--listen` gives, which the gateway keeps, through
@@ -33,29 +25,30 @@ async function whereItListens(t: TestContext): Promise<Address[]> {
 }
 
 test("a gateway started again with no --listen listens where it did, until --listen replaces it", { timeout }, async (t) => {
-  const dataDir = tempDir(t, "gateway-data");
-
   // Given more than once, with an IPv6 address in brackets where this machine has one.
-  const given = await serveGateway(t, ["--listen", "127.0.0.1:0", "--listen", hasIPv6Loopback ? "[::1]:0" : "127.0.0.1:0"], dataDir);
-  const [first, second] = given.listening.listen;
+  const loopback = { host: "127.0.0.1", port: 0 };
+  const gateway = await startTestGateway(t, { listen: [loopback, hasIPv6Loopback ? { host: "::1", port: 0 } : loopback] });
+  const [first, second] = gateway.listening.listen;
   assert.ok(first && second && first.port > 0 && second.port > 0 && first.port !== second.port, "each got a port of its own");
-  assert.equal(given.listening.listenKept, null, "it was told where to listen, so it read nothing");
+  assert.equal(gateway.listening.listenKept, null, "it was told where to listen, so it read nothing");
   assert.equal(await canConnect(first), true);
-  assert.equal((await given.stop()).code, 0);
+  assert.equal((await gateway.stop()).code, 0);
   assert.equal(await canConnect(first), false);
 
   // What is kept is where it listened, so a port that was picked is the port that comes back.
-  const again = await serveGateway(t, [], dataDir);
-  assert.deepEqual(again.listening.listen, [first, second]);
-  assert.ok(again.listening.listenKept?.startsWith(dataDir), "it names the file it read, in its data directory");
+  await gateway.recover();
+  const again = gateway.listening;
+  assert.deepEqual(again.listen, [first, second]);
+  assert.ok(again.listenKept?.startsWith(gateway.dataDir), "it names the file it read, in its data directory");
   assert.equal(await canConnect(second), true);
-  assert.equal((await again.stop()).code, 0);
+  assert.equal((await gateway.stop()).code, 0);
 
-  const replaced = await serveGateway(t, ["--listen", "127.0.0.1:0"], dataDir);
-  assert.equal(replaced.listening.listen.length, 1);
-  assert.equal((await replaced.stop()).code, 0);
-  const last = await serveGateway(t, [], dataDir);
-  assert.deepEqual(last.listening.listen, replaced.listening.listen, "and what was kept before is gone");
+  await gateway.recover([loopback]);
+  const replaced = gateway.listening.listen;
+  assert.equal(replaced.length, 1);
+  assert.equal((await gateway.stop()).code, 0);
+  await gateway.recover();
+  assert.deepEqual(gateway.listening.listen, replaced, "and what was kept before is gone");
 });
 
 test("an address of every interface is refused, and one that can't be listened on stops the start", { timeout }, async (t) => {

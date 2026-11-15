@@ -1,5 +1,9 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { TestContext } from "node:test";
+import { tempDir } from "../../lib/testing/index.ts";
+import type { ModelServer } from "./model-server.ts";
+import { shrimpy } from "./process.ts";
 
 /**
  * The provider `local` as a models.json declares it: an OpenAI-compatible
@@ -25,4 +29,17 @@ export function declareLocalModel(home: string, options: { url: string; model: s
   const provider = localProvider({ url: options.url, models: [options.model], apiKey: "local" });
   const models = JSON.stringify({ providers: { local: provider } }, null, 2);
   writeFileSync(join(home, "state", "pi", "models.json"), models);
+}
+
+/**
+ * A home for the agent called `name`, scout unless the test says otherwise, made
+ * with `shrimpy agent init` in a directory of its own and set up to use the test
+ * model. It is removed when the test ends.
+ */
+export async function agentHome(t: TestContext, model: ModelServer, name = "scout"): Promise<string> {
+  const home = join(tempDir(t, `${name}-home`), name);
+  const init = await shrimpy(["agent", "init", home, "--name", name, "--model", "local/test-model"]);
+  if (init.code !== 0) throw new Error(`shrimpy agent init ended with ${String(init.code)}:\n${init.stderr}`);
+  declareLocalModel(home, { url: model.url, model: "test-model" });
+  return home;
 }

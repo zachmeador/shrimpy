@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
-import type { Host, Reference } from "@earendil-works/chord";
+import type { TestContext } from "node:test";
+import type { Reference } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { Channel, Chat, type ChatEvent, type Member, type Message, type Receipt, Thread } from "../../contracts/chat/index.ts";
-import type { Answer, Principal, Revocation } from "../../contracts/gateway/index.ts";
-import type { GatewayClient } from "../../contracts/gateway/node.ts";
-import { eventually } from "../../lib/testing/index.ts";
-import type { ChatServer } from "./chat-server.ts";
-import { SCOUT } from "./names.ts";
+import { eventually } from "../../../lib/testing/index.ts";
+import type { Answer } from "../../gateway/index.ts";
+import type { GatewayClient } from "../../gateway/node.ts";
+import { startTestGateway } from "../../gateway/testing/index.ts";
+import type { ChatEvent, Member, Message, Receipt, Thread } from "../index.ts";
+import { memberNamed, onChannel, onChat, onThread, valueOf } from "./speaking.ts";
 
 const context = BACKGROUND_CONTEXT;
 
@@ -48,61 +49,32 @@ export interface Talk {
   receiptFor(event: ChatEvent, timeoutMs?: number): Promise<Receipt>;
 }
 
-/** What a method did, or a failure that says what it refused. */
-export function valueOf<T>(answer: Answer<T>): T {
-  if (answer.kind === "refused") throw new Error(`Refused: ${answer.words}`);
-  return answer.value;
-}
-
-/** Anything with a host that holds objects: a client linked to the gateway, or an agent's program. */
-type Holder = { readonly host: Host<Principal, Revocation> };
-
-/** Run `work` on an object `get` gives for as long as it runs. */
-async function holding<T, O extends { release(): void }>(get: Promise<O>, work: (held: O) => Promise<T> | T): Promise<T> {
-  const held = await get;
-  try {
-    return await work(held);
-  } finally {
-    held.release();
-  }
-}
-
-/** The thread `threadId` as `client` holds it, for as long as `work` runs. */
-export const onThread = <T>(client: Holder, threadId: string, work: (thread: Reference<typeof Thread>) => Promise<T> | T) =>
-  holding(client.host.get(Thread, { thread: threadId }, context), work);
-
-/** The channel `channelId` as `client` holds it, for as long as `work` runs. */
-export const onChannel = <T>(client: Holder, channelId: string, work: (channel: Reference<typeof Channel>) => Promise<T> | T) =>
-  holding(client.host.get(Channel, { channel: channelId }, context), work);
-
-/** `client` as a member of chat, for as long as `work` runs. */
-export const onChat = <T>(client: Holder, work: (chat: Reference<typeof Chat>) => Promise<T> | T) =>
-  holding(client.host.get(Chat, {}, context), work);
-
 /**
- * You, in your DM with the agent called `agentName` on `chat`, made if need be
- * once the agent has joined the roster. You link to the gateway again by
- * yourself when it has been away.
+ * You, in your DM with the agent called `agentName` on the chat server, made if
+ * need be once the agent has joined the test gateway's roster. You link to the
+ * gateway again by yourself when it has been away.
  */
-export async function talkTo(chat: ChatServer, agentName: string = SCOUT): Promise<Talk> {
+export async function talkTo(t: TestContext, agentName: string): Promise<Talk> {
   let linked: Promise<GatewayClient> | undefined;
   const connection = (): Promise<GatewayClient> => {
-    linked ??= chat.person().then(
-      (client) => {
-        void client.closed.then(() => {
+    linked ??= startTestGateway(t)
+      .then((gateway) => gateway.connect())
+      .then(
+        (client) => {
+          void client.closed.then(() => {
+            linked = undefined;
+          });
+          return client;
+        },
+        (error: unknown) => {
           linked = undefined;
-        });
-        return client;
-      },
-      (error: unknown) => {
-        linked = undefined;
-        throw error;
-      },
-    );
+          throw error;
+        },
+      );
     return linked;
   };
 
-  const partner = await chat.member(agentName);
+  const partner = await memberNamed(t, agentName);
   const first = await connection();
   if (first.you === null) throw new Error("The gateway took the person's client for nobody.");
   const me: Member = { id: first.you.id, kind: first.you.kind, name: first.you.name };

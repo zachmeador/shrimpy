@@ -8,14 +8,13 @@ import { AGENT_HOME_VARIABLE } from "../contracts/agent/index.ts";
 import type { Message } from "../contracts/chat/index.ts";
 import { formatAddress, machineFile, readLink, writeLink } from "../contracts/gateway/index.ts";
 import { newToken, readMachine, saveMachine } from "../contracts/gateway/node.ts";
-import { inRuntimeDir, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
+import { FakeTerminal, inRuntimeDir, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { runCli } from "./index.ts";
 import { openTheConsole } from "./run.ts";
 import {
   captureIo,
   commandLines,
   declareLocalModel,
-  FakeTerminal,
   onTheRoster,
   type RunningUp,
   shrimpy,
@@ -45,8 +44,7 @@ type Beside = { SHRIMPY_DIR: string; SHRIMPY_RUNTIME_DIR: string; HOME: string }
  * of their own. This test's own folder and runtime directory are left for the machine.
  */
 async function startBesideTheGateway(t: TestContext): Promise<{ env: Beside; up: RunningUp }> {
-  const model = await startModelServer();
-  stopAfter(t, () => model.close());
+  const model = await startModelServer(t);
   useRuntimeDir(t);
   const env: Beside = {
     SHRIMPY_DIR: join(tempDir(t, "gateway-folder"), "shrimpy"),
@@ -171,7 +169,7 @@ test("the terminal in a folder that joined as the person reaches the agent and i
   assert.equal(said.code, 0, said.stderr);
 
   // The console is opened by the code a bare `shrimpy` runs, on a terminal of the test's own.
-  const terminal = new FakeTerminal();
+  const terminal = new FakeTerminal(100, 40);
   const cli = captureIo({ terminal: true });
   const exited = runCli([], cli.io, { openConsole: (io) => openTheConsole(io, { terminal }) });
   stopAfter(t, async () => {

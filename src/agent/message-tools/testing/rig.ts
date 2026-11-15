@@ -5,8 +5,9 @@ import type { ToolExecutionApi, ToolRegistration } from "@earendil-works/pi-dura
 import { Roster } from "../../../contracts/gateway/index.ts";
 import { stopAfter } from "../../../lib/testing/index.ts";
 import { type ChatCalls, type LiveChat, openChatLink } from "../../links/index.ts";
-import { type ChatServer, SCOUT, startChatServer, type Talk, talkTo } from "../../testing/index.ts";
+import { type ChatServer, SCOUT, startChatServer } from "../../testing/index.ts";
 import { messageTools } from "../durable.ts";
+import { type Talk, talkTo } from "../../../contracts/chat/testing/index.ts";
 
 export interface ToolRigOptions {
   /** Characters in the longest message the agent posts. */
@@ -51,7 +52,7 @@ const never = new AbortController().signal;
 export async function startToolRig(t: TestContext, options: ToolRigOptions = {}): Promise<ToolRig> {
   const chat = await startChatServer(t);
   const scout = await chat.agent(SCOUT);
-  const talk = await talkTo(chat);
+  const talk = await talkTo(t, SCOUT);
   const link = openChatLink(scout.host, () => undefined);
   stopAfter(t, () => link.close());
   const up = await link.use(async (live) => live, never);

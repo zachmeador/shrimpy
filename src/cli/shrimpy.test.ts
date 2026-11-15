@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import type { SessionItem, SessionStatus } from "../contracts/agent/index.ts";
-import { enterAsPerson, memberNamed } from "../contracts/chat/testing/index.ts";
+import { enterAsPerson, memberNamed, startTestChat, talkTo } from "../contracts/chat/testing/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
@@ -11,12 +11,10 @@ import {
   isAlive,
   type LaunchOptions,
   serve,
-  serveChat,
   shrimpy,
   shrimpyInBackground,
   startModelServer,
   startScriptedAgent,
-  talkTo,
 } from "./testing/index.ts";
 
 /*
@@ -58,7 +56,7 @@ async function agentOnTheNetwork(t: TestContext, target: { url: string; model: s
   assert.equal(init.code, 0, init.stderr);
   declareLocalModel(home, target);
   await startTestGateway(t);
-  const chat = await serveChat(t, tempDir(t, "chat-data"));
+  const chat = await startTestChat(t);
   const agent = await serve(t, home, [], { env: { HOME: tempDir(t, "user-home"), ...launch?.env } });
   const talk = await talkTo(t, "scout");
   return { home, chat, agent, talk };
@@ -104,8 +102,7 @@ async function turnWithShellTool(t: TestContext, target: { url: string; model: s
 }
 
 test("a message in a thread becomes a turn with the shell tool against a model over HTTP", { timeout: 120_000 }, async (t) => {
-  const model = await startModelServer();
-  t.after(() => model.close());
+  const model = await startModelServer(t);
 
   await turnWithShellTool(t, { url: model.url, model: "test-model", prompt: "run the command" });
 
@@ -132,8 +129,7 @@ test(
 );
 
 test("the agent's shell finds this Shrimpy, though the agent's PATH has none", { timeout: 120_000 }, async (t) => {
-  const model = await startModelServer();
-  t.after(() => model.close());
+  const model = await startModelServer(t);
   const { home, talk } = await agentOnTheNetwork(t, { url: model.url, model: "test-model" }, { env: { PATH: "/usr/bin:/bin" } });
 
   const asked = await talk.say("which shrimpy");
@@ -151,8 +147,7 @@ test("the agent's shell finds this Shrimpy, though the agent's PATH has none", {
 });
 
 test("a shrimpy command speaks as the agent in its shell, and as the person in theirs", { timeout: 120_000 }, async (t) => {
-  const model = await startModelServer();
-  t.after(() => model.close());
+  const model = await startModelServer(t);
   const { talk } = await agentOnTheNetwork(t, { url: model.url, model: "test-model" });
   const mechanic = await startScriptedAgent(t, { name: "mechanic", handle: () => ({ status: "silent" }) });
   const person = (await enterAsPerson(t)).me;
@@ -173,8 +168,7 @@ test("a shrimpy command speaks as the agent in its shell, and as the person in t
 });
 
 test("a command killed while it waits does not stop the work", { timeout: 120_000 }, async (t) => {
-  const model = await startModelServer();
-  t.after(() => model.close());
+  const model = await startModelServer(t);
   const { home, agent, talk } = await agentOnTheNetwork(t, { url: model.url, model: "test-model" });
   const thread = talk.thread.id;
   const answerLength = async (): Promise<number> => {
@@ -186,7 +180,7 @@ test("a command killed while it waits does not stop the work", { timeout: 120_00
   await talk.receiptOn(await talk.say("hello"));
   const asked = model.requests.length;
 
-  const waiting = shrimpyInBackground(["sessions", "steer", thread, "go slow", "--wait", "--agent", home]);
+  const waiting = shrimpyInBackground(t, ["sessions", "steer", thread, "go slow", "--wait", "--agent", home]);
   await until(() => model.requests.length > asked, "the model to start answering");
   waiting.kill("SIGKILL");
   await waiting.finished;
@@ -200,8 +194,7 @@ test("a command killed while it waits does not stop the work", { timeout: 120_00
 });
 
 test("a stop signal the moment the agent listens stops it cleanly, and frees the home", { timeout: 60_000 }, async (t) => {
-  const model = await startModelServer();
-  t.after(() => model.close());
+  const model = await startModelServer(t);
   const home = tempHome(t);
   await shrimpy(["agent", "init", home, "--name", "scout", "--model", "local/test-model"]);
   declareLocalModel(home, { url: model.url, model: "test-model" });

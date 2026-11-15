@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { readMembership } from "../contracts/agent/node.ts";
 import { formatAddress, writeLink } from "../contracts/gateway/index.ts";
-import { commandLines, onTheRoster, serveGateway, shrimpy, useShrimpyDir } from "./testing/index.ts";
+import { commandLines, onTheRoster, shrimpy, useShrimpyDir } from "./testing/index.ts";
+import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 
 /*
  * `join` with the link of an agent's invitation, as a command in a process of its own, against a gateway that listens
@@ -16,7 +17,7 @@ const timeout = 90_000;
 
 /** A gateway that listens on loopback, and the person's connection to it, which makes the invitations. */
 async function gatewayThatLetsIn(t: TestContext) {
-  const gateway = await serveGateway(t, ["--listen", "127.0.0.1:0"]);
+  const gateway = await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
   const [address] = gateway.listening.listen;
   assert.ok(address);
   const person = await onTheRoster(t);
@@ -78,9 +79,8 @@ test("join makes nothing of text that is not a link or a name no agent can have"
 test("join gives up on a gateway that does not answer, and the same link joins once it does", { timeout }, async (t) => {
   const { address, gateway, person, linkFor } = await gatewayThatLetsIn(t);
   const link = await linkFor("crab");
-  const pid = gateway.listening.pid;
   // A process that is stopped takes connections and answers none of them. Killing it, as the test's end does, works all the same.
-  process.kill(pid, "SIGSTOP");
+  gateway.freeze();
 
   const silent = await shrimpy(["join", link]);
 
@@ -91,7 +91,7 @@ test("join gives up on a gateway that does not answer, and the same link joins o
   const waiting = readMembership(home);
   assert.deepEqual(Object.keys(waiting ?? {}), ["token"], "with the token the agent will join with");
 
-  process.kill(pid, "SIGCONT");
+  gateway.thaw();
   const joined = await shrimpy(["join", link]);
   assert.equal(joined.code, 0, joined.stderr);
   assert.equal(readMembership(home)?.token, waiting?.token, "it is the same agent");

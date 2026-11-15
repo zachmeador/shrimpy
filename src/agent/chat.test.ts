@@ -11,12 +11,13 @@ import {
   assistantItems,
   latestUserText,
   releaseGate,
+  SCOUT,
   type Script,
   startAgentRig,
-  talkTo,
   untilReleased,
   writtenLast,
 } from "./testing/index.ts";
+import { talkTo } from "../contracts/chat/testing/index.ts";
 
 /*
  * An agent taking part in chat, with the real engine under it: what a message
@@ -221,7 +222,7 @@ test("a chat server whose store was replaced under the agent makes it read the n
     () => rig.reports.some((report) => /^Chat's store is not the one the agent's place in the feed was for/.test((report as Error).message)),
     "the agent to say its place in the log was lost",
   );
-  const fresh = await talkTo(rig.chat);
+  const fresh = await talkTo(t, SCOUT);
   const message = await fresh.say("first message of the new store");
 
   assert.equal((await fresh.receiptOn(message)).status, "answered");
@@ -237,7 +238,7 @@ test("a chat store that grew past the agent's place before it reads it is read f
   await first.chat.outage();
   await first.chat.recover({ dataDir: tempDir(t, "chat-data") });
   // The new store has more in it than that place, so nothing but its ID says it is not the old one.
-  const person = await talkTo(first.chat);
+  const person = await talkTo(t, SCOUT);
   const messages = [await person.say("message 1")];
   while ((messages.at(-1)?.seq ?? 0) <= place) messages.push(await person.say(`message ${String(messages.length + 1)}`));
 

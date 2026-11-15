@@ -15,8 +15,8 @@ import { runCli } from "./index.ts";
 import {
   captureIo,
   declareLocalModel,
-  type ServedAgent,
   serve,
+  type ServedAgent,
   shrimpy,
   startModelServer,
   startTalking,
@@ -47,8 +47,7 @@ interface Triggering {
 /** The agent `scout`, made in the test's Shrimpy folder and serving, and its home. */
 async function servedScout(t: TestContext): Promise<{ home: string; agent: ServedAgent; connection: () => Promise<Triggering> }> {
   useRuntimeDir(t);
-  const model = await startModelServer();
-  t.after(() => model.close());
+  const model = await startModelServer(t);
   assert.equal((await run("agent", "init", "scout", "--model", "local/test-model")).code, 0);
   const home = join(useShrimpyDir(t), "agents", "scout");
   declareLocalModel(home, { url: model.url, model: "test-model" });
@@ -274,7 +273,7 @@ test("add with a thread in the agent's shell writes nothing for a thread the age
   const home = join(useShrimpyDir(t), "agents", "scout");
   // The agent has joined the roster with a token its home keeps, which is what a command in its shell signs in with.
   const token = newToken();
-  await (await linkTestAgent(t, "scout", token)).stop();
+  await (await linkTestAgent(t, "scout", { token })).stop();
   saveMembership(home, { token });
   const scout = await memberNamed(t, "scout");
   const maya = await joinRoster(t, "maya");

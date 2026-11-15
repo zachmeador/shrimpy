@@ -15,8 +15,8 @@ import {
   type SessionView,
   startAgentRig,
   toolItems,
-  valueOf,
 } from "./testing/index.ts";
+import { valueOf } from "../contracts/chat/testing/index.ts";
 
 const timeout = 30_000;
 

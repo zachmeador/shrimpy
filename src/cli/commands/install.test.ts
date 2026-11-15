@@ -8,8 +8,10 @@ import { tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
 import { runCli } from "../index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
 import type { Account } from "../service/index.ts";
-import { captureIo, serveChat, serveGateway, untilLinked, useShrimpyDir } from "../testing/index.ts";
+import { captureIo, untilLinked, useShrimpyDir } from "../testing/index.ts";
 import { installService, serviceStatusLine, uninstallService } from "./install.ts";
+import { startTestChat } from "../../contracts/chat/testing/index.ts";
+import { startTestGateway } from "../../contracts/gateway/testing/index.ts";
 
 /*
  * `install` and `uninstall`, against an account whose folder is the test's own and a stand-in for
@@ -255,8 +257,8 @@ test("install notices that shrimpy up already runs for the folder, and installs 
   const folder = useShrimpyDir(t);
   // A folder with no agents that listens for agents elsewhere: `up` starts the gateway and the chat server.
   mkdirSync(join(folder, "agents"), { recursive: true });
-  await serveGateway(t, ["--listen", "127.0.0.1:0"], join(folder, "gateway"));
-  await serveChat(t, join(folder, "chat"));
+  await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }], dataDir: join(folder, "gateway") });
+  await startTestChat(t, { dataDir: join(folder, "chat") });
   await untilLinked("chat", "chat");
   const { account, ran } = standIn(t, "linux", { home: dirname(folder) });
 

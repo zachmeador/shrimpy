@@ -8,7 +8,8 @@ import { listen } from "../lib/link/node.ts";
 import { stopAfter, tempDir, until } from "../lib/testing/index.ts";
 import { fingerprintOf, newKey } from "../lib/tls/node.ts";
 import { initHome, joinHome } from "./index.ts";
-import { SCOUT, startAgentRig, startChatServer, valueOf } from "./testing/index.ts";
+import { SCOUT, startAgentRig, startChatServer } from "./testing/index.ts";
+import { valueOf } from "../contracts/chat/testing/index.ts";
 
 /*
  * An agent apart from the gateway, with the real gateway and chat server in processes of their own, and the agent
@@ -20,7 +21,7 @@ const context = BACKGROUND_CONTEXT;
 
 test("an agent apart joins with an invitation, and links in with its token and the gateway's key, again later", { timeout }, async (t) => {
   const gateway = await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
-  const [address] = gateway.listening;
+  const [address] = gateway.listening.listen;
   assert.ok(address);
   const chat = await startChatServer(t);
   const person = await gateway.connect();
@@ -30,7 +31,7 @@ test("an agent apart joins with an invitation, and links in with its token and t
   initHome(home, { name: SCOUT });
   const joined = await joinHome(home, writeLink({ name: SCOUT, address, code, fingerprint }));
   const entry = readMembership(home)?.gateway;
-  assert.deepEqual(entry, { ...address, fingerprint: gateway.fingerprint }, "the home keeps where its gateway is, and its key");
+  assert.deepEqual(entry, { ...address, fingerprint: gateway.listening.fingerprint }, "the home keeps where its gateway is, and its key");
 
   const rig = await startAgentRig(t, { home, chat, join: { apart: entry } });
   assert.equal((await rig.receiptOn(await rig.say("are you there"))).status, "answered");

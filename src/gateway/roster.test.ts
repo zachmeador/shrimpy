@@ -4,16 +4,17 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Roster } from "../contracts/gateway/index.ts";
-import { GatewayRefusedError, joinAsMachine, newToken, readMachine } from "../contracts/gateway/node.ts";
+import { GatewayRefusedError, joinAsMachine, readMachine } from "../contracts/gateway/node.ts";
 import { tempDir, until } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
-import { connectTestClient, Echo, startTestAgent, startTestGateway } from "./testing/index.ts";
+import { connectTestClient, Echo, linkTestAgent } from "../contracts/gateway/testing/index.ts";
+import { startGatewayInProcess } from "./testing/index.ts";
 
 const timeout = 30_000;
 const context = BACKGROUND_CONTEXT;
 
 test("a client holding the roster sees an agent arrive, and become reachable once its program is linked", { timeout }, async (t) => {
-  const gateway = await startTestGateway(t);
+  const gateway = await startGatewayInProcess(t);
   const place = { path: gateway.socket };
   const you = await connectTestClient(t, place);
   const roster = you.host.hold(Roster, {}, context);
@@ -22,7 +23,7 @@ test("a client holding the roster sees an agent arrive, and become reachable onc
   assert.equal(roster.you.value?.kind, "person");
   assert.deepEqual(roster.members.value.map(({ name, reachable }) => ({ name, reachable })), [{ name: you.you?.name, reachable: false }]);
 
-  await startTestAgent(t, { place, name: "scout", token: newToken() });
+  await linkTestAgent(t, "scout", { place });
 
   await until(
     () => roster.members.value.some((member) => member.name === "scout" && member.reachable),
@@ -35,13 +36,13 @@ test("a client holding the roster sees an agent arrive, and become reachable onc
 });
 
 test("taking a device's token back ends what it holds as revoked, closes its link, and lets it in no more", { timeout }, async (t) => {
-  const gateway = await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
+  const gateway = await startGatewayInProcess(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
   const [address] = gateway.listening;
   assert.ok(address);
   const entry = { ...address, fingerprint: gateway.fingerprint };
   const you = await connectTestClient(t, { path: gateway.socket });
   const yours = await you.host.get(Roster, {}, context);
-  await startTestAgent(t, { place: { path: gateway.socket }, name: "scout", token: newToken() });
+  await linkTestAgent(t, "scout", { place: { path: gateway.socket } });
 
   const invitation = await yours.inviteDevice(context);
   assert.equal(invitation.kind, "done");
@@ -86,7 +87,7 @@ test("a roster from before the move to Pi 1.5.2 is refused and left as it is", {
   const old = JSON.stringify({ version: 1, members: [{ id: "mem_you", kind: "person", name: "zach", recognizedBy: { osUser: "zach" } }] });
   writeFileSync(file, old);
 
-  await assert.rejects(startTestGateway(t, { dataDir }), (error: Error) => error.message.includes(dataDir));
+  await assert.rejects(startGatewayInProcess(t, { dataDir }), (error: Error) => error.message.includes(dataDir));
 
   assert.equal(readFileSync(file, "utf8"), old);
   assert.equal(existsSync(join(dataDir, "state", "key.pem")), false);

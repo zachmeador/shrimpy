@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { hostname } from "node:os";
 import { test, type TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { setCapabilityOverrides, visibleWidth } from "@earendil-works/pi-tui";
+import { setCapabilityOverrides, stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
 import { assistantItem, toolItem, userItem } from "../../../contracts/agent/testing/index.ts";
 import { Roster } from "../../../contracts/gateway/index.ts";
 import { connectGateway, joinAsMachine, readMachine } from "../../../contracts/gateway/node.ts";
 import { startTestGateway } from "../../../contracts/gateway/testing/index.ts";
-import { eventually, settle, stopAfter, tempDir, until, within } from "../../../lib/testing/index.ts";
+import { eventually, FakeTerminal, settle, stopAfter, tempDir, until, within } from "../../../lib/testing/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME } from "../../../lib/version/index.ts";
 import type { Model, Notice, Status } from "../state/index.ts";
@@ -35,7 +35,9 @@ import {
 } from "../state/testing/index.ts";
 import { QUIT_AGAIN, READ_ONLY_TAG, screenOf, type ThreadScreen } from "../screen/index.ts";
 import { type Drawing, startDrawing } from "./index.ts";
-import { FakeTerminal, visible } from "./testing/index.ts";
+
+/** Lines of a drawing as a person reads them: without styles, and without the spaces that pad them. */
+const visible = (lines: string[]): string[] => lines.map((line) => stripTerminalSequences(line).trimEnd());
 
 const scout = agentMember("scout");
 const at = (hour: number, minute: number): number => new Date(2026, 9, 3, hour, minute).getTime();
@@ -658,7 +660,7 @@ test("a trigger's own session is on the agent's list, which opens on it while it
 test("/devices lists the person's devices, and /devices take back ends a device's link", { timeout: 30_000 }, async (t) => {
   const gateway = await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
   const rig = await startRig(t);
-  const [address] = gateway.listening;
+  const [address] = gateway.listening.listen;
   assert.ok(address);
   // A machine of the person's joins with an invitation, as `shrimpy invite` and `shrimpy join` make it, and links in with its token.
   const person = await gateway.connect();

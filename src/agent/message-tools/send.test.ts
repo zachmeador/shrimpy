@@ -3,8 +3,9 @@ import { test } from "node:test";
 import { ChordError } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { until } from "../../lib/testing/index.ts";
-import { onChannel, onChat, onThread, valueOf } from "../testing/index.ts";
+
 import { startToolRig } from "./testing/index.ts";
+import { onChannel, onChat, onThread, valueOf } from "../../contracts/chat/testing/index.ts";
 
 const timeout = 15_000;
 

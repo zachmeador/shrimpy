@@ -3,13 +3,13 @@ import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Channel, Chat, Thread } from "../contracts/chat/index.ts";
 import { until } from "../lib/testing/index.ts";
-import { refusalOf, startTestChat, valueOf } from "./testing/index.ts";
+import { refusalOf, startChatInProcess, valueOf } from "./testing/index.ts";
 
 const timeout = 30_000;
 const context = BACKGROUND_CONTEXT;
 
 test("a client holding a Thread sees a post arrive, and a request ID's first use wins", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
+  const chat = await startChatInProcess(t);
   const you = await chat.person();
   const scout = await chat.agent("scout");
   const dm = valueOf(await (await you.host.get(Chat, {}, context)).openDm({ member: scout.you.id }, context));

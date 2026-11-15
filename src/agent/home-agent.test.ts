@@ -18,15 +18,14 @@ import { ModelSetupError } from "./host/durable.ts";
 import { initHome, parseModelChoice, previewHomeContext, startHomeAgent } from "./index.ts";
 import {
   attachThread,
-  type ChatServer,
   closeAfter,
   connectAgent,
   roomWith,
   startChatServer,
   stubChatCompletions,
-  talkTo,
   writeTrigger,
 } from "./testing/index.ts";
+import { talkTo } from "../contracts/chat/testing/index.ts";
 
 const timeout = 30_000;
 
@@ -113,8 +112,8 @@ async function startAt(t: TestContext, home: string, options: { lookEveryMs?: nu
 }
 
 /** Zach, in his DM with the agent called `name`, who says something and waits until the agent has left its receipt. */
-async function talkToAgent(chat: ChatServer, name: string) {
-  const talk = await talkTo(chat, name);
+async function talkToAgent(t: TestContext, name: string) {
+  const talk = await talkTo(t, name);
   return {
     me: talk.me,
     partner: talk.partner,
@@ -137,10 +136,10 @@ async function talkToAgent(chat: ChatServer, name: string) {
 test("an agent starts from a home alone, finds chat through the gateway, and answers with the home's model", { timeout }, async (t) => {
   const paths = newHome(t);
   const requests = stubChatCompletions(t, "Hello from qwen");
-  const { gateway, chat } = await startNetwork(t);
+  const { gateway } = await startNetwork(t);
 
   const agent = await startAt(t, paths.root);
-  const person = await talkToAgent(chat, "scout");
+  const person = await talkToAgent(t, "scout");
   const { receipt } = await person.ask("hi");
 
   assert.equal(agent.name, "scout");
@@ -177,9 +176,9 @@ test("the model gets the home's instructions in a fixed order, exactly as the pr
     "---\nname: review\ndescription: Review a diff for bugs.\n---\nSteps.\n",
   );
   const requests = stubChatCompletions(t, "Ok");
-  const { chat } = await startNetwork(t);
+  await startNetwork(t);
   await startAt(t, paths.root);
-  const person = await talkToAgent(chat, "scout");
+  const person = await talkToAgent(t, "scout");
 
   await person.ask("hi");
 
@@ -195,10 +194,10 @@ test("a start reads the home as it is then, in sessions made before it too", { t
   const paths = newHome(t);
   writeFileSync(paths.soul, "Answer in prose.\n");
   const requests = stubChatCompletions(t, "Ok");
-  const { chat } = await startNetwork(t);
+  await startNetwork(t);
 
   const first = await startAt(t, paths.root);
-  const person = await talkToAgent(chat, "scout");
+  const person = await talkToAgent(t, "scout");
   await person.ask("one");
   await first.close();
 
@@ -215,9 +214,9 @@ test("a start reads the home as it is then, in sessions made before it too", { t
 /** A home's agent, running and looking at its files often, with a person in its DM and a link to it, and what the model was told. */
 async function lookingAgent(t: TestContext, paths: ReturnType<typeof newHome>) {
   const requests = stubChatCompletions(t, "Ok");
-  const { chat } = await startNetwork(t);
+  await startNetwork(t);
   await startAt(t, paths.root, { lookEveryMs: LOOK });
-  const person = await talkToAgent(chat, "scout");
+  const person = await talkToAgent(t, "scout");
   const connection = await connectAgent(t, paths.root);
   t.after(() => connection.close());
   const told = (index: number): string => String(requests[index]?.body.messages[0]?.content);
@@ -276,9 +275,9 @@ test("a model agent.json names while the agent runs is followed from the next re
   const requests = stubChatCompletions(t, "Ok");
   const reported: string[] = [];
   t.mock.method(console, "error", (...lines: unknown[]) => void reported.push(lines.join(" ")));
-  const { chat } = await startNetwork(t);
+  await startNetwork(t);
   await startAt(t, paths.root, { lookEveryMs: LOOK });
-  const person = await talkToAgent(chat, "scout");
+  const person = await talkToAgent(t, "scout");
   /** What the model was shown with the newest message of a request. */
   const shown = (index: number): string => String(requests[index]?.body.messages.findLast((message) => message.role === "user")?.content);
   /** The models the requests named, in order, each once for as long as it ran. */
@@ -323,9 +322,9 @@ test("a model agent.json names while the agent runs is followed from the next re
 test("a thread's own model lasts until the home names another model or the agent starts again", { timeout }, async (t) => {
   const paths = newHome(t, { local: several });
   const requests = stubChatCompletions(t, "Ok");
-  const { chat } = await startNetwork(t);
+  await startNetwork(t);
   const first = await startAt(t, paths.root);
-  const person = await talkToAgent(chat, "scout");
+  const person = await talkToAgent(t, "scout");
   const side = await person.newThread();
   const connection = await connectAgent(t, paths.root);
   t.after(() => connection.close());
@@ -382,9 +381,9 @@ test("an agent says which models it can use now and which one its sessions follo
 test("/model in a thread sets its model from the next request, and /model default follows the agent's again", { timeout }, async (t) => {
   const paths = newHome(t, { local: several });
   const requests = stubChatCompletions(t, "Ok");
-  const { chat } = await startNetwork(t);
+  await startNetwork(t);
   await startAt(t, paths.root);
-  const person = await talkToAgent(chat, "scout");
+  const person = await talkToAgent(t, "scout");
   const side = await person.newThread();
   /** The model each request named, in order. */
   const named = (): string[] => requests.map((request) => request.body.model);
@@ -421,9 +420,9 @@ test("/model in a thread sets its model from the next request, and /model defaul
 test("a /model for a model the agent can't use is answered with those it can, and changes nothing", { timeout }, async (t) => {
   const paths = newHome(t, { local: several });
   const requests = stubChatCompletions(t, "Ok");
-  const { chat } = await startNetwork(t);
+  await startNetwork(t);
   await startAt(t, paths.root);
-  const person = await talkToAgent(chat, "scout");
+  const person = await talkToAgent(t, "scout");
   const textOf = async (command: string): Promise<string> => {
     const { receipt } = await person.ask(command);
     assert.equal(receipt.status, "answered");
@@ -449,8 +448,8 @@ test("in a room /model is for the agents it names, or every agent with @all", { 
   const { chat } = await startNetwork(t);
   await startAt(t, scout.root);
   await startAt(t, bob.root);
-  const toScout = await talkToAgent(chat, "scout");
-  const toBob = await talkToAgent(chat, "bob");
+  const toScout = await talkToAgent(t, "scout");
+  const toBob = await talkToAgent(t, "bob");
   const { person, main } = await roomWith(t, chat, "Ops", [toScout.partner, toBob.partner]);
   const members = { scout: toScout.partner.id, bob: toBob.partner.id };
   const say = (text: string): Promise<Message> => person.post(main.id, text, randomUUID());
@@ -495,11 +494,11 @@ test("two homes share no keys, instructions or history", { timeout }, async (t) 
   writeFileSync(one.soul, "You are the first agent.\n");
   writeFileSync(two.soul, "You are the second agent.\n");
   const requests = stubChatCompletions(t, "Ok");
-  const { gateway, chat } = await startNetwork(t);
+  const { gateway } = await startNetwork(t);
   await startAt(t, one.root);
   await startAt(t, two.root);
-  const toOne = await talkToAgent(chat, "scout");
-  const toTwo = await talkToAgent(chat, "other");
+  const toOne = await talkToAgent(t, "scout");
+  const toTwo = await talkToAgent(t, "other");
   await eventually(() => agentsOf(gateway), (agents) => agents.length === 2, { what: "both agents to register" });
   assert.deepEqual((await agentsOf(gateway)).map((program) => program.name).sort(), ["other", "scout"]);
 
@@ -528,10 +527,10 @@ test("an agent that starts before the gateway and chat finds them when they come
   const agent = await startAt(t, paths.root);
   assert.ok(agent.endpoint.socket, "it started without them");
 
-  const { gateway, chat } = await startNetwork(t);
+  const { gateway } = await startNetwork(t);
   // The agent looks again after growing pauses, so a slow machine can make it a while.
   await eventually(() => agentsOf(gateway), (agents) => agents.length === 1, { what: "the agent to register", timeoutMs: 30_000 });
-  const person = await talkToAgent(chat, "scout");
+  const person = await talkToAgent(t, "scout");
 
   const { receipt } = await person.ask("are you there?", 30_000);
 
@@ -541,16 +540,16 @@ test("an agent that starts before the gateway and chat finds them when they come
 test("an agent and the gateway that both start again are the same member, in the same DM", { timeout }, async (t) => {
   const paths = newHome(t);
   stubChatCompletions(t, "Hello");
-  const { gateway, chat } = await startNetwork(t);
+  const { gateway } = await startNetwork(t);
   const first = await startAt(t, paths.root);
-  const before = await talkToAgent(chat, "scout");
+  const before = await talkToAgent(t, "scout");
   await before.ask("first hello");
   await first.close();
   await gateway.outage();
   await gateway.recover();
 
   await startAt(t, paths.root);
-  const after = await talkToAgent(chat, "scout");
+  const after = await talkToAgent(t, "scout");
   const { receipt } = await after.ask("second hello");
 
   assert.deepEqual([after.partner.id, after.thread.id], [before.partner.id, before.thread.id]);
@@ -585,16 +584,16 @@ test("a home whose name another member has is refused, and joins once its name i
 test("a home that kept its token but never heard it had joined joins again as the same member", { timeout }, async (t) => {
   const paths = newHome(t);
   stubChatCompletions(t, "Hello");
-  const { gateway, chat } = await startNetwork(t);
+  const { gateway } = await startNetwork(t);
   // A first start that made and kept its token, joined, and ended before it wrote down the gateway's answer.
   const token = newToken();
   saveMembership(paths.root, { token });
-  const first = await linkTestAgent(t, "scout", token);
+  const first = await linkTestAgent(t, "scout", { token });
   const joined = first.you;
   await first.stop();
 
   await startAt(t, paths.root);
-  const person = await talkToAgent(chat, "scout");
+  const person = await talkToAgent(t, "scout");
   const { receipt } = await person.ask("hello");
 
   assert.equal(person.partner.id, joined.id);
@@ -606,15 +605,15 @@ test("a home that kept its token but never heard it had joined joins again as th
 test("a home whose name was changed is the same member under the new name, in the same DM", { timeout }, async (t) => {
   const paths = newHome(t);
   stubChatCompletions(t, "Hello");
-  const { gateway, chat } = await startNetwork(t);
+  const { gateway } = await startNetwork(t);
   const first = await startAt(t, paths.root);
-  const before = await talkToAgent(chat, "scout");
+  const before = await talkToAgent(t, "scout");
   await before.ask("first hello");
   await first.close();
 
   renameHome(paths, "skipper");
   await startAt(t, paths.root);
-  const after = await talkToAgent(chat, "skipper");
+  const after = await talkToAgent(t, "skipper");
   const { receipt } = await after.ask("second hello");
 
   assert.deepEqual([after.partner.id, after.thread.id], [before.partner.id, before.thread.id]);

@@ -4,10 +4,13 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { saveMembership } from "../contracts/agent/node.ts";
+import { startTestChat } from "../contracts/chat/testing/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
+import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import type { Pace } from "./commands/index.ts";
 import {
+  agentHome,
   declareLocalModel,
   freeAddresses,
   isAlive,
@@ -15,8 +18,6 @@ import {
   type ModelServer,
   type RunningUp,
   serve,
-  serveChat,
-  serveGateway,
   shrimpy,
   startModelServer,
   startUp,
@@ -33,22 +34,6 @@ import {
 
 const timeout = 90_000;
 
-/** A test model, closed when the test ends. */
-async function testModel(t: TestContext): Promise<ModelServer> {
-  const model = await startModelServer();
-  t.after(() => model.close());
-  return model;
-}
-
-/** An agent home called `name`, set up to use the test model. */
-async function agentHome(t: TestContext, model: ModelServer, name = "scout"): Promise<string> {
-  const home = join(tempDir(t, "up-homes"), name);
-  const init = await shrimpy(["agent", "init", home, "--name", name, "--model", "local/test-model"]);
-  assert.equal(init.code, 0, init.stderr);
-  declareLocalModel(home, { url: model.url, model: "test-model" });
-  return home;
-}
-
 /** The agent `name` in the Shrimpy folder, set up to use the test model. */
 async function agentInFolder(t: TestContext, model: ModelServer, name: string): Promise<string> {
   const init = await shrimpy(["agent", "init", name, "--model", "local/test-model"]);
@@ -59,7 +44,7 @@ async function agentInFolder(t: TestContext, model: ModelServer, name: string): 
 }
 
 test("up starts the gateway, the chat server and an agent per home, and stops them", { timeout }, async (t) => {
-  const home = await agentHome(t, await testModel(t));
+  const home = await agentHome(t, await startModelServer(t));
   const data = tempDir(t, "up-data");
 
   const up = await startUp(t, [home, "--data", data]);
@@ -85,7 +70,7 @@ test("up starts the gateway, the chat server and an agent per home, and stops th
 });
 
 test("up stops agents first, waits for a running turn, and a second request skips the wait", { timeout }, async (t) => {
-  const model = await testModel(t);
+  const model = await startModelServer(t);
   const home = await agentHome(t, model);
   const up = await startUp(t, [home, "--data", tempDir(t, "up-data")]);
   const [gateway, chat, agent] = up.programs();
@@ -109,9 +94,9 @@ test("up stops agents first, waits for a running turn, and a second request skip
 });
 
 test("a gateway and a chat server that are already running are used as they are, and left running", { timeout }, async (t) => {
-  const home = await agentHome(t, await testModel(t));
-  const gateway = await serveGateway(t);
-  const chat = await serveChat(t, tempDir(t, "chat-elsewhere"));
+  const home = await agentHome(t, await startModelServer(t));
+  const gateway = await startTestGateway(t);
+  const chat = await startTestChat(t);
 
   const up = await startUp(t, [home, "--data", tempDir(t, "up-data")]);
 
@@ -124,9 +109,9 @@ test("a gateway and a chat server that are already running are used as they are,
 });
 
 test("when everything is already running it starts nothing and exits at once", { timeout }, async (t) => {
-  const home = await agentHome(t, await testModel(t));
-  const gateway = await serveGateway(t);
-  const chat = await serveChat(t, tempDir(t, "chat-data"));
+  const home = await agentHome(t, await startModelServer(t));
+  const gateway = await startTestGateway(t);
+  const chat = await startTestChat(t);
   const agent = await serve(t, home);
 
   const up = await startUp(t, [home, "--data", tempDir(t, "up-data")]);
@@ -138,7 +123,7 @@ test("when everything is already running it starts nothing and exits at once", {
 });
 
 test("a program that ends by itself takes the rest down, and up says which and exits 1", { timeout }, async (t) => {
-  const home = await agentHome(t, await testModel(t));
+  const home = await agentHome(t, await startModelServer(t));
   const up = await startUp(t, [home, "--data", tempDir(t, "up-data")]);
   const [gateway, chat, agent] = up.programs();
   assert.ok(gateway && chat && agent);
@@ -165,7 +150,7 @@ test("a program that cannot start ends up with its own words, then stops what wa
 });
 
 test("up with no arguments starts every agent in the Shrimpy folder, and keeps its data there", { timeout }, async (t) => {
-  const model = await testModel(t);
+  const model = await startModelServer(t);
   const folder = useShrimpyDir(t);
   const scout = await agentInFolder(t, model, "scout");
   await agentInFolder(t, model, "rex");
@@ -191,7 +176,7 @@ test("up with no arguments starts every agent in the Shrimpy folder, and keeps i
 });
 
 test("run right after up gets its reply, even sent before the agent has joined chat", { timeout }, async (t) => {
-  const home = await agentHome(t, await testModel(t));
+  const home = await agentHome(t, await startModelServer(t));
   await startUp(t, [home, "--data", tempDir(t, "up-data")]);
   // The agent is registered before it has connected to chat, so this message can arrive first.
   await untilLinked("agent", "scout");
@@ -203,7 +188,7 @@ test("run right after up gets its reply, even sent before the agent has joined c
 });
 
 test("a stop request while up is still starting stops what has started, and exits 0", { timeout }, async (t) => {
-  const home = await agentHome(t, await testModel(t));
+  const home = await agentHome(t, await startModelServer(t));
   const up = launchUp(t, [home, "--data", tempDir(t, "up-data")]);
   await until(() => up.output().stdout.includes("Started the gateway"), "the gateway to start", 30_000);
 
@@ -216,7 +201,7 @@ test("a stop request while up is still starting stops what has started, and exit
 });
 
 test("up starts no gateway or chat server for agents that all belong to a gateway elsewhere", { timeout }, async (t) => {
-  const model = await testModel(t);
+  const model = await startModelServer(t);
   const [elsewhere] = await freeAddresses(["127.0.0.1"]);
   assert.ok(elsewhere);
   const scout = await agentHome(t, model, "scout");
@@ -264,7 +249,7 @@ async function pidOfAgent(agent: string): Promise<number> {
 }
 
 test("a home made while up runs is started, and a home taken away has its agent stopped", { timeout }, async (t) => {
-  const model = await testModel(t);
+  const model = await startModelServer(t);
   const folder = useShrimpyDir(t);
   await agentInFolder(t, model, "scout");
   const up = await startUpWithPace(t, [], quick);
@@ -294,7 +279,7 @@ test("a home made while up runs is started, and a home taken away has its agent 
 });
 
 test("an agent that is killed is started again alone, and a chat server that ends takes everything down", { timeout }, async (t) => {
-  const model = await testModel(t);
+  const model = await startModelServer(t);
   await agentInFolder(t, model, "scout");
   await agentInFolder(t, model, "rex");
   const up = await startUpWithPace(t, [], quick);
@@ -325,7 +310,7 @@ test("an agent that is killed is started again alone, and a chat server that end
 });
 
 test("the pause before an agent that keeps ending is started again grows, then starts over", { timeout }, async (t) => {
-  const model = await testModel(t);
+  const model = await startModelServer(t);
   await agentInFolder(t, model, "scout");
   const up = await startUpWithPace(t, [], { lookMs: 50, pauseMs: 100, longestPauseMs: 10_000, stableMs: 1_500 });
   const endings = (): number[] =>
@@ -351,7 +336,7 @@ test("the pause before an agent that keeps ending is started again grows, then s
 });
 
 test("a home that can't start for want of a model stops nothing else, and starts once it names one", { timeout }, async (t) => {
-  const model = await testModel(t);
+  const model = await startModelServer(t);
   const folder = useShrimpyDir(t);
   await agentInFolder(t, model, "scout");
   assert.equal((await shrimpy(["agent", "init", "rex"])).code, 0, "rex names no model, and the folder has no default");
@@ -377,7 +362,7 @@ test("a home that can't start for want of a model stops nothing else, and starts
 });
 
 test("a home that can't start is said once however often it is tried, and starts once it can", { timeout }, async (t) => {
-  const model = await testModel(t);
+  const model = await startModelServer(t);
   const folder = useShrimpyDir(t);
   assert.equal((await shrimpy(["agent", "init", "rex"])).code, 0);
   declareLocalModel(join(folder, "agents", "rex"), { url: model.url, model: "test-model" });
@@ -399,7 +384,7 @@ test("a home that can't start is said once however often it is tried, and starts
 });
 
 test("an agent someone else started is used as it is, and up starts its own once that ends", { timeout }, async (t) => {
-  const model = await testModel(t);
+  const model = await startModelServer(t);
   const home = await agentInFolder(t, model, "scout");
   const byHand = await serve(t, home);
   const up = await startUpWithPace(t, [], quick);

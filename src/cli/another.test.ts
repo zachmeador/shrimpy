@@ -30,8 +30,7 @@ const person = userInfo().username;
 
 test("in an agent's shell, a sessions command about another agent takes an admin and the gateway", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const model = await startModelServer();
-  t.after(() => model.close());
+  const model = await startModelServer(t);
   const gateway = await startTestGateway(t);
   const served: Record<string, Awaited<ReturnType<typeof serve>>> = {};
   for (const name of ["scout", "rex"]) {

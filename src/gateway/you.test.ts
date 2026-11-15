@@ -4,9 +4,9 @@ import { dirname, join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type Member, Roster } from "../contracts/gateway/index.ts";
-import { newToken } from "../contracts/gateway/node.ts";
 import { tempDir, until } from "../lib/testing/index.ts";
-import { connectTestClient, startTestAgent, startTestGateway } from "./testing/index.ts";
+import { connectTestClient, linkTestAgent } from "../contracts/gateway/testing/index.ts";
+import { startGatewayInProcess } from "./testing/index.ts";
 
 const timeout = 30_000;
 const context = BACKGROUND_CONTEXT;
@@ -23,12 +23,12 @@ async function asSeen(t: TestContext, socket: string): Promise<{ you: Member | n
 
 test("you are made once with the gateway's data, and stay the same you under another account", { timeout }, async (t) => {
   const dataDir = tempDir(t, "gateway-data");
-  const first = await startTestGateway(t, { dataDir, account: "first-account" });
+  const first = await startGatewayInProcess(t, { dataDir, account: "first-account" });
   const before = await asSeen(t, first.socket);
   assert.equal(before.you?.name, "first-account");
   await first.close();
 
-  const again = await startTestGateway(t, { dataDir, account: "another-account" });
+  const again = await startGatewayInProcess(t, { dataDir, account: "another-account" });
 
   const after = await asSeen(t, again.socket);
   assert.deepEqual(after.you, before.you, "the same member, by the same name");
@@ -46,7 +46,7 @@ test("a roster that holds a second person is refused, with words that name both"
   writeFileSync(file, JSON.stringify({ version: 2, members: people }));
 
   await assert.rejects(
-    startTestGateway(t, { dataDir }),
+    startGatewayInProcess(t, { dataDir }),
     (error) => error instanceof Error && error.message.includes("mem_first") && error.message.includes("mem_second"),
   );
 });
@@ -54,7 +54,7 @@ test("a roster that holds a second person is refused, with words that name both"
 test("the name your settings give you shows at once in the roster everyone holds, and stays when the file is gone", { timeout }, async (t) => {
   const dataDir = tempDir(t, "gateway-data");
   const settings = join(tempDir(t, "folder"), "settings.json");
-  const first = await startTestGateway(t, { dataDir, account: "first-account", settings });
+  const first = await startGatewayInProcess(t, { dataDir, account: "first-account", settings });
   const client = await connectTestClient(t, { path: first.socket });
   const roster = await client.host.get(Roster, {}, context);
   assert.equal(roster.you.value?.name, "first-account", "the account's name, while there is no file");
@@ -66,15 +66,15 @@ test("the name your settings give you shows at once in the roster everyone holds
   roster.release();
   await first.close();
   rmSync(settings);
-  const again = await startTestGateway(t, { dataDir, account: "another-account", settings });
+  const again = await startGatewayInProcess(t, { dataDir, account: "another-account", settings });
   assert.equal((await asSeen(t, again.socket)).you?.name, "Zach");
 });
 
 test("a name another member has is refused where the gateway reports problems, and your name stays", { timeout }, async (t) => {
   const reported = t.mock.method(console, "error", () => undefined);
   const settings = join(tempDir(t, "folder"), "settings.json");
-  const gateway = await startTestGateway(t, { account: "first-account", settings });
-  await startTestAgent(t, { place: { path: gateway.socket }, name: "scout", token: newToken() });
+  const gateway = await startGatewayInProcess(t, { account: "first-account", settings });
+  await linkTestAgent(t, "scout", { place: { path: gateway.socket } });
   const client = await connectTestClient(t, { path: gateway.socket });
   const roster = await client.host.get(Roster, {}, context);
   await until(() => roster.members.value.some((member) => member.name === "scout"), "scout to join");

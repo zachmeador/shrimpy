@@ -1,24 +1,20 @@
 import assert from "node:assert/strict";
-import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { openConsole } from "../clients/console/index.ts";
 import type { SessionStatus } from "../contracts/agent/index.ts";
 import type { Message, Thread } from "../contracts/chat/index.ts";
-import { memberNamed, speakingAs } from "../contracts/chat/testing/index.ts";
-import { eventually, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
+import { memberNamed, speakingAs, startTestChat } from "../contracts/chat/testing/index.ts";
+import { startTestGateway } from "../contracts/gateway/testing/index.ts";
+import { eventually, FakeTerminal, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME } from "../lib/version/index.ts";
 import { runCli } from "./index.ts";
 import {
+  agentHome,
   captureIo,
-  declareLocalModel,
-  FakeTerminal,
-  type ModelServer,
   onTheRoster,
   type Outcome,
   serve,
-  serveChat,
-  serveGateway,
   shrimpy,
   startModelServer,
   startScriptedAgent,
@@ -44,21 +40,6 @@ const TAB = "\t";
 
 /** The name of a thread the person has with scout before the console opens, which scout's screen lists. */
 const EARLIER = "notes from before";
-
-async function testModel(t: TestContext): Promise<ModelServer> {
-  const model = await startModelServer();
-  t.after(() => model.close());
-  return model;
-}
-
-/** An agent home called scout, set up to use the test model. */
-async function agentHome(t: TestContext, model: ModelServer): Promise<string> {
-  const home = join(tempDir(t, "console-home"), "scout");
-  const init = await shrimpy(["agent", "init", home, "--name", "scout", "--model", "local/test-model"]);
-  assert.equal(init.code, 0, init.stderr);
-  declareLocalModel(home, { url: model.url, model: "test-model" });
-  return home;
-}
 
 /** A thread in the person's DM with scout, named and empty, so that scout's screen has a row to show once it is open. */
 async function threadFromBefore(t: TestContext): Promise<void> {
@@ -111,7 +92,7 @@ async function messagesOf(thread: string): Promise<Message[]> {
  * screen, which it goes to since scout is the only agent. Left when the test ends.
  */
 async function consoleWithScout(t: TestContext) {
-  const model = await testModel(t);
+  const model = await startModelServer(t);
   const home = await agentHome(t, model);
   await startUp(t, [home, "--data", tempDir(t, "console-data")]);
   await untilLinked("chat", "chat");
@@ -136,13 +117,13 @@ async function leave(terminal: FakeTerminal, exited: Promise<number>): Promise<v
 }
 
 test("a bare shrimpy at a terminal opens the console, to talk, watch the work, stop it and leave it working", { timeout }, async (t) => {
-  const model = await testModel(t);
+  const model = await startModelServer(t);
   const home = await agentHome(t, model);
   await startUp(t, [home, "--data", tempDir(t, "console-data")]);
   await untilLinked("chat", "chat");
   await untilLinked("agent", "scout");
   await threadFromBefore(t);
-  const terminal = new FakeTerminal();
+  const terminal = new FakeTerminal(100, 40);
   const { cli, exited } = openOn(terminal);
 
   // One agent is running, so it goes straight to that agent's screen.
@@ -187,16 +168,15 @@ test("a bare shrimpy at a terminal opens the console, to talk, watch the work, s
 });
 
 test("the gateway killed while an agent works: the reply is posted once, and the console picks it up by itself", { timeout }, async (t) => {
-  const model = await testModel(t);
+  const model = await startModelServer(t);
   const home = await agentHome(t, model);
-  const data = tempDir(t, "console-gateway");
-  const gateway = await serveGateway(t, [], data);
-  await serveChat(t, tempDir(t, "console-chat"));
+  const gateway = await startTestGateway(t);
+  await startTestChat(t);
   await untilLinked("chat", "chat");
   await serve(t, home);
   await untilLinked("agent", "scout");
   await threadFromBefore(t);
-  const terminal = new FakeTerminal();
+  const terminal = new FakeTerminal(100, 40);
   const { cli, exited } = openOn(terminal);
   // A test that fails must not leave the console open, or its process never ends.
   stopAfter(t, async () => {
@@ -210,7 +190,7 @@ test("the gateway killed while an agent works: the reply is posted once, and the
   await seen(terminal, "word3", "the answer streaming");
   const thread = await threadStartedWith("go slow");
 
-  await gateway.stop("SIGKILL");
+  await gateway.outage();
 
   // The agent goes on without it, and says by its home's path when the turn is over. The reply waits in the task that follows its event.
   await eventually(
@@ -221,7 +201,7 @@ test("the gateway killed while an agent works: the reply is posted once, and the
     (busy) => busy === false,
     { what: "the agent to finish the turn without the gateway", timeoutMs: 40_000 },
   );
-  await serveGateway(t, [], data);
+  await gateway.recover();
 
   // Every link pauses longer after each failure, up to 15 seconds, so the programs find each other again within a minute.
   await seen(terminal, "word200", "the reply, in the console that nobody touched", 60_000);
@@ -246,7 +226,7 @@ test("a thread of a room is read, written in and watched like one of a DM", { ti
   const you = await talking.you();
   const room = await you.createRoom("ops", [(await memberNamed(t, "scout")).id]);
   const disk = await you.createThread(room.id, "the disk");
-  const terminal = new FakeTerminal();
+  const terminal = new FakeTerminal(100, 40);
   const { cli, exited } = openOn(terminal);
   // A test that fails must not leave the console open or the agent working, or its process never ends.
   stopAfter(t, async () => {
@@ -365,7 +345,7 @@ test("the list of agents shows where an agent works when that is none of the per
 
 test("a console that cannot start says why, exits with 1, and leaves nothing running", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const terminal = new FakeTerminal();
+  const terminal = new FakeTerminal(100, 40);
   terminal.start = () => {
     throw new Error("The terminal could not be set up.");
   };
@@ -377,7 +357,7 @@ test("a console that cannot start says why, exits with 1, and leaves nothing run
 
 test("a stop request, as SIGTERM is, leaves the console as the keys do", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const terminal = new FakeTerminal();
+  const terminal = new FakeTerminal(100, 40);
   const { cli, exited } = openOn(terminal);
   await seen(terminal, SHRIMPY_RELEASE_NAME, "the first screen");
 

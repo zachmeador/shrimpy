@@ -18,13 +18,13 @@ import {
   type OnTheRoster,
   onTheRoster,
   serve,
-  serveChat,
-  serveGateway,
   shrimpy,
   shrimpyInBackground,
   startModelServer,
   untilLinked,
 } from "./testing/index.ts";
+import { startTestChat } from "../contracts/chat/testing/index.ts";
+import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 
 /*
  * An agent apart from the gateway, through real programs. The gateway runs in this process and listens on loopback, the
@@ -50,12 +50,11 @@ interface Network {
 /** The gateway, listening on loopback, with the chat server linked to it and a test model, in the test's runtime directory. */
 async function startNetwork(t: TestContext): Promise<Network> {
   useRuntimeDir(t);
-  const model = await startModelServer();
-  stopAfter(t, () => model.close());
+  const model = await startModelServer(t);
   const dataDir = tempDir(t, "gateway-data");
   const gateway = await startGateway({ dataDir, listen: [{ host: "127.0.0.1", port: 0 }] });
   stopAfter(t, () => gateway.close());
-  await serveChat(t, tempDir(t, "chat-data"));
+  await startTestChat(t);
   await untilLinked("chat", "chat");
   const person = await onTheRoster(t);
   return { model, gateway, dataDir, person };
@@ -73,10 +72,9 @@ type Joining = Pick<Network, "model" | "person">;
  */
 async function startNetworkOfProcesses(t: TestContext) {
   useRuntimeDir(t);
-  const model = await startModelServer();
-  stopAfter(t, () => model.close());
-  const gateway = await serveGateway(t, ["--listen", "127.0.0.1:0"]);
-  await serveChat(t, tempDir(t, "chat-data"));
+  const model = await startModelServer(t);
+  const gateway = await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
+  await startTestChat(t);
   await untilLinked("chat", "chat");
   const person = await onTheRoster(t);
   return { model, gateway, person };
@@ -190,13 +188,9 @@ test("an agent apart joins with an invitation, answers, and a copy of its home i
     recursive: true,
     filter: (source) => !source.startsWith(join(home, "runtime")) && !source.includes("agent.sqlite"),
   });
-  const copying = shrimpyInBackground(["agent", "serve", copy], {
+  const copying = shrimpyInBackground(t, ["agent", "serve", copy], {
     env: { ...apart, SHRIMPY_RUNTIME_DIR: tempDir(t, "rt-copy") },
     untilStopped: true,
-  });
-  stopAfter(t, async () => {
-    copying.kill("SIGKILL");
-    await copying.finished;
   });
   // It is told which file of its own to delete, to be an agent of its own.
   await until(() => copying.output().stderr.includes(membershipFile(copy)), "the copy to be turned away", 30_000);
@@ -345,7 +339,7 @@ test("an agent apart told to stop while its gateway is frozen ends within its gr
   assert.equal(said.code, 0, said.stderr);
 
   // A process that is stopped takes connections and answers none of them, and the connections it holds stay open.
-  process.kill(gateway.listening.pid, "SIGSTOP");
+  gateway.freeze();
   // Maya starts with a gateway that takes her connection and never answers.
   const never = await serve(t, neverHome, [], { env: apartEnv(t) });
 
@@ -374,9 +368,9 @@ test("a command in an agent apart's shell, interrupted while its gateway is froz
 
   // The command waits for an answer that comes slowly, over a connection through the gateway.
   const asked = model.requests.length;
-  const waiting = shrimpyInBackground(["run", "rex", "go slow"], shell);
+  const waiting = shrimpyInBackground(t, ["run", "rex", "go slow"], shell);
   await until(() => model.requests.length > asked, "rex to start answering");
-  process.kill(gateway.listening.pid, "SIGSTOP");
+  gateway.freeze();
 
   waiting.kill("SIGINT");
   const result = await within(5_000, waiting.finished, "the command to end");

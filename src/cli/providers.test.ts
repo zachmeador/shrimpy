@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { test, type TestContext } from "node:test";
+import { test } from "node:test";
 import { runCli } from "./index.ts";
 import {
   captureIo,
@@ -25,20 +25,13 @@ import {
 
 const timeout = 90_000;
 
-/** A test model, closed when the test ends. */
-async function testModel(t: TestContext): Promise<ModelServer> {
-  const model = await startModelServer();
-  t.after(() => model.close());
-  return model;
-}
-
 const sent = (model: ModelServer): { model: string; authorization: string | undefined }[] =>
   model.requests.map((request) => ({ model: request.body.model, authorization: request.headers.authorization }));
 
 test("agents take what their homes don't hold from the folder's providers/, and a home's own files win", { timeout }, async (t) => {
   const folder = useShrimpyDir(t);
-  const shared = await testModel(t);
-  const own = await testModel(t);
+  const shared = await startModelServer(t);
+  const own = await startModelServer(t);
   // The folder has a model for every agent that names none, a server for it and a key for the server. It has them
   // before it has an agent, as a folder that was signed in first does.
   const providers = join(folder, "providers");

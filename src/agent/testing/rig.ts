@@ -6,7 +6,7 @@ import { type AgentConnection, attachThread, closeAfter, connectAgent, type Sess
 import { type ChatServer, startChatServer } from "./chat-server.ts";
 import { type FauxScenario, fauxModels, releaseGate, type Script } from "./index.ts";
 import { SCOUT } from "./names.ts";
-import { type Talk, talkTo } from "./talk.ts";
+import { type Talk, talkTo } from "../../contracts/chat/testing/index.ts";
 
 export interface AgentRigOptions {
   /** The agent's name: Scout unless the test says otherwise, as for a second agent on the same chat server. */
@@ -81,7 +81,7 @@ export async function startAgentRig(t: TestContext, options: AgentRigOptions = {
   );
   // Stops run newest first, so the gate opens before the agent is stopped.
   stopAfter(t, () => releaseGate(home));
-  const talk = await talkTo(chat, options.name ?? SCOUT);
+  const talk = await talkTo(t, options.name ?? SCOUT);
 
   return {
     ...talk,

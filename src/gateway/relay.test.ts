@@ -4,13 +4,14 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Roster } from "../contracts/gateway/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
 import { until } from "../lib/testing/index.ts";
-import { connectTestClient, Echo, startTestAgent, startTestGateway } from "./testing/index.ts";
+import { connectTestClient, Echo, linkTestAgent } from "../contracts/gateway/testing/index.ts";
+import { startGatewayInProcess } from "./testing/index.ts";
 
 const timeout = 30_000;
 const context = BACKGROUND_CONTEXT;
 
 test("a hold of an agent's object waits until the agent links, and reaches it as the client", { timeout }, async (t) => {
-  const gateway = await startTestGateway(t);
+  const gateway = await startGatewayInProcess(t);
   const place = { path: gateway.socket };
   const you = await connectTestClient(t, place);
 
@@ -20,7 +21,7 @@ test("a hold of an agent's object waits until the agent links, and reaches it as
   assert.ok(waiting.kind === "failed" && waiting.cause.kind === "waiting", "it waits, not failed for good");
   assert.ok(waiting.cause.error.message.length > 0, "with words");
 
-  const scout = await startTestAgent(t, { place, name: "scout", token: newToken() });
+  const scout = await linkTestAgent(t, "scout", { place });
   await until(() => echo.state.value.kind === "live", "the hold to bind once scout links");
   assert.deepEqual(echo.variant === "only" ? echo.caller.value : undefined, {
     kind: "person",
@@ -35,17 +36,17 @@ test("a hold of an agent's object waits until the agent links, and reaches it as
 });
 
 test("an agent that lost its gateway links again when it is back, and the holds bind again", { timeout }, async (t) => {
-  const gateway = await startTestGateway(t);
+  const gateway = await startGatewayInProcess(t);
   const place = { path: gateway.socket };
   const token = newToken();
-  await startTestAgent(t, { place, name: "scout", token });
+  await linkTestAgent(t, "scout", { place, token });
   const before = await connectTestClient(t, place);
   const echo = before.host.hold(Echo, { agent: "scout" }, context);
   await until(() => echo.state.value.kind === "live", "the hold to bind");
 
   await gateway.close();
   await before.closed;
-  const again = await startTestGateway(t, { dataDir: gateway.dataDir });
+  const again = await startGatewayInProcess(t, { dataDir: gateway.dataDir });
   assert.equal(again.socket, gateway.socket);
   const after = await connectTestClient(t, place);
   const held = after.host.hold(Echo, { agent: "scout" }, context);

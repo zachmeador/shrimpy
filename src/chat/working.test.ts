@@ -3,13 +3,13 @@ import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Channel, Chat, Thread } from "../contracts/chat/index.ts";
 import { settle, until } from "../lib/testing/index.ts";
-import { startTestChat, valueOf } from "./testing/index.ts";
+import { startChatInProcess, valueOf } from "./testing/index.ts";
 
 const timeout = 30_000;
 const context = BACKGROUND_CONTEXT;
 
 test("a working mark shows in the thread until it is cleared, or until the hold on Chat that made it ends with its link", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
+  const chat = await startChatInProcess(t);
   const you = await chat.person();
   const scout = await chat.agent("scout");
   const dm = valueOf(await (await you.host.get(Chat, {}, context)).openDm({ member: scout.you.id }, context));

@@ -6,7 +6,8 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Chat } from "../../contracts/chat/index.ts";
 import { until } from "../../lib/testing/index.ts";
 import { standing, written } from "../inputs/index.ts";
-import { callingTools, onChannel, onThread, startAgentRig, valueOf } from "../testing/index.ts";
+import { callingTools, startAgentRig } from "../testing/index.ts";
+import { onChannel, onThread, valueOf } from "../../contracts/chat/testing/index.ts";
 
 const timeout = 30_000;
 

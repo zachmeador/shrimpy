@@ -4,8 +4,9 @@ import { backoff } from "../../../lib/retry/index.ts";
 import { stopAfter, useRuntimeDir } from "../../../lib/testing/index.ts";
 import type { Outstanding } from "../../inputs/index.ts";
 import { type ChatCalls, type ChatLink, openChatLink } from "../../links/index.ts";
-import { type ChatServer, SCOUT, startChatServer, type Talk, talkTo } from "../../testing/index.ts";
+import { type ChatServer, SCOUT, startChatServer } from "../../testing/index.ts";
 import { type ChatDelivery, createDelivery, type DeliveryOptions } from "../index.ts";
+import { type Talk, talkTo } from "../../../contracts/chat/testing/index.ts";
 
 type Method = "post" | "leaveReceipt";
 
@@ -43,7 +44,7 @@ export async function startChatRig(t: TestContext, options: Pick<DeliveryOptions
   useRuntimeDir(t);
   const chat = await startChatServer(t);
   const scout = await chat.agent(SCOUT);
-  const talk = await talkTo(chat);
+  const talk = await talkTo(t, SCOUT);
   const errors: Error[] = [];
   const faults = planFaults();
 

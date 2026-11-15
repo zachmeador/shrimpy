@@ -4,10 +4,10 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { parseWake } from "../agent/index.ts";
 import { AGENT_HOME_VARIABLE } from "../contracts/agent/index.ts";
-import { memberNamed } from "../contracts/chat/testing/index.ts";
+import { memberNamed, startTestChat } from "../contracts/chat/testing/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
-import { tempDir, useRuntimeDir } from "../lib/testing/index.ts";
-import { declareLocalModel, serve, serveChat, shrimpy, startModelServer, untilLinked, useShrimpyDir } from "./testing/index.ts";
+import { useRuntimeDir } from "../lib/testing/index.ts";
+import { declareLocalModel, serve, shrimpy, startModelServer, untilLinked, useShrimpyDir } from "./testing/index.ts";
 
 /*
  * `shrimpy wake` as people and agents run it: every command is its own process, and so are the gateway, the chat
@@ -18,10 +18,9 @@ const timeout = 90_000;
 
 test("wake chooses what wakes an agent in a room, and lists what is set", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const model = await startModelServer();
-  t.after(() => model.close());
+  const model = await startModelServer(t);
   await startTestGateway(t);
-  await serveChat(t, tempDir(t, "chat-data"));
+  await startTestChat(t);
   await untilLinked("chat", "chat");
   assert.equal((await shrimpy(["agent", "init", "scout", "--model", "local/test-model"])).code, 0);
   const home = join(useShrimpyDir(t), "agents", "scout");

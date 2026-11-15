@@ -30,7 +30,7 @@ export interface AgentShell {
 export async function startAgentShell(t: TestContext, name: string, options: { admin?: true } = {}): Promise<AgentShell> {
   const token = newToken();
   // Linked once, so that the roster has the agent with its token, and let go, since no agent runs there.
-  const joined = await linkTestAgent(t, name, token);
+  const joined = await linkTestAgent(t, name, { token });
   await joined.stop();
   let member = joined.you;
   const home = tempDir(t, `${name}-home`);

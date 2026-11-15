@@ -1,11 +1,12 @@
 /**
  * Test support for the agent: a scripted model and a stand-in OpenAI-compatible
- * server, both without a network, the real gateway and chat server started
- * through the command, an agent taking part in the network with you to talk to
- * it, a room to talk in, helpers to hold an agent and its sessions, stop it and
- * read its views, and to write the files of its triggers and its breadcrumbs.
- * Only tests and test fixtures import this. The one thing it knows of another
- * program is the command that starts it.
+ * server, both without a network, the real gateway and chat server as the
+ * contracts' test support starts them, an agent taking part in the network with
+ * you to talk to it, a whole agent in a process of its own, a room to talk in,
+ * helpers to hold an agent and its sessions, stop it and read its views, and to
+ * write the files of its triggers and its breadcrumbs. Only tests and test
+ * fixtures import this, and it reaches the other programs only through the
+ * contracts' test support.
  */
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -42,7 +43,6 @@ export { startAgentChild } from "./child.ts";
 export { SCOUT } from "./names.ts";
 export { type AgentRig, type AgentRigOptions, startAgentRig } from "./rig.ts";
 export { roomWith } from "./rooms.ts";
-export { onChannel, onChat, onThread, type Talk, talkTo, valueOf } from "./talk.ts";
 export { shownSinceLastAnswer, type Talking, talking, type Turn } from "./talking.ts";
 export { callingTools } from "./tools.ts";
 export { removeTrigger, writeTrigger } from "./triggers.ts";

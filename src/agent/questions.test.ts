@@ -3,19 +3,19 @@ import { userInfo } from "node:os";
 import { test } from "node:test";
 import { fauxAssistantMessage } from "@earendil-works/pi-ai";
 import type { Message, Thread } from "../contracts/chat/index.ts";
-import { type Speaking, speakingAs } from "../contracts/chat/testing/index.ts";
+import { type Speaking, speakingAs, talkTo } from "../contracts/chat/testing/index.ts";
 import type { ChatCalls } from "./links/index.ts";
 import { eventually, stopAfter, tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
 import {
   callingTools,
   loggedRequests,
   releaseGate,
+  SCOUT,
   type Script,
   startAgentChild,
   startAgentRig,
   startChatServer,
   talking,
-  talkTo,
   untilReleased,
   writtenLast,
 } from "./testing/index.ts";
@@ -207,7 +207,7 @@ test("scout is killed after it asked and before maya answered: when it is back t
   const home = tempDir(t, "asking");
   const chat = await startChatServer(t);
   const first = await startAgentChild(t, home, "mixed", 400);
-  const talk = await talkTo(chat);
+  const talk = await talkTo(t, SCOUT);
   const maya = await speakingAs(t, await chat.agent("maya"));
   await talk.receiptOn(await talk.say("Ask maya which stanza she takes."), PATIENT);
   const dm = await dmOf(maya, "scout");

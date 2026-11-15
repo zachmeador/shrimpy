@@ -1,54 +1,11 @@
 import type { TestContext } from "node:test";
-import { fileURLToPath } from "node:url";
 import type { Member, Thread } from "../../../../contracts/chat/index.ts";
-import { memberNamed, type Speaking, speakingAs } from "../../../../contracts/chat/testing/index.ts";
+import { memberNamed, type Speaking, speakingAs, startTestChat, type TestChat } from "../../../../contracts/chat/testing/index.ts";
 import { gatewaySocket } from "../../../../contracts/gateway/node.ts";
 import { linkTestAgent, startTestGateway, type TestAgent, type TestGateway } from "../../../../contracts/gateway/testing/index.ts";
 import { backoff } from "../../../../lib/retry/index.ts";
-import { type Child, eventually, startChild, stopAfter, tempDir, useRuntimeDir } from "../../../../lib/testing/index.ts";
+import { eventually, stopAfter, useRuntimeDir } from "../../../../lib/testing/index.ts";
 import { type ConsoleState, createConsoleState, type Model } from "../index.ts";
-
-/** The command that runs Shrimpy, which is how a person starts the chat server. */
-const shrimpy = fileURLToPath(new URL("../../../../cli/main.ts", import.meta.url));
-
-/** The real chat server, as the command starts it in a process of its own. */
-export interface TestChat {
-  /** Kill it, like a chat server that went away. What was said stays in its data. */
-  outage(): Promise<void>;
-  /** Start it again on the same data, like a chat server that came back. */
-  recover(): Promise<void>;
-  /** Stop it without ending it, like a chat server that went dead: it takes what is sent and answers nothing. */
-  freeze(): void;
-  /** Let a chat server that was frozen run again. */
-  thaw(): void;
-}
-
-/** Start the real chat server through the command, with a data directory of its own, killed when the test ends. */
-async function startTestChat(t: TestContext): Promise<TestChat> {
-  const dataDir = tempDir(t, "chat-data");
-  let running: Child<unknown> | undefined;
-  const start = async (): Promise<void> => {
-    running = await startChild(t, { file: shrimpy, args: ["chat", "serve", dataDir] });
-  };
-  await start();
-  return {
-    async outage() {
-      const stopped = running;
-      running = undefined;
-      await stopped?.kill("SIGKILL");
-    },
-    async recover() {
-      if (running !== undefined) throw new Error("The chat server is running.");
-      await start();
-    },
-    freeze() {
-      if (running !== undefined) process.kill(running.pid, "SIGSTOP");
-    },
-    thaw() {
-      if (running !== undefined) process.kill(running.pid, "SIGCONT");
-    },
-  };
-}
 
 export interface RigOptions {
   /** The agents to link to the gateway, by name: each is on the roster and linked, and serves nothing but its presence. Scout by default. */

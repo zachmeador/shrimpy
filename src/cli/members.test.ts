@@ -6,7 +6,7 @@ import { newToken } from "../contracts/gateway/node.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { dial } from "../lib/link/node.ts";
 import { useRuntimeDir } from "../lib/testing/index.ts";
-import { commandLines, type OnTheRoster, onTheRoster, serveGateway, shrimpy, startAgentShell } from "./testing/index.ts";
+import { commandLines, type OnTheRoster, onTheRoster, shrimpy, startAgentShell } from "./testing/index.ts";
 
 const timeout = 60_000;
 
@@ -84,7 +84,7 @@ test("invite prints a line for each address the gateway listens on, whose code l
   assert.equal((await shrimpy(["invite", "Scout Bot"])).code, 2);
 
   // The second is an IPv6 address where this machine has one, whose brackets a shell would read if the line did not quote them.
-  const gateway = await serveGateway(t, ["--listen", "127.0.0.1:0", "--listen", hasIPv6Loopback ? "[::1]:0" : "127.0.0.1:0"]);
+  const gateway = await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }, { host: hasIPv6Loopback ? "::1" : "127.0.0.1", port: 0 }] });
   const listen = gateway.listening.listen;
 
   const invited = await shrimpy(["invite", "crab"]);
@@ -113,7 +113,7 @@ test("invite prints a line for each address the gateway listens on, whose code l
 
 test("invite with no name prints a line for each address, whose code lets a machine in as the person", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const gateway = await serveGateway(t, ["--listen", "127.0.0.1:0", "--listen", hasIPv6Loopback ? "[::1]:0" : "127.0.0.1:0"]);
+  const gateway = await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }, { host: hasIPv6Loopback ? "::1" : "127.0.0.1", port: 0 }] });
   const listen = gateway.listening.listen;
 
   const invited = await shrimpy(["invite"]);

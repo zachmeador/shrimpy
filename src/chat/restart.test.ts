@@ -5,13 +5,13 @@ import { Channel, Chat, Thread } from "../contracts/chat/index.ts";
 import { backoff } from "../lib/retry/index.ts";
 import { stopAfter, until } from "../lib/testing/index.ts";
 import { ChatRunningError, startChat } from "./index.ts";
-import { startTestChat, valueOf } from "./testing/index.ts";
+import { startChatInProcess, valueOf } from "./testing/index.ts";
 
 const timeout = 30_000;
 const context = BACKGROUND_CONTEXT;
 
 test("a second chat server is refused, and holds wait while chat is away and bind again once it is back", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
+  const chat = await startChatInProcess(t);
   const you = await chat.person();
   const scout = await chat.agent("scout");
   const dm = valueOf(await (await you.host.get(Chat, {}, context)).openDm({ member: scout.you.id }, context));
@@ -37,7 +37,7 @@ test("a second chat server is refused, and holds wait while chat is away and bin
 
 test("while the gateway is away the chat server says so once, and once again when it is back", { timeout }, async (t) => {
   const said = t.mock.method(console, "error", () => undefined);
-  const chat = await startTestChat(t);
+  const chat = await startChatInProcess(t);
   const you = await chat.person();
   const held = you.host.hold(Chat, {}, context);
   await until(() => held.state.value.kind === "live", "chat to be reached through the gateway");

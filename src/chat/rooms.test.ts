@@ -3,13 +3,13 @@ import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Chat } from "../contracts/chat/index.ts";
 import { Roster } from "../contracts/gateway/index.ts";
-import { refusalOf, startTestChat, valueOf } from "./testing/index.ts";
+import { refusalOf, startChatInProcess, valueOf } from "./testing/index.ts";
 
 const timeout = 30_000;
 const context = BACKGROUND_CONTEXT;
 
 test("making a room takes an admin, and a promotion counts at once, on a hold made before it", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
+  const chat = await startChatInProcess(t);
   const you = await chat.person();
   // The first agent a roster has is an admin, and the next isn't.
   const scout = await chat.agent("scout");

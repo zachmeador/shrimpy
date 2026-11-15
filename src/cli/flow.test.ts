@@ -4,17 +4,16 @@ import { test, type TestContext } from "node:test";
 import type { SessionStatus } from "../contracts/agent/index.ts";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
-import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
+import { eventually, stopAfter, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { runCli } from "./index.ts";
 import {
   captureIo,
   declareLocalModel,
   type ModelServer,
-  serveChat,
   startModelServer,
-  talkTo,
   untilLinked,
 } from "./testing/index.ts";
+import { startTestChat, talkTo } from "../contracts/chat/testing/index.ts";
 
 const timeout = 60_000;
 
@@ -50,9 +49,9 @@ interface ServedHome {
  */
 async function servedHome(t: TestContext, ...serveFlags: string[]): Promise<ServedHome> {
   useRuntimeDir(t);
-  const model = await startModelServer();
+  const model = await startModelServer(t);
   await startTestGateway(t);
-  await serveChat(t, tempDir(t, "chat-data"));
+  await startTestChat(t);
   await untilLinked("chat", "chat");
   const home = join(tempDir(t, "flow"), "scout");
   assert.equal((await run("agent", "init", home, "--name", "scout", "--model", "local/test-model")).code, 0);
@@ -68,9 +67,8 @@ async function servedHome(t: TestContext, ...serveFlags: string[]): Promise<Serv
     serving.requestStop();
     return stop();
   };
-  t.after(async () => {
+  stopAfter(t, async () => {
     await stopNow();
-    await model.close();
   });
   await Promise.race([
     serving.nextOut((line) => line.includes('"event":"listening"')),

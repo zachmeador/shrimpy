@@ -75,9 +75,9 @@ test("a copy of a running agent is told why once, and takes the agent's place on
 
 test("an agent apart whose token the gateway doesn't know is told to join again with a new invitation", { timeout }, async (t) => {
   const gateway = await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
-  const [address] = gateway.listening;
+  const [address] = gateway.listening.listen;
   assert.ok(address);
-  const entry = { ...address, fingerprint: gateway.fingerprint };
+  const entry = { ...address, fingerprint: gateway.listening.fingerprint };
 
   const apart = await agentAt(t, "/homes/crab", "crab", { token: newToken(), memberId: "mem_gone", gateway: entry }, entry);
   await until(() => apart.told.length > 0, "the agent apart to be told why");

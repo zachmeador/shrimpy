@@ -4,13 +4,13 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Channel, Chat, Thread } from "../contracts/chat/index.ts";
 import { linkTestAgent } from "../contracts/gateway/testing/index.ts";
 import { until } from "../lib/testing/index.ts";
-import { refusalOf, startTestChat, valueOf } from "./testing/index.ts";
+import { refusalOf, startChatInProcess, valueOf } from "./testing/index.ts";
 
 const timeout = 30_000;
 const context = BACKGROUND_CONTEXT;
 
 test("a client holding Chat sees a DM it opens appear in its channels, and so does the member it opened it with", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
+  const chat = await startChatInProcess(t);
   const you = await chat.person();
   const scout = await chat.agent("scout");
   const yours = await you.host.get(Chat, {}, context);
@@ -30,7 +30,7 @@ test("a client holding Chat sees a DM it opens appear in its channels, and so do
 });
 
 test("you read a channel you are not in, with its thread read-only and a post there refused, until you are in it", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
+  const chat = await startChatInProcess(t);
   const you = await chat.person();
   // The first agent a roster has is an admin.
   const scout = await chat.agent("scout");
@@ -80,7 +80,7 @@ test("you read a channel you are not in, with its thread read-only and a post th
 });
 
 test("an agent renamed on the roster is the same member, named so in the channels and messages it is in", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
+  const chat = await startChatInProcess(t);
   const you = await chat.person();
   const scout = await chat.agent("scout");
   const yours = await you.host.get(Chat, {}, context);
@@ -92,7 +92,7 @@ test("an agent renamed on the roster is the same member, named so in the channel
 
   // An agent's program that links under another name renames it.
   await scout.stop();
-  const renamed = await linkTestAgent(t, "scouty", scout.token);
+  const renamed = await linkTestAgent(t, "scouty", { token: scout.token });
   assert.equal(renamed.you.id, scout.you.id);
 
   await until(() => yours.channels.value[0]?.name === "scouty", "the DM to be named for scouty");

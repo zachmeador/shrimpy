@@ -1,9 +1,17 @@
 /**
  * Test support for the gateway's contract: the real gateway, started through
- * the command in a process of its own, for tests of whatever links to it, and a
- * small agent's program linked to it, so a test has agents on the roster. Only
- * tests and test fixtures import this, and it must not know about any program
- * but the command that starts the gateway.
+ * the command in a process of its own, for tests of whatever links to it; a
+ * client linked to a gateway; and a small agent's program linked to it, which
+ * serves its presence and `Echo`, which shows whom a request reached it as, so a
+ * test has agents on the roster. Only tests and test fixtures import this, and
+ * it must not know about any program but the command that starts one.
  */
-export { linkTestAgent, type TestAgent } from "./agent.ts";
-export { startTestGateway, type TestGateway, type TestGatewayOptions } from "./real.ts";
+export { Echo, linkTestAgent, type TestAgent, type TestAgentOptions } from "./agent.ts";
+export {
+  connectTestClient,
+  type GatewayListening,
+  SHRIMPY_ENTRY,
+  startTestGateway,
+  type TestGateway,
+  type TestGatewayOptions,
+} from "./gateway.ts";

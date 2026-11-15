@@ -1,5 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
+import type { TestContext } from "node:test";
+import { stopAfter } from "../../lib/testing/index.ts";
 
 /** One chat-completions request that reached the server. */
 export interface ModelRequest {
@@ -11,7 +13,6 @@ export interface ModelServer {
   /** The base URL, ending in /v1, as models.json wants it. */
   readonly url: string;
   readonly requests: ModelRequest[];
-  close(): Promise<void>;
 }
 
 /**
@@ -30,8 +31,10 @@ export interface ModelServer {
  * - "check back": call the check_back tool to be woken in an hour, then say so
  * - "count to thirty": call the bash tool to echo step-01 to step-30, one call to an answer, then say it counted
  * - anything else: say hello
+ *
+ * It is closed when the test ends.
  */
-export async function startModelServer(): Promise<ModelServer> {
+export async function startModelServer(t: TestContext): Promise<ModelServer> {
   const requests: ModelRequest[] = [];
   const server = createServer((request, response) => {
     let text = "";
@@ -43,11 +46,8 @@ export async function startModelServer(): Promise<ModelServer> {
     });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  return {
-    url: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
-    requests,
-    close: () => closeServer(server),
-  };
+  stopAfter(t, () => closeServer(server));
+  return { url: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`, requests };
 }
 
 /** What the person wrote: the last line of the latest user message, whether its content is text or parts. */

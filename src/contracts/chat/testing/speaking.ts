@@ -57,11 +57,17 @@ async function holding<T, O extends { release(): void }>(get: Promise<O>, work: 
   }
 }
 
-const onThread = <T>(holder: Holder, id: string, work: (thread: Reference<typeof Thread>) => Promise<T> | T) =>
+/** The thread `id` as `holder` holds it, for as long as `work` runs. */
+export const onThread = <T>(holder: Holder, id: string, work: (thread: Reference<typeof Thread>) => Promise<T> | T) =>
   holding(holder.host.get(Thread, { thread: id }, context), work);
 
-const onChannel = <T>(holder: Holder, id: string, work: (channel: Reference<typeof Channel>) => Promise<T> | T) =>
+/** The channel `id` as `holder` holds it, for as long as `work` runs. */
+export const onChannel = <T>(holder: Holder, id: string, work: (channel: Reference<typeof Channel>) => Promise<T> | T) =>
   holding(holder.host.get(Channel, { channel: id }, context), work);
+
+/** `holder` as a member of chat, for as long as `work` runs. */
+export const onChat = <T>(holder: Holder, work: (chat: Reference<typeof Chat>) => Promise<T> | T) =>
+  holding(holder.host.get(Chat, {}, context), work);
 
 /** `holder` as a member of chat, holding `Chat` until the test ends. */
 export async function speakingAs(t: TestContext, holder: Holder): Promise<Speaking> {

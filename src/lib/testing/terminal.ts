@@ -1,7 +1,9 @@
-import { stripTerminalSequences, type Terminal } from "@earendil-works/pi-tui";
-
-/** A terminal that is a size, takes what is written to it, and hears what a test types. */
-export class FakeTerminal implements Terminal {
+/**
+ * A terminal that is a size, takes what is written to it, and hears what a test
+ * types. It has the shape a terminal user interface draws on, so the console's
+ * drawing takes it, and the console opened from the command line too.
+ */
+export class FakeTerminal {
   columns: number;
   rows: number;
   kittyProtocolActive = false;
@@ -51,9 +53,8 @@ export class FakeTerminal implements Terminal {
   output(): string {
     return this.written.join("");
   }
-}
-
-/** Lines of a drawing as a person reads them: without styles, and without the spaces that pad them. */
-export function visible(lines: string[]): string[] {
-  return lines.map((line) => stripTerminalSequences(line).trimEnd());
+  /** Everything written so far, without the styles and cursor moves, as the text that was drawn. */
+  text(): string {
+    return this.output().replace(/\u001b\[[0-9;:?]*[A-Za-z]|\u001b\][^\u0007]*\u0007|\u001b_[^\u0007]*\u0007/g, "");
+  }
 }

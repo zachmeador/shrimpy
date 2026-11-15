@@ -11,11 +11,12 @@ import {
   attachThread,
   loggedRequests,
   releaseGate,
+  SCOUT,
   startAgentChild,
   startChatServer,
-  talkTo,
   toolItems,
 } from "./testing/index.ts";
+import { talkTo } from "../contracts/chat/testing/index.ts";
 
 const timeout = 60_000;
 const LAST_LINE = "line 40: the quick brown fox jumps over the lazy dog";
@@ -54,9 +55,9 @@ function attempts(home: string): number {
 }
 
 test("killed while the model streams: the request is sent again, and the reply is posted once", { timeout }, async (t) => {
-  const { home, chat, start } = await setUp(t);
+  const { home, start } = await setUp(t);
   const first = await start("mixed", 40);
-  const talk = await talkTo(chat);
+  const talk = await talkTo(t, SCOUT);
   const asked = await talk.say("stream a long answer");
   await talk.untilWorking();
   const before = await attachThread(t, home, talk.thread.id);
@@ -89,10 +90,10 @@ test("killed while the model streams: the request is sent again, and the reply i
 });
 
 test("killed while a tool runs: the tool is reported and not run again, and the reply is posted once", { timeout }, async (t) => {
-  const { home, chat, start } = await setUp(t);
+  const { home, start } = await setUp(t);
   stopAfter(t, () => stopOrphanedShell(home));
   const first = await start("mixed", 400);
-  const talk = await talkTo(chat);
+  const talk = await talkTo(t, SCOUT);
   const asked = await talk.say("run the slow command");
   await talk.untilWorking();
   const before = await attachThread(t, home, talk.thread.id);
@@ -122,7 +123,7 @@ test("killed while a tool runs: the tool is reported and not run again, and the 
 test("killed between the turn ending and the reply being posted: the reply arrives once when the agent is back", { timeout }, async (t) => {
   const { home, chat, start } = await setUp(t);
   const first = await start("gated", 400);
-  const talk = await talkTo(chat);
+  const talk = await talkTo(t, SCOUT);
   const asked = await talk.say("hello");
   await talk.untilWorking();
   await chat.outage();
@@ -144,9 +145,9 @@ test("killed between the turn ending and the reply being posted: the reply arriv
 });
 
 test("killed while the receipt is being left: the reply is not posted a second time", { timeout }, async (t) => {
-  const { chat, start } = await setUp(t);
+  const { start } = await setUp(t);
   const first = await start("mixed", 400, { holdReceipts: true });
-  const talk = await talkTo(chat);
+  const talk = await talkTo(t, SCOUT);
   const asked = await talk.say("hello");
   await eventually(() => talk.replies(), (replies) => replies.length === 1, { what: "the reply to be out" });
   const [posted] = await talk.replies();
@@ -161,9 +162,9 @@ test("killed while the receipt is being left: the reply is not posted a second t
 });
 
 test("killed with a message waiting: the next start works through what it left, in order", { timeout }, async (t) => {
-  const { home, chat, start } = await setUp(t);
+  const { home, start } = await setUp(t);
   const first = await start("mixed", 40);
-  const talk = await talkTo(chat);
+  const talk = await talkTo(t, SCOUT);
   const one = await talk.say("stream a long answer");
   await talk.untilWorking();
   const two = await talk.say("and then this");
@@ -183,10 +184,10 @@ test("killed with a message waiting: the next start works through what it left, 
 });
 
 test("killed every time a turn's command runs: Pi ends the turn at its limit, and its failed receipt says so", { timeout }, async (t) => {
-  const { home, chat, start } = await setUp(t);
+  const { home, start } = await setUp(t);
   stopAfter(t, () => stopOrphanedShell(home));
   let agent = await start("mixed", 400);
-  const talk = await talkTo(chat);
+  const talk = await talkTo(t, SCOUT);
   const asked = await talk.say("run the slow command until it finishes");
   // Each start runs the command again, since the last one came back interrupted, and the agent is killed while it runs.
   for (let kill = 1; kill <= 5; kill += 1) {
@@ -206,9 +207,9 @@ test("killed every time a turn's command runs: Pi ends the turn at its limit, an
 });
 
 test("stopped in an orderly way twice while one turn runs: the turn is still answered once the agent is back", { timeout }, async (t) => {
-  const { home, chat, start } = await setUp(t);
+  const { home, start } = await setUp(t);
   const first = await start("mixed", 40, { graceMs: 100 });
-  const talk = await talkTo(chat);
+  const talk = await talkTo(t, SCOUT);
   const asked = await talk.say("stream a long answer");
   await untilAsked(home, 1);
   await first.kill("SIGTERM");
@@ -223,9 +224,9 @@ test("stopped in an orderly way twice while one turn runs: the turn is still ans
 });
 
 test("killed while wake-ups wait: each still comes, once, whether it fell due while the agent was down or not", { timeout }, async (t) => {
-  const { home, chat, start } = await setUp(t);
+  const { home, start } = await setUp(t);
   const first = await start("mixed", 400);
-  const talk = await talkTo(chat);
+  const talk = await talkTo(t, SCOUT);
   await talk.receiptOn(await talk.say("check back in 1s and 3s"));
   await first.kill("SIGKILL");
   // The first falls due while the agent is down. The second may or may not by the time it is back.

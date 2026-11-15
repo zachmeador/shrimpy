@@ -151,7 +151,7 @@ test("stopping run while it waits leaves the message and the agent's work alone,
   const talking = await startTalking(t);
   const finish = deferred<Outcome>();
   const agent = await startScriptedAgent(t, { name: "scout", handle: () => finish.promise });
-  const waiting = shrimpyInBackground(["run", "scout", "take your time"]);
+  const waiting = shrimpyInBackground(t, ["run", "scout", "take your time"]);
   await until(() => agent.offered.length === 1, "the agent to be offered the message");
 
   waiting.kill("SIGINT");
@@ -179,7 +179,7 @@ test("run says so when the chat server goes away while it waits, instead of wait
   const talking = await startTalking(t);
   const finish = deferred<Outcome>();
   const agent = await startScriptedAgent(t, { name: "scout", handle: () => finish.promise });
-  const waiting = shrimpyInBackground(["run", "scout", "take your time"]);
+  const waiting = shrimpyInBackground(t, ["run", "scout", "take your time"]);
   await until(() => agent.offered.length === 1, "the agent to be offered the message");
   await until(() => /\bth_\w+/.test(waiting.output().stderr), "run to say which thread it started");
 

@@ -8,8 +8,9 @@ import { newToken } from "../../contracts/gateway/node.ts";
 import { dial } from "../../lib/link/node.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { until } from "../../lib/testing/index.ts";
-import { type AgentRig, holdAgent, SCOUT, startAgentRig, valueOf } from "../testing/index.ts";
+import { type AgentRig, holdAgent, SCOUT, startAgentRig } from "../testing/index.ts";
 import type { AgentConnection } from "../testing/index.ts";
+import { valueOf } from "../../contracts/chat/testing/index.ts";
 
 /*
  * What a caller may do at an agent depends on who the request is stamped as: on the home's own socket it is the

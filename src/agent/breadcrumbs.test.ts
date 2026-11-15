@@ -11,12 +11,13 @@ import {
   assistantItems,
   attachThread,
   leaveBreadcrumb,
+  SCOUT,
   startAgentChild,
   startAgentRig,
   startChatServer,
-  talkTo,
   writeTrigger,
 } from "./testing/index.ts";
+import { talkTo } from "../contracts/chat/testing/index.ts";
 
 /*
  * Breadcrumbs: facts that move, kept as files in the home and shown to a session
@@ -112,9 +113,9 @@ test("the breadcrumbs of an input that was skipped come again with the session's
 test("an agent killed between taking an input up and its turn shows the breadcrumbs once: neither lost nor repeated", { timeout: 60_000 }, async (t) => {
   useRuntimeDir(t);
   const home = tempDir(t, "agent");
-  const chat = await startChatServer(t);
+  await startChatServer(t);
   const first = await startAgentChild(t, home, "mixed", 40);
-  const talk = await talkTo(chat);
+  const talk = await talkTo(t, SCOUT);
   const one = await talk.say("stream a long answer");
   await talk.untilWorking();
   // This message is taken up while the first turn runs, and waits behind it. The kill falls before its turn begins.

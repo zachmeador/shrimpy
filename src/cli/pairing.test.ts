@@ -6,18 +6,18 @@ import { readMembership } from "../contracts/agent/node.ts";
 import { formatAddress, hello, readAnswer, readLink, writeLink } from "../contracts/gateway/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
 import { dial } from "../lib/link/node.ts";
-import { stopAfter, tempDir, until } from "../lib/testing/index.ts";
+import { tempDir, until } from "../lib/testing/index.ts";
 import {
   commandLines,
   localProvider,
   onTheRoster,
-  serveGateway,
   shrimpy,
   startModelServer,
   startUp,
   untilLinked,
   useShrimpyDir,
 } from "./testing/index.ts";
+import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 
 /*
  * Letting an agent in from a folder that shares nothing with the gateway's, through the real commands: the gateway
@@ -37,8 +37,7 @@ function apartEnv(t: TestContext): { SHRIMPY_DIR: string; SHRIMPY_RUNTIME_DIR: s
 }
 
 test("invite prints a line that lets an agent in from a folder of its own, where up starts only it", { timeout }, async (t) => {
-  const model = await startModelServer();
-  stopAfter(t, () => model.close());
+  const model = await startModelServer(t);
 
   // The gateway's folder has no agents. It is told to listen, so up starts the gateway and the chat server all the same.
   const gateway = await startUp(t, ["--listen", "127.0.0.1:0"]);
@@ -85,7 +84,7 @@ test("invite prints a line that lets an agent in from a folder of its own, where
 });
 
 test("a line pasted again where another folder used it is refused, and no second agent joins", { timeout }, async (t) => {
-  const gateway = await serveGateway(t, ["--listen", "127.0.0.1:0"]);
+  const gateway = await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
   const [address] = gateway.listening.listen;
   assert.ok(address);
   const person = await onTheRoster(t);

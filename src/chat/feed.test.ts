@@ -3,13 +3,13 @@ import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Channel, Chat, Thread } from "../contracts/chat/index.ts";
 import { until } from "../lib/testing/index.ts";
-import { outcome, refusalOf, startTestChat, valueOf } from "./testing/index.ts";
+import { outcome, refusalOf, startChatInProcess, valueOf } from "./testing/index.ts";
 
 const timeout = 30_000;
 const context = BACKGROUND_CONTEXT;
 
 test("head moves live in the caller's channels, and events gives what came after a position, at once", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
+  const chat = await startChatInProcess(t);
   const you = await chat.person();
   const scout = await chat.agent("scout");
   const maya = await chat.agent("maya");

@@ -6,7 +6,8 @@ import { GatewayRefusedError, newToken } from "../contracts/gateway/node.ts";
 import { dial, type DialPlace } from "../lib/link/node.ts";
 import { until } from "../lib/testing/index.ts";
 import { PI_PACKAGES } from "../lib/version/index.ts";
-import { connectTestClient, startTestAgent, startTestGateway } from "./testing/index.ts";
+import { connectTestClient, linkTestAgent } from "../contracts/gateway/testing/index.ts";
+import { startGatewayInProcess } from "./testing/index.ts";
 
 const timeout = 30_000;
 const context = BACKGROUND_CONTEXT;
@@ -21,7 +22,7 @@ async function answerTo(place: DialPlace, said: unknown) {
 }
 
 test("a hello on other Pi packages is turned away in words that say what each side runs, whatever else it says", { timeout }, async (t) => {
-  const gateway = await startTestGateway(t);
+  const gateway = await startGatewayInProcess(t);
   const other = Object.fromEntries(Object.keys(PI_PACKAGES).map((name) => [name, "9.9.9"]));
 
   const answer = await answerTo({ path: gateway.socket }, { shrimpy: "9.0.0", pi: other, who: { kind: "from-a-later-release" } });
@@ -33,10 +34,10 @@ test("a hello on other Pi packages is turned away in words that say what each si
 });
 
 test("a second program for one agent is turned away while the first is linked", { timeout }, async (t) => {
-  const gateway = await startTestGateway(t);
+  const gateway = await startGatewayInProcess(t);
   const place = { path: gateway.socket };
   const token = newToken();
-  const scout = await startTestAgent(t, { place, name: "scout", token });
+  const scout = await linkTestAgent(t, "scout", { place, token });
   await until(() => scout.welcomes.length === 1, "scout to be let in");
 
   const answer = await answerTo(place, hello({ kind: "agent", name: "scout", token }));
@@ -49,7 +50,7 @@ test("a second program for one agent is turned away while the first is linked", 
 });
 
 test("an agent joins over the entry with an invitation's code, once, and then links in there with its token", { timeout }, async (t) => {
-  const gateway = await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
+  const gateway = await startGatewayInProcess(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
   const [address] = gateway.listening;
   assert.ok(address);
   const you = await connectTestClient(t, { path: gateway.socket });
@@ -74,6 +75,6 @@ test("an agent joins over the entry with an invitation's code, once, and then li
     "and a token nobody joined with opens nothing",
   );
 
-  await startTestAgent(t, { place: entry, name: "crab", token });
+  await linkTestAgent(t, "crab", { place: entry, token });
   await until(() => roster.members.value.some((member) => member.name === "crab" && member.reachable), "crab to link in");
 });

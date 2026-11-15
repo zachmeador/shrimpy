@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { cpSync } from "node:fs";
 import { test, type TestContext } from "node:test";
 import { fauxAssistantMessage } from "@earendil-works/pi-ai";
-import { speakingAs } from "../contracts/chat/testing/index.ts";
+import { speakingAs, talkTo } from "../contracts/chat/testing/index.ts";
 import { tempDir, until } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
 import { written } from "./inputs/index.ts";
@@ -12,10 +12,10 @@ import {
   connectAgent,
   loggedRequests,
   releaseGate,
+  SCOUT,
   type Script,
   shownSinceLastAnswer,
   startAgentRig,
-  talkTo,
   untilReleased,
 } from "./testing/index.ts";
 
@@ -177,7 +177,7 @@ test("new events in a chat store restored from an older copy are answered, thoug
     () => rig.reports.some((report) => /^Chat's log ends at \d+, before the agent's place in it at \d+\./.test((report as Error).message)),
     "the agent to say its place in the log was lost",
   );
-  const fresh = await talkTo(rig.chat);
+  const fresh = await talkTo(t, SCOUT);
   const restored = await fresh.say("after the copy, in the store that came back");
 
   assert.equal(restored.seq, lost.seq, "the same position");
