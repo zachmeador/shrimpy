@@ -1,7 +1,7 @@
 import type { SessionActivity, SessionItem, SessionStatus, SessionSummary } from "../../../../contracts/agent/index.ts";
 import { sessionStatus } from "../../../../contracts/agent/testing/index.ts";
 import type { Channel, Member, Message, Receipt, Thread } from "../../../../contracts/chat/index.ts";
-import type { Program, RosterEntry, WayIn } from "../../../../contracts/gateway/index.ts";
+import type { Program, RosterEntry } from "../../../../contracts/gateway/index.ts";
 import { SHRIMPY_VERSION } from "../../../../lib/version/index.ts";
 import type { Dm, Model, Room, SessionView, ThreadView } from "../index.ts";
 
@@ -52,28 +52,19 @@ export function anAgent(name: string, version = SHRIMPY_VERSION): Program {
   return { kind: "agent", name, member: agentMember(name).id, shrimpy: version };
 }
 
-/** An agent as the roster lists it, running or not. */
-export function aRosterAgent(name: string, reachable = true): RosterEntry {
-  return { ...agentMember(name), admin: false, reachable };
+/** An agent as the roster lists it when it is running. */
+function aRosterAgent(name: string): RosterEntry {
+  return { ...agentMember(name), admin: false, reachable: true };
 }
 
-/**
- * What the gateway lists when `programs` are running: the person, and each agent
- * among them on the roster as reachable. Agents that are not running are
- * added with `idle`.
- */
-export function aListing(programs: Program[], version = SHRIMPY_VERSION, idle: string[] = [], ways: WayIn[] = []): NonNullable<Model["listing"]> {
+/** What the gateway lists when `programs` are running: the person, and each agent among them on the roster as reachable. */
+export function aListing(programs: Program[], version = SHRIMPY_VERSION): NonNullable<Model["listing"]> {
   const running = programs.filter((program) => program.kind === "agent").map((program) => aRosterAgent(program.name));
-  return { programs, members: [{ ...zach, admin: true, reachable: false }, ...running, ...idle.map((name) => aRosterAgent(name, false))], ways, version };
+  return { programs, members: [{ ...zach, admin: true, reachable: false }, ...running], ways: [], version };
 }
 
 export function aChatServer(version = SHRIMPY_VERSION): Program {
   return { kind: "chat", name: "chat", member: null, shrimpy: version };
-}
-
-/** A device of the person's, as the roster lists its way in. */
-export function aDevice(label: string | null, id = `way_${(label ?? "nameless").replace(/\W/g, "")}`): WayIn {
-  return { id, kind: "device", member: zach.id, label };
 }
 
 /** A thread, with the fields a test cares about; the rest are plain. */

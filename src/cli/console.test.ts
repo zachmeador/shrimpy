@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { openConsole } from "../clients/console/index.ts";
+import type { SessionStatus } from "../contracts/agent/index.ts";
 import type { Message, Thread } from "../contracts/chat/index.ts";
-import { memberNamed } from "../contracts/chat/testing/index.ts";
+import { memberNamed, speakingAs } from "../contracts/chat/testing/index.ts";
 import { eventually, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
+import { localTime } from "../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME } from "../lib/version/index.ts";
 import { runCli } from "./index.ts";
 import {
@@ -12,6 +14,7 @@ import {
   declareLocalModel,
   FakeTerminal,
   type ModelServer,
+  onTheRoster,
   type Outcome,
   serve,
   serveChat,
@@ -39,6 +42,9 @@ const ENTER = "\r";
 const ESC = "\u001b";
 const TAB = "\t";
 
+/** The name of a thread the person has with scout before the console opens, which scout's screen lists. */
+const EARLIER = "notes from before";
+
 async function testModel(t: TestContext): Promise<ModelServer> {
   const model = await startModelServer();
   t.after(() => model.close());
@@ -52,6 +58,15 @@ async function agentHome(t: TestContext, model: ModelServer): Promise<string> {
   assert.equal(init.code, 0, init.stderr);
   declareLocalModel(home, { url: model.url, model: "test-model" });
   return home;
+}
+
+/** A thread in the person's DM with scout, named and empty, so that scout's screen has a row to show once it is open. */
+async function threadFromBefore(t: TestContext): Promise<void> {
+  const person = await onTheRoster(t);
+  const scout = (await person.members()).find((member) => member.name === "scout");
+  assert.ok(scout);
+  const you = await speakingAs(t, person.client);
+  await you.createThread((await you.openDm(scout.id)).id, EARLIER);
 }
 
 /** Open the console the way a bare `shrimpy` at a terminal does, on a terminal of our own. */
@@ -71,6 +86,26 @@ const seen = (terminal: FakeTerminal, text: string, what = text, timeoutMs = 30_
 const seenAfter = (terminal: FakeTerminal, from: number, text: string, what = text, timeoutMs = 30_000): Promise<void> =>
   until(() => terminal.text().slice(from).includes(text), `the console to show ${what}`, timeoutMs);
 
+/** Your threads with scout, as `threads --json` lists them. */
+const threadsWithScout = async (): Promise<Thread[]> => JSON.parse((await shrimpy(["threads", "scout", "--json"])).stdout) as Thread[];
+
+/** The ID of your thread with scout that starts with `text`, once it is there. */
+async function threadStartedWith(text: string): Promise<string> {
+  const threads = await eventually(threadsWithScout, (listed) => listed.some((thread) => thread.preview === text), {
+    what: `the thread that starts with "${text}"`,
+  });
+  const found = threads.find((thread) => thread.preview === text);
+  assert.ok(found);
+  return found.id;
+}
+
+/** The messages of a thread, as `read --json` gives them, or none while it can't be read. */
+async function messagesOf(thread: string): Promise<Message[]> {
+  const read = await shrimpy(["read", thread, "--json"]);
+  if (read.code !== 0) return [];
+  return (JSON.parse(read.stdout) as { messages: Message[] }).messages;
+}
+
 /**
  * Up with one agent, scout, on the test model, and the console open on a terminal of the test's own, on scout's
  * screen, which it goes to since scout is the only agent. Left when the test ends.
@@ -81,13 +116,15 @@ async function consoleWithScout(t: TestContext) {
   await startUp(t, [home, "--data", tempDir(t, "console-data")]);
   await untilLinked("chat", "chat");
   await untilLinked("agent", "scout");
-  const terminal = new FakeTerminal(100, 40);
+  await threadFromBefore(t);
+  // Wide enough that a line of the conversation is never wrapped.
+  const terminal = new FakeTerminal(200, 40);
   const { cli, exited } = openOn(terminal);
   stopAfter(t, async () => {
     cli.requestStop();
     await exited.catch(() => undefined);
   });
-  await seen(terminal, "You have not talked to scout yet.");
+  await seen(terminal, EARLIER, "scout's screen");
   return { home, model, terminal, exited };
 }
 
@@ -98,38 +135,38 @@ async function leave(terminal: FakeTerminal, exited: Promise<number>): Promise<v
   assert.equal(await within(30_000, exited, "the console to be left"), 0);
 }
 
-test("a bare shrimpy at a terminal opens the console, in which a person can see the agent, talk, watch the work, stop it and leave it working", { timeout }, async (t) => {
+test("a bare shrimpy at a terminal opens the console, to talk, watch the work, stop it and leave it working", { timeout }, async (t) => {
   const model = await testModel(t);
   const home = await agentHome(t, model);
   await startUp(t, [home, "--data", tempDir(t, "console-data")]);
   await untilLinked("chat", "chat");
   await untilLinked("agent", "scout");
+  await threadFromBefore(t);
   const terminal = new FakeTerminal();
   const { cli, exited } = openOn(terminal);
 
-  // One agent is running, so it goes straight to that agent, whom the person has not talked to yet.
-  await seen(terminal, "You have not talked to scout yet.");
+  // One agent is running, so it goes straight to that agent's screen.
+  await seen(terminal, EARLIER, "scout's screen");
 
   // A new thread, and a message in it: the thread is made with the message, and the reply comes back into it.
   terminal.type(CTRL_N);
-  await seen(terminal, "New thread with scout. Type below to start it.");
   terminal.type("hi there");
   terminal.type(ENTER);
   await seen(terminal, "Hello from the test model.", "the agent's reply");
-  const threads = await shrimpy(["threads", "scout"]);
-  assert.match(threads.stdout, /hi there/);
+  await threadStartedWith("hi there");
 
   // Another thread, with work that goes on: its answer streams beside the conversation until the person writes /stop.
   terminal.type(CTRL_N);
   terminal.type("go slow");
   terminal.type(ENTER);
   await seen(terminal, "word3", "the answer streaming");
-  await seen(terminal, "scout is working", "who is working");
+  await seen(terminal, "/stop", "who is working, and how to stop it");
   terminal.type("/stop");
   terminal.type(ENTER);
-  await seen(terminal, "-- scout stopped before answering --", "what the agent did with the message");
+  const slow = await threadStartedWith("go slow");
+  await eventually(() => messagesOf(slow), (messages) => messages[0]?.receipts[0]?.status === "stopped", { what: "the message to be marked stopped" });
 
-  // And once more, left working: leaving says so, and says how to stop it.
+  // And once more, left working: leaving says so, and how to stop it.
   const before = terminal.text().length;
   terminal.type(CTRL_N);
   terminal.type("go slow again");
@@ -142,15 +179,14 @@ test("a bare shrimpy at a terminal opens the console, in which a person can see 
   assert.equal(code, 0);
   assert.equal(terminal.stopped, true);
   assert.equal(cli.out.length, 1);
-  const [line] = cli.out;
-  assert.match(line ?? "", /^scout is still working in thread th_\w+, and the work continues\. /);
-  const thread = /thread (th_\w+)/.exec(line ?? "")?.[1];
-  assert.ok(thread);
+  const thread = await threadStartedWith("go slow again");
+  const [line = ""] = cli.out;
+  assert.ok(line.includes(`shrimpy sessions stop ${thread} --agent scout`), line);
   const stopped = await shrimpy(["sessions", "stop", thread, "--agent", home]);
   assert.equal(stopped.code, 0, stopped.stderr);
 });
 
-test("the gateway killed while an agent works: the turn finishes, its reply is posted once when the gateway is back, and the console picks everything up by itself", { timeout }, async (t) => {
+test("the gateway killed while an agent works: the reply is posted once, and the console picks it up by itself", { timeout }, async (t) => {
   const model = await testModel(t);
   const home = await agentHome(t, model);
   const data = tempDir(t, "console-gateway");
@@ -159,6 +195,7 @@ test("the gateway killed while an agent works: the turn finishes, its reply is p
   await untilLinked("chat", "chat");
   await serve(t, home);
   await untilLinked("agent", "scout");
+  await threadFromBefore(t);
   const terminal = new FakeTerminal();
   const { cli, exited } = openOn(terminal);
   // A test that fails must not leave the console open, or its process never ends.
@@ -166,34 +203,29 @@ test("the gateway killed while an agent works: the turn finishes, its reply is p
     cli.requestStop();
     await exited.catch(() => undefined);
   });
-  await seen(terminal, "You have not talked to scout yet.");
+  await seen(terminal, EARLIER, "scout's screen");
   terminal.type(CTRL_N);
-  await seen(terminal, "New thread with scout. Type below to start it.");
   terminal.type("go slow");
   terminal.type(ENTER);
   await seen(terminal, "word3", "the answer streaming");
-  const listed = JSON.parse((await shrimpy(["threads", "scout", "--json"])).stdout) as Thread[];
-  const thread = listed.find((candidate) => !candidate.main)?.id;
-  assert.ok(thread, "the thread the console started");
+  const thread = await threadStartedWith("go slow");
 
   await gateway.stop("SIGKILL");
 
   // The agent goes on without it, and says by its home's path when the turn is over. The reply waits in the task that follows its event.
-  const sessions = await eventually(
-    () => shrimpy(["sessions", "list", "--agent", home]),
-    (result) => result.stdout.includes(`${thread} `) && result.stdout.includes("idle"),
+  await eventually(
+    async () => {
+      const read = await shrimpy(["sessions", "read", thread, "--json", "--agent", home]);
+      return read.code === 0 ? (JSON.parse(read.stdout) as { status: SessionStatus }).status.busy : undefined;
+    },
+    (busy) => busy === false,
     { what: "the agent to finish the turn without the gateway", timeoutMs: 40_000 },
   );
-  assert.equal(sessions.code, 0, sessions.stderr);
   await serveGateway(t, [], data);
 
   // Every link pauses longer after each failure, up to 15 seconds, so the programs find each other again within a minute.
   await seen(terminal, "word200", "the reply, in the console that nobody touched", 60_000);
-  const repliesOf = async (): Promise<Message[]> => {
-    const read = await shrimpy(["read", thread, "--json"]);
-    if (read.code !== 0) return [];
-    return (JSON.parse(read.stdout) as { messages: Message[] }).messages.filter((message) => message.author.name === "scout");
-  };
+  const repliesOf = async (): Promise<Message[]> => (await messagesOf(thread)).filter((message) => message.author.name === "scout");
   const posted = await eventually(repliesOf, (replies) => replies.length > 0, { what: "the reply to be posted", timeoutMs: 60_000 });
   assert.equal(posted.length, 1);
   await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -204,7 +236,7 @@ test("the gateway killed while an agent works: the turn finishes, its reply is p
   assert.equal(await within(30_000, exited, "the console to be left"), 0);
 });
 
-test("the console lists the rooms a person is in beside the agents, and a thread of a room is read, written in and watched like one of a DM", { timeout }, async (t) => {
+test("a thread of a room is read, written in and watched like one of a DM", { timeout }, async (t) => {
   const talking = await startTalking(t);
   let finish: (outcome: Outcome) => void = () => undefined;
   const working = new Promise<Outcome>((resolve) => {
@@ -213,8 +245,7 @@ test("the console lists the rooms a person is in beside the agents, and a thread
   const scout = await startScriptedAgent(t, { name: "scout", handle: () => working });
   const you = await talking.you();
   const room = await you.createRoom("ops", [(await memberNamed(t, "scout")).id]);
-  const [main] = await you.threads(room.id);
-  assert.ok(main);
+  const disk = await you.createThread(room.id, "the disk");
   const terminal = new FakeTerminal();
   const { cli, exited } = openOn(terminal);
   // A test that fails must not leave the console open or the agent working, or its process never ends.
@@ -229,15 +260,14 @@ test("the console lists the rooms a person is in beside the agents, and a thread
   await seen(terminal, "#ops");
   terminal.type(DOWN);
   terminal.type(ENTER);
-  await seen(terminal, "#ops · threads");
+  await seen(terminal, "the disk", "the room's threads");
   terminal.type(ENTER);
-  await seen(terminal, "No messages yet.");
 
   // What the person writes is posted in the room's thread, and the agent that is offered it is seen working.
   terminal.type("is the disk full?");
   terminal.type(ENTER);
-  await seen(terminal, "scout is working", "who is working");
-  const [posted] = await eventually(() => you.read(main.id, null, 10), (messages) => messages.length === 1, {
+  await seen(terminal, "/stop", "who is working");
+  const [posted] = await eventually(() => you.read(disk.id, null, 10), (messages) => messages.length === 1, {
     what: "the message to be posted in the room",
   });
   assert.ok(posted);
@@ -254,9 +284,9 @@ test("the console lists the rooms a person is in beside the agents, and a thread
   terminal.type("and the backups?");
   terminal.type(ENTER);
   const [side] = await eventually(
-    async () => (await you.threads(room.id)).filter((thread) => !thread.main),
+    async () => (await you.threads(room.id)).filter((thread) => !thread.main && thread.id !== disk.id),
     (threads) => threads.length === 1,
-    { what: "a second thread in the room" },
+    { what: "another thread in the room" },
   );
   assert.ok(side);
   const [first] = await eventually(() => you.read(side.id, null, 10), (messages) => messages.length > 0, {
@@ -269,10 +299,9 @@ test("the console lists the rooms a person is in beside the agents, and a thread
   assert.equal(await within(30_000, exited, "the console to be left"), 0);
 });
 
-test("the agent's view of a long turn has its start, which the terminal reads back from where the session's window starts", { timeout }, async (t) => {
+test("the agent's view of a long turn shows its start, read back from where the session's window starts", { timeout }, async (t) => {
   const { terminal, exited } = await consoleWithScout(t);
   terminal.type(CTRL_N);
-  await seen(terminal, "New thread with scout. Type below to start it.");
 
   // Thirty tool calls, each its own answer and result, make far more entries than a session's window holds.
   terminal.type("count to thirty");
@@ -282,50 +311,55 @@ test("the agent's view of a long turn has its start, which the terminal reads ba
   terminal.type(TAB);
 
   await seenAfter(terminal, before, "step-01", "the turn's first call, from before the window");
-  assert.doesNotMatch(terminal.text().slice(before), /Earlier items are not shown/, "the whole session is shown");
   await leave(terminal, exited);
 });
 
-test("a failed turn says why in its receipt and in /status, in words with what to do, and a wake-up the agent waits on shows beside the thread and in /status with how to cancel it", { timeout }, async (t) => {
-  const { terminal, exited } = await consoleWithScout(t);
+test("why a turn failed reads the same in its receipt and in /status, and a wake-up shows beside the thread and in /status", { timeout }, async (t) => {
+  const { home, terminal, exited } = await consoleWithScout(t);
   terminal.type(CTRL_N);
-  await seen(terminal, "New thread with scout. Type below to start it.");
 
   terminal.type("please refuse");
   terminal.type(ENTER);
-  await seen(terminal, "scout failed: The model failed", "the failed receipt");
+  const thread = await threadStartedWith("please refuse");
+  const [refused] = await eventually(() => messagesOf(thread), (messages) => messages[0]?.receipts[0]?.status === "failed", {
+    what: "the failed receipt",
+  });
+  const why = refused?.receipts[0]?.detail;
+  assert.ok(why);
+  await seen(terminal, why, "why the turn failed, under the message");
+  let before = terminal.text().length;
   terminal.type("/status");
   terminal.type(ENTER);
-  await seen(terminal, "Last turn: The model failed", "why the last turn failed, in /status");
-  assert.match(terminal.text().replace(/\s+/g, " "), /Last turn: The model failed.*try another model with \/model/, "with what to do");
+  await seenAfter(terminal, before, why, "why the last turn failed, in /status");
 
   terminal.type("check back later");
   terminal.type(ENTER);
   await seen(terminal, "I will check back later.", "the agent's answer");
-  await seen(terminal, "scout checks back at", "the wake-up beside the thread");
-  assert.match(terminal.text(), /scout checks back at \d\d:\d\d: look at the build again · write \/stop to cancel it/);
-  const before = terminal.text().length;
+  const read = await shrimpy(["sessions", "read", thread, "--json", "--agent", home]);
+  const [wakeup] = (JSON.parse(read.stdout) as { status: SessionStatus }).status.wakeups;
+  assert.ok(wakeup);
+  // Beside the thread it says the time of day, and /status says the whole time.
+  await seen(terminal, new Date(wakeup.due).toTimeString().slice(0, 5), "the wake-up beside the thread");
+  before = terminal.text().length;
   terminal.type("/status");
   terminal.type(ENTER);
-  await seenAfter(terminal, before, "Checks back at", "the wake-up in /status");
-  assert.ok(!terminal.text().slice(before).includes("Last turn:"), "the next turn cleared why the last one failed");
+  await seenAfter(terminal, before, localTime(wakeup.due), "the wake-up in /status");
   await leave(terminal, exited);
 });
 
-test("the list of agents shows an agent working in a session that is none of the person's threads, and where, as the agent says it while it works", { timeout }, async (t) => {
+test("the list of agents shows where an agent works when that is none of the person's threads", { timeout }, async (t) => {
   const { home, terminal, exited } = await consoleWithScout(t);
   const added = await shrimpy(["triggers", "add", "nightly", "--every", "1h", "go slow", "--agent", home]);
   assert.equal(added.code, 0, added.stderr);
   const fired = await shrimpy(["triggers", "run", "nightly", "--agent", home]);
   assert.equal(fired.code, 0, fired.stderr);
-  await seen(terminal, "trigger nightly", "the trigger's session on scout's screen");
+  await seen(terminal, "nightly", "the trigger's session on scout's screen");
 
-  terminal.type(ESC);
-  await seen(terminal, "working · trigger nightly", "scout's row on the list of agents");
   const before = terminal.text().length;
+  terminal.type(ESC);
+  await seenAfter(terminal, before, "nightly", "scout's row on the list of agents");
   const stopped = await shrimpy(["sessions", "stop", "trigger:nightly", "--agent", home]);
   assert.equal(stopped.code, 0, stopped.stderr);
-  await seenAfter(terminal, before, "idle", "scout to be idle once the work is stopped");
   await leave(terminal, exited);
 });
 

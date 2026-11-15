@@ -8,7 +8,6 @@
  */
 export {
   aChatServer,
-  aDevice,
   aDm,
   agentMember,
   aListing,
@@ -17,7 +16,6 @@ export {
   anAgent,
   aReceipt,
   aRoom,
-  aRosterAgent,
   aSession,
   aThread,
   aThreadView,
