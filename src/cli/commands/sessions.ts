@@ -52,7 +52,8 @@ const read: Command = {
     const target = agentToActOn(values.agent);
     return withSession(target, session, async (held) => {
       const whole = await wholeSession(held);
-      io.out(values.json === true ? JSON.stringify(whole) : renderSession(whole, command(target, `sessions stop ${shellWord(session)}`)));
+      if (values.json === true) io.json(whole);
+      else io.out(renderSession(whole, command(target, `sessions stop ${shellWord(session)}`)));
       return 0;
     });
   },

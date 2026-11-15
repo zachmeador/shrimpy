@@ -156,7 +156,7 @@ const serve: Command = {
     });
     try {
       agent = await startHomeAgent(homeNamed(given), { shrimpy: shrimpyCommand(), providers: providersPath() });
-      io.out(JSON.stringify({ event: "listening", home: agent.home, ...agent.endpoint }));
+      io.json({ event: "listening", home: agent.home, ...agent.endpoint });
       await requested;
       await agent.close({ now: values.now === true });
       return 0;
@@ -178,10 +178,10 @@ const status: Command = {
 
     // The endpoint file outlives the agent, so only an answer shows that one is there.
     if (!(await answers(home))) {
-      io.out(JSON.stringify({ running: false, home }));
+      io.json({ running: false, home });
       return 1;
     }
-    io.out(JSON.stringify({ running: true, home, ...readEndpoint(home) }));
+    io.json({ running: true, home, ...readEndpoint(home) });
     return 0;
   },
 };

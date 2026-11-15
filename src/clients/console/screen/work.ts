@@ -1,6 +1,7 @@
 import type { SessionItem } from "../../../contracts/agent/index.ts";
+import { oneLine, plain } from "../../../lib/plain/index.ts";
 import type { SessionView } from "../state/index.ts";
-import { countLines, firstCharacters, lastCharacters, lastLines, oneLine, plain } from "./plain.ts";
+import { countLines, firstCharacters, lastCharacters, lastLines } from "./cut.ts";
 import {
   answerNote,
   hiddenCharacters,

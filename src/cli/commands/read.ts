@@ -29,7 +29,7 @@ const read: Command = {
     try {
       const { thread, messages } = await wholeThread(reached, threadId);
       if (values.json === true) {
-        io.out(JSON.stringify({ thread, messages }));
+        io.json({ thread, messages });
         return 0;
       }
       const { chat } = reached;

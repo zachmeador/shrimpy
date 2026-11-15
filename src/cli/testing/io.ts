@@ -25,16 +25,18 @@ export function captureIo(options: { terminal?: boolean; answers?: readonly stri
   const answers = [...(options.answers ?? [])];
   const stops = new Set<() => void>();
   const watchers = new Set<(line: string) => void>();
+  const print = (line: string): void => {
+    out.push(line);
+    for (const watcher of watchers) watcher(line);
+  };
   return {
     out,
     err,
     asked,
     io: {
-      out(line) {
-        out.push(line);
-        for (const watcher of watchers) watcher(line);
-      },
+      out: print,
       err: (line) => void err.push(line),
+      json: (value) => print(JSON.stringify(value)),
       ask(question, askOptions = {}) {
         asked.push({ question, secret: askOptions.secret === true });
         const answer = answers.shift();

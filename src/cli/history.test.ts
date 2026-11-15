@@ -143,6 +143,28 @@ test("read shows a thread of a DM between two agents, which the person who runs 
   assert.ok(header.includes("maya") && header.includes("scout") && !header.includes("your"), header);
 });
 
+/** What a terminal acts on, or a reader can be misled by: control characters but the line break, and those that reorder text. */
+const ACTED_ON = new RegExp("[\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f\\u202a-\\u202e\\u2066-\\u2069]");
+
+test("read prints what another member wrote with nothing a terminal would act on, and read --json gives it as it was", { timeout }, async (t) => {
+  await startTalking(t);
+  const scout = await enterAsAgent(t, "scout");
+  const maya = await enterAsAgent(t, "maya");
+  const dm = await scout.openDm(maya.me.id);
+  const [main] = await scout.threads(dm.id);
+  assert.ok(main);
+  const text = "\u001b]0;not your title\u0007\u001b[31mred\u001b[0m, \u001b]52;c;cHduZWQ=\u0007a carriage\rreturn and ‮turned";
+  await scout.post(main.id, text, "scout-1");
+
+  const result = await shrimpy(["read", main.id]);
+  const data = JSON.parse((await shrimpy(["read", main.id, "--json"])).stdout) as { messages: Message[] };
+
+  assert.equal(result.code, 0, result.stderr);
+  assert.doesNotMatch(result.stdout, ACTED_ON);
+  assert.ok(result.stdout.includes("red"), "what is meant to be seen is still there");
+  assert.equal(data.messages[0]?.text, text);
+});
+
 test("read --json prints the thread and every message with all its receipts, silent ones included", { timeout }, async (t) => {
   await startTalking(t);
   await startScriptedAgent(t, { name: "scout", handle: byText });

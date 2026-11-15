@@ -1,4 +1,5 @@
 import type { Channel, Message, Thread } from "../../../contracts/chat/index.ts";
+import { oneLine, plain } from "../../../lib/plain/index.ts";
 import {
   agentEntries,
   agentOfThread,
@@ -12,7 +13,6 @@ import {
   type Where,
 } from "../state/index.ts";
 import { type CommandLine, commandLines } from "./commands.ts";
-import { oneLine, plain } from "./plain.ts";
 import { whenOf } from "./time.ts";
 import { type Step, type Work, watchOf, workOf } from "./work.ts";
 import {

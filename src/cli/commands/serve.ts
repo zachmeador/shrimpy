@@ -19,7 +19,7 @@ export async function serveUntilStopped<T extends { close(): Promise<void> }>(
   const stopListening = io.onStop(requestStop);
   try {
     const program = await start();
-    io.out(JSON.stringify(announce(program)));
+    io.json(announce(program));
     await stopRequested;
     await program.close();
     return 0;

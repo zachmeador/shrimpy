@@ -1,5 +1,6 @@
 import { createInterface } from "node:readline";
 import { Writable } from "node:stream";
+import { plain } from "../../lib/plain/index.ts";
 
 /** How a question is asked. */
 export interface AskOptions {
@@ -15,6 +16,8 @@ export interface Io {
   out(line: string): void;
   /** Print a line to standard error. */
   err(line: string): void;
+  /** Print `value` to standard output as one line of JSON, for a program to read. */
+  json(value: unknown): void;
   /**
    * Print `question`, wait for one line and return it without its line break.
    * The line may be empty. Rejects when `signal` aborts, with the question let
@@ -33,6 +36,23 @@ export interface Io {
 
 const INPUT_ENDED = "The input ended before the question was answered.";
 
+/**
+ * `io` for a person to read: every line and question it prints passes through
+ * `plain`, so that what another member, an agent or a tool wrote can't move the
+ * cursor, set the title or reach the clipboard. JSON is printed as it is, since
+ * it escapes control characters itself.
+ */
+export function forPeople(io: Io): Io {
+  return {
+    out: (line) => io.out(plain(line)),
+    err: (line) => io.err(plain(line)),
+    json: (value) => io.json(value),
+    ask: (question, options) => io.ask(plain(question), options),
+    onStop: (listener) => io.onStop(listener),
+    terminal: io.terminal,
+  };
+}
+
 export function processIo(): Io {
   const terminal = process.stdin.isTTY && process.stdout.isTTY;
   let lines: Lines | undefined;
@@ -43,6 +63,7 @@ export function processIo(): Io {
   return {
     out: (line) => void process.stdout.write(`${line}\n`),
     err: (line) => void process.stderr.write(`${line}\n`),
+    json: (value) => void process.stdout.write(`${JSON.stringify(value)}\n`),
     ask(question, options = {}) {
       if (terminal) return askPerson(question, options);
       lines ??= readLines(process.stdin);

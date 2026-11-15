@@ -11,11 +11,11 @@ import {
   type WaitingWakeup,
 } from "../../../contracts/agent/index.ts";
 import { AGENT_COMMANDS, type AgentCommand, type Channel, type Receipt } from "../../../contracts/chat/index.ts";
+import { oneLine } from "../../../lib/plain/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import type { Problem, Why } from "../network/index.ts";
 import type { AgentStatus, DevicesStatus, Notice, RoomStatus } from "../state/index.ts";
-import { oneLine } from "./plain.ts";
 
 /*
  * Every sentence the console says, in one place. They are plain and short, in

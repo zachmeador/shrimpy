@@ -2,7 +2,7 @@ import type { ConsoleOptions } from "../clients/console/index.ts";
 import { type Command, loadFamily } from "./commands/index.ts";
 import { lookForHome } from "./folder/index.ts";
 import { commandHelp, frontPage, groupHelp, unknownCommand, usageLine } from "./help.ts";
-import type { Io } from "./io/index.ts";
+import { forPeople, type Io } from "./io/index.ts";
 import { UsageError } from "./usage/index.ts";
 
 export interface RunOptions {
@@ -18,9 +18,11 @@ export interface RunOptions {
  * code: 0 for success, 2 when the command was used wrongly, and 1 for any
  * other failure. A command may use other codes for results it reports. With no
  * command, at a terminal, it opens the console; anywhere else it prints the
- * front page.
+ * front page. Whatever is printed for a person is made harmless for a
+ * terminal, since much of it was written by other members, agents and tools.
  */
-export async function runCli(argv: string[], io: Io, options: RunOptions = {}): Promise<number> {
+export async function runCli(argv: string[], given: Io, options: RunOptions = {}): Promise<number> {
+  const io = forPeople(given);
   const [first] = argv;
   if (first === undefined) {
     if (io.terminal) return runConsole(io, options.openConsole ?? openTheConsole);

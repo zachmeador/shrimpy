@@ -1,7 +1,7 @@
 import type { AgentModels } from "../../../contracts/agent/index.ts";
 import { AGENT_COMMANDS, type AgentCommand } from "../../../contracts/chat/index.ts";
+import { oneLine } from "../../../lib/plain/index.ts";
 import type { Notice } from "../state/index.ts";
-import { oneLine } from "./plain.ts";
 import { defaultModelLine, MODEL_DEFAULT, modelWords, TERMINAL_COMMANDS, type TerminalCommand } from "./words.ts";
 
 /** A command the person can write in a thread, with its slash, and what it does where they are. */

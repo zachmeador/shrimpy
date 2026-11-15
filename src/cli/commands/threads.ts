@@ -32,11 +32,12 @@ const threads: Command = {
     try {
       const channel = channelNamed(reached, reached.chat.channels.value, name);
       if (channel === undefined) {
-        io.out(json ? "[]" : `You have not talked to ${name} yet. Start with: shrimpy run ${name} "<text>"`);
+        if (json) io.json([]);
+        else io.out(`You have not talked to ${name} yet. Start with: shrimpy run ${name} "<text>"`);
         return 0;
       }
       const list = await onChannel(reached.client, channel.id, (held) => held.threads.value);
-      if (json) io.out(JSON.stringify(list));
+      if (json) io.json(list);
       else for (const line of renderThreads(list, channel)) io.out(line);
       return 0;
     } finally {
