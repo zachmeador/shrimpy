@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { AgentModels } from "../contracts/agent/index.ts";
 import { readMembership, saveMembership } from "../contracts/agent/node.ts";
@@ -11,7 +10,7 @@ import type { Message, Receipt } from "../contracts/chat/index.ts";
 import { type Program, Roster, type RosterEntry } from "../contracts/gateway/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
 import { linkTestAgent, type TestGateway } from "../contracts/gateway/testing/index.ts";
-import { eventually, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
+import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { homePaths } from "./home/index.ts";
 import { ModelSetupError } from "./host/durable.ts";
@@ -256,12 +255,13 @@ test("a home whose agent.json can't be seen is not read until it can be", { time
   renameSync(paths.config, away);
   rmSync(join(paths.triggers, "tidy.md"));
   rmSync(join(paths.context, "disk.md"));
-  await delay(LOOK * 12);
   const said = (): string[] => reported.slice(before).filter((line) => line.includes(paths.root));
+  // The look that says so is the one that would have read the home.
+  await until(() => said().length > 0, "the agent to say why it reads nothing");
   assert.deepEqual((await connection.triggers()).map((trigger) => trigger.name), ["tidy"], "the agent's triggers are as they were");
   assert.ok((await toldNow()).includes("The disk is on fire."), "and so are its instructions");
-  assert.equal(said().length, 1, "and it said so once");
   await assert.rejects(connection.reload(), (error: Error) => error.message.includes(paths.root));
+  assert.equal(said().length, 1, "and it said so once, though it looked again while the model was asked");
 
   // It is back, and the agent reads the home again without being told.
   renameSync(away, paths.config);

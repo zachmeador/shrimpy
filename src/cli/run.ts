@@ -84,10 +84,10 @@ async function runConsole(io: Io, open: (io: Io) => Promise<number>): Promise<nu
  * The console is only loaded when it is opened, so no other command loads the
  * terminal library. It is handed what a command that talks has: where the
  * gateway is and the token to show it, which is this machine's when the folder
- * has joined a gateway as the person's own. `terminal` is for a test, which
- * draws on a terminal of its own.
+ * has joined a gateway as the person's own. `terminal` and `onDraw` are for a
+ * test, which draws on a terminal of its own and waits for the screen it needs.
  */
-export async function openTheConsole(io: Io, stand: Pick<ConsoleOptions, "terminal"> = {}): Promise<number> {
+export async function openTheConsole(io: Io, stand: Pick<ConsoleOptions, "terminal" | "onDraw"> = {}): Promise<number> {
   const { openConsole } = await import("../clients/console/index.ts");
   const { me } = await import("./talk/index.ts");
   const who = me();

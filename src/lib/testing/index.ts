@@ -17,4 +17,4 @@ export { type CountedBackoff, countedBackoff } from "./pauses.ts";
 export { inRuntimeDir, useRuntimeDir } from "./runtime.ts";
 export { runUntilStopped } from "./run-until-stopped.ts";
 export { FakeTerminal } from "./terminal.ts";
-export { eventually, settle, until, waitForView, type WaitOptions, within } from "./wait.ts";
+export { eventually, until, waitForView, type WaitOptions, within } from "./wait.ts";

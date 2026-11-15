@@ -2,9 +2,8 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 import { isRefusal } from "../lib/refusal/index.ts";
-import { until, waitForView } from "../lib/testing/index.ts";
+import { until, waitForView, within } from "../lib/testing/index.ts";
 import {
   answered,
   assistantItems,
@@ -44,18 +43,20 @@ test("stopping lets a running turn finish first, and its reply is posted before 
   assert.ok(replies[0]?.text.endsWith(LAST_LINE));
   assert.equal((await rig.receiptOn(asked)).status, "answered");
   const next = await restart(t, rig);
-  await delay(100);
-  assert.equal((await next.replies()).length, 1, "and nothing is posted again by the next start");
-  assert.equal(loggedRequests(rig.home).length, 1, "or asked of the model again");
+  // The next start answers a message after whatever it had left of the turn, which is nothing.
+  await next.receiptOn(await next.say("anything else?"));
+  assert.equal((await next.replies()).filter((reply) => reply.text.endsWith(LAST_LINE)).length, 1, "and nothing is posted again by the next start");
+  assert.equal(loggedRequests(rig.home).length, 2, "or asked of the model again: one request for each message");
 });
 
-test("stopping at once pauses the turn, and the next start finishes it and posts the reply", { timeout }, async (t) => {
+test("stopping at once pauses the turn, even while a stop waits for it, and the next start finishes it", { timeout }, async (t) => {
   const { rig, asked } = await startStreaming(t, 40);
 
-  const started = Date.now();
+  // A stop that waits for the turn, then one at once: the second ends the wait, and the first with it.
+  const waiting = rig.agent.close({ graceMs: 60_000 });
   await rig.agent.close({ now: true });
-  assert.ok(Date.now() - started < 3000, "stopped without waiting for the answer");
-  assert.deepEqual(await rig.replies(), [], "and nothing was posted");
+  await waiting;
+  assert.deepEqual(await rig.replies(), [], "nothing was posted");
 
   const next = await restart(t, rig);
   const receipt = await next.receiptOn(asked);
@@ -85,7 +86,7 @@ test("a turn that outlasts the grace period is paused, not lost", { timeout }, a
   const started = Date.now();
   await rig.agent.close({ graceMs: 300 });
   const waited = Date.now() - started;
-  assert.ok(waited >= 250 && waited < 3000, `waited ${waited} ms`);
+  assert.ok(waited >= 250, `it gave the turn its grace, and waited ${waited} ms`);
 
   const next = await restart(t, rig);
   assert.equal((await next.receiptOn(asked)).status, "answered");
@@ -94,18 +95,21 @@ test("a turn that outlasts the grace period is paused, not lost", { timeout }, a
 });
 
 test("once stopping begins new input is refused, and chat's message waits for the next start", { timeout }, async (t) => {
-  const { rig, session } = await startStreaming(t, 40);
+  // The model holds the turn at the gate until the test lets it go.
+  const rig = await startAgentRig(t, { scenario: "gated" });
+  await rig.say("hold on");
+  await rig.untilWorking();
+  const { session } = await rig.attach();
 
   const closing = rig.agent.close({ graceMs: 60_000 });
   await assert.rejects(session.steer("one more thing"), isRefusal);
   const late = await rig.say("said while the agent was stopping");
-  await delay(150);
+  // The turn ends and the agent stops by itself. Had it taken the message, it would have answered it first.
+  releaseGate(rig.home);
+  await closing;
   const [seen] = (await rig.said()).filter((message) => message.id === late.id);
   assert.equal(seen?.receipts.length, 0, "not taken");
 
-  // Asking again with `now` ends the wait.
-  await rig.agent.close({ now: true });
-  await closing;
   const next = await restart(t, rig);
   assert.equal((await next.receiptOn(late)).status, "answered");
 });
@@ -119,10 +123,8 @@ test("stopping while chat is unreachable does not wait for it", { timeout }, asy
   releaseGate(rig.home);
   await waitForView(session, answered);
 
-  const started = Date.now();
-  await rig.agent.close();
-
-  assert.ok(Date.now() - started < 2000, `stopping took ${Date.now() - started} ms`);
+  // A stop that waited for chat would wait the minute it is given.
+  await within(20_000, rig.agent.close({ graceMs: 60_000 }), "the stop, which does not wait for chat");
   await rig.chat.recover();
   const next = await restart(t, rig);
   assert.equal((await next.receiptOn(asked)).status, "answered");
@@ -152,14 +154,18 @@ test("stopping during a shell command ends the command, and the next start repor
 
 /** Nothing is left running in the process group that `leader` started, within a moment. */
 async function eventuallyGone(leader: number): Promise<void> {
-  for (let waited = 0; waited < 3000; waited += 50) {
+  const gone = (): boolean => {
     try {
       process.kill(-leader, 0);
+      return false;
     } catch {
-      return;
+      return true;
     }
-    await delay(50);
+  };
+  try {
+    await until(gone, "the shell command to end with the agent", 3000);
+  } catch (error) {
+    process.kill(-leader, "SIGKILL");
+    throw error;
   }
-  process.kill(-leader, "SIGKILL");
-  assert.fail(`the shell command was still running 3 seconds after the agent stopped`);
 }

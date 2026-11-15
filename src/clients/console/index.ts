@@ -18,3 +18,4 @@
  */
 export { type ConsoleIo, type ConsoleOptions, openConsole } from "./console.ts";
 export type { ConsoleTerminal } from "./draw/index.ts";
+export type { Screen as ConsoleScreen } from "./screen/index.ts";

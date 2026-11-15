@@ -292,8 +292,16 @@ test("reloading makes the triggers follow their files", { timeout }, async (t) =
   await assert.rejects(connection.trigger("b"), isRefusal);
   assert.ok((await connection.sessions()).some((session) => session.id === "trigger:b"), "what b did is still there to read");
 
+  // What was under way when the files changed ends first: d runs again after it, and b's session and c are idle.
+  const allEnded = (detail: TriggerDetail): boolean => detail.occurrences.every((occurrence) => occurrence.ended !== null);
+  const dSince = (await connection.trigger("d")).occurrences.length;
+  await trigger(connection, "d", (found) => found.occurrences.length > dSince && allEnded(found), "d to run again");
+  await eventually(async () => (await connection.attach("trigger:b")).view.status, (status) => !status.busy && status.queued.length === 0, {
+    what: "b's session to be idle",
+  });
+  await trigger(connection, "c", allEnded, "c to be idle");
+
   // From then on d goes on and a runs with its new prompt, while b and c do not run.
-  await delay(400);
   const bInputs = inputsOf((await connection.attach("trigger:b")).view).length;
   const cRuns = (await connection.trigger("c")).occurrences.length;
   const dRuns = (await connection.trigger("d")).occurrences.length;

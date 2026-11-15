@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 import { defineExtension } from "@earendil-works/pi-durable";
 import { eventually, stopAfter, tempDir } from "../../lib/testing/index.ts";
 import { createAdmissions } from "../chat/durable.ts";
@@ -78,10 +77,10 @@ async function start(t: TestContext, home: string, script: Script, options: Star
     told,
     reports,
     stop,
-    /** A message from a person in a thread of its own, as the agent takes it up. */
-    admit: () =>
+    /** The `n`th message from a person in a thread of its own, as the agent takes it up. */
+    admit: (n = 1) =>
       admissions.admit({
-        event: { kind: "posted", id: "evt_1", seq: 1, author: "Zach", text: "check back soon", sentAt: Date.now() },
+        event: { kind: "posted", id: `evt_${String(n)}`, seq: n, author: "Zach", text: "check back soon", sentAt: Date.now() },
         threadId: "th_1",
         channelId: "ch_1",
       }),
@@ -96,7 +95,13 @@ const requests = (home: string): number => (existsSync(join(home, "requests.json
 
 test("a check_back that runs again after the agent stopped in it sets no second wake-up", { timeout }, async (t) => {
   const home = tempDir(t, "wakeups");
-  const model = callingTools([[{ name: "check_back", args: { in: "1s", note: "look at the build" } }]]);
+  // The first message sets a wake-up, and its wake-up is answered. The second sets one that is due after any second
+  // one the first could have set, since that would be due a second after the call ran again.
+  const model = callingTools([
+    [{ name: "check_back", args: { in: "1s", note: "look at the build" } }],
+    [],
+    [{ name: "check_back", args: { in: "1s", note: "and after it" } }],
+  ]);
   let set: () => void = () => undefined;
   const afterSetting = new Promise<void>((resolve) => {
     set = resolve;
@@ -109,10 +114,11 @@ test("a check_back that runs again after the agent stopped in it sets no second 
   const back = await start(t, home, model.script);
 
   await eventually(() => back.told, (found) => wakeupsTold(found) === 1, { what: "the wake-up to come", timeoutMs: 15_000 });
-  // Had the call set a second wake-up, it would be due about now too.
-  await delay(1_500);
-  assert.equal(wakeupsTold(back.told), 1);
-  assert.equal(back.told.length, 2, "the message that asked, and the one wake-up");
-  assert.equal(requests(home), 3, "the call, the answer once the call is back, and the wake-up");
+  await back.admit(2);
+  const notes = (): string[] => back.told.flatMap(({ input }) => (isWakeup(input) ? [input.wakeup.note] : []));
+  await eventually(notes, (found) => found.includes("and after it"), { what: "the later wake-up to come", timeoutMs: 15_000 });
+  assert.deepEqual(notes(), ["look at the build", "and after it"], "a wake-up for each call, and none for the call run again");
+  assert.equal(back.told.length, 4, "the two messages and their wake-ups");
+  assert.equal(requests(home), 6, "the first call, the answer once it is back, the wake-up, the second call and its answer, and its wake-up");
   assert.deepEqual(back.reports, []);
 });

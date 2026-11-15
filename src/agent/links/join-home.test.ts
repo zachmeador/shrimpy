@@ -87,9 +87,13 @@ test("a home keeps its token before it joins, and asks again with the same token
 
 test("a join given up on while the gateway says nothing can be made again, with the token kept", async (t) => {
   const home = homeOf(t, "crab");
-  // A server that takes the connection and never answers.
+  const giveUp = new AbortController();
+  // A server that takes the connection and never answers, and the join is given up on once it has.
   const taken = new Set<Socket>();
-  const silent = createServer((socket) => taken.add(socket));
+  const silent = createServer((socket) => {
+    taken.add(socket);
+    giveUp.abort();
+  });
   await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
   stopAfter(t, async () => {
     for (const socket of taken) socket.destroy();
@@ -98,8 +102,6 @@ test("a join given up on while the gateway says nothing can be made again, with 
   const { port } = silent.address() as AddressInfo;
   const link = writeLink({ name: "crab", address: { host: "127.0.0.1", port }, code: "K7Q2-9FXD", fingerprint });
 
-  const giveUp = new AbortController();
-  setTimeout(() => giveUp.abort(), 200);
   await assert.rejects(joinHome(home, link, { signal: giveUp.signal }), JoinFailedError);
 
   assert.deepEqual(Object.keys(readMembership(home) ?? {}), ["token"]);

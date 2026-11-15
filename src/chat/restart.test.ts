@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Channel, Chat, Thread } from "../contracts/chat/index.ts";
 import { backoff } from "../lib/retry/index.ts";
-import { stopAfter, until } from "../lib/testing/index.ts";
+import { countedBackoff, stopAfter, until } from "../lib/testing/index.ts";
 import { ChatRunningError, startChat } from "./index.ts";
 import { startChatInProcess, valueOf } from "./testing/index.ts";
 
@@ -37,7 +37,8 @@ test("a second chat server is refused, and holds wait while chat is away and bin
 
 test("while the gateway is away the chat server says so once, and once again when it is back", { timeout }, async (t) => {
   const said = t.mock.method(console, "error", () => undefined);
-  const chat = await startChatInProcess(t);
+  const pauses = countedBackoff();
+  const chat = await startChatInProcess(t, pauses);
   const you = await chat.person();
   const held = you.host.hold(Chat, {}, context);
   await until(() => held.state.value.kind === "live", "chat to be reached through the gateway");
@@ -47,8 +48,8 @@ test("while the gateway is away the chat server says so once, and once again whe
   await chat.gateway.outage();
 
   await until(() => ofGateway().length === 1, "the chat server to say it can't reach the gateway");
-  // It tries again every 50 milliseconds at most, so this is many tries.
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  const tried = pauses.taken();
+  await until(() => pauses.taken() >= tried + 5, "the chat server to try five times more");
   assert.equal(ofGateway().length, 1, "said once, however often it tries");
   await chat.gateway.recover();
   await until(() => ofGateway().length === 2, "the chat server to say the gateway is back");

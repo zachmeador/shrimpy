@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MAX_MESSAGE_LENGTH } from "../../../contracts/chat/index.ts";
 import { linkTestAgent, startTestGateway } from "../../../contracts/gateway/testing/index.ts";
-import { settle, stopAfter, within } from "../../../lib/testing/index.ts";
+import { stopAfter, within } from "../../../lib/testing/index.ts";
 import { agentEntries, type Model } from "./index.ts";
 import { startRig } from "./testing/index.ts";
 
@@ -56,10 +56,10 @@ test("with several agents it lists each, whether it runs and whether it is worki
 test("an agent the person has not talked to has no threads, and viewing it makes none", { timeout }, async (t) => {
   const rig = await startRig(t);
   await rig.until((model) => model.where.screen === "threads" && model.chat.state === "up", "the agent's threads");
-  await settle();
 
-  assert.deepEqual(rig.state.model().dms, {});
+  // The person's channels come after a round trip to chat, by which a DM that viewing made would be there.
   assert.deepEqual(await (await rig.person()).channels(), []);
+  assert.deepEqual(rig.state.model().dms, {});
 });
 
 test("an open thread follows what is said in it, here and elsewhere", { timeout }, async (t) => {
@@ -185,8 +185,10 @@ test("going back leaves the thread, then the agent, and lets go of what was foll
   rig.state.back();
   assert.deepEqual(rig.state.model().where, { screen: "threads", place: { kind: "agent", name: "scout" } });
   assert.equal(rig.state.model().thread, undefined);
+  const before = rig.state.model().dms.scout?.threads.find((each) => each.id === thread.id)?.updatedAt ?? 0;
   await (await rig.asAgent("scout")).post(thread.id, "unheard");
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  // The agent's list hears of the message, after which the thread would have too, were it still followed.
+  await rig.until((model) => (model.dms.scout?.threads.find((each) => each.id === thread.id)?.updatedAt ?? 0) > before, "the list to hear of the message");
   assert.equal(rig.state.model().thread, undefined, "the thread is no longer followed");
 
   rig.state.back();

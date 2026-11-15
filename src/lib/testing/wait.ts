@@ -2,9 +2,6 @@ import { setTimeout as delay } from "node:timers/promises";
 
 const POLL_MS = 10;
 
-/** Let everything that is ready to run, run. */
-export const settle = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
-
 export interface WaitOptions {
   /** What is being waited for, for the message when it does not happen. */
   what?: string;

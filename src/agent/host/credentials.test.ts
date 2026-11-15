@@ -148,18 +148,17 @@ test("a change waits for the process that holds the file, and goes through once 
   const renewing = await startChild(t, { source });
   const store = credentialStore(file);
 
+  // One change waits for as long as the file is held, and another is given up on while both wait.
+  let done = false;
+  const next = store.modify("sub", (current) => Promise.resolve({ ...(current as OAuthCredential), access: "access-2" }));
+  void next.then(() => (done = true));
   const stop = new AbortController();
   void delay(200).then(() => stop.abort());
   await assert.rejects(
     within(5_000, store.modify("sub", () => Promise.resolve(undefined), { signal: stop.signal }), "giving up"),
     { name: "AbortError" },
   );
-
-  let done = false;
-  const next = store.modify("sub", (current) => Promise.resolve({ ...(current as OAuthCredential), access: "access-2" }));
-  void next.then(() => (done = true));
-  await delay(300);
-  assert.equal(done, false, "it is still waiting");
+  assert.equal(done, false, "the other is still waiting");
   assert.deepEqual(readJson(file), { sub: before }, "and the file is as the renewal found it");
 
   await renewing.kill("SIGKILL");

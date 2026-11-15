@@ -116,15 +116,15 @@ test("a client that leaves while waiting does not stop the work, or wait for it"
   const abandoned = assert.rejects(first.session.wait(submission));
   await waitForView(first.session, (view) => (assistantItems(view).at(-1)?.text.length ?? 0) > 20);
 
-  const started = Date.now();
   await first.connection.close();
-  const left = Date.now() - started;
+  // How much of the answer was written by the time the client was gone, as the other client sees it.
+  const written = assistantItems(second.session.view).at(-1)?.text.length ?? 0;
   await abandoned;
 
-  assert.ok(left < 500, `leaving took ${left} ms, as long as the answer would have`);
   const settled = await second.session.wait(submission);
   assert.equal(settled.status, "answered");
   assert.ok(settled.text.endsWith("line 40: the quick brown fox jumps over the lazy dog"));
+  assert.ok(written < settled.text.length / 2, `leaving waited for the answer: ${String(written)} of ${String(settled.text.length)} characters were written`);
 });
 
 test("a thread the agent has no session for yet is refused, and the connection is still good", { timeout }, async (t) => {

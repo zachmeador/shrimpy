@@ -157,12 +157,12 @@ test("with the gateway gone, the agent is watched and stopped by its home's path
 test("--now stops the agent without waiting for the running turn", { timeout }, async (t) => {
   const { home, model, threadId, ask, stop } = await servedHome(t, "--now");
   await ask("first");
-  const waiting = run("sessions", "steer", threadId, "go slow", "--wait", "--agent", home);
+  // The answer takes a second, so a stop that waited for it, as one without --now does, would let it end.
+  const waiting = run("sessions", "steer", threadId, "answer in a moment", "--wait", "--agent", home);
   await until(() => model.requests.length > 1, "the model to start answering");
 
-  // The test model streams for ten seconds, and a stop that waits would give the turn five of them.
-  const started = Date.now();
   assert.equal(await stop(), 0);
-  assert.ok(Date.now() - started < 3000, `stopping took ${Date.now() - started} ms`);
-  assert.equal((await waiting).code, 1);
+  const result = await waiting;
+  assert.equal(result.code, 1, "the turn was cut short");
+  assert.deepEqual(result.out, []);
 });

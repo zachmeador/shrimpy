@@ -1,19 +1,17 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
-import { openConsole } from "../clients/console/index.ts";
+import type { ConsoleScreen } from "../clients/console/index.ts";
 import type { SessionStatus } from "../contracts/agent/index.ts";
 import type { Message, Thread } from "../contracts/chat/index.ts";
-import { memberNamed, speakingAs, startTestChat } from "../contracts/chat/testing/index.ts";
+import { memberNamed, startTestChat } from "../contracts/chat/testing/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { eventually, FakeTerminal, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
-import { SHRIMPY_RELEASE_NAME } from "../lib/version/index.ts";
-import { runCli } from "./index.ts";
+import { openTheConsole } from "./run.ts";
 import {
   agentHome,
-  captureIo,
   launchUp,
-  onTheRoster,
+  openConsoleOn,
   type Outcome,
   serve,
   shrimpy,
@@ -38,26 +36,11 @@ const ENTER = "\r";
 const ESC = "\u001b";
 const TAB = "\t";
 
-/** The name of a thread the person has with scout before the console opens, which scout's screen lists. */
-const EARLIER = "notes from before";
+/** Open the console the way a bare `shrimpy` at a terminal does, on a terminal of our own. It is left when the test ends. */
+const openOn = (t: TestContext, terminal: FakeTerminal) => openConsoleOn(t, terminal, openTheConsole);
 
-/** A thread in the person's DM with scout, named and empty, so that scout's screen has a row to show once it is open. */
-async function threadFromBefore(t: TestContext): Promise<void> {
-  const person = await onTheRoster(t);
-  const scout = (await person.members()).find((member) => member.name === "scout");
-  assert.ok(scout);
-  const you = await speakingAs(t, person.client);
-  await you.createThread((await you.openDm(scout.id)).id, EARLIER);
-}
-
-/** Open the console the way a bare `shrimpy` at a terminal does, on a terminal of our own. */
-function openOn(terminal: FakeTerminal) {
-  const cli = captureIo({ terminal: true });
-  const exited = runCli([], cli.io, {
-    openConsole: (io) => openConsole({ io, terminal }),
-  });
-  return { cli, exited };
-}
+/** The agent's screen, once it knows everything it lists: what the console goes to when one agent is running. */
+const agentsScreen = (screen: ConsoleScreen): boolean => screen.kind === "threads" && screen.ofAgent && screen.settled;
 
 /** Wait until what was drawn includes `text`. */
 const seen = (terminal: FakeTerminal, text: string, what = text, timeoutMs = 30_000): Promise<void> =>
@@ -97,16 +80,11 @@ async function consoleWithScout(t: TestContext) {
   const up = launchUp(t, [home, "--data", tempDir(t, "console-data")]);
   await up.until(untilLinked("chat", "chat"));
   await up.until(untilLinked("agent", "scout"));
-  await threadFromBefore(t);
   // Wide enough that a line of the conversation is never wrapped.
   const terminal = new FakeTerminal(200, 40);
-  const { cli, exited } = openOn(terminal);
-  stopAfter(t, async () => {
-    cli.requestStop();
-    await exited.catch(() => undefined);
-  });
-  await seen(terminal, EARLIER, "scout's screen");
-  return { home, model, terminal, exited };
+  const { exited, untilScreen } = openOn(t, terminal);
+  await untilScreen(agentsScreen, "scout's screen");
+  return { home, model, terminal, exited, untilScreen };
 }
 
 /** Leave the console with Ctrl+C twice, and wait for it to be left. */
@@ -122,12 +100,11 @@ test("a bare shrimpy at a terminal opens the console, to talk, watch the work, s
   const up = launchUp(t, [home, "--data", tempDir(t, "console-data")]);
   await up.until(untilLinked("chat", "chat"));
   await up.until(untilLinked("agent", "scout"));
-  await threadFromBefore(t);
   const terminal = new FakeTerminal(100, 40);
-  const { cli, exited } = openOn(terminal);
+  const { cli, exited, untilScreen } = openOn(t, terminal);
 
   // One agent is running, so it goes straight to that agent's screen.
-  await seen(terminal, EARLIER, "scout's screen");
+  await untilScreen(agentsScreen, "scout's screen");
 
   // A new thread, and a message in it: the thread is made with the message, and the reply comes back into it.
   terminal.type(CTRL_N);
@@ -175,15 +152,9 @@ test("the gateway killed while an agent works: the reply is posted once, and the
   await untilLinked("chat", "chat");
   await serve(t, home);
   await untilLinked("agent", "scout");
-  await threadFromBefore(t);
   const terminal = new FakeTerminal(100, 40);
-  const { cli, exited } = openOn(terminal);
-  // A test that fails must not leave the console open, or its process never ends.
-  stopAfter(t, async () => {
-    cli.requestStop();
-    await exited.catch(() => undefined);
-  });
-  await seen(terminal, EARLIER, "scout's screen");
+  const { exited, untilScreen } = openOn(t, terminal);
+  await untilScreen(agentsScreen, "scout's screen");
   terminal.type(CTRL_N);
   terminal.type("go slow");
   terminal.type(ENTER);
@@ -208,8 +179,10 @@ test("the gateway killed while an agent works: the reply is posted once, and the
   const repliesOf = async (): Promise<Message[]> => (await messagesOf(thread)).filter((message) => message.author.name === "scout");
   const posted = await eventually(repliesOf, (replies) => replies.length > 0, { what: "the reply to be posted", timeoutMs: 60_000 });
   assert.equal(posted.length, 1);
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  assert.equal((await repliesOf()).length, 1, "and it is not posted again");
+  // A message after it is answered after anything the agent had left to post there.
+  const next = await shrimpy(["run", "scout", "hi", "--thread", thread]);
+  assert.equal(next.code, 0, next.stderr);
+  assert.deepEqual((await repliesOf()).map((reply) => reply.text.startsWith("word1 ")), [true, false], "and it is not posted again");
 
   terminal.type(CTRL_C);
   terminal.type(CTRL_C);
@@ -227,16 +200,12 @@ test("a thread of a room is read, written in and watched like one of a DM", { ti
   const room = await you.createRoom("ops", [(await memberNamed(t, "scout")).id]);
   const disk = await you.createThread(room.id, "the disk");
   const terminal = new FakeTerminal(100, 40);
-  const { cli, exited } = openOn(terminal);
-  // A test that fails must not leave the console open or the agent working, or its process never ends.
-  stopAfter(t, async () => {
-    finish({ status: "silent" });
-    cli.requestStop();
-    await exited.catch(() => undefined);
-  });
+  const { exited, untilScreen } = openOn(t, terminal);
+  // A test that fails must not leave the agent working.
+  stopAfter(t, () => finish({ status: "silent" }));
 
   // With an agent and a room to choose from, the person chooses, and is not taken to the agent.
-  await seen(terminal, SHRIMPY_RELEASE_NAME, "the first screen");
+  await untilScreen((screen) => screen.kind === "agents", "the first screen");
   await seen(terminal, "#ops");
   terminal.type(DOWN);
   terminal.type(ENTER);
@@ -349,7 +318,7 @@ test("a console that cannot start says why, exits with 1, and leaves nothing run
   terminal.start = () => {
     throw new Error("The terminal could not be set up.");
   };
-  const { cli, exited } = openOn(terminal);
+  const { cli, exited } = openOn(t, terminal);
 
   assert.equal(await within(30_000, exited, "the console to give up"), 1);
   assert.deepEqual(cli.err, ["The terminal could not be set up."]);
@@ -358,8 +327,8 @@ test("a console that cannot start says why, exits with 1, and leaves nothing run
 test("a stop request, as SIGTERM is, leaves the console as the keys do", { timeout }, async (t) => {
   useRuntimeDir(t);
   const terminal = new FakeTerminal(100, 40);
-  const { cli, exited } = openOn(terminal);
-  await seen(terminal, SHRIMPY_RELEASE_NAME, "the first screen");
+  const { cli, exited, untilScreen } = openOn(t, terminal);
+  await untilScreen((screen) => screen.kind === "agents", "the first screen");
 
   cli.requestStop();
 

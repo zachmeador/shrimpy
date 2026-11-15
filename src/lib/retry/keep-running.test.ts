@@ -60,13 +60,19 @@ test("stopping during a pause ends it at once", { timeout: 5000 }, async () => {
 
   const running = keepRunning({
     signal: stop.signal,
-    backoff: fixedPause(60_000),
+    // A pause of a minute, asked for once the attempt has failed. The stop comes once it has begun.
+    backoff: {
+      next() {
+        setImmediate(() => stop.abort());
+        return 60_000;
+      },
+      reset: () => undefined,
+    },
     async attempt() {
       attempts += 1;
       throw new Error("down");
     },
   });
-  setTimeout(() => stop.abort(), 10);
   await running;
 
   assert.equal(attempts, 1);
@@ -81,12 +87,14 @@ test("the running attempt gets the stop signal, and stopping is not an error", {
     backoff: fixedPause(0),
     onError: (error) => errors.push(error),
     attempt(_established, signal) {
-      return new Promise((_resolve, reject) => {
+      const closed = new Promise<never>((_resolve, reject) => {
         signal.addEventListener("abort", () => reject(new Error("closed")), { once: true });
       });
+      // The stop comes while the attempt runs.
+      stop.abort();
+      return closed;
     },
   });
-  setTimeout(() => stop.abort(), 10);
   await running;
 
   assert.deepEqual(errors, []);

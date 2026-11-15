@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { userInfo } from "node:os";
 import { test } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Chat } from "../../contracts/chat/index.ts";
 import { until } from "../../lib/testing/index.ts";
@@ -105,13 +104,10 @@ test("tools that find chat gone say so and do not wait, and the reply is deliver
     [[{ name: "send_message", args: { text: "Anyone there?" } }, { name: "read_messages", args: {} }]],
     "Chat was away, but I am here.",
   );
-  // Chat goes away just before the model asks for the tools, as it does when the connection drops in the middle of a turn.
+  // Chat goes away just before the model asks for the tools, as it does when the connection drops in the middle of a
+  // turn. Whether the agent has heard by then or not, a tool finds chat gone: a call that fails for the loss counts too.
   const script: typeof model.script = async (messages, home) => {
-    if (messages.at(-1)?.role !== "toolResult") {
-      await rig.chat.outage();
-      // The agent finds out a moment after the server has closed the connection.
-      await delay(50);
-    }
+    if (messages.at(-1)?.role !== "toolResult") await rig.chat.outage();
     return model.script(messages, home);
   };
   const rig = await startAgentRig(t, { script });

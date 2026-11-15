@@ -1,6 +1,6 @@
 import { type GatewayPlace, gatewaySocket } from "../../contracts/gateway/node.ts";
 import { type ConsoleTerminal, startDrawing } from "./draw/index.ts";
-import { farewellLine } from "./screen/index.ts";
+import { farewellLine, type Screen } from "./screen/index.ts";
 import { createConsoleState, type HomeLookup } from "./state/index.ts";
 
 /** Where the console says what it has to say once it is left, and hears that it is asked to stop. */
@@ -22,6 +22,8 @@ export interface ConsoleOptions {
   token?: string | null;
   /** The terminal to draw on. The person's by default. */
   terminal?: ConsoleTerminal;
+  /** Told each screen as it is drawn: what it shows and what its keys do, for a test that waits until one is. */
+  onDraw?: (screen: Screen) => void;
   /** How long a notice stays, in milliseconds. */
   noticeMs?: number;
   /** How long after Ctrl+C another press still quits, in milliseconds. */
@@ -56,6 +58,7 @@ export async function openConsole(options: ConsoleOptions): Promise<number> {
       terminal: options.terminal,
       now: options.now,
       quitWindowMs: options.quitWindowMs,
+      onDraw: options.onDraw,
     });
     const stopListening = options.io.onStop(() => drawing.leave());
     try {

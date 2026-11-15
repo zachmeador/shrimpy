@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 import { Refusal } from "../../lib/refusal/index.ts";
+import { until } from "../../lib/testing/index.ts";
 import { startChatRig } from "./testing/index.ts";
 
 const timeout = 15_000;
@@ -50,15 +50,17 @@ test("a reply waits for chat to come back, and the agent leaving chat first does
   const engine = new AbortController();
 
   const told = rig.delivery.tell(rig.outstanding(said), { kind: "answered", answer: "1", text: "Late." }, engine.signal);
+  let ended: string | undefined;
   const settled = told.then(
-    () => "told",
-    () => "failed",
+    () => (ended = "told"),
+    () => (ended = "failed"),
   );
-  await delay(100);
   rig.delivery.close();
-  await delay(100);
+  // Chat comes back and the agent's way to it is up again, long after anything the leaving would have ended.
+  await rig.chat.recover();
+  await until(() => rig.link.current() !== undefined, "the agent's way to chat to be up again");
 
-  assert.equal(await Promise.race([settled, delay(50, "waiting")]), "waiting", "a rejection now would end its task for good");
+  assert.equal(ended, undefined, "a rejection now would end its task for good");
   engine.abort(new Error("The engine is closing."));
   assert.equal(await settled, "failed", "the engine closing is the only thing that ends it");
 });

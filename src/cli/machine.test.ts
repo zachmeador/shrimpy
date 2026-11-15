@@ -8,15 +8,14 @@ import { AGENT_HOME_VARIABLE } from "../contracts/agent/index.ts";
 import type { Message } from "../contracts/chat/index.ts";
 import { formatAddress, machineFile, readLink, writeLink } from "../contracts/gateway/index.ts";
 import { newToken, readMachine, saveMachine } from "../contracts/gateway/node.ts";
-import { FakeTerminal, inRuntimeDir, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
-import { runCli } from "./index.ts";
+import { FakeTerminal, inRuntimeDir, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { openTheConsole } from "./run.ts";
 import {
-  captureIo,
   commandLines,
   declareLocalModel,
   launchUp,
   onTheRoster,
+  openConsoleOn,
   type RunningUp,
   shrimpy,
   startModelServer,
@@ -170,35 +169,20 @@ test("the terminal in a folder that joined as the person reaches the agent and i
 
   // The console is opened by the code a bare `shrimpy` runs, on a terminal of the test's own.
   const terminal = new FakeTerminal(100, 40);
-  const cli = captureIo({ terminal: true });
-  const exited = runCli([], cli.io, { openConsole: (io) => openTheConsole(io, { terminal }) });
-  stopAfter(t, async () => {
-    cli.requestStop();
-    await exited.catch(() => undefined);
-  });
+  const { exited, untilScreen } = openConsoleOn(t, terminal, openTheConsole);
   const seen = (text: string, what = text): Promise<void> =>
     until(() => terminal.text().includes(text), `the console to show ${what}`, 30_000);
 
   // One agent is running, so it goes straight to that agent, whose screen lists the thread the person started.
+  await untilScreen((screen) => screen.kind === "threads" && screen.settled, "the agent's screen");
   await seen("check the disk", "the thread the person started");
   terminal.type(ENTER);
   await seen("Hello from the test model.", "the thread");
   // The agent's view of that thread has what only the agent has, such as its thinking: the agent was reached too.
-  // Tab turns the thread over once the agent's session behind it is held, which nothing on the screen says but the keys,
-  // so it is pressed again until it does, slower than the screen is drawn.
-  let pressed = 0;
-  await until(
-    () => {
-      if (terminal.text().includes("think about it")) return true;
-      if (Date.now() - pressed > 100) {
-        terminal.type(TAB);
-        pressed = Date.now();
-      }
-      return false;
-    },
-    "what the agent thought",
-    30_000,
-  );
+  // Tab turns the thread over once the agent's session behind it is held.
+  await untilScreen((screen) => screen.kind === "thread" && screen.can.turnOver, "the session behind the thread, held");
+  terminal.type(TAB);
+  await seen("think about it", "what the agent thought");
 
   terminal.type(CTRL_C);
   terminal.type(CTRL_C);

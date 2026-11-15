@@ -48,6 +48,8 @@ export interface DrawingOptions {
   now?: () => number;
   /** How long after Ctrl+C another press still quits. 2 seconds by default. */
   quitWindowMs?: number;
+  /** Told each screen as it is drawn, for a test that waits until one is. */
+  onDraw?: (screen: Screen) => void;
 }
 
 export interface Drawing {
@@ -342,6 +344,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
       tui.setFocus(next);
     }
     tui.requestRender();
+    options.onDraw?.(screen);
   }
 
   tui.addInputListener((data) => {

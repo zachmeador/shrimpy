@@ -1,5 +1,6 @@
 /**
- * Test support for the CLI: captured output, a model that speaks OpenAI's
+ * Test support for the CLI: captured output, the console opened from the
+ * command line on a terminal of a test's own, a model that speaks OpenAI's
  * protocol on a local port and the home of an agent that uses it, an agent whose
  * side of chat a test scripts, a gateway and chat server to talk through,
  * `shrimpy up` running, also with pauses of a test's own, and what it runs as
@@ -16,6 +17,7 @@
  */
 export { canConnect, freeAddresses } from "./addresses.ts";
 export { commandLines, whyNotACommand } from "./commands.ts";
+export { type ConsoleOpener, type OpenedConsole, openConsoleOn } from "./console.ts";
 export { useShrimpyDir } from "./folder.ts";
 export { agentHome, declareLocalModel, localProvider } from "./home.ts";
 export { type CapturedIo, captureIo } from "./io.ts";

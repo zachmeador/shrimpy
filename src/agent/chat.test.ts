@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { fauxAssistantMessage } from "@earendil-works/pi-ai";
 import { MAX_MESSAGE_LENGTH } from "../contracts/chat/index.ts";
@@ -303,7 +302,6 @@ test("a reply whose turn ended while chat was unreachable is posted once chat is
   await rig.chat.outage();
   releaseGate(rig.home);
   await waitForView(session, answered);
-  await delay(100);
   await rig.chat.recover();
 
   assert.equal((await rig.receiptOn(asked)).status, "answered");
@@ -311,6 +309,9 @@ test("a reply whose turn ended while chat was unreachable is posted once chat is
   await rig.untilIdle();
   await rig.chat.outage();
   await rig.chat.recover();
-  await delay(150);
-  assert.equal((await rig.replies()).length, 1, "and a reconnection posts nothing again");
+  // A message after the reconnection is answered once the agent is back with chat, after anything it would post again.
+  const after = await rig.say("and now?");
+  await rig.receiptOn(after);
+  const replies = await rig.replies();
+  assert.equal(replies.filter((reply) => reply.seq < after.seq).length, 1, "and a reconnection posts nothing again");
 });

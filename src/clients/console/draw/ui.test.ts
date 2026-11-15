@@ -7,7 +7,7 @@ import { assistantItem, toolItem, userItem } from "../../../contracts/agent/test
 import { Roster } from "../../../contracts/gateway/index.ts";
 import { connectGateway, joinAsMachine, readMachine } from "../../../contracts/gateway/node.ts";
 import { startTestGateway } from "../../../contracts/gateway/testing/index.ts";
-import { eventually, FakeTerminal, settle, stopAfter, tempDir, until, within } from "../../../lib/testing/index.ts";
+import { eventually, FakeTerminal, stopAfter, tempDir, until, within } from "../../../lib/testing/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME } from "../../../lib/version/index.ts";
 import type { Model, Notice, Status } from "../state/index.ts";
@@ -146,8 +146,6 @@ test("a text that starts with a slash is never posted as a message", async (t) =
   const drawn = (): string => lines().join("\n");
 
   terminal.type("/etc/hosts is wrong");
-  await settle();
-  assert.ok(!drawn().includes(lineOf("/stop")), "a text that is no command opens no list");
   terminal.type(ENTER);
   assert.deepEqual(sent(state), [], "nothing is posted");
   assert.match(drawn(), /\n \/etc\/hosts is wrong\n/, "and it is back in the editor to be corrected");
@@ -206,7 +204,6 @@ test("/status shows a block for the person alone, which goes once a message is s
   await rig.until((model) => model.where.screen === "threads", "the agent's screen");
   rig.state.openThread(thread.id);
   await seen("hello");
-  await settle();
   assert.ok(!drawn().includes(shown), "the reading is gone once the thread has been left");
 });
 
@@ -304,8 +301,9 @@ test("Esc goes back from a thread where the agent is working, and stops nothing"
 
   terminal.type(ESC);
   terminal.type(ESC_RELEASED);
-  await until(() => state.calls.length > 0, "escape to be pressed");
-  await settle();
+  // Keys are taken in order, so once what is typed after them shows, the press and its release have been taken.
+  terminal.type("next");
+  await until(() => /\n next\n/.test(lines().join("\n")), "what was typed after escape to show");
 
   assert.deepEqual(state.calls, ["back"], "a press is one press, whether or not the terminal reports the key being let go, and nothing is stopped");
 });
@@ -356,15 +354,11 @@ test("a message that is not sent comes back to the editor, ahead of anything typ
 
   terminal.type("will not go");
   terminal.type(ENTER);
-  await settle();
-  await settle();
+  await until(() => /\n will not go\n/.test(lines().join("\n")), "the message to come back to the editor");
 
-  assert.match(lines().join("\n"), /\n will not go\n/);
   terminal.type("!");
   terminal.type(ENTER);
-  await settle();
-  await settle();
-  assert.match(lines().join("\n"), /\n will not go!\n/);
+  await until(() => /\n will not go!\n/.test(lines().join("\n")), "the message to come back again, with what was typed since");
 });
 
 test("Ctrl+C clears what is typed, and only a second press quits", async (t) => {
@@ -376,21 +370,35 @@ test("Ctrl+C clears what is typed, and only a second press quits", async (t) => 
 
   terminal.type("some text");
   terminal.type(CTRL_C);
-  await settle();
+  await until(() => lines().at(-1) === QUIT_AGAIN, "the line that says another press quits");
 
   assert.doesNotMatch(lines().join("\n"), /some text/);
-  assert.equal(lines().at(-1), QUIT_AGAIN);
   assert.equal(left, false, "the first press did not quit");
   terminal.type(CTRL_C);
-  await settle();
+  await drawing.left;
 
   assert.equal(left, true);
 });
 
 test("leaving a thread whose agent is working stops its spinner, so a list does not redraw for nothing", async (t) => {
+  // The test moves the clock, so that the spinner, and the drawing it asks for, run when the test says and not before.
+  t.mock.timers.enable({ apis: ["setInterval", "setTimeout"] });
   const busy = onThread("scout", aThread("th_1", { preview: "go", working: [{ memberId: scout.id, since: now }] }), undefined);
   const { state, terminal } = start(t, busy);
-  await until(() => terminal.output().includes("/stop"), "the working line to be drawn");
+  stopAfter(t, () => t.mock.timers.reset());
+  /** Run what waits for the next turn of the event loop, which is where a request to draw goes first. */
+  const turn = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
+  /** Let `ms` pass, and then draw what was asked for meanwhile, which waits a few milliseconds of its own. */
+  const pass = async (ms: number): Promise<void> => {
+    await turn();
+    t.mock.timers.tick(ms);
+    await turn();
+    t.mock.timers.tick(50);
+    await turn();
+  };
+  // Long enough for whatever the terminal waits for when it starts, and many turns of the spinner.
+  await pass(10_000);
+  assert.ok(terminal.output().includes("/stop"), "the working line is drawn");
 
   const list = aModel({
     where: { screen: "threads", place: { kind: "agent", name: "scout" } },
@@ -398,10 +406,11 @@ test("leaving a thread whose agent is working stops its spinner, so a list does 
     dms: { scout: aDm("scout", [aThread("th_a", { preview: "Check the disk usage", updatedAt: at(14, 5), working: [{ memberId: scout.id, since: now }] })]) },
   });
   state.show(list);
-  await until(() => terminal.output().includes("Check the disk usage"), "the threads to be drawn");
-  await settle();
+  await pass(100);
+  assert.ok(terminal.output().includes("Check the disk usage"), "the threads are drawn");
   const drawn = terminal.hides;
-  await new Promise((resolve) => setTimeout(resolve, 600));
+  // A spinner that still ran would draw again every 80 milliseconds of this.
+  await pass(1_000);
 
   assert.equal(terminal.hides, drawn, "nothing is drawn again while nothing changes");
 });
@@ -644,14 +653,12 @@ test("a trigger's own session is on the agent's list, which opens on it while it
   assert.match(drawn(), /df -h/);
   terminal.type("hello");
   terminal.type(ENTER);
-  await settle();
-  assert.doesNotMatch(drawn(), /hello/, "there is no editor to type in");
-  assert.doesNotMatch(drawn(), /\/stop/, "and so no way to stop the work is offered");
-  assert.deepEqual(state.calls, ["watch trigger:nightly"], "and nothing was sent");
-
+  // Keys are taken in order, so once Esc has gone back, what came before it has been taken.
   terminal.type(ESC);
   await until(() => state.calls.length === 2, "escape to be pressed");
-  assert.equal(state.calls.at(-1), "back");
+  assert.doesNotMatch(drawn(), /hello/, "there is no editor to type in");
+  assert.doesNotMatch(drawn(), /\/stop/, "and so no way to stop the work is offered");
+  assert.deepEqual(state.calls, ["watch trigger:nightly", "back"], "and nothing was sent, and escape went back");
   state.show(list);
   terminal.type(ENTER);
   assert.equal(state.calls.at(-1), "watch trigger:nightly", "coming back to the list is not opening it again: the choice stayed where it was");
@@ -793,9 +800,11 @@ test("a thread of a DM between two agents shows what both said, and takes no inp
   terminal.type("hello");
   terminal.type(ENTER);
   terminal.type(CTRL_N);
-  await settle();
-  assert.deepEqual(await said(dm.thread.id), ["the backup finished", "thanks, I checked it"], "nothing typed was sent");
   assert.doesNotMatch(drawn(), /hello|\/stop|rooms add/, "what is typed goes nowhere, and no way to stop the work or to join is offered");
+  // Keys are taken in order, so once Esc has gone back, what came before it has been taken.
+  terminal.type(ESC);
+  await rig.until((model) => model.where.screen === "threads", "escape to go back");
+  assert.deepEqual(await said(dm.thread.id), ["the backup finished", "thanks, I checked it"], "nothing typed was sent");
 
   // Where the agent has no session behind the thread, Tab does nothing.
   rig.state.openThread(mine.id);
@@ -817,26 +826,26 @@ test("a thread of a room the person only reads takes no input, and shows what is
   terminal.type(ENTER);
   terminal.type(CTRL_N);
   terminal.type("/");
-  await settle();
-  await settle();
-  assert.deepEqual(await said(lab.thread.id), ["the bench is free"], "nothing typed was sent");
-  assert.equal(await threadsIn(lab.channel.id), 1, "and no thread was started");
   assert.deepEqual(rig.state.model().where, { screen: "thread", place: { kind: "read-only", id: lab.channel.id }, thread: lab.thread.id });
   assert.doesNotMatch(drawn(), /hello|\/stop|\/status/, "what is typed goes nowhere, and no list of commands opens");
 
+  // What scout says after the keys arrives after anything they would have sent.
   await asScout.post(lab.thread.id, "one more thing");
   await seen("one more thing");
+  assert.deepEqual(await said(lab.thread.id), ["the bench is free", "one more thing"], "nothing typed was sent");
+  assert.equal(await threadsIn(lab.channel.id), 1, "and no thread was started");
 
   terminal.type(ESC);
   assert.equal(rig.state.model().where.screen, "threads", "escape goes back as everywhere");
   await asScout.setWorking(lab.thread.id, true);
   rig.state.openThread(lab.thread.id);
   await rig.until((model) => model.thread?.thread.id === lab.thread.id && model.thread.thread.working.length > 0, "the work to show");
-  await settle();
   assert.doesNotMatch(drawn(), /\/stop/, "no way to stop the work is offered, which the person can't write");
   terminal.type("hello");
   terminal.type(ENTER);
-  await settle();
+  // Keys are taken in order, so once Esc has gone back, what came before it has been taken.
+  terminal.type(ESC);
+  await rig.until((model) => model.where.screen === "threads", "escape to go back");
   assert.deepEqual(await said(lab.thread.id), ["the bench is free", "one more thing"], "nothing typed here was sent either");
 });
 

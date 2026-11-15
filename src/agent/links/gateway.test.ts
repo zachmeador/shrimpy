@@ -6,8 +6,7 @@ import { AgentPresence, type Membership } from "../../contracts/agent/index.ts";
 import { agent, type Entry, type Principal, type Revocation, revokedBy } from "../../contracts/gateway/index.ts";
 import { newToken } from "../../contracts/gateway/node.ts";
 import { startTestGateway } from "../../contracts/gateway/testing/index.ts";
-import { backoff } from "../../lib/retry/index.ts";
-import { stopAfter, until } from "../../lib/testing/index.ts";
+import { countedBackoff, stopAfter, until } from "../../lib/testing/index.ts";
 import { linkToGateway } from "./gateway.ts";
 
 /*
@@ -25,6 +24,7 @@ const context = BACKGROUND_CONTEXT;
 async function agentAt(t: TestContext, home: string, name: string, membership?: Membership, apart?: Entry) {
   let kept = membership;
   const told: string[] = [];
+  const pauses = countedBackoff();
   const host = createHost<Principal, Revocation>({ address: agent({ name }), principal: { kind: "home" }, revokedBy, onError: () => undefined });
   await host.load(
     [{ name: "@shrimpy/test-agent", facet: defineFacet<Principal>((serving) => serving.serve(AgentPresence, () => ({ variant: "present", members: {} }))) }],
@@ -42,14 +42,14 @@ async function agentAt(t: TestContext, home: string, name: string, membership?: 
     },
     files: { name: `${home}/agent.json`, membership: `${home}/state/member.json` },
     onError: (error) => told.push(error.message),
-    backoff: backoff({ firstMs: 5, maxMs: 20 }),
+    backoff: pauses,
   });
   const stop = async (): Promise<void> => {
     await link.close();
     await host.close(context);
   };
   stopAfter(t, stop);
-  return { link, told, stop, membership: () => kept, files: (file: string) => `${home}/${file}` };
+  return { link, told, stop, membership: () => kept, files: (file: string) => `${home}/${file}`, tries: () => pauses.taken() };
 }
 
 test("a copy of a running agent is told why once, and takes the agent's place once that one stops", { timeout }, async (t) => {
@@ -62,7 +62,8 @@ test("a copy of a running agent is told why once, and takes the agent's place on
   // A copy of the home, started with the name unchanged, shows the same token, and the gateway turns it away.
   const copy = await agentAt(t, "/homes/scout-copy", "scout", kept);
   await until(() => copy.told.length > 0, "the copy to be told why");
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  const tried = copy.tries();
+  await until(() => copy.tries() >= tried + 5, "the copy to try five times more");
   assert.equal(copy.told.length, 1, "and told once, however often it tries");
   assert.ok(copy.told[0]?.includes(copy.files("state/member.json")) && copy.told[0].includes(copy.files("agent.json")), String(copy.told[0]));
   assert.ok(!copy.told[0]?.includes("shrimpy join"), "nothing beside the gateway asks for an invitation");

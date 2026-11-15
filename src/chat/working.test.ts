@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Channel, Chat, Thread } from "../contracts/chat/index.ts";
-import { settle, until } from "../lib/testing/index.ts";
+import { until } from "../lib/testing/index.ts";
 import { startChatInProcess, valueOf } from "./testing/index.ts";
 
 const timeout = 30_000;
@@ -33,7 +33,6 @@ test("a working mark shows in the thread until it is cleared, or until the hold 
   const shell = await chat.gateway.connect(scout.token);
   assert.equal((await shell.host.get(Chat, {}, context)).you.value?.id, scout.you.id);
   await shell.close();
-  await settle();
   // Anything the drop changed would reach you before the answer to this does.
   valueOf(await watching.read({ before: null, limit: 1 }, context));
   assert.deepEqual(working(), [scout.you.id]);
