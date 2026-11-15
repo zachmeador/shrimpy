@@ -32,9 +32,9 @@ export class UnknownAnswerError extends Error {
 }
 
 /**
- * The gateway's entry did not prove it is yours: there was no fingerprint to
- * check its key against, or the key there has another. Nothing was sent to it,
- * and the message says which in words for a person.
+ * The gateway's entry did not prove it is yours: the key there has another
+ * fingerprint than the one kept for it. Nothing was sent to it, and the message
+ * says so in words for a person.
  */
 export class UnprovenGatewayError extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -57,11 +57,11 @@ export interface DialGatewayOptions {
 /**
  * Say the hello to the gateway at `place` as `who`, and read its answer: every
  * link to the gateway, and every join, starts here. At the entry the hello goes
- * only to the key whose fingerprint the place has: a place with none, and a
- * key with another, are an `UnprovenGatewayError`, and nothing is sent. A hello
- * the gateway turns away is a `GatewayRefusedError`, and an answer this code
- * can't read is an `UnknownAnswerError`; either way the link is dropped. What
- * dialing throws, as it does when no gateway is there, is passed on as it is.
+ * only to the key whose fingerprint the place has: a key with another is an
+ * `UnprovenGatewayError`, and nothing is sent. A hello the gateway turns away
+ * is a `GatewayRefusedError`, and an answer this code can't read is an
+ * `UnknownAnswerError`; either way the link is dropped. What dialing throws, as
+ * it does when no gateway is there, is passed on as it is.
  */
 export async function dialGateway(place: GatewayPlace, who: Who, options: DialGatewayOptions = {}): Promise<GatewayDialed> {
   const { answer: raw, linked } = await dialProven(place, hello(who), options.signal);
@@ -76,21 +76,13 @@ export async function dialGateway(place: GatewayPlace, who: Who, options: DialGa
 async function dialProven(place: GatewayPlace, said: Hello, signal: AbortSignal | undefined): Promise<Dialed> {
   const options = signal === undefined ? {} : { signal };
   if ("path" in place) return dial(place, said, options);
-  const where = formatAddress(place);
-  const { fingerprint } = place;
-  if (fingerprint === undefined) {
-    throw new UnprovenGatewayError(
-      `Can't check that the gateway at ${where} is yours: there is no fingerprint for its key, which comes with an ` +
-        "invitation, and this joined before the gateway had a key. Nothing was sent to it.",
-    );
-  }
   try {
-    return await dial({ host: place.host, port: place.port, fingerprint }, said, options);
+    return await dial(place, said, options);
   } catch (error) {
     if (!(error instanceof OtherKeyError)) throw error;
     const shown = error.shown === undefined ? "no key" : `a key whose fingerprint is ${error.shown}`;
     throw new UnprovenGatewayError(
-      `The gateway at ${where} may not be yours: it shows ${shown}, where the invitation had ${fingerprint}. Nothing was sent to it.`,
+      `The gateway at ${formatAddress(place)} may not be yours: it shows ${shown}, where the invitation had ${place.fingerprint}. Nothing was sent to it.`,
       { cause: error },
     );
   }

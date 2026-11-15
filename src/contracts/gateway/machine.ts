@@ -15,8 +15,7 @@ export interface Machine {
   /**
    * The gateway's entry: where the machine reaches the gateway, and chat and
    * agents through it, with the fingerprint of the gateway's key, which came
-   * with the invitation. A machine that joined before the gateway had a key
-   * has none, and can't check that the gateway is yours.
+   * with the invitation.
    */
   gateway: Entry;
   /**

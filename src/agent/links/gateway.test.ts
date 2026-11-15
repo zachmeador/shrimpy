@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { createServer, type Socket } from "node:net";
 import { test, type TestContext } from "node:test";
 import { createHost, defineFacet } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
@@ -13,7 +12,7 @@ import { linkToGateway } from "./gateway.ts";
 
 /*
  * The agent's link to the gateway, against the real gateway: what it tells a person when it is turned away, in the
- * paths of its home, and that it keeps trying. And what an agent apart does with no fingerprint for its gateway's key.
+ * paths of its home, and that it keeps trying.
  */
 
 const timeout = 30_000;
@@ -89,22 +88,4 @@ test("an agent apart whose token the gateway doesn't know is told to join again 
   const beside = await agentAt(t, "/homes/rex", "rex");
   await until(() => beside.link.you() !== undefined, "the agent beside the gateway to join");
   assert.deepEqual(beside.told, []);
-});
-
-test("an agent apart whose home kept no fingerprint for its gateway's key sends nothing there, and says why once", { timeout }, async (t) => {
-  // Something listens where the gateway's entry is, and notes every connection made to it.
-  const connections: Socket[] = [];
-  const listening = createServer((socket) => connections.push(socket));
-  await new Promise<void>((resolve) => listening.listen(0, "127.0.0.1", resolve));
-  stopAfter(t, () => new Promise<void>((resolve) => listening.close(() => resolve())));
-  const { port } = listening.address() as { port: number };
-  // A home that joined before the gateway had a key, so its invitation had no fingerprint.
-  const entry = { host: "127.0.0.1", port, fingerprint: undefined };
-
-  const apart = await agentAt(t, "/homes/crab", "crab", { token: newToken(), memberId: "mem_crab", gateway: entry }, entry);
-  await until(() => apart.told.length > 0, "the agent to say why");
-  await new Promise((resolve) => setTimeout(resolve, 200));
-  assert.equal(apart.told.length, 1, "once, however often it tries");
-  assert.equal(connections.length, 0, "and nothing was sent: no connection was even made");
-  assert.equal(apart.link.you(), undefined);
 });

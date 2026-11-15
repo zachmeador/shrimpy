@@ -16,10 +16,11 @@ export async function openSession(tx: Tx, defaults: SessionDefaults, place: Sess
   if (!Object.hasOwn(sessions, address)) {
     const conversationId = (await tx.createConversation({ ownership: { kind: "ownerless" } })).id;
     await configure(tx, conversationId, agentChange(defaults));
+    const kept = { unacted: [], cancelled: [], missed: [], shown: {} };
     sessions[address] =
       "threadId" in place
-        ? { conversationId, channelId: place.channelId, unacted: [] }
-        : { conversationId, channelId: null, trigger: place.trigger, unacted: [] };
+        ? { conversationId, channelId: place.channelId, ...kept }
+        : { conversationId, channelId: null, trigger: place.trigger, ...kept };
   }
   return sessions[address]!;
 }

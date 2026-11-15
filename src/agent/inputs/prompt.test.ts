@@ -11,7 +11,7 @@ function posted(id: string, author: string, text: string, sentAt: string): Snaps
 }
 
 function outstanding(event: Snapshot, earlier: Snapshot[] = []): Outstanding {
-  return { event, threadId: "th_4k9x2m7q0b3d", channelId: "ch_8f2m1q7z4c0a", earlier };
+  return { event, threadId: "th_4k9x2m7q0b3d", channelId: "ch_8f2m1q7z4c0a", earlier, cancelled: [], missed: [] };
 }
 
 const where = "Thread th_4k9x2m7q0b3d in channel ch_8f2m1q7z4c0a.";

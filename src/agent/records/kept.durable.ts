@@ -40,14 +40,14 @@ export function takeEvents(session: SessionRecord): Snapshot[] {
 
 /** The wake-ups kept as cancelled. The session keeps none afterwards. */
 export function takeCancelled(session: SessionRecord): Wakeup[] {
-  const cancelled = plain(session.cancelled ?? []);
+  const cancelled = plain(session.cancelled);
   if (cancelled.length > 0) session.cancelled = [];
   return cancelled;
 }
 
 /** The results of questions kept as missed, oldest question first. The session keeps none afterwards. */
 export function takeMissed(session: SessionRecord): CameBack[] {
-  const missed = plain(session.missed ?? []);
+  const missed = plain(session.missed);
   if (missed.length > 0) session.missed = [];
   return missed;
 }
@@ -61,7 +61,7 @@ export function takeMissed(session: SessionRecord): CameBack[] {
  * comes with a later input. Nothing when no file differs.
  */
 export function takeBreadcrumbs(session: SessionRecord, files: readonly Breadcrumb[]): Breadcrumbs | undefined {
-  const shown = session.shown ?? {};
+  const shown = session.shown;
   const differ = files.filter(({ name, text }) => shown[name] !== digestOf(text));
   const carried = differ.slice(0, MOST_BREADCRUMBS);
   const now: Record<string, string> = {};
@@ -76,21 +76,13 @@ export function takeBreadcrumbs(session: SessionRecord, files: readonly Breadcru
   return { files: carried.map(({ name, text }) => ({ name, text })), ...(more > 0 ? { more } : {}) };
 }
 
-/**
- * What an input carries of the cancelled wake-ups, the missed results and the
- * breadcrumbs it was handed: nothing of any when there is none, so that an input
- * with none is stored as it was before they existed.
- */
+/** What an input carries of the cancelled wake-ups, the missed results and the breadcrumbs it was handed. */
 export function carrying(
   cancelled: Wakeup[],
   missed: CameBack[],
   breadcrumbs?: Breadcrumbs,
-): { cancelled?: Wakeup[]; missed?: CameBack[]; breadcrumbs?: Breadcrumbs } {
-  return {
-    ...(cancelled.length === 0 ? {} : { cancelled }),
-    ...(missed.length === 0 ? {} : { missed }),
-    ...(breadcrumbs === undefined ? {} : { breadcrumbs }),
-  };
+): { cancelled: Wakeup[]; missed: CameBack[]; breadcrumbs?: Breadcrumbs } {
+  return { cancelled, missed, ...(breadcrumbs === undefined ? {} : { breadcrumbs }) };
 }
 
 /** Where the session's thread is, as a copy, or nothing for a session that has not learned it or is behind no thread. */
@@ -111,14 +103,14 @@ export function learnPlace(session: SessionRecord, place: Place): void {
 
 /** Keep wake-ups as cancelled, each once, in the order they were for. */
 export function keepCancelled(session: SessionRecord, wakeups: readonly Wakeup[]): void {
-  const byId = new Map([...plain(session.cancelled ?? []), ...wakeups].map((wakeup) => [wakeup.id, wakeup]));
+  const byId = new Map([...plain(session.cancelled), ...wakeups].map((wakeup) => [wakeup.id, wakeup]));
   session.cancelled = [...byId.values()].sort((a, b) => a.due - b.due);
 }
 
 /** Keep results of questions as missed, each once, the question asked first coming first. */
 export function keepMissed(session: SessionRecord, results: readonly CameBack[]): void {
   if (results.length === 0) return;
-  const byId = new Map([...plain(session.missed ?? []), ...results].map((each) => [each.question.id, each]));
+  const byId = new Map([...plain(session.missed), ...results].map((each) => [each.question.id, each]));
   session.missed = [...byId.values()].sort((a, b) => a.question.askedAt - b.question.askedAt);
 }
 
@@ -140,9 +132,9 @@ export function keepSkipped(session: SessionRecord, input: Outstanding): void {
   else if (isChat(input)) {
     session.unacted = inOrder([...plain(session.unacted), ...input.earlier, ...(input.backlog?.messages ?? []), input.event]);
   }
-  keepCancelled(session, input.cancelled ?? []);
-  keepMissed(session, input.missed ?? []);
-  if (input.breadcrumbs !== undefined && session.shown !== undefined) {
+  keepCancelled(session, input.cancelled);
+  keepMissed(session, input.missed);
+  if (input.breadcrumbs !== undefined) {
     const shown = plain(session.shown);
     const carried = new Map(input.breadcrumbs.files.map(({ name, text }) => [name, digestOf(text)]));
     session.shown = Object.fromEntries(Object.entries(shown).filter(([name, digest]) => carried.get(name) !== digest));

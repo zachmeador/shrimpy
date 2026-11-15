@@ -22,7 +22,6 @@ export function formatAddress(address: Address): string {
 /**
  * The gateway's entry as a member keeps it once it has joined: its address,
  * and the fingerprint of the key the gateway proves itself with there, which
- * came with the invitation. A member that joined before the gateway had a key
- * has none, and can't check that the gateway is yours.
+ * came with the invitation.
  */
-export type Entry = Address & { fingerprint: string | undefined };
+export type Entry = Address & { fingerprint: string };

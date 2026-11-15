@@ -7,7 +7,7 @@ import { eventually, stopAfter, tempDir, until } from "../../lib/testing/index.t
 import { createAdmissions } from "../chat/durable.ts";
 import { openHost } from "../host/durable.ts";
 import { type ChatInput, idOf, isChat, type Snapshot, type TurnOutcome } from "../inputs/index.ts";
-import { SessionsDoc } from "../records/durable.ts";
+import { FeedDoc, SessionsDoc } from "../records/durable.ts";
 import { createSessions, requireModel, stopWork } from "../sessions/durable.ts";
 import { type FauxScenario, fauxModels, releaseGate } from "../testing/index.ts";
 import { turnTask } from "./durable.ts";
@@ -21,7 +21,7 @@ function snapshot(n: number, text = `message ${String(n)}`): Snapshot {
   return { kind: "posted", id: `evt_${String(n)}`, seq: n, author: "Zach", text, sentAt: 1_700_000_000_000 + n * 1000 };
 }
 
-function draft(n: number, text?: string): Omit<ChatInput, "earlier" | "cancelled"> {
+function draft(n: number, text?: string): Omit<ChatInput, "earlier" | "cancelled" | "missed" | "breadcrumbs"> {
   return { event: snapshot(n, text), threadId: "th_1", channelId: "ch_1" };
 }
 
@@ -121,7 +121,7 @@ test("taking an event up makes its session, the task that follows it and the cur
   assert.equal(commits.length, 1, "the session is made in one commit");
   const changes = commits[0]?.changes ?? [];
   const kinds = changes.flatMap((change) => (change.type === "document" ? [change.record.kind] : []));
-  assert.ok(kinds.includes("shrimpy.threads") && kinds.includes("shrimpy.feed"), `with its thread and the cursor: ${String(kinds)}`);
+  assert.ok(kinds.includes(SessionsDoc.definition.kind) && kinds.includes(FeedDoc.definition.kind), `with its session and the cursor: ${String(kinds)}`);
   const task = changes.find((change) => change.type === "task");
   assert.ok(task?.type === "task" && task.value.kind === TURN_TASK && task.value.background, "and a background task");
   assert.equal(await admissions.cursor(), 1);

@@ -38,7 +38,7 @@ test("text that is not a link is an error that says what a link looks like", () 
     `shrimpy://crab@[not-an-address]:7447/K7Q2-9FXD/${fingerprint}`,
     `shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD/${fingerprint}/more`,
     `shrimpy://%E0%A4%A@100.101.102.103:7447/K7Q2-9FXD/${fingerprint}`,
-    // A link from before the gateway had a key, and one cut short where it was copied.
+    // A link with no fingerprint, and one cut short where it was copied.
     "shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD",
     `shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD/${fingerprint.slice(0, -3)}`,
   ];

@@ -68,7 +68,6 @@ The person signs the folder in with `shrimpy login [<provider>]`, with a subscri
 - **The agent's records in … could not be read**: something other than a version is wrong with the agent's Pi storage, such as damage or a bug, and the message says what the engine said. Don't move or delete the storage, since every session of the agent is in it. Tell the person.
 - **The gateway doesn't know that token**: the token was taken back, or the gateway's roster was replaced since this home joined. The message names the file in the home to delete so that the agent joins again as a new member. A new member has none of the old one's DMs, so leave that to the person.
 - **Can't reach the gateway**, said by the chat server or by an agent apart: it keeps trying, and says so once more when the gateway is back. Nobody can come in to chat meanwhile. If it stays down, the person runs `shrimpy up` on the gateway's machine.
-- **Can't check that the gateway at … is yours**: the agent or the machine joined before the gateway had a key, so it has no fingerprint to check the gateway by, and sends it nothing. Leave it to the person.
 - **The gateway at … may not be yours**: what answers at the gateway's address shows another key than the one the invitation had, so it is sent nothing. Another program may have the address while the gateway is down, or the gateway made a new key, as it does when its data directory is gone or moved into an archive. An agent apart keeps trying, and is back once its own gateway answers there again. Leave the rest to the person.
 - **The agent "X" is linked already**: another home holds the same token, so the gateway takes the two for one agent. That happens when a home is copied. The message says how to make the copy an agent of its own. Don't start an agent's home twice.
 - **Another process owns the agent home**: an agent already runs there. Use it.
@@ -85,6 +84,6 @@ The person signs the folder in with `shrimpy login [<provider>]`, with a subscri
 - **The runtime directory … is a symbolic link**, **is not a directory** or **belongs to another account**, or **Other accounts can open the runtime directory**: Shrimpy keeps its sockets only in a directory that no other account can open. Do what the message says: make the directory private with `chmod 700`, remove what is in the way, or set `SHRIMPY_RUNTIME_DIR` to a directory only the person can open, for every shrimpy command. A directory that belongs to another account was made by someone else, so tell the person.
 - **runs Shrimpy 0.0.1, but this command is 0.0.0**: programs of two versions are up together. Restart them together.
 - **Programs that link need the same Pi packages**: a program of another release tried to link. The message says which side to update, and to what.
-- **not valid JSON**, or **unsupported keys**: the file it names has a mistake, and the message says where.
+- **not valid JSON**, **unsupported keys** or **is required**: the file it names has a mistake, and the message says where.
 
 When you're done, say what you changed and the one command to run next.

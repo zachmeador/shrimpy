@@ -22,9 +22,7 @@ import {
  *
  * Their version rises when a home written under the old meaning must be refused
  * and not read as current: the engine refuses it, and `records.durable.ts` says
- * what to do. A home written before every event had a task of its own keeps the
- * events it has not answered in a record that is no longer read, so reading it
- * would drop them.
+ * what to do.
  */
 
 /**
@@ -63,35 +61,31 @@ export type SessionRecord =
       unacted: Snapshot[];
       /**
        * Wake-ups the agent asked for that were cancelled, by a stop or because their
-       * turn was skipped: told to the model with the session's next input, once. A
-       * session written before wake-ups existed has none.
+       * turn was skipped: told to the model with the session's next input, once.
        */
-      cancelled?: Wakeup[];
+      cancelled: Wakeup[];
       /**
        * Results of questions the session asked that it was never shown, because the
        * input they came as was taken back by a stop, or the turn ahead of it failed:
-       * told to the model with the session's next input, once. A session written
-       * before questions existed has none.
+       * told to the model with the session's next input, once.
        */
-      missed?: CameBack[];
+      missed: CameBack[];
       /**
        * In a room, the position of the newest event the agent took up in the thread:
        * everything the thread says after it is what the agent has not looked at. A
-       * session that was never woken in a room has none, and neither has one written
-       * before the agent kept it.
+       * session that was never woken in a room has none.
        */
       looked?: number;
       /**
        * For each breadcrumb the session was shown, a digest of the text it was
        * shown, by the name of the file. A file whose text differs, or that is not
-       * here, is new to the session. A session written before breadcrumbs existed
-       * has none, which says it was shown nothing.
+       * here, is new to the session.
        */
-      shown?: Record<string, string>;
+      shown: Record<string, string>;
       /**
        * Where the thread is, as chat said when the agent last took something up
        * there, and written again when what chat says has changed. A session that
-       * has not learned it, or was written before the agent kept it, has none.
+       * has not learned it has none.
        */
       place?: Place;
     }
@@ -102,19 +96,18 @@ export type SessionRecord =
       trigger: string;
       /** Always empty: chat events come in threads. */
       unacted: Snapshot[];
-      cancelled?: Wakeup[];
-      missed?: CameBack[];
-      shown?: Record<string, string>;
+      cancelled: Wakeup[];
+      missed: CameBack[];
+      shown: Record<string, string>;
     };
 
 /**
  * Every session the agent has, by its address: a thread's ID for a session
  * behind a thread, which it never changes, and `trigger:` and a trigger's name
- * for a trigger's own session (see `triggerSession`). The document is kept under
- * the kind it was first stored as, when every session was a thread's.
+ * for a trigger's own session (see `triggerSession`).
  */
 export const SessionsDoc = defineDoc<{ sessions: Record<string, SessionRecord> }>({
-  kind: "shrimpy.threads",
+  kind: "shrimpy.sessions",
   version: 3,
   scope: "session",
   initial: () => ({ sessions: {} }),
@@ -197,14 +190,14 @@ export const TriggersDoc = defineDoc<{ owner: number | null; revisions: number; 
 
 /**
  * Where the agent stands in chat's feed: the position of the last event it is
- * done with, and the ID of the chat store that position is in. A position kept
- * with no ID is for no store.
+ * done with, and the ID of the chat store that position is in, null when it is
+ * in none.
  */
-export const FeedDoc = defineDoc<{ cursor: number | null; store?: string }>({
+export const FeedDoc = defineDoc<{ cursor: number | null; store: string | null }>({
   kind: "shrimpy.feed",
   version: 3,
   scope: "session",
-  initial: () => ({ cursor: null }),
+  initial: () => ({ cursor: null, store: null }),
   // Every change is kept as a change, never a whole copy.
   checkpointWhen: () => false,
 });

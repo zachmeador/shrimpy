@@ -1,5 +1,5 @@
 import type { ConversationId, Tx } from "@earendil-works/pi-durable";
-import type { Breadcrumb, QuestionInput, QuestionResult } from "../inputs/index.ts";
+import type { Breadcrumb, QuestionResult } from "../inputs/index.ts";
 import { FeedDoc, type OpenQuestion, plain, QuestionsDoc, SessionsDoc } from "../records/durable.ts";
 import { takeUp, type TurnTask } from "../turns/durable.ts";
 
@@ -41,7 +41,7 @@ export async function closeQuestion(
   const session = Object.hasOwn(sessions, question.session) ? sessions[question.session] : undefined;
   if (session === undefined) throw new Error(`The session ${question.session}, which asked the question, is gone.`);
   const asked = { id, of: question.of, askedAt: question.askedAt, due: question.due, start: question.start, thread: question.thread };
-  const input: QuestionInput =
+  const input =
     session.channelId === null
       ? { question: asked, result, trigger: session.trigger }
       : { question: asked, result, threadId: question.session, channelId: session.channelId };

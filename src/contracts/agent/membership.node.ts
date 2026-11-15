@@ -20,7 +20,7 @@ export function readMembership(home: string): Membership | undefined {
   if (entry !== undefined) {
     const host = entry.string("host");
     const port = entry.number("port");
-    const fingerprint = entry.optionalString("fingerprint");
+    const fingerprint = entry.string("fingerprint");
     entry.done();
     if (!Number.isInteger(port) || port < 1 || port > 65_535) {
       throw entry.problem("port", "must be a port number from 1 to 65535");

@@ -71,6 +71,8 @@ export async function startChatRig(t: TestContext, options: Pick<DeliveryOptions
       threadId: message.threadId,
       channelId: message.channelId,
       earlier: [],
+      cancelled: [],
+      missed: [],
     }),
   };
 }

@@ -3,7 +3,7 @@ import type { WakePolicy } from "../home/index.ts";
 import type { ChatInput, Snapshot } from "../inputs/index.ts";
 
 /** What the agent takes up of an event, with where it came from. */
-export type Taken = Omit<ChatInput, "earlier" | "cancelled">;
+export type Taken = Omit<ChatInput, "earlier" | "cancelled" | "missed" | "breadcrumbs">;
 
 /** A receipt that says another member answered, which is an event of the feed like any other. */
 export type Receipted = Extract<ChatEvent, { kind: "receipted" }>;

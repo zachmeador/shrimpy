@@ -14,14 +14,7 @@ import {
 } from "@earendil-works/pi-durable";
 import { localTime } from "../../lib/time/index.ts";
 import type { Breadcrumb, Wakeup } from "../inputs/index.ts";
-import {
-  keepCancelled,
-  placeOfSession,
-  sessionAddress,
-  type SessionPlace,
-  type SessionRecord,
-  SessionsDoc,
-} from "../records/durable.ts";
+import { addressOfPlace, keepCancelled, placeOfSession, type SessionPlace, type SessionRecord, SessionsDoc } from "../records/durable.ts";
 import { takeUp, type TurnTask } from "../turns/durable.ts";
 
 /** The name of the task that waits for a wake-up to come due, and then takes it up as an input. */
@@ -35,8 +28,8 @@ type Waiting = { wakeup: Wakeup } & SessionPlace;
 
 /** The session's record for a wake-up, if the session has one. */
 function sessionOfWaiting(sessions: Record<string, SessionRecord>, waiting: Waiting): SessionRecord | undefined {
-  const address = sessionAddress(waiting);
-  return address !== undefined && Object.hasOwn(sessions, address) ? sessions[address] : undefined;
+  const address = addressOfPlace(waiting);
+  return Object.hasOwn(sessions, address) ? sessions[address] : undefined;
 }
 
 /** What a wake-up is asked for with. */

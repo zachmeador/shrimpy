@@ -78,7 +78,7 @@ export async function startToolRig(t: TestContext, options: ToolRigOptions = {})
   };
 
   // The engine's number for the session, and the one document that says it is behind the main thread of the DM.
-  const sessions = { [talk.thread.id]: { conversationId: 1, channelId: talk.thread.channelId, unacted: [] } };
+  const sessions = { [talk.thread.id]: { conversationId: 1, channelId: talk.thread.channelId, unacted: [], cancelled: [], missed: [], shown: {} } };
   return {
     ...talk,
     chat,

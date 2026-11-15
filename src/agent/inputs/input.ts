@@ -232,30 +232,26 @@ export type ChatInput = {
   backlog?: Backlog;
   /**
    * Wake-ups the agent asked for that were cancelled since it last heard of
-   * them, told to the model with this input, once. Absent when there are none.
+   * them, told to the model with this input, once. Empty when there are none.
    */
-  cancelled?: Wakeup[];
+  cancelled: Wakeup[];
   /**
    * Results of questions the agent asked other agents that this session was
    * never shown, because the input they came as was taken back when work was
    * stopped, or the turn ahead of it failed. Told to the model with this input,
-   * once, oldest question first. Absent when there are none.
+   * once, oldest question first. Empty when there are none.
    */
-  missed?: CameBack[];
+  missed: CameBack[];
   /** The breadcrumbs that are new to the session, shown before anything else of the input. Absent when there are none. */
   breadcrumbs?: Breadcrumbs;
-  /**
-   * Where the thread is, which opens what the model is shown. Absent when the
-   * agent has not learned it, and so for an input stored before it kept it.
-   */
+  /** Where the thread is, which opens what the model is shown. Absent when the agent has not learned it. */
   place?: Place;
   /**
    * Set when the message joins the turn that is running: a person wrote it.
    * The turn reads it at its next step, once the tools of the step it is on
    * have finished, and its reply answers the message too. A turn
    * with no step left can't read it, and the next turn answers it. Absent for
-   * every other input, which waits for the next turn, and so for one stored
-   * before this existed.
+   * every other input, which waits for the next turn.
    */
   urgent?: true;
 };
@@ -275,8 +271,8 @@ type NoThread = { threadId?: undefined; channelId?: undefined; place?: undefined
 export type WakeupInput = {
   wakeup: Wakeup;
   /** As for a chat event. */
-  cancelled?: Wakeup[];
-  missed?: CameBack[];
+  cancelled: Wakeup[];
+  missed: CameBack[];
   breadcrumbs?: Breadcrumbs;
 } & (InThread | (NoThread & { trigger: string }));
 
@@ -314,8 +310,8 @@ export type Occurrence = {
 export type OccurrenceInput = {
   occurrence: Occurrence;
   /** As for a chat event. */
-  cancelled?: Wakeup[];
-  missed?: CameBack[];
+  cancelled: Wakeup[];
+  missed: CameBack[];
   breadcrumbs?: Breadcrumbs;
   /**
    * An occurrence that no turn runs: it was skipped because the last one was
@@ -336,8 +332,8 @@ export type OccurrenceInput = {
  */
 export type QuestionInput = CameBack & {
   /** As for a chat event. */
-  cancelled?: Wakeup[];
-  missed?: CameBack[];
+  cancelled: Wakeup[];
+  missed: CameBack[];
   breadcrumbs?: Breadcrumbs;
 } & (InThread | (NoThread & { trigger: string }));
 

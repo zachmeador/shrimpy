@@ -23,9 +23,8 @@ export interface Membership {
    * The gateway's entry, for an agent apart from the gateway: the one it joined
    * through, where it reaches the gateway and chat from then on, and where a
    * command run in its shell does, with the fingerprint of the gateway's key,
-   * which came with the invitation. A home that joined before the gateway had a
-   * key has none, and can't check that the gateway is yours. A home with no
-   * entry uses the gateway on its own machine.
+   * which came with the invitation. A home with no entry uses the gateway on its
+   * own machine.
    */
   gateway?: Entry;
 }

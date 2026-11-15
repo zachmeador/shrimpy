@@ -178,7 +178,6 @@ export function turnTask(options: TurnTaskOptions) {
 
   const task = defineTask<Outstanding, TurnState, Ending>({
     name: TURN_TASK,
-    // A task of version 1 followed its turn with no task of its own to wait on, and can't be read as this one.
     version: 2,
     initial: (input) => {
       const unrun = isOccurrence(input) ? input.unrun : undefined;

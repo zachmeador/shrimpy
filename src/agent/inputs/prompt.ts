@@ -46,8 +46,7 @@ import {
  */
 export function promptFor(outstanding: Outstanding, change?: ModelChange): string {
   const thread = threadOf(outstanding);
-  const cancelled = outstanding.cancelled ?? [];
-  const missed = outstanding.missed ?? [];
+  const { cancelled, missed } = outstanding;
   return [
     ...(outstanding.breadcrumbs === undefined ? [] : [shown(outstanding.breadcrumbs)]),
     ...(thread === undefined ? [] : [whereIs(thread, outstanding.place)]),
