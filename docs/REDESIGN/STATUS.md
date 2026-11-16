@@ -11,11 +11,10 @@ As of 2026-11-15. An item leaves when it is fixed or when the design changes to 
 Four reviewers read the code on 2026-11-15, and you asked for what they found to be fixed. The order is in the [plan](PLAN.md#order-of-work).
 
 - The CLI still uses the agent's front door for more than starting it: to preview what a home would tell its agent, and to sign in. Each is loaded only by its own command, and the lint names both. Whether the rule names them or they move is [waiting on you](AUTHOR-TO-REVIEW.md).
-- The agent repeats itself: five loops over Pi's tasks, seven waits for something or a stop, three copies of a tool's answer and failure, and two roster lookups. The home's files are walked by four readers and again by the look for changes, so a file a reader starts reading can change unseen.
-- Saving a file whole is written nine times, with different care for crashes. `lib/follow` serves only the agent, while the gateway and chat each have their own. Four layers keep a link. `Member`, an address's words and the dial to a home are each written twice. A pause helper is in `agent/chat/` and in `lib/retry`, and chat has its own `refusal/` beside `lib/refusal`. `contracts/agent` exports file helpers that know nothing of agents, and it and `lib/plain` each have a `oneLine` that does something different.
+- Saving a file whole is written nine times, with different care for crashes. `lib/follow` serves only the agent, while the gateway and chat each have their own. Four layers keep a link. `Member`, an address's words and the dial to a home are each written twice. Chat has its own `refusal/` beside `lib/refusal`. `contracts/agent` exports file helpers that know nothing of agents, and it and `lib/plain` each have a `oneLine` that does something different.
 - The CLI repeats itself: `wake` and `triggers`, `invite` and `join`, and the clients' plumbing. The terminal and the CLI word sessions and receipts each their own way, and already differ. `read` tells a refusal by its words.
 - `up` is one 650-line file, and may lose track of an agent whose home goes while it starts. The terminal's state is one 730-line closure that draws every change twice.
-- Dead code: notices nothing emits, exports nothing uses, interfaces that are the same under three names, and guards for cases that can't happen. Comments tell what the code below them says, and some no longer hold.
+- Dead code outside the agent: notices nothing emits, exports nothing uses, and interfaces that are the same under three names.
 
 ### The three programs and what each owns
 
@@ -26,7 +25,6 @@ Four reviewers read the code on 2026-11-15, and you asked for what they found to
 - The commands warn when a program they reach runs another version of Shrimpy, and say that programs are meant to be upgraded together, though [the contracts](design/2-contracts.md) let a release reach machines one at a time unless it changes the Pi packages or contracts on both sides of a link. No test covers the warning.
 - Untried: power loss, a full disk, log damage, and a kill during a tool commit.
 - The owner lock is untried on network file systems and sandbox mounts.
-- `startIntake` and `stopIntake` remain in `agent/chat/`, and `host/` exports an owner lock nothing uses.
 
 ### The contracts between them
 
@@ -130,3 +128,4 @@ Four reviewers read the code on 2026-11-15, and you asked for what they found to
 - Promises in the first build's Prove list that are built and have no test: a real-provider turn uses only the shell tool, not the file tools; a request ID reused with different content is tested in the chat server and not at the agent; and nothing asserts what becomes of a shell child that outlives a killed owner.
 - Since the tests that failed the bar were cut on 2026-11-15, nothing tests how a session's status shows images, usage, its own model and a retry, or that a cut-off answer's tool calls show as not run. Those were tested on Pi's records built by hand, and a test through the real engine could cover them. Nothing tests most of `/status` either, or how the terminal shows edits, deletes and reactions.
 - No test covers a link that goes silent, which Chord's heartbeat closes after half a minute, or `run` stopped while its message is being sent, which needs a chat server that takes a post and never answers.
+- A test can fail now and then: `joinRoster` returns once the gateway has the new member, and chat may not have heard of it when the test opens a DM with it, so chat refuses. It failed once on 2026-11-15, in `read goes back through a thread that is longer than the live view holds`, and every other run that day passed.

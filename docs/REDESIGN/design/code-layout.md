@@ -21,12 +21,14 @@ src/
                     machine of yours keeps; through node.ts, the one dial every link and join starts with,
                     keeping a program or a client linked, and the addresses the gateway keeps between starts
   agent/            the agent program, one process per home, whose files at the top make its host, serve its
-                    objects and wire the modules together
+                    objects, read its home and wire the modules together
     home/           what the agent alone reads of its home: where it keeps its own files, its instructions,
                     context and skills in one snapshot, its breadcrumbs, and the look for changes
-    host/           owner lock, model runtime and provider login, registry, environment, storage, supervision
+    host/           owner lock, model runtime and provider login, registry, environment, storage, supervision,
+                    and what the modules share of the engine: reading a kind of task a page at a time, ending
+                    the tasks a session leaves open, and a tool's answer
     links/          its link to the gateway, kept as the agent, over which requests for it arrive and it holds the
-                    roster and chat
+                    roster and chat, who a name on the roster is, and why a call to chat failed
     access/         who is asking, from a request's stamp and the roster as it is now, and what they may do
     inputs/         what an input is, from any source, how it reads to the model, and how its turn can end
     records/        Shrimpy's own documents in the engine's storage, and the changes to a session's record
@@ -38,7 +40,7 @@ src/
     triggers/       standing triggers: follow the home's files, sleep, make occurrences, answer the API about them
     chat/           the agent's side of chat: the feed, what wakes it, replies, receipts, working marks
     sessions/       the sessions as clients see them: which there are, the window and status of each, kept live,
-                    and steer, wait and stop
+                    the home's model they follow, and steer, wait and stop
     message-tools/  send_message and read_messages
     context/        what every session is told, as prompt sections made from the home's files
   chat/             the chat server program, which links out to the gateway
@@ -77,8 +79,9 @@ src/
                     tests, the only code in the CLI that imports Chord, with `me.ts` the one place that decides
                     who a command or the terminal is; and joining a gateway from apart, as a home or a machine
                     of yours
-  lib/              helpers with no knowledge of Shrimpy's domain: locks, retries, IDs, refusals, times, config
-                    checking, text made harmless for a terminal, the runtime directory, versions and test support
+  lib/              helpers with no knowledge of Shrimpy's domain: locks, retries, listeners and waiting on them,
+                    IDs, refusals, times, config checking, text made harmless for a terminal, the runtime
+                    directory, versions and test support
     link/           links for Chord: a WebSocket on a socket's path, or over TLS at an address, with the hello
                     before Chord; listening, dialing and keeping a link
     follow/         a value worked out from a read and a watch, as a Chord object follows it, and the type of
@@ -142,14 +145,14 @@ Approved on 2026-10-05 and built that day. Each module has one job.
 |---|---|---|
 | `inputs/` | What an input is, from any source, how it reads to the model, and how its turn can end. Data and words. | Never |
 | `home/`, `links/`, `access/` | The home's files, the link to the gateway and what is held over it, and who may do what. | Never |
-| `host/` | Opens the engine, and is the only place that does. | Throughout |
+| `host/` | Opens the engine, and is the only place that does, with what the modules share of it: reading a kind of task a page at a time, ending the tasks a session leaves open, and a tool's answer. | Throughout |
 | `records/` | Shrimpy's own documents in the engine's storage, and the changes to a session's record made inside another module's commit. | Throughout: it defines the documents |
-| `turns/` | The task that follows one input to its end: taking it up, what is being worked on, and what a crash costs it. | Defines the task. Its plain door has what it asks of whoever tells an input's source |
+| `turns/` | The task that follows one input to its end: taking it up, what is being worked on, what a crash costs it, and why a turn ended without an answer, in the contract's words. | Defines the task. Its plain door has what it asks of whoever tells an input's source |
 | `questions/` | `ask_agent`: the tool, the questions that are open, and closing one on a receipt or when its time is up. | A tool and a task. Its plain door has what it asks of chat |
 | `wakeups/` | `check_back`: the tool, and the task that sleeps until the wake-up is due. | A tool and a task |
 | `triggers/` | Standing triggers: follow the home's files, sleep, make occurrences, and answer the API about them. | Defines the task |
 | `chat/` | The agent's side of chat: read the feed, decide what wakes it, take that up, post replies, leave receipts, mark where it works. | One file, which takes a chat event up |
-| `sessions/` | The sessions as clients see them: which there are, the view of each, and steer, wait and stop. | Reads Pi's view |
+| `sessions/` | The sessions as clients see them: which there are, the view of each, the home's model they follow, and steer, wait and stop. | Reads Pi's view |
 | `message-tools/` | `send_message` and `read_messages`. | Defines the tools |
 | `context/` | What every session is told, as prompt sections made from the home's files. | Defines the sections. The preview is plain |
 
