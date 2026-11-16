@@ -1,13 +1,13 @@
 import type { AgentModels } from "../../../../contracts/agent/index.ts";
 import { createListeners } from "../../../../lib/listeners/index.ts";
-import type { ConsoleState, Farewell, Model, SendResult } from "../index.ts";
+import type { ConsoleState, Farewell, Model } from "../index.ts";
 
 /** A state that does nothing but remember what it was asked, for tests of what draws it and what its keys do. */
 export interface FakeState extends ConsoleState {
   /** What was done to it, in order, such as "select scout", "send hello" or "note no-command". */
   readonly calls: string[];
   /** What it answers. */
-  readonly answers: { send: SendResult; farewell: Farewell | undefined; models: AgentModels | undefined };
+  readonly answers: { send: boolean; farewell: Farewell | undefined; models: AgentModels | undefined };
   /** Change the model the way the real state would after something happened, and tell whoever listens. */
   show(model: Model): void;
 }
@@ -16,7 +16,7 @@ export function fakeState(initial: Model): FakeState {
   let model = initial;
   const listeners = createListeners<Model>(() => undefined);
   const calls: string[] = [];
-  const answers: FakeState["answers"] = { send: { ok: true }, farewell: undefined, models: undefined };
+  const answers: FakeState["answers"] = { send: true, farewell: undefined, models: undefined };
   return {
     calls,
     answers,
@@ -53,7 +53,7 @@ export function fakeState(initial: Model): FakeState {
       calls.push("model");
       return Promise.resolve();
     },
-    farewell: () => Promise.resolve(answers.farewell),
+    farewell: () => answers.farewell,
     close() {
       listeners.clear();
       return Promise.resolve();

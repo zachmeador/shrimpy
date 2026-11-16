@@ -17,30 +17,15 @@
  */
 export { canConnect, freeAddresses } from "./addresses.ts";
 export { commandLines, whyNotACommand } from "./commands.ts";
-export { type ConsoleOpener, type OpenedConsole, openConsoleOn } from "./console.ts";
+export { openConsoleOn } from "./console.ts";
 export { useShrimpyDir } from "./folder.ts";
 export { agentHome, declareLocalModel, localProvider } from "./home.ts";
-export { type CapturedIo, captureIo } from "./io.ts";
-export { type ModelRequest, type ModelServer, startModelServer } from "./model-server.ts";
+export { captureIo } from "./io.ts";
+export { type ModelServer, startModelServer } from "./model-server.ts";
 export { untilAnswering, untilGatewayAnswers, untilLinked } from "./linked.ts";
-export {
-  type Outcome,
-  type Posted,
-  type ScriptedAgent,
-  type ScriptedAgentOptions,
-  startScriptedAgent,
-} from "./scripted-agent.ts";
-export { startTalking, type Talking } from "./talking.ts";
+export { type Outcome, type Posted, startScriptedAgent } from "./scripted-agent.ts";
+export { startTalking } from "./talking.ts";
 export { isAlive, launchUp, type RunningUp, type UpProgram } from "./up.ts";
-export {
-  type AgentListening,
-  type CliResult,
-  type LaunchOptions,
-  type RunningCommand,
-  serve,
-  type ServedAgent,
-  shrimpy,
-  shrimpyInBackground,
-} from "./process.ts";
+export { type LaunchOptions, serve, type ServedAgent, shrimpy, shrimpyInBackground } from "./process.ts";
 export { type OnTheRoster, onTheRoster, setAdmin } from "./roster.ts";
-export { type AgentShell, startAgentShell } from "./shell.ts";
+export { startAgentShell } from "./shell.ts";

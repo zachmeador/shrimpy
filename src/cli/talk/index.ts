@@ -16,20 +16,12 @@
 export { type AgentReached, onAgent, onSession, reachAgent, requireAdminFor } from "./agent.ts";
 export { agentNamed, memberNamed, membersNamed, runningAgent } from "./agents.ts";
 export { dmWith } from "./dm.ts";
-export {
-  askGateway,
-  askLocalGateway,
-  GatewayNotRunningError,
-  type GatewayView,
-  linkTo,
-  viewOf,
-  withGatewayAsMe,
-} from "./gateway.ts";
+export { askGateway, askLocalGateway, GatewayNotRunningError, withGatewayAsMe } from "./gateway.ts";
 export { START_EVERYTHING } from "./hints.ts";
-export { JoinFailedError, joinHome, type JoinedHome, type JoinHomeOptions } from "./join-home.ts";
-export { type JoinAsMachineOptions, joinAsMachine, type MachineJoined, MachineJoinFailedError } from "./join-machine.ts";
-export { type Me, me } from "./me.ts";
-export { type HeldAgent, type HeldSession, type HeldThread, type Holder, onChannel, onRoster, onThread } from "./objects.ts";
+export { JoinFailedError, joinHome } from "./join-home.ts";
+export { joinAsMachine, MachineJoinFailedError } from "./join-machine.ts";
+export { me } from "./me.ts";
+export { type HeldAgent, type HeldSession, type HeldThread, onChannel, onRoster } from "./objects.ts";
 export { type Reached, reachChat } from "./reach.ts";
 export { type Waited, waitForReceipt } from "./receipts.ts";
 export { roomNamed, roomNameWritten } from "./rooms.ts";

@@ -22,7 +22,7 @@ export function whatItReads({ soul, files, skills, triggers }: Read): string {
 }
 
 /** What a reload found about the model: the agent's default, and the one it replaced when it replaced one. */
-export function modelLine({ model, changedFrom }: Pick<Reloaded, "model" | "changedFrom">): string {
+function modelLine({ model, changedFrom }: Pick<Reloaded, "model" | "changedFrom">): string {
   const now = `${model.provider}/${model.id}`;
   if (changedFrom === null) return `Its default model is ${now}.`;
   return `Its default model is now ${now}, not ${changedFrom.provider}/${changedFrom.id}. Each session uses it from its next request.`;

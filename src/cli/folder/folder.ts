@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve, sep } from "node:path";
+import { homePaths } from "../../contracts/agent/node.ts";
 import { MACHINE_FILE } from "../../contracts/gateway/index.ts";
 import { UsageError } from "../usage/index.ts";
 
@@ -26,13 +27,10 @@ const SETTINGS = "settings.json";
  */
 const MARKS = [AGENTS, PROVIDERS, SETTINGS, MACHINE_FILE];
 
-/** The file that makes a folder of `agents/` an agent's home. */
-const HOME_FILE = "agent.json";
-
 const MAKE_AN_AGENT = "shrimpy agent init <name> --model <provider/id>";
 
 /** The file that makes a folder an agent's home, and holds the agent's name and the model it starts with, if it names one. */
-export const homeConfigFile = (home: string): string => join(home, HOME_FILE);
+export const homeConfigFile = (home: string): string => homePaths(home).config;
 
 /** Where the Shrimpy folder is when `SHRIMPY_DIR` names none: `shrimpy` in the person's own folder, which is `home` if it is not this process's. */
 export function defaultFolderPath(home: string = homedir()): string {
@@ -126,7 +124,7 @@ function agentsIn(folder: string): string[] {
   const agents = join(folder, AGENTS);
   if (!existsSync(agents)) return [];
   return readdirSync(agents)
-    .filter((name) => existsSync(join(agents, name, HOME_FILE)))
+    .filter((name) => existsSync(homeConfigFile(join(agents, name))))
     .sort();
 }
 
@@ -145,7 +143,7 @@ export function homeNamed(word: string): string {
   if (isPath(word)) return resolve(word);
   const folder = ownFolder();
   const home = homeIn(folder, word);
-  if (existsSync(join(home, HOME_FILE))) return home;
+  if (existsSync(homeConfigFile(home))) return home;
 
   const agents = agentsIn(folder);
   const where = join(folder, AGENTS);
@@ -154,7 +152,7 @@ export function homeNamed(word: string): string {
       ? `There is no agent called ${word}, and ${where} has no agents yet.`
       : `There is no agent called ${word} in ${where}. The agents there are: ${agents.join(", ")}.`;
   // A home in the current directory with this name is probably what was meant, and takes `./` to reach.
-  const here = existsSync(join(resolve(word), HOME_FILE)) ? ` To use the folder in this directory, write ./${word}.` : "";
+  const here = existsSync(homeConfigFile(word)) ? ` To use the folder in this directory, write ./${word}.` : "";
   throw new Error(`${missing} Make it with: ${MAKE_AN_AGENT.replace("<name>", () => word)}${here}`);
 }
 
@@ -171,7 +169,7 @@ export function newHome(word: string): string {
 export function homeInFolder(name: string): { home: string; exists: boolean } {
   if (isPath(name)) throw new UsageError(`"${name}" is a path, and the home of an agent in the Shrimpy folder is named by a plain name.`);
   const home = homeIn(ownFolder(), name);
-  return { home, exists: existsSync(join(home, HOME_FILE)) };
+  return { home, exists: existsSync(homeConfigFile(home)) };
 }
 
 /**
@@ -192,7 +190,7 @@ export function agentsListed(): { where: string; names: string[] } {
 export function lookForHome(name: string): { found: boolean; where: string } {
   const where = join(folderPath(), AGENTS);
   // A name that is a path is not the name of a home, and `agent serve` would take it for the folder it points to.
-  return { found: !isPath(name) && existsSync(join(where, name, HOME_FILE)), where };
+  return { found: !isPath(name) && existsSync(homeConfigFile(join(where, name))), where };
 }
 
 /** The homes of every agent in the Shrimpy folder, for `up` when it is told no agents. A folder with none gives an empty list. */

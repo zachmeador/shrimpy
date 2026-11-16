@@ -8,7 +8,7 @@
  * console that imports Chord: the rest sees what each object shows and the
  * calls it takes, as plain values.
  */
-export { type GatewayLink, type GatewayLinkOptions, keepGateway } from "./link.ts";
+export { type GatewayLink, keepGateway } from "./link.ts";
 export {
   type AgentCalls,
   type AgentShown,
@@ -30,4 +30,4 @@ export {
   type ThreadCalls,
   type ThreadShown,
 } from "./objects.ts";
-export { CONNECTING, Down, type LinkStatus, type Problem, problemOf, statusOf, UP, type Why } from "./status.ts";
+export { CONNECTING, Down, type LinkStatus, type Problem, problemOf, type Why } from "./status.ts";

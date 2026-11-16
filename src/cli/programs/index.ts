@@ -10,7 +10,6 @@ export {
   type Ended,
   type Program,
   ProgramEndedError,
-  type Say,
   shrimpyCommand,
   startProgram,
 } from "./program.ts";

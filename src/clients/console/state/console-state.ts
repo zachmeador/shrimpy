@@ -5,7 +5,7 @@ import { CONNECTING, keepGateway } from "../network/index.ts";
 import { createAsking } from "./asking.ts";
 import { readBack } from "./history.ts";
 import { createHoldings } from "./holdings.ts";
-import { agentEntries, type Farewell, farewellOf, type HomeLookup, type Model, type Notice, type SendResult } from "./model.ts";
+import { agentEntries, type Farewell, farewellOf, type HomeLookup, type Model, type Notice } from "./model.ts";
 import { createMoves } from "./moves.ts";
 import { createSending } from "./sending.ts";
 import { createStore } from "./store.ts";
@@ -60,8 +60,8 @@ export interface ConsoleState {
   /** Go up one level: from a thread or a session to the list it was opened from, and from that to the agents and rooms. */
   back(): void;
 
-  /** Say something in the open thread, or in a new one. The person's draft is theirs to put back when it fails. */
-  send(text: string): Promise<SendResult>;
+  /** Say something in the open thread, or in a new one, and say whether it was sent. The person's draft is theirs to put back when it was not. */
+  send(text: string): Promise<boolean>;
   /** Tell the person something that came of what they wrote, in a note that goes away by itself. Posts nothing. */
   note(notice: Notice): void;
   /**
@@ -99,7 +99,7 @@ export interface ConsoleState {
   showModel(): Promise<void>;
 
   /** The work that goes on if the console is left now, if there is any. */
-  farewell(): Promise<Farewell | undefined>;
+  farewell(): Farewell | undefined;
   /** Let go of every object held and of the link. The work in agents goes on. */
   close(): Promise<void>;
 }
@@ -185,7 +185,7 @@ export async function createConsoleState(options: ConsoleStateOptions): Promise<
     takeBack: (written) => asking.takeBack(written),
     models: () => asking.models(),
     showModel: () => asking.showModel(),
-    farewell: async () => farewellOf(store.model()),
+    farewell: () => farewellOf(store.model()),
     async close() {
       if (closed) return;
       closed = true;

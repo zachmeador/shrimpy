@@ -1,8 +1,8 @@
 import type { Command } from "../commands/index.ts";
 
 /** The lines that mark where the README's table of commands begins and ends. */
-export const COMMANDS_START = "<!-- commands:start -->";
-export const COMMANDS_END = "<!-- commands:end -->";
+const COMMANDS_START = "<!-- commands:start -->";
+const COMMANDS_END = "<!-- commands:end -->";
 
 /** The commands as a Markdown table: how each is typed, and its one-line summary. */
 export function commandTable(commands: readonly Command[]): string {

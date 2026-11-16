@@ -8,9 +8,8 @@
  * downstream has to trust it. It must not know how anything is drawn, or reach
  * the network.
  */
-export { type CommandLine, type ModelLine, modelLines, type Written, writtenIn } from "./commands.ts";
+export { type CommandLine, type ModelLine, modelLines, writtenIn } from "./commands.ts";
 export {
-  type Can,
   farewellLine,
   hiddenLines,
   type InFull,
@@ -20,16 +19,5 @@ export {
   QUIT_AGAIN,
   READ_ONLY_TAG,
 } from "./words.ts";
-export {
-  type AgentsScreen,
-  type MessageRow,
-  type Row,
-  type Screen,
-  type ScreenOptions,
-  screenOf,
-  type SessionScreen,
-  type StatusBlock,
-  type ThreadScreen,
-  type ThreadsScreen,
-} from "./screen.ts";
+export { type MessageRow, type Row, type Screen, screenOf, type SessionScreen, type StatusBlock, type ThreadScreen } from "./screen.ts";
 export type { Step, Work } from "./work.ts";

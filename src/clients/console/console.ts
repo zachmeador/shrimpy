@@ -67,7 +67,7 @@ export async function openConsole(options: ConsoleOptions): Promise<number> {
       stopListening();
       await drawing.stop();
     }
-    const working = await state.farewell();
+    const working = state.farewell();
     if (working !== undefined) options.io.out(farewellLine(working.agent, working.thread));
     return 0;
   } finally {

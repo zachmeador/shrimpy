@@ -155,8 +155,8 @@ export function startDrawing(options: DrawingOptions): Drawing {
         break;
     }
     const key = draftKey;
-    void state.send(text).then((result) => {
-      if (!result.ok) restore(key, text);
+    void state.send(text).then((sent) => {
+      if (!sent) restore(key, text);
     });
   };
 

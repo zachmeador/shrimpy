@@ -8,13 +8,5 @@
  */
 export { type Account, thisAccount } from "./account.ts";
 export { put, remove, stateOf } from "./manage.ts";
-export {
-  type LaunchdService,
-  type Program,
-  type Service,
-  serviceFor,
-  STOP_SECONDS,
-  type State,
-  type SystemdService,
-} from "./service.ts";
-export { disableLingering, enableLingering, keepLingering, type Lingering, lingers } from "./systemd.ts";
+export { type Program, type Service, serviceFor, STOP_SECONDS } from "./service.ts";
+export { disableLingering, enableLingering, keepLingering, lingers } from "./systemd.ts";

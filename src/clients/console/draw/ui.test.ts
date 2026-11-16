@@ -350,7 +350,7 @@ test("Ctrl+O shows tool calls in full and Ctrl+T the thinking, and each press ag
 
 test("a message that is not sent comes back to the editor, ahead of anything typed since", async (t) => {
   const { terminal, state, lines } = start(t, conversation());
-  state.answers.send = { ok: false };
+  state.answers.send = false;
 
   terminal.type("will not go");
   terminal.type(ENTER);

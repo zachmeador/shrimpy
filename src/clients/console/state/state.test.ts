@@ -93,7 +93,7 @@ test("saying something posts it as the person, and a new thread is made with its
   rig.state.openThread(thread.id);
   await rig.until((model) => textsOf(model).length === 1, "the thread's view");
 
-  assert.deepEqual(await rig.state.send("and this"), { ok: true });
+  assert.equal(await rig.state.send("and this"), true);
   await rig.until((model) => textsOf(model).length === 2, "the new message in the view");
   const [, posted] = await (await rig.person()).read(thread.id, null, 10);
   assert.deepEqual([posted?.author.id, posted?.text], [(await rig.person()).me.id, "and this"]);
@@ -101,7 +101,7 @@ test("saying something posts it as the person, and a new thread is made with its
   rig.state.back();
   rig.state.startThread();
   assert.deepEqual(rig.state.model().where, { screen: "thread", place: { kind: "agent", name: "scout" }, thread: undefined });
-  assert.deepEqual(await rig.state.send("a fresh topic"), { ok: true });
+  assert.equal(await rig.state.send("a fresh topic"), true);
   const started = await rig.until((each) => each.where.screen === "thread" && each.where.thread !== undefined, "the new thread to open");
   assert.notEqual(started.where.screen === "thread" && started.where.thread, thread.id);
   await rig.until((each) => textsOf(each).join() === "a fresh topic", "the first message in the view");
@@ -117,7 +117,7 @@ test("a message that is not sent says why, and the notice goes away by itself", 
 
   const sent = await rig.state.send("x".repeat(MAX_MESSAGE_LENGTH + 1));
 
-  assert.deepEqual(sent, { ok: false });
+  assert.equal(sent, false);
   const { notice } = rig.state.model();
   assert.ok(notice?.kind === "not-sent" && "said" in notice.problem, JSON.stringify(notice));
   assert.deepEqual((await (await rig.person()).read(thread.id, null, 10)).map((message) => message.text), ["first"]);
@@ -134,12 +134,12 @@ test("a message to a chat server that stopped answering is not left in limbo, no
 
   const sent = await rig.state.send("hello");
 
-  assert.deepEqual(sent, { ok: false });
+  assert.equal(sent, false);
   assert.equal(rig.state.model().notice?.kind, "not-sent");
   // The chat server had the message all along, and takes it when it runs again.
   rig.chat.thaw();
   await rig.until((model) => textsOf(model).length === 2, "the message the chat server had");
-  assert.deepEqual(await rig.state.send("hello"), { ok: true });
+  assert.equal(await rig.state.send("hello"), true);
   assert.deepEqual((await (await rig.person()).read(thread.id, null, 10)).map((message) => message.text), ["first", "hello"]);
 });
 
@@ -150,7 +150,7 @@ test("leaving does not wait for a chat server that has stopped answering", { tim
   rig.chat.freeze();
   stopAfter(t, () => rig.chat.thaw());
 
-  assert.equal(await within(3000, rig.state.farewell(), "working out what is left running"), undefined);
+  assert.equal(rig.state.farewell(), undefined);
   await within(5000, rig.state.close(), "letting go");
 });
 
@@ -164,7 +164,7 @@ test("while chat is away nothing is sent, and once it is back the thread is foll
   await rig.chat.outage();
 
   await rig.until((model) => model.chat.state === "down", "the loss to be noticed");
-  assert.deepEqual(await rig.state.send("into the void"), { ok: false });
+  assert.equal(await rig.state.send("into the void"), false);
   assert.equal(rig.state.model().notice?.kind, "not-sent");
   assert.deepEqual(textsOf(rig.state.model()), ["first"], "what was on screen stays");
   await rig.chat.recover();
@@ -172,7 +172,7 @@ test("while chat is away nothing is sent, and once it is back the thread is foll
   await rig.until((model) => model.chat.state === "up", "chat to be back");
   await (await rig.asAgent("scout")).post(thread.id, "back again");
   await rig.until((model) => textsOf(model).length === 2, "the thread to follow what is said");
-  assert.deepEqual(await rig.state.send("and now"), { ok: true });
+  assert.equal(await rig.state.send("and now"), true);
 });
 
 test("going back leaves the thread, then the agent, and lets go of what was followed", { timeout }, async (t) => {
@@ -204,15 +204,15 @@ test("leaving names the agent still working and its thread, and nothing when it 
   rig.state.openThread(other.id);
   await rig.until((model) => textsOf(model).length === 1, "the thread's view");
 
-  assert.equal(await rig.state.farewell(), undefined);
+  assert.equal(rig.state.farewell(), undefined);
   const working = await rig.asAgent("scout");
   await working.setWorking(busy.id, true);
 
   await rig.until((model) => model.dms.scout?.threads.some((thread) => thread.id === busy.id && thread.working.length === 1) === true, "the work to be listed");
-  assert.deepEqual(await rig.state.farewell(), { agent: "scout", thread: busy.id });
+  assert.deepEqual(rig.state.farewell(), { agent: "scout", thread: busy.id });
   await working.setWorking(other.id, true);
   await rig.until((model) => model.thread?.thread.working.length === 1, "the open thread to show the work");
-  assert.deepEqual(await rig.state.farewell(), { agent: "scout", thread: other.id }, "the thread on screen first");
+  assert.deepEqual(rig.state.farewell(), { agent: "scout", thread: other.id }, "the thread on screen first");
 });
 
 test("with no gateway running it says so, and picks everything up once the programs are there", { timeout }, async (t) => {

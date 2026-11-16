@@ -1,6 +1,6 @@
 import type { Host, Reference } from "@earendil-works/chord";
 import type { Agent, Session } from "../../contracts/agent/index.ts";
-import { Channel, Thread } from "../../contracts/chat/index.ts";
+import { Channel, type Thread } from "../../contracts/chat/index.ts";
 import { contextOf, holding, type Principal, type Revocation, Roster, unlessRefused } from "../../contracts/gateway/index.ts";
 
 /** A host that holds the other programs' objects: a command's link to the gateway, or to an agent's home. */
@@ -24,12 +24,4 @@ export function onChannel<T>(holder: Holder, id: string, work: (channel: Referen
 /** The roster as `holder` sees it, for as long as `work` runs. */
 export function onRoster<T>(holder: Holder, work: (roster: Reference<typeof Roster>) => Promise<T> | T, signal?: AbortSignal): Promise<T> {
   return holding(holder.host.get(Roster, {}, contextOf(signal)), work);
-}
-
-/** The thread `id`, as `holder` has it, for as long as `work` runs. It is refused as chat refuses it. */
-export function onThread<T>(holder: Holder, id: string, work: (thread: Reference<typeof Thread>) => Promise<T> | T, signal?: AbortSignal): Promise<T> {
-  return holding(holder.host.get(Thread, { thread: id }, contextOf(signal)), (thread) => {
-    unlessRefused(thread.refusal.value);
-    return work(thread);
-  });
 }

@@ -14,15 +14,13 @@
  * comes through the console's link, as objects it holds. It must not know how
  * any of this is shown or drawn, or what a key does.
  */
-export { type ConsoleState, type ConsoleStateOptions, createConsoleState } from "./console-state.ts";
+export { type ConsoleState, createConsoleState } from "./console-state.ts";
 export {
-  type AgentEntry,
   agentEntries,
-  agentLookedAt,
   agentOfThread,
   type AgentStatus,
+  type ChannelThreads,
   type DevicesStatus,
-  type Dm,
   type Farewell,
   type HomeLookup,
   type Model,
@@ -30,17 +28,11 @@ export {
   type Part,
   partsOf,
   type Place,
-  type ReadOnlyChannel,
-  type ReadOnlyEntry,
   readOnlyEntries,
-  type Room,
-  type RoomEntry,
   roomEntries,
   type RoomStatus,
-  type SendResult,
   type SessionView,
   type Status,
   type ThreadView,
   type Where,
-  workingIn,
 } from "./model.ts";

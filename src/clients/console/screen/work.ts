@@ -74,7 +74,7 @@ const CALL_CHARACTERS = 300;
  * or the thinking of one answer. A line can be megabytes long, so what is whole
  * has a limit too, and says how much it left out.
  */
-export const FULL_CHARACTERS = 100_000;
+const FULL_CHARACTERS = 100_000;
 
 /**
  * The work in the session's current turn, or none when the session is not

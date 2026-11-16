@@ -1,7 +1,7 @@
 import type { AgentShown, GatewayLink, SessionShown, ThreadShown } from "../network/index.ts";
 import { channelsOf } from "./channels.ts";
 import type { Holdings, SessionOnShow } from "./holdings.ts";
-import { agentEntries, type Model, type Room, type SessionView, type ThreadView, watchedWhole, type Where } from "./model.ts";
+import { agentEntries, type ChannelThreads, type Model, type SessionView, type ThreadView, watchedWhole, type Where } from "./model.ts";
 
 /**
  * The model with what the held objects show worked in: what the gateway
@@ -51,7 +51,7 @@ export function worked(model: Model, held: Holdings, link: GatewayLink): Model {
 }
 
 /** Where the person is, with a room they read and have since joined theirs: the screen becomes the room's. */
-function joined(where: Where, rooms: Record<string, Room>): Where {
+function joined(where: Where, rooms: Record<string, ChannelThreads>): Where {
   if ((where.screen === "threads" || where.screen === "thread") && where.place.kind === "read-only" && rooms[where.place.id] !== undefined) {
     return { ...where, place: { kind: "room", id: where.place.id } };
   }

@@ -6,4 +6,4 @@
  * a sentence or trusts a string from another member. It must not reach the
  * network or decide what the console knows.
  */
-export { type ConsoleTerminal, type Drawing, type DrawingOptions, startDrawing } from "./ui.ts";
+export { type ConsoleTerminal, type Drawing, startDrawing } from "./ui.ts";

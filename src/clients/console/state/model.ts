@@ -83,7 +83,7 @@ export function watchedWhole(where: Where): boolean {
 }
 
 /** The name of the agent whose screen, or whose thread or session, is on show, if the person is looking at an agent's. */
-export function agentLookedAt(where: Where): string | undefined {
+function agentLookedAt(where: Where): string | undefined {
   switch (where.screen) {
     case "agents":
       return undefined;
@@ -121,20 +121,8 @@ export function openedThread(
   return reading === undefined ? at(place, undefined) : at({ kind: "read-only", id: reading.channel.id }, place.name);
 }
 
-/** The person's DM with an agent, and their threads in it, newest first. */
-export interface Dm {
-  channel: Channel;
-  threads: Thread[];
-}
-
-/** A room the person is in, and its threads, newest first. */
-export interface Room {
-  channel: Channel;
-  threads: Thread[];
-}
-
-/** A channel the person is not in and only reads, a DM between two agents or a room of agents, and its threads, newest first. */
-export interface ReadOnlyChannel {
+/** A channel as chat lists it to the person, and its threads, newest first. */
+export interface ChannelThreads {
   channel: Channel;
   threads: Thread[];
 }
@@ -150,8 +138,6 @@ export type HomeLookup = (agent: string) => { found: boolean; where: string };
 export type Notice =
   | { kind: "not-sent"; problem: Problem }
   | { kind: "not-opened"; problem: Problem }
-  | { kind: "not-watched"; problem: Problem }
-  | { kind: "not-listed"; problem: Problem }
   /**
    * What was written starts with a slash and is none of the commands there are, so nothing was posted and the text
    * stays in the editor. `written` is the word it starts with, and `commands` are the ones there are, each with its slash.
@@ -250,11 +236,11 @@ export interface Model {
   /** The agent that is selected, once one is. */
   agent: LinkStatus | undefined;
   /** The person's DM with each agent that is running and that they have talked to, by the agent's name. */
-  dms: Record<string, Dm>;
+  dms: Record<string, ChannelThreads>;
   /** The rooms the person is in, by their channels' IDs. */
-  rooms: Record<string, Room>;
-  /** The channels the person is not in and only reads, by their channels' IDs. */
-  readOnly: Record<string, ReadOnlyChannel>;
+  rooms: Record<string, ChannelThreads>;
+  /** The channels the person is not in and only reads, a DM between two agents or a room of agents, by their channels' IDs. */
+  readOnly: Record<string, ChannelThreads>;
   /** The live view of the open thread. */
   thread: ThreadView | undefined;
   /** The live view of the session on show: the one behind the open thread, once the agent has one, or the one being watched. */
@@ -303,7 +289,7 @@ export function workingIn(thread: Thread, agentId: string): boolean {
 }
 
 /** The sessions among `sessions` that are working and are none of the threads of `dm`, the person's DM with the agent. */
-function workingElsewhere(sessions: SessionSummary[], dm: Dm | undefined): SessionSummary[] {
+function workingElsewhere(sessions: SessionSummary[], dm: ChannelThreads | undefined): SessionSummary[] {
   const yours = new Set(dm?.threads.map((thread) => thread.id));
   return sessions.filter((session) => session.working && (session.threadId === null || !yours.has(session.threadId)));
 }
@@ -519,5 +505,3 @@ export function farewellOf(model: Model): Farewell | undefined {
   }
   return undefined;
 }
-
-export type SendResult = { ok: true } | { ok: false };

@@ -16,6 +16,5 @@
  * the command line imports this, to open it. It must not know how a program
  * works inside.
  */
-export { type ConsoleIo, type ConsoleOptions, openConsole } from "./console.ts";
-export type { ConsoleTerminal } from "./draw/index.ts";
+export { type ConsoleOptions, openConsole } from "./console.ts";
 export type { Screen as ConsoleScreen } from "./screen/index.ts";

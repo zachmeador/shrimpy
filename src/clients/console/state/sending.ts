@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { valueOf } from "../../../contracts/gateway/index.ts";
 import { Down, problemOf } from "../network/index.ts";
 import type { Holdings } from "./holdings.ts";
-import { type AgentEntry, agentEntries, type Model, type Place, type SendResult } from "./model.ts";
+import { type AgentEntry, agentEntries, type Model, type Place } from "./model.ts";
 import type { Moves } from "./moves.ts";
 import type { Store } from "./store.ts";
 
@@ -10,8 +10,8 @@ import type { Store } from "./store.ts";
 export interface Sending {
   /** Start a thread with the selected agent or in the selected room. It comes to be with its first message. */
   startThread(): void;
-  /** Say something in the open thread, or in a new one. The person's draft is theirs to put back when it fails. */
-  send(text: string): Promise<SendResult>;
+  /** Say something in the open thread, or in a new one, and say whether it was sent. The person's draft is theirs to put back when it was not. */
+  send(text: string): Promise<boolean>;
 }
 
 /** A place as a string, for telling one from another. */
@@ -71,7 +71,7 @@ export function createSending(store: Store, held: Holdings, moves: Moves, sendMs
     async send(text) {
       const { where } = store.model();
       // The chat server refuses a write in a channel the person only reads, so nothing is asked of it.
-      if (where.screen !== "thread" || where.place.kind === "read-only") return { ok: false };
+      if (where.screen !== "thread" || where.place.kind === "read-only") return false;
       const newThread = newThreads;
       // A chat server that has stopped answering must not leave the message in limbo. Sending it again is safe either way.
       const answered = AbortSignal.timeout(sendMs);
@@ -90,11 +90,11 @@ export function createSending(store: Store, held: Holdings, moves: Moves, sendMs
           const now = store.model().where;
           if (now.screen === "thread" && now.thread === undefined && newThreads === newThread) moves.open(threadId);
         }
-        return { ok: true };
+        return true;
       } catch (error) {
         const silent = answered.aborted ? new Down({ kind: "unreachable", message: "the chat server did not answer" }) : error;
         store.say({ kind: "not-sent", problem: problemOf(silent) });
-        return { ok: false };
+        return false;
       }
     },
   };

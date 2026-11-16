@@ -3,7 +3,7 @@ import { sessionStatus } from "../../../../contracts/agent/testing/index.ts";
 import type { Channel, Member, Message, Receipt, Thread } from "../../../../contracts/chat/index.ts";
 import type { Program, RosterEntry } from "../../../../contracts/gateway/index.ts";
 import { SHRIMPY_VERSION } from "../../../../lib/version/index.ts";
-import type { Dm, Model, Room, SessionView, ThreadView } from "../index.ts";
+import type { ChannelThreads, Model, SessionView, ThreadView } from "../index.ts";
 
 /** The person, as the roster would have them. */
 export const zach: Member = { id: "mem_1", kind: "person", name: "zach" };
@@ -82,13 +82,13 @@ export function aThread(id: string, parts: Partial<Thread> = {}): Thread {
   };
 }
 
-export function aDm(agent: string, threads: Thread[]): Dm {
+export function aDm(agent: string, threads: Thread[]): ChannelThreads {
   const channel: Channel = { id: "ch_1", kind: "dm", name: agent, members: [zach, agentMember(agent)] };
   return { channel, threads };
 }
 
 /** A room the person is in with these agents, and the threads in it. */
-export function aRoom(name: string, agents: string[], threads: Thread[], id = "ch_2"): Room {
+export function aRoom(name: string, agents: string[], threads: Thread[], id = "ch_2"): ChannelThreads {
   const channel: Channel = { id, kind: "room", name, members: [zach, ...agents.map(agentMember)] };
   return { channel, threads };
 }

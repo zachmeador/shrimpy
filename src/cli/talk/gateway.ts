@@ -40,7 +40,7 @@ export interface GatewayView {
  * gateway turns away is what `turnedAway` makes of it. Aborting `signal` gives
  * up, even on a gateway that has stopped answering.
  */
-export async function linkTo(
+async function linkTo(
   place: GatewayPlace,
   token: string | null,
   turnedAway: (error: GatewayRefusedError) => Error,
@@ -74,7 +74,7 @@ export const linkAs = (who: Me, signal?: AbortSignal): Promise<Client> =>
  * joined one, reaches over its entry. There is no gateway on this machine when
  * none runs, which gives undefined.
  */
-export async function withGateway<T>(
+async function withGateway<T>(
   signal: AbortSignal | undefined,
   use: (client: Client, who: Me) => Promise<T>,
 ): Promise<T | undefined> {

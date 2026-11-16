@@ -4,4 +4,4 @@
  * person made harmless for a terminal. It must not know what any command says
  * or does.
  */
-export { type AskOptions, forPeople, type Io, processIo } from "./io.ts";
+export { forPeople, type Io, processIo } from "./io.ts";

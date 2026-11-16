@@ -165,10 +165,6 @@ export function noticeText(notice: Notice, agentName: string): string {
       return `Not sent: ${because({ kind: "chat" }, notice.problem)}. Your message is still in the editor.`;
     case "not-opened":
       return `Could not open the thread: ${because({ kind: "chat" }, notice.problem)}.`;
-    case "not-watched":
-      return `Could not watch the work: ${because({ kind: "agent", name: agent }, notice.problem)}.`;
-    case "not-listed":
-      return `Could not read your threads: ${because({ kind: "chat" }, notice.problem)}.`;
     case "no-command":
       return (
         `${oneLine(notice.written)} is no command here. The commands are ${listed(notice.commands.map(oneLine))}. ` +
