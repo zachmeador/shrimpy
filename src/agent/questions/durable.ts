@@ -16,4 +16,4 @@
  */
 export { askTools, type AskToolsOptions } from "./ask-agent.durable.ts";
 export { type Closed, closeQuestion, forgetPassed } from "./close.durable.ts";
-export { closeQuestions, createQuestions, type Questions, type QuestionsOptions } from "./questions.durable.ts";
+export { createQuestions, QUESTION_TASK, type Questions, type QuestionsOptions } from "./questions.durable.ts";

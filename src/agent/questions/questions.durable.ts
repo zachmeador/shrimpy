@@ -1,12 +1,5 @@
 import type { Context } from "@earendil-works/chord/context";
-import {
-  type ConversationId,
-  defineExtension,
-  defineTask,
-  type Extension,
-  type Harness,
-  type ToolExecutionApi,
-} from "@earendil-works/pi-durable";
+import { defineExtension, defineTask, type Extension, type ToolExecutionApi } from "@earendil-works/pi-durable";
 import { localTime } from "../../lib/time/index.ts";
 import { tasksOfKind } from "../host/durable.ts";
 import type { Breadcrumb, Question } from "../inputs/index.ts";
@@ -16,7 +9,7 @@ import { closeQuestion, forgetQuestion } from "./close.durable.ts";
 import type { Look } from "./look.ts";
 
 /** The name of the task that sleeps until the time to wait for an answer is up, and then closes the question if it is still open. */
-const QUESTION_TASK = "shrimpy.question";
+export const QUESTION_TASK = "shrimpy.question";
 
 /** How many questions a session may have open at once. */
 export const MAX_OPEN = 5;
@@ -59,7 +52,8 @@ export interface QuestionsOptions {
  * first leaves nothing for the other. A question whose time was up while the agent
  * was down is closed when it starts again. Sleeping is not work, so the session is
  * not working until the turn a result starts is. Ending the task of an open
- * question, as a stop does, closes it and tells nobody.
+ * question, as a stop does, closes it and tells nobody: an answer that comes
+ * later is an ordinary message in the question's thread.
  */
 export function createQuestions(turn: TurnTask, options: QuestionsOptions): Questions & { extension: Extension } {
   const task = defineTask<Question, { phase: "sleep" } | { phase: "due" }, null>({
@@ -126,18 +120,4 @@ export function createQuestions(turn: TurnTask, options: QuestionsOptions): Ques
       }, context);
     },
   };
-}
-
-/**
- * Close the questions a session has open and tell nobody, and wait until the
- * tasks that waited for them have ended. The other agent's answer, if it comes, is
- * an ordinary message in the question's thread.
- */
-export async function closeQuestions(harness: Harness, conversationId: ConversationId, context: Context): Promise<void> {
-  const { tasks } = await harness.inspect(context);
-  const waiting = tasks
-    .filter(({ record }) => record.kind === QUESTION_TASK && record.conversationId === conversationId && !record.abortRequested)
-    .map(({ record }) => record.id);
-  for (const id of waiting) await harness.abortTask(id, context);
-  for (const id of waiting) await harness.waitForTask(id, context);
 }

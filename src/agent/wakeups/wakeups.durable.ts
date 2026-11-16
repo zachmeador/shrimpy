@@ -17,7 +17,7 @@ import { addressOfPlace, keepCancelled, placeOfSession, type SessionPlace, type 
 import { takeUp, type TurnTask } from "../turns/durable.ts";
 
 /** The name of the task that waits for a wake-up to come due, and then takes it up as an input. */
-const WAKEUP_TASK = "shrimpy.wakeup";
+export const WAKEUP_TASK = "shrimpy.wakeup";
 
 /** How many wake-ups a session may have waiting at once. */
 const MAX_WAITING = 20;
@@ -133,19 +133,6 @@ export function createWakeups(turn: TurnTask, options: WakeupsOptions): Wakeups 
       }, context);
     },
   };
-}
-
-/**
- * End the wake-ups a session is waiting on, and wait until each has ended. The
- * session keeps each one as cancelled, and its next input tells the model.
- */
-export async function cancelWakeups(harness: Harness, conversationId: ConversationId, context: Context): Promise<void> {
-  const { tasks } = await harness.inspect(context);
-  const waiting = tasks
-    .filter(({ record }) => record.kind === WAKEUP_TASK && record.conversationId === conversationId && !record.abortRequested)
-    .map(({ record }) => record.id);
-  for (const id of waiting) await harness.abortTask(id, context);
-  for (const id of waiting) await harness.waitForTask(id, context);
 }
 
 /** The wake-ups a session is waiting on, the soonest first. */

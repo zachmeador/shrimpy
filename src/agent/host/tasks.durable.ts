@@ -1,5 +1,6 @@
+import type { Context } from "@earendil-works/chord/context";
 import type { JsonValue } from "@earendil-works/chord/json";
-import type { ConversationId, Cursor, TaskRecord, Tx } from "@earendil-works/pi-durable";
+import type { ConversationId, Cursor, Harness, TaskRecord, Tx } from "@earendil-works/pi-durable";
 
 /** What a scan of tasks reads from: the commit it is part of, or one that makes a commit of its own for each page. */
 export type TaskScanner = Pick<Tx, "scanTasks">;
@@ -32,4 +33,17 @@ export async function tasksOfKind(
     } while (cursor !== undefined);
   }
   return found;
+}
+
+/**
+ * End the tasks of `kinds` that one session has live, and wait until each has
+ * ended. What ending one does is up to its task's own way of being aborted.
+ */
+export async function endTasks(harness: Harness, conversationId: ConversationId, kinds: readonly string[], context: Context): Promise<void> {
+  const { tasks } = await harness.inspect(context);
+  const ending = tasks
+    .filter(({ record }) => kinds.includes(record.kind) && record.conversationId === conversationId && !record.abortRequested)
+    .map(({ record }) => record.id);
+  for (const id of ending) await harness.abortTask(id, context);
+  for (const id of ending) await harness.waitForTask(id, context);
 }

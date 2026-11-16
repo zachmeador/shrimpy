@@ -1,8 +1,12 @@
 import type { Context } from "@earendil-works/chord/context";
 import type { Conversation, Harness } from "@earendil-works/pi-durable";
-import { closeQuestions } from "../questions/durable.ts";
+import { endTasks } from "../host/durable.ts";
+import { QUESTION_TASK } from "../questions/durable.ts";
 import { withdrawUnhanded } from "../turns/durable.ts";
-import { cancelWakeups } from "../wakeups/durable.ts";
+import { WAKEUP_TASK } from "../wakeups/durable.ts";
+
+/** The tasks a session's work leaves open, which a stop ends. */
+const LEFT_OPEN = [WAKEUP_TASK, QUESTION_TASK];
 
 /**
  * Stop a session's work: the turn that is running is stopped, the inputs that
@@ -14,10 +18,8 @@ import { cancelWakeups } from "../wakeups/durable.ts";
 export async function stopWork(harness: Harness, conversation: Conversation, context: Context): Promise<void> {
   // The wake-ups and the questions go first, so that none of them starts a turn while the work is being stopped. A
   // stopped turn may have set another or asked another before it ended, so they go again after.
-  await cancelWakeups(harness, conversation.id, context);
-  await closeQuestions(harness, conversation.id, context);
+  await endTasks(harness, conversation.id, LEFT_OPEN, context);
   await withdrawUnhanded(harness, conversation.id, context);
   await conversation.abort(context);
-  await cancelWakeups(harness, conversation.id, context);
-  await closeQuestions(harness, conversation.id, context);
+  await endTasks(harness, conversation.id, LEFT_OPEN, context);
 }

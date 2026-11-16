@@ -10,4 +10,4 @@
  * what a session shows a client.
  */
 export { wakeupTools, type WakeupToolsOptions } from "./check-back.durable.ts";
-export { cancelWakeups, createWakeups, touchesWakeups, waitingWakeups, type Wakeups } from "./wakeups.durable.ts";
+export { createWakeups, touchesWakeups, WAKEUP_TASK, waitingWakeups, type Wakeups } from "./wakeups.durable.ts";
