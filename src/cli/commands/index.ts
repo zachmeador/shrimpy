@@ -5,10 +5,10 @@
  * command loads it. It must not know how a command reads its own arguments.
  */
 import type { Command } from "./command.ts";
-import type { Pace } from "./up.ts";
+import type { Pace } from "../up/index.ts";
 
 export type { Command } from "./command.ts";
-export type { Pace } from "./up.ts";
+export type { Pace } from "../up/index.ts";
 
 type Family = () => Promise<Command[]>;
 

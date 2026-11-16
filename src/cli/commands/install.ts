@@ -21,10 +21,10 @@ import {
   stateOf,
   thisAccount,
 } from "../service/index.ts";
+import { alreadyRunning, type Plan, planUp } from "../up/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { shellWord } from "./shell-word.ts";
-import { alreadyRunning, type Plan, planUp } from "./up.ts";
 
 const install: Command = {
   name: "install",

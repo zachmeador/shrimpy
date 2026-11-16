@@ -6,12 +6,13 @@ import { folderPath } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { thisAccount } from "../service/index.ts";
 import { askLocalGateway, GatewayNotRunningError, START_EVERYTHING } from "../talk/index.ts";
+import { planUp } from "../up/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
 import { serviceStatusLine } from "./install.ts";
 import { renderTable } from "./table.ts";
-import { planUp } from "./up.ts";
+
 
 const status: Command = {
   name: "status",
