@@ -9,4 +9,4 @@
  * or not at all. It must not know how a connection is made, what is linked, or
  * what a member does.
  */
-export { openRoster, type Recognized, type Roster } from "./roster.ts";
+export { openRoster, type Roster } from "./roster.ts";

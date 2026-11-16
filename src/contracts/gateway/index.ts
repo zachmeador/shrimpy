@@ -6,14 +6,13 @@
  * gateway. This door is safe for browsers; `node.ts` adds linking, which needs
  * Node.
  */
-export { type Address, AddressSchema, type Entry } from "./address.ts";
+export { type Address, type Entry } from "./address.ts";
 export {
   type Answer,
   answerOf,
   done,
   needsAdmin,
   type Reason,
-  ReasonSchema,
   type Refused,
   refused,
   RefusedSchema,
@@ -23,15 +22,11 @@ export {
   type HelloAnswer,
   hello,
   otherPi,
-  type PiPackages,
   readAnswer,
   readHello,
   readVersions,
   samePi,
   turnAway,
-  type TurnedAway,
-  unreadableAnswer,
-  type Versions,
   type Welcome,
   welcome,
   type Who,
@@ -42,16 +37,11 @@ export { type Machine, MACHINE_FILE, machineFile } from "./machine.ts";
 export { type Principal, type Revocation, revokedBy, type Way } from "./principals.ts";
 export {
   type Invitation,
-  InvitationSchema,
   type Member,
   MEMBER_FIELDS,
-  MemberSchema,
   type Program,
-  ProgramSchema,
   Roster,
   type RosterEntry,
-  RosterEntrySchema,
   type WayIn,
-  WayInSchema,
 } from "./roster.ts";
 export { isToken } from "./token.ts";

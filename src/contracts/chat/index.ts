@@ -18,28 +18,19 @@
  * and for whom, and everyone reads a text the same way; how an agent acts is its
  * own. This door is safe for browsers.
  */
-export { Channel, ChannelSchema } from "./channel.ts";
+export { Channel } from "./channel.ts";
 export { Chat } from "./chat.ts";
-export { AGENT_COMMANDS, type AgentCommand, type AgentCommandLines, agentCommandIn } from "./commands.ts";
+export { AGENT_COMMANDS, type AgentCommand, agentCommandIn } from "./commands.ts";
 export { ChatPresence } from "./presence.ts";
 export {
   type ChatEvent,
-  ChatEventSchema,
   type LeftReceipt,
-  LeftReceiptSchema,
   MAX_MESSAGE_LENGTH,
   MAX_RECEIPT_DETAIL_LENGTH,
   type Member,
-  MemberSchema,
   type Message,
-  type MessageRef,
-  MessageRefSchema,
-  MessageSchema,
   type Reaction,
-  ReactionSchema,
   type Receipt,
-  ReceiptSchema,
   type Working,
-  WorkingSchema,
 } from "./shapes.ts";
-export { Thread, ThreadSchema } from "./thread.ts";
+export { Thread } from "./thread.ts";

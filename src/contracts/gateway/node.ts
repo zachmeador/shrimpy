@@ -10,15 +10,18 @@
 export { type Client, connectClient, type ConnectOptions } from "./connect.node.ts";
 export {
   dialGateway,
-  type DialGatewayOptions,
-  type GatewayDialed,
   type GatewayPlace,
   GatewayRefusedError,
   UnknownAnswerError,
   UnprovenGatewayError,
 } from "./dial.node.ts";
-export { keepLinked, type KeepLinkedOptions } from "./keep.node.ts";
-export { checkListenAddresses, keepListenAddresses, keptListenAddresses, listenAddressesFile } from "./listening.node.ts";
+export { keepLinked } from "./keep.node.ts";
+export {
+  checkListenAddresses,
+  keepListenAddresses,
+  keptListenAddresses,
+  listenAddressesFile,
+} from "./listening.node.ts";
 export { readMachine, saveMachine } from "./machine.node.ts";
 export { gatewaySocket } from "./socket.node.ts";
 export { newToken } from "./token.node.ts";

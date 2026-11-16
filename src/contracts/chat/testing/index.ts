@@ -7,11 +7,10 @@
  * the roster's member a name means. Only tests and test fixtures import this,
  * and it must not know about any program but the command that starts one.
  */
-export { type ChatListening, startTestChat, type TestChat } from "./chat.ts";
+export { startTestChat, type TestChat } from "./chat.ts";
 export {
   enterAsAgent,
   enterAsPerson,
-  type Holder,
   joinRoster,
   memberNamed,
   onChannel,

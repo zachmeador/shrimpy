@@ -7,22 +7,14 @@
  * `providers/` directory of the folder agents are started in, with its
  * default model. Browser code must not import this file.
  */
-export { AgentNotRunningError, connectHome, type ConnectHomeOptions, type HomeClient, readEndpoint } from "./connect.node.ts";
+export { AgentNotRunningError, connectHome, readEndpoint } from "./connect.node.ts";
 export { readDefaultModel, saveDefaultModel } from "./default-model.node.ts";
-export { type InitOptions, type InitResult, initHome } from "./init.node.ts";
+export { initHome } from "./init.node.ts";
 export { type HomePaths, homePaths, type ProviderPaths, providerPaths } from "./layout.node.ts";
-export { type LoadedHome, loadHome } from "./load.node.ts";
+export { loadHome } from "./load.node.ts";
 export { readMembership, saveMembership } from "./membership.node.ts";
 export { nextOccurrence } from "./schedule.node.ts";
-export {
-  draftTrigger,
-  type NewTrigger,
-  NoTriggerError,
-  removeTrigger,
-  saveTrigger,
-  switchTrigger,
-  type TriggerDraft,
-} from "./trigger-files.node.ts";
+export { draftTrigger, NoTriggerError, removeTrigger, saveTrigger, switchTrigger } from "./trigger-files.node.ts";
 export {
   parseTrigger,
   readTriggers,
@@ -31,4 +23,4 @@ export {
   type TriggerFiles,
   type TriggerProblem,
 } from "./triggers.node.ts";
-export { readWake, saveWake, type WakeRead } from "./wake.node.ts";
+export { readWake, saveWake } from "./wake.node.ts";

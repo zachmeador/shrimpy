@@ -10,19 +10,11 @@
  */
 export { answer } from "./answer.ts";
 export type { ChatDeps } from "./deps.ts";
-export {
-  addMembers,
-  archiveThread,
-  createRoom,
-  createThread,
-  openDm,
-  renameThread,
-  setWorking,
-} from "./directory.ts";
+export { addMembers, archiveThread, createRoom, createThread, openDm, renameThread, setWorking } from "./directory.ts";
 export { deleteMessage, editMessage } from "./edits.ts";
 export { post, readMessages } from "./messages.ts";
 export { react, unreact } from "./reactions.ts";
 export { leaveReceipt } from "./receipts.ts";
 export { renameMembers } from "./renames.ts";
-export { type ChannelView, channelView, type ChatView, chatView, NOT_A_MEMBER, type ThreadView, threadView } from "./views.ts";
-export { createWorkingMarks, type WorkingMarks } from "./working.ts";
+export { channelView, chatView, NOT_A_MEMBER, threadView } from "./views.ts";
+export { createWorkingMarks } from "./working.ts";

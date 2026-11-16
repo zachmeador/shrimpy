@@ -1,7 +1,7 @@
 import { randomInt } from "node:crypto";
 
 /** How long an invitation is good for. */
-export const INVITATION_MS = 15 * 60_000;
+const INVITATION_MS = 15 * 60_000;
 
 /** What a code is made of: digits and capitals that can't be mistaken for one another, so no 0, 1, I, L, O or U. */
 const ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";

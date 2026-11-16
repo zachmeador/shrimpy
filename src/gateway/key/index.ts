@@ -5,4 +5,4 @@
  * invitation's link carries. It must not know how the entry listens or who is
  * on the roster.
  */
-export { type GatewayKey, openKey } from "./key.ts";
+export { openKey } from "./key.ts";

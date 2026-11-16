@@ -6,4 +6,4 @@
  * It must not know what the value is or where it comes from.
  */
 export type { FollowAttach } from "@earendil-works/chord";
-export { type Followed, follow } from "./follow.ts";
+export { follow } from "./follow.ts";

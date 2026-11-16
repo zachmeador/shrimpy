@@ -6,4 +6,4 @@
  * working mark lasts while the hold on `Chat` that made it does. It must not
  * know how the chat server links to the gateway.
  */
-export { chatFacet, type ServedDeps } from "./facet.ts";
+export { chatFacet } from "./facet.ts";

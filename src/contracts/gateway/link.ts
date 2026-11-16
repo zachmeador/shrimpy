@@ -1,6 +1,5 @@
 import { formatAddress } from "../../lib/link/index.ts";
 import { isFingerprint } from "../../lib/tls/index.ts";
-import { decodeUri } from "../../lib/uri/index.ts";
 import type { Address } from "./address.ts";
 
 /** What an invitation link says: who is invited, where to go, the code to show there, and the key that proves the gateway. */
@@ -39,7 +38,7 @@ export function readLink(text: string): Link {
   const bracketed = written.startsWith("[");
   const host = bracketed ? written.slice(1, -1) : written;
   const number = Number(port);
-  const decoded = { name: name === undefined ? null : decodeUri(name), code: decodeUri(code) };
+  const decoded = { name: name === undefined ? null : unescaped(name), code: unescaped(code) };
   if (
     decoded.name === undefined ||
     decoded.code === undefined ||
@@ -56,4 +55,13 @@ export function readLink(text: string): Link {
     );
   }
   return { name: decoded.name, address: { host, port: number }, code: decoded.code, fingerprint };
+}
+
+/** A piece of a link with its percent-escapes undone, or undefined when they are not valid. */
+function unescaped(piece: string): string | undefined {
+  try {
+    return decodeURIComponent(piece);
+  } catch {
+    return undefined;
+  }
 }

@@ -30,7 +30,7 @@ export interface Membership {
 }
 
 /** Where a home keeps its membership, inside the home. */
-export const MEMBERSHIP_FILE = "state/member.json";
+const MEMBERSHIP_FILE = "state/member.json";
 
 /**
  * The environment variable that names the home whose agent is running a

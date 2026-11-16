@@ -6,8 +6,6 @@
 export type Way =
   /** The gateway's own socket, with no token. */
   | { kind: "socket" }
-  /** A page on the gateway's machine, with its secret, when the web client comes. */
-  | { kind: "page" }
   /** A device's token. */
   | { kind: "device"; id: string }
   /** An agent's token. */

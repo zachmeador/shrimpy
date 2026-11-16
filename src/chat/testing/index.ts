@@ -7,7 +7,7 @@
  */
 export { valueOf } from "../../contracts/chat/testing/index.ts";
 export { refusalOf } from "./answers.ts";
-export { type ChatInProcess, startChatInProcess } from "./chat.ts";
+export { startChatInProcess } from "./chat.ts";
 export { openTestDeps } from "./deps.ts";
-export { agent, type Clock, fakeClock, outcome, person } from "./fixtures.ts";
+export { agent, outcome, person } from "./fixtures.ts";
 export { openTestStore } from "./store.ts";

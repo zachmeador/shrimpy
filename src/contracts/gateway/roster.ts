@@ -22,11 +22,11 @@ export const MemberSchema = obj(ON_THE_ROSTER);
 export type Member = Static<typeof MemberSchema>;
 
 /** A member as the roster lists it, with whether it is reachable: an agent whose program is linked and answering. */
-export const RosterEntrySchema = obj({ ...ON_THE_ROSTER, reachable: bool() });
+const RosterEntrySchema = obj({ ...ON_THE_ROSTER, reachable: bool() });
 export type RosterEntry = Static<typeof RosterEntrySchema>;
 
 /** A program linked to the gateway now, with the Shrimpy version its hello gave. The chat server is no member. */
-export const ProgramSchema = obj({
+const ProgramSchema = obj({
   kind: oneOf("agent", "chat"),
   name: str(),
   member: union([str(), nul()]),
@@ -35,7 +35,7 @@ export const ProgramSchema = obj({
 export type Program = Static<typeof ProgramSchema>;
 
 /** A way in that a token opens, for a device of yours or an agent, with a device's label. */
-export const WayInSchema = obj({
+const WayInSchema = obj({
   id: str(),
   kind: oneOf("device", "token"),
   member: str(),
@@ -50,7 +50,7 @@ export type WayIn = Static<typeof WayInSchema>;
  * and the fingerprint of the gateway's key, which whoever joins keeps and checks
  * the entry against from then on.
  */
-export const InvitationSchema = obj({ code: str(), addresses: arr(AddressSchema), fingerprint: str(), expires: num() });
+const InvitationSchema = obj({ code: str(), addresses: arr(AddressSchema), fingerprint: str(), expires: num() });
 export type Invitation = Static<typeof InvitationSchema>;
 
 /**

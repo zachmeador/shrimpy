@@ -5,4 +5,4 @@
  * route there for the moment its program links; and whether each agent is
  * reachable. It must not know what a program serves or who may ask it what.
  */
-export { createPrograms, type Programs, type ProgramsOptions } from "./programs.ts";
+export { createPrograms, type Programs } from "./programs.ts";

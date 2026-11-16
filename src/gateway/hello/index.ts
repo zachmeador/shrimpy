@@ -6,4 +6,4 @@
  * Pi packages, and a hello on other Pi packages is turned away. It must not
  * know how a link is listened for, or what is held over one.
  */
-export { type Door, greeter, type HelloDeps } from "./hello.ts";
+export { greeter } from "./hello.ts";

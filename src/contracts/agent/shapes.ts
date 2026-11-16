@@ -1,11 +1,11 @@
 import { arr, bool, int, lit, nul, num, obj, oneOf, type Static, str, union } from "@earendil-works/chord";
 
 /** A model by the provider that serves it and the ID that provider knows it by. */
-export const ModelIdSchema = obj({ provider: str(), id: str() });
+const ModelIdSchema = obj({ provider: str(), id: str() });
 export type ModelId = Static<typeof ModelIdSchema>;
 
 /** A model the agent can use: where it is served, the ID that server knows it by, and the name Pi has for it. */
-export const AgentModelSchema = obj({ provider: str(), id: str(), name: str() });
+const AgentModelSchema = obj({ provider: str(), id: str(), name: str() });
 export type AgentModel = Static<typeof AgentModelSchema>;
 
 /** The models an agent can use now, and the one its sessions follow by default. */
@@ -21,7 +21,7 @@ export const AgentModelsSchema = obj({
 export type AgentModels = Static<typeof AgentModelsSchema>;
 
 /** Which thread of a channel: its main one, and its name if it has one. */
-export const ThreadPlaceSchema = obj({ main: bool(), name: union([str(), nul()]) });
+const ThreadPlaceSchema = obj({ main: bool(), name: union([str(), nul()]) });
 export type ThreadPlace = Static<typeof ThreadPlaceSchema>;
 
 /**
@@ -30,7 +30,7 @@ export type ThreadPlace = Static<typeof ThreadPlaceSchema>;
  * names are as they were when the agent last took something up there: a member
  * or a room can be renamed since.
  */
-export const SessionPlaceSchema = union([
+const SessionPlaceSchema = union([
   /** A thread of the agent's DM with one other member. */
   obj({ kind: lit("dm"), with: obj({ name: str(), kind: oneOf("person", "agent") }), thread: ThreadPlaceSchema }),
   /** A thread of a room the agent is in. */
@@ -68,7 +68,7 @@ export type SessionSummary = Static<typeof SessionSummarySchema>;
  * next matching time in `timezone`, which is the machine's when the file left
  * it out.
  */
-export const TriggerScheduleSchema = union([obj({ every: str() }), obj({ cron: str(), timezone: str() })]);
+const TriggerScheduleSchema = union([obj({ every: str() }), obj({ cron: str(), timezone: str() })]);
 export type TriggerSchedule = Static<typeof TriggerScheduleSchema>;
 
 /**
@@ -77,7 +77,7 @@ export type TriggerSchedule = Static<typeof TriggerScheduleSchema>;
  * made, no model is called and no occurrence is made. The agent keeps it in its
  * records.
  */
-export const CheckSchema = obj({
+const CheckSchema = obj({
   /** The command line, run with the agent's shell from its home. */
   command: str(),
   /**
@@ -103,7 +103,7 @@ export type Check = Static<typeof CheckSchema>;
  * running its check when the agent ended, and the check was not run again for it.
  * A check that finds no news makes no occurrence.
  */
-export const OccurrenceEndingSchema = oneOf("answered", "silent", "failed", "stopped", "skipped", "noted", "interrupted");
+const OccurrenceEndingSchema = oneOf("answered", "silent", "failed", "stopped", "skipped", "noted", "interrupted");
 export type OccurrenceEnding = Static<typeof OccurrenceEndingSchema>;
 
 /** One occurrence of a trigger, from the agent's records. Times are milliseconds since the epoch. */
@@ -203,7 +203,7 @@ export type Reloaded = Static<typeof ReloadedSchema>;
  *   because the turn ahead of it failed.
  * - `other`: anything else, with what the engine said in the detail.
  */
-export const FailureReasonSchema = oneOf(
+const FailureReasonSchema = oneOf(
   "model_failed",
   "no_model",
   "stopped",
@@ -233,7 +233,7 @@ export const SubmittedSchema = obj({ submission: int() });
 export type Submitted = Static<typeof SubmittedSchema>;
 
 /** `interrupted` means the agent restarted mid-call and did not run the tool again. */
-export const ToolStatusSchema = oneOf("pending", "running", "done", "error", "interrupted");
+const ToolStatusSchema = oneOf("pending", "running", "done", "error", "interrupted");
 export type ToolStatus = Static<typeof ToolStatusSchema>;
 
 /**
@@ -243,7 +243,7 @@ export type ToolStatus = Static<typeof ToolStatusSchema>;
 const ENTRY = union([int(), nul()]);
 
 /** An image the model was shown, by its media type, such as `image/png`, which is enough to name it. */
-export const SessionImageSchema = obj({ mimeType: str() });
+const SessionImageSchema = obj({ mimeType: str() });
 export type SessionImage = Static<typeof SessionImageSchema>;
 
 /**
@@ -256,7 +256,7 @@ export type SessionImage = Static<typeof SessionImageSchema>;
  * - `interrupted`: it was cut off, by a stop or by the agent ending.
  * - `other`: anything else, with what the engine said in the detail.
  */
-export const AnswerEndingSchema = oneOf("finished", "called_tools", "too_long", "failed", "interrupted", "other");
+const AnswerEndingSchema = oneOf("finished", "called_tools", "too_long", "failed", "interrupted", "other");
 export type AnswerEnding = Static<typeof AnswerEndingSchema>;
 
 /**
@@ -267,7 +267,7 @@ export type AnswerEnding = Static<typeof AnswerEndingSchema>;
  * does: each is named in `images`, in the order the model was shown them, and
  * is no part of `text`.
  */
-export const SessionItemSchema = union([
+const SessionItemSchema = union([
   obj({ type: lit("user"), entry: ENTRY, text: str(), images: arr(SessionImageSchema) }),
   obj({
     type: lit("assistant"),
@@ -304,7 +304,7 @@ export type SessionItem = Static<typeof SessionItemSchema>;
 export const SessionPageSchema = obj({ items: arr(SessionItemSchema), before: union([int(), nul()]) });
 export type SessionPage = Static<typeof SessionPageSchema>;
 
-export const SessionActivitySchema = union([
+const SessionActivitySchema = union([
   obj({ kind: lit("idle") }),
   obj({ kind: lit("working") }),
   obj({ kind: lit("answering") }),
@@ -319,11 +319,11 @@ export type SessionActivity = Static<typeof SessionActivitySchema>;
  * the turn after it, and `other` is anything else, such as an entry the engine
  * writes, which `text` names as the engine does.
  */
-export const QueuedInputSchema = obj({ when: oneOf("next_step", "next_turn", "other"), text: str() });
+const QueuedInputSchema = obj({ when: oneOf("next_step", "next_turn", "other"), text: str() });
 export type QueuedInput = Static<typeof QueuedInputSchema>;
 
 /** A wake-up the session asked for with `check_back` and is waiting on: when it is due, and the note it will bring. */
-export const WaitingWakeupSchema = obj({
+const WaitingWakeupSchema = obj({
   /** In milliseconds since the epoch. */
   due: num(),
   note: str(),
@@ -331,7 +331,7 @@ export const WaitingWakeupSchema = obj({
 export type WaitingWakeup = Static<typeof WaitingWakeupSchema>;
 
 /** Why a session's last turn ended without an answer, and more when the agent knows more. */
-export const TurnFailureSchema = obj({ reason: FailureReasonSchema, detail: union([str(), nul()]) });
+const TurnFailureSchema = obj({ reason: FailureReasonSchema, detail: union([str(), nul()]) });
 export type TurnFailure = Static<typeof TurnFailureSchema>;
 
 /** What a session is doing, what waits, its model and its usage. */

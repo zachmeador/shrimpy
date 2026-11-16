@@ -9,7 +9,7 @@
  * must not know what a hello says, who may link or where a key is kept. This
  * is the Node-only door; `index.ts` has how an address is written.
  */
-export { type DialOptions, type Dialed, type DialPlace, dial, OtherKeyError } from "./dial.node.ts";
-export { type KeepLinkOptions, keepLink } from "./keep.node.ts";
+export { type Dialed, type DialPlace, dial, OtherKeyError } from "./dial.node.ts";
+export { keepLink } from "./keep.node.ts";
 export { type Linked } from "./linked.node.ts";
-export { type Greeted, type Listener, type ListenOptions, type ListenPlace, listen } from "./listen.node.ts";
+export { type Greeted, type Listener, type ListenOptions, listen } from "./listen.node.ts";

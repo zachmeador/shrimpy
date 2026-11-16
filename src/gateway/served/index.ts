@@ -5,6 +5,6 @@
  * with it, checked against the roster as it is now. It must not know how a
  * caller linked in.
  */
-export { type Actions, type ActionsDeps, createActions } from "./actions.ts";
+export { createActions } from "./actions.ts";
 export { gatewayFacet } from "./facet.ts";
-export { createView, type GatewayView, type View } from "./view.ts";
+export { createView } from "./view.ts";

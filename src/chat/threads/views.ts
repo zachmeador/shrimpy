@@ -8,7 +8,7 @@ import { toChannel } from "./directory.ts";
 import { withWorking } from "./working.ts";
 
 /** Messages a thread shows at once. Older ones are counted in `earlier` and read with `read`. */
-export const VIEW_MESSAGES = 200;
+const VIEW_MESSAGES = 200;
 
 /** What a program that is no member is told when it asks chat for anything. */
 export const NOT_A_MEMBER = refused("Only the network's members use chat, and the roster has no member for whoever is asking.");

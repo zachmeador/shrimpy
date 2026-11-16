@@ -6,12 +6,5 @@
  * test has agents on the roster. Only tests and test fixtures import this, and
  * it must not know about any program but the command that starts one.
  */
-export { Echo, linkTestAgent, type TestAgent, type TestAgentOptions } from "./agent.ts";
-export {
-  connectTestClient,
-  type GatewayListening,
-  SHRIMPY_ENTRY,
-  startTestGateway,
-  type TestGateway,
-  type TestGatewayOptions,
-} from "./gateway.ts";
+export { Echo, linkTestAgent, type TestAgent } from "./agent.ts";
+export { connectTestClient, SHRIMPY_ENTRY, startTestGateway, type TestGateway } from "./gateway.ts";

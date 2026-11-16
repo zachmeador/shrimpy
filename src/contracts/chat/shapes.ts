@@ -32,7 +32,7 @@ export const MAX_RECEIPT_DETAIL_LENGTH = 500;
 const StatusSchema = oneOf("answered", "silent", "stopped", "skipped", "failed");
 
 /** What one agent did with an event, left when its turn for that event ended. */
-export const ReceiptSchema = obj({
+const ReceiptSchema = obj({
   memberId: str(),
   /**
    * The ID of the event it answers: the post, or an edit, or whatever else the
@@ -60,7 +60,7 @@ export const LeftReceiptSchema = obj({ status: StatusSchema, reply: union([str()
 export type LeftReceipt = Static<typeof LeftReceiptSchema>;
 
 /** One emoji on a message, and the members who put it there, in the order they did. */
-export const ReactionSchema = obj({ emoji: str(), memberIds: arr(str()) });
+const ReactionSchema = obj({ emoji: str(), memberIds: arr(str()) });
 export type Reaction = Static<typeof ReactionSchema>;
 
 /** A message as it now stands: the log of events folded into one record. */
@@ -106,7 +106,7 @@ export type Message = Static<typeof MessageSchema>;
  * The message an event names, as it stands when the event is read: enough to
  * decide what the event means to a member without asking for the message.
  */
-export const MessageRefSchema = obj({
+const MessageRefSchema = obj({
   id: str(),
   channelId: str(),
   threadId: str(),
