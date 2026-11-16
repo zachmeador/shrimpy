@@ -6,7 +6,7 @@ import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import type { Io } from "../io/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
-import { GatewayNotRunningError, linkAs, viewOf } from "./gateway.ts";
+import { GatewayNotRunningError, linkAs, NO_GATEWAY, viewOf } from "./gateway.ts";
 import { START_EVERYTHING } from "./hints.ts";
 import { me } from "./me.ts";
 
@@ -47,7 +47,7 @@ export async function reachChat(io: Io, signal?: AbortSignal): Promise<Reached> 
   try {
     client = await linkAs(who, signal);
   } catch (error) {
-    if (error instanceof GatewayNotRunningError) throw new Error(`No gateway is running on this machine. Start Shrimpy with: ${START_EVERYTHING}`, { cause: error });
+    if (error instanceof GatewayNotRunningError) throw new Error(NO_GATEWAY, { cause: error });
     throw error;
   }
   try {

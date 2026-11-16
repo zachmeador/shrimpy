@@ -1,7 +1,7 @@
 import { parseArgs } from "node:util";
 import { contextOf, type RosterEntry, valueOf } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
-import { askGateway, memberNamed, onRoster, START_EVERYTHING, withGatewayAsMe } from "../talk/index.ts";
+import { askGateway, memberNamed, NO_GATEWAY, onRoster, withGatewayAsMe } from "../talk/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderTable } from "./table.ts";
@@ -21,7 +21,7 @@ const members: Command = {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     expectArguments(positionals, []);
     const view = await askGateway();
-    if (view === undefined) throw new Error(`No gateway is running on this machine. Start Shrimpy with: ${START_EVERYTHING}`);
+    if (view === undefined) throw new Error(NO_GATEWAY);
     for (const line of renderMembers(view.members)) io.out(line);
     return 0;
   },

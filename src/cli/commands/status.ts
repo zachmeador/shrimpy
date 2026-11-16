@@ -6,7 +6,7 @@ import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { folderPath } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { thisAccount } from "../service/index.ts";
-import { askLocalGateway, GatewayNotRunningError, START_EVERYTHING } from "../talk/index.ts";
+import { askLocalGateway, GatewayNotRunningError, NO_GATEWAY } from "../talk/index.ts";
 import { planUp } from "../up/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
@@ -67,7 +67,7 @@ async function noGatewayHere(io: Io, error: GatewayNotRunningError): Promise<num
   const elsewhere = gatewaysElsewhere();
   const where = listed(elsewhere.map(formatAddress));
   if (elsewhere.length === 0) {
-    io.err(`${error.message} Start Shrimpy with: ${START_EVERYTHING}`);
+    io.err(NO_GATEWAY);
   } else {
     io.err(
       elsewhere.length === 1

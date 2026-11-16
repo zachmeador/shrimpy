@@ -13,8 +13,7 @@ import {
 } from "../../contracts/gateway/index.ts";
 import type { Client } from "../../contracts/gateway/node.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import { GatewayNotRunningError, linkAs, viewOf } from "./gateway.ts";
-import { START_EVERYTHING } from "./hints.ts";
+import { GatewayNotRunningError, linkAs, NO_GATEWAY, viewOf } from "./gateway.ts";
 import { me } from "./me.ts";
 
 /** An agent a command reached: the host that holds its objects, and the name they are at. */
@@ -58,11 +57,7 @@ async function asTheAgentAt(shell: string, home: string): Promise<{ client: Clie
     client = await linkAs(me());
   } catch (error) {
     if (!(error instanceof GatewayNotRunningError)) throw error;
-    throw new Error(
-      `The agent at ${home} can't be reached from an agent's shell without the gateway, and no gateway is running ` +
-        `on this machine. Start Shrimpy with: ${START_EVERYTHING}`,
-      { cause: error },
-    );
+    throw new Error(`The agent at ${home} can't be reached from an agent's shell without the gateway. ${NO_GATEWAY}`, { cause: error });
   }
   try {
     const view = await viewOf(client);

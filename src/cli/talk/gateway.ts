@@ -6,13 +6,18 @@ import { type DialPlace, nobodyThere } from "../../lib/link/node.ts";
 import { START_EVERYTHING } from "./hints.ts";
 import { type Me, me } from "./me.ts";
 
+const NOT_RUNNING = "No gateway is running on this machine.";
+
 /** Nothing is listening for the gateway on this machine. */
 export class GatewayNotRunningError extends Error {
   constructor(options?: ErrorOptions) {
-    super("No gateway is running on this machine.", options);
+    super(NOT_RUNNING, options);
     this.name = "GatewayNotRunningError";
   }
 }
+
+/** What a command says when it needs the gateway on this machine and none is running: that, and how to start Shrimpy. */
+export const NO_GATEWAY = `${NOT_RUNNING} Start Shrimpy with: ${START_EVERYTHING}`;
 
 /** What the gateway says is linked and who is on its roster. */
 export interface GatewayView {
@@ -90,7 +95,7 @@ async function withGateway<T>(
 /** Use a link to the gateway, as withGateway has it, for the length of `use`. With no gateway the error says what to start. */
 export async function withGatewayAsMe<T>(use: (client: Client, who: Me) => Promise<T>): Promise<T> {
   const used = await withGateway(undefined, async (client, who) => ({ value: await use(client, who) }));
-  if (used === undefined) throw new Error(`No gateway is running on this machine. Start Shrimpy with: ${START_EVERYTHING}`);
+  if (used === undefined) throw new Error(NO_GATEWAY);
   return used.value;
 }
 
