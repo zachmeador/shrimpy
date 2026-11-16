@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { parseArgs } from "node:util";
-import { type Channel, Thread } from "../../contracts/chat/index.ts";
+import { type Channel, receiptWords, Thread } from "../../contracts/chat/index.ts";
 import { contextOf, isLost, unlessRefused, valueOf } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
 import {
@@ -129,7 +129,10 @@ async function chooseThread(reached: Reached, dm: Channel, id: string | undefine
   );
 }
 
-/** Say what became of the message: the reply on standard output, anything else on standard error. */
+/**
+ * Say what became of the message: the reply on standard output, anything else on standard error. What a failed,
+ * stopped or skipped receipt tells a person is said in the contract's words, as a sentence.
+ */
 function report(io: Io, agent: string, thread: string, waited: Waited): number {
   if (waited.kind === "moved-on") {
     io.err(
@@ -139,32 +142,24 @@ function report(io: Io, agent: string, thread: string, waited: Waited): number {
     return 1;
   }
   const { receipt, reply } = waited;
-  switch (receipt.status) {
-    case "answered":
-      if (reply === undefined) {
-        io.err(`${agent} answered, but its reply ${receipt.reply} is not in the thread. Read it with: shrimpy read ${thread}`);
-        return 1;
-      }
-      io.out(reply.text.replace(/\n$/, ""));
-      return 0;
-    case "silent":
-      return 0;
-    case "failed":
-      io.err(`${agent} failed: ${receipt.detail}`);
-      return 1;
-    case "stopped":
-      io.err(`${agent} stopped before answering your message.`);
-      return CANCELLED;
+  const said = receiptWords(receipt, agent);
+  if (said !== undefined) {
+    io.err(asSentence(said));
     // A skipped receipt with a reason was left behind a turn that failed, and one with none behind a stop.
-    case "skipped":
-      if (receipt.detail !== null) {
-        io.err(`${agent} skipped your message: ${receipt.detail}`);
-        return 1;
-      }
-      io.err(`${agent} skipped your message, because its work was stopped.`);
-      return CANCELLED;
+    const failed = receipt.status === "failed" || (receipt.status === "skipped" && receipt.detail !== null);
+    return failed ? 1 : CANCELLED;
   }
+  if (receipt.status === "silent") return 0;
+  if (reply === undefined) {
+    io.err(`${agent} answered, but its reply ${receipt.reply} is not in the thread. Read it with: shrimpy read ${thread}`);
+    return 1;
+  }
+  io.out(reply.text.replace(/\n$/, ""));
+  return 0;
 }
+
+/** `words` as a sentence: as they are when they end like one, and with a period when they don't. */
+const asSentence = (words: string): string => (/[.!?]$/.test(words) ? words : `${words}.`);
 
 /** The chat server went away: say what became of the message, as far as that is known. */
 function lostConnection(agent: string, progress: Progress): string {
