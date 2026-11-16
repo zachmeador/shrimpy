@@ -1,15 +1,6 @@
 import { dirname } from "node:path";
-import {
-  type Dialogue,
-  type Notice,
-  openSignIns,
-  type ProviderToSignIn,
-  providerPaths,
-  readDefaultModel,
-  saveDefaultModel,
-  type SignIns,
-  type SignInWay,
-} from "../../agent/index.ts";
+import { type Dialogue, type Notice, openSignIns, type ProviderToSignIn, type SignIns, type SignInWay } from "../../agent/index.ts";
+import { providerPaths, readDefaultModel, saveDefaultModel } from "../../contracts/agent/node.ts";
 import type { Io } from "../io/index.ts";
 import { UsageError } from "../usage/index.ts";
 

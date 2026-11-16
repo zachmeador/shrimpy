@@ -8,7 +8,7 @@ import {
   modelLabel,
   parseAgentConfig,
 } from "./agent-config.ts";
-import { type HomePaths, homePaths } from "./layout.ts";
+import { type HomePaths, homePaths } from "./layout.node.ts";
 
 export interface InitOptions {
   readonly name: string;

@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { ConfigError } from "../../lib/json-config/index.ts";
 import { tempDir } from "../../lib/testing/index.ts";
-import { homePaths, initHome, loadHome, parseModelChoice } from "./index.ts";
+import { parseModelChoice } from "./index.ts";
+import { homePaths, initHome, loadHome } from "./node.ts";
 
 const model = { provider: "local", id: "qwen3.8-27b" };
 
@@ -23,8 +24,6 @@ test("init creates every file and folder, and the home loads", (t) => {
   for (const folder of [paths.context, paths.vault, paths.skills, paths.breadcrumbs, paths.runtime]) {
     assert.ok(statSync(folder).isDirectory(), folder);
   }
-  // The storage is created by the agent that owns the home, not by init.
-  assert.equal(existsSync(paths.database), false);
 
   const loaded = loadHome(home);
   assert.equal(loaded.name, "scout");

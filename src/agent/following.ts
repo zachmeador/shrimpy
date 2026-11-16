@@ -1,6 +1,7 @@
 import { stat } from "node:fs/promises";
+import type { LeftOut } from "../contracts/agent/node.ts";
 import { refuse } from "../lib/refusal/index.ts";
-import { homePaths, type LeftOut, leftOutSentence, removeBreadcrumb, shownIn, writeBreadcrumb } from "./home/index.ts";
+import { homePaths, leftOutSentence, removeBreadcrumb, shownIn, writeBreadcrumb } from "./home/index.ts";
 
 /** How often the agent looks at its files, in milliseconds. A test gives a shorter time. */
 export const LOOK_EVERY_MS = 2_000;

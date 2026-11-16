@@ -1,6 +1,6 @@
 import { defineDoc } from "@earendil-works/pi-durable";
+import type { TriggerDefinition } from "../../contracts/agent/node.ts";
 import { newId } from "../../lib/ids/index.ts";
-import type { TriggerDefinition } from "../home/index.ts";
 import {
   type CameBack,
   isOccurrence,

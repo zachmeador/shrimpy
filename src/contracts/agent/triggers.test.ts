@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { nextOccurrence } from "./schedule.ts";
-import { parseTrigger, TriggerFileError } from "./triggers.ts";
+import { nextOccurrence } from "./schedule.node.ts";
+import { parseTrigger, TriggerFileError } from "./triggers.node.ts";
 
 const THREAD = "th_4k9x2m7q0b3d";
 

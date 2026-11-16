@@ -1,21 +1,13 @@
 import type { Dirent, Stats } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
-import type { Check, TriggerSchedule } from "../../contracts/agent/index.ts";
 import { isName, NAME_RULE } from "./agent-config.ts";
-import { codeOf, compare, readText, why } from "./files.ts";
+import { codeOf, compare, readText, why } from "./files.node.ts";
 import { frontmatterAndBody } from "./frontmatter.ts";
-import type { HomePaths } from "./layout.ts";
-import {
-  cronFields,
-  delayMs,
-  delayText,
-  isTimezone,
-  machineTimezone,
-  nextOccurrence,
-  normalizeDelay,
-  SHORTEST_EVERY_MS,
-} from "./schedule.ts";
+import type { HomePaths } from "./layout.node.ts";
+import { cronFields, delayMs, delayText, normalizeDelay, SHORTEST_EVERY_MS } from "./schedule.ts";
+import { isTimezone, machineTimezone, nextOccurrence } from "./schedule.node.ts";
+import type { Check, TriggerSchedule } from "./shapes.ts";
 
 /**
  * A standing trigger, as its file says it: when it fires, where its

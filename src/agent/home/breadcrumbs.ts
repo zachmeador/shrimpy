@@ -1,7 +1,8 @@
 import type { Dirent } from "node:fs";
 import { mkdir, open, readdir, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { compare, cutText, replaceFile } from "./files.ts";
+import { compare, replaceFile } from "../../contracts/agent/node.ts";
+import { cutText } from "./files.ts";
 import type { HomePaths } from "./layout.ts";
 
 /** A breadcrumb as the home's files have it: the file's name, and what it says, trimmed and cut. */

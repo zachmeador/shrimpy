@@ -17,19 +17,24 @@ import { userInfo } from "node:os";
 import { createHost, type HostError } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type Address, gateway, type Principal, type Revocation, revokedBy } from "../contracts/gateway/index.ts";
-import { gatewaySocket } from "../contracts/gateway/node.ts";
+import {
+  checkListenAddresses,
+  gatewaySocket,
+  keepListenAddresses,
+  keptListenAddresses,
+  listenAddressesFile,
+} from "../contracts/gateway/node.ts";
 import { type Listener, listen } from "../lib/link/node.ts";
 import { greeter } from "./hello/index.ts";
 import { createInvitations } from "./invitations/index.ts";
 import { openKey } from "./key/index.ts";
-import { cannotListen, checkListenAddresses, keep, listeningFile, readKept } from "./listening/index.ts";
+import { cannotListen } from "./listening/index.ts";
 import { takeGatewayLock } from "./lock.ts";
 import { createPrograms } from "./programs/index.ts";
 import { openRoster, type Roster } from "./roster/index.ts";
 import { createActions, createView, gatewayFacet } from "./served/index.ts";
 import { followSettings } from "./settings/index.ts";
 
-export { checkListenAddresses, readKept as keptListenAddresses } from "./listening/index.ts";
 export { GatewayRunningError } from "./lock.ts";
 export { RosterOwnedError } from "./roster/index.ts";
 
@@ -111,9 +116,9 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     const { key, fingerprint } = openKey(options.dataDir);
     if (options.settings !== undefined) open.push(followYourName(roster, options.settings));
     // What was kept is read once the data directory is held, so that no other gateway is changing it, and before anything listens.
-    const kept = given === undefined ? readKept(options.dataDir) : [];
+    const kept = given === undefined ? keptListenAddresses(options.dataDir) : [];
     const wanted = given ?? (kept.length > 0 ? kept : undefined);
-    const listeningAsKept = given === undefined && kept.length > 0 ? listeningFile(options.dataDir) : undefined;
+    const listeningAsKept = given === undefined && kept.length > 0 ? listenAddressesFile(options.dataDir) : undefined;
     const invitations = createInvitations();
 
     const host = createHost<Principal, Revocation>({
@@ -185,7 +190,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     }
     const listening = entries.map(({ place }) => place as Address);
     // Only addresses that were listened on replace what was kept.
-    if (given !== undefined) keep(options.dataDir, listening);
+    if (given !== undefined) keepListenAddresses(options.dataDir, listening);
     return { socket, listening, listeningAsKept, fingerprint, close: closeAll };
   } catch (error) {
     await closeAll().catch(() => undefined);

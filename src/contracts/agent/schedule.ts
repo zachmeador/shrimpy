@@ -1,5 +1,4 @@
-import { CronExpressionParser } from "cron-parser";
-import type { TriggerSchedule } from "../../contracts/agent/index.ts";
+import type { TriggerSchedule } from "./shapes.ts";
 
 /** The shortest a trigger may repeat at, in milliseconds. Tests shorten it. */
 export const SHORTEST_EVERY_MS = 60_000;
@@ -31,37 +30,10 @@ export function delayText(milliseconds: number): string {
   return `${String(milliseconds)}ms`;
 }
 
-/** The time zone of this machine, which a cron schedule uses when its file names none. */
-export function machineTimezone(): string {
-  return new Intl.DateTimeFormat().resolvedOptions().timeZone;
-}
-
-/** Whether cron can work in this time zone. */
-export function isTimezone(name: string): boolean {
-  try {
-    CronExpressionParser.parse("* * * * *", { currentDate: new Date(0), tz: name }).next();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** The five fields of a cron expression with one space between them, or undefined when there are not five. */
 export function cronFields(expression: string): string | undefined {
   const fields = expression.trim().split(/\s+/);
   return fields.length === 5 ? fields.join(" ") : undefined;
-}
-
-/**
- * The time of the next occurrence, strictly after `from`, in milliseconds
- * since the epoch. A delay counts from `from`; a cron schedule is the next
- * matching minute in its time zone, which for a local time that does not exist
- * is the one the clock jumps to. Throws when a cron schedule never matches.
- */
-export function nextOccurrence(schedule: TriggerSchedule, from: number): number {
-  if ("every" in schedule) return from + delayMs(schedule.every);
-  const expression = CronExpressionParser.parse(schedule.cron, { currentDate: new Date(from), tz: schedule.timezone });
-  return expression.next().getTime();
 }
 
 /** A schedule as the model and a person read it: "every 1h", or `cron "0 3 * * *" in Europe/Berlin`. */

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { type ModelChoice, parseAgentConfig } from "./agent-config.ts";
-import { type HomePaths, homePaths } from "./layout.ts";
+import { type HomePaths, homePaths } from "./layout.node.ts";
 
 /** An agent home, read from disk and checked. */
 export interface LoadedHome {

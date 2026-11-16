@@ -4,8 +4,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, w
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { AgentModels } from "../contracts/agent/index.ts";
-import { readMembership, saveMembership } from "../contracts/agent/node.ts";
+import { type AgentModels, parseModelChoice } from "../contracts/agent/index.ts";
+import { initHome, readMembership, saveMembership } from "../contracts/agent/node.ts";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
 import { type Program, Roster, type RosterEntry } from "../contracts/gateway/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
@@ -14,7 +14,7 @@ import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { homePaths } from "./home/index.ts";
 import { ModelSetupError } from "./host/durable.ts";
-import { initHome, parseModelChoice, previewHomeContext, startHomeAgent } from "./index.ts";
+import { previewHomeContext, startHomeAgent } from "./index.ts";
 import {
   attachThread,
   closeAfter,
@@ -50,7 +50,8 @@ const several = {
 function newHome(t: TestContext, providers: object = { local }, name = "scout") {
   useRuntimeDir(t);
   const home = join(tempDir(t, "home-agent"), name);
-  const { paths } = initHome(home, { name, model: parseModelChoice("local/qwen") });
+  initHome(home, { name, model: parseModelChoice("local/qwen") });
+  const paths = homePaths(home);
   writeFileSync(paths.models, JSON.stringify({ providers }));
   return paths;
 }

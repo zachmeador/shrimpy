@@ -1,5 +1,7 @@
 import { parseArgs } from "node:util";
-import { checkAgentName, initHome, JoinFailedError, type JoinedHome, joinHome, providerPaths } from "../../agent/index.ts";
+import { JoinFailedError, type JoinedHome, joinHome } from "../../agent/index.ts";
+import { checkAgentName } from "../../contracts/agent/index.ts";
+import { initHome, providerPaths } from "../../contracts/agent/node.ts";
 import { formatAddress, type Link, readLink } from "../../contracts/gateway/index.ts";
 import { joinAsMachine, type MachineJoined, MachineJoinFailedError } from "../../contracts/gateway/node.ts";
 import { gatewayOfItsOwn, homeInFolder, machineFolder, providersPath } from "../folder/index.ts";

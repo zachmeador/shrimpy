@@ -5,36 +5,22 @@
  * asks, and on the home's own socket, where a client is `home`. Over the same
  * link it takes part in the network as a member and in chat.
  * Other programs reach an agent only through `contracts/agent`; they never
- * import this program's modules, except that the CLI starts an agent, creates a
- * home, previews what a home would tell an agent, reads, checks and
- * changes the files of its triggers and its wake file, signs the folder its
- * agents are started in to a model provider, and joins a home to a gateway
- * apart from it with an invitation, through this door, none of which needs a
- * running agent. It must not know who its clients are beyond who it is told
- * they are, or anything about the chat server and the gateway beyond their
- * contracts.
+ * import this program's modules, except that the CLI starts an agent, previews
+ * what a home would tell an agent, signs the folder its agents are started in
+ * to a model provider, and joins a home to a gateway apart from it with an
+ * invitation, through this door. It must not know who its clients are beyond
+ * who it is told they are, or anything about the chat server and the gateway
+ * beyond their contracts.
  */
 import type { AgentEndpoint, Reloaded } from "../contracts/agent/index.ts";
-import { readMembership } from "../contracts/agent/node.ts";
+import { type LeftOut, loadHome, readMembership, readTriggers, readWake } from "../contracts/agent/node.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { createAdmissions } from "./chat/durable.ts";
 import { channelOfThread, createDelivery, createWakes } from "./chat/index.ts";
 import { homeContext } from "./context/durable.ts";
 import { type ContextPreview, previewContext } from "./context/index.ts";
 import { type Following, follow, keepLeftOut, LOOK_EVERY_MS, requireSeen } from "./following.ts";
-import {
-  homePaths,
-  type LeftOut,
-  loadHome,
-  lookAtHome,
-  readBreadcrumbs,
-  readTriggers,
-  readWake,
-  shownIn,
-  type TriggerFiles,
-  type WakeRead,
-  writeBreadcrumb,
-} from "./home/index.ts";
+import { homePaths, lookAtHome, readBreadcrumbs, shownIn, writeBreadcrumb } from "./home/index.ts";
 import { buildModels, type HostOptions, type ModelReload, openHost } from "./host/durable.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { createRoster } from "./links/index.ts";
@@ -51,39 +37,6 @@ import { createWakeups, wakeupTools } from "./wakeups/durable.ts";
 
 export { placeOfThread, type ThreadPlace } from "./chat/index.ts";
 export type { ContextPreview } from "./context/index.ts";
-export {
-  checkAgentName,
-  DEFAULT_WAKE_POLICY,
-  describeSchedule,
-  draftTrigger,
-  type InitOptions,
-  type InitResult,
-  initHome,
-  isWakePolicy,
-  type ModelChoice,
-  modelLabel,
-  type NewTrigger,
-  NoTriggerError,
-  parseModelChoice,
-  parseTrigger,
-  parseWake,
-  type ProviderPaths,
-  providerPaths,
-  readDefaultModel,
-  removeTrigger,
-  saveDefaultModel,
-  saveTrigger,
-  saveWake,
-  switchTrigger,
-  type TriggerDefinition,
-  type TriggerDraft,
-  TriggerFileError,
-  type TriggerFiles,
-  type TriggerProblem,
-  WAKE_POLICIES,
-  type WakePolicy,
-  type WakeRead,
-} from "./home/index.ts";
 export {
   type Dialogue,
   type Notice,
@@ -416,23 +369,4 @@ export async function previewHomeContext(home: string): Promise<HomePreview> {
     triggers: triggers.length,
     leftOut: [...preview.leftOut, ...problems.map(({ file, reason }) => ({ file, reason }))],
   };
-}
-
-/**
- * What the wake file of the home of `home` chooses, for the rooms it names, or why
- * the file is left out, read without starting anything and without a lock. A
- * running agent reads the file by itself, within a few seconds of a change.
- */
-export async function readHomeWake(home: string): Promise<WakeRead> {
-  return readWake(loadHome(home).paths);
-}
-
-/**
- * The triggers the files of the home of `home` hold, and the files that do not
- * check out, read without starting anything and without a lock. This is what a
- * running agent has within a few seconds of a change; it has no times and no
- * outcomes, which only a running agent knows.
- */
-export async function readHomeTriggers(home: string): Promise<TriggerFiles> {
-  return readTriggers(loadHome(home).paths);
 }

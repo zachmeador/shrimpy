@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { type AuthEvent, type AuthPrompt, createModels, ModelsError, type Provider } from "@earendil-works/pi-ai";
-import { type ProviderPaths, providerPaths } from "../home/index.ts";
+import { type ProviderPaths, providerPaths } from "../../contracts/agent/node.ts";
 import { credentialStore, NO_AMBIENT_AUTH } from "./credentials.ts";
 import { CHECKED_SUBSCRIPTIONS, type Withheld, whyWithheld } from "./subscriptions.ts";
 

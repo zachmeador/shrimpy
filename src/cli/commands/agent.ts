@@ -1,17 +1,8 @@
 import { basename, dirname } from "node:path";
 import { parseArgs } from "node:util";
-import {
-  checkAgentName,
-  type HomeAgent,
-  initHome,
-  type ModelChoice,
-  modelLabel,
-  parseModelChoice,
-  previewHomeContext,
-  providerPaths,
-  startHomeAgent,
-} from "../../agent/index.ts";
-import { readEndpoint } from "../../contracts/agent/node.ts";
+import { type HomeAgent, previewHomeContext, startHomeAgent } from "../../agent/index.ts";
+import { checkAgentName, type ModelChoice, modelLabel, parseModelChoice } from "../../contracts/agent/index.ts";
+import { initHome, providerPaths, readEndpoint } from "../../contracts/agent/node.ts";
 import { homeNamed, isPath, newHome, providersPath } from "../folder/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
 import { onAgent } from "../talk/index.ts";

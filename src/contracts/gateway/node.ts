@@ -3,8 +3,9 @@
  * gateway and every join starts with, at its own socket or at its entry once
  * the gateway's key proves it; linking
  * as a client, once or kept, or as a program; joining a machine of yours as a
- * device, with the file in its Shrimpy folder that says so; and making a token.
- * Browser code must not import this file.
+ * device, with the file in its Shrimpy folder that says so; the addresses the
+ * gateway keeps for its entry, and the check that an address is one another
+ * machine can use; and making a token. Browser code must not import this file.
  */
 export { connectGateway, type ConnectGatewayOptions, type GatewayClient } from "./connect.node.ts";
 export {
@@ -23,6 +24,7 @@ export {
   keepProgramLinked,
   type KeepProgramLinkedOptions,
 } from "./keep.node.ts";
+export { checkListenAddresses, keepListenAddresses, keptListenAddresses, listenAddressesFile } from "./listening.node.ts";
 export { readMachine, saveMachine } from "./machine.node.ts";
 export { gatewaySocket } from "./socket.node.ts";
 export { newToken } from "./token.node.ts";

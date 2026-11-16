@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { checkAgentName } from "../../agent/index.ts";
+import { checkAgentName } from "../../contracts/agent/index.ts";
 import { type Address, type Invitation, writeLink } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
 import { contextOf, onRoster, valueOf, withGatewayAsMe } from "../talk/index.ts";

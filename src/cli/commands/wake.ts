@@ -1,14 +1,13 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
+  AGENT_HOME_VARIABLE,
   DEFAULT_WAKE_POLICY,
   isWakePolicy,
-  readHomeWake,
-  saveWake,
   WAKE_POLICIES,
   type WakePolicy,
-} from "../../agent/index.ts";
-import { AGENT_HOME_VARIABLE } from "../../contracts/agent/index.ts";
+} from "../../contracts/agent/index.ts";
+import { loadHome, readWake, saveWake } from "../../contracts/agent/node.ts";
 import type { Io } from "../io/index.ts";
 import { contextOf, onAgent, type Reached, reachChat, roomNamed, roomNameWritten, valueOf } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
@@ -122,7 +121,7 @@ const wake: Command = {
 
 /** What the home's wake file sets, one room to a line, and what every other room has. */
 async function list(io: Io, target: Target): Promise<number> {
-  const read = await readHomeWake(target.home);
+  const read = await readWake(loadHome(target.home).paths);
   if (read.kind === "left out") {
     io.err(`${read.leftOut.file} can't be used: ${read.leftOut.reason}. Until it is fixed the agent keeps what it last read.`);
     return 1;

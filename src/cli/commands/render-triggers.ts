@@ -1,5 +1,12 @@
-import { describeSchedule, type TriggerDefinition } from "../../agent/index.ts";
-import type { Check, Occurrence, TriggerDetail, TriggerSchedule, TriggerSummary } from "../../contracts/agent/index.ts";
+import {
+  type Check,
+  describeSchedule,
+  type Occurrence,
+  type TriggerDetail,
+  type TriggerSchedule,
+  type TriggerSummary,
+} from "../../contracts/agent/index.ts";
+import type { TriggerDefinition } from "../../contracts/agent/node.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { indent } from "./render.ts";
 import { renderTable } from "./table.ts";

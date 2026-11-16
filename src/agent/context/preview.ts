@@ -1,4 +1,5 @@
-import { homePaths, type HomeSnapshot, type LeftOut, readHomeSnapshot } from "../home/index.ts";
+import type { LeftOut } from "../../contracts/agent/node.ts";
+import { homePaths, type HomeSnapshot, readHomeSnapshot } from "../home/index.ts";
 import type { AgentFacts } from "./base.ts";
 import { type RenderedSection, renderSections } from "./sections.ts";
 

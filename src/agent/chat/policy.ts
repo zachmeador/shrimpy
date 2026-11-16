@@ -1,4 +1,4 @@
-import { DEFAULT_WAKE_POLICY, type WakePolicy, type WakeSettings } from "../home/index.ts";
+import { DEFAULT_WAKE_POLICY, type WakePolicy, type WakeSettings } from "../../contracts/agent/index.ts";
 
 /**
  * What wakes the agent in a room, as the agent chooses it for each room. The

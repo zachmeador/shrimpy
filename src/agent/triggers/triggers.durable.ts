@@ -1,10 +1,10 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type CommitPublication, defineExtension, type Extension, type Harness } from "@earendil-works/pi-durable";
 import type { Occurrence as OccurrenceView, TriggerDetail, TriggerSummary } from "../../contracts/agent/index.ts";
+import type { LeftOut, TriggerFiles } from "../../contracts/agent/node.ts";
 import { type FollowAttach, follow } from "../../lib/follow/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import type { LeftOut, TriggerFiles } from "../home/index.ts";
 import { type Breadcrumb, isOccurrence, type Outstanding, type Place } from "../inputs/index.ts";
 import {
   plain,

@@ -1,7 +1,7 @@
 import type { ConversationId, Tx } from "@earendil-works/pi-durable";
-import type { Check, Occurrence as OccurrenceView } from "../../contracts/agent/index.ts";
+import { type Check, describeSchedule, type Occurrence as OccurrenceView } from "../../contracts/agent/index.ts";
+import type { TriggerDefinition } from "../../contracts/agent/node.ts";
 import { newId } from "../../lib/ids/index.ts";
-import { describeSchedule, type TriggerDefinition } from "../home/index.ts";
 import {
   type Breadcrumb,
   isOccurrence,

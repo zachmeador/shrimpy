@@ -3,11 +3,10 @@ import { existsSync } from "node:fs";
 import { type AddressInfo, createServer, type Socket } from "node:net";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import { readMembership, saveMembership } from "../../contracts/agent/node.ts";
+import { initHome, loadHome, readMembership, saveMembership } from "../../contracts/agent/node.ts";
 import { type Address, writeLink } from "../../contracts/gateway/index.ts";
 import { newToken } from "../../contracts/gateway/node.ts";
 import { stopAfter, tempDir } from "../../lib/testing/index.ts";
-import { initHome, loadHome } from "../home/index.ts";
 import { JoinFailedError, joinHome } from "./join-home.ts";
 
 /*

@@ -3,8 +3,8 @@
  * arguments mean, and what it answers. Nothing else in this module writes words
  * for the model.
  */
+import { delayText } from "../../contracts/agent/index.ts";
 import { localTime } from "../../lib/time/index.ts";
-import { delayText } from "../home/index.ts";
 
 export const ASK_DESCRIPTION =
   "Ask another agent a question, and carry on with its answer. Use it when you need that agent's answer to go on " +

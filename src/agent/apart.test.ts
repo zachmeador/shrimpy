@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { readMembership } from "../contracts/agent/node.ts";
+import { initHome, readMembership } from "../contracts/agent/node.ts";
 import { Roster, writeLink } from "../contracts/gateway/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { listen } from "../lib/link/node.ts";
 import { stopAfter, tempDir, until } from "../lib/testing/index.ts";
 import { fingerprintOf, newKey } from "../lib/tls/node.ts";
-import { initHome, joinHome } from "./index.ts";
+import { joinHome } from "./index.ts";
 import { SCOUT, startAgentRig, startChatServer } from "./testing/index.ts";
 import { valueOf } from "../contracts/chat/testing/index.ts";
 

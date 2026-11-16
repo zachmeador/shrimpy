@@ -1,5 +1,5 @@
+import type { WakePolicy } from "../../contracts/agent/index.ts";
 import type { Channel, ChatEvent, Member } from "../../contracts/chat/index.ts";
-import type { WakePolicy } from "../home/index.ts";
 import type { ChatInput, Snapshot } from "../inputs/index.ts";
 
 /** What the agent takes up of an event, with where it came from. */

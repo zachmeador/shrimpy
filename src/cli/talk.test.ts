@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { test } from "node:test";
-import { initHome } from "../agent/index.ts";
+import { initHome } from "../contracts/agent/node.ts";
 import { memberNamed, type Speaking } from "../contracts/chat/testing/index.ts";
 import { eventually, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";

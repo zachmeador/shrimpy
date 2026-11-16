@@ -1,8 +1,8 @@
 import type { Dirent } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { codeOf, compare, type LeftOut, readText, why } from "./files.ts";
-import { frontmatter, oneLine } from "./frontmatter.ts";
+import { frontmatter, oneLine } from "../../contracts/agent/index.ts";
+import { codeOf, compare, type LeftOut, readText, why } from "../../contracts/agent/node.ts";
 
 /** A skill as the agent is shown it: what it is for and where to read it. */
 export interface SkillTrail {

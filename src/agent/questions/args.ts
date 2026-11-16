@@ -1,4 +1,4 @@
-import { delayMs, normalizeDelay } from "../home/index.ts";
+import { delayMs, normalizeDelay } from "../../contracts/agent/index.ts";
 import * as words from "./words.ts";
 
 /** How long the agent waits for an answer when it says nothing, and the shortest and the longest it may ask to wait, in milliseconds. */

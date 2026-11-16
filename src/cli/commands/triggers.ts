@@ -1,22 +1,23 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
-  describeSchedule,
-  draftTrigger,
-  NoTriggerError,
-  readHomeTriggers,
-  removeTrigger,
-  saveTrigger,
-  switchTrigger,
-  TriggerFileError,
-} from "../../agent/index.ts";
-import {
   AGENT_HOME_VARIABLE,
+  describeSchedule,
   type Occurrence,
   type Reloaded,
   type TriggerDetail,
   type TriggerSchedule,
 } from "../../contracts/agent/index.ts";
+import {
+  draftTrigger,
+  loadHome,
+  NoTriggerError,
+  readTriggers,
+  removeTrigger,
+  saveTrigger,
+  switchTrigger,
+  TriggerFileError,
+} from "../../contracts/agent/node.ts";
 import type { Io } from "../io/index.ts";
 import { type AgentReached, contextOf, type HeldAgent, onAgent, onChannel, type Reached, reachChat, valueOf } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
@@ -227,7 +228,7 @@ const list: Command = {
         return 0;
       }
       saysFilesOnly(io, target);
-      const { triggers, problems } = await readHomeTriggers(target.home);
+      const { triggers, problems } = await readTriggers(loadHome(target.home).paths);
       for (const line of triggers.length === 0 ? [none] : renderTriggerFiles(triggers)) io.out(line);
       if (problems.length > 0) io.out(`Left out:\n${leftOutLines(problems).join("\n")}`);
       return 1;
@@ -374,7 +375,7 @@ const show: Command = {
         return 0;
       }
       saysFilesOnly(io, target);
-      const { triggers, problems } = await readHomeTriggers(target.home);
+      const { triggers, problems } = await readTriggers(loadHome(target.home).paths);
       const found = triggers.find((trigger) => trigger.name === name);
       if (found !== undefined) {
         for (const line of renderTriggerFile(found)) io.out(line);

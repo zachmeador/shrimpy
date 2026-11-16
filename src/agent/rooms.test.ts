@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { renameSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
+import type { WakePolicy } from "../contracts/agent/index.ts";
 import type { Message } from "../contracts/chat/index.ts";
 import { type Speaking, speakingAs } from "../contracts/chat/testing/index.ts";
 import { eventually } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
-import { homePaths, type WakePolicy } from "./home/index.ts";
+import { homePaths } from "./home/index.ts";
 import { type Audience, written } from "./inputs/index.ts";
 import {
   loggedRequests,

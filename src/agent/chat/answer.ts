@@ -1,6 +1,6 @@
+import type { WakePolicy } from "../../contracts/agent/index.ts";
 import type { Member, Message } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
-import type { WakePolicy } from "../home/index.ts";
 import type { ChatCalls } from "../links/index.ts";
 import { type Receipted, type Taken, wakesInRoom } from "./wake.ts";
 

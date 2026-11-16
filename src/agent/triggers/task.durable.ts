@@ -1,8 +1,8 @@
 import type { Context } from "@earendil-works/chord/context";
 import { defineTask, type TaskRuntime, type Tx } from "@earendil-works/pi-durable";
 import type { Check } from "../../contracts/agent/index.ts";
+import { nextOccurrence } from "../../contracts/agent/node.ts";
 import { localTime } from "../../lib/time/index.ts";
-import { nextOccurrence } from "../home/index.ts";
 import { plain, type SessionDefaults, type StoredTrigger, TriggersDoc } from "../records/durable.ts";
 import type { Breadcrumb } from "../inputs/index.ts";
 import type { TurnTask } from "../turns/durable.ts";

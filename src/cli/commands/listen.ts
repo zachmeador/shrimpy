@@ -1,6 +1,6 @@
 import { isIPv6 } from "node:net";
 import type { Address } from "../../contracts/gateway/index.ts";
-import { checkListenAddresses } from "../../gateway/index.ts";
+import { checkListenAddresses } from "../../contracts/gateway/node.ts";
 import { UsageError } from "../usage/index.ts";
 
 /** The option that opens the gateway's network entry, for `gateway serve` and `up`. It may be given more than once. */

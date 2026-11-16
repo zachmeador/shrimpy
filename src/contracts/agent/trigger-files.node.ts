@@ -2,9 +2,9 @@ import { existsSync } from "node:fs";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { isName } from "./agent-config.ts";
-import { compare, readText, replaceFile } from "./files.ts";
-import type { HomePaths } from "./layout.ts";
-import { loadHome } from "./load.ts";
+import { compare, readText, replaceFile } from "./files.node.ts";
+import type { HomePaths } from "./layout.node.ts";
+import { loadHome } from "./load.node.ts";
 import {
   checkTriggerName,
   parseTrigger,
@@ -12,7 +12,7 @@ import {
   type TriggerCheck,
   type TriggerDefinition,
   TriggerFileError,
-} from "./triggers.ts";
+} from "./triggers.node.ts";
 
 /** What it takes to make a trigger, as someone typed it: the values of its file's keys, and its prompt. */
 export interface NewTrigger {

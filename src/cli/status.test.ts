@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { test } from "node:test";
-import { initHome } from "../agent/index.ts";
-import { saveMembership } from "../contracts/agent/node.ts";
+import { initHome, saveMembership } from "../contracts/agent/node.ts";
 import { formatAddress } from "../contracts/gateway/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
 import { useRuntimeDir } from "../lib/testing/index.ts";

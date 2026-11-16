@@ -1,8 +1,7 @@
 import type { TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { initHome } from "../../agent/index.ts";
 import { AGENT_HOME_VARIABLE } from "../../contracts/agent/index.ts";
-import { saveMembership } from "../../contracts/agent/node.ts";
+import { initHome, saveMembership } from "../../contracts/agent/node.ts";
 import { type Member, Roster } from "../../contracts/gateway/index.ts";
 import { newToken } from "../../contracts/gateway/node.ts";
 import { linkTestAgent, startTestGateway } from "../../contracts/gateway/testing/index.ts";

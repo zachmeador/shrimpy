@@ -7,8 +7,8 @@ import {
 } from "@earendil-works/pi-ai";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 import type { ModelRef } from "@earendil-works/pi-durable";
+import { type LeftOut, type ProviderPaths, providerPaths, readDefaultModel } from "../../contracts/agent/node.ts";
 import { ConfigError } from "../../lib/json-config/index.ts";
-import { type LeftOut, type ProviderPaths, providerPaths, readDefaultModel } from "../home/index.ts";
 import { credentialStore, NO_AMBIENT_AUTH } from "./credentials.ts";
 import { type CustomApi, type CustomProvider, readCustomProviders } from "./custom-providers.ts";
 

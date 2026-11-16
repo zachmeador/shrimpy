@@ -1,6 +1,7 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Cursor, Harness, TaskId, Tx } from "@earendil-works/pi-durable";
-import { type LeftOut, nextOccurrence, sameSchedule, type TriggerFiles, type TriggerProblem } from "../home/index.ts";
+import { sameSchedule } from "../../contracts/agent/index.ts";
+import { type LeftOut, nextOccurrence, type TriggerFiles, type TriggerProblem } from "../../contracts/agent/node.ts";
 import { plain, type StoredTrigger, TriggersDoc } from "../records/durable.ts";
 import { ownerOf } from "./occurrence.durable.ts";
 import { type Standing, type TriggerTask, TRIGGER_TASK, type Waiting } from "./task.durable.ts";

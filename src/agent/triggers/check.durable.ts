@@ -1,8 +1,8 @@
 import { posix } from "node:path";
 import type { Context } from "@earendil-works/chord/context";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
-import { AGENT_RUNTIME_DIR, type Check } from "../../contracts/agent/index.ts";
-import { cutText, delayMs } from "../home/index.ts";
+import { AGENT_RUNTIME_DIR, type Check, delayMs } from "../../contracts/agent/index.ts";
+import { cutText } from "../home/index.ts";
 
 /** The most of what a check printed that is kept: more is cut. */
 const OUTPUT_LIMIT = 2_000;
