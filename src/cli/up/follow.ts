@@ -43,6 +43,8 @@ interface Kept {
   config?: string;
   /** What the last start that failed came to, so that the same failure is not said again. */
   failure?: string;
+  /** The home is no longer in the folder. A start that was under way when it went lets go of it when it ends. */
+  gone?: true;
 }
 
 /** What following the folder keeps from one look to the next. */
@@ -122,12 +124,17 @@ function tend(following: Following, home: Kept): Promise<void> {
   const changed = home.config !== undefined && config !== undefined && config !== home.config;
   if (Date.now() < home.notBefore && !changed) return Promise.resolve();
   home.busy = true;
-  return track(
-    following,
-    start(following, home, changed).finally(() => {
-      home.busy = false;
-    }),
-  );
+  return track(following, startThenLetGo(following, home, changed));
+}
+
+/** Start the agent of `home`, then, if the home went while it started, stop it, as if the home had gone afterwards. */
+async function startThenLetGo(following: Following, home: Kept, changed: boolean): Promise<void> {
+  try {
+    await start(following, home, changed);
+  } finally {
+    home.busy = false;
+  }
+  if (home.gone === true) await letGo(following, home);
 }
 
 async function start(following: Following, home: Kept, changed: boolean): Promise<void> {
@@ -188,10 +195,16 @@ function failed(following: Following, home: Kept, error: unknown, held: Held): v
   io.err(`${message} It is tried again after ${lengthOf(pause)}, then after longer pauses, and at once when its agent.json changes.`);
 }
 
-/** A home that is not in the folder any more: the agent this started there is stopped. */
+/** A home that is not in the folder any more: the agent this started there is stopped, once it has started if it is starting. */
 async function dropped(following: Following, home: Kept): Promise<void> {
-  const { io } = following;
   following.kept.delete(home.home);
+  home.gone = true;
+  if (!home.busy) await letGo(following, home);
+}
+
+/** What is left of a home that is gone: the agent this started there is stopped. */
+async function letGo(following: Following, home: Kept): Promise<void> {
+  const { io } = following;
   const agent = home.agent;
   if (agent === undefined) {
     if (home.failure !== undefined) io.out(`The home at ${home.home} is gone, so its agent is not tried again.`);
