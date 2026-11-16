@@ -1,6 +1,7 @@
 import type { Api, Model, Models } from "@earendil-works/pi-ai";
 import type { ModelRef } from "@earendil-works/pi-durable";
 import type { AgentModels } from "../../contracts/agent/index.ts";
+import { asError } from "../../lib/errors/index.ts";
 import { compare } from "../../lib/files/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 
@@ -8,8 +9,8 @@ import { refuse } from "../../lib/refusal/index.ts";
 const LISTED = 12;
 
 /** What went wrong, with the cause under it when there is one. */
-function why(error: unknown): string {
-  if (!(error instanceof Error)) return String(error);
+function why(thrown: unknown): string {
+  const error = asError(thrown);
   return error.cause instanceof Error ? `${error.message}: ${error.cause.message}` : error.message;
 }
 

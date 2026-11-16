@@ -8,6 +8,7 @@ import {
 import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 import type { ModelRef } from "@earendil-works/pi-durable";
 import { type ProviderPaths, providerPaths, readDefaultModel } from "../../contracts/agent/node.ts";
+import { asError } from "../../lib/errors/index.ts";
 import type { LeftOut } from "../../lib/files/index.ts";
 import { ConfigError } from "../../lib/json-config/index.ts";
 import { listed } from "../../lib/text/index.ts";
@@ -135,7 +136,7 @@ function declaredBy(read: ReadonlyMap<string, readonly CustomProvider[]>, files:
  * about `fallback`, the file that names what could not be used.
  */
 function leftOutOf(error: unknown, fallback: string, known: readonly string[]): LeftOut {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = asError(error).message;
   if (error instanceof ConfigError) {
     const file = known.find((candidate) => message.startsWith(`${candidate}: `));
     if (file !== undefined) return { file, reason: message.slice(file.length + 2) };

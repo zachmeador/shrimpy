@@ -3,6 +3,7 @@ import { parseArgs } from "node:util";
 import type { HomeAgent } from "../../agent/index.ts";
 import { checkAgentName, modelLabel, parseModelChoice } from "../../contracts/agent/index.ts";
 import { initHome, providerPaths, readEndpoint } from "../../contracts/agent/node.ts";
+import { asError } from "../../lib/errors/index.ts";
 import { homeNamed, isPath, newHome, providersPath } from "../folder/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
 import { onAgent } from "../talk/index.ts";
@@ -95,7 +96,7 @@ function folderName(home: string): string {
     checkAgentName(name);
   } catch (error) {
     throw new UsageError(
-      `${(error as Error).message} An agent is named for its folder; --name gives it a name that differs from its folder's.`,
+      `${asError(error).message} An agent is named for its folder; --name gives it a name that differs from its folder's.`,
     );
   }
   return name;

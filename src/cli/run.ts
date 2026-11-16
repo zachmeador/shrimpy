@@ -1,4 +1,5 @@
 import type { ConsoleOptions } from "../clients/console/index.ts";
+import { asError } from "../lib/errors/index.ts";
 import { type Command, loadFamily } from "./commands/index.ts";
 import { lookForHome } from "./folder/index.ts";
 import { commandHelp, frontPage, groupHelp, unknownCommand, usageLine } from "./help.ts";
@@ -65,7 +66,7 @@ export async function runCli(argv: string[], given: Io, options: RunOptions = {}
       io.err(usageLine(command));
       return 2;
     }
-    io.err(error instanceof Error ? error.message : String(error));
+    io.err(asError(error).message);
     return 1;
   }
 }
@@ -75,7 +76,7 @@ async function runConsole(io: Io, open: (io: Io) => Promise<number>): Promise<nu
   try {
     return await open(io);
   } catch (error) {
-    io.err(error instanceof Error ? error.message : String(error));
+    io.err(asError(error).message);
     return 1;
   }
 }

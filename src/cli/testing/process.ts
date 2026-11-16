@@ -1,5 +1,6 @@
 import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
+import { asError } from "../../lib/errors/index.ts";
 import { type ChildOutput, runChild, startChild, useRuntimeDir } from "../../lib/testing/index.ts";
 
 const main = fileURLToPath(new URL("../main.ts", import.meta.url));
@@ -80,7 +81,7 @@ export async function serve(t: TestContext, home: string, extra: string[] = [], 
   useRuntimeDir(t);
   const args = ["agent", "serve", home, ...extra];
   const child = await startChild<AgentListening>(t, { file: main, args, env: options.env }).catch((error: unknown) => {
-    throw new Error(`shrimpy ${args.slice(0, 2).join(" ")}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+    throw new Error(`shrimpy ${args.slice(0, 2).join(" ")}: ${asError(error).message}`, { cause: error });
   });
   return { listening: child.line, output: child.output, stop: child.kill };
 }

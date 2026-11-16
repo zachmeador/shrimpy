@@ -7,6 +7,7 @@ import {
   keepLinked,
   UnprovenGatewayError,
 } from "../../../contracts/gateway/node.ts";
+import { asError } from "../../../lib/errors/index.ts";
 import { nobodyThere } from "../../../lib/link/node.ts";
 import { createListeners } from "../../../lib/listeners/index.ts";
 import type { Backoff } from "../../../lib/retry/index.ts";
@@ -57,7 +58,7 @@ export async function keepGateway(options: GatewayLinkOptions): Promise<GatewayL
     if (error instanceof GatewayRefusedError) return { kind: "refused", words: error.message };
     if (error instanceof UnprovenGatewayError) return { kind: "unproven", words: error.message };
     if ("path" in options.place && nobodyThere(error)) return { kind: "not-running" };
-    return { kind: "unreachable", message: error instanceof Error ? error.message : String(error) };
+    return { kind: "unreachable", message: asError(error).message };
   };
 
   const linking = keepLinked({

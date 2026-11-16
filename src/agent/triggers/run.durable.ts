@@ -1,6 +1,7 @@
 import type { Context } from "@earendil-works/chord/context";
 import { defineTask, type TaskRuntime, type Tx } from "@earendil-works/pi-durable";
 import type { Check } from "../../contracts/agent/index.ts";
+import { asError } from "../../lib/errors/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { type StoredTrigger, TriggersDoc } from "../records/durable.ts";
 import { errorsOf, runCheck } from "./check.durable.ts";
@@ -46,7 +47,7 @@ export function runTask(options: TriggerTaskOptions) {
    */
   const gaveUp = async (runtime: TaskRuntime<Asked, Ran, null, object>, context: Context, asked: Asked, error: unknown) => {
     if (runtime.signal.aborted) throw error;
-    const message = error instanceof Error ? error.message : String(error);
+    const message = asError(error).message;
     await runtime.commit(() => ({ status: "terminal", outcome: { status: "failed", error: { message } } }), context);
     options.onError(new Error(`The trigger ${asked.name} could not make the occurrence that was run by hand at ${localTime(asked.firedAt)}: ${message}`));
   };

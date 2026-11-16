@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parseArgs } from "node:util";
 import { keptListenAddresses } from "../../contracts/gateway/node.ts";
+import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import { listed, shellWord } from "../../lib/text/index.ts";
 import { defaultFolderPath, FOLDER_VARIABLE, folderPath } from "../folder/index.ts";
@@ -212,7 +213,7 @@ export async function serviceStatusLine(account: Account): Promise<string | unde
     if (running) return `The service ${service.name} is installed for ${folder} and running.`;
     return `The service ${service.name} is installed for ${folder} and not running (${detail}). shrimpy install starts it again.`;
   } catch (error) {
-    return `The service ${service.name} is installed for ${folder}. It could not be asked whether it runs: ${error instanceof Error ? error.message : String(error)}`;
+    return `The service ${service.name} is installed for ${folder}. It could not be asked whether it runs: ${asError(error).message}`;
   }
 }
 

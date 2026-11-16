@@ -1,5 +1,6 @@
 import type { Context } from "@earendil-works/chord/context";
 import { defineExtension, defineTask, type Extension, type ToolExecutionApi } from "@earendil-works/pi-durable";
+import { asError } from "../../lib/errors/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { tasksOfKind } from "../host/durable.ts";
 import type { Breadcrumb, Question } from "../inputs/index.ts";
@@ -75,7 +76,7 @@ export function createQuestions(turn: TurnTask, options: QuestionsOptions): Ques
         } catch (error) {
           // The engine is closing, or the task was aborted: the engine ends the phase and carries on from the checkpoint.
           if (runtime.signal.aborted) throw error;
-          const message = error instanceof Error ? error.message : String(error);
+          const message = asError(error).message;
           // The question is closed all the same, since nothing else would: it has no time left, and would keep a place.
           await runtime.commit(async (tx) => {
             await forgetQuestion(tx, question.id);

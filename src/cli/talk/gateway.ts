@@ -7,6 +7,7 @@ import {
   gatewaySocket,
   UnprovenGatewayError,
 } from "../../contracts/gateway/node.ts";
+import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import { nobodyThere } from "../../lib/link/node.ts";
 import { START_EVERYTHING } from "./hints.ts";
@@ -56,7 +57,7 @@ async function linkTo(
       if (nobodyThere(error)) throw new GatewayNotRunningError({ cause: error });
       throw error;
     }
-    throw new Error(`The gateway at ${formatAddress(place)} can't be reached: ${(error as Error).message}`, { cause: error });
+    throw new Error(`The gateway at ${formatAddress(place)} can't be reached: ${asError(error).message}`, { cause: error });
   }
   // Hanging up ends a question the gateway has stopped answering.
   signal?.addEventListener("abort", () => void client.close(), { once: true });

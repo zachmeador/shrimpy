@@ -13,6 +13,7 @@
  * of a minute. Prints one JSON line when it is listening, then runs until
  * SIGTERM.
  */
+import { asError } from "../../lib/errors/index.ts";
 import { backoff } from "../../lib/retry/index.ts";
 import { runUntilStopped } from "../../lib/testing/index.ts";
 import { startAgent } from "../index.ts";
@@ -34,7 +35,7 @@ function holdingReceipts(calls: ChatCalls): ChatCalls {
     ...calls,
     leaveReceipt: (_ids, _receipt, signal) =>
       new Promise<never>((_resolve, reject) => {
-        signal.addEventListener("abort", () => reject(signal.reason as Error), { once: true });
+        signal.addEventListener("abort", () => reject(asError(signal.reason)), { once: true });
       }),
   };
 }

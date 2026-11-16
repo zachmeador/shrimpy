@@ -9,6 +9,7 @@ import {
   UnknownAnswerError,
   UnprovenGatewayError,
 } from "../../contracts/gateway/node.ts";
+import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 
 /**
@@ -82,7 +83,7 @@ export async function joinAsMachine(folder: string, link: Link, options: JoinAsM
       throw new MachineJoinFailedError(`The gateway at ${where} did not let this machine in: ${error.message}`);
     }
     if (error instanceof UnknownAnswerError || error instanceof UnprovenGatewayError) throw new MachineJoinFailedError(error.message);
-    throw new MachineJoinFailedError(`Could not join the gateway at ${where}: ${(error as Error).message}`, { cause: error });
+    throw new MachineJoinFailedError(`Could not join the gateway at ${where}: ${asError(error).message}`, { cause: error });
   }
   if (answer.you === null) throw new MachineJoinFailedError(`The gateway at ${where} let this machine in as nobody.`);
   saveMachine(folder, { token, gateway, member: { id: answer.you.id, name: answer.you.name } });

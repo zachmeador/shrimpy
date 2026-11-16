@@ -15,6 +15,7 @@ import {
   turnAway,
   welcome,
 } from "../contracts/gateway/index.ts";
+import { asError } from "../lib/errors/index.ts";
 import { saveFile } from "../lib/files/node.ts";
 import { type Greeted, type Listener, listen } from "../lib/link/node.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
@@ -102,7 +103,7 @@ export async function startServer(options: ServerOptions): Promise<AgentServer> 
     await host.load([{ name: "@shrimpy/agent", facet: options.facet }], context);
     // This process holds the home's lock, so a socket left at the path is stale.
     rmSync(socket, { force: true });
-    listener = await listen({ path: socket }, greeter(host), { onError: (error) => options.onError(error as Error) });
+    listener = await listen({ path: socket }, greeter(host), { onError: (error) => options.onError(asError(error)) });
     const endpoint: AgentEndpoint = { socket, name: options.name, pid: process.pid };
     saveFile(endpointFile(options.home), JSON.stringify(endpoint));
     return { host, endpoint, close: closeAll };

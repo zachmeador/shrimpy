@@ -179,7 +179,7 @@ function keepLeftOut(options: {
       written = text;
     } catch (error) {
       const what = text === undefined ? "removed" : "written";
-      options.report(new Error(`The breadcrumb about files left out could not be ${what}: ${error instanceof Error ? error.message : String(error)}`));
+      options.report(new Error(`The breadcrumb about files left out could not be ${what}: ${asError(error).message}`));
     }
   };
 }

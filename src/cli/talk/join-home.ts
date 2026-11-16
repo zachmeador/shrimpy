@@ -8,6 +8,7 @@ import {
   UnknownAnswerError,
   UnprovenGatewayError,
 } from "../../contracts/gateway/node.ts";
+import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 
 /**
@@ -86,7 +87,7 @@ export async function joinHome(home: string, link: string, options: JoinHomeOpti
   } catch (error) {
     if (error instanceof GatewayRefusedError) throw new JoinFailedError(`The gateway at ${where} did not let ${name} in: ${error.message}`);
     if (error instanceof UnknownAnswerError || error instanceof UnprovenGatewayError) throw new JoinFailedError(error.message);
-    throw new JoinFailedError(`Could not join the gateway at ${where}: ${(error as Error).message}`, { cause: error });
+    throw new JoinFailedError(`Could not join the gateway at ${where}: ${asError(error).message}`, { cause: error });
   }
   if (answer.you === null) throw new JoinFailedError(`The gateway at ${where} let ${name} in as nobody.`);
   saveMembership(paths.root, { token, memberId: answer.you.id, gateway });

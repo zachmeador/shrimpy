@@ -1,3 +1,4 @@
+import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import { listed } from "../../lib/text/index.ts";
 import { allHomes } from "../folder/index.ts";
@@ -28,7 +29,7 @@ export async function bringUp(io: Io, plan: Plan, pace: Pace): Promise<number> {
   const abnormal = await stopAll(io, crew, stop.requests() >= 3);
   stop.release();
   // A stop request is why an error that came with it, such as an abandoned lookup, happened.
-  if (failure !== undefined && stop.requests() === 0) throw failure as Error;
+  if (failure !== undefined && stop.requests() === 0) throw asError(failure);
   return abnormal ? 1 : 0;
 }
 

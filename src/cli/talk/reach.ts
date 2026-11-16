@@ -2,6 +2,7 @@ import type { Reference } from "@earendil-works/chord";
 import { Chat, type Member } from "../../contracts/chat/index.ts";
 import { contextOf, type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
 import type { Client } from "../../contracts/gateway/node.ts";
+import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import type { Io } from "../io/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
@@ -67,7 +68,7 @@ export async function reachChat(io: Io, signal?: AbortSignal): Promise<Reached> 
       chat = await client.host.get(Chat, {}, contextOf(signal), { readyTimeout: CHAT_MS });
     } catch (error) {
       if (signal?.aborted === true) throw error;
-      throw new Error(`Could not reach the chat server through the gateway: ${(error as Error).message}`, { cause: error });
+      throw new Error(`Could not reach the chat server through the gateway: ${asError(error).message}`, { cause: error });
     }
     const you = chat.you.value;
     if (you === null) {

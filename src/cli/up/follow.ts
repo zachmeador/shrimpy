@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
+import { asError } from "../../lib/errors/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import { homeConfigFile } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
@@ -69,7 +70,7 @@ interface Following extends FollowOptions {
 export function follow(options: FollowOptions): Follower {
   const following: Following = { ...options, kept: new Map(), working: new Set(), closed: false, unreadable: undefined };
   const timer = setInterval(() => {
-    look(following).catch((error: unknown) => options.io.err(error instanceof Error ? error.message : String(error)));
+    look(following).catch((error: unknown) => options.io.err(asError(error).message));
   }, options.pace.lookMs);
   return {
     look: () => look(following),
@@ -91,7 +92,7 @@ async function look(following: Following): Promise<void> {
     following.unreadable = undefined;
   } catch (error) {
     // A folder that can't be read for now leaves every agent as it is.
-    const message = error instanceof Error ? error.message : String(error);
+    const message = asError(error).message;
     if (message !== following.unreadable) io.err(message);
     following.unreadable = message;
     return;
@@ -110,7 +111,7 @@ async function look(following: Following): Promise<void> {
 /** Count `work` among what closing waits for. What goes wrong in it is said, and does not stop `up`. */
 function track(following: Following, work: Promise<void>): Promise<void> {
   const done = work.catch((error: unknown) => {
-    following.io.err(error instanceof Error ? error.message : String(error));
+    following.io.err(asError(error).message);
   });
   following.working.add(done);
   void done.then(() => following.working.delete(done));
@@ -185,7 +186,7 @@ function lost(following: Following, home: Kept, agent: Started, ended: Ended): v
 /** A start that did not work. It is said unless it came to what the last one did, and the next is later. */
 function failed(following: Following, home: Kept, error: unknown, held: Held): void {
   const { io } = following;
-  const message = error instanceof Error ? error.message : String(error);
+  const message = asError(error).message;
   const pause = home.pauses.next();
   home.notBefore = Date.now() + pause;
   const came = [message, ...held.map((each) => each.line)].join("\n");

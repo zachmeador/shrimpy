@@ -1,3 +1,4 @@
+import { asError } from "../../lib/errors/index.ts";
 import { FOLDER_VARIABLE } from "../folder/index.ts";
 import { type Account, type Ran, runChecked } from "./account.ts";
 import { type Program, STOP_SECONDS, type State, type SystemdService } from "./service.ts";
@@ -108,7 +109,7 @@ export async function keepLingering(account: Account): Promise<Lingering> {
     if (answer.code === 0) return { state: "turned on" };
     return { state: "refused", why: answer.stderr.trim() || answer.stdout.trim() || `exit code ${String(answer.code)}` };
   } catch (error) {
-    return { state: "refused", why: error instanceof Error ? error.message : String(error) };
+    return { state: "refused", why: asError(error).message };
   }
 }
 

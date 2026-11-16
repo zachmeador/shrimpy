@@ -2,6 +2,7 @@ import type { Context } from "@earendil-works/chord/context";
 import { defineTask, type TaskRuntime, type Tx } from "@earendil-works/pi-durable";
 import type { Check } from "../../contracts/agent/index.ts";
 import { nextOccurrence } from "../../contracts/agent/node.ts";
+import { asError } from "../../lib/errors/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { plain, type SessionDefaults, type StoredTrigger, TriggersDoc } from "../records/durable.ts";
 import type { Breadcrumb } from "../inputs/index.ts";
@@ -134,7 +135,7 @@ export function triggerTask(options: TriggerTaskOptions) {
    */
   const gaveUp = async (runtime: Runtime, context: Context, name: string, revision: number, due: number, error: unknown) => {
     if (runtime.signal.aborted) throw error;
-    const message = error instanceof Error ? error.message : String(error);
+    const message = asError(error).message;
     await runtime.commit((tx) => onward(tx, runtime, name, revision), context);
     options.onError(new Error(`The trigger ${name} could not make its occurrence for ${localTime(due)}: ${message}`));
   };

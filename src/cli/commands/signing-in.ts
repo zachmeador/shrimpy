@@ -1,6 +1,7 @@
 import { dirname } from "node:path";
 import type { Dialogue, Notice, ProviderToSignIn, SignIns, SignInWay } from "../../agent/index.ts";
 import { providerPaths, readDefaultModel, saveDefaultModel } from "../../contracts/agent/node.ts";
+import { asError } from "../../lib/errors/index.ts";
 import type { Io } from "../io/index.ts";
 import { UsageError } from "../usage/index.ts";
 
@@ -55,7 +56,7 @@ export async function signInAtTerminal(io: Io, providers: string, wanted: string
     if (signal.aborted) {
       io.err(signedIn ? "Stopped. The sign-in is saved, and no default model was set." : "Stopped. Nothing was signed in.");
     } else {
-      io.err(error instanceof Error ? error.message : String(error));
+      io.err(asError(error).message);
       io.err(signedIn ? "The sign-in is saved." : "Nothing was signed in.");
     }
     return 1;

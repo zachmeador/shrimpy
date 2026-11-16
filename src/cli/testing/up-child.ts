@@ -4,6 +4,7 @@
  *
  *   node up-child.ts <pace as JSON> [<up's arguments>...]
  */
+import { asError } from "../../lib/errors/index.ts";
 import { loadUpWithPace, type Pace } from "../commands/index.ts";
 import { forPeople, processIo } from "../io/index.ts";
 
@@ -15,6 +16,6 @@ try {
   process.exitCode = await up.run(args, io);
 } catch (error) {
   // As the command line does, a command that throws has said why and ended with 1.
-  io.err(error instanceof Error ? error.message : String(error));
+  io.err(asError(error).message);
   process.exitCode = 1;
 }

@@ -2,6 +2,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Harness, TaskId, Tx } from "@earendil-works/pi-durable";
 import { sameSchedule } from "../../contracts/agent/index.ts";
 import { nextOccurrence, type TriggerFiles, type TriggerProblem } from "../../contracts/agent/node.ts";
+import { asError } from "../../lib/errors/index.ts";
 import type { LeftOut } from "../../lib/files/index.ts";
 import { tasksOfKind } from "../host/durable.ts";
 import { plain, type StoredTrigger, TriggersDoc } from "../records/durable.ts";
@@ -60,7 +61,7 @@ export async function reconcile(
         try {
           create.push({ name, revision: stored.revision, next: nextOccurrence(stored.definition.schedule, now) });
         } catch (error) {
-          leftOut.push({ file: `triggers/${name}.md`, reason: `it is not a schedule that comes: ${error instanceof Error ? error.message : String(error)}` });
+          leftOut.push({ file: `triggers/${name}.md`, reason: `it is not a schedule that comes: ${asError(error).message}` });
         }
       }
     }

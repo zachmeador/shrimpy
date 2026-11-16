@@ -10,6 +10,7 @@ import {
   type TaskRecord,
   type ToolExecutionApi,
 } from "@earendil-works/pi-durable";
+import { asError } from "../../lib/errors/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { tasksOfKind } from "../host/durable.ts";
 import type { Breadcrumb, Wakeup } from "../inputs/index.ts";
@@ -94,7 +95,7 @@ export function createWakeups(turn: TurnTask, options: WakeupsOptions): Wakeups 
         } catch (error) {
           // The engine is closing, or the task was aborted: the engine ends the phase and carries on from the checkpoint.
           if (runtime.signal.aborted) throw error;
-          const message = error instanceof Error ? error.message : String(error);
+          const message = asError(error).message;
           // A task being aborted refuses this too, and then nothing went wrong that needs reporting.
           await runtime.commit(() => ({ status: "terminal", outcome: { status: "failed", error: { message } } }), context);
           options.onError(new Error(`The wake-up for ${localTime(wakeup.due)} could not be taken up: ${message}`));

@@ -1,5 +1,6 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Harness } from "@earendil-works/pi-durable";
+import { asError } from "../../lib/errors/index.ts";
 import { storageOfAnotherVersion } from "../home/index.ts";
 import { FeedDoc, QuestionsDoc, RecordsDoc, SessionsDoc, TriggersDoc } from "./documents.durable.ts";
 
@@ -32,7 +33,7 @@ async function read(harness: Harness, file: string): Promise<string | undefined>
     await harness.snapshot(QuestionsDoc, BACKGROUND_CONTEXT);
     return (await harness.snapshot(RecordsDoc, BACKGROUND_CONTEXT))?.id;
   } catch (error) {
-    const said = error instanceof Error ? error.message : String(error);
+    const said = asError(error).message;
     if (anotherVersionWrote(said)) throw new Error(`${storageOfAnotherVersion(file)} The engine said: ${said}.`, { cause: error });
     throw new Error(`The agent's records in ${file} could not be read: ${said}`, { cause: error });
   }

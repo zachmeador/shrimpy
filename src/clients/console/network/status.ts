@@ -1,5 +1,6 @@
 import type { RefState } from "@earendil-works/chord";
 import { isLost } from "../../../contracts/gateway/index.ts";
+import { asError } from "../../../lib/errors/index.ts";
 
 /** Why the console has no link to a program, or to the gateway. */
 export type Why =
@@ -42,7 +43,7 @@ export type Problem = { down: Why } | { said: string };
 export function problemOf(error: unknown): Problem {
   if (error instanceof Down) return { down: error.why };
   if (isLost(error)) return { down: { kind: "lost" } };
-  return { said: error instanceof Error ? error.message : String(error) };
+  return { said: asError(error).message };
 }
 
 /**
