@@ -3,7 +3,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { readMembership, saveMembership } from "../contracts/agent/node.ts";
 import type { Entry, Principal, Revocation } from "../contracts/gateway/index.ts";
 import type { Backoff } from "../lib/retry/index.ts";
-import { type Admissions, type ChatDelivery, startIntake } from "./chat/index.ts";
+import { type Admissions, type ChatDelivery, startIntake, type Wakes } from "./chat/index.ts";
 import { homePaths } from "./home/index.ts";
 import { type ChatCalls, type LiveChat, type LiveRoster, linkToGateway, openChatLink } from "./links/index.ts";
 import type { Working } from "./turns/index.ts";
@@ -51,6 +51,8 @@ export interface Participant {
   roster: LiveRoster;
   /** Where the agent stands in chat's feed, and how it takes an event up. */
   admissions: Admissions;
+  /** What wakes the agent in each room. */
+  wakes: Wakes;
   /** What the agent's sessions know of the events it took up and has not left a receipt on yet. */
   working: Working;
   /** What the tasks that follow the events tell chat with. It is given the agent's way to chat. */
@@ -68,7 +70,7 @@ export interface Participant {
  * the agent finds them again.
  */
 export function join(participant: Participant, options: JoinOptions): Joined {
-  const { name, host, roster, admissions, working, delivery, onError } = participant;
+  const { name, host, roster, admissions, wakes, working, delivery, onError } = participant;
   const paths = homePaths(participant.home);
   const backoff = options.backoff;
   const gateway = linkToGateway({
@@ -83,7 +85,7 @@ export function join(participant: Participant, options: JoinOptions): Joined {
   roster.follow(host, BACKGROUND_CONTEXT);
   const link = openChatLink(host, onError, options.chatCalls);
   delivery.attach(link);
-  const intake = startIntake({ link, admissions, working, onError, ...(backoff === undefined ? {} : { backoff }) });
+  const intake = startIntake({ link, admissions, wakeIn: (room) => wakes.of(room), working, onError, ...(backoff === undefined ? {} : { backoff }) });
 
   return {
     chat: () => link.current(),

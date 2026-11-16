@@ -13,7 +13,7 @@
  * know how an input is run, how chat or the files of a home are read, or what a
  * session shows a client.
  */
-export { agentChange, type SessionDefaults } from "./defaults.durable.ts";
+export type { SessionDefaults } from "./defaults.durable.ts";
 export {
   FeedDoc,
   type OpenQuestion,

@@ -1,17 +1,13 @@
 import type { ModelId } from "../../contracts/agent/index.ts";
 import type { ChatInput, Question, QuestionResult } from "../inputs/index.ts";
-import type { WakePolicies } from "./policy.ts";
 
 /**
  * What chat needs from the agent's records: where it stands in chat's feed and
  * in which chat store, a way to take an event up, which questions the agent has
  * open and a way to close one, and ways to stop the work behind a thread and to
- * choose its model, for the commands. It is also handed the choices the agent
- * made, in a file of its home, about what wakes it in each room.
+ * choose its model, for the commands.
  */
 export interface Admissions {
-  /** What wakes the agent in each room. Without it, every room has the default. */
-  readonly wakes?: WakePolicies;
   /** Where the agent stands in chat's feed, kept with its own records. Undefined until it is first set. */
   cursor(): Promise<number | undefined>;
   /**

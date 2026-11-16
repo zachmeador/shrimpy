@@ -9,17 +9,12 @@ import type { LiveRoster } from "./links/index.ts";
 import type { Sessions } from "./sessions/durable.ts";
 import type { Triggers } from "./triggers/durable.ts";
 
-/** What the agent's contract asks of the agent's instructions, triggers and model. */
-export interface HomeFiles {
-  /** Read the home's instructions, context files, skills, triggers and model again. */
-  reload(): Promise<Reloaded>;
-}
-
 /** What the agent's objects are served from. */
 export interface ServedParts {
   sessions: Sessions;
   triggers: Triggers;
-  files: HomeFiles;
+  /** Read the home's instructions, context files, skills, triggers, wake file and model again. */
+  reload(): Promise<Reloaded>;
   /** The roster as the agent holds it, which says who a member is and whether it is an admin. */
   roster: LiveRoster;
   /** Whether new work may still be started: it may not once the agent is stopping. */
@@ -50,7 +45,7 @@ async function answering<T>(work: () => Promise<T>): Promise<Answer<T>> {
  * is an admin come from the roster as it is now, so a promotion counts at once.
  */
 export function agentFacet(parts: ServedParts): Facet<Principal> {
-  const { sessions, triggers, files, roster } = parts;
+  const { sessions, triggers, roster } = parts;
 
   /** The caller as the roster has it now, once it is known for an agent, whose admin and self it decides. */
   const callerNow = async (principal: Principal, signal: AbortSignal | undefined): Promise<Caller> => {
@@ -103,7 +98,7 @@ export function agentFacet(parts: ServedParts): Facet<Principal> {
           reload: async (ctx) =>
             answering(async () => {
               await allow(principal, "administer", ctx);
-              return files.reload();
+              return parts.reload();
             }),
         },
       };

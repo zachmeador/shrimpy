@@ -1,3 +1,4 @@
+import type { WakePolicy } from "../../contracts/agent/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import type { ChatLink } from "../links/index.ts";
 import type { Working } from "../turns/index.ts";
@@ -10,6 +11,8 @@ export interface IntakeOptions {
   link: ChatLink;
   /** The agent's records and sessions: where it stands in the feed, and a way to take an event up. */
   admissions: Admissions;
+  /** What wakes the agent in the room with this name, whatever the case. */
+  wakeIn: (room: string) => WakePolicy;
   /** What the agent's sessions know of the events it took up and has not left a receipt on yet. */
   working: Working;
   /** Told of failures. */
@@ -48,6 +51,7 @@ export function startIntake(options: IntakeOptions): Intake {
   const reading = readFeed({
     link,
     admissions: options.admissions,
+    wakeIn: options.wakeIn,
     onError,
     stop: AbortSignal.any([taking.signal, closing.signal]),
     backoff: (options.backoff ?? backoff)(),

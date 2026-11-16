@@ -25,7 +25,7 @@ import type {
 } from "../../contracts/agent/index.ts";
 import { type FollowAttach, follow } from "../../lib/follow/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import { agentChange, type SessionDefaults, type SessionRecord, SessionsDoc } from "../records/durable.ts";
+import { type SessionDefaults, type SessionRecord, SessionsDoc } from "../records/durable.ts";
 import { touchesWakeups, waitingWakeups } from "../wakeups/durable.ts";
 import { listModels } from "./models.durable.ts";
 import { stopWork } from "./service.durable.ts";
@@ -309,11 +309,10 @@ export function createSessions(harness: Harness, defaults: SessionDefaults, mode
     models: () => listModels(models, defaults.model),
 
     async applyDefaults() {
-      const change = agentChange(defaults);
       await harness.commit(async (tx) => {
         const sessions = (await tx.doc(SessionsDoc)).sessions;
         for (const session of Object.values(sessions)) {
-          await configure(tx, session.conversationId as ConversationId, change);
+          await configure(tx, session.conversationId as ConversationId, defaults);
         }
       }, context);
       for (const refresh of shownNow) refresh();

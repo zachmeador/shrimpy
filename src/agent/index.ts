@@ -26,7 +26,7 @@ import { createRoster } from "./links/index.ts";
 import { messageTools } from "./message-tools/durable.ts";
 import { askTools, createQuestions } from "./questions/durable.ts";
 import { openRecords, type SessionDefaults } from "./records/durable.ts";
-import { agentFacet, type HomeFiles } from "./served.ts";
+import { agentFacet } from "./served.ts";
 import { startServer } from "./server.ts";
 import { createSessions, requireModel, stopWork } from "./sessions/durable.ts";
 import { type CloseOptions, stopper } from "./stop.ts";
@@ -250,13 +250,12 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     // they are read once more, now that the agent is up: what the next look is compared with is exactly what was read, and
     // the files that can't be used are said.
     await keeping.reload();
-    const files: HomeFiles = { reload: () => keeping.reload() };
     // The agent's objects are served once its host has loaded them, on the home's socket at once, and through the gateway
     // once it links there.
     const server = await startServer({
       home: options.home,
       name: options.name,
-      facet: (takingInput) => agentFacet({ sessions, triggers, files, roster, takingInput }),
+      facet: (takingInput) => agentFacet({ sessions, triggers, reload: () => keeping.reload(), roster, takingInput }),
       onError: report,
     });
     try {
@@ -267,7 +266,8 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
             home: options.home,
             host: server.host,
             roster,
-            admissions: { ...admissions, wakes },
+            admissions,
+            wakes,
             working,
             delivery,
             onError: report,

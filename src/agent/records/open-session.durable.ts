@@ -1,5 +1,5 @@
 import { configure, type Tx } from "@earendil-works/pi-durable";
-import { agentChange, type SessionDefaults } from "./defaults.durable.ts";
+import type { SessionDefaults } from "./defaults.durable.ts";
 import { type SessionRecord, SessionsDoc } from "./documents.durable.ts";
 import { addressOfPlace, type SessionPlace } from "./thread-of.durable.ts";
 
@@ -15,7 +15,7 @@ export async function openSession(tx: Tx, defaults: SessionDefaults, place: Sess
   const address = addressOfPlace(place);
   if (!Object.hasOwn(sessions, address)) {
     const conversationId = (await tx.createConversation({ ownership: { kind: "ownerless" } })).id;
-    await configure(tx, conversationId, agentChange(defaults));
+    await configure(tx, conversationId, defaults);
     const kept = { unacted: [], cancelled: [], missed: [], shown: {} };
     sessions[address] =
       "threadId" in place

@@ -5,7 +5,6 @@ import { type Backoff, backoff, pause } from "../../lib/retry/index.ts";
 import type { ChatLink, LiveChat } from "../links/index.ts";
 import type { Admissions } from "./admissions.ts";
 import { takeUpAnswer } from "./answer.ts";
-import { knownChannels } from "./channels.ts";
 import { commandFor, obey } from "./commands.ts";
 import { inPlace } from "./place.ts";
 import { resultOf, toQuestion } from "./questions.ts";
@@ -18,6 +17,8 @@ const FEED_LIMIT = 50;
 export interface FeedOptions {
   link: ChatLink;
   admissions: Admissions;
+  /** What wakes the agent in the room with this name, whatever the case. */
+  wakeIn: (room: string) => WakePolicy;
   /** Told of failures, each time one ends an attempt to read. */
   onError(error: Error): void;
   /** Abort to stop reading. */
@@ -53,10 +54,8 @@ export async function readFeed(options: FeedOptions): Promise<void> {
   const reported = (error: Error): void => options.onError(error);
   const pauses = options.backoff ?? backoff();
   let loaded = false;
-  const channels = knownChannels();
-  /** What wakes the agent in a channel: the policy of its room, or the default where there is no room or no choice. */
-  const policyIn = (channel: Channel | undefined): WakePolicy =>
-    channel?.kind === "room" && admissions.wakes !== undefined ? admissions.wakes.of(channel.name) : DEFAULT_WAKE_POLICY;
+  /** What wakes the agent in a channel: the policy of its room, or the default where there is no room. */
+  const policyIn = (channel: Channel | undefined): WakePolicy => (channel?.kind === "room" ? options.wakeIn(channel.name) : DEFAULT_WAKE_POLICY);
   // Where the agent stands in the feed, and what its records hold.
   let cursor: number | undefined;
   let stored: number | undefined;
@@ -116,8 +115,8 @@ export async function readFeed(options: FeedOptions): Promise<void> {
       for (const event of events) {
         // What the agent did itself is the most of what the feed offers it, and is passed over without asking chat anything.
         const passed = passedOver(self, event);
-        // Where the event is, which chat is asked once for each channel. A channel that chat does not list is taken for a room.
-        const channel = passed ? undefined : channels.find(chat, event.message.channelId);
+        // Where the event is. A channel that chat does not list is taken for a room.
+        const channel = passed ? undefined : chat.channels().find((each) => each.id === event.message.channelId);
         const where = channel?.kind === "dm" ? "dm" : "room";
         // A command is acted on at once, ahead of anything queued, and goes no further: no wake policy turns it away, no
         // model reads it, and no session is handed it. The agent's place in the feed moves past it with the page.
@@ -154,7 +153,7 @@ export async function readFeed(options: FeedOptions): Promise<void> {
             ? await takeUpAnswer(chat, self, policy, waking.receipt, waking.reply, signal, reported)
             : waking?.taken;
         if (woken !== undefined) {
-          const context = { chat, self, channels, looked: (threadId: string) => admissions.looked(threadId), signal, onError: reported };
+          const context = { chat, self, looked: (threadId: string) => admissions.looked(threadId), signal, onError: reported };
           // In a room the event comes with what was said before it, and who each message was for.
           // In a room or a DM it comes with where its thread is.
           const taken = await inPlace(context, await inRoom(context, event, woken));
