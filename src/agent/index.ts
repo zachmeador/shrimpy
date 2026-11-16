@@ -12,14 +12,14 @@
  * gateway beyond their contracts.
  */
 import type { AgentEndpoint, Reloaded } from "../contracts/agent/index.ts";
-import { type LeftOut, loadHome, readMembership, readTriggers, readWake } from "../contracts/agent/node.ts";
+import { loadHome, readMembership, readTriggers } from "../contracts/agent/node.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { createAdmissions } from "./chat/durable.ts";
 import { channelOfThread, createDelivery, createWakes } from "./chat/index.ts";
 import { homeContext } from "./context/durable.ts";
 import { type ContextPreview, previewContext } from "./context/index.ts";
-import { type Following, follow, keepLeftOut, LOOK_EVERY_MS, requireSeen } from "./following.ts";
-import { homePaths, lookAtHome, readBreadcrumbs, shownIn, writeBreadcrumb } from "./home/index.ts";
+import { type Following, follow, homeReader, LOOK_EVERY_MS } from "./following.ts";
+import { homePaths, lookAtHome, readBreadcrumbs, writeBreadcrumb } from "./home/index.ts";
 import { buildModels, type HostOptions, type ModelReload, openHost } from "./host/durable.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { createRoster } from "./links/index.ts";
@@ -110,138 +110,81 @@ export interface HomeAgent extends RunningAgent {
 export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
   // A runtime directory too long for a socket fails here, before the home is claimed.
   socketPathFor(options.home);
+  const paths = homePaths(options.home);
   const context = await homeContext({ name: options.name, home: options.home });
   const report = reporter(options);
   const host = await openHost(options);
   let following: Following<Reloaded> | undefined;
   try {
-    // What the agent posts under names of its own making carries what its records are called, and only the opened
-    // storage can say that. So the tools and tasks that post are made once the records are open, and installed before
-    // anything runs.
-    const recordsId = await openRecords(host.harness, homePaths(options.home).database);
-    // They are installed before the agent has a link to chat. The tools ask for the one it has when they run, and say
-    // chat is unreachable if there is none; the tasks wait for the link `join` gives them. The roster is held at the
-    // gateway once the agent joins, and says who a caller is to the agent's objects.
+    // What the agent posts under names of its own making carries what its records are called, which only the opened
+    // storage can say, so what posts is made now, and installed before anything runs.
+    const recordsId = await openRecords(host.harness, paths.database);
+    // The tools ask for the link to chat when they run, and say chat is unreachable without one. The tasks wait for the
+    // link `join` gives them.
     let joined: Joined | undefined;
+    const chat = () => joined?.chat();
     const roster = createRoster(report);
     const members = () => roster.now()?.members;
-    const messages = messageTools({
-      recordsId,
-      chat: () => joined?.chat(),
-      roster: members,
-      ...(options.join?.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit }),
-    });
+    const breadcrumbs = () => readBreadcrumbs(paths);
+    const messageLimit = options.join?.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit };
+    const sessions = createSessions(host.harness, { model: options.model, cwd: host.home }, options.models);
     const delivery = createDelivery({
       recordsId,
       onError: report,
-      ...(options.join?.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit }),
+      ...messageLimit,
       ...(options.join?.backoff === undefined ? {} : { backoff: options.join.backoff }),
     });
     const turn = turnTask({ delivery, onError: report });
-    // Every input is taken up with the breadcrumbs that are new to its session, which are read before the commit that does it.
-    const paths = homePaths(options.home);
-    const breadcrumbs = () => readBreadcrumbs(paths);
     const wakeups = createWakeups(turn.task, { onError: report, breadcrumbs });
-    // The delivery waits for chat as it must, so a question's time being up looks at chat through it.
+    // The delivery waits for chat as it must, so a question whose time is up looks at chat through it.
     const questions = createQuestions(turn.task, { onError: report, breadcrumbs, looking: delivery });
-    const asking = askTools({
-      questions,
-      recordsId,
-      chat: () => joined?.chat(),
-      roster: members,
-      ...(options.shortestWaitMs === undefined ? {} : { shortestWaitMs: options.shortestWaitMs }),
-    });
-    const sessions = createSessions(host.harness, { model: options.model, cwd: host.home }, options.models);
     const triggers = createTriggers(host.harness, {
       turn: turn.task,
       defaults: sessions.defaults,
-      read: () =>
-        readTriggers(paths, {
-          ...(options.shortestEveryMs === undefined ? {} : { shortestEveryMs: options.shortestEveryMs }),
-        }),
-      // A thread with no session behind it gets one in the channel chat says it is in, over the link the agent has then.
-      channelOf: (threadId, signal) => channelOfThread(() => joined?.chat(), threadId, signal),
+      read: () => readTriggers(paths, options.shortestEveryMs === undefined ? {} : { shortestEveryMs: options.shortestEveryMs }),
+      channelOf: (threadId, signal) => channelOfThread(chat, threadId, signal),
       breadcrumbs,
       leaveBreadcrumb: (name, text) => writeBreadcrumb(paths, name, text),
       onError: report,
     });
     host.install(
       context.extension,
-      messages,
+      messageTools({ recordsId, chat, roster: members, ...messageLimit }),
       wakeupTools({ wakeups }),
-      asking,
+      askTools({
+        questions,
+        recordsId,
+        chat,
+        roster: members,
+        ...(options.shortestWaitMs === undefined ? {} : { shortestWaitMs: options.shortestWaitMs }),
+      }),
       turn.extension,
       wakeups.extension,
       questions.extension,
       triggers.extension,
     );
-    const admissions = createAdmissions(
-      host.harness,
-      sessions.defaults,
-      turn.task,
-      { stopWork, requireModel: (model) => requireModel(options.models, model) },
-      breadcrumbs,
-    );
-    const working = createWorking(host.harness);
-    // What wakes the agent in each room is read from the home's wake file, at the start and whenever it changes. A file
-    // that does not check out is left out and named, and the agent keeps what it last read.
     const wakes = createWakes();
-    const readWakes = async (): Promise<LeftOut[]> => {
-      const read = await readWake(homePaths(options.home));
-      if (read.kind === "left out") return [read.leftOut];
-      wakes.replace(read.settings);
-      return [];
-    };
-    // Sessions from an earlier start follow the home as it is now, before any of their work resumes.
-    await sessions.applyDefaults();
-    // The triggers follow the files of the home before any of their work resumes: a trigger whose schedule changed
-    // while the agent was down is not woken by its old one.
-    await triggers.reload();
-    await readWakes();
-    host.resume();
-    // The model the home names is read again whenever its files change. When it is another, every session follows it from its
-    // next request, whatever it was given before. A model that can't be used is named, and the sessions keep the one they follow.
-    const followModel = async (): Promise<{ changedFrom: Reloaded["changedFrom"]; leftOut: LeftOut[] }> => {
-      const found = await options.reloadModels?.();
-      if (found === undefined) return { changedFrom: null, leftOut: [] };
-      const leftOut = found.leftOut.map(({ file, reason }) => ({ file: shownIn(options.home, file), reason }));
-      const before = sessions.defaults.model;
-      const same = found.model?.provider === before.provider && found.model.modelId === before.modelId;
-      if (found.model === undefined || same) return { changedFrom: null, leftOut };
-      await sessions.followModel(found.model);
-      return { changedFrom: { provider: before.provider, id: before.modelId }, leftOut };
-    };
-    // Reading the home again reads the instructions, context files and skills, the triggers, the wake file and the model,
-    // and says which files it could not use.
-    const told = keepLeftOut({ home: options.home, report });
-    const reloadHome = async (): Promise<Reloaded> => {
-      if (options.homeFile !== undefined) await requireSeen(options.home, options.homeFile);
-      const read = await context.reload();
-      const followed = await triggers.reload();
-      const model = await followModel();
-      const leftOut = [...read.leftOut, ...followed.leftOut, ...(await readWakes()), ...model.leftOut];
-      await told(leftOut);
-      return {
-        ...read,
-        triggers: followed.count,
-        model: { provider: sessions.defaults.model.provider, id: sessions.defaults.model.modelId },
-        changedFrom: model.changedFrom,
-        leftOut,
-      };
-    };
-    // The agent looks at the files it read and reads them again when they change, and takes turns with a reload that
-    // is asked for, which two at once would each compare the model with a different one.
     const keeping = follow({
       everyMs: options.lookEveryMs ?? LOOK_EVERY_MS,
       look: () => lookAtHome(paths, options.modelFiles),
-      read: reloadHome,
+      read: homeReader({
+        home: options.home,
+        ...(options.homeFile === undefined ? {} : { homeFile: options.homeFile }),
+        context,
+        triggers,
+        wakes,
+        sessions,
+        ...(options.reloadModels === undefined ? {} : { reloadModels: options.reloadModels }),
+        report,
+      }),
       onError: report,
     });
     following = keeping;
-    // The start has read the files already, and a file may have changed since the model was read, before this began. So
-    // they are read once more, now that the agent is up: what the next look is compared with is exactly what was read, and
-    // the files that can't be used are said.
+    // Sessions from an earlier start follow the home as it is now, and the home is read, before any of their work
+    // resumes: a trigger whose schedule changed while the agent was down is not woken by its old one.
+    await sessions.applyDefaults();
     await keeping.reload();
+    host.resume();
     // The agent's objects are served once its host has loaded them, on the home's socket at once, and through the gateway
     // once it links there.
     const server = await startServer({
@@ -252,6 +195,13 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     });
     try {
       if (options.join !== undefined) {
+        const admissions = createAdmissions(
+          host.harness,
+          sessions.defaults,
+          turn.task,
+          { stopWork, requireModel: (model) => requireModel(options.models, model) },
+          breadcrumbs,
+        );
         joined = join(
           {
             name: options.name,
@@ -260,7 +210,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
             roster,
             admissions,
             wakes,
-            working,
+            working: createWorking(host.harness),
             delivery,
             onError: report,
           },

@@ -1,7 +1,13 @@
 import { stat } from "node:fs/promises";
-import type { LeftOut } from "../contracts/agent/node.ts";
+import type { Reloaded } from "../contracts/agent/index.ts";
+import { type LeftOut, readWake } from "../contracts/agent/node.ts";
 import { refuse } from "../lib/refusal/index.ts";
+import type { Wakes } from "./chat/index.ts";
+import type { HomeContext } from "./context/durable.ts";
 import { homePaths, leftOutSentence, removeBreadcrumb, shownIn, writeBreadcrumb } from "./home/index.ts";
+import type { ModelReload } from "./host/durable.ts";
+import type { Sessions } from "./sessions/durable.ts";
+import type { Triggers } from "./triggers/durable.ts";
 
 /** How often the agent looks at its files, in milliseconds. A test gives a shorter time. */
 export const LOOK_EVERY_MS = 2_000;
@@ -174,4 +180,56 @@ export function keepLeftOut(options: {
       options.report(new Error(`The breadcrumb about files left out could not be ${what}: ${error instanceof Error ? error.message : String(error)}`));
     }
   };
+}
+
+/** What reading the home reads into. */
+export interface HomeParts {
+  home: string;
+  /** The file that makes the folder a home, which `requireSeen` asks for. Without it, whatever is there is read. */
+  homeFile?: string;
+  context: Pick<HomeContext, "reload">;
+  triggers: Pick<Triggers, "reload">;
+  wakes: Pick<Wakes, "replace">;
+  sessions: Pick<Sessions, "defaults" | "followModel">;
+  /** Read again the model the home starts with and the model servers its files declare. Without it, both stay as they are. */
+  reloadModels?: () => Promise<ModelReload>;
+  /** Told of the files that can't be used, as `keepLeftOut` says. */
+  report: (error: Error) => void;
+}
+
+/**
+ * Reading the home: its instructions, context files and skills, its triggers,
+ * its wake file and its model, and the files it could not use, which are said.
+ * When the home names another model, every session follows it from its next
+ * request. A model that can't be used is named, and the sessions keep the one
+ * they follow.
+ */
+export function homeReader(parts: HomeParts): () => Promise<Reloaded> {
+  const paths = homePaths(parts.home);
+  const told = keepLeftOut({ home: parts.home, report: parts.report });
+  return async () => {
+    if (parts.homeFile !== undefined) await requireSeen(parts.home, parts.homeFile);
+    const read = await parts.context.reload();
+    const followed = await parts.triggers.reload();
+    const model = await followModel(parts);
+    const wake = await readWake(paths);
+    if (wake.kind === "settings") parts.wakes.replace(wake.settings);
+    const leftOut = [...read.leftOut, ...followed.leftOut, ...(wake.kind === "left out" ? [wake.leftOut] : []), ...model.leftOut];
+    await told(leftOut);
+    const now = parts.sessions.defaults.model;
+    return { ...read, triggers: followed.count, model: { provider: now.provider, id: now.modelId }, changedFrom: model.changedFrom, leftOut };
+  };
+}
+
+/** Read the model the home names again, and have every session follow it when it is another. */
+async function followModel(parts: HomeParts): Promise<{ changedFrom: Reloaded["changedFrom"]; leftOut: LeftOut[] }> {
+  const found = await parts.reloadModels?.();
+  if (found === undefined) return { changedFrom: null, leftOut: [] };
+  const leftOut = found.leftOut.map(({ file, reason }) => ({ file: shownIn(parts.home, file), reason }));
+  const before = parts.sessions.defaults.model;
+  if (found.model === undefined || (found.model.provider === before.provider && found.model.modelId === before.modelId)) {
+    return { changedFrom: null, leftOut };
+  }
+  await parts.sessions.followModel(found.model);
+  return { changedFrom: { provider: before.provider, id: before.modelId }, leftOut };
 }
