@@ -1,7 +1,8 @@
 import { parseArgs } from "node:util";
 import { checkAgentName } from "../../contracts/agent/index.ts";
 import { initHome, providerPaths } from "../../contracts/agent/node.ts";
-import { formatAddress, type Link, readLink } from "../../contracts/gateway/index.ts";
+import { type Link, readLink } from "../../contracts/gateway/index.ts";
+import { formatAddress } from "../../lib/link/index.ts";
 import { gatewayOfItsOwn, homeInFolder, machineFolder, providersPath } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import {

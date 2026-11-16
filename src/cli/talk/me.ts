@@ -1,7 +1,8 @@
 import { AGENT_HOME_VARIABLE, membershipFile } from "../../contracts/agent/index.ts";
 import { readMembership } from "../../contracts/agent/node.ts";
-import { type Entry, formatAddress, type Machine, machineFile } from "../../contracts/gateway/index.ts";
+import { type Entry, type Machine, machineFile } from "../../contracts/gateway/index.ts";
 import { type GatewayPlace, type GatewayRefusedError, gatewaySocket, readMachine } from "../../contracts/gateway/node.ts";
+import { formatAddress } from "../../lib/link/index.ts";
 import { folderPath } from "../folder/index.ts";
 
 /** A machine of a person's own that the gateway has let in: it knows who it is. */

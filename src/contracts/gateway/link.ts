@@ -1,6 +1,7 @@
+import { formatAddress } from "../../lib/link/index.ts";
 import { isFingerprint } from "../../lib/tls/index.ts";
 import { decodeUri } from "../../lib/uri/index.ts";
-import { type Address, formatAddress } from "./address.ts";
+import type { Address } from "./address.ts";
 
 /** What an invitation link says: who is invited, where to go, the code to show there, and the key that proves the gateway. */
 export interface Link {

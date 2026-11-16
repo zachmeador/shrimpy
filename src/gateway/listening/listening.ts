@@ -1,6 +1,7 @@
-import { type Address, formatAddress } from "../../contracts/gateway/index.ts";
+import type { Address } from "../../contracts/gateway/index.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { codeOf } from "../../lib/files/index.ts";
+import { formatAddress } from "../../lib/link/index.ts";
 
 /** Why the gateway could not listen on `address`: which address, and the reason in plain words. */
 export function cannotListen(address: Address, cause: unknown): Error {

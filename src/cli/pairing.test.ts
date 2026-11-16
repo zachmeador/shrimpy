@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { readMembership } from "../contracts/agent/node.ts";
-import { formatAddress, hello, readAnswer, readLink, writeLink } from "../contracts/gateway/index.ts";
+import { hello, readAnswer, readLink, writeLink } from "../contracts/gateway/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
 import { dial } from "../lib/link/node.ts";
 import { tempDir, until } from "../lib/testing/index.ts";
@@ -19,6 +19,7 @@ import {
   useShrimpyDir,
 } from "./testing/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
+import { formatAddress } from "../lib/link/index.ts";
 
 /*
  * Letting an agent in from a folder that shares nothing with the gateway's, through the real commands: the gateway

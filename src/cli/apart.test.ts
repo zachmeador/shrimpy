@@ -7,7 +7,7 @@ import type { Reference } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Agent, AGENT_HOME_VARIABLE, membershipFile, Session } from "../contracts/agent/index.ts";
 import { initHome, readMembership } from "../contracts/agent/node.ts";
-import { type Entry, formatAddress, type Member, writeLink } from "../contracts/gateway/index.ts";
+import { type Entry, type Member, writeLink } from "../contracts/gateway/index.ts";
 import { connectGateway, type GatewayClient, type GatewayPlace, gatewaySocket } from "../contracts/gateway/node.ts";
 import { type RunningGateway, startGateway } from "../gateway/index.ts";
 import { eventually, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
@@ -25,6 +25,7 @@ import {
 } from "./testing/index.ts";
 import { startTestChat } from "../contracts/chat/testing/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
+import { formatAddress } from "../lib/link/index.ts";
 
 /*
  * An agent apart from the gateway, through real programs. The gateway runs in this process and listens on loopback, the

@@ -1,6 +1,6 @@
 import { hostname } from "node:os";
 import { loadHome, readMembership, saveMembership } from "../../contracts/agent/node.ts";
-import { type Entry, formatAddress, type Member, readLink, type Welcome } from "../../contracts/gateway/index.ts";
+import { type Entry, type Member, readLink, type Welcome } from "../../contracts/gateway/index.ts";
 import {
   dialGateway,
   GatewayRefusedError,
@@ -8,6 +8,7 @@ import {
   UnknownAnswerError,
   UnprovenGatewayError,
 } from "../../contracts/gateway/node.ts";
+import { formatAddress } from "../../lib/link/index.ts";
 
 /**
  * The gateway could not be reached, stopped answering, or turned the agent

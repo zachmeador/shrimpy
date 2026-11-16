@@ -1,11 +1,12 @@
 import { arr, bool, int, lit, nul, num, obj, oneOf, type Static, str, union } from "@earendil-works/chord";
+import { MEMBER_FIELDS } from "../gateway/index.ts";
 
 /**
- * Someone who can be in a channel: you or an agent, as the gateway's roster has
- * them. The ID is the roster's and never changes. The name is the roster's too,
- * and it can change.
+ * Someone who can be in a channel: you or an agent, named as the gateway's
+ * roster names them, by an ID that never changes and a name that can. Whether
+ * one is an admin is the roster's to say, so chat never keeps it.
  */
-export const MemberSchema = obj({ id: str(), kind: oneOf("person", "agent"), name: str() });
+export const MemberSchema = obj(MEMBER_FIELDS);
 export type Member = Static<typeof MemberSchema>;
 
 /** A member at work in a thread, such as an agent from picking a message up until its turn settles. */

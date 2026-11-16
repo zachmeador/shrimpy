@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { formatAddress, writeLink } from "../../contracts/gateway/index.ts";
+import { writeLink } from "../../contracts/gateway/index.ts";
 import { readMachine } from "../../contracts/gateway/node.ts";
 import { captureIo, onTheRoster, shrimpy, useShrimpyDir } from "../testing/index.ts";
 import { joinByLink } from "./join.ts";
 import { startTestGateway } from "../../contracts/gateway/testing/index.ts";
+import { formatAddress } from "../../lib/link/index.ts";
 
 /*
  * What `join` does with the link of a machine of the person's own when the gateway does not answer, which takes the

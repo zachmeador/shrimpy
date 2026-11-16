@@ -3,7 +3,8 @@ import { BlockList, isIP } from "node:net";
 import { dirname, join } from "node:path";
 import { saveFile } from "../../lib/files/node.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
-import { type Address, formatAddress } from "./address.ts";
+import { formatAddress } from "../../lib/link/index.ts";
+import type { Address } from "./address.ts";
 
 /** Where the gateway keeps the addresses it listens on, inside its data directory. */
 export const listenAddressesFile = (dataDir: string): string => join(dataDir, "state", "listen.json");

@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
-import { type Address, formatAddress, type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
+import { type Address, type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
+import { formatAddress } from "../../lib/link/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { folderPath } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";

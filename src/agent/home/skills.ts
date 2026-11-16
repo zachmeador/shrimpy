@@ -1,7 +1,7 @@
 import type { Dirent } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { frontmatter, oneLine } from "../../contracts/agent/index.ts";
+import { frontmatter } from "../../contracts/agent/index.ts";
 import { codeOf, compare, type LeftOut, why } from "../../lib/files/index.ts";
 import { readText } from "../../lib/files/node.ts";
 
@@ -62,7 +62,7 @@ export async function readSkills(
     } else if (description === "") {
       leftOut.push({ file: shown(file), reason: "its front matter has no description" });
     } else {
-      skills.push({ name: oneLine(values.get("name") ?? "") || entry.name, description, file });
+      skills.push({ name: (values.get("name") ?? "") || entry.name, description, file });
     }
   }
   return skills;

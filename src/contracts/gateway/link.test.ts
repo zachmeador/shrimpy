@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { formatAddress } from "./address.ts";
+import { formatAddress } from "../../lib/link/index.ts";
 import { type Link, readLink, writeLink } from "./link.ts";
 
 const fingerprint = "ocKmkNBacmPG6VxrlnuW3Q";

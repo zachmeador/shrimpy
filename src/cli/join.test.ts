@@ -3,9 +3,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { readMembership } from "../contracts/agent/node.ts";
-import { formatAddress, writeLink } from "../contracts/gateway/index.ts";
+import { writeLink } from "../contracts/gateway/index.ts";
 import { commandLines, onTheRoster, shrimpy, useShrimpyDir } from "./testing/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
+import { formatAddress } from "../lib/link/index.ts";
 
 /*
  * `join` with the link of an agent's invitation, as a command in a process of its own, against a gateway that listens

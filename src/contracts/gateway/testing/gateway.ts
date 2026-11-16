@@ -1,8 +1,9 @@
 import { join } from "node:path";
 import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
+import { formatAddress } from "../../../lib/link/index.ts";
 import { type Child, type ChildOutput, startChild, stopAfter, tempDir, useRuntimeDir } from "../../../lib/testing/index.ts";
-import { type Address, formatAddress } from "../index.ts";
+import type { Address } from "../index.ts";
 import { connectGateway, type GatewayClient, type GatewayPlace, gatewaySocket } from "../node.ts";
 
 /** The command that runs Shrimpy, which is how a person starts a program. */

@@ -1,7 +1,8 @@
 import type { Reference } from "@earendil-works/chord";
 import { Chat, type Member } from "../../contracts/chat/index.ts";
-import { formatAddress, type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
+import { type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
 import type { GatewayClient } from "../../contracts/gateway/node.ts";
+import { formatAddress } from "../../lib/link/index.ts";
 import type { Io } from "../io/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import { GatewayNotRunningError, linkAs, viewOf } from "./gateway.ts";

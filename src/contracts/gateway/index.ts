@@ -6,7 +6,7 @@
  * gateway. This door is safe for browsers; `node.ts` adds linking, which needs
  * Node.
  */
-export { type Address, AddressSchema, type Entry, formatAddress } from "./address.ts";
+export { type Address, AddressSchema, type Entry } from "./address.ts";
 export {
   type Answer,
   answerOf,
@@ -44,6 +44,7 @@ export {
   type Invitation,
   InvitationSchema,
   type Member,
+  MEMBER_FIELDS,
   MemberSchema,
   type Program,
   ProgramSchema,

@@ -25,7 +25,7 @@ export function frontmatterAndBody(text: string): { values: Map<string, string>;
   let first = "";
   let more: string[] = [];
   const finish = (): void => {
-    if (key !== undefined) values.set(key, oneLine(value(first, more)));
+    if (key !== undefined) values.set(key, singleSpaced(value(first, more)));
   };
   for (const line of lines.slice(1, end)) {
     if (line.trimStart().startsWith("#")) continue;
@@ -62,6 +62,6 @@ function unquoted(text: string): string {
 }
 
 /** Line breaks and runs of spaces made into single spaces, and nothing at either end. */
-export function oneLine(text: string): string {
+function singleSpaced(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }

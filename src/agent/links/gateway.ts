@@ -2,7 +2,6 @@ import type { Host } from "@earendil-works/chord";
 import type { Membership } from "../../contracts/agent/index.ts";
 import {
   type Entry,
-  formatAddress,
   type Member,
   type Principal,
   type Reason,
@@ -16,6 +15,7 @@ import {
   UnknownAnswerError,
   UnprovenGatewayError,
 } from "../../contracts/gateway/node.ts";
+import { formatAddress } from "../../lib/link/index.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
 
 /** Where the agent keeps who it is on the network between starts. */

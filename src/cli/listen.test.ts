@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { type AddressInfo, createServer } from "node:net";
 import { networkInterfaces } from "node:os";
 import { test, type TestContext } from "node:test";
-import { type Address, formatAddress } from "../contracts/gateway/index.ts";
+import type { Address } from "../contracts/gateway/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
+import { formatAddress } from "../lib/link/index.ts";
 import { stopAfter, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
 import { canConnect, freeAddresses, launchUp, onTheRoster, shrimpy, untilLinked } from "./testing/index.ts";
 

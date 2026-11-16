@@ -4,23 +4,25 @@ import { answerOf } from "./answers.ts";
 import { gateway } from "./hosts.ts";
 
 /**
- * Someone on the network: you or an agent. Its ID is minted once and never
- * changes; its name is a label the roster binds to it, unique among members
- * whatever the case, so `@name` means one member. Every person is an admin,
- * the first agent on a roster starts as one, and any other agent is one once
- * promoted.
+ * What every contract names a member by: its ID, minted once and never
+ * changed, whether it is you or an agent, and its name, a label the roster
+ * binds to it, unique among members whatever the case, so `@name` means one
+ * member. Chat names a member by these alone.
  */
-export const MemberSchema = obj({ id: str(), kind: oneOf("person", "agent"), name: str(), admin: bool() });
+export const MEMBER_FIELDS = { id: str(), kind: oneOf("person", "agent"), name: str() };
+
+const ON_THE_ROSTER = { ...MEMBER_FIELDS, admin: bool() };
+
+/**
+ * Someone on the network, you or an agent, with whether it is an admin. Every
+ * person is one, the first agent on a roster starts as one, and any other agent
+ * is one once promoted.
+ */
+export const MemberSchema = obj(ON_THE_ROSTER);
 export type Member = Static<typeof MemberSchema>;
 
 /** A member as the roster lists it, with whether it is reachable: an agent whose program is linked and answering. */
-export const RosterEntrySchema = obj({
-  id: str(),
-  kind: oneOf("person", "agent"),
-  name: str(),
-  admin: bool(),
-  reachable: bool(),
-});
+export const RosterEntrySchema = obj({ ...ON_THE_ROSTER, reachable: bool() });
 export type RosterEntry = Static<typeof RosterEntrySchema>;
 
 /** A program linked to the gateway now, with the Shrimpy version its hello gave. The chat server is no member. */

@@ -1,5 +1,6 @@
+import { formatAddress } from "../../lib/link/index.ts";
 import { type Dialed, dial, type Linked, OtherKeyError } from "../../lib/link/node.ts";
-import { type Entry, formatAddress } from "./address.ts";
+import type { Entry } from "./address.ts";
 import type { Reason } from "./answers.ts";
 import { type Hello, hello, readAnswer, unreadableAnswer, type Welcome, type Who } from "./hello.ts";
 

@@ -1,6 +1,5 @@
 import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
 import {
-  formatAddress,
   type Member,
   type Program,
   Roster,
@@ -14,6 +13,7 @@ import {
   gatewaySocket,
   UnprovenGatewayError,
 } from "../../contracts/gateway/node.ts";
+import { formatAddress } from "../../lib/link/index.ts";
 import { START_EVERYTHING } from "./hints.ts";
 import { type Me, me } from "./me.ts";
 

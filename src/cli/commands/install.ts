@@ -1,8 +1,8 @@
 import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parseArgs } from "node:util";
-import { formatAddress } from "../../contracts/gateway/index.ts";
 import { keptListenAddresses } from "../../contracts/gateway/node.ts";
+import { formatAddress } from "../../lib/link/index.ts";
 import { defaultFolderPath, FOLDER_VARIABLE, folderPath } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
