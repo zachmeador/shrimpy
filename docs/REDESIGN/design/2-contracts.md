@@ -86,7 +86,6 @@ type Principal =
 
 type Way =
   | { kind: "socket" }             // the gateway's own socket, with no token
-  | { kind: "page" }               // a page on the gateway's machine, with its secret, when the web client comes
   | { kind: "device"; id: string } // a device's token
   | { kind: "token"; id: string }  // an agent's token
 

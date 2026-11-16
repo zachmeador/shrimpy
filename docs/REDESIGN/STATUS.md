@@ -11,10 +11,9 @@ As of 2026-11-15. An item leaves when it is fixed or when the design changes to 
 Four reviewers read the code on 2026-11-15, and you asked for what they found to be fixed. The order is in the [plan](PLAN.md#order-of-work).
 
 - The CLI still uses the agent's front door for more than starting it: to preview what a home would tell its agent, and to sign in. Each is loaded only by its own command, and the lint names both. Whether the rule names them or they move is [waiting on you](AUTHOR-TO-REVIEW.md).
-- Saving a file whole is written nine times, with different care for crashes. `lib/follow` serves only the agent, while the gateway and chat each have their own. Four layers keep a link. `Member`, an address's words and the dial to a home are each written twice. Chat has its own `refusal/` beside `lib/refusal`. `contracts/agent` exports file helpers that know nothing of agents, and it and `lib/plain` each have a `oneLine` that does something different.
 - The CLI repeats itself: `wake` and `triggers`, `invite` and `join`, and the clients' plumbing. The terminal and the CLI word sessions and receipts each their own way, and already differ. `read` tells a refusal by its words.
 - `up` is one 650-line file, and may lose track of an agent whose home goes while it starts. The terminal's state is one 730-line closure that draws every change twice.
-- Dead code outside the agent: notices nothing emits, exports nothing uses, and interfaces that are the same under three names.
+- Dead code in the CLI and the terminal: notices nothing emits, exports nothing uses, and interfaces that are the same under three names.
 
 ### The three programs and what each owns
 
@@ -24,6 +23,7 @@ Four reviewers read the code on 2026-11-15, and you asked for what they found to
 - A turn at Pi's limit may make one more model call or start one more tool before the agent stops it after the restart. The session's status then says `stopped`, since Pi records the stop as an abort, and the receipt says the agent stopped unexpectedly too many times.
 - The commands warn when a program they reach runs another version of Shrimpy, and say that programs are meant to be upgraded together, though [the contracts](design/2-contracts.md) let a release reach machines one at a time unless it changes the Pi packages or contracts on both sides of a link. No test covers the warning.
 - Untried: power loss, a full disk, log damage, and a kill during a tool commit.
+- A save that a crash cuts short leaves a hidden file beside the file it was saving, named for the process, and nothing removes it.
 - The owner lock is untried on network file systems and sandbox mounts.
 
 ### The contracts between them
@@ -49,7 +49,7 @@ Four reviewers read the code on 2026-11-15, and you asked for what they found to
 - An edit that removes a mention takes it from the original post too, for an agent that reads the feed afterwards, since an event shows its message as it now stands.
 - A message recorded in the instant between a skipped message's receipt and the session noting it is handed over without the skipped one, which then shows one turn late.
 - Pi takes back the inputs waiting behind a turn that fails, but not those behind a run it ends as faulted or orphaned, so they wait for the session's next input.
-- An agent tells Pi storage from before the move by the version Pi keeps in its own `durable_schema` table, read before Pi opens the file, since Pi has no way to open storage without bringing it up to date. Pi doesn't promise that table. A document another version wrote is told by the words Durable refuses it with, which Pi doesn't promise either: if they change, the advice to move the storage away stops showing, and the engine's error shows as it is.
+- An agent tells Pi storage from before the move by the version Pi keeps in its own `durable_schema` table, read before Pi opens the file, since Pi has no way to open storage without bringing it up to date. Pi doesn't promise that table. A document another version wrote is told by the words Durable refuses it with, which Pi doesn't promise either: if they change, the advice to move the storage away stops showing, and the engine's error shows as it is. A home's `runtime/endpoint.json` from before the move has no name, so `up` stops at that home with an error that names the file and doesn't say to move it away.
 - The message tools have no timeout, so a chat server that stays linked and never answers a call holds a turn until someone stops it.
 - Input order in a session leans on Pi's task numbering, which Pi doesn't promise.
 - Three quick reactions to one of an agent's messages can get two answers.
@@ -128,4 +128,4 @@ Four reviewers read the code on 2026-11-15, and you asked for what they found to
 - Promises in the first build's Prove list that are built and have no test: a real-provider turn uses only the shell tool, not the file tools; a request ID reused with different content is tested in the chat server and not at the agent; and nothing asserts what becomes of a shell child that outlives a killed owner.
 - Since the tests that failed the bar were cut on 2026-11-15, nothing tests how a session's status shows images, usage, its own model and a retry, or that a cut-off answer's tool calls show as not run. Those were tested on Pi's records built by hand, and a test through the real engine could cover them. Nothing tests most of `/status` either, or how the terminal shows edits, deletes and reactions.
 - No test covers a link that goes silent, which Chord's heartbeat closes after half a minute, or `run` stopped while its message is being sent, which needs a chat server that takes a post and never answers.
-- A test can fail now and then: `joinRoster` returns once the gateway has the new member, and chat may not have heard of it when the test opens a DM with it, so chat refuses. It failed once on 2026-11-15, in `read goes back through a thread that is longer than the live view holds`, and every other run that day passed.
+- A test that opens a DM with an agent through `talkTo` can be refused, since `talkTo` waits for the gateway's roster to have the agent and chat may not have heard of it yet. Nothing a person holds of chat says when chat has heard of a member. `joinRoster` had the same race, failed a test once on 2026-11-15, and has waited for chat since.

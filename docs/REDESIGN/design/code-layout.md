@@ -16,9 +16,10 @@ src/
                     their schedules, making a home, the folder's default model and where it keeps sign-ins
     chat/           Chat, Channel, Thread and ChatPresence at chat(): channels, threads, messages, events and
                     receipts, and the commands a person writes for agents
-    gateway/        what every contract shares (the hosts and their addresses, who is asking, a method's answer or
-                    refusal, and the hello before Chord), Roster at gateway(), and the invitation's link and what a
-                    machine of yours keeps; through node.ts, the one dial every link and join starts with,
+    gateway/        what every contract shares (the hosts and their addresses, who is asking, the fields a member
+                    is named by, a method's answer or refusal, and the hello before Chord), Roster at gateway(),
+                    and the invitation's link and what a machine of yours keeps; through node.ts, the one dial
+                    every link and join starts with, a client's link to the gateway or to an agent's home socket,
                     keeping a program or a client linked, and the addresses the gateway keeps between starts
   agent/            the agent program, one process per home, whose files at the top make its host, serve its
                     objects, read its home and wire the modules together
@@ -46,12 +47,11 @@ src/
   chat/             the chat server program, which links out to the gateway
     store/          SQLite schema and transactions: the log of events and the messages they add up to
     threads/        what the contract means: channels, threads, membership, messages, mentions, receipts, who is
-                    working, and who may do what
+                    working, who may do what, and a refusal as the contract's answer
     served/         Chat, Channel and Thread for each caller, and ChatPresence for the gateway, kept live
     offers/         the events after a member's place in its feed, at once
     identity/       who members are, from the roster chat holds at the gateway
     input/          what callers may send: limits and checks
-    refusal/        saying no from inside an operation, as the contract's refusal at its edge
     providers/      not built yet: the provider interface and the helpers providers share
       telegram/     not built yet: Telegram's API, with polling, sender mapping, message and media formats, sending
   gateway/          the gateway program: the roster, and Chord's relay between everyone else, on its own socket
@@ -80,10 +80,11 @@ src/
                     who a command or the terminal is; and joining a gateway from apart, as a home or a machine
                     of yours
   lib/              helpers with no knowledge of Shrimpy's domain: locks, retries, listeners and waiting on them,
-                    IDs, refusals, times, config checking, text made harmless for a terminal, the runtime
-                    directory, versions and test support
+                    a thrown value as an error, files read and saved whole, IDs, refusals, times, config
+                    checking, text made harmless for a terminal, the runtime directory, versions and test support
     link/           links for Chord: a WebSocket on a socket's path, or over TLS at an address, with the hello
-                    before Chord; listening, dialing and keeping a link
+                    before Chord; listening, dialing and keeping a link; and, safe for browsers, how an address
+                    is written
     follow/         a value worked out from a read and a watch, as a Chord object follows it, and the type of
                     what Chord follows, for code that doesn't import Chord
     tls/            keys that prove a link's end by their fingerprint, and the certificate TLS serves them in
