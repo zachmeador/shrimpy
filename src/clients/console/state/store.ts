@@ -191,8 +191,7 @@ export async function createConsoleState(options: ConsoleStateOptions): Promise<
     const moved = patch.where !== undefined;
     if (moved) statusReads += 1;
     model = { ...model, ...(moved ? { status: undefined } : {}), ...patch };
-    listeners.notify(model);
-    changed();
+    refresh();
   };
 
   let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -208,9 +207,30 @@ export async function createConsoleState(options: ConsoleStateOptions): Promise<
     if (scheduled || closed) return;
     scheduled = true;
     queueMicrotask(() => {
-      scheduled = false;
-      if (!closed) refresh();
+      if (scheduled) refresh();
     });
+  }
+
+  // A change made while the model is worked out, as landing on the only agent is, is worked in before anyone is told.
+  let refreshing = false;
+  let asked = 0;
+  /** Work what the held objects show into the model, with what follows from it, and tell whoever listens, once. */
+  function refresh(): void {
+    if (closed) return;
+    asked += 1;
+    if (refreshing) return;
+    refreshing = true;
+    try {
+      let done: number;
+      do {
+        done = asked;
+        scheduled = false;
+        workIn();
+      } while (asked !== done);
+    } finally {
+      refreshing = false;
+    }
+    listeners.notify(model);
   }
 
   const roster = holdRoster(link, changed);
@@ -336,7 +356,7 @@ export async function createConsoleState(options: ConsoleStateOptions): Promise<
   }
 
   /** Work what the held objects show into the model, then do what follows from it. */
-  function refresh(): void {
+  function workIn(): void {
     const shownRoster = roster.shown();
     const version = link.version() ?? model.listing?.version ?? "";
     const listing = shownRoster === undefined ? model.listing : { ...shownRoster, version };
@@ -387,7 +407,6 @@ export async function createConsoleState(options: ConsoleStateOptions): Promise<
       session: sessionViewOf(),
       workingSessions: workingNow(),
     };
-    listeners.notify(model);
 
     // A thread that can't be had says so, once.
     if (thread !== undefined && shownThread?.refusal !== null && shownThread?.refusal !== undefined && thread.told !== shownThread.refusal.words) {
