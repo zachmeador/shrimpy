@@ -2,9 +2,9 @@ import { delayMs, normalizeDelay } from "../../contracts/agent/index.ts";
 import * as words from "./words.ts";
 
 /** How long the agent waits for an answer when it says nothing, and the shortest and the longest it may ask to wait, in milliseconds. */
-export const DEFAULT_WITHIN = 30 * 60_000;
+const DEFAULT_WITHIN = 30 * 60_000;
 export const SHORTEST_WITHIN = 60_000;
-export const LONGEST_WITHIN = 24 * 3_600_000;
+const LONGEST_WITHIN = 24 * 3_600_000;
 
 /** How many characters of a question are kept to say which one it was, and to name its thread, far inside what chat takes for a name. */
 const START_LENGTH = 80;

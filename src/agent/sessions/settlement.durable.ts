@@ -29,7 +29,7 @@ export async function waitForSettlement(
 }
 
 /** The entry a `done` submission points to as its answer. */
-export async function answerEntry(
+async function answerEntry(
   conversation: Conversation,
   answer: EntryId | undefined,
   context: Context,
@@ -40,7 +40,7 @@ export async function answerEntry(
 }
 
 /** `answer` is the entry a `done` submission points to. */
-export function toSettlement(record: SettledSubmissionRecord, answer: EntryRecord | undefined): Settlement {
+function toSettlement(record: SettledSubmissionRecord, answer: EntryRecord | undefined): Settlement {
   if (record.status === "done") return { status: "answered", text: answerText(answer) };
   const failure = failureOf(record);
   if (failure.reason === "stopped") return { status: "cancelled" };

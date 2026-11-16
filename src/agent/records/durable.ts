@@ -19,7 +19,6 @@ export {
   type OpenQuestion,
   plain,
   QuestionsDoc,
-  RecordsDoc,
   type SessionRecord,
   sessionAddress,
   SessionsDoc,
@@ -40,4 +39,4 @@ export {
 } from "./kept.durable.ts";
 export { openSession } from "./open-session.durable.ts";
 export { openRecords } from "./records.durable.ts";
-export { addressOfPlace, placeOfSession, type SessionPlace, type SessionThread, threadOfSession } from "./thread-of.durable.ts";
+export { addressOfPlace, placeOfSession, type SessionPlace, threadOfSession } from "./thread-of.durable.ts";

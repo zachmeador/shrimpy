@@ -8,6 +8,4 @@
  * depend on them, or on how the agent is reached, or know what a message looks
  * like.
  */
-export type { AgentFacts } from "./base.ts";
-export { type ContextPreview, type ContextReport, previewContext } from "./preview.ts";
-export type { RenderedSection } from "./sections.ts";
+export { type ContextPreview, previewContext } from "./preview.ts";

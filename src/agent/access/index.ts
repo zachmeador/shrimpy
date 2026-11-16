@@ -8,4 +8,4 @@
  * caller before it acts, and this is the one place that decides. It must not
  * know how a request arrives or how the roster is held.
  */
-export { type Caller, callerOf, check, type Permission, refusalFor, type RosterNow } from "./access.ts";
+export { type Caller, callerOf, check, type Permission, refusalFor } from "./access.ts";

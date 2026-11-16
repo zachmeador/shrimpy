@@ -14,6 +14,6 @@
  * how chat is reached or how its feed is read, how a turn's reply is posted, or
  * what a session shows a client.
  */
-export { askTools, type AskToolsOptions } from "./ask-agent.durable.ts";
-export { type Closed, closeQuestion, forgetPassed } from "./close.durable.ts";
-export { createQuestions, QUESTION_TASK, type Questions, type QuestionsOptions } from "./questions.durable.ts";
+export { askTools } from "./ask-agent.durable.ts";
+export { closeQuestion, forgetPassed } from "./close.durable.ts";
+export { createQuestions, QUESTION_TASK } from "./questions.durable.ts";

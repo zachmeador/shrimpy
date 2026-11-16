@@ -19,7 +19,7 @@ const MAX_NOTE = 1_000;
  * model can end its turn. The wake-up is the session's and not the call's, and
  * a call that runs again after a crash finds the wake-up its first run set.
  */
-export function checkBack(options: WakeupToolsOptions) {
+function checkBack(options: WakeupToolsOptions) {
   return defineTool({
     name: "check_back",
     description: words.CHECK_DESCRIPTION,

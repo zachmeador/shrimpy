@@ -8,5 +8,5 @@
  * what the agent says to chat or does with what chat offers, or who may do what.
  */
 export { callSignal, type ChatCalls, chatFailure, type ChatLink, isUnavailable, type LiveChat, openChatLink } from "./chat.ts";
-export { type GatewayLink, type GatewayLinkOptions, linkToGateway, type MembershipStore } from "./gateway.ts";
+export { linkToGateway } from "./gateway.ts";
 export { createRoster, type LiveRoster, memberNamed } from "./roster.ts";

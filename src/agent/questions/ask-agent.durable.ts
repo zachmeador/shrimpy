@@ -39,7 +39,7 @@ export interface AskToolsOptions {
  * count of open questions read before a question is posted is the count when it is
  * kept.
  */
-export function askAgent(options: AskToolsOptions) {
+function askAgent(options: AskToolsOptions) {
   return defineTool({
     name: "ask_agent",
     description: words.ASK_DESCRIPTION,

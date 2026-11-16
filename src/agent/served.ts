@@ -4,7 +4,7 @@ import { Agent, AgentPresence, type Reloaded, Session, type SessionPage } from "
 import { type Answer, done, type Principal, type Refused, refused } from "../contracts/gateway/index.ts";
 import { follow } from "../lib/follow/index.ts";
 import { isRefusal, refuse } from "../lib/refusal/index.ts";
-import { type Caller, callerOf, type Permission, refusalFor } from "./access/index.ts";
+import { type Caller, callerOf, check, type Permission, refusalFor } from "./access/index.ts";
 import type { LiveRoster } from "./links/index.ts";
 import { type Sessions, shownOf } from "./sessions/durable.ts";
 import type { Triggers } from "./triggers/durable.ts";
@@ -54,10 +54,8 @@ export function agentFacet(parts: ServedParts): Facet<Principal> {
   };
 
   /** Refuse unless the caller may do `permission`. */
-  const allow = async (principal: Principal, permission: Permission, context: Context): Promise<void> => {
-    const refusal = refusalFor(await callerNow(principal, context.abortSignal), permission);
-    if (refusal !== null) refuse(refusal.words);
-  };
+  const allow = async (principal: Principal, permission: Permission, context: Context): Promise<void> =>
+    check(await callerNow(principal, context.abortSignal), permission);
 
   /** Why the caller may not watch the agent, or null, kept live from the roster. */
   const watching = (principal: Principal): FollowAttach<Refused | null> =>

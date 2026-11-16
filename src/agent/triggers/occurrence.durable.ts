@@ -85,7 +85,7 @@ async function leave(tx: Tx, turn: TurnTask, occurrence: Occurrence, unrun: Unru
  * belongs to, with how it ended and why: its check found news that was noted, or
  * the agent ended while its check ran. Nothing is taken from any session.
  */
-export function recordUnrun(tx: Tx, turn: TurnTask, definition: TriggerDefinition, firing: Firing, unrun: Unrun): Promise<OccurrenceView> {
+function recordUnrun(tx: Tx, turn: TurnTask, definition: TriggerDefinition, firing: Firing, unrun: Unrun): Promise<OccurrenceView> {
   return leave(tx, turn, occurrenceOf(definition, firing), unrun);
 }
 

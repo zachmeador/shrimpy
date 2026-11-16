@@ -29,10 +29,6 @@ export interface AgentServer {
   readonly host: Host<Principal, Revocation>;
   /** Where the agent is reached by its home's path. */
   readonly endpoint: AgentEndpoint;
-  /** Refuse new input from now on. Clients can still watch and stop work. */
-  stopIntake(): void;
-  /** Whether new input is still taken. */
-  takingInput(): boolean;
   /** Stop listening on the home's socket and close the host, which ends every object and drops every link. */
   close(): Promise<void>;
 }
@@ -42,8 +38,8 @@ export interface ServerOptions {
   home: string;
   /** The name the agent answers to, which is its host's address. */
   name: string;
-  /** The agent's objects, made once the server can say whether it still takes input. */
-  facet(takingInput: () => boolean): Facet<Principal>;
+  /** The agent's objects. */
+  facet: Facet<Principal>;
   /** Told of what fails in the background. */
   onError(error: Error): void;
 }
@@ -85,7 +81,6 @@ function described(error: HostError): Error {
  */
 export async function startServer(options: ServerOptions): Promise<AgentServer> {
   const socket = socketPathFor(options.home);
-  let takingInput = true;
   const host = createHost<Principal, Revocation>({
     address: agent({ name: options.name }),
     principal: { kind: "home" },
@@ -103,7 +98,7 @@ export async function startServer(options: ServerOptions): Promise<AgentServer> 
     }
   };
   try {
-    await host.load([{ name: "@shrimpy/agent", facet: options.facet(() => takingInput) }], context);
+    await host.load([{ name: "@shrimpy/agent", facet: options.facet }], context);
     // This process holds the home's lock, so a socket left at the path is stale.
     rmSync(socket, { force: true });
     listener = await listen({ path: socket }, greeter(host), { onError: (error) => options.onError(error as Error) });
@@ -112,15 +107,7 @@ export async function startServer(options: ServerOptions): Promise<AgentServer> 
     const unfinished = `${endpointFile(options.home)}.${String(process.pid)}`;
     writeFileSync(unfinished, JSON.stringify(endpoint));
     renameSync(unfinished, endpointFile(options.home));
-    return {
-      host,
-      endpoint,
-      stopIntake() {
-        takingInput = false;
-      },
-      takingInput: () => takingInput,
-      close: closeAll,
-    };
+    return { host, endpoint, close: closeAll };
   } catch (error) {
     await closeAll().catch(() => undefined);
     throw error;

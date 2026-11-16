@@ -4,7 +4,7 @@ import { type ChatCalls, isUnavailable, type LiveChat } from "../links/index.ts"
 import { describePlace } from "./place.ts";
 
 /** Where a thread is, among the channels whoever asks is in. */
-export type ThreadPlace =
+type ThreadPlace =
   | { kind: "found"; channelId: string; channel: Channel; thread: Thread }
   /** None of those channels has it: there is no such thread, or the asker is not in its channel. Chat does not tell the two apart. */
   | { kind: "missing" }
@@ -14,10 +14,9 @@ export type ThreadPlace =
 /**
  * Ask chat which channel a thread is in: the channels the member `chat` speaks
  * for is in, and the threads of each. A thread in a channel the member is not in
- * looks like a thread that is not there. This is the one way the agent, and a
- * command that checks a thread for an agent, finds a thread's channel.
+ * looks like a thread that is not there.
  */
-export async function placeOfThread(chat: ChatCalls, threadId: string, signal: AbortSignal): Promise<ThreadPlace> {
+async function placeOfThread(chat: ChatCalls, threadId: string, signal: AbortSignal): Promise<ThreadPlace> {
   try {
     for (const channel of chat.channels()) {
       const found = (await chat.threads(channel.id, signal)).find((thread) => thread.id === threadId);

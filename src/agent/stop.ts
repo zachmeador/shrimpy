@@ -19,6 +19,8 @@ export interface Parts {
   following: { close(): Promise<void> };
   /** Absent for an agent that takes no part in chat. */
   joined?: Joined;
+  /** Refuse new input from clients from now on. They can still watch and stop work. */
+  refuseInput: () => void;
 }
 
 /**
@@ -41,8 +43,8 @@ export function stopper(parts: Parts): (options?: CloseOptions) => Promise<void>
   };
 }
 
-async function stop({ host, server, joined, following }: Parts, graceMs: number, hurry: AbortSignal): Promise<void> {
-  server.stopIntake();
+async function stop({ host, server, joined, following, refuseInput }: Parts, graceMs: number, hurry: AbortSignal): Promise<void> {
+  refuseInput();
   joined?.stopTaking();
   try {
     await following.close();

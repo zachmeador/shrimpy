@@ -3,7 +3,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { readMembership, saveMembership } from "../contracts/agent/node.ts";
 import type { Entry, Principal, Revocation } from "../contracts/gateway/index.ts";
 import type { Backoff } from "../lib/retry/index.ts";
-import { type Admissions, type ChatDelivery, startIntake, type Wakes } from "./chat/index.ts";
+import { type Admissions, type ChatDelivery, markWorking, readFeed, type Wakes } from "./chat/index.ts";
 import { homePaths } from "./home/index.ts";
 import { type ChatCalls, type LiveChat, type LiveRoster, linkToGateway, openChatLink } from "./links/index.ts";
 import type { Working } from "./turns/index.ts";
@@ -33,7 +33,11 @@ export interface Joined {
   chat(): LiveChat | undefined;
   /** Stop reading chat's feed. Events already taken up carry on. */
   stopTaking(): void;
-  /** Wait until the turns that have ended have been told to chat, or `signal` aborts. */
+  /**
+   * Wait until the turns that have ended have been told to chat, or `signal`
+   * aborts, or chat is lost, since nothing can be told to chat that is not there.
+   * A turn still running is not waited for.
+   */
   drain(signal: AbortSignal): Promise<void>;
   /** Leave the gateway and chat. What was not delivered waits in its task for the next start. */
   close(): Promise<void>;
@@ -85,20 +89,34 @@ export function join(participant: Participant, options: JoinOptions): Joined {
   roster.follow(host, BACKGROUND_CONTEXT);
   const link = openChatLink(host, onError, options.chatCalls);
   delivery.attach(link);
-  const intake = startIntake({ link, admissions, wakeIn: (room) => wakes.of(room), working, onError, ...(backoff === undefined ? {} : { backoff }) });
+  const stopMarking = markWorking(link, working, onError);
+  const taking = new AbortController();
+  const reading = readFeed({
+    link,
+    admissions,
+    wakeIn: (room) => wakes.of(room),
+    onError,
+    stop: taking.signal,
+    ...(backoff === undefined ? {} : { backoff: backoff() }),
+  });
 
   return {
     chat: () => link.current(),
-    stopTaking: () => intake.stopTaking(),
-    drain: (signal) => intake.drain(signal),
+    stopTaking: () => taking.abort(),
+    async drain(signal) {
+      const live = link.current();
+      if (live !== undefined) await working.untilTold(AbortSignal.any([signal, live.lost]));
+    },
     async close() {
       try {
         // The agent's link goes first, so the gateway stops sending anyone to an agent that is closing.
         await gateway.close();
       } finally {
         delivery.close();
+        taking.abort();
+        stopMarking();
         try {
-          await intake.close();
+          await reading;
         } finally {
           await link.close();
           roster.close();

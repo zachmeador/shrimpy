@@ -13,11 +13,5 @@
 export { answerText, assistantText } from "./answer.durable.ts";
 export { failureOf } from "./failure.durable.ts";
 export { takeUp } from "./take-up.durable.ts";
-export {
-  TURN_TASK,
-  type TurnTask,
-  type TurnTaskOptions,
-  turnTask,
-  withdrawUnhanded,
-} from "./turn-task.durable.ts";
+export { TURN_TASK, type TurnTask, turnTask, withdrawUnhanded } from "./turn-task.durable.ts";
 export { createWorking } from "./working.durable.ts";

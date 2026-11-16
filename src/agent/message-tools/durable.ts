@@ -10,8 +10,6 @@ import type { MessageToolsOptions } from "./options.ts";
 import { readMessages } from "./read.durable.ts";
 import { sendMessage } from "./send.durable.ts";
 
-export type { MessageToolsOptions } from "./options.ts";
-
 /** The message tools as an extension to install in the engine's registry. */
 export function messageTools(options: MessageToolsOptions): Extension {
   return defineExtension({ name: "message-tools", tools: [sendMessage(options), readMessages(options)] });

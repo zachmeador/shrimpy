@@ -21,7 +21,7 @@ const DEFAULT = "default";
  * a model of a router has, and a provider has none, so the first slash divides
  * them.
  */
-export function modelAskOf(words: string): ModelAsk {
+function modelAskOf(words: string): ModelAsk {
   if (words === "") return { kind: "show" };
   if (words.toLowerCase() === DEFAULT) return { kind: "default" };
   const slash = words.indexOf("/");

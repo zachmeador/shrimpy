@@ -9,7 +9,7 @@ const AROUND = `[${WRAPPERS}]*`;
 const END_LINE = new RegExp(`^${AROUND}END${AROUND}\\.?${AROUND}$`);
 
 /** Whether a line is `END`, in the forgiving sense: wrapped in whitespace, quotes, backticks or asterisks, or ending with a period. */
-export function isEnd(line: string): boolean {
+function isEnd(line: string): boolean {
   return END_LINE.test(line);
 }
 

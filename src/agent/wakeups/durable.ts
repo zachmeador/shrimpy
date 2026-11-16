@@ -9,5 +9,5 @@
  * kept. It must not know how chat is reached, how a turn's reply is posted, or
  * what a session shows a client.
  */
-export { wakeupTools, type WakeupToolsOptions } from "./check-back.durable.ts";
-export { createWakeups, touchesWakeups, WAKEUP_TASK, waitingWakeups, type Wakeups } from "./wakeups.durable.ts";
+export { wakeupTools } from "./check-back.durable.ts";
+export { createWakeups, touchesWakeups, WAKEUP_TASK, waitingWakeups } from "./wakeups.durable.ts";

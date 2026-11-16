@@ -108,7 +108,7 @@ export function keepCancelled(session: SessionRecord, wakeups: readonly Wakeup[]
 }
 
 /** Keep results of questions as missed, each once, the question asked first coming first. */
-export function keepMissed(session: SessionRecord, results: readonly CameBack[]): void {
+function keepMissed(session: SessionRecord, results: readonly CameBack[]): void {
   if (results.length === 0) return;
   const byId = new Map([...plain(session.missed), ...results].map((each) => [each.question.id, each]));
   session.missed = [...byId.values()].sort((a, b) => a.question.askedAt - b.question.askedAt);

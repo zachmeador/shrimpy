@@ -34,7 +34,6 @@ import { createTriggers } from "./triggers/durable.ts";
 import { createWorking, turnTask } from "./turns/durable.ts";
 import { createWakeups, wakeupTools } from "./wakeups/durable.ts";
 
-export { placeOfThread, type ThreadPlace } from "./chat/index.ts";
 export type { ContextPreview } from "./context/index.ts";
 export {
   type Dialogue,
@@ -186,11 +185,12 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     await keeping.reload();
     host.resume();
     // The agent's objects are served once its host has loaded them, on the home's socket at once, and through the gateway
-    // once it links there.
+    // once it links there. They take new work until the agent begins to stop.
+    let takingInput = true;
     const server = await startServer({
       home: options.home,
       name: options.name,
-      facet: (takingInput) => agentFacet({ sessions, triggers, reload: () => keeping.reload(), roster, takingInput }),
+      facet: agentFacet({ sessions, triggers, reload: () => keeping.reload(), roster, takingInput: () => takingInput }),
       onError: report,
     });
     try {
@@ -217,7 +217,10 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
           options.join,
         );
       }
-      return { endpoint: server.endpoint, close: stopper({ host, server, joined, following: keeping }) };
+      const refuseInput = (): void => {
+        takingInput = false;
+      };
+      return { endpoint: server.endpoint, close: stopper({ host, server, joined, following: keeping, refuseInput }) };
     } catch (error) {
       await server.close();
       throw error;

@@ -13,7 +13,7 @@ export function takeOwnerLock(home: string): Lock {
   return takeLock(join(runtime, "owner.lock"), (cause) => new HomeOwnedError(home, { cause }));
 }
 
-export class HomeOwnedError extends Error {
+class HomeOwnedError extends Error {
   constructor(home: string, options?: ErrorOptions) {
     super(
       `Another process owns the agent home at ${home}. Talk to that agent instead of opening its storage.`,

@@ -12,9 +12,8 @@
  * Shrimpy wrote. It must not know about the engine, the model runtime or how the
  * agent is reached.
  */
-export { type BreadcrumbFile, readBreadcrumbs, removeBreadcrumb, writeBreadcrumb } from "./breadcrumbs.ts";
+export { readBreadcrumbs, removeBreadcrumb, writeBreadcrumb } from "./breadcrumbs.ts";
 export { cutText, leftOutSentence, shownIn } from "./files.ts";
-export { type HomePaths, homePaths, storageOfAnotherVersion } from "./layout.ts";
+export { homePaths, storageOfAnotherVersion } from "./layout.ts";
 export { lookAtHome } from "./look.ts";
-export { carryOver, type ContextFile, type HomeSnapshot, readHomeSnapshot } from "./snapshot.ts";
-export type { SkillTrail } from "./skills.ts";
+export { carryOver, type HomeSnapshot, readHomeSnapshot } from "./snapshot.ts";

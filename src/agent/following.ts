@@ -130,7 +130,7 @@ export function follow<T>(options: FollowOptions<T>): Following<T> {
  * read, the agent keeps what it has, and the next look tries again. It is a
  * refusal, so whoever asks for a reading is told in the same words.
  */
-export async function requireSeen(home: string, file: string): Promise<void> {
+async function requireSeen(home: string, file: string): Promise<void> {
   const seen = await stat(file).then((info) => info.isFile(), () => false);
   if (seen) return;
   refuse(`The home at ${home} can't be read for now, because ${shownIn(home, file)} can't be seen, so the agent keeps what it has.`);
@@ -155,7 +155,7 @@ const breadcrumbAbout = (leftOut: readonly LeftOut[]): string =>
  * outlive the problem. The breadcrumb is in a folder the agent does not look at, so
  * writing it is no change to what it reads.
  */
-export function keepLeftOut(options: {
+function keepLeftOut(options: {
   home: string;
   report(error: Error): void;
 }): (leftOut: readonly LeftOut[]) => Promise<void> {

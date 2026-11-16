@@ -8,7 +8,6 @@
  */
 export { endingOf, readFinalText } from "./ending.ts";
 export {
-  type Asked,
   type Audience,
   type Backlog,
   type Breadcrumb,
@@ -30,13 +29,11 @@ export {
   type Outstanding,
   type Place,
   type Question,
-  type QuestionInput,
   type QuestionResult,
   type Said,
   type Snapshot,
   threadOf,
   type TurnOutcome,
   type Wakeup,
-  type WakeupInput,
 } from "./input.ts";
 export { promptFor, standing, written } from "./prompt.ts";

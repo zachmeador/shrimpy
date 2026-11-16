@@ -5,7 +5,7 @@ import { audienceOf } from "./audience.ts";
 import { clip } from "./reply.ts";
 
 /** Characters of messages the model is shown of what it missed. */
-export const BACKLOG_BUDGET = 20_000;
+const BACKLOG_BUDGET = 20_000;
 
 /** Messages asked for at a time. */
 const PAGE = 200;
