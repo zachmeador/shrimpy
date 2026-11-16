@@ -10,6 +10,7 @@ import { checking, expectArguments, parsing, UsageError } from "../usage/index.t
 import type { Command } from "./command.ts";
 import { connectIfRunning } from "./connected.ts";
 import { folderDefault } from "./folder-default.ts";
+import { printNext, type Step } from "./next.ts";
 import { leftOutLines, whatItReads } from "./reloaded.ts";
 import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, AN_AGENT, agentToActOn, mayActOn, WHICH_AGENT } from "./which-agent.ts";
 
@@ -52,45 +53,37 @@ const init: Command = {
           ? `Created the agent ${name} in ${paths.root}. It names no model, so it starts with ${modelLabel(shared)}, your Shrimpy folder's default.`
           : `Created the agent ${name} in ${paths.root}. It names no model, so it starts with the one in ${folder.defaultModel}.`,
     );
-    io.out("");
-    io.out("Next:");
     const own = dirname(paths.models);
-    const steps: string[][] = [];
+    const steps: Step[] = [];
     if (model !== undefined) {
       steps.push([
         `Give ${name} access to its model's provider. This signs in for every agent in your Shrimpy folder, ` +
           "unless it is signed in already:",
-        "     shrimpy login",
-        `   Or, for ${name} alone, declare a server in models.json or add a key to auth.json in ${own}.`,
+        { run: "shrimpy login" },
+        `Or, for ${name} alone, declare a server in models.json or add a key to auth.json in ${own}.`,
       ]);
     } else if (shared === undefined) {
       // A folder that has a default model was set up for its agents already, and starting says what is missing if it wasn't.
       steps.push([
         `Choose ${name}'s model and give it access. This signs in to a provider for every agent in your Shrimpy ` +
           "folder, and asks which model they start with:",
-        "     shrimpy login",
-        `   Or, for ${name} alone, name a model under "model" in ${paths.config}, and declare a server in ` +
+        { run: "shrimpy login" },
+        `Or, for ${name} alone, name a model under "model" in ${paths.config}, and declare a server in ` +
           `models.json or add a key to auth.json in ${own}.`,
       ]);
     }
     steps.push(
       [`Say who ${name} is in ${paths.soul}. It starts with a few plain defaults that work as they are.`],
       named
-        ? [
-            `If Shrimpy is running, ${name} starts by itself in a few seconds. If it isn't, start Shrimpy:`,
-            "     shrimpy up",
-          ]
+        ? [`If Shrimpy is running, ${name} starts by itself in a few seconds. If it isn't, start Shrimpy:`, { run: "shrimpy up" }]
         : [
             "Start it:",
-            `     shrimpy up ${paths.root}`,
-            "   Or, if Shrimpy is already running, add the agent to it:",
-            `     shrimpy agent serve ${paths.root}`,
+            { run: `shrimpy up ${paths.root}` },
+            "Or, if Shrimpy is already running, add the agent to it:",
+            { run: `shrimpy agent serve ${paths.root}` },
           ],
     );
-    steps.forEach(([first, ...rest], index) => {
-      io.out(`  ${index + 1}. ${first}`);
-      for (const line of rest) io.out(`  ${line}`);
-    });
+    printNext(io, steps);
     return 0;
   },
 };

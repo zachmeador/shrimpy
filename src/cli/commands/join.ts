@@ -11,6 +11,7 @@ import { checking, expectArguments, parsing } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
 import { folderDefault } from "./folder-default.ts";
+import { printNext, type Step } from "./next.ts";
 
 /** How long to wait for a gateway that does not answer, in milliseconds. */
 const GIVE_UP_MS = 15_000;
@@ -85,24 +86,16 @@ async function joinAsAgent(io: Io, text: string, { name, address }: Link & { nam
     `${name} joined the gateway at ${where}. ` +
       (exists ? `Its home is ${home}.` : `Its home is ${home}, made just now with no model.`),
   );
-  io.out("");
-  io.out("Next:");
-  const steps: string[][] = [];
+  const steps: Step[] = [];
   if (folderDefault(providerPaths(providersPath()).defaultModel) === undefined) {
-    steps.push([
-      "Choose a model and sign in, which every agent started in this folder uses:",
-      "     shrimpy login",
-    ]);
+    steps.push(["Choose a model and sign in, which every agent started in this folder uses:", { run: "shrimpy login" }]);
   }
   steps.push([
     `If Shrimpy is running here, ${name} starts by itself in a few seconds. If it isn't, start Shrimpy:`,
-    "     shrimpy up",
-    "   It connects to the gateway by itself from then on, and you talk to it from the gateway's machine.",
+    { run: "shrimpy up" },
+    "It connects to the gateway by itself from then on, and you talk to it from the gateway's machine.",
   ]);
-  steps.forEach(([first, ...rest], index) => {
-    io.out(`  ${index + 1}. ${first}`);
-    for (const line of rest) io.out(`  ${line}`);
-  });
+  printNext(io, steps);
   return 0;
 }
 
