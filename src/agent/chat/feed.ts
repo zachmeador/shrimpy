@@ -1,5 +1,6 @@
 import { DEFAULT_WAKE_POLICY, type WakePolicy } from "../../contracts/agent/index.ts";
 import { agentCommandIn, type Channel, type ChatEvent } from "../../contracts/chat/index.ts";
+import { asError } from "../../lib/errors/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { type Backoff, backoff, pause } from "../../lib/retry/index.ts";
 import type { ChatLink, LiveChat } from "../links/index.ts";
@@ -179,7 +180,7 @@ export async function readFeed(options: FeedOptions): Promise<void> {
       await link.use(follow, stop);
     } catch (error) {
       if (stopped()) return;
-      options.onError(error instanceof Error ? error : new Error(String(error)));
+      options.onError(asError(error));
       await pause(pauses.next(), stop);
     }
   }

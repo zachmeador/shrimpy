@@ -18,6 +18,7 @@ import {
   type Tx,
 } from "@earendil-works/pi-durable";
 import { failureWords } from "../../contracts/agent/index.ts";
+import { asError } from "../../lib/errors/index.ts";
 import {
   endingOf,
   type Ending,
@@ -400,5 +401,3 @@ async function finish(
   const ended: TaskOutcome<Ending> = how === "completed" ? { status: "completed", result } : { status: "aborted", result };
   return { status: "terminal", outcome: ended };
 }
-
-const asError = (error: unknown): Error => (error instanceof Error ? error : new Error(String(error)));

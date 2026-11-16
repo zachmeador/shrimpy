@@ -1,6 +1,7 @@
 import type { Dirent, Stats } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
+import { asError } from "../../lib/errors/index.ts";
 import { isName, NAME_RULE } from "./agent-config.ts";
 import { codeOf, compare, readText, why } from "./files.node.ts";
 import { frontmatterAndBody } from "./frontmatter.ts";
@@ -202,7 +203,7 @@ function scheduleOf(values: ReadonlyMap<string, string>, check: TriggerCheck): T
   try {
     nextOccurrence(schedule, check.now ?? Date.now());
   } catch (error) {
-    throw new TriggerFileError(`cron: ${expression} is not a schedule that comes: ${error instanceof Error ? error.message : String(error)}`);
+    throw new TriggerFileError(`cron: ${expression} is not a schedule that comes: ${asError(error).message}`);
   }
   return schedule;
 }

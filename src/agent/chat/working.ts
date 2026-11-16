@@ -1,3 +1,4 @@
+import { asError } from "../../lib/errors/index.ts";
 import type { ChatLink, LiveChat } from "../links/index.ts";
 import type { Working } from "../turns/index.ts";
 
@@ -55,5 +56,3 @@ export function markWorking(link: ChatLink, working: Working, onError: (error: E
     for (const stop of stops) stop();
   };
 }
-
-const asError = (error: unknown): Error => (error instanceof Error ? error : new Error(String(error)));

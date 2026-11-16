@@ -1,6 +1,7 @@
 import { stat } from "node:fs/promises";
 import type { Reloaded } from "../contracts/agent/index.ts";
 import { type LeftOut, readWake } from "../contracts/agent/node.ts";
+import { asError } from "../lib/errors/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
 import type { Wakes } from "./chat/index.ts";
 import type { HomeContext } from "./context/durable.ts";
@@ -98,7 +99,7 @@ export function follow<T>(options: FollowOptions<T>): Following<T> {
         failure = undefined;
       })
       .catch((error: unknown) => {
-        const cause = error instanceof Error ? error : new Error(String(error));
+        const cause = asError(error);
         if (cause.message === failure) return;
         failure = cause.message;
         options.onError(cause);

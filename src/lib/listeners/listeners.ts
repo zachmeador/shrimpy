@@ -1,3 +1,5 @@
+import { asError } from "../errors/index.ts";
+
 export interface Listeners<T> {
   /** Start telling `listener` about values. Returns what stops that. */
   add(listener: (value: T) => void): () => void;
@@ -23,7 +25,7 @@ export function createListeners<T>(onError: (error: Error) => void): Listeners<T
         try {
           listener(value);
         } catch (error) {
-          onError(error instanceof Error ? error : new Error(String(error)));
+          onError(asError(error));
         }
       }
     },

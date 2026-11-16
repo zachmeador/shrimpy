@@ -1,4 +1,5 @@
 import { unwatchFile, watchFile } from "node:fs";
+import { asError } from "../../lib/errors/index.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
 
 /** Your settings, as the file has them. A setting the file leaves out stays as it is. */
@@ -31,7 +32,7 @@ export function followSettings(file: string, apply: (settings: Settings) => void
     try {
       settings = readSettings(file);
     } catch (error) {
-      onError(error instanceof Error ? error : new Error(String(error)));
+      onError(asError(error));
       return;
     }
     if (settings !== undefined) apply(settings);

@@ -1,4 +1,5 @@
 import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
+import { asError } from "../../lib/errors/index.ts";
 import { createListeners, untilAborted, untilHeard } from "../../lib/listeners/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { type Backoff, backoff, pause } from "../../lib/retry/index.ts";
@@ -154,5 +155,3 @@ function failureOf(outstanding: Outstanding): string {
   const ran = isOccurrence(outstanding) && outstanding.unrun !== undefined ? "did not run." : "did not get an answer.";
   return `The ${what(outstanding)} ${ran}`;
 }
-
-const asError = (error: unknown): Error => (error instanceof Error ? error : new Error(String(error)));
