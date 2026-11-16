@@ -30,6 +30,8 @@ tester.run("imports", importsRule, {
     allowed("agent/server.ts", "./host/index.ts"),
     allowed("agent/server.ts", "./home/node.ts"),
     allowed("cli/commands/sessions.ts", "../io/index.ts"),
+    // group: a directory that only groups modules has no door, and each module in it has its own.
+    allowed("chat/store/store.ts", "../../lib/ids/index.ts"),
     // program and shared: programs meet in contracts/ and lib/.
     allowed("agent/sessions/service.ts", "../../contracts/agent/index.ts"),
     allowed("contracts/agent/connect.ts", "../../lib/ids/index.ts"),
@@ -94,6 +96,10 @@ tester.run("imports", importsRule, {
     // Below or beside a directory is not inside it: only its front door is open.
     refused("agent/server.ts", "./host/host.ts", "frontDoor"),
     refused("cli/commands/agent.ts", "../io.ts", "parent"),
+    refused("chat/store/store.ts", "../../lib/index.ts", "group"),
+    refused("cli/main.ts", "../contracts/index.ts", "group"),
+    // Only a module of the agent has a door for what needs Pi's durable runtime.
+    refused("chat/threads/messages.ts", "../store/durable.ts", "frontDoor"),
     // Programs share only contracts/ and lib/. The CLI reaches another program's front door and nothing more.
     refused("chat/threads/store.ts", "../../agent/index.ts", "program"),
     refused("cli/flow.test.ts", "../agent/testing/index.ts", "program"),

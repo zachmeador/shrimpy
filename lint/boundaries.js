@@ -6,7 +6,8 @@ import { isBuiltin } from "node:module";
 import { posix } from "node:path";
 
 const PROGRAMS = ["agent", "chat", "gateway", "clients/console", "clients/web", "cli"];
-const FRONT_DOORS = ["index.ts", "node.ts", "durable.ts"];
+/** The directories that only group modules, and so have no door: the top of src/, contracts/, lib/ and clients/. */
+const GROUPS = [".", "contracts", "lib", "clients"];
 /** The agent's modules in tiers. A module imports only from the tiers before its own, so imports point one way. */
 const AGENT_TIERS = [
   ["inputs", "home", "access"],
@@ -56,9 +57,13 @@ const CLI_STARTS = new Map([
 /** Chord's entry points that Pi's durable runtime is written in, which go wherever the runtime may. */
 const CHORD_WITH_DURABLE = ["@earendil-works/chord/context", "@earendil-works/chord/json", "@earendil-works/chord/delta"];
 
+/** Words as a sentence lists them: "a", "a and b", "a, b and c". */
+const listed = (words) => (words.length < 2 ? words.join("") : `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`);
+
 const messages = {
   outside: "Import only from inside src/, not {{target}}.",
   frontDoor: "Import {{module}}/ through its front door, not {{target}}.",
+  group: "{{module}}/ only groups modules and has no door of its own: import the module you need through its door, not {{target}}.",
   parent:
     "This file sits inside {{module}}/ and can't reach its files, such as {{target}}: give what both need a directory of its own, with a front door.",
   program:
@@ -70,8 +75,7 @@ const messages = {
     "A chat provider may import only chat/providers/index.ts and lib/, not {{target}}.",
   testing: "Only tests and test support import a testing/ module, not {{target}}.",
   durable: "Only agent/ imports Pi's durable runtime.",
-  chord:
-    "Chord stays where programs meet: contracts/, lib/link and lib/follow, the files at the top of each program, the gateway's hello/, programs/ and served/, the chat server's served/ and identity/, the agent's links/, the terminal's network/ and the CLI's talk/. Its context, json and delta go wherever Pi's durable runtime may. Take what this file needs from one of those modules, or move the code that talks to another program into one.",
+  chord: `Chord stays where programs meet: ${listed(["contracts/", "the files at the top of each program", ...CHORD_MODULES])}. Its context, json and delta go wherever Pi's durable runtime may. Take what this file needs from one of those modules, or move the code that talks to another program into one.`,
   durableInAgent:
     "Inside agent/, only a file named *.durable.ts, or a durable.ts door, imports Pi's durable runtime: name this file so, or move what needs the engine into one that is, and let the rest see only Shrimpy's own types.",
   plain:
@@ -108,6 +112,20 @@ const needsNode = (path) => /(^|\/)node\.ts$|\.node\.ts$/.test(path);
 const needsDurable = (path) => /(^|\/)durable\.ts$|\.durable\.ts$/.test(path);
 /** A file inside a module of the agent, which is a directory of agent/, as opposed to one at the agent's top. */
 const inAgentModule = (path) => path.startsWith("agent/") && path.includes("/", "agent/".length);
+
+/**
+ * Whether `target` is a door, as the layout has them: a module's `index.ts`,
+ * its `node.ts` for what needs Node, and for a module of the agent its
+ * `durable.ts` for what needs Pi's durable runtime. A directory that only
+ * groups modules has none.
+ */
+function isDoor(target) {
+  const module = posix.dirname(target);
+  if (GROUPS.includes(module)) return false;
+  const name = posix.basename(target);
+  if (name === "index.ts" || name === "node.ts") return true;
+  return name === "durable.ts" && /^agent\/[^/]+$/.test(module);
+}
 
 /**
  * Code that must also run in a browser: the web client, and the contracts and
@@ -159,10 +177,11 @@ function checkRelative(from, specifier) {
   const target = posix.normalize(posix.join(posix.dirname(from), specifier));
   if (target.startsWith("..")) return { messageId: "outside", data: { target: specifier } };
 
-  // A file reaches the files of its own directory, and the front door of any other.
+  // A file reaches the files of its own directory, and the door of any module.
   const targetDir = posix.dirname(target);
   const fromDir = posix.dirname(from);
-  if (fromDir !== targetDir && !FRONT_DOORS.includes(posix.basename(target))) {
+  if (fromDir !== targetDir && !isDoor(target)) {
+    if (GROUPS.includes(targetDir)) return { messageId: "group", data: { module: targetDir === "." ? "src" : targetDir, target } };
     const below = fromDir.startsWith(`${targetDir}/`);
     return { messageId: below ? "parent" : "frontDoor", data: { module: targetDir, target } };
   }
