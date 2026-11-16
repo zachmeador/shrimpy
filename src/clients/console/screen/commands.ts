@@ -44,6 +44,7 @@ const isAgentCommand = (name: string): name is AgentCommand => Object.hasOwn(AGE
 export type Written =
   /** It is a message, or a command for agents: it is posted as it was written. */
   | { do: "post" }
+  /** `/status` alone: the terminal reads how the agent or the room stands. */
   | { do: "status" }
   /** `/devices` alone: the terminal lists the person's devices. */
   | { do: "devices" }
@@ -82,20 +83,26 @@ export function writtenIn(text: string, where: "dm" | "room"): Written {
   if (found === null) return { do: "post" };
   const name = (found[1] ?? "").toLowerCase();
   const rest = (found[2] ?? "").trim();
-  if (name === "devices") {
-    if (rest === "") return { do: "devices" };
-    const device = TAKE_BACK.exec(rest)?.[1]?.trim();
-    return device === undefined || device === "" ? { do: "refuse", notice: { kind: "devices-usage", command: "/devices" } } : { do: "take-back", device };
-  }
-  if (isTerminalCommand(name)) {
-    return rest === "" ? { do: "status" } : { do: "refuse", notice: { kind: "takes-nothing", command: `/${name}` } };
-  }
+  if (isTerminalCommand(name)) return terminalCommand(name, rest);
   if (isAgentCommand(name)) {
     if (where === "room" && AGENT_COMMANDS[name].withoutMention === "nobody") return { do: "refuse", notice: { kind: "name-an-agent", command: name } };
     return name === "model" && where === "dm" && rest === "" ? { do: "model" } : { do: "post" };
   }
   const written = /^\s*(\S+)/.exec(text)?.[1] ?? "/";
   return { do: "refuse", notice: { kind: "no-command", written, commands: commandLines(where).map((command) => command.name) } };
+}
+
+/** What the terminal does with one of its own commands, written with `rest` after it. Each has a case of its own. */
+function terminalCommand(name: TerminalCommand, rest: string): Written {
+  switch (name) {
+    case "devices": {
+      if (rest === "") return { do: "devices" };
+      const device = TAKE_BACK.exec(rest)?.[1]?.trim();
+      return device === undefined || device === "" ? { do: "refuse", notice: { kind: "devices-usage", command: "/devices" } } : { do: "take-back", device };
+    }
+    case "status":
+      return rest === "" ? { do: "status" } : { do: "refuse", notice: { kind: "takes-nothing", command: "/status" } };
+  }
 }
 
 /** One choice in the list that `/model ` opens: what is written for it, and one line on it. */
