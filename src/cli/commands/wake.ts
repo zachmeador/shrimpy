@@ -9,6 +9,7 @@ import {
 } from "../../contracts/agent/index.ts";
 import { loadHome, readWake, saveWake } from "../../contracts/agent/node.ts";
 import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
+import { listed } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
 import { onAgent, type Reached, reachChat, roomNamed, roomNameWritten } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
@@ -26,7 +27,7 @@ import {
 } from "./which-agent.ts";
 
 /** The policies as a sentence gives them: "none, mentions, people or all". */
-const POLICIES = `${WAKE_POLICIES.slice(0, -1).join(", ")} or ${WAKE_POLICIES.at(-1) ?? ""}`;
+const POLICIES = listed(WAKE_POLICIES, "or");
 
 /** What each policy does, in the words the help and the answer to setting one use. */
 const MEANING: Record<WakePolicy, string> = {

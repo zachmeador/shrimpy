@@ -1,15 +1,13 @@
 import { parseArgs } from "node:util";
 import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
+import { listed } from "../../lib/text/index.ts";
 import { membersNamed, onChannel, reachChat, roomNamed, roomNameWritten } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderRooms } from "./render-rooms.ts";
 
-/** Names as a sentence: "scout", "scout and maya", "zach, scout and maya". */
-function listed(names: string[]): string {
-  const sorted = names.toSorted((a, b) => a.localeCompare(b));
-  return sorted.length < 2 ? sorted.join("") : `${sorted.slice(0, -1).join(", ")} and ${sorted.at(-1) ?? ""}`;
-}
+/** Names as a sentence lists them, in alphabetical order: "scout", "scout and maya", "maya, scout and zach". */
+const listedNames = (names: string[]): string => listed(names.toSorted((a, b) => a.localeCompare(b)));
 
 const rooms: Command = {
   name: "rooms",
@@ -67,7 +65,7 @@ const roomsNew: Command = {
     try {
       const members = membersNamed(reached.members, named);
       const room = valueOf(await reached.chat.createRoom({ name, members: members.map((member) => member.id) }, contextOf()));
-      io.out(`Made the room #${room.name} with ${listed(room.members.map((member) => member.name))}.`);
+      io.out(`Made the room #${room.name} with ${listedNames(room.members.map((member) => member.name))}.`);
       return 0;
     } finally {
       await reached.close();
@@ -102,10 +100,10 @@ const roomsAdd: Command = {
       const newcomers = members.filter((member) => !there.has(member.id)).map((member) => member.name);
       const before = members.filter((member) => there.has(member.id)).map((member) => member.name);
       if (newcomers.length === 0) {
-        io.out(`${listed(before)} ${before.length === 1 ? "is" : "are"} in #${room.name} already.`);
+        io.out(`${listedNames(before)} ${before.length === 1 ? "is" : "are"} in #${room.name} already.`);
       } else {
-        const already = before.length === 0 ? "" : ` ${listed(before)} ${before.length === 1 ? "was" : "were"} in it already.`;
-        io.out(`Added ${listed(newcomers)} to #${room.name}.${already}`);
+        const already = before.length === 0 ? "" : ` ${listedNames(before)} ${before.length === 1 ? "was" : "were"} in it already.`;
+        io.out(`Added ${listedNames(newcomers)} to #${room.name}.${already}`);
       }
       return 0;
     } finally {

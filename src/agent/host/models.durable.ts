@@ -10,6 +10,7 @@ import type { ModelRef } from "@earendil-works/pi-durable";
 import { type ProviderPaths, providerPaths, readDefaultModel } from "../../contracts/agent/node.ts";
 import type { LeftOut } from "../../lib/files/index.ts";
 import { ConfigError } from "../../lib/json-config/index.ts";
+import { listed } from "../../lib/text/index.ts";
 import { credentialStore, NO_AMBIENT_AUTH } from "./credentials.ts";
 import { type CustomApi, type CustomProvider, readCustomProviders } from "./custom-providers.ts";
 
@@ -90,8 +91,6 @@ interface Files {
 
 /** The providers that models.json files declare, each with the file it is declared in. */
 type Declared = ReadonlyMap<string, { readonly provider: CustomProvider; readonly file: string }>;
-
-const either = (files: readonly string[]): string => files.join(" or ");
 
 /** The model an agent starts with, and the file that names it. */
 interface Start {
@@ -266,7 +265,7 @@ async function requireUsable(models: Models, start: Start, declared: Declared, f
       .join(", ");
     throw new ModelSetupError(
       `The model ${providerId}/${modelId}, named in ${start.file}, names the provider "${providerId}", ` +
-        `which is not declared in ${either(files.models)} (declared there: ${declaredIds}) ` +
+        `which is not declared in ${listed(files.models, "or")} (declared there: ${declaredIds}) ` +
         `and is not built in (built in: ${builtin}).`,
     );
   }

@@ -1,6 +1,7 @@
 import type { ChatEvent, Member, Message } from "../../contracts/chat/index.ts";
 import { needsAdmin } from "../../contracts/gateway/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
+import { listed } from "../../lib/text/index.ts";
 import type { ChannelRecord, ThreadRecord, Transaction } from "../store/index.ts";
 import type { ChatDeps } from "./deps.ts";
 
@@ -50,7 +51,7 @@ function requireMember(channel: ChannelRecord, caller: Member): void {
   if (isMember(channel, caller.id)) return;
   const room = channel.kind === "room";
   const names = channel.members.map((member) => member.name).toSorted((a, b) => a.localeCompare(b));
-  const where = room ? `the room #${channel.name ?? ""}` : `the DM between ${names.join(" and ")}`;
+  const where = room ? `the room #${channel.name ?? ""}` : `the DM between ${listed(names)}`;
   const how = room
     ? `To write there, add yourself: shrimpy rooms add "#${channel.name ?? ""}" ${caller.name}`
     : "A DM has two members and takes no more.";

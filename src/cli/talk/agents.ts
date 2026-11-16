@@ -1,5 +1,6 @@
 import type { Member } from "../../contracts/chat/index.ts";
 import type { Program } from "../../contracts/gateway/index.ts";
+import { listed } from "../../lib/text/index.ts";
 import { lookForHome } from "../folder/index.ts";
 import { START_EVERYTHING } from "./hints.ts";
 
@@ -39,7 +40,7 @@ function find<T extends Member>(members: readonly T[], name: string): T | undefi
 function nobodyCalled(members: readonly Member[], names: string[]): Error {
   const agents = members.filter((member) => member.kind === "agent").map((member) => member.name);
   const others = agents.length === 0 ? "No agent has joined yet." : `The agents are: ${agents.join(", ")}.`;
-  const who = names.length === 1 ? names.join("") : `${names.slice(0, -1).join(", ")} or ${names.at(-1) ?? ""}`;
+  const who = listed(names, "or");
   return new Error(
     `Nobody called ${who} is on the roster. ${others} ` +
       "An agent joins when it first runs: shrimpy agent serve <agent>",

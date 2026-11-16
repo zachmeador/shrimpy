@@ -3,6 +3,7 @@ import { basename, join } from "node:path";
 import { parseArgs } from "node:util";
 import { keptListenAddresses } from "../../contracts/gateway/node.ts";
 import { formatAddress } from "../../lib/link/index.ts";
+import { listed } from "../../lib/text/index.ts";
 import { defaultFolderPath, FOLDER_VARIABLE, folderPath } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
@@ -76,10 +77,6 @@ const uninstall: Command = {
     return uninstallService(io, thisAccount());
   },
 };
-
-/** The names as one phrase: `a`, `a and b`, `a, b and c`. */
-const listed = (words: string[]): string =>
-  words.length <= 1 ? (words[0] ?? "") : `${words.slice(0, -1).join(", ")} and ${words.at(-1) ?? ""}`;
 
 /** What `shrimpy up` starts, as a phrase: the gateway, the chat server and the agents, or only the agents. */
 function whatItStarts(plan: Plan): string {

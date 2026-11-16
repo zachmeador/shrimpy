@@ -10,6 +10,7 @@ import {
   type WayIn,
 } from "../../contracts/gateway/index.ts";
 import { newId } from "../../lib/ids/index.ts";
+import { listed } from "../../lib/text/index.ts";
 import { type DeviceRecord, type MemberRecord, readRoster, rosterFile, writeRoster } from "./file.ts";
 
 /** Characters in a member's name or a device's label. */
@@ -106,7 +107,7 @@ export function openRoster(dataDir: string, firstName: string): Roster {
   if (people.length > 1) {
     const named = people.map((person) => `"${person.name}" (${person.id})`);
     throw new Error(
-      `${file} has more than one person on it: ${named.slice(0, -1).join(", ")} and ${named.at(-1) ?? ""}. ` +
+      `${file} has more than one person on it: ${listed(named)}. ` +
         "A gateway has one person, you: keep yours, take the others out of the file, and start the gateway again.",
     );
   }

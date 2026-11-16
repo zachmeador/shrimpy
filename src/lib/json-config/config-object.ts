@@ -1,3 +1,5 @@
+import { listed } from "../text/index.ts";
+
 /** A problem in a config file. The message names the file and the place in it. */
 export class ConfigError extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -198,6 +200,5 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function list(choices: readonly string[]): string {
-  return choices.map((choice) => `"${choice}"`).join(" or ");
-}
+/** The choices as a sentence lists them, each in quotes. */
+const list = (choices: readonly string[]): string => listed(choices.map((choice) => `"${choice}"`), "or");

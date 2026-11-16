@@ -13,6 +13,7 @@ import {
 } from "../../../contracts/agent/index.ts";
 import { AGENT_COMMANDS, type AgentCommand, type Channel, type Receipt } from "../../../contracts/chat/index.ts";
 import { oneLine } from "../../../lib/plain/index.ts";
+import { listed } from "../../../lib/text/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import type { Problem, Why } from "../network/index.ts";
@@ -162,7 +163,7 @@ export function noticeText(notice: Notice, agentName: string): string {
       return `Could not read your threads: ${because({ kind: "chat" }, notice.problem)}.`;
     case "no-command":
       return (
-        `${oneLine(notice.written)} is no command here. The commands are ${andList(notice.commands.map(oneLine))}. ` +
+        `${oneLine(notice.written)} is no command here. The commands are ${listed(notice.commands.map(oneLine))}. ` +
         "To start a message with a slash, wrap it in backticks or put anything before it. Nothing was posted."
       );
     case "takes-nothing":
@@ -184,18 +185,12 @@ export function noticeText(notice: Notice, agentName: string): string {
     case "no-device":
       return notice.devices.length === 0
         ? `You have no devices, so none is called ${oneLine(notice.written)}.`
-        : `No device of yours is called ${oneLine(notice.written)}. Your devices are ${andList(notice.devices.map(oneLine))}.`;
+        : `No device of yours is called ${oneLine(notice.written)}. Your devices are ${listed(notice.devices.map(oneLine))}.`;
     case "devices-alike":
       return `More than one device of yours is called ${oneLine(notice.written)}. Name one by its ID, which /devices lists.`;
     case "not-taken-back":
       return `Could not take the device back: ${because({ kind: "gateway" }, notice.problem)}.`;
   }
-}
-
-/** Names as a sentence gives them: "a", "a and b", "a, b and c". */
-function andList(names: string[]): string {
-  const last = names.at(-1);
-  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${last}`;
 }
 
 /** What `/model` with nothing after it says: the model the thread uses, whose it is, and how to choose another. */
@@ -268,7 +263,7 @@ const memberNames = (channel: Pick<Channel, "members">): string[] =>
   channel.members.map((member) => oneLine(member.name)).sort((a, b) => a.localeCompare(b));
 
 /** A DM between two members that the person is not one of, as a thread of it is titled: by both, in alphabetical order. */
-const dmBetween = (names: string[]): string => `DM between ${andList(names.map(oneLine).sort((a, b) => a.localeCompare(b)))}`;
+const dmBetween = (names: string[]): string => `DM between ${listed(names.map(oneLine).sort((a, b) => a.localeCompare(b)))}`;
 
 /**
  * What a channel is called wherever the console names it, other than the
@@ -305,7 +300,7 @@ function roomWord(name: string): string {
  */
 export function readOnlyLine(channel: Pick<Channel, "kind" | "name" | "members">, me: string | undefined): string {
   if (channel.kind === "dm") {
-    return `You are only reading this DM. It has two members, ${andList(memberNames(channel))}, and takes no more.`;
+    return `You are only reading this DM. It has two members, ${listed(memberNames(channel))}, and takes no more.`;
   }
   const you = me === undefined ? "<your name>" : shellWord(oneLine(me));
   return `You are only reading ${roomLabel(channel.name)}. To join it, run: shrimpy rooms add ${roomWord(channel.name)} ${you}`;
@@ -416,7 +411,7 @@ export function receiptNote(receipt: Receipt, name: string): string | undefined 
  * how to stop the work, which they can't in a session they are only watching.
  */
 export function workingLine(names: string[], activity: SessionActivity | undefined, inThread: boolean): string {
-  const who = names.map(oneLine).join(" and ");
+  const who = listed(names.map(oneLine));
   const verb = names.length > 1 ? "are" : "is";
   const doing = activity === undefined ? undefined : activityWords(activity);
   return `${who} ${verb} working${doing === undefined ? "" : ` · ${doing}`}${inThread ? ` · write /${STOP} to stop` : ""}`;

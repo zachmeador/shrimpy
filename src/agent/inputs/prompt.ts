@@ -1,4 +1,5 @@
 import type { Message } from "../../contracts/chat/index.ts";
+import { listed } from "../../lib/text/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import {
   type Asked,
@@ -60,7 +61,7 @@ function inWords(place: Place): string {
   if (place.kind === "dm") return `You are in ${side}your DM with ${place.with.name}, ${aKind(place.with.kind)}.`;
   const others = place.others.map((other) => `${other.name} (${aKind(other.kind)})`);
   if (place.more !== undefined) others.push(`${String(place.more)} more`);
-  const who = others.length === 0 ? "Nobody else is in it." : `Also in it: ${list(others)}.`;
+  const who = others.length === 0 ? "Nobody else is in it." : `Also in it: ${listed(others)}.`;
   return `You are in ${side}the room #${place.room}. ${who}`;
 }
 
@@ -245,7 +246,7 @@ export function standing(message: Message, nameOf: (memberId: string) => string)
   if (message.deleted) return `${sent}, and deleted it.`;
   const lines = [message.editedAt === null ? `${sent}:` : `${sent}, and edited it at ${localTime(message.editedAt)}:`, message.text];
   if (message.reactions.length > 0) {
-    const reactions = message.reactions.map((reaction) => `${reaction.emoji} by ${list(reaction.memberIds.map(nameOf))}`);
+    const reactions = message.reactions.map((reaction) => `${reaction.emoji} by ${listed(reaction.memberIds.map(nameOf))}`);
     lines.push(`Reactions: ${reactions.join(", ")}`);
   }
   return lines.join("\n");
@@ -259,12 +260,6 @@ export function standing(message: Message, nameOf: (memberId: string) => string)
 function forWhom(to: Audience | undefined): string {
   if (to === undefined) return "";
   if (to.everyone) return ", for everyone in the room";
-  if (to.you) return `, for you${to.others.length === 0 ? "" : ` and ${list(to.others)}`}`;
-  return to.others.length === 0 ? ", mentioning nobody" : `, for ${list(to.others)}, not for you`;
-}
-
-/** Names as a sentence would give them: "Zach", "Zach and scout", "Zach, scout and maya". */
-function list(names: string[]): string {
-  const last = names.at(-1);
-  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${last}`;
+  if (to.you) return `, for you${to.others.length === 0 ? "" : ` and ${listed(to.others)}`}`;
+  return to.others.length === 0 ? ", mentioning nobody" : `, for ${listed(to.others)}, not for you`;
 }

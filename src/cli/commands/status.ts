@@ -1,6 +1,7 @@
 import { parseArgs } from "node:util";
 import { type Address, type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
+import { listed } from "../../lib/text/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { folderPath } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
@@ -64,7 +65,7 @@ function gatewaysElsewhere(): Address[] {
  */
 async function noGatewayHere(io: Io, error: GatewayNotRunningError): Promise<number> {
   const elsewhere = gatewaysElsewhere();
-  const where = elsewhere.map(formatAddress).join(" and ");
+  const where = listed(elsewhere.map(formatAddress));
   if (elsewhere.length === 0) {
     io.err(`${error.message} Start Shrimpy with: ${START_EVERYTHING}`);
   } else {

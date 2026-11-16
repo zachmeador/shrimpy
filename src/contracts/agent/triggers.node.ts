@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { asError } from "../../lib/errors/index.ts";
 import { codeOf, compare, why } from "../../lib/files/index.ts";
 import { readText } from "../../lib/files/node.ts";
+import { listed } from "../../lib/text/index.ts";
 import { isName, NAME_RULE } from "./agent-config.ts";
 import { frontmatterAndBody } from "./frontmatter.ts";
 import type { HomePaths } from "./layout.node.ts";
@@ -97,7 +98,7 @@ export function parseTrigger(name: string, text: string, check: TriggerCheck = {
   const { values, body } = parts;
   for (const [key, value] of values) {
     if (!(KEYS as readonly string[]).includes(key)) {
-      throw new TriggerFileError(`${key} is not a key a trigger has. The keys are ${list(KEYS)}`);
+      throw new TriggerFileError(`${key} is not a key a trigger has. The keys are ${listed(KEYS)}`);
     }
     if (value === "") throw new TriggerFileError(`${key} has no value`);
   }
@@ -213,14 +214,8 @@ function scheduleOf(values: ReadonlyMap<string, string>, check: TriggerCheck): T
 function oneOf<T>(key: string, given: string | undefined, allowed: Record<string, T>, fallback: T): T {
   if (given === undefined) return fallback;
   const found = Object.hasOwn(allowed, given.toLowerCase()) ? allowed[given.toLowerCase()] : undefined;
-  if (found === undefined) throw new TriggerFileError(`${key}: ${given} should be ${list(Object.keys(allowed), "or")}`);
+  if (found === undefined) throw new TriggerFileError(`${key}: ${given} should be ${listed(Object.keys(allowed), "or")}`);
   return found;
-}
-
-/** Words as a sentence lists them: "a", "a and b", "a, b and c". */
-function list(words: readonly string[], joiner = "and"): string {
-  const last = words.at(-1);
-  return words.length < 2 ? words.join("") : `${words.slice(0, -1).join(", ")} ${joiner} ${last}`;
 }
 
 /** A file in `triggers/` that does not check out, and why. */

@@ -1,4 +1,5 @@
 import { lit, nul, obj, oneOf, type Schema, str, union } from "@earendil-works/chord";
+import { listed } from "../../lib/text/index.ts";
 
 /**
  * The cases a client acts on differently, so a refusal names them and nobody
@@ -36,16 +37,11 @@ export function answerOf<T>(value: Schema<T>) {
   return union([obj({ kind: lit("done"), value }), RefusedSchema]);
 }
 
-/** Names as a sentence: "zach", "zach or maya", "zach, maya or rex". */
-function either(names: readonly string[]): string {
-  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} or ${names.at(-1) ?? ""}`;
-}
-
 /**
  * The refusal of something that takes an admin, asked by `caller`, who isn't
  * one. `what` starts a sentence, such as "Making a room". It says who the
  * admins are, for a reader who has to find someone to ask.
  */
 export function needsAdmin(what: string, caller: { name: string }, admins: readonly { name: string }[]): Refused {
-  return refused(`${what} takes an admin, and ${caller.name} is not one. Ask an admin: ${either(admins.map((admin) => admin.name))}.`);
+  return refused(`${what} takes an admin, and ${caller.name} is not one. Ask an admin: ${listed(admins.map((admin) => admin.name), "or")}.`);
 }

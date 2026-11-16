@@ -1,4 +1,5 @@
 import { formatAddress } from "../../lib/link/index.ts";
+import { listed } from "../../lib/text/index.ts";
 import { allHomes } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { describeEnd } from "../programs/index.ts";
@@ -73,7 +74,7 @@ function sayRunning(io: Io, plan: Plan, crew: Started[], following: boolean): vo
   io.out("Running. Press Ctrl+C to stop what this command started.");
   if (plan.here === undefined) {
     // There is no gateway here to ask, so these agents are talked to where the gateway is.
-    const where = plan.elsewhere.map(formatAddress).join(" and ");
+    const where = listed(plan.elsewhere.map(formatAddress));
     io.out(
       plan.elsewhere.length === 1
         ? `These agents belong to the gateway at ${where}, so you talk to them from that gateway's machine.`

@@ -1,4 +1,5 @@
 import type { Channel, Member, Message, Receipt, Thread } from "../../contracts/chat/index.ts";
+import { listed } from "../../lib/text/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { indent } from "./render.ts";
 import { renderTable } from "./table.ts";
@@ -35,7 +36,7 @@ function placeOf(channel: Channel, you: Member): string {
   if (channel.kind === "room") return `the room #${channel.name}`;
   if (channel.members.some((member) => member.id === you.id)) return `your DM with ${channel.name}`;
   const names = channel.members.map((member) => member.name).toSorted((a, b) => a.localeCompare(b));
-  return `the DM between ${names.join(" and ")}`;
+  return `the DM between ${listed(names)}`;
 }
 
 /**
