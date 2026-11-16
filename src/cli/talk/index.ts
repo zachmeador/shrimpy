@@ -33,4 +33,4 @@ export { type HeldAgent, type HeldSession, type HeldThread, type Holder, onChann
 export { type Reached, reachChat } from "./reach.ts";
 export { type Waited, waitForReceipt } from "./receipts.ts";
 export { roomNamed, roomNameWritten } from "./rooms.ts";
-export { shellActingOn } from "./shell.ts";
+export { inOwnShell, shellActingOn } from "./shell.ts";

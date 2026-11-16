@@ -1,21 +1,14 @@
-import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import {
-  AGENT_HOME_VARIABLE,
-  DEFAULT_WAKE_POLICY,
-  isWakePolicy,
-  WAKE_POLICIES,
-  type WakePolicy,
-} from "../../contracts/agent/index.ts";
+import { DEFAULT_WAKE_POLICY, isWakePolicy, WAKE_POLICIES, type WakePolicy } from "../../contracts/agent/index.ts";
 import { loadHome, readWake, saveWake } from "../../contracts/agent/node.ts";
-import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
+import { asError } from "../../lib/errors/index.ts";
 import { listed } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
-import { onAgent, type Reached, reachChat, roomNamed, roomNameWritten } from "../talk/index.ts";
+import { roomNamed, roomNameWritten } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
+import { asTheAgent } from "./as-the-agent.ts";
 import type { Command } from "./command.ts";
-import { connectIfRunning } from "./connected.ts";
-import { leftOutLines, modelLine } from "./reloaded.ts";
+import { toldOfChange } from "./reloaded.ts";
 import {
   ABOUT_ANOTHER_AGENT,
   AGENT_OPTION,
@@ -46,26 +39,15 @@ const MEANING: Record<WakePolicy, string> = {
  */
 async function checkRoom(io: Io, target: Target, written: string): Promise<string> {
   const name = roomNameWritten(written).trim();
-  const shell = process.env[AGENT_HOME_VARIABLE];
-  if (shell === undefined || shell === "" || resolve(shell) !== target.home) {
-    io.out(`The room #${name} was not checked, because only the agent itself can say which rooms it is in, and this command is not run by it.`);
-    return name;
-  }
-  let reached: Reached;
-  try {
-    reached = await reachChat(io);
-  } catch (error) {
-    io.out(`The room #${name} was not checked, because chat could not be reached: ${error instanceof Error ? error.message : String(error)}`);
-    return name;
-  }
-  try {
-    const room = roomNamed(reached.chat.channels.value, written);
-    return room.name;
-  } catch (error) {
-    throw new UsageError(`Nothing was written. ${error instanceof Error ? error.message : String(error)}`);
-  } finally {
-    await reached.close();
-  }
+  const unchecked = { what: `The room #${name}`, only: "which rooms it is in" };
+  const room = await asTheAgent(io, target, unchecked, (reached) => {
+    try {
+      return roomNamed(reached.chat.channels.value, written);
+    } catch (error) {
+      throw new UsageError(`Nothing was written. ${asError(error).message}`);
+    }
+  });
+  return room?.name ?? name;
 }
 
 const wake: Command = {
@@ -103,20 +85,7 @@ const wake: Command = {
     const room = await checkRoom(io, target, written);
     const { file } = await saveWake(target.home, room, policy);
     io.out(`Set #${room} to ${policy}: ${MEANING[policy]} Written to ${file}.`);
-
-    const reached = await connectIfRunning(target.home);
-    if (reached === undefined) {
-      io.out(`No agent is running at ${target.home}, so the change takes effect when the agent starts. Start one with: shrimpy agent serve ${target.given}`);
-      return 0;
-    }
-    try {
-      const reloaded = await onAgent(reached, async (agent) => valueOf(await agent.reload(contextOf())));
-      io.out("Told the agent to read its files again.");
-      if (reloaded.changedFrom !== null) io.out(modelLine(reloaded));
-      if (reloaded.leftOut.length > 0) io.out(`Left out:\n${leftOutLines(reloaded.leftOut).join("\n")}`);
-    } finally {
-      await reached.close().catch(() => undefined);
-    }
+    await toldOfChange(io, target);
     return 0;
   },
 };

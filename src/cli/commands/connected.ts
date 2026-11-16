@@ -21,14 +21,16 @@ export async function connectIfRunning(home: string): Promise<AgentReached | und
   }
 }
 
+/** How to start the agent `target` names, which ends what a command says when none runs there. */
+export const startOne = (target: Target): string => `Start one with: shrimpy agent serve ${target.given}`;
+
 /** What to tell someone who needs a running agent that is not there. */
-export const noAgentRunning = (home: string, agent: string): string =>
-  `No agent is running at ${home}. Start one with: shrimpy agent serve ${agent}`;
+export const noAgentRunning = (target: Target): string => `No agent is running at ${target.home}. ${startOne(target)}`;
 
 /** Reach the agent `target` is, for the length of `use`. */
 export async function withConnection<T>(target: Target, use: (agent: AgentReached) => Promise<T>): Promise<T> {
   const agent = await connectIfRunning(target.home);
-  if (agent === undefined) throw new Error(noAgentRunning(target.home, target.given));
+  if (agent === undefined) throw new Error(noAgentRunning(target));
   try {
     return await use(agent);
   } finally {

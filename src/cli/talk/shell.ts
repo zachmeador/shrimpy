@@ -1,6 +1,18 @@
 import { resolve } from "node:path";
 import { AGENT_HOME_VARIABLE } from "../../contracts/agent/index.ts";
 
+/** The home of the agent whose shell this command runs in, if it runs in one. */
+const shellHome = (): string | undefined => {
+  const shell = process.env[AGENT_HOME_VARIABLE];
+  return shell === undefined || shell === "" ? undefined : shell;
+};
+
+/** Whether this command runs in the shell of the agent at `home`, which is the agent itself. */
+export function inOwnShell(home: string): boolean {
+  const shell = shellHome();
+  return shell !== undefined && resolve(shell) === resolve(home);
+}
+
 /**
  * The home of the agent whose shell this command runs in, when `home` is
  * another agent's. A command run anywhere else, and one about the shell's own
@@ -8,7 +20,6 @@ import { AGENT_HOME_VARIABLE } from "../../contracts/agent/index.ts";
  * path.
  */
 export function shellActingOn(home: string): string | undefined {
-  const shell = process.env[AGENT_HOME_VARIABLE];
-  if (shell === undefined || shell === "" || resolve(shell) === resolve(home)) return undefined;
-  return shell;
+  const shell = shellHome();
+  return shell === undefined || inOwnShell(home) ? undefined : shell;
 }

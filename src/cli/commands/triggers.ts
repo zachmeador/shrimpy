@@ -1,13 +1,5 @@
-import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import {
-  AGENT_HOME_VARIABLE,
-  describeSchedule,
-  type Occurrence,
-  type Reloaded,
-  type TriggerDetail,
-  type TriggerSchedule,
-} from "../../contracts/agent/index.ts";
+import { describeSchedule, type Occurrence, type TriggerDetail, type TriggerSchedule } from "../../contracts/agent/index.ts";
 import {
   draftTrigger,
   loadHome,
@@ -20,11 +12,12 @@ import {
 } from "../../contracts/agent/node.ts";
 import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
-import { type AgentReached, type HeldAgent, onAgent, onChannel, type Reached, reachChat } from "../talk/index.ts";
+import { type AgentReached, type HeldAgent, onAgent, onChannel, type Reached } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
+import { asTheAgent } from "./as-the-agent.ts";
 import type { Command } from "./command.ts";
-import { connectIfRunning, noAgentRunning } from "./connected.ts";
-import { leftOutLines, modelLine, whatItReads } from "./reloaded.ts";
+import { connectIfRunning, noAgentRunning, startOne } from "./connected.ts";
+import { leftOutLines, toldOfChange } from "./reloaded.ts";
 import { renderTrigger, renderTriggerFile, renderTriggerFiles, renderTriggers, when } from "./render-triggers.ts";
 import {
   ABOUT_ANOTHER_AGENT,
@@ -59,7 +52,7 @@ function noTrigger(target: Target, name: string, known: readonly string[]): stri
 function saysFilesOnly(io: Io, target: Target): void {
   io.err(
     `No agent is running at ${target.home}, so this shows only what its trigger files say, and nothing about ` +
-      `when a trigger runs next or how its last occurrence ended. Start one with: shrimpy agent serve ${target.given}`,
+      `when a trigger runs next or how its last occurrence ended. ${startOne(target)}`,
   );
 }
 
@@ -69,7 +62,6 @@ interface Triggering {
   names(): string[];
   trigger(name: string): Promise<TriggerDetail>;
   fire(name: string): Promise<Occurrence>;
-  reload(): Promise<Reloaded>;
 }
 
 const triggerList = (agent: HeldAgent) => agent.triggers.value;
@@ -85,40 +77,11 @@ async function whileRunning<T>(target: Target, use: (agent: Triggering | undefin
         names: () => triggerList(agent).map((trigger) => trigger.name),
         trigger: async (name) => valueOf(await agent.trigger({ name }, contextOf())),
         fire: async (name) => valueOf(await agent.fire({ name }, contextOf())),
-        reload: async () => valueOf(await agent.reload(contextOf())),
       }),
     );
   } finally {
     await reached.close().catch(() => undefined);
   }
-}
-
-/**
- * After a change to the files of triggers: tell a running agent to read its
- * files again, and say what it answered, then do what `then` adds; or, with no
- * agent running, say the change waits for the start, followed by `afterStart`,
- * which finishes the clause.
- */
-async function followed(
-  io: Io,
-  target: Target,
-  then?: (running: Triggering) => Promise<void>,
-  afterStart = "",
-): Promise<void> {
-  await whileRunning(target, async (running) => {
-    if (running === undefined) {
-      io.out(
-        `No agent is running at ${target.home}, so the change takes effect when the agent starts${afterStart}. ` +
-          `Start one with: shrimpy agent serve ${target.given}`,
-      );
-      return;
-    }
-    const reloaded = await running.reload();
-    io.out(`Told the agent to read its files again. It now reads ${whatItReads(reloaded)}.`);
-    if (reloaded.changedFrom !== null) io.out(modelLine(reloaded));
-    if (reloaded.leftOut.length > 0) io.out(`Left out:\n${leftOutLines(reloaded.leftOut).join("\n")}`);
-    await then?.(running);
-  });
 }
 
 /**
@@ -131,34 +94,19 @@ async function followed(
  * with no channel of the agent's is refused.
  */
 async function checkThread(io: Io, target: Target, thread: string): Promise<void> {
-  const shell = process.env[AGENT_HOME_VARIABLE];
-  if (shell === undefined || shell === "" || resolve(shell) !== target.home) {
-    io.out(
-      `Thread ${thread} was not checked, because only the agent itself can say whether it is in the thread's ` +
-        "channel, and this command is not run by it. If it is not, each occurrence fails and says so.",
+  const unchecked = {
+    what: `Thread ${thread}`,
+    only: "whether it is in the thread's channel",
+    otherwise: "If it is not, each occurrence fails and says so.",
+  };
+  await asTheAgent(io, target, unchecked, async (reached) => {
+    if (await inOneOf(reached, thread)) return;
+    throw new UsageError(
+      `Nothing was written: you are in no channel that has the thread ${thread}. There is no such thread, or you ` +
+        "are not in its channel. Give --thread one of yours: shrimpy threads <name> lists your threads with a member, " +
+        'and shrimpy threads "#room" those of a room.',
     );
-    return;
-  }
-  let reached: Reached;
-  try {
-    reached = await reachChat(io);
-  } catch (error) {
-    io.out(
-      `Thread ${thread} was not checked, because chat could not be reached: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return;
-  }
-  try {
-    if (!(await inOneOf(reached, thread))) {
-      throw new UsageError(
-        `Nothing was written: you are in no channel that has the thread ${thread}. There is no such thread, or you ` +
-          "are not in its channel. Give --thread one of yours: shrimpy threads <name> lists your threads with a member, " +
-          'and shrimpy threads "#room" those of a room.',
-      );
-    }
-  } finally {
-    await reached.close();
-  }
+  });
 }
 
 /** Whether one of the channels whoever reached chat is in has the thread, as the agent finds a thread's channel. */
@@ -331,16 +279,14 @@ const add: Command = {
     if (draft.definition.thread !== null) await checkThread(io, target, draft.definition.thread);
     const { file, replaced } = await saveTrigger(target.home, draft);
     io.out(`${replaced ? "Replaced" : "Made"} the trigger ${name}, written to ${file}.`);
-    await followed(
-      io,
-      target,
-      async (running) => {
-        const { next } = await running.trigger(name);
+    await toldOfChange(io, target, {
+      // A trigger that is new counts from the start. One that replaces another may keep the clock of the one before.
+      afterStart: replaced ? "" : firstRunAfterStart(draft.definition.schedule),
+      async then(agent) {
+        const { next } = valueOf(await agent.trigger({ name }, contextOf()));
         if (next !== null) io.out(`It ${replaced ? "next" : "first"} runs at ${when(next, Date.now())}.`);
       },
-      // A trigger that is new counts from the start. One that replaces another may keep the clock of the one before.
-      replaced ? "" : firstRunAfterStart(draft.definition.schedule),
-    );
+    });
     return 0;
   },
 };
@@ -413,7 +359,7 @@ const run: Command = {
     const target = agentToActOn(values.agent);
 
     return whileRunning(target, async (running) => {
-      if (running === undefined) throw new Error(noAgentRunning(target.home, target.given));
+      if (running === undefined) throw new Error(noAgentRunning(target));
       const known = running.names();
       if (!known.includes(name)) throw new Error(noTrigger(target, name, known));
       const { check } = await running.trigger(name);
@@ -455,7 +401,7 @@ function switching(enabled: boolean): Command {
 
       const { changed } = await changing(target, name, () => switchTrigger(target.home, name, enabled));
       io.out(changed ? `Turned ${word} the trigger ${name}.` : `The trigger ${name} is ${word} already.`);
-      await followed(io, target);
+      await toldOfChange(io, target);
       return 0;
     },
   };
@@ -477,7 +423,7 @@ const remove: Command = {
 
     const { file } = await changing(target, name, () => removeTrigger(target.home, name));
     io.out(`Removed the trigger ${name}: ${file} is deleted.`);
-    await followed(io, target);
+    await toldOfChange(io, target);
     return 0;
   },
 };
