@@ -50,9 +50,10 @@ const read: Command = {
 async function wholeThread(reached: Reached, threadId: string): Promise<{ thread: Thread; messages: Message[] }> {
   const held = await reached.client.host.get(Thread, { thread: threadId }, contextOf());
   try {
+    // Chat refuses a member a thread that is not there and one it may not read alike, and reachChat let only a member
+    // this far, so every refusal of a thread here is one that the threads of a conversation can help with.
     const refusal = held.refusal.value;
     if (refusal !== null) {
-      if (!refusal.words.startsWith("Unknown thread")) throw new Error(refusal.words);
       throw new Error(`${refusal.words.replace(/\.$/, "")}. See the threads of a conversation with: shrimpy threads <member|#room>`);
     }
     const thread = held.thread.value;
