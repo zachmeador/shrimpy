@@ -1,4 +1,17 @@
-import { failureWords, type SessionActivity, type SessionImage, type SessionItem, type SessionStatus } from "../../contracts/agent/index.ts";
+import {
+  activityWords,
+  endingWords,
+  failureWords,
+  imageWords,
+  markerWords,
+  modelWords,
+  type SessionImage,
+  type SessionItem,
+  type SessionStatus,
+  toolStatusWords,
+  usageWords,
+  wakeupWords,
+} from "../../contracts/agent/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 
 /** A session whole: every item, oldest first, and what it is doing now. */
@@ -19,7 +32,7 @@ export function renderSession(view: WholeSession, stop: string): string {
   lines.push(renderStatus(view.status));
   const { failure, wakeups } = view.status;
   if (failure !== null) lines.push(`Last turn: ${failureWords(failure.reason, failure.detail)}`);
-  for (const wakeup of wakeups) lines.push(`Checks back at ${localTime(wakeup.due)}: ${wakeup.note.replace(/\s+/g, " ").trim()}`);
+  for (const wakeup of wakeups) lines.push(wakeupWords(wakeup, localTime(wakeup.due)));
   if (wakeups.length > 0) lines.push(`Stopping the session's work cancels ${wakeups.length === 1 ? "it" : "them"}: ${stop}`);
   return lines.join("\n");
 }
@@ -32,49 +45,32 @@ function renderItem(item: SessionItem): string[] {
       return [`assistant${answerNote(item)}`, ...indent(item.text)];
     case "tool":
       return [
-        `tool ${item.name} (${item.status})`,
+        `tool ${item.name} (${toolStatusWords(item.status)})`,
         ...indent(item.args),
         ...indent(item.output.trimEnd()),
         ...images(item.images),
         ...item.notes.flatMap((note) => indent(`note: ${note}`)),
       ];
     case "marker":
-      return [`-- ${item.marker} --`];
+      return [`-- ${markerWords(item.marker)} --`];
   }
 }
 
 function answerNote(item: Extract<SessionItem, { type: "assistant" }>): string {
   if (item.streaming) return " (answering)";
-  if (item.ended?.how === "interrupted") return " (cut off)";
-  if (item.ended?.how === "failed") return " (failed)";
-  return "";
+  const ended = endingWords(item.ended?.how);
+  return ended === undefined ? "" : ` (${ended})`;
 }
 
 function renderStatus(status: SessionStatus): string {
-  const model = status.model === null ? "no model" : `${status.model.provider}/${status.model.id}`;
-  const parts = [describe(status.activity), model, `${status.usage.input} in, ${status.usage.output} out`];
-  if (status.usage.cost > 0) parts.push(`$${status.usage.cost.toFixed(4)}`);
+  const model = status.model === null ? "no model" : modelWords(status.model);
+  const parts = [activityWords(status.activity), model, usageWords(status.usage)];
   if (status.queued.length > 0) parts.push(`${status.queued.length} queued`);
   return parts.join(" · ");
 }
 
-function describe(activity: SessionActivity): string {
-  switch (activity.kind) {
-    case "idle":
-      return "idle";
-    case "working":
-      return "working";
-    case "answering":
-      return "answering";
-    case "tool":
-      return `running ${activity.name}`;
-    case "retrying":
-      return `retrying after: ${activity.error}`;
-  }
-}
-
 /** A line for each image, naming it by its media type. */
-const images = (shown: readonly SessionImage[]): string[] => shown.map((image) => `  [image: ${image.mimeType}]`);
+const images = (shown: readonly SessionImage[]): string[] => shown.map((image) => `  ${imageWords(image.mimeType)}`);
 
 /** The lines of `text`, each indented two spaces; no lines for no text. */
 export function indent(text: string): string[] {

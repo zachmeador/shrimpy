@@ -1,4 +1,5 @@
-import type { Channel, Message, Thread } from "../../../contracts/chat/index.ts";
+import { placeLabel, threadLabel, YOUR_DM } from "../../../contracts/agent/index.ts";
+import { type Channel, type Message, receiptWords, type Thread } from "../../../contracts/chat/index.ts";
 import { oneLine, plain } from "../../../lib/plain/index.ts";
 import {
   agentEntries,
@@ -40,13 +41,11 @@ import {
   newThreadHint,
   NO_TITLE,
   noticeText,
-  placeLabel,
   placeWords,
   queuedLine,
   readOnlyDetail,
   readOnlyLine,
   reactionsLine,
-  receiptNote,
   refusalNote,
   roomLabel,
   roomStatusRows,
@@ -56,11 +55,9 @@ import {
   THREAD_EMPTY,
   threadsEmpty,
   threadTitle,
-  threadWords,
   versionWarning,
   wakeupLine,
   workingLine,
-  YOUR_DM,
 } from "./words.ts";
 
 /** What every screen has besides its own content. */
@@ -354,7 +351,7 @@ function partRow(part: Part, me: string | undefined, now: number): Row {
   // Chat names a thread. A thread only the agent has said it has is called what the agent knows of it.
   let label = oneLine(part.id);
   if (part.thread !== undefined) label = titleWithTags(part.thread);
-  else if (part.place !== null && part.place.kind !== "trigger") label = threadWords(part.place.thread, part.id);
+  else if (part.place !== null && part.place.kind !== "trigger") label = threadLabel(part.place.thread, part.id);
   const when = part.at === undefined ? undefined : whenOf(part.at, now);
   return {
     id: part.id,
@@ -525,7 +522,7 @@ function messageRow(message: Message, model: Model, names: (memberId: string) =>
     deleted: message.deleted,
     text: message.deleted ? DELETED : plain(message.text).trimEnd(),
     reactions: reactionsLine(message.reactions.map((reaction) => ({ emoji: reaction.emoji, by: reaction.memberIds.map(names) }))),
-    notes: message.receipts.flatMap((receipt) => receiptNote(receipt, names(receipt.memberId)) ?? []),
+    notes: message.receipts.flatMap((receipt) => receiptWords(receipt, names(receipt.memberId)) ?? []),
   };
 }
 

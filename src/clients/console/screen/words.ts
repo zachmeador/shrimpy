@@ -1,17 +1,23 @@
 import {
+  activityWords,
   type AnswerEnding,
+  endingWords,
   failureWords,
   type ModelId,
+  modelWords,
+  placeLabel,
+  placeWords as placeWithThread,
   type QueuedInput,
   type SessionActivity,
-  type SessionItem,
   type SessionPlace,
   type SessionSummary,
-  type ThreadPlace,
   type ToolStatus,
+  toolStatusWords,
+  usageWords,
   type WaitingWakeup,
+  wakeupWords,
 } from "../../../contracts/agent/index.ts";
-import { AGENT_COMMANDS, type AgentCommand, type Channel, type Receipt } from "../../../contracts/chat/index.ts";
+import { AGENT_COMMANDS, type AgentCommand, type Channel } from "../../../contracts/chat/index.ts";
 import { oneLine } from "../../../lib/plain/index.ts";
 import { listed } from "../../../lib/text/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
@@ -20,11 +26,13 @@ import type { Problem, Why } from "../network/index.ts";
 import type { AgentStatus, DevicesStatus, Notice, RoomStatus } from "../state/index.ts";
 
 /*
- * Every sentence the console says, in one place. They are plain and short, in
- * the voice of the commands: what happened, and what to do next. Where the
- * commands already say it, the console says it the same way. A name, an ID or
- * a message that came from another program is put on one line and made
- * harmless here, whoever calls, so no sentence can carry anything else.
+ * Every sentence the console says, in one place, but for what it says of a
+ * session and a receipt, which it takes from the contracts as the commands do,
+ * and frames here. They are plain and short, in the voice of the commands:
+ * what happened, and what to do next. Where the commands already say it, the
+ * console says it the same way. A name, an ID or a message that came from
+ * another program is put on one line and made harmless here, whoever calls,
+ * so no sentence can carry anything else.
  */
 
 /** The command that starts everything a conversation needs, as the commands name it. */
@@ -318,29 +326,7 @@ export const earlierItems = (address: string, agent: string): string =>
  * place of, it is the session's address.
  */
 export function placeWords(place: SessionPlace | null, address: string, me: string | undefined): string {
-  if (place === null) return oneLine(address);
-  switch (place.kind) {
-    case "dm":
-    case "room":
-      return `${placeLabel(place, me)} · ${threadWords(place.thread, address)}`;
-    case "trigger":
-      return placeLabel(place, me);
-  }
-}
-
-/** The person's DM with an agent, as a row says it is theirs. */
-export const YOUR_DM = "your DM";
-
-/** Where a session is, without which thread of it: "your DM", "DM with mechanic", "#ops" or "trigger nightly". */
-export function placeLabel(place: SessionPlace, me: string | undefined): string {
-  switch (place.kind) {
-    case "dm":
-      return place.with.kind === "person" && place.with.name === me ? YOUR_DM : `DM with ${oneLine(place.with.name)}`;
-    case "room":
-      return roomLabel(place.room);
-    case "trigger":
-      return `trigger ${oneLine(place.trigger)}`;
-  }
+  return place === null ? oneLine(address) : placeWithThread(place, address, me);
 }
 
 /** Where sessions that are working are, for a row: the place of the one there is, or how many when there are several. */
@@ -363,17 +349,6 @@ export function agentDetail(sessions: number, elsewhere: SessionSummary[], me: s
   return `working · ${sessions === 1 ? whereWords(elsewhere, me) : `${String(sessions)} sessions`}`;
 }
 
-/** A thread of a session's place by its name, with a mark if it is the main one, or by its address when it has no name. */
-export function threadWords(thread: ThreadPlace, address: string): string {
-  const name = thread.name === null ? "" : oneLine(thread.name);
-  if (name !== "") return thread.main ? `${name} [main]` : name;
-  return thread.main ? "main" : `thread ${oneLine(address)}`;
-}
-
-/** What marks where a session was reset or compacted. */
-export const markerWords = (marker: Extract<SessionItem, { type: "marker" }>["marker"]): string =>
-  marker === "reset" ? "session reset" : "session compacted";
-
 const QUEUED_CHARACTERS = 200;
 
 /** What a line of input that waits opens with, for when the session will take it. */
@@ -389,22 +364,6 @@ export function queuedLine(input: QueuedInput): string {
   return `${QUEUED[input.when]}: ${text}`;
 }
 
-/** A line under a message when its receipt says something a person needs to know, and nothing for one that doesn't. */
-export function receiptNote(receipt: Receipt, name: string): string | undefined {
-  const who = oneLine(name);
-  switch (receipt.status) {
-    case "answered":
-    case "silent":
-      return undefined;
-    case "failed":
-      return `${who} failed: ${oneLine(receipt.detail ?? "")}`;
-    case "stopped":
-      return `${who} stopped before answering`;
-    case "skipped":
-      return receipt.detail === null ? `${who} skipped this message` : `${who} skipped this message: ${oneLine(receipt.detail)}`;
-  }
-}
-
 /**
  * Who is working, and what the session is doing. At least one name. `inThread`
  * says that the person can write in the place this is shown, where `/stop` is
@@ -413,22 +372,9 @@ export function receiptNote(receipt: Receipt, name: string): string | undefined 
 export function workingLine(names: string[], activity: SessionActivity | undefined, inThread: boolean): string {
   const who = listed(names.map(oneLine));
   const verb = names.length > 1 ? "are" : "is";
-  const doing = activity === undefined ? undefined : activityWords(activity);
+  // That it is working is said already, and it would not be shown if it were idle.
+  const doing = activity === undefined || activity.kind === "idle" || activity.kind === "working" ? undefined : activityWords(activity);
   return `${who} ${verb} working${doing === undefined ? "" : ` · ${doing}`}${inThread ? ` · write /${STOP} to stop` : ""}`;
-}
-
-function activityWords(activity: SessionActivity): string | undefined {
-  switch (activity.kind) {
-    case "idle":
-    case "working":
-      return undefined;
-    case "answering":
-      return "answering";
-    case "tool":
-      return `running ${oneLine(activity.name)}`;
-    case "retrying":
-      return `retrying after: ${oneLine(activity.error)}`;
-  }
 }
 
 /**
@@ -452,9 +398,6 @@ export const TERMINAL_COMMANDS = {
 /** The name of a command for the terminal, without its slash. */
 export type TerminalCommand = keyof typeof TERMINAL_COMMANDS;
 
-/** A model as it is written after `/model`: its provider, a slash and its ID. */
-export const modelWords = (model: ModelId): string => `${oneLine(model.provider)}/${oneLine(model.id)}`;
-
 /** The line beside `default` in the list that `/model ` opens: whose model it stands for, and which one that is. */
 export const defaultModelLine = (agent: string, model: ModelId): string => `${oneLine(agent)}'s model: ${modelWords(model)}`;
 
@@ -468,13 +411,12 @@ const chosenFor = (agent: string, defaultModel: ModelId | undefined): string =>
 export const statusHeader = (at: number, what: "status" | "devices" = "status"): string => `${what} · shown only to you · read ${localTime(at)}`;
 
 const howMany = (count: number): string => (count === 0 ? "none" : String(count));
-const withCommas = (count: number): string => count.toLocaleString("en-US");
 
 /** What `/status` read about an agent in its DM, one thing to a line. */
 export function agentStatusRows(status: AgentStatus): string[] {
   const name = oneLine(status.name);
   const rows = [status.running ? `${name} · Shrimpy ${oneLine(status.version ?? "")} · running` : `${name} · not running`];
-  if (status.doing !== undefined) rows.push(`Doing now: ${activityWords(status.doing) ?? status.doing.kind}`);
+  if (status.doing !== undefined) rows.push(`Doing now: ${activityWords(status.doing)}`);
   if (!status.reached) {
     if (status.running) rows.push(`Not connected to ${name} just now, so its inputs, model and usage are not shown.`);
     return rows;
@@ -484,7 +426,7 @@ export function agentStatusRows(status: AgentStatus): string[] {
     rows.push(
       `Inputs waiting: ${howMany(queued)}`,
       `Model: ${model === null ? "none" : modelWords(model)}${own ? chosenFor(name, defaultModel) : ""}`,
-      `This session: ${withCommas(usage.input)} tokens in, ${withCommas(usage.output)} out, cost $${usage.cost.toFixed(4)}`,
+      `This session: ${usageWords(usage)}`,
     );
   } else if (status.doing !== undefined) {
     rows.push(`${name} has no session in this thread yet.`);
@@ -495,9 +437,6 @@ export function agentStatusRows(status: AgentStatus): string[] {
   if (status.othersWorking !== undefined) rows.push(`Other sessions working: ${howMany(status.othersWorking)}`);
   return rows;
 }
-
-/** A wake-up a session waits on: when, as `when` writes it, and the note it brings. */
-export const wakeupWords = (wakeup: WaitingWakeup, when: string): string => `Checks back at ${when}: ${oneLine(wakeup.note).replace(/\.$/, "")}`;
 
 /**
  * The line under a thread's work for a wake-up the agent waits on there: when
@@ -518,9 +457,6 @@ export function devicesRows(status: DevicesStatus): string[] {
     `To take one back, write ${TAKE_BACK}. It is let go at once.`,
   ];
 }
-
-/** An image the model was shown, named by its media type. */
-export const imageWords = (mimeType: string): string => `[image: ${oneLine(mimeType)}]`;
 
 /** What `/status` read about the agents of a room, one to a line. */
 export function roomStatusRows(status: RoomStatus): string[] {
@@ -545,27 +481,25 @@ export const hiddenCharacters = (count: number): string =>
 export const moreCharacters = (count: number): string =>
   `${String(count)} more ${count === 1 ? "character" : "characters"} not shown`;
 
+/** The mark before how a tool call stands, and how to draw it. */
+const TOOL_MARKS: Record<ToolStatus, { mark: string; tone: "good" | "bad" | "busy" | "idle" }> = {
+  pending: { mark: "○", tone: "idle" },
+  running: { mark: "●", tone: "busy" },
+  done: { mark: "✓", tone: "good" },
+  error: { mark: "✗", tone: "bad" },
+  interrupted: { mark: "!", tone: "bad" },
+};
+
 /** How a tool call stands, with a mark, and how to draw it. */
 export function toolStatus(status: ToolStatus): { label: string; tone: "good" | "bad" | "busy" | "idle" } {
-  switch (status) {
-    case "pending":
-      return { label: "○ waiting", tone: "idle" };
-    case "running":
-      return { label: "● running", tone: "busy" };
-    case "done":
-      return { label: "✓ done", tone: "good" };
-    case "error":
-      return { label: "✗ failed", tone: "bad" };
-    case "interrupted":
-      return { label: "! interrupted, not run again", tone: "bad" };
-  }
+  const { mark, tone } = TOOL_MARKS[status];
+  return { label: `${mark} ${toolStatusWords(status)}`, tone };
 }
 
 /** A word on an answer that did not end the way an answer does. `ended` is how it ended, if it has. */
 export function answerNote(ended: AnswerEnding | undefined): string | undefined {
-  if (ended === "interrupted") return "answer interrupted";
-  if (ended === "failed") return "answer failed";
-  return undefined;
+  const words = endingWords(ended);
+  return words === undefined ? undefined : `answer ${words}`;
 }
 
 /** What the person asked to see in full. What is not is brief. */

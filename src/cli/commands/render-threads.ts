@@ -1,4 +1,4 @@
-import type { Channel, Member, Message, Receipt, Thread } from "../../contracts/chat/index.ts";
+import { type Channel, type Member, type Message, receiptWords, type Thread } from "../../contracts/chat/index.ts";
 import { listed } from "../../lib/text/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { indent } from "./render.ts";
@@ -64,28 +64,12 @@ export function renderThread(thread: Thread, messages: Message[], channel: Chann
       lines.push(...indent(reactions.join("  ")));
     }
     for (const receipt of message.receipts) {
-      const note = receiptNote(receipt, nameOf(receipt.memberId));
-      if (note !== undefined) lines.push(note);
+      const note = receiptWords(receipt, nameOf(receipt.memberId));
+      if (note !== undefined) lines.push(`-- ${note} --`);
     }
   }
   for (const mark of thread.working) {
     lines.push("", `-- ${nameOf(mark.memberId)} is working (since ${localTime(mark.since)}) --`);
   }
   return lines;
-}
-
-function receiptNote(receipt: Receipt, who: string): string | undefined {
-  switch (receipt.status) {
-    case "answered":
-    case "silent":
-      return undefined;
-    case "failed":
-      return `-- ${who} failed: ${(receipt.detail ?? "").replace(/\s*\n\s*/g, " ")} --`;
-    case "stopped":
-      return `-- ${who} stopped before answering --`;
-    case "skipped":
-      return receipt.detail === null
-        ? `-- ${who} skipped this message --`
-        : `-- ${who} skipped this message: ${receipt.detail.replace(/\s*\n\s*/g, " ")} --`;
-  }
 }

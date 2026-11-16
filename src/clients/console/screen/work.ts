@@ -1,20 +1,8 @@
-import type { SessionItem } from "../../../contracts/agent/index.ts";
+import { imageWords, markerWords, type SessionItem } from "../../../contracts/agent/index.ts";
 import { oneLine, plain } from "../../../lib/plain/index.ts";
 import type { SessionView } from "../state/index.ts";
 import { countLines, firstCharacters, lastCharacters, lastLines } from "./cut.ts";
-import {
-  answerNote,
-  hiddenCharacters,
-  hiddenLines,
-  hiddenSteps,
-  imageWords,
-  type InFull,
-  markerWords,
-  moreCharacters,
-  SHOWN,
-  THINKING,
-  toolStatus,
-} from "./words.ts";
+import { answerNote, hiddenCharacters, hiddenLines, hiddenSteps, type InFull, moreCharacters, SHOWN, THINKING, toolStatus } from "./words.ts";
 
 /** One thing the agent is doing or has done in the turn it is working on now, or, in a session being watched, one thing in it. */
 export type Step =

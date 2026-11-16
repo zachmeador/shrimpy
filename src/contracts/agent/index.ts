@@ -10,11 +10,12 @@
  * the agent builds, and must not know the engine's record types, its codes or
  * any program's internals. The one sentence for each reason a turn ends without
  * an answer is here too, so that the agent's receipts and every client say it
- * the same way. It also has the parts of a home's files that the agent and the
- * `shrimpy` command share and that open no file: the rule for an agent's name,
- * how a model is written, what wakes the agent in a room, how a trigger's
- * schedule and a delay are written, and the front matter a home's Markdown
- * files start with.
+ * the same way, and so are the words for what a session is doing, where it is
+ * and how what is in it stands, which every client says the same way. It also
+ * has the parts of a home's files that the agent and the `shrimpy` command
+ * share and that open no file: the rule for an agent's name, how a model is
+ * written, what wakes the agent in a room, how a trigger's schedule and a delay
+ * are written, and the front matter a home's Markdown files start with.
  * This door is safe for browsers; `node.ts` adds the parts that need Node.
  */
 export { Agent } from "./agent.ts";
@@ -34,6 +35,20 @@ export {
   type WakePolicy,
   type WakeSettings,
 } from "./wake.ts";
+export {
+  activityWords,
+  endingWords,
+  imageWords,
+  markerWords,
+  modelWords,
+  placeLabel,
+  placeWords,
+  threadLabel,
+  toolStatusWords,
+  usageWords,
+  wakeupWords,
+  YOUR_DM,
+} from "./words.ts";
 export {
   type AgentModels,
   type AnswerEnding,

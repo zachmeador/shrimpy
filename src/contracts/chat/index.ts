@@ -16,7 +16,8 @@
  * on, with a line on each, who each is for in a room when it names nobody, and
  * how a text is told to be one, so that a client shows what an agent acts on
  * and for whom, and everyone reads a text the same way; how an agent acts is its
- * own. This door is safe for browsers.
+ * own. What a receipt says to a person is here too, so that every client says
+ * it the same way. This door is safe for browsers.
  */
 export { Channel } from "./channel.ts";
 export { Chat } from "./chat.ts";
@@ -34,3 +35,4 @@ export {
   type Working,
 } from "./shapes.ts";
 export { Thread } from "./thread.ts";
+export { receiptWords } from "./words.ts";
