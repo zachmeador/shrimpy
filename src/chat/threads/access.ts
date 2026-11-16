@@ -1,6 +1,6 @@
 import type { ChatEvent, Member, Message } from "../../contracts/chat/index.ts";
 import { needsAdmin } from "../../contracts/gateway/index.ts";
-import { refuse } from "../refusal/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
 import type { ChannelRecord, ThreadRecord, Transaction } from "../store/index.ts";
 import type { ChatDeps } from "./deps.ts";
 
@@ -110,5 +110,5 @@ export function visibleEvent(tx: Transaction, caller: Member, eventId: string): 
  */
 export function requireAdmin(deps: ChatDeps, caller: Member, what: string): void {
   const admins = deps.identity.admins();
-  if (!admins.some((admin) => admin.id === caller.id)) refuse(needsAdmin(what, caller, admins));
+  if (!admins.some((admin) => admin.id === caller.id)) refuse(needsAdmin(what, caller, admins).words);
 }

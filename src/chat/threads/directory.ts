@@ -1,6 +1,6 @@
 import type { Channel, Member, Thread } from "../../contracts/chat/index.ts";
 import { flag, identifier, identifiers, label, MAX_MEMBERS } from "../input/index.ts";
-import { refuse } from "../refusal/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
 import type { ChannelRecord, Transaction } from "../store/index.ts";
 import { isMember, readableChannel, readsOthers, requireAdmin, visibleChannel, visibleThread } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";

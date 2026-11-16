@@ -1,8 +1,8 @@
 import type { Channel, Member, Message, Thread } from "../../contracts/chat/index.ts";
 import { type Answer, refused, type Refused } from "../../contracts/gateway/index.ts";
 import { fitAnswer } from "../input/index.ts";
-import { answer } from "../refusal/index.ts";
 import { isMember, readableChannel, readableThread, readsOthers } from "./access.ts";
+import { answer } from "./answer.ts";
 import type { ChatDeps } from "./deps.ts";
 import { toChannel } from "./directory.ts";
 import { withWorking } from "./working.ts";

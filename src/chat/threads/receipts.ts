@@ -1,6 +1,6 @@
 import type { Member } from "../../contracts/chat/index.ts";
 import { identifiers, MAX_PAGE, receipt as checkReceipt } from "../input/index.ts";
-import { refuse } from "../refusal/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
 import { visibleEvent } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
 

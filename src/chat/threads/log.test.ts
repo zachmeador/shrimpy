@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ChatEvent, Member, Message } from "../../contracts/chat/index.ts";
-import { answer } from "../refusal/index.ts";
 import { agent, openTestDeps, outcome, person } from "../testing/index.ts";
+import { answer } from "./answer.ts";
 import {
   channelView,
   type ChatDeps,

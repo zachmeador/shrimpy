@@ -1,5 +1,5 @@
 import type { Receipt } from "../../contracts/chat/index.ts";
-import { refuse } from "../refusal/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
 import { MAX_DETAIL, MAX_ID, MAX_NAME, MAX_TEXT } from "./limits.ts";
 
 // Arguments arrive off the wire, so their TypeScript types promise nothing. Each

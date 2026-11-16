@@ -1,6 +1,6 @@
 import type { Member, Message } from "../../contracts/chat/index.ts";
 import { emoji as checkEmoji, identifier } from "../input/index.ts";
-import { refuse } from "../refusal/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
 import { visibleMessage } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
 

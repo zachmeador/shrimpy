@@ -3,12 +3,13 @@ import type { JsonValue } from "@earendil-works/chord/json";
 import { Channel, Chat, ChatPresence, type Member, Thread } from "../../contracts/chat/index.ts";
 import type { Principal, Way } from "../../contracts/gateway/index.ts";
 import { follow } from "../../lib/follow/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
 import type { LiveIdentity } from "../identity/index.ts";
 import { events } from "../offers/index.ts";
-import { answer, refuse } from "../refusal/index.ts";
 import type { Change } from "../store/index.ts";
 import {
   addMembers,
+  answer,
   archiveThread,
   type ChatDeps,
   channelView,
@@ -97,7 +98,7 @@ function followed<T extends JsonValue>(
 export function chatFacet(deps: ServedDeps): Facet<Principal> {
   /** The caller, as a method needs it: a member, recorded in the store as the roster names it now. */
   const callerOf = (principal: Principal): Member => {
-    const member = whoIs(deps, principal) ?? refuse(NOT_A_MEMBER);
+    const member = whoIs(deps, principal) ?? refuse(NOT_A_MEMBER.words);
     deps.store.transaction((tx) => {
       if (tx.member(member.id)?.name !== member.name) tx.saveMember(member);
     });

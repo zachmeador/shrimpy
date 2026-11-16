@@ -1,6 +1,6 @@
 import type { ChatEvent, Member } from "../../contracts/chat/index.ts";
 import { fitAnswer, MAX_PAGE, whole } from "../input/index.ts";
-import { refuse } from "../refusal/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
 import type { Store } from "../store/index.ts";
 
 /**

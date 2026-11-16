@@ -8,6 +8,7 @@
  * as one store transaction, refusing with words for a person. It must not know
  * about links, Chord's objects or any chat provider, or how the roster is held.
  */
+export { answer } from "./answer.ts";
 export type { ChatDeps } from "./deps.ts";
 export {
   addMembers,
