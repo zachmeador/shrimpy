@@ -11,7 +11,7 @@ import {
 import {
   GatewayRefusedError,
   gatewaySocket,
-  keepProgramLinked,
+  keepLinked,
   newToken,
   UnknownAnswerError,
   UnprovenGatewayError,
@@ -125,7 +125,7 @@ export function linkToGateway(options: GatewayLinkOptions): GatewayLink {
     return made.token;
   };
 
-  const linking = keepProgramLinked({
+  const linking = keepLinked({
     host: options.host,
     place: apart ?? { path: gatewaySocket() },
     who: () => ({ kind: "agent", name, token: token() }),

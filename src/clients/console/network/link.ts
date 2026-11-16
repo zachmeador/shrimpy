@@ -4,7 +4,7 @@ import type { Principal, Revocation } from "../../../contracts/gateway/index.ts"
 import {
   type GatewayPlace,
   GatewayRefusedError,
-  keepClientLinked,
+  keepLinked,
   UnprovenGatewayError,
 } from "../../../contracts/gateway/node.ts";
 import { createListeners } from "../../../lib/listeners/index.ts";
@@ -65,10 +65,10 @@ export async function keepGateway(options: GatewayLinkOptions): Promise<GatewayL
     return { kind: "unreachable", message: error instanceof Error ? error.message : String(error) };
   };
 
-  const linking = keepClientLinked({
+  const linking = keepLinked({
     host,
     place: options.place,
-    token: options.token,
+    who: () => ({ kind: "client", token: options.token }),
     signal: stopping.signal,
     ...(options.backoff === undefined ? {} : { backoff: options.backoff }),
     onWelcome(answer, closed) {

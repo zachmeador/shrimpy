@@ -5,7 +5,7 @@ import { backoff } from "../../../lib/retry/index.ts";
 import { stopAfter } from "../../../lib/testing/index.ts";
 import { AgentPresence } from "../../agent/index.ts";
 import { agent, type Member, type Principal, type Revocation, revokedBy, type Welcome } from "../index.ts";
-import { type GatewayPlace, gatewaySocket, keepProgramLinked, newToken } from "../node.ts";
+import { type GatewayPlace, gatewaySocket, keepLinked, newToken } from "../node.ts";
 
 /** An object at an agent that shows whom a request for it reached the agent as. */
 export const Echo = remote("shrimpy.test.echo", {
@@ -63,7 +63,7 @@ export async function linkTestAgent(t: TestContext, name: string, options: TestA
     welcome = resolve;
     refuse = reject;
   });
-  const linking = keepProgramLinked({
+  const linking = keepLinked({
     host,
     place: options.place ?? { path: gatewaySocket() },
     who: () => ({ kind: "agent", name, token }),
