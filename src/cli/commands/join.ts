@@ -1,11 +1,17 @@
 import { parseArgs } from "node:util";
-import { JoinFailedError, type JoinedHome, joinHome } from "../../agent/index.ts";
 import { checkAgentName } from "../../contracts/agent/index.ts";
 import { initHome, providerPaths } from "../../contracts/agent/node.ts";
 import { formatAddress, type Link, readLink } from "../../contracts/gateway/index.ts";
-import { joinAsMachine, type MachineJoined, MachineJoinFailedError } from "../../contracts/gateway/node.ts";
 import { gatewayOfItsOwn, homeInFolder, machineFolder, providersPath } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
+import {
+  JoinFailedError,
+  type JoinedHome,
+  joinAsMachine,
+  joinHome,
+  type MachineJoined,
+  MachineJoinFailedError,
+} from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";

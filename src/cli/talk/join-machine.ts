@@ -1,12 +1,14 @@
 import { hostname } from "node:os";
-import { type Entry, formatAddress } from "./address.ts";
-import { dialGateway, GatewayRefusedError, UnknownAnswerError, UnprovenGatewayError } from "./dial.node.ts";
-import type { Welcome } from "./hello.ts";
-import type { Link } from "./link.ts";
-import { machineFile } from "./machine.ts";
-import { readMachine, saveMachine } from "./machine.node.ts";
-import type { Member } from "./roster.ts";
-import { newToken } from "./token.node.ts";
+import { type Entry, formatAddress, type Link, machineFile, type Member, type Welcome } from "../../contracts/gateway/index.ts";
+import {
+  dialGateway,
+  GatewayRefusedError,
+  newToken,
+  readMachine,
+  saveMachine,
+  UnknownAnswerError,
+  UnprovenGatewayError,
+} from "../../contracts/gateway/node.ts";
 
 /**
  * The gateway could not be reached, stopped answering, or turned the machine

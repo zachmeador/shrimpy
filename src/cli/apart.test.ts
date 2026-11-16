@@ -5,13 +5,13 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import type { Reference } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { joinHome } from "../agent/index.ts";
 import { Agent, AGENT_HOME_VARIABLE, membershipFile, Session } from "../contracts/agent/index.ts";
 import { initHome, readMembership } from "../contracts/agent/node.ts";
 import { type Entry, formatAddress, type Member, writeLink } from "../contracts/gateway/index.ts";
 import { connectGateway, type GatewayClient, type GatewayPlace, gatewaySocket } from "../contracts/gateway/node.ts";
 import { type RunningGateway, startGateway } from "../gateway/index.ts";
 import { eventually, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
+import { joinHome } from "./talk/index.ts";
 import {
   declareLocalModel,
   type ModelServer,

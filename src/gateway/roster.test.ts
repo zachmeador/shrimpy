@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Roster } from "../contracts/gateway/index.ts";
-import { GatewayRefusedError, joinAsMachine, readMachine } from "../contracts/gateway/node.ts";
+import { dialGateway, GatewayRefusedError, newToken } from "../contracts/gateway/node.ts";
 import { tempDir, until } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { connectTestClient, Echo, linkTestAgent } from "../contracts/gateway/testing/index.ts";
@@ -46,12 +46,10 @@ test("taking a device's token back ends what it holds as revoked, closes its lin
 
   const invitation = await yours.inviteDevice(context);
   assert.equal(invitation.kind, "done");
-  const folder = join(tempDir(t, "device"), "shrimpy");
-  const { code, fingerprint } = invitation.value;
-  const joined = await joinAsMachine(folder, { name: null, address, code, fingerprint }, { machine: "laptop" });
-  assert.equal(joined.member.id, you.you?.id, "a device is you");
-  const token = readMachine(folder)?.token;
-  assert.ok(token !== undefined);
+  const token = newToken();
+  const joined = await dialGateway(entry, { kind: "join", name: null, token, code: invitation.value.code, machine: "laptop" });
+  joined.linked.drop();
+  assert.equal(joined.welcome.you?.id, you.you?.id, "a device is you");
 
   const device = await connectTestClient(t, entry, token);
   const roster = await device.host.get(Roster, {}, context);

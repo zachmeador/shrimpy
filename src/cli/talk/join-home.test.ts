@@ -11,7 +11,7 @@ import { JoinFailedError, joinHome } from "./join-home.ts";
 
 /*
  * What joining a home with a link refuses before it sends anything. Joining itself, against a gateway that lets the
- * agent in, is tried with real programs in apart.test.ts.
+ * agent in, is tried with real programs in cli/apart.test.ts.
  */
 
 /** The fingerprint of a gateway's key, as an invitation's link carries it. */

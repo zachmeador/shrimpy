@@ -8,9 +8,10 @@
  * channels and threads, and from an agent's shell another agent's objects, as
  * the agent whose shell it is. It finds the member a name means, your DM with
  * it and the room a name means, and watches a thread for what an agent did with
- * a message. It must not know how a command prints, or how an agent works: what
- * became of a message is read from the receipts on its events in the thread,
- * never asked of the agent.
+ * a message. It joins a gateway with the link of an invitation, too: as the
+ * agent of a home, from apart, or as a machine of the person's own. It must not
+ * know how a command prints, or how an agent works: what became of a message is
+ * read from the receipts on its events in the thread, never asked of the agent.
  */
 export { type AgentReached, onAgent, onSession, reachAgent, requireAdminFor } from "./agent.ts";
 export { agentNamed, memberNamed, membersNamed, runningAgent } from "./agents.ts";
@@ -25,6 +26,8 @@ export {
   withGatewayAsMe,
 } from "./gateway.ts";
 export { START_EVERYTHING } from "./hints.ts";
+export { JoinFailedError, joinHome, type JoinedHome, type JoinHomeOptions } from "./join-home.ts";
+export { type JoinAsMachineOptions, joinAsMachine, type MachineJoined, MachineJoinFailedError } from "./join-machine.ts";
 export { type Me, me } from "./me.ts";
 export {
   contextOf,

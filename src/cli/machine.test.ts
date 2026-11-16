@@ -3,7 +3,6 @@ import { existsSync, mkdirSync } from "node:fs";
 import { userInfo } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import { joinHome } from "../agent/index.ts";
 import { AGENT_HOME_VARIABLE } from "../contracts/agent/index.ts";
 import { initHome } from "../contracts/agent/node.ts";
 import type { Message } from "../contracts/chat/index.ts";
@@ -11,6 +10,7 @@ import { formatAddress, machineFile, readLink, writeLink } from "../contracts/ga
 import { newToken, readMachine, saveMachine } from "../contracts/gateway/node.ts";
 import { FakeTerminal, inRuntimeDir, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { openTheConsole } from "./run.ts";
+import { joinHome } from "./talk/index.ts";
 import {
   commandLines,
   declareLocalModel,

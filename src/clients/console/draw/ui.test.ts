@@ -5,9 +5,9 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { setCapabilityOverrides, stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
 import { assistantItem, toolItem, userItem } from "../../../contracts/agent/testing/index.ts";
 import { Roster } from "../../../contracts/gateway/index.ts";
-import { connectGateway, joinAsMachine, readMachine } from "../../../contracts/gateway/node.ts";
+import { connectGateway, dialGateway, newToken } from "../../../contracts/gateway/node.ts";
 import { startTestGateway } from "../../../contracts/gateway/testing/index.ts";
-import { eventually, FakeTerminal, stopAfter, tempDir, until, within } from "../../../lib/testing/index.ts";
+import { eventually, FakeTerminal, stopAfter, until, within } from "../../../lib/testing/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME } from "../../../lib/version/index.ts";
 import type { Model, Notice, Status } from "../state/index.ts";
@@ -669,18 +669,18 @@ test("/devices lists the person's devices, and /devices take back ends a device'
   const rig = await startRig(t);
   const [address] = gateway.listening.listen;
   assert.ok(address);
-  // A machine of the person's joins with an invitation, as `shrimpy invite` and `shrimpy join` make it, and links in with its token.
+  // A machine of the person's joins with an invitation and the hello `shrimpy join` says, and links in with its token.
   const person = await gateway.connect();
   const roster = await person.host.get(Roster, {}, BACKGROUND_CONTEXT);
   stopAfter(t, () => roster.release());
   const invited = await roster.inviteDevice(BACKGROUND_CONTEXT);
   assert.ok(invited.kind === "done");
-  const folder = tempDir(t, "machine");
   const { code, fingerprint } = invited.value;
-  await joinAsMachine(folder, { name: null, address, code, fingerprint });
-  const kept = readMachine(folder);
-  assert.ok(kept !== undefined);
-  const device = await connectGateway({ place: kept.gateway, token: kept.token });
+  const entry = { ...address, fingerprint };
+  const token = newToken();
+  const joined = await dialGateway(entry, { kind: "join", name: null, token, code, machine: hostname() });
+  joined.linked.drop();
+  const device = await connectGateway({ place: entry, token });
   stopAfter(t, () => device.close());
   const terminal = new FakeTerminal(100, 30);
   const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
