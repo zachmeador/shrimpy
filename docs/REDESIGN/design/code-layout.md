@@ -11,16 +11,18 @@ src/
   contracts/        the only code programs share: each contract's Chord object types and the shapes they carry,
                     and the files a home, the folder and the gateway keep that the `shrimpy` command shares
     agent/          Agent, Session and AgentPresence at agent({ name }), the shapes the agent builds, one sentence
-                    for each way a turn ends without an answer, and linking to an agent by its home's path, with
-                    the membership a home keeps; a home's layout, `agent.json`, its wake and trigger files and
-                    their schedules, making a home, the folder's default model and where it keeps sign-ins
+                    for each way a turn ends without an answer, the words a session is said in, and linking to an
+                    agent by its home's path, with the membership a home keeps; a home's layout, `agent.json`, its
+                    wake and trigger files and their schedules, making a home, the folder's default model and
+                    where it keeps sign-ins
     chat/           Chat, Channel, Thread and ChatPresence at chat(): channels, threads, messages, events and
-                    receipts, and the commands a person writes for agents
+                    receipts, what a receipt tells a person, and the commands a person writes for agents
     gateway/        what every contract shares (the hosts and their addresses, who is asking, the fields a member
-                    is named by, a method's answer or refusal, and the hello before Chord), Roster at gateway(),
-                    and the invitation's link and what a machine of yours keeps; through node.ts, the one dial
-                    every link and join starts with, a client's link to the gateway or to an agent's home socket,
-                    keeping a program or a client linked, and the addresses the gateway keeps between starts
+                    is named by, a method's answer or refusal, the hello before Chord, and the helpers for a call
+                    on another program's object), Roster at gateway(), and the invitation's link and
+                    what a machine of yours keeps; through node.ts, the hello every link and join starts with, a
+                    client's link to the gateway or to an agent's home socket, keeping a program or a client
+                    linked, and the addresses the gateway keeps between starts
   agent/            the agent program, one process per home, whose files at the top make its host, serve its
                     objects, read its home and wire the modules together
     home/           what the agent alone reads of its home: where it keeps its own files, its instructions,
@@ -79,12 +81,15 @@ src/
                     tests, the only code in the CLI that imports Chord, with `me.ts` the one place that decides
                     who a command or the terminal is; and joining a gateway from apart, as a home or a machine
                     of yours
+    up/             what `shrimpy up` starts and how it keeps it running: what is missing, the gateway and the
+                    chat server, the agents, following the folder's homes, and stopping them all
   lib/              helpers with no knowledge of Shrimpy's domain: locks, retries, listeners and waiting on them,
                     a thrown value as an error, files read and saved whole, IDs, refusals, times, config
-                    checking, text made harmless for a terminal, the runtime directory, versions and test support
+                    checking, text made harmless for a terminal, a list written as a sentence and a word quoted
+                    for a shell, the runtime directory, versions and test support
     link/           links for Chord: a WebSocket on a socket's path, or over TLS at an address, with the hello
-                    before Chord; listening, dialing and keeping a link; and, safe for browsers, how an address
-                    is written
+                    before Chord; listening, dialing, telling when nothing listens at a path, and keeping a link;
+                    and, safe for browsers, how an address is written and what a host reports going wrong
     follow/         a value worked out from a read and a watch, as a Chord object follows it, and the type of
                     what Chord follows, for code that doesn't import Chord
     tls/            keys that prove a link's end by their fingerprint, and the certificate TLS serves them in
@@ -130,8 +135,10 @@ Every sentence a model or a person reads is kept in a few files, so that wording
 | How an input reads to the model: a message, a wake-up, a trigger's occurrence, a question's result, breadcrumbs, and where the session is | `agent/inputs/prompt.ts` |
 | What a tool says: its description, its arguments and its answers | `words.ts` in the tool's module: `agent/message-tools/`, `agent/wakeups/` and `agent/questions/` |
 | The skills Shrimpy ships | `skills/<name>/SKILL.md` |
-| Everything the terminal shows | `clients/console/screen/words.ts` |
+| Everything else the terminal shows | `clients/console/screen/words.ts` |
 | Why a turn ended without an answer, with what to do, as receipts, `/status` and `sessions read` say it | `contracts/agent/failures.ts`, since the agent and every client say it the same way |
+| How a session is said: what it is doing, where it is, its tool calls, a reset, its model, what it has used and a wake-up it waits on, as the terminal and the `sessions` commands say it | `contracts/agent/words.ts`, since every client says it the same way |
+| What a receipt tells a person, as the terminal and `read` say it | `contracts/chat/words.ts` |
 | What a command for agents does, in the one line a client shows beside it | `contracts/chat/commands.ts`, since every client shows the same |
 | What an agent says in a thread about `/model` | `agent/chat/model-command.ts` |
 | A command's usage and help | The command's own file in `cli/commands/` |

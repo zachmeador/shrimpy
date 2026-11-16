@@ -120,7 +120,6 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- Fixing what [the review of 2026-11-15](STATUS.md#found-by-the-review-of-2026-11-15) found, as you asked that day: first security and correctness, then the tests, then the two rules the code drifted from, which you said are there to keep Shrimpy maintainable, and then the repetition. One builder at a time, each step checked in the dev container.
 - Putting the move to Pi 1.5.2 on a setup in use: what Shrimpy wrote before it goes into an archive beside the Shrimpy folder, an agent elsewhere joins again with a new invitation, and your name goes in `settings.json`, as [the home](design/5-home.md) has it. The move itself is in the [log](history/LOG.md#log).
 - In the terminal, a room's thread showing each agent's work, and `/devices invite`. [Not built yet](design/using-it.md)
 - Cleaning up for the release, which you said on 2026-10-08 is close: the skills cover what a person and an agent do with Shrimpy, the reference documentation shrinks to very little, and old Shrimpy is replaced.

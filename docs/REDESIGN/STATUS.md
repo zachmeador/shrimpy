@@ -2,18 +2,16 @@
 
 Where the code falls short of the [design](README.md): promises it doesn't keep yet, and rough edges that are known. Work that hasn't started isn't listed here: each design file has its own under "Not built yet". A shortfall whose fix is designed stays here until the fix is built, and says only what falls short. What was built and decided, by date, is in the [log](history/LOG.md).
 
-As of 2026-11-15. An item leaves when it is fixed or when the design changes to match the code. Before each review pause, every item is fixed, raised with the owner or left here on purpose.
+As of 2026-11-16. An item leaves when it is fixed or when the design changes to match the code. Before each review pause, every item is fixed, raised with the owner or left here on purpose.
 
 ## Where the code trails the plan
 
 ### Found by the review of 2026-11-15
 
-Four reviewers read the code on 2026-11-15, and you asked for what they found to be fixed. The order is in the [plan](PLAN.md#order-of-work).
+Four reviewers read the code on 2026-11-15, and you asked for what they found to be fixed. The [log](history/LOG.md#log) has what was fixed by 2026-11-16. This is what is left.
 
 - The CLI still uses the agent's front door for more than starting it: to preview what a home would tell its agent, and to sign in. Each is loaded only by its own command, and the lint names both. Whether the rule names them or they move is [waiting on you](AUTHOR-TO-REVIEW.md).
-- The CLI repeats itself: `wake` and `triggers`, `invite` and `join`, and the clients' plumbing. The terminal and the CLI word sessions and receipts each their own way, and already differ. `read` tells a refusal by its words.
-- `up` is one 650-line file, and may lose track of an agent whose home goes while it starts. The terminal's state is one 730-line closure that draws every change twice.
-- Dead code in the CLI and the terminal: notices nothing emits, exports nothing uses, and interfaces that are the same under three names.
+- `shrimpy run` words a receipt for the message it sent its own way, where the terminal and `read` take the words from `contracts/chat/words.ts`. The CLI writes "No gateway is running on this machine" in three places.
 
 ### The three programs and what each owns
 
@@ -115,7 +113,7 @@ Four reviewers read the code on 2026-11-15, and you asked for what they found to
 - Bare `shrimpy` opens the list of agents and rooms, or your threads with the only agent when you are in no room. It doesn't remember your latest thread, start programs on demand, or mark what arrived while you were away.
 - `pi-tui`'s regular mode clears the terminal's scrollback on some repaints, which the old terminal didn't do. The terminal can't scroll back past the newest 200 messages of a thread, or the newest 200 items of a session it is watching, and has no scrolling keys of its own.
 - In a room's thread an agent's work isn't shown as it happens. Its session for that thread can be watched from the agent's screen, and `/stop` written in the thread stops the agents it is for.
-- Where a session is has two wordings: `shrimpy sessions list` says "DM with scout (an agent)", and the terminal says "DM with scout", and "your DM" for the person's own. `shrimpy sessions list` is in the order the agent made its sessions, which the contract doesn't promise, and so are the triggers' rows on an agent's screen.
+- The terminal calls the person's own DM with an agent "your DM", and `shrimpy sessions list` calls it "DM with" and the person's name. `shrimpy sessions list` is in the order the agent made its sessions, which the contract doesn't promise, and so are the triggers' rows on an agent's screen.
 - The terminal now ignores the release of a key, which a terminal that speaks the Kitty keyboard protocol reports and which made every press count twice there. It was fixed from reading `pi-tui` and a test, and hasn't been tried on such a terminal.
 - `threads #ops` needs quotes in a shell, or the room's name is taken for a comment and dropped.
 - `--no-wait` prints the IDs to follow up with, but no command waits on one.

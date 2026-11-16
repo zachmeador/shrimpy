@@ -199,6 +199,8 @@ Server IDs go, with the paths that carried tickets and answered calls, `reachPro
 
 *Files.* `contracts/` also holds the files the `shrimpy` command shares with a program: a home's layout, `agent.json`, its wake and trigger files and its membership, the folder's default model, what a machine of yours keeps, and the addresses the gateway keeps. They aren't Chord objects and carry no version, since each is written and read on one machine by the command and the programs installed with it.
 
+*Words and calls.* `contracts/` also holds what every client says the same way: why a turn ended without an answer, how a session is said, and what a receipt tells a person. Each client frames those words its own way. And `contracts/gateway` has the helpers for a call on another program's object, which the clients, the agent's link to chat and the tests use: the context the call runs in, its answer or its refusal, whether it was lost with its link, and an object held for as long as one piece of work runs.
+
 *Connecting.* Before any of Chord's traffic, a caller and the gateway trade one JSON text frame each.
 
 **The transport** is a WebSocket: over the gateway's Unix socket on its machine, over its entry from anywhere else, and later over its entry for a browser.
