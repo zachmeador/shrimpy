@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Roster } from "../contracts/gateway/index.ts";
-import { dialGateway, GatewayRefusedError, newToken } from "../contracts/gateway/node.ts";
+import { HelloRefusedError, newToken, sayHello } from "../contracts/gateway/node.ts";
 import { tempDir, until } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { connectTestClient, Echo, linkTestAgent } from "../contracts/gateway/testing/index.ts";
@@ -47,7 +47,7 @@ test("taking a device's token back ends what it holds as revoked, closes its lin
   const invitation = await yours.inviteDevice(context);
   assert.equal(invitation.kind, "done");
   const token = newToken();
-  const joined = await dialGateway(entry, { kind: "join", name: null, token, code: invitation.value.code, machine: "laptop" });
+  const joined = await sayHello(entry, { kind: "join", name: null, token, code: invitation.value.code, machine: "laptop" });
   joined.linked.drop();
   assert.equal(joined.welcome.you?.id, you.you?.id, "a device is you");
 
@@ -73,7 +73,7 @@ test("taking a device's token back ends what it holds as revoked, closes its lin
   await until(() => !yours.ways.value.some((each) => each.kind === "device"), "the device's way to go");
   await assert.rejects(
     connectTestClient(t, entry, token),
-    (error) => error instanceof GatewayRefusedError && error.reason === "unknown_token",
+    (error) => error instanceof HelloRefusedError && error.reason === "unknown_token",
   );
 });
 

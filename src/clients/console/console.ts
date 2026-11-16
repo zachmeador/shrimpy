@@ -1,4 +1,5 @@
-import { type GatewayPlace, gatewaySocket } from "../../contracts/gateway/node.ts";
+import { gatewaySocket } from "../../contracts/gateway/node.ts";
+import type { DialPlace } from "../../lib/link/node.ts";
 import { type ConsoleTerminal, startDrawing } from "./draw/index.ts";
 import { farewellLine, type Screen } from "./screen/index.ts";
 import { createConsoleState, type HomeLookup } from "./state/index.ts";
@@ -14,7 +15,7 @@ export interface ConsoleIo {
 export interface ConsoleOptions {
   io: ConsoleIo;
   /** Where the gateway is: its own socket on this machine by default, or its entry, with the fingerprint of its key. */
-  place?: GatewayPlace;
+  place?: DialPlace;
   /**
    * The token the console shows the gateway: a device's, as on a machine of the
    * person's own that joined, or none, which on the gateway's own socket is you.

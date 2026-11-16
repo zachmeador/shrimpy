@@ -1,11 +1,11 @@
 import { hostname } from "node:os";
 import { type Entry, type Link, machineFile, type Member, type Welcome } from "../../contracts/gateway/index.ts";
 import {
-  dialGateway,
-  GatewayRefusedError,
+  HelloRefusedError,
   newToken,
   readMachine,
   saveMachine,
+  sayHello,
   UnknownAnswerError,
   UnprovenGatewayError,
 } from "../../contracts/gateway/node.ts";
@@ -75,11 +75,11 @@ export async function joinAsMachine(folder: string, link: Link, options: JoinAsM
   const who = { kind: "join", name: null, token, code: link.code, machine: options.machine ?? hostname() } as const;
   let answer: Welcome;
   try {
-    const dialed = await dialGateway(gateway, who, options.signal === undefined ? {} : { signal: options.signal });
+    const dialed = await sayHello(gateway, who, options.signal === undefined ? {} : { signal: options.signal });
     dialed.linked.drop();
     answer = dialed.welcome;
   } catch (error) {
-    if (error instanceof GatewayRefusedError) {
+    if (error instanceof HelloRefusedError) {
       throw new MachineJoinFailedError(`The gateway at ${where} did not let this machine in: ${error.message}`);
     }
     if (error instanceof UnknownAnswerError || error instanceof UnprovenGatewayError) throw new MachineJoinFailedError(error.message);

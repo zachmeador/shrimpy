@@ -5,7 +5,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { setCapabilityOverrides, stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
 import { assistantItem, toolItem, userItem } from "../../../contracts/agent/testing/index.ts";
 import { Roster } from "../../../contracts/gateway/index.ts";
-import { connectClient, dialGateway, newToken } from "../../../contracts/gateway/node.ts";
+import { connectClient, newToken, sayHello } from "../../../contracts/gateway/node.ts";
 import { startTestGateway } from "../../../contracts/gateway/testing/index.ts";
 import { eventually, FakeTerminal, stopAfter, until, within } from "../../../lib/testing/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
@@ -678,7 +678,7 @@ test("/devices lists the person's devices, and /devices take back ends a device'
   const { code, fingerprint } = invited.value;
   const entry = { ...address, fingerprint };
   const token = newToken();
-  const joined = await dialGateway(entry, { kind: "join", name: null, token, code, machine: hostname() });
+  const joined = await sayHello(entry, { kind: "join", name: null, token, code, machine: hostname() });
   joined.linked.drop();
   const device = await connectClient({ place: entry, token });
   stopAfter(t, () => device.close());

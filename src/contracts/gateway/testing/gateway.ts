@@ -2,9 +2,10 @@ import { join } from "node:path";
 import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { formatAddress } from "../../../lib/link/index.ts";
+import type { DialPlace } from "../../../lib/link/node.ts";
 import { type Child, type ChildOutput, startChild, stopAfter, tempDir, useRuntimeDir } from "../../../lib/testing/index.ts";
 import type { Address } from "../index.ts";
-import { type Client, connectClient, type GatewayPlace, gatewaySocket } from "../node.ts";
+import { type Client, connectClient, gatewaySocket } from "../node.ts";
 
 /** The command that runs Shrimpy, which is how a person starts a program. */
 export const SHRIMPY_ENTRY = fileURLToPath(new URL("../../../cli/main.ts", import.meta.url));
@@ -56,7 +57,7 @@ export interface TestGateway {
 }
 
 /** A client linked to the gateway at `place`, as you with no token or as the holder of `token`, closed when the test ends. */
-export async function connectTestClient(t: TestContext, place: GatewayPlace, token: string | null = null): Promise<Client> {
+export async function connectTestClient(t: TestContext, place: DialPlace, token: string | null = null): Promise<Client> {
   const client = await connectClient({ place, token });
   stopAfter(t, () => client.close());
   return client;

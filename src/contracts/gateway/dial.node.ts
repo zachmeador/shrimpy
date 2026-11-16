@@ -1,22 +1,15 @@
 import { formatAddress } from "../../lib/link/index.ts";
-import { type Dialed, dial, type Linked, OtherKeyError } from "../../lib/link/node.ts";
-import type { Entry } from "./address.ts";
+import { dial, type Dialed, type DialPlace, type Linked, OtherKeyError } from "../../lib/link/node.ts";
 import type { Reason } from "./answers.ts";
 import { type Hello, hello, readAnswer, unreadableAnswer, type Welcome, type Who } from "./hello.ts";
 
-/**
- * Where the gateway is reached: its own socket on this machine, or its entry,
- * which proves itself with the key whose fingerprint the member kept.
- */
-export type GatewayPlace = { readonly path: string } | Entry;
-
-/** The gateway turned a hello away, or an agent did on its home's socket, which takes the same hello. Its message is their words. */
-export class GatewayRefusedError extends Error {
+/** The other end turned the hello away: the gateway, or an agent on its home's socket, which takes the same hello. Its message is their words. */
+export class HelloRefusedError extends Error {
   readonly reason: Reason | null;
 
   constructor(words: string, reason: Reason | null) {
     super(words);
-    this.name = "GatewayRefusedError";
+    this.name = "HelloRefusedError";
     this.reason = reason;
   }
 }
@@ -44,13 +37,13 @@ export class UnprovenGatewayError extends Error {
   }
 }
 
-/** The gateway's welcome, and the link that follows it. */
-export interface GatewayDialed {
+/** The welcome, and the link that follows it. */
+export interface Welcomed {
   readonly welcome: Welcome;
   readonly linked: Linked;
 }
 
-export interface DialGatewayOptions {
+export interface SayHelloOptions {
   /** Abort to give up while the connection opens or the hello waits for its answer. */
   readonly signal?: AbortSignal;
   /** Who answers, as the words name it when its answer can't be read: "The gateway" unless given. */
@@ -58,26 +51,26 @@ export interface DialGatewayOptions {
 }
 
 /**
- * Say the hello to the gateway at `place` as `who`, and read its answer: every
- * link to the gateway or to an agent's home socket, and every join, starts
- * here. At the entry the hello goes
- * only to the key whose fingerprint the place has: a key with another is an
- * `UnprovenGatewayError`, and nothing is sent. A hello the gateway turns away
- * is a `GatewayRefusedError`, and an answer this code can't read is an
+ * Say the hello at `place` as `who`, and read the answer: every link to the
+ * gateway, on its own socket or at its entry, or to an agent on its home's
+ * socket, and every join, starts here. At the entry the hello goes only to the
+ * key whose fingerprint the place has: a key with another is an
+ * `UnprovenGatewayError`, and nothing is sent. A hello the other end turns
+ * away is a `HelloRefusedError`, and an answer this code can't read is an
  * `UnknownAnswerError`; either way the link is dropped. What dialing throws, as
- * it does when no gateway is there, is passed on as it is.
+ * it does when nothing listens there, is passed on as it is.
  */
-export async function dialGateway(place: GatewayPlace, who: Who, options: DialGatewayOptions = {}): Promise<GatewayDialed> {
+export async function sayHello(place: DialPlace, who: Who, options: SayHelloOptions = {}): Promise<Welcomed> {
   const { answer: raw, linked } = await dialProven(place, hello(who), options.signal);
   const answer = readAnswer(raw);
   if (answer?.kind === "welcome") return { welcome: answer, linked };
   linked.drop();
   if (answer === undefined) throw new UnknownAnswerError(unreadableAnswer(raw, options.answering));
-  throw new GatewayRefusedError(answer.words, answer.reason);
+  throw new HelloRefusedError(answer.words, answer.reason);
 }
 
 /** Send `said` to the gateway at `place`: on its own socket as it is, and at its entry only once its key proves it. */
-async function dialProven(place: GatewayPlace, said: Hello, signal: AbortSignal | undefined): Promise<Dialed> {
+async function dialProven(place: DialPlace, said: Hello, signal: AbortSignal | undefined): Promise<Dialed> {
   const options = signal === undefined ? {} : { signal };
   if ("path" in place) return dial(place, said, options);
   try {

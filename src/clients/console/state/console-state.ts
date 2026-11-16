@@ -1,5 +1,5 @@
 import type { AgentModels } from "../../../contracts/agent/index.ts";
-import type { GatewayPlace } from "../../../contracts/gateway/node.ts";
+import type { DialPlace } from "../../../lib/link/node.ts";
 import type { Backoff } from "../../../lib/retry/index.ts";
 import { CONNECTING, keepGateway } from "../network/index.ts";
 import { createAsking } from "./asking.ts";
@@ -13,7 +13,7 @@ import { worked } from "./worked.ts";
 
 export interface ConsoleStateOptions {
   /** Where the gateway is: its own socket on this machine, or its entry, with the fingerprint of its key. */
-  place: GatewayPlace;
+  place: DialPlace;
   /** A device's token, to be you on a machine that joined, or null to be you on the gateway's own socket. */
   token: string | null;
   /** How long a notice stays. 6 seconds by default. */

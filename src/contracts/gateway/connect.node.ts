@@ -1,6 +1,7 @@
 import { createHost, type Host, type HostError } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { dialGateway, type GatewayPlace } from "./dial.node.ts";
+import type { DialPlace } from "../../lib/link/node.ts";
+import { sayHello } from "./dial.node.ts";
 import type { Principal, Revocation } from "./principals.ts";
 import type { Member } from "./roster.ts";
 
@@ -24,7 +25,7 @@ export interface Client {
 
 export interface ConnectOptions {
   /** The gateway's own socket, or its entry with the fingerprint of its key, or an agent's home socket. */
-  readonly place: GatewayPlace;
+  readonly place: DialPlace;
   /** A device's or an agent's token, or null to be you on the gateway's own socket, and `home` on an agent's. */
   readonly token: string | null;
   /** The home whose agent's own socket `place` is, when it is one. */
@@ -38,12 +39,12 @@ export interface ConnectOptions {
 /**
  * Link a client once: the hello, then Chord with the other end as the client's
  * parent, the one dial of every client. A hello turned away is a
- * `GatewayRefusedError`, an answer this code can't read an
+ * `HelloRefusedError`, an answer this code can't read an
  * `UnknownAnswerError`, and an entry that doesn't prove it is yours an
  * `UnprovenGatewayError`.
  */
 export async function connectClient(options: ConnectOptions): Promise<Client> {
-  const { welcome, linked } = await dialGateway(options.place, { kind: "client", token: options.token }, {
+  const { welcome, linked } = await sayHello(options.place, { kind: "client", token: options.token }, {
     ...(options.signal === undefined ? {} : { signal: options.signal }),
     ...(options.home === undefined ? {} : { answering: `The agent at ${options.home}` }),
   });

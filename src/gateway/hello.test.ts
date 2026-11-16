@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { hello, readAnswer, Roster } from "../contracts/gateway/index.ts";
-import { GatewayRefusedError, newToken } from "../contracts/gateway/node.ts";
+import { HelloRefusedError, newToken } from "../contracts/gateway/node.ts";
 import { dial, type DialPlace } from "../lib/link/node.ts";
 import { until } from "../lib/testing/index.ts";
 import { PI_PACKAGES } from "../lib/version/index.ts";
@@ -71,7 +71,7 @@ test("an agent joins over the entry with an invitation's code, once, and then li
   assert.equal(again.kind, "refused", "the code is good once");
   await assert.rejects(
     connectTestClient(t, entry, newToken()),
-    (error) => error instanceof GatewayRefusedError && error.reason === "unknown_token",
+    (error) => error instanceof HelloRefusedError && error.reason === "unknown_token",
     "and a token nobody joined with opens nothing",
   );
 

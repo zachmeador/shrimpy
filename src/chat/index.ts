@@ -12,7 +12,7 @@ import { createHost, type HostError } from "@earendil-works/chord";
 import { nodeCompression } from "@earendil-works/chord/compression";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { chat, type Principal, type Revocation, revokedBy } from "../contracts/gateway/index.ts";
-import { GatewayRefusedError, gatewaySocket, keepLinked, UnknownAnswerError } from "../contracts/gateway/node.ts";
+import { gatewaySocket, HelloRefusedError, keepLinked, UnknownAnswerError } from "../contracts/gateway/node.ts";
 import { hostFailure } from "../lib/link/index.ts";
 import type { Backoff } from "../lib/retry/index.ts";
 import { createIdentity } from "./identity/index.ts";
@@ -107,8 +107,8 @@ export async function startChat(options: ChatOptions): Promise<RunningChat> {
         away = false;
       },
       onError(error) {
-        if (error instanceof GatewayRefusedError || error instanceof UnknownAnswerError) {
-          const told = error instanceof GatewayRefusedError ? `Could not link to the gateway: ${error.message}` : error.message;
+        if (error instanceof HelloRefusedError || error instanceof UnknownAnswerError) {
+          const told = error instanceof HelloRefusedError ? `Could not link to the gateway: ${error.message}` : error.message;
           if (told === reported) return;
           reported = told;
           onError(new Error(told));

@@ -1,11 +1,12 @@
 import type { TestContext } from "node:test";
 import { constant, createHost, defineFacet, type Host, remote, str, unknown } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import type { DialPlace } from "../../../lib/link/node.ts";
 import { backoff } from "../../../lib/retry/index.ts";
 import { stopAfter } from "../../../lib/testing/index.ts";
 import { AgentPresence } from "../../agent/index.ts";
 import { agent, type Member, type Principal, type Revocation, revokedBy, type Welcome } from "../index.ts";
-import { type GatewayPlace, gatewaySocket, keepLinked, newToken } from "../node.ts";
+import { gatewaySocket, keepLinked, newToken } from "../node.ts";
 
 /** An object at an agent that shows whom a request for it reached the agent as. */
 export const Echo = remote("shrimpy.test.echo", {
@@ -19,7 +20,7 @@ export interface TestAgentOptions {
   /** The token it shows: a new one, which joins the roster, unless the test gives one. */
   token?: string;
   /** Where the gateway is: its socket in the test's runtime directory, unless the test gives its entry with the fingerprint of its key. */
-  place?: GatewayPlace;
+  place?: DialPlace;
 }
 
 /** A small agent's program, linked to the gateway as an agent's program is. */

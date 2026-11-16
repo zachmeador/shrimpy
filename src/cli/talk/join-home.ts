@@ -2,9 +2,9 @@ import { hostname } from "node:os";
 import { loadHome, readMembership, saveMembership } from "../../contracts/agent/node.ts";
 import { type Entry, type Member, readLink, type Welcome } from "../../contracts/gateway/index.ts";
 import {
-  dialGateway,
-  GatewayRefusedError,
+  HelloRefusedError,
   newToken,
+  sayHello,
   UnknownAnswerError,
   UnprovenGatewayError,
 } from "../../contracts/gateway/node.ts";
@@ -81,11 +81,11 @@ export async function joinHome(home: string, link: string, options: JoinHomeOpti
   const who = { kind: "join", name, token, code: invitation.code, machine: hostname() } as const;
   let answer: Welcome;
   try {
-    const dialed = await dialGateway(gateway, who, options.signal === undefined ? {} : { signal: options.signal });
+    const dialed = await sayHello(gateway, who, options.signal === undefined ? {} : { signal: options.signal });
     dialed.linked.drop();
     answer = dialed.welcome;
   } catch (error) {
-    if (error instanceof GatewayRefusedError) throw new JoinFailedError(`The gateway at ${where} did not let ${name} in: ${error.message}`);
+    if (error instanceof HelloRefusedError) throw new JoinFailedError(`The gateway at ${where} did not let ${name} in: ${error.message}`);
     if (error instanceof UnknownAnswerError || error instanceof UnprovenGatewayError) throw new JoinFailedError(error.message);
     throw new JoinFailedError(`Could not join the gateway at ${where}: ${asError(error).message}`, { cause: error });
   }

@@ -1,8 +1,9 @@
 import { AGENT_HOME_VARIABLE, membershipFile } from "../../contracts/agent/index.ts";
 import { readMembership } from "../../contracts/agent/node.ts";
 import { type Entry, type Machine, machineFile } from "../../contracts/gateway/index.ts";
-import { type GatewayPlace, type GatewayRefusedError, gatewaySocket, readMachine } from "../../contracts/gateway/node.ts";
+import { gatewaySocket, type HelloRefusedError, readMachine } from "../../contracts/gateway/node.ts";
 import { formatAddress } from "../../lib/link/index.ts";
+import type { DialPlace } from "../../lib/link/node.ts";
 import { folderPath } from "../folder/index.ts";
 
 /** A machine of a person's own that the gateway has let in: it knows who it is. */
@@ -22,7 +23,7 @@ function joinedMachine(): JoinedMachine | undefined {
 /** Who a command is, and where it reaches the gateway. */
 export interface Me {
   /** Where the command reaches the gateway: its own socket on this machine, or its entry. */
-  readonly place: GatewayPlace;
+  readonly place: DialPlace;
   /**
    * The gateway's network entry, with the fingerprint of its key, when the
    * command reaches the gateway over the network: the entry the shell's agent
@@ -35,10 +36,10 @@ export interface Me {
   /** The home of the agent whose shell the command runs in, when it does. */
   readonly home: string | undefined;
   /** The gateway turned the command's hello away: what to tell the person, in words that say what to do. */
-  turnedAway(error: GatewayRefusedError): Error;
+  turnedAway(error: HelloRefusedError): Error;
 }
 
-const atThe = (entry: Entry | undefined): GatewayPlace => entry ?? { path: gatewaySocket() };
+const atThe = (entry: Entry | undefined): DialPlace => entry ?? { path: gatewaySocket() };
 
 /**
  * Who this command is, and how it reaches the gateway. In the shell of an agent

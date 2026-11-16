@@ -1,7 +1,8 @@
 import type { TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type Invitation, type Member, type Program, Roster, type RosterEntry, valueOf, type WayIn } from "../../contracts/gateway/index.ts";
-import { type Client, connectClient, type GatewayPlace, gatewaySocket } from "../../contracts/gateway/node.ts";
+import { type Client, connectClient, gatewaySocket } from "../../contracts/gateway/node.ts";
+import type { DialPlace } from "../../lib/link/node.ts";
 import { stopAfter } from "../../lib/testing/index.ts";
 
 const context = BACKGROUND_CONTEXT;
@@ -24,7 +25,7 @@ export interface OnTheRoster {
  * Whoever `token` is on the gateway at `place`, linked until the test ends:
  * you, by default, on this machine's gateway socket, with no token.
  */
-export async function onTheRoster(t: TestContext, place: GatewayPlace = { path: gatewaySocket() }, token: string | null = null): Promise<OnTheRoster> {
+export async function onTheRoster(t: TestContext, place: DialPlace = { path: gatewaySocket() }, token: string | null = null): Promise<OnTheRoster> {
   const client = await connectClient({ place, token });
   stopAfter(t, () => client.close());
   const roster = await client.host.get(Roster, {}, context);

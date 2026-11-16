@@ -1,15 +1,8 @@
 import { contextOf, type Member, type Program, Roster, type RosterEntry } from "../../contracts/gateway/index.ts";
-import {
-  type Client,
-  connectClient,
-  type GatewayPlace,
-  GatewayRefusedError,
-  gatewaySocket,
-  UnprovenGatewayError,
-} from "../../contracts/gateway/node.ts";
+import { type Client, connectClient, gatewaySocket, HelloRefusedError, UnprovenGatewayError } from "../../contracts/gateway/node.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
-import { nobodyThere } from "../../lib/link/node.ts";
+import { type DialPlace, nobodyThere } from "../../lib/link/node.ts";
 import { START_EVERYTHING } from "./hints.ts";
 import { type Me, me } from "./me.ts";
 
@@ -42,16 +35,16 @@ export interface GatewayView {
  * up, even on a gateway that has stopped answering.
  */
 async function linkTo(
-  place: GatewayPlace,
+  place: DialPlace,
   token: string | null,
-  turnedAway: (error: GatewayRefusedError) => Error,
+  turnedAway: (error: HelloRefusedError) => Error,
   signal?: AbortSignal,
 ): Promise<Client> {
   let client: Client;
   try {
     client = await connectClient({ place, token, ...(signal === undefined ? {} : { signal }) });
   } catch (error) {
-    if (error instanceof GatewayRefusedError) throw turnedAway(error);
+    if (error instanceof HelloRefusedError) throw turnedAway(error);
     if (error instanceof UnprovenGatewayError || signal?.aborted === true) throw error;
     if ("path" in place) {
       if (nobodyThere(error)) throw new GatewayNotRunningError({ cause: error });

@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { initHome, saveMembership } from "../contracts/agent/node.ts";
 import { type Entry, Roster } from "../contracts/gateway/index.ts";
-import { dialGateway, newToken } from "../contracts/gateway/node.ts";
+import { newToken, sayHello } from "../contracts/gateway/node.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { listen } from "../lib/link/node.ts";
 import { stopAfter, tempDir, until } from "../lib/testing/index.ts";
@@ -33,7 +33,7 @@ test("an agent apart joins with an invitation, and links in with its token and t
   // The agent joins with the hello `shrimpy join` says, and its home keeps who it is, where its gateway is and its key.
   const token = newToken();
   const entry: Entry = { ...address, fingerprint };
-  const joined = await dialGateway(entry, { kind: "join", name: SCOUT, token, code, machine: hostname() });
+  const joined = await sayHello(entry, { kind: "join", name: SCOUT, token, code, machine: hostname() });
   joined.linked.drop();
   const scout = joined.welcome.you;
   assert.ok(scout !== null);

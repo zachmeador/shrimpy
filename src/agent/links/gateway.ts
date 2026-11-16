@@ -8,8 +8,8 @@ import {
   type Revocation,
 } from "../../contracts/gateway/index.ts";
 import {
-  GatewayRefusedError,
   gatewaySocket,
+  HelloRefusedError,
   keepLinked,
   newToken,
   UnknownAnswerError,
@@ -146,7 +146,7 @@ export function linkToGateway(options: GatewayLinkOptions): GatewayLink {
     },
     onError(error) {
       if (stopping.signal.aborted) return;
-      if (error instanceof GatewayRefusedError) {
+      if (error instanceof HelloRefusedError) {
         const advice = adviceFor(error.reason, files, apart !== undefined);
         const told = `Could not join the network: the gateway did not let ${name} in: ${error.message}${advice === undefined ? "" : ` ${advice}`}`;
         if (told === reported) return;

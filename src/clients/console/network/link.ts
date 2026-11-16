@@ -1,21 +1,16 @@
 import { createHost, type Host } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Principal, Revocation } from "../../../contracts/gateway/index.ts";
-import {
-  type GatewayPlace,
-  GatewayRefusedError,
-  keepLinked,
-  UnprovenGatewayError,
-} from "../../../contracts/gateway/node.ts";
+import { HelloRefusedError, keepLinked, UnprovenGatewayError } from "../../../contracts/gateway/node.ts";
 import { asError } from "../../../lib/errors/index.ts";
-import { nobodyThere } from "../../../lib/link/node.ts";
+import { type DialPlace, nobodyThere } from "../../../lib/link/node.ts";
 import { createListeners } from "../../../lib/listeners/index.ts";
 import type { Backoff } from "../../../lib/retry/index.ts";
 import { CONNECTING, type LinkStatus, UP, type Why } from "./status.ts";
 
 export interface GatewayLinkOptions {
   /** The gateway's own socket, or its entry, with the fingerprint of its key. */
-  readonly place: GatewayPlace;
+  readonly place: DialPlace;
   /** A device's token, or null to be you on the gateway's own socket. */
   readonly token: string | null;
   /** The pauses between attempts to link. Tests shorten them. */
@@ -55,7 +50,7 @@ export async function keepGateway(options: GatewayLinkOptions): Promise<GatewayL
     changes.notify(undefined);
   };
   const why = (error: unknown): Why => {
-    if (error instanceof GatewayRefusedError) return { kind: "refused", words: error.message };
+    if (error instanceof HelloRefusedError) return { kind: "refused", words: error.message };
     if (error instanceof UnprovenGatewayError) return { kind: "unproven", words: error.message };
     if ("path" in options.place && nobodyThere(error)) return { kind: "not-running" };
     return { kind: "unreachable", message: asError(error).message };
