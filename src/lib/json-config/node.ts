@@ -4,6 +4,7 @@
  */
 import { readFileSync } from "node:fs";
 import { asError } from "../errors/index.ts";
+import { codeOf } from "../files/index.ts";
 import { ConfigError, type ConfigObject } from "./config-object.ts";
 import { parseConfig } from "./parse.ts";
 
@@ -13,7 +14,7 @@ export function readConfig(file: string): ConfigObject | undefined {
   try {
     text = readFileSync(file, "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    if (codeOf(error) === "ENOENT") return undefined;
     throw new ConfigError(`${file}: can't be read (${asError(error).message}).`, { cause: error });
   }
   return parseConfig(text, file);

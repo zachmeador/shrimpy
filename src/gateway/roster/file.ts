@@ -1,5 +1,6 @@
-import { closeSync, fsyncSync, mkdirSync, openSync, renameSync, writeSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { saveFile } from "../../lib/files/node.ts";
 import type { ConfigObject } from "../../lib/json-config/index.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
 
@@ -76,20 +77,8 @@ function parseDevice(entry: ConfigObject): DeviceRecord {
   return { tokenHash, label };
 }
 
-/**
- * Write the roster whole or not at all, so nobody reads half of it, and only
- * its owner can read it. The file is flushed before it takes its place, so a
- * power cut leaves the old roster or the new one.
- */
+/** Write the roster whole, so that nobody reads half of it and a power cut leaves the old one or the new, readable only by its owner. */
 export function writeRoster(file: string, members: readonly MemberRecord[]): void {
   mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-  const unfinished = `${file}.${String(process.pid)}`;
-  const descriptor = openSync(unfinished, "w", 0o600);
-  try {
-    writeSync(descriptor, `${JSON.stringify({ version: VERSION, members }, null, 2)}\n`);
-    fsyncSync(descriptor);
-  } finally {
-    closeSync(descriptor);
-  }
-  renameSync(unfinished, file);
+  saveFile(file, `${JSON.stringify({ version: VERSION, members }, null, 2)}\n`, { mode: 0o600 });
 }

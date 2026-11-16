@@ -1,7 +1,8 @@
 import type { Dirent, Stats } from "node:fs";
 import { readdir, realpath, stat } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
-import { codeOf, compare, type LeftOut, readText, why } from "../../contracts/agent/node.ts";
+import { codeOf, compare, type LeftOut, why } from "../../lib/files/index.ts";
+import { readText } from "../../lib/files/node.ts";
 import { shownIn } from "./files.ts";
 import { INCLUDED_SKILLS } from "./included.ts";
 import type { HomePaths } from "./layout.ts";

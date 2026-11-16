@@ -1,6 +1,7 @@
-import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import { AGENT_HOME_VARIABLE } from "../../contracts/agent/index.ts";
+import { saveFile } from "../../lib/files/node.ts";
 import { homePaths } from "../home/index.ts";
 
 /** Used when the agent was started with no PATH at all, so its shell still finds the ordinary commands. */
@@ -35,11 +36,8 @@ function writeLauncher(file: string, home: string, command: readonly string[]): 
   // The home it names is how a command run from the agent's shell knows it is the agent's.
   const text = `#!/bin/sh\n${AGENT_HOME_VARIABLE}=${quote(home)} exec ${command.map(quote).join(" ")} "$@"\n`;
   if (existing(file) === text) return;
-  // Written whole or not at all: a shell may be running it as it changes.
-  const unfinished = `${file}.${String(process.pid)}`;
-  writeFileSync(unfinished, text);
-  chmodSync(unfinished, 0o755);
-  renameSync(unfinished, file);
+  // Saved whole: a shell may be running it as it changes.
+  saveFile(file, text, { mode: 0o755 });
 }
 
 function existing(file: string): string | undefined {

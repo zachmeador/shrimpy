@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname } from "node:path";
+import { saveFile } from "../../lib/files/node.ts";
 import type { Account } from "./account.ts";
 import * as launchd from "./launchd.ts";
 import type { Program, Service, State } from "./service.ts";
@@ -18,11 +19,11 @@ export async function put(account: Account, service: Service, program: Program):
   const updated = existsSync(service.file);
   mkdirSync(dirname(service.file), { recursive: true });
   if (service.manager === "systemd") {
-    writeFileSync(service.file, systemd.unit(service, program));
+    saveFile(service.file, systemd.unit(service, program));
     await systemd.start(account, service);
   } else {
     mkdirSync(dirname(service.log), { recursive: true });
-    writeFileSync(service.file, launchd.plist(service, program));
+    saveFile(service.file, launchd.plist(service, program));
     await launchd.start(account, service);
   }
   return { updated };

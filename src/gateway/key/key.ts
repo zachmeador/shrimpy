@@ -1,6 +1,8 @@
 import { createPrivateKey, type KeyObject } from "node:crypto";
-import { closeSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, writeSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { codeOf } from "../../lib/files/index.ts";
+import { saveFile } from "../../lib/files/node.ts";
 import { fingerprintOf, newKey } from "../../lib/tls/node.ts";
 
 /** Where the gateway keeps its key, inside its data directory. */
@@ -26,7 +28,7 @@ export function openKey(dataDir: string): GatewayKey {
   try {
     pem = readFileSync(file, "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw cannotUse(file, (error as Error).message, error);
+    if (codeOf(error) !== "ENOENT") throw cannotUse(file, (error as Error).message, error);
     const key = newKey();
     save(file, key);
     return { key, fingerprint: fingerprintOf(key) };
@@ -51,20 +53,8 @@ function cannotUse(file: string, why: string, cause?: unknown): Error {
   );
 }
 
-/**
- * Keep `key` in `file`, whole or not at all, readable only by the gateway's
- * account. It is flushed before it takes its place, so a power cut leaves no
- * half of a key, which would stop the gateway.
- */
+/** Keep `key` in `file`, saved whole, since half a key would stop the gateway, and readable only by the gateway's account. */
 function save(file: string, key: KeyObject): void {
   mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-  const unfinished = `${file}.${String(process.pid)}`;
-  const descriptor = openSync(unfinished, "w", 0o600);
-  try {
-    writeSync(descriptor, key.export({ type: "pkcs8", format: "pem" }));
-    fsyncSync(descriptor);
-  } finally {
-    closeSync(descriptor);
-  }
-  renameSync(unfinished, file);
+  saveFile(file, key.export({ type: "pkcs8", format: "pem" }), { mode: 0o600 });
 }

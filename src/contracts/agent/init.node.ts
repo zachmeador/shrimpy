@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, relative } from "node:path";
+import { saveFile } from "../../lib/files/node.ts";
 import {
   type AgentConfig,
   checkAgentName,
@@ -58,7 +59,7 @@ export function initHome(home: string, options: InitOptions): InitResult {
   };
   const file = (path: string, content: string, mode?: number): void => {
     if (existsSync(path)) return;
-    writeFileSync(path, content, { flag: "wx", mode });
+    saveFile(path, content, { onlyNew: true, mode });
     created.push(relative(paths.root, path));
   };
 

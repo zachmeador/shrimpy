@@ -1,8 +1,9 @@
 import { existsSync } from "node:fs";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { compare } from "../../lib/files/index.ts";
+import { readText, saveFile } from "../../lib/files/node.ts";
 import { isName } from "./agent-config.ts";
-import { compare, readText, replaceFile } from "./files.node.ts";
 import type { HomePaths } from "./layout.node.ts";
 import { loadHome } from "./load.node.ts";
 import {
@@ -92,7 +93,7 @@ export async function saveTrigger(home: string, draft: TriggerDraft): Promise<{ 
   const file = triggerFile(paths, draft.name);
   const replaced = existsSync(file);
   await mkdir(paths.triggers, { recursive: true });
-  await replaceFile(file, draft.text);
+  saveFile(file, draft.text);
   return { file, replaced };
 }
 
@@ -122,7 +123,7 @@ export async function switchTrigger(
   if (definition.enabled !== enabled) {
     throw new TriggerFileError("it has an enabled line that cannot be changed here: edit the file by hand");
   }
-  await replaceFile(file, text);
+  saveFile(file, text);
   return { file, definition, changed: true };
 }
 

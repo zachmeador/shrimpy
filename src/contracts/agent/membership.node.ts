@@ -1,5 +1,6 @@
-import { mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { saveFile } from "../../lib/files/node.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
 import type { Entry } from "../gateway/index.ts";
 import { type Membership, membershipFile } from "./membership.ts";
@@ -39,7 +40,5 @@ export function readMembership(home: string): Membership | undefined {
 export function saveMembership(home: string, membership: Membership): void {
   const file = membershipFile(home);
   mkdirSync(dirname(file), { recursive: true });
-  const unfinished = `${file}.${String(process.pid)}`;
-  writeFileSync(unfinished, `${JSON.stringify(membership, null, 2)}\n`, { mode: 0o600 });
-  renameSync(unfinished, file);
+  saveFile(file, `${JSON.stringify(membership, null, 2)}\n`, { mode: 0o600 });
 }

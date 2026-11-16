@@ -1,4 +1,5 @@
-import { mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
+import { saveFile } from "../../lib/files/node.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
 import type { Entry } from "./address.ts";
 import { type Machine, machineFile } from "./machine.ts";
@@ -39,7 +40,5 @@ export function readMachine(folder: string): Machine | undefined {
 export function saveMachine(folder: string, machine: Machine): void {
   const file = machineFile(folder);
   mkdirSync(folder, { recursive: true });
-  const unfinished = `${file}.${String(process.pid)}`;
-  writeFileSync(unfinished, `${JSON.stringify(machine, null, 2)}\n`, { mode: 0o600 });
-  renameSync(unfinished, file);
+  saveFile(file, `${JSON.stringify(machine, null, 2)}\n`, { mode: 0o600 });
 }

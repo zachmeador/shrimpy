@@ -1,5 +1,6 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { saveFile } from "../../lib/files/node.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
 import { type ModelChoice, readModelChoice } from "./agent-config.ts";
 
@@ -16,5 +17,5 @@ export function readDefaultModel(file: string): ModelChoice | undefined {
 export function saveDefaultModel(file: string, model: ModelChoice): void {
   mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
   const text = `${JSON.stringify({ provider: model.provider, id: model.id }, null, 2)}\n`;
-  writeFileSync(file, text, { flag: "wx" });
+  saveFile(file, text, { onlyNew: true });
 }

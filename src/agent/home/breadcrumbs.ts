@@ -1,7 +1,8 @@
 import type { Dirent } from "node:fs";
 import { mkdir, open, readdir, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { compare, replaceFile } from "../../contracts/agent/node.ts";
+import { compare } from "../../lib/files/index.ts";
+import { saveFile } from "../../lib/files/node.ts";
 import { cutText } from "./files.ts";
 import type { HomePaths } from "./layout.ts";
 
@@ -67,7 +68,7 @@ async function startOf(file: string): Promise<string | undefined> {
  */
 export async function writeBreadcrumb(paths: HomePaths, name: string, text: string): Promise<void> {
   await mkdir(paths.breadcrumbs, { recursive: true });
-  await replaceFile(join(paths.breadcrumbs, `${name}.md`), text);
+  saveFile(join(paths.breadcrumbs, `${name}.md`), text);
 }
 
 /** Delete the breadcrumb `<name>.md`, when the fact it told is no longer one. A breadcrumb that is not there is no problem. */

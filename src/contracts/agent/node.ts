@@ -3,14 +3,12 @@
  * home by the home's path, on its own socket, and reading and keeping the
  * membership the home holds. It also has the rest of a home's files that the
  * agent and the `shrimpy` command share: where they are, making and loading a
- * home, the wake file, the trigger files and their schedules, and how a home's
- * files are read and written whole, so that a reader never sees half of one;
- * and the `providers/` directory of the folder agents are started in, with its
+ * home, the wake file, the trigger files and their schedules; and the
+ * `providers/` directory of the folder agents are started in, with its
  * default model. Browser code must not import this file.
  */
 export { AgentNotRunningError, connectHome, type ConnectHomeOptions, type HomeClient, readEndpoint } from "./connect.node.ts";
 export { readDefaultModel, saveDefaultModel } from "./default-model.node.ts";
-export { codeOf, compare, type LeftOut, readText, replaceFile, why } from "./files.node.ts";
 export { type InitOptions, type InitResult, initHome } from "./init.node.ts";
 export { type HomePaths, homePaths, type ProviderPaths, providerPaths } from "./layout.node.ts";
 export { type LoadedHome, loadHome } from "./load.node.ts";

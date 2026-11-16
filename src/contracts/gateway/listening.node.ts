@@ -1,6 +1,7 @@
-import { mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { BlockList, isIP } from "node:net";
 import { dirname, join } from "node:path";
+import { saveFile } from "../../lib/files/node.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
 import { type Address, formatAddress } from "./address.ts";
 
@@ -26,9 +27,7 @@ export function keptListenAddresses(dataDir: string): Address[] {
 export function keepListenAddresses(dataDir: string, addresses: readonly Address[]): void {
   const file = listenAddressesFile(dataDir);
   mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-  const unfinished = `${file}.${String(process.pid)}`;
-  writeFileSync(unfinished, `${JSON.stringify({ addresses }, null, 2)}\n`, { mode: 0o600 });
-  renameSync(unfinished, file);
+  saveFile(file, `${JSON.stringify({ addresses }, null, 2)}\n`, { mode: 0o600 });
 }
 
 const EVERY_INTERFACE = new BlockList();

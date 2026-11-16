@@ -1,4 +1,4 @@
-import { renameSync, rmSync, writeFileSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { createHost, type Facet, type Host, type HostError } from "@earendil-works/chord";
 import { nodeCompression } from "@earendil-works/chord/compression";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
@@ -15,6 +15,7 @@ import {
   turnAway,
   welcome,
 } from "../contracts/gateway/index.ts";
+import { saveFile } from "../lib/files/node.ts";
 import { type Greeted, type Listener, listen } from "../lib/link/node.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 
@@ -103,10 +104,7 @@ export async function startServer(options: ServerOptions): Promise<AgentServer> 
     rmSync(socket, { force: true });
     listener = await listen({ path: socket }, greeter(host), { onError: (error) => options.onError(error as Error) });
     const endpoint: AgentEndpoint = { socket, name: options.name, pid: process.pid };
-    // Written whole or not at all, so nobody reads half of it.
-    const unfinished = `${endpointFile(options.home)}.${String(process.pid)}`;
-    writeFileSync(unfinished, JSON.stringify(endpoint));
-    renameSync(unfinished, endpointFile(options.home));
+    saveFile(endpointFile(options.home), JSON.stringify(endpoint));
     return { host, endpoint, close: closeAll };
   } catch (error) {
     await closeAll().catch(() => undefined);

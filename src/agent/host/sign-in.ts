@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { type AuthEvent, type AuthPrompt, createModels, ModelsError, type Provider } from "@earendil-works/pi-ai";
 import { type ProviderPaths, providerPaths } from "../../contracts/agent/node.ts";
+import { codeOf } from "../../lib/files/index.ts";
+import { saveFile } from "../../lib/files/node.ts";
 import { credentialStore, NO_AMBIENT_AUTH } from "./credentials.ts";
 import { CHECKED_SUBSCRIPTIONS, type Withheld, whyWithheld } from "./subscriptions.ts";
 
@@ -204,7 +206,7 @@ function readDeviceId(file: string): string | undefined {
   try {
     return readFileSync(file, "utf8").trim() || undefined;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    if (codeOf(error) === "ENOENT") return undefined;
     throw error;
   }
 }
@@ -213,13 +215,13 @@ function makeDeviceId(file: string): string {
   const id = randomUUID();
   mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
   try {
-    writeFileSync(file, `${id}\n`, { flag: "wx", mode: 0o600 });
+    saveFile(file, `${id}\n`, { mode: 0o600, onlyNew: true });
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    if (codeOf(error) !== "EEXIST") throw error;
     // Another sign-in made one first, and that one is the folder's. An empty file is one nobody finished.
     const existing = readDeviceId(file);
     if (existing !== undefined) return existing;
-    writeFileSync(file, `${id}\n`, { mode: 0o600 });
+    saveFile(file, `${id}\n`, { mode: 0o600 });
   }
   return id;
 }

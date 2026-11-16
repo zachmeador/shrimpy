@@ -1,5 +1,6 @@
+import type { LeftOut } from "../../lib/files/index.ts";
+import { readText, saveFile } from "../../lib/files/node.ts";
 import { ConfigError } from "../../lib/json-config/index.ts";
-import { type LeftOut, readText, replaceFile } from "./files.node.ts";
 import type { HomePaths } from "./layout.node.ts";
 import { loadHome } from "./load.node.ts";
 import { parseWake, type WakePolicy, type WakeSettings } from "./wake.ts";
@@ -39,6 +40,6 @@ export async function saveWake(home: string, room: string, policy: WakePolicy): 
   const wanted = room.toLowerCase();
   const others = Object.entries(read.settings).filter(([name]) => name.toLowerCase() !== wanted);
   const settings: WakeSettings = { ...Object.fromEntries(others), [room]: policy };
-  await replaceFile(paths.wake, `${JSON.stringify({ rooms: settings }, null, 2)}\n`);
+  saveFile(paths.wake, `${JSON.stringify({ rooms: settings }, null, 2)}\n`);
   return { file: paths.wake, settings };
 }

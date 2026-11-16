@@ -1,4 +1,4 @@
-import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import type {
@@ -8,6 +8,7 @@ import type {
   CredentialInfo,
   CredentialStore,
 } from "@earendil-works/pi-ai";
+import { saveFile } from "../../lib/files/node.ts";
 import { type ConfigObject, parseConfig } from "../../lib/json-config/index.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
 import { type Lock, takeLock } from "../../lib/lock/node.ts";
@@ -163,30 +164,15 @@ export function checkKeyAsWritten(owner: ConfigObject, field: string, key: strin
 }
 
 /**
- * Write the whole file, every entry as it was apart from the one that changed:
- * to a file of its own first, then renamed over it, so that a reader or a crash
- * sees the old file or the new one and never half of either.
+ * Write the file with every entry as it was apart from the one that changed,
+ * saved whole, so that a reader or a crash sees the old file or the new one and
+ * never half of either.
  */
 function writeEntries(file: string, entries: ReadonlyMap<string, Credential>): void {
   const text = `${JSON.stringify(Object.fromEntries(entries), null, 2)}\n`;
   // What is written must read back, so a sign-in that came back wrong can't replace a file that works.
   entriesOf(parseConfig(text, file));
-  const unfinished = `${file}.tmp`;
-  // Only a holder of the lock writes, so anything here is left by one that died.
-  rmSync(unfinished, { force: true });
-  try {
-    const written = openSync(unfinished, "wx", 0o600);
-    try {
-      writeFileSync(written, text);
-      fsyncSync(written);
-    } finally {
-      closeSync(written);
-    }
-    renameSync(unfinished, file);
-  } catch (error) {
-    rmSync(unfinished, { force: true });
-    throw error;
-  }
+  saveFile(file, text, { mode: 0o600 });
 }
 
 /** Run `work` while holding the lock on `file`, in a directory that is made private if it is missing. */

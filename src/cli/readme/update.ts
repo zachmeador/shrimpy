@@ -1,6 +1,7 @@
 /** Rewrites the README's table of commands from the commands the CLI has: `npm run readme`. */
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { saveFile } from "../../lib/files/node.ts";
 import { loadAll } from "../commands/index.ts";
 import { commandTable, withCommandTable } from "./index.ts";
 
@@ -10,6 +11,6 @@ const after = withCommandTable(before, commandTable(await loadAll()));
 if (after === before) {
   console.log("README.md already lists the commands the CLI has.");
 } else {
-  writeFileSync(file, after);
+  saveFile(file, after);
   console.log("README.md now lists the commands the CLI has.");
 }

@@ -1,7 +1,8 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type CommitPublication, defineExtension, type Extension, type Harness } from "@earendil-works/pi-durable";
 import type { Occurrence as OccurrenceView, TriggerDetail, TriggerSummary } from "../../contracts/agent/index.ts";
-import type { LeftOut, TriggerFiles } from "../../contracts/agent/node.ts";
+import type { TriggerFiles } from "../../contracts/agent/node.ts";
+import { compare, type LeftOut } from "../../lib/files/index.ts";
 import { type FollowAttach, follow } from "../../lib/follow/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
@@ -140,7 +141,7 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
     const last = new Map<string, OccurrenceView>();
     for (const { trigger, view } of await occurrences(harness)) last.set(trigger, view);
     return Object.keys(triggers)
-      .sort(byName)
+      .sort(compare)
       .map((name) => summaryOf(triggers[name]!, times.get(name), last.get(name)));
   };
 
@@ -224,4 +225,3 @@ const noTrigger = (name: string): string => `This agent has no trigger called ${
 
 const changed = (name: string): string => `The trigger ${name} was changed as it was being run, so it did not run. Run it again.`;
 
-const byName = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);

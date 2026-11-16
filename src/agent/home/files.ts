@@ -1,5 +1,5 @@
 import { isAbsolute, relative, sep } from "node:path";
-import type { LeftOut } from "../../contracts/agent/node.ts";
+import type { LeftOut } from "../../lib/files/index.ts";
 
 /** A left-out file as a sentence, which is how the agent says it on standard error and in the breadcrumb it leaves. */
 export const leftOutSentence = ({ file, reason }: LeftOut): string => `${file} was left out: ${reason}.`;

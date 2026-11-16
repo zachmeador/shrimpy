@@ -1,4 +1,5 @@
 import type { Thread, Working } from "../../contracts/chat/index.ts";
+import { compare } from "../../lib/files/index.ts";
 import { createListeners } from "../../lib/listeners/index.ts";
 import type { ThreadRecord } from "../store/index.ts";
 
@@ -80,7 +81,7 @@ export function createWorkingMarks(options: WorkingMarksOptions = {}): WorkingMa
       const marks = byThread.get(threadId) ?? new Map<string, Mark>();
       return [...marks]
         .map(([memberId, mark]) => ({ memberId, since: mark.since }))
-        .sort((a, b) => a.since - b.since || (a.memberId < b.memberId ? -1 : 1));
+        .sort((a, b) => a.since - b.since || compare(a.memberId, b.memberId));
     },
     subscribe: (listener) => watchers.add(listener),
   };

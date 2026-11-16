@@ -1,13 +1,11 @@
 import type { Api, Model, Models } from "@earendil-works/pi-ai";
 import type { ModelRef } from "@earendil-works/pi-durable";
 import type { AgentModels } from "../../contracts/agent/index.ts";
+import { compare } from "../../lib/files/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 
 /** How many a refusal lists before it says how many more there are. */
 const LISTED = 12;
-
-/** Plain order of the characters, which does not change with the machine's language. */
-const plain = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 /** What went wrong, with the cause under it when there is one. */
 function why(error: unknown): string {
@@ -40,7 +38,7 @@ export async function listModels(models: Models, home: ModelRef): Promise<AgentM
   return {
     models: found
       .map(({ provider, id, name }) => ({ provider, id, name }))
-      .sort((a, b) => plain(a.provider, b.provider) || plain(a.id, b.id)),
+      .sort((a, b) => compare(a.provider, b.provider) || compare(a.id, b.id)),
     default: { provider: home.provider, id: home.modelId },
   };
 }
@@ -53,10 +51,10 @@ export async function requireModel(models: Models, wanted: ModelRef): Promise<vo
   if (ofProvider.length > 0) {
     refuse(
       `The provider "${wanted.provider}" has no model "${wanted.modelId}" that this agent can use. ` +
-        `It can use: ${listed(ofProvider.sort(plain))}.`,
+        `It can use: ${listed(ofProvider.sort(compare))}.`,
     );
   }
-  const providers = [...new Set(found.map(({ provider }) => provider))].sort(plain);
+  const providers = [...new Set(found.map(({ provider }) => provider))].sort(compare);
   if (providers.length === 0) refuse("This agent can't use any model yet: no provider has a key, a sign-in or a model server.");
   const reason =
     models.getProvider(wanted.provider) === undefined
