@@ -1,6 +1,8 @@
-import { constant, defineFacet, type Facet } from "@earendil-works/chord";
+import { constant, defineFacet, type Facet, type FollowAttach } from "@earendil-works/chord";
+import type { JsonValue } from "@earendil-works/chord/json";
 import { Channel, Chat, ChatPresence, type Member, Thread } from "../../contracts/chat/index.ts";
 import type { Principal, Way } from "../../contracts/gateway/index.ts";
+import { follow } from "../../lib/follow/index.ts";
 import type { LiveIdentity } from "../identity/index.ts";
 import { events } from "../offers/index.ts";
 import { answer, refuse } from "../refusal/index.ts";
@@ -26,7 +28,6 @@ import {
   threadView,
   unreact,
 } from "../threads/index.ts";
-import { live, type Watch } from "./live.ts";
 
 /** What the objects are served from: the operations' own, with the roster as it is followed. */
 export type ServedDeps = ChatDeps & { readonly identity: LiveIdentity };
@@ -46,28 +47,43 @@ function samePrincipal(a: Principal, b: Principal): boolean {
 }
 
 /**
- * What tells a view that something it is worked out from may have changed:
- * changes in the store that `wants` picks, any change of the working marks
- * that `marks` picks, and any change of the roster.
+ * What `self.follow` takes for a view that `view` works out: once the roster is
+ * known, it is read, and read again whenever something it is worked out from
+ * may have changed: a change in the store that `wants` picks, a change of the
+ * working marks in a thread that `marks` picks, each by the view as it was last
+ * read, and any change of the roster. Each reading comes at once, beside the
+ * store, so nothing polls.
  */
-function watching<T>(
+function followed<T extends JsonValue>(
   deps: ServedDeps,
-  wants: (change: Change, current: T) => boolean,
-  marks: (threadId: string, current: T) => boolean,
-): Watch<T> {
-  return (changed, current) => {
-    const stops = [
-      deps.store.subscribe((change) => {
-        if (wants(change, current())) changed();
-      }),
-      deps.working.subscribe((threadId) => {
-        if (marks(threadId, current())) changed();
-      }),
-      deps.identity.subscribe(changed),
-    ];
-    return () => {
-      for (const stop of stops) stop();
-    };
+  view: () => T,
+  wants: (change: Change, last: T) => boolean,
+  marks: (threadId: string, last: T) => boolean,
+): FollowAttach<T> {
+  let last: T | undefined;
+  const attach = follow({
+    read() {
+      last = view();
+      return last;
+    },
+    watch(changed) {
+      const stops = [
+        deps.store.subscribe((change) => {
+          if (last === undefined || wants(change, last)) changed();
+        }),
+        deps.working.subscribe((threadId) => {
+          if (last === undefined || marks(threadId, last)) changed();
+        }),
+        deps.identity.subscribe(changed),
+      ];
+      return () => {
+        for (const stop of stops) stop();
+      };
+    },
+  });
+  return async (observer, context) => {
+    await deps.identity.known(context.abortSignal);
+    return attach(observer, context);
   };
 }
 
@@ -79,8 +95,6 @@ function watching<T>(
  * roster as it is now.
  */
 export function chatFacet(deps: ServedDeps): Facet<Principal> {
-  const ready = (signal: AbortSignal | undefined): Promise<void> => deps.identity.known(signal);
-
   /** The caller, as a method needs it: a member, recorded in the store as the roster names it now. */
   const callerOf = (principal: Principal): Member => {
     const member = whoIs(deps, principal) ?? refuse(NOT_A_MEMBER);
@@ -99,14 +113,15 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
       // Positions only grow, so each reading of the head starts where the last one ended.
       let since = 0;
       const state = self.follow(
-        live(
+        followed(
+          deps,
           () => {
             const view = chatView(deps, whoIs(deps, principal), since);
             since = view.head;
             return view;
           },
-          watching(deps, (change) => change.kind !== "thread", () => false),
-          ready,
+          (change) => change.kind !== "thread",
+          () => false,
         ),
       );
 
@@ -159,14 +174,11 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
 
     host.serve(Channel, ({ channel: channelId }, principal, self) => {
       const state = self.follow(
-        live(
+        followed(
+          deps,
           () => channelView(deps, whoIs(deps, principal), channelId),
-          watching(
-            deps,
-            (change) => change.channelId === channelId,
-            (threadId, current) => current.threads.some((thread) => thread.id === threadId),
-          ),
-          ready,
+          (change) => change.channelId === channelId,
+          (threadId, last) => last.threads.some((thread) => thread.id === threadId),
         ),
       );
       const caller = (): Member => callerOf(principal);
@@ -184,18 +196,13 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
 
     host.serve(Thread, ({ thread: threadId }, principal, self) => {
       const state = self.follow(
-        live(
+        followed(
+          deps,
           () => threadView(deps, whoIs(deps, principal), threadId),
-          watching(
-            deps,
-            // A refused view doesn't show its channel, and a member let in to a channel is let in by a channel's change.
-            (change, current) =>
-              change.kind === "channel"
-                ? current.thread === null || change.channelId === current.thread.channelId
-                : change.threadId === threadId,
-            (marked) => marked === threadId,
-          ),
-          ready,
+          // A refused view doesn't show its channel, and a member let in to a channel is let in by a channel's change.
+          (change, last) =>
+            change.kind === "channel" ? last.thread === null || change.channelId === last.thread.channelId : change.threadId === threadId,
+          (marked) => marked === threadId,
         ),
       );
       const caller = (): Member => callerOf(principal);

@@ -5,7 +5,7 @@ import type { JsonValue } from "@earendil-works/chord/json";
 
 /** A value worked out from things that tell when they change. */
 export interface Followed<T> {
-  /** Work the value out. It may take its time. */
+  /** Work the value out, at once or in its own time. */
   read(): T | Promise<T>;
   /** Start being told when something the value is worked out from may have changed. Returns what stops that. */
   watch(changed: () => void): () => void;
@@ -15,9 +15,11 @@ export interface Followed<T> {
  * What Chord's `self.follow` takes for a value `followed` works out: it is read
  * when the object attaches, and again whenever `followed` says something may
  * have changed, one reading at a time, with one more after a reading that a
- * change came during. Followers are told only what changed, as Chord's ops. A
- * reading that fails after the first ends the source as failed, which Chord
- * answers by attaching again. Nothing polls.
+ * change came during. A reading that comes at once is taken in the same turn as
+ * the change, so the answer to a call that made the change comes after it, as
+ * Chord promises for what is changed before answering. Followers are told only
+ * what changed, as Chord's ops. A reading that fails after the first ends the
+ * source as failed, which Chord answers by attaching again. Nothing polls.
  */
 export function follow<T extends JsonValue>(followed: Followed<T>): FollowAttach<T> {
   return async (observer) => {
@@ -29,7 +31,7 @@ export function follow<T extends JsonValue>(followed: Followed<T>): FollowAttach
     // under way, so a change during it waits for it.
     const stop = followed.watch(() => {
       state.changed = true;
-      if (!state.reading && !detached()) void reread();
+      if (!state.reading && !detached()) reread();
     });
     let current: T;
     try {
@@ -41,30 +43,49 @@ export function follow<T extends JsonValue>(followed: Followed<T>): FollowAttach
       state.reading = false;
     }
 
-    async function reread(): Promise<void> {
+    const take = (next: T): void => {
+      if (detached()) return;
+      const ops = diffRevisions(current, next);
+      if (ops.length === 0) return;
+      current = next;
+      observer.advance({ kind: "value", value: next, ops, retired: false }, BACKGROUND_CONTEXT);
+    };
+
+    const fail = (error: unknown): void => {
+      state.reading = false;
+      if (detached()) return;
+      state.detached = true;
+      stop();
+      observer.end({ kind: "failed", error });
+    };
+
+    function reread(): void {
       state.reading = true;
       try {
         while (changed() && !detached()) {
           state.changed = false;
-          const next = await followed.read();
-          if (detached()) return;
-          const ops = diffRevisions(current, next);
-          if (ops.length === 0) continue;
-          current = next;
-          observer.advance({ kind: "value", value: next, ops, retired: false }, BACKGROUND_CONTEXT);
+          const next = followed.read();
+          if (next instanceof Promise) {
+            void next
+              .then((value) => {
+                take(value);
+                state.reading = false;
+                if (changed() && !detached()) reread();
+              })
+              .catch(fail);
+            return;
+          }
+          take(next);
         }
       } catch (error) {
-        if (detached()) return;
-        state.detached = true;
-        stop();
-        observer.end({ kind: "failed", error });
-      } finally {
-        state.reading = false;
+        fail(error);
+        return;
       }
+      state.reading = false;
     }
 
     // A change that came while the first reading was under way is read again now.
-    if (changed()) void reread();
+    if (changed()) reread();
     return {
       value: current,
       detach() {
