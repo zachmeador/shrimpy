@@ -10,7 +10,7 @@ import {
   Thread,
 } from "../../contracts/chat/index.ts";
 import type { Answer, Principal, Refused, Revocation } from "../../contracts/gateway/index.ts";
-import { createListeners, type Listeners } from "../../lib/listeners/index.ts";
+import { createListeners, type Listeners, untilAborted, untilHeard } from "../../lib/listeners/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 
 /**
@@ -122,23 +122,13 @@ function callsOver(host: Host<Principal, Revocation>, chat: Held<typeof Chat>, m
     head: () => chat.head.value,
     untilHead(after, signal) {
       if (chat.head.value > after) return Promise.resolve();
-      return new Promise((resolve, reject) => {
-        const stop = moved.add(() => {
-          if (chat.head.value <= after) return;
-          cleanup();
-          resolve();
-        });
-        const cancel = (): void => {
-          cleanup();
-          reject(reasonOf(signal));
-        };
-        function cleanup(): void {
-          stop();
-          signal.removeEventListener("abort", cancel);
-        }
-        if (signal.aborted) return cancel();
-        signal.addEventListener("abort", cancel, { once: true });
-      });
+      return untilHeard(
+        (heard) =>
+          moved.add(() => {
+            if (chat.head.value > after) heard();
+          }),
+        signal,
+      );
     },
     channels: () => chat.channels.value,
     async events(after, limit, signal) {
@@ -168,23 +158,6 @@ function callsOver(host: Host<Principal, Revocation>, chat: Held<typeof Chat>, m
 
 /** How long a call that failed for want of its link waits for the loss of chat to be known, before it counts as its own failure. */
 const LOSS_FOLLOWS_MS = 5_000;
-
-/** Resolves when any of `signals` aborts. */
-function ended(...signals: AbortSignal[]): Promise<void> {
-  return new Promise((resolve) => {
-    const finish = (): void => {
-      for (const signal of signals) signal.removeEventListener("abort", finish);
-      resolve();
-    };
-    for (const signal of signals) signal.addEventListener("abort", finish, { once: true });
-    if (signals.some((signal) => signal.aborted)) finish();
-  });
-}
-
-function reasonOf(signal: AbortSignal): Error {
-  const reason: unknown = signal.reason;
-  return reason instanceof Error ? reason : new DOMException("The wait was cancelled", "AbortError");
-}
 
 /**
  * Hold `Chat` through `host`, which has loaded, for as long as the link is
@@ -271,22 +244,7 @@ export function openChatLink(
     const now = current();
     if (now !== undefined) return Promise.resolve(now);
     if (closed) return Promise.reject(new Error("The link to chat is closed."));
-    return new Promise((resolve, reject) => {
-      const stop = arrivals.add((live) => {
-        cleanup();
-        resolve(live);
-      });
-      const cancel = (): void => {
-        cleanup();
-        reject(reasonOf(signal));
-      };
-      function cleanup(): void {
-        stop();
-        signal.removeEventListener("abort", cancel);
-      }
-      if (signal.aborted) return cancel();
-      signal.addEventListener("abort", cancel, { once: true });
-    });
+    return untilHeard((heard) => arrivals.add(heard), signal);
   };
 
   return {
@@ -302,7 +260,9 @@ export function openChatLink(
           const lost = (): boolean => live.lost.aborted;
           // A call can fail for the lost link a moment before the loss is known here. A failure that no loss follows
           // soon is the call's own.
-          if (!cancelled() && !lost() && isUnavailable(error)) await ended(live.lost, signal, AbortSignal.timeout(LOSS_FOLLOWS_MS));
+          if (!cancelled() && !lost() && isUnavailable(error)) {
+            await untilAborted(AbortSignal.any([live.lost, signal, AbortSignal.timeout(LOSS_FOLLOWS_MS)]));
+          }
           if (cancelled() || !lost()) throw error;
         }
       }

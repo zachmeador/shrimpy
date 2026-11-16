@@ -1,7 +1,7 @@
 import type { Held, Host } from "@earendil-works/chord";
 import type { Context } from "@earendil-works/chord/context";
 import { type Member, type Principal, type Revocation, Roster, type RosterEntry } from "../../contracts/gateway/index.ts";
-import { createListeners } from "../../lib/listeners/index.ts";
+import { createListeners, untilHeard } from "../../lib/listeners/index.ts";
 
 /** The roster as the agent holds it at the gateway, followed live. */
 export interface LiveRoster {
@@ -45,19 +45,7 @@ export function createRoster(onError: (error: Error) => void): LiveRoster {
     now: () => (entries === undefined || self === undefined ? undefined : { members: entries, you: self }),
     known(signal) {
       if (entries !== undefined && self !== undefined) return Promise.resolve();
-      return new Promise((resolve, reject) => {
-        const stop = changed.add(() => {
-          stop();
-          signal?.removeEventListener("abort", abort);
-          resolve();
-        });
-        function abort(): void {
-          stop();
-          reject(signal?.reason instanceof Error ? signal.reason : new Error("Stopped waiting for the roster."));
-        }
-        if (signal?.aborted === true) abort();
-        else signal?.addEventListener("abort", abort, { once: true });
-      });
+      return untilHeard((heard) => changed.add(() => heard()), signal);
     },
     subscribe: (listener) => changed.add(listener),
     follow(host, context) {

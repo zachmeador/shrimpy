@@ -33,7 +33,8 @@ export async function keepRunning(options: KeepRunningOptions): Promise<void> {
   }
 }
 
-function pause(ms: number, signal: AbortSignal): Promise<void> {
+/** Wait `ms` milliseconds, or less if `signal` aborts. It never rejects: whoever is waiting looks at the signal. */
+export function pause(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
     const timer = setTimeout(finish, ms);
     signal.addEventListener("abort", finish, { once: true });
@@ -42,5 +43,6 @@ function pause(ms: number, signal: AbortSignal): Promise<void> {
       signal.removeEventListener("abort", finish);
       resolve();
     }
+    if (signal.aborted) finish();
   });
 }

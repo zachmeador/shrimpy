@@ -1,13 +1,13 @@
 import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
+import { createListeners, untilAborted, untilHeard } from "../../lib/listeners/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
-import { type Backoff, backoff } from "../../lib/retry/index.ts";
+import { type Backoff, backoff, pause } from "../../lib/retry/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { hasReceipt, idOf, isOccurrence, isQuestion, isWakeup, type Outstanding, threadOf, type TurnOutcome } from "../inputs/index.ts";
 import type { ChatLink, LiveChat } from "../links/index.ts";
 import type { Look } from "../questions/index.ts";
 import type { Delivery } from "../turns/index.ts";
 import { deliver, hasReply } from "./deliver.ts";
-import { orAborted, pause, untilAborted } from "./pause.ts";
 import { lookAt } from "./questions.ts";
 
 export interface DeliveryOptions {
@@ -63,10 +63,8 @@ export function createDelivery(options: DeliveryOptions): ChatDelivery {
   };
   const newBackoff = options.backoff ?? backoff;
   const closing = new AbortController();
-  let attached: (link: ChatLink) => void = () => undefined;
-  const linked = new Promise<ChatLink>((resolve) => {
-    attached = resolve;
-  });
+  let linked: ChatLink | undefined;
+  const attached = createListeners<ChatLink>(onError);
 
   /**
    * Run `work` over the agent's way to chat, waiting for chat when it is not there
@@ -83,7 +81,8 @@ export function createDelivery(options: DeliveryOptions): ChatDelivery {
     const pauses = newBackoff();
     for (;;) {
       try {
-        const link = await orAborted(linked, stop);
+        stop.throwIfAborted();
+        const link = linked ?? (await untilHeard<ChatLink>((heard) => attached.add(heard), stop));
         return await link.use(work, stop);
       } catch (error) {
         // The engine is closing: the task stays where it is for the next start.
@@ -104,7 +103,10 @@ export function createDelivery(options: DeliveryOptions): ChatDelivery {
   }
 
   return {
-    attach: (link) => attached(link),
+    attach(link) {
+      linked = link;
+      attached.notify(link);
+    },
     async tell(outstanding, outcome, signal) {
       // A wake-up or an occurrence with no reply to post, or with no thread to post it to, has nobody to tell, and
       // chat being away is no reason to hold its task.

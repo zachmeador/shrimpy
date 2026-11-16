@@ -1,13 +1,12 @@
 import { DEFAULT_WAKE_POLICY, type WakePolicy } from "../../contracts/agent/index.ts";
 import { agentCommandIn, type Channel, type ChatEvent } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
-import { type Backoff, backoff } from "../../lib/retry/index.ts";
+import { type Backoff, backoff, pause } from "../../lib/retry/index.ts";
 import type { ChatLink, LiveChat } from "../links/index.ts";
 import type { Admissions } from "./admissions.ts";
 import { takeUpAnswer } from "./answer.ts";
 import { knownChannels } from "./channels.ts";
 import { commandFor, obey } from "./commands.ts";
-import { pause } from "./pause.ts";
 import { inPlace } from "./place.ts";
 import { resultOf, toQuestion } from "./questions.ts";
 import { inRoom } from "./room.ts";
