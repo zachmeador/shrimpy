@@ -77,6 +77,11 @@ export function listedIn(where: Extract<Where, { screen: "thread" | "session" }>
   return agent === undefined ? where.place : { kind: "agent", name: agent };
 }
 
+/** Whether the session on show is watched whole, which reads it back from where its window starts: one behind no thread, or a thread turned over. */
+export function watchedWhole(where: Where): boolean {
+  return where.screen === "session" || (where.screen === "thread" && where.turned === true);
+}
+
 /** The name of the agent whose screen, or whose thread or session, is on show, if the person is looking at an agent's. */
 export function agentLookedAt(where: Where): string | undefined {
   switch (where.screen) {
@@ -486,6 +491,33 @@ export function partsOf(model: Model, agent: string): Part[] {
 export interface Farewell {
   agent: string;
   thread: string;
+}
+
+/**
+ * The work that goes on if the console is left now, if there is any. Of the
+ * agent whose thread is on screen, that thread comes first; then, for each
+ * agent, the newest of the person's threads that it is working in.
+ */
+export function farewellOf(model: Model): Farewell | undefined {
+  const { where } = model;
+  const entries = agentEntries(model);
+  // A thread of a room has no one agent to name, unless it was opened from an agent's screen.
+  const shown = agentLookedAt(where);
+  const names = [...(shown === undefined ? [] : [shown]), ...entries.map((entry) => entry.name)];
+  for (const name of new Set(names)) {
+    const id = entries.find((entry) => entry.name === name)?.id;
+    if (id === undefined) continue;
+    // A session that was working when the agent went away is not working now, whatever its last view says.
+    const sessionWorking = model.session?.status.busy === true && model.agent?.state === "up";
+    const onScreen =
+      where.screen === "thread" && shown === name && where.thread !== undefined
+        ? { thread: where.thread, working: sessionWorking || (model.thread !== undefined && workingIn(model.thread.thread, id)) }
+        : undefined;
+    if (onScreen?.working === true) return { agent: name, thread: onScreen.thread };
+    const working = model.dms[name]?.threads.find((each) => workingIn(each, id));
+    if (working !== undefined) return { agent: name, thread: working.id };
+  }
+  return undefined;
 }
 
 export type SendResult = { ok: true } | { ok: false };
