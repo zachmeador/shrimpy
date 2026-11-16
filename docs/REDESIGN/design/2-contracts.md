@@ -198,6 +198,8 @@ Server IDs go, with the paths that carried tickets and answered calls, `reachPro
 
 *Versions.* Every type starts at version 1. Any change bumps it with Chord's `evolve`, and the program that serves the type maps each older version it still takes with `checkAccepts`. A consumer newer than the program that serves it waits with `contract_mismatch`, so a provider updates before its consumers. An agent apart serves the agent contract to the gateway's machine and uses the chat and gateway contracts served there, so a release that changes contracts on both sides of a link between machines reaches every machine together, as a change of Pi packages does. Any other release reaches the machines one at a time, each provider before its consumers, and `shrimpy update` says which kind a release is from what it changes. `Presence` has no members, so it never needs a new version.
 
+*Files.* `contracts/` also holds the files the `shrimpy` command shares with a program: a home's layout, `agent.json`, its wake and trigger files and its membership, the folder's default model, what a machine of yours keeps, and the addresses the gateway keeps. They aren't Chord objects and carry no version, since each is written and read on one machine by the command and the programs installed with it.
+
 *Connecting.* Before any of Chord's traffic, a caller and the gateway trade one JSON text frame each.
 
 **The transport** is a WebSocket: over the gateway's Unix socket on its machine, over its entry from anywhere else, and later over its entry for a browser.

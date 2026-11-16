@@ -8,22 +8,25 @@ The tree is organized by program. Shrimpy is three programs (an agent, the chat 
 
 ```text
 src/
-  contracts/        the only code programs share: each contract's Chord object types and the shapes they carry
+  contracts/        the only code programs share: each contract's Chord object types and the shapes they carry,
+                    and the files a home, the folder and the gateway keep that the `shrimpy` command shares
     agent/          Agent, Session and AgentPresence at agent({ name }), the shapes the agent builds, one sentence
                     for each way a turn ends without an answer, and linking to an agent by its home's path, with
-                    the membership a home keeps
+                    the membership a home keeps; a home's layout, `agent.json`, its wake and trigger files and
+                    their schedules, making a home, the folder's default model and where it keeps sign-ins
     chat/           Chat, Channel, Thread and ChatPresence at chat(): channels, threads, messages, events and
                     receipts, and the commands a person writes for agents
     gateway/        what every contract shares (the hosts and their addresses, who is asking, a method's answer or
                     refusal, and the hello before Chord), Roster at gateway(), and the invitation's link and what a
-                    machine of yours keeps; through node.ts, the one dial every link and join starts with, and
-                    keeping a program or a client linked
+                    machine of yours keeps; through node.ts, the one dial every link and join starts with,
+                    keeping a program or a client linked, and the addresses the gateway keeps between starts
   agent/            the agent program, one process per home, whose files at the top make its host, serve its
                     objects and wire the modules together
-    home/           home layout, agent.json, resource and skill selection, model policy, credential paths
+    home/           what the agent alone reads of its home: where it keeps its own files, its instructions,
+                    context and skills in one snapshot, its breadcrumbs, and the look for changes
     host/           owner lock, model runtime and provider login, registry, environment, storage, supervision
     links/          its link to the gateway, kept as the agent, over which requests for it arrive and it holds the
-                    roster and chat, and joining from apart with an invitation
+                    roster and chat
     access/         who is asking, from a request's stamp and the roster as it is now, and what they may do
     inputs/         what an input is, from any source, how it reads to the model, and how its turn can end
     records/        Shrimpy's own documents in the engine's storage, and the changes to a session's record
@@ -58,7 +61,7 @@ src/
                     holds at every program it knows
     served/         Roster for each caller, and what each caller may do with it
     invitations/    invitations in flight: a code that lets one agent, or one device of yours, in from apart
-    listening/      the addresses the gateway listens on for whoever is apart from it, kept between starts
+    listening/      why the gateway couldn't listen on an address for whoever is apart from it
     key/            the gateway's key, made whenever its data has none, whose fingerprint an invitation carries
     settings/       your settings file, followed for your name
   clients/
@@ -72,7 +75,8 @@ src/
   cli/              the `shrimpy` command
     talk/           linking to the gateway as whoever a command is, and the objects it holds there: apart from
                     tests, the only code in the CLI that imports Chord, with `me.ts` the one place that decides
-                    who a command or the terminal is
+                    who a command or the terminal is; and joining a gateway from apart, as a home or a machine
+                    of yours
   lib/              helpers with no knowledge of Shrimpy's domain: locks, retries, IDs, refusals, times, config
                     checking, text made harmless for a terminal, the runtime directory, versions and test support
     link/           links for Chord: a WebSocket on a socket's path, or over TLS at an address, with the hello
@@ -93,6 +97,7 @@ src/
 | `cli/` | `contracts/` and `lib/`, plus each program's front door to start it |
 
 - **Programs never import each other.** They talk only through `contracts/`, as [the contracts](2-contracts.md) describe.
+- **The CLI loads a program only to start it.** Each command imports its program's front door when it runs, so no other command loads it, and the lint names the files that may.
 - **Shared plumbing stays plumbing.** Shared code may remove repetition around Pi, but it adds no concepts of its own: no registry, discovery or lifecycle. `lib/link` wraps Chord's links once for every program and client, and `lib/follow` turns a read and a watch into what a Chord object follows. The test is whether a module could be deleted and inlined into its callers in an hour with no change in behavior. If deleting it would mean redesigning the programs, it has become the service framework this plan doesn't build. Check `lib/`'s size at each review pause.
 - **Contracts carry Shrimpy's own shapes, never Pi's.** Only `agent/` imports Pi's durable runtime, and `pi-ai` with it, apart from tests. `agent/sessions/` is the one place that turns Pi's records into the session view clients see, and `agent/turns/` the one that says why a turn ended without an answer in the contract's words. A Pi upgrade can then change the agent without touching a client.
 - **Inside the agent, a file that needs Pi says so in its name.** A file imports Pi's durable runtime only if it is named `*.durable.ts` or is a module's `durable.ts` door, as `*.node.ts` marks what needs Node. Inside a module, a file that isn't marked can't import one that is, so plain code never reaches the engine. The files at the top of `agent/` wire the modules together, so they may import a marked door, and still can't import the package unless they are marked themselves.
