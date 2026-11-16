@@ -55,6 +55,7 @@ export interface Triggers {
    * that is gone, or that says `enabled: false`, ends the trigger. A file that
    * does not check out leaves the trigger as it was. Answers with how many
    * triggers the agent has now, on or off, and the files it left out, and why.
+   * The agent reads its home one reading at a time, so two never run at once.
    */
   reload(): Promise<{ count: number; leftOut: LeftOut[] }>;
   /** Every trigger the agent has, in order of name. */
@@ -127,9 +128,6 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
   const task = triggerTask(parts);
   const run = runTask(parts);
 
-  /** Reloading twice at once would reconcile twice, and the later reading may be the older. */
-  let queue: Promise<unknown> = Promise.resolve();
-
   /** The stored trigger of this name, if the agent has one. */
   async function stored(name: string): Promise<StoredTrigger | undefined> {
     const triggers = (await harness.snapshot(TriggersDoc, context))?.triggers ?? {};
@@ -165,11 +163,7 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
       },
     }),
 
-    reload() {
-      const reloaded = queue.then(async () => reconcile(harness, task, await options.read()));
-      queue = reloaded.catch(() => undefined);
-      return reloaded;
-    },
+    reload: async () => reconcile(harness, task, await options.read()),
 
     async show(name) {
       const found = await stored(name);

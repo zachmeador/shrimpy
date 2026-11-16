@@ -27,14 +27,6 @@ export function passedOver(self: Member, event: ChatEvent): boolean {
 }
 
 /**
- * Whether a post or an edit in a DM wakes the agent: it does when the other
- * member wrote it, whatever the text says.
- */
-export function wakesInDm(self: Member, author: Member): boolean {
-  return author.id !== self.id;
-}
-
-/**
  * Whether a post or an edit by `author` that mentions the members `mentions`
  * wakes the agent under `policy` in a room: it does when it mentions the agent;
  * when the policy is `people` and a person wrote it and mentioned nobody, so
@@ -66,8 +58,9 @@ export function isUrgentPost(event: ChatEvent): boolean {
  * every event and filters none, so this is where an event gets its meaning.
  *
  * Under `none` nothing wakes the agent. Otherwise it wakes for a reaction to a
- * message it wrote, which is an answer to it; for a post, or an edit of one, that
- * `wakesInDm` or `wakesInRoom` says wakes it; and in a room for an answered
+ * message it wrote, which is an answer to it; for a post, or an edit of one, in a
+ * DM, whatever it says, since only the other member's get this far; for one in a
+ * room that `wakesInRoom` says wakes it; and in a room for an answered
  * receipt that another member leaves on a message of the agent's own that
  * mentioned them, which is an answer in words whether or not their reply
  * mentions the agent: it is taken up as the reply it points to. In a DM the reply
@@ -79,7 +72,7 @@ export function isUrgentPost(event: ChatEvent): boolean {
 export function wakingOf(self: Member, event: ChatEvent, policy: WakePolicy, where: Channel["kind"]): Waking | undefined {
   if (policy === "none" || passedOver(self, event)) return undefined;
   const { message } = event;
-  const wakesAsPost = where === "dm" ? wakesInDm(self, event.actor) : wakesInRoom(self, policy, event.actor, message.mentions);
+  const wakesAsPost = where === "dm" || wakesInRoom(self, policy, event.actor, message.mentions);
 
   const taken = (snapshot: Snapshot): Waking => ({
     kind: "event",

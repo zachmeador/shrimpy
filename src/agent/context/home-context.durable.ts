@@ -14,6 +14,7 @@ export interface HomeContext {
    * text, and the engine adds the change to each session it reaches. Whatever
    * the sessions already hold stays as it was. A file, a folder of notes or a
    * skill that the reading leaves out stays as the reading before it had it.
+   * The agent reads its home one reading at a time, so two never run at once.
    */
   reload(): Promise<ContextReport>;
 }
@@ -43,8 +44,6 @@ export async function homeContext(agent: AgentFacts): Promise<HomeContext> {
   };
 
   let current = await read();
-  // Two reloads at once would read twice and keep whichever finished last, which may be the older reading.
-  let queue: Promise<unknown> = Promise.resolve();
   return {
     extension: defineExtension({
       name: "home-context",
@@ -52,13 +51,9 @@ export async function homeContext(agent: AgentFacts): Promise<HomeContext> {
       sections: SECTION_KEYS.map((key) => section(key, () => current.text.get(key), { tag: false })),
     }),
     report: current.report,
-    reload() {
-      const reloaded = queue.then(async () => {
-        current = await read(current.snapshot);
-        return current.report;
-      });
-      queue = reloaded.catch(() => undefined);
-      return reloaded;
+    async reload() {
+      current = await read(current.snapshot);
+      return current.report;
     },
   };
 }
