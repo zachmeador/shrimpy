@@ -1,5 +1,5 @@
 import { rmSync } from "node:fs";
-import { createHost, type Facet, type Host, type HostError } from "@earendil-works/chord";
+import { createHost, type Facet, type Host } from "@earendil-works/chord";
 import { nodeCompression } from "@earendil-works/chord/compression";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type AgentEndpoint, endpointFile } from "../contracts/agent/index.ts";
@@ -17,6 +17,7 @@ import {
 } from "../contracts/gateway/index.ts";
 import { asError } from "../lib/errors/index.ts";
 import { saveFile } from "../lib/files/node.ts";
+import { hostFailure } from "../lib/link/index.ts";
 import { type Greeted, type Listener, listen } from "../lib/link/node.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 
@@ -67,12 +68,6 @@ function greeter(host: Host<Principal, Revocation>): (raw: unknown) => Greeted {
   };
 }
 
-/** A failure the host reports in the background, in a sentence. */
-function described(error: HostError): Error {
-  const cause = "error" in error ? error.error : "failure" in error ? error.failure.error : undefined;
-  return new Error(`${error.kind}${cause instanceof Error ? `: ${cause.message}` : ""}`, { cause });
-}
-
 /**
  * The agent's host at `agent({ name })`, with its objects loaded, listening on
  * the home's own socket, whose path is written to the home for clients to find
@@ -88,7 +83,7 @@ export async function startServer(options: ServerOptions): Promise<AgentServer> 
     principal: { kind: "home" },
     revokedBy,
     compression: nodeCompression,
-    onError: (error) => options.onError(described(error)),
+    onError: (error) => options.onError(hostFailure(error)),
   });
   let listener: Listener | undefined;
   const closeAll = async (): Promise<void> => {

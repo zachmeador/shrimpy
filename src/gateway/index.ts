@@ -25,6 +25,7 @@ import {
   listenAddressesFile,
 } from "../contracts/gateway/node.ts";
 import { asError } from "../lib/errors/index.ts";
+import { hostFailure } from "../lib/link/index.ts";
 import { type Listener, listen } from "../lib/link/node.ts";
 import { greeter } from "./hello/index.ts";
 import { createInvitations } from "./invitations/index.ts";
@@ -138,8 +139,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     open.push(() => programs.close());
     const report = (error: HostError): void => {
       if (error.kind === "resolve_failed" && programs.notLinked(error.error)) return;
-      const cause = "error" in error ? error.error : "failure" in error ? error.failure.error : undefined;
-      console.error(`[gateway] ${error.kind}${cause instanceof Error ? `: ${cause.message}` : ""}`);
+      console.error(`[gateway] ${hostFailure(error).message}`);
     };
     const view = createView(() => ({
       members: roster.members().map((member) => ({ ...member, reachable: programs.reachable(member.id) })),

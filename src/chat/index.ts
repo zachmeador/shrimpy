@@ -13,6 +13,7 @@ import { nodeCompression } from "@earendil-works/chord/compression";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { chat, type Principal, type Revocation, revokedBy } from "../contracts/gateway/index.ts";
 import { GatewayRefusedError, gatewaySocket, keepLinked, UnknownAnswerError } from "../contracts/gateway/node.ts";
+import { hostFailure } from "../lib/link/index.ts";
 import type { Backoff } from "../lib/retry/index.ts";
 import { createIdentity } from "./identity/index.ts";
 import { takeChatLock } from "./lock.ts";
@@ -73,10 +74,7 @@ export async function startChat(options: ChatOptions): Promise<RunningChat> {
     open.push(() => store.close());
     const identity = createIdentity(onError);
     const working = createWorkingMarks({ onError });
-    const report = (error: HostError): void => {
-      const cause = "error" in error ? error.error : "failure" in error ? error.failure.error : undefined;
-      console.error(`[chat] ${error.kind}${cause instanceof Error ? `: ${cause.message}` : ""}`);
-    };
+    const report = (error: HostError): void => console.error(`[chat] ${hostFailure(error).message}`);
     const host = createHost<Principal, Revocation>({
       address: chat(),
       principal: { kind: "chat" },
