@@ -30,10 +30,13 @@ tester.run("imports", importsRule, {
     allowed("agent/server.ts", "./host/index.ts"),
     allowed("agent/server.ts", "./home/node.ts"),
     allowed("cli/commands/sessions.ts", "../io/index.ts"),
-    // program and shared: programs meet in contracts/ and lib/, and the CLI starts a program through its front door.
+    // program and shared: programs meet in contracts/ and lib/.
     allowed("agent/sessions/service.ts", "../../contracts/agent/index.ts"),
-    allowed("cli/commands/agent.ts", "../../agent/index.ts"),
     allowed("contracts/agent/connect.ts", "../../lib/ids/index.ts"),
+    // cliStarts: a CLI file that starts a program, previews a home or signs in loads that program's front door.
+    allowed("cli/commands/agent.ts", "../../agent/index.ts"),
+    allowed("cli/run.ts", "../clients/console/index.ts"),
+    { filename: file("cli/commands/gateway.ts"), code: 'await import("../../gateway/index.ts");' },
     // provider: a chat provider sees the provider interface.
     allowed("chat/providers/telegram/poller.ts", "../index.ts"),
     // testing: tests import test support.
@@ -94,6 +97,14 @@ tester.run("imports", importsRule, {
     // Programs share only contracts/ and lib/. The CLI reaches another program's front door and nothing more.
     refused("chat/threads/store.ts", "../../agent/index.ts", "program"),
     refused("cli/flow.test.ts", "../agent/testing/index.ts", "program"),
+    // Any other CLI file takes what it needs from contracts/ and lib/, a type included, and a file named for one program reaches no other.
+    refused("cli/commands/wake.ts", "../../agent/index.ts", "cliStarts"),
+    refused("cli/commands/agent.ts", "../../gateway/index.ts", "cliStarts"),
+    {
+      filename: file("cli/commands/render-triggers.ts"),
+      code: 'import type { HomeAgent } from "../../agent/index.ts";',
+      errors: [{ messageId: "cliStarts" }],
+    },
     refused("lib/ids/index.ts", "../../contracts/agent/index.ts", "shared"),
     refused("chat/providers/telegram/poller.ts", "../../store/index.ts", "provider"),
     refused("agent/server.ts", "./testing/index.ts", "testing"),

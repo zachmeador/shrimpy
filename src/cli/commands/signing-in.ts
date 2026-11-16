@@ -1,5 +1,5 @@
 import { dirname } from "node:path";
-import { type Dialogue, type Notice, openSignIns, type ProviderToSignIn, type SignIns, type SignInWay } from "../../agent/index.ts";
+import type { Dialogue, Notice, ProviderToSignIn, SignIns, SignInWay } from "../../agent/index.ts";
 import { providerPaths, readDefaultModel, saveDefaultModel } from "../../contracts/agent/node.ts";
 import type { Io } from "../io/index.ts";
 import { UsageError } from "../usage/index.ts";
@@ -19,6 +19,8 @@ const WIDTH = 78;
  * nothing.
  */
 export async function signInAtTerminal(io: Io, providers: string, wanted: string | undefined): Promise<number> {
+  // Loaded here, so that no other command loads the agent program.
+  const { openSignIns } = await import("../../agent/index.ts");
   const signIns = await openSignIns(providers);
   const all = await signIns.providers();
   const named = wanted === undefined ? undefined : findProvider(all, wanted);

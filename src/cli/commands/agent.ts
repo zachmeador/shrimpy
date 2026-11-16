@@ -1,6 +1,6 @@
 import { basename, dirname } from "node:path";
 import { parseArgs } from "node:util";
-import { type HomeAgent, previewHomeContext, startHomeAgent } from "../../agent/index.ts";
+import type { HomeAgent } from "../../agent/index.ts";
 import { checkAgentName, type ModelChoice, modelLabel, parseModelChoice } from "../../contracts/agent/index.ts";
 import { initHome, providerPaths, readEndpoint } from "../../contracts/agent/node.ts";
 import { homeNamed, isPath, newHome, providersPath } from "../folder/index.ts";
@@ -146,7 +146,10 @@ const serve: Command = {
       else void agent?.close({ now: true });
     });
     try {
-      agent = await startHomeAgent(homeNamed(given), { shrimpy: shrimpyCommand(), providers: providersPath() });
+      const home = homeNamed(given);
+      // Loaded here, so that no other command loads the agent program.
+      const { startHomeAgent } = await import("../../agent/index.ts");
+      agent = await startHomeAgent(home, { shrimpy: shrimpyCommand(), providers: providersPath() });
       io.json({ event: "listening", home: agent.home, ...agent.endpoint });
       await requested;
       await agent.close({ now: values.now === true });
@@ -210,6 +213,7 @@ const context: Command = {
     await mayActOn(target, "Looking at what another agent is told");
     const { home } = target;
 
+    const { previewHomeContext } = await import("../../agent/index.ts");
     const { sections, leftOut, ...read } = await previewHomeContext(home);
     io.out(
       `Preview of what the agent would be told if it started now, from the files of ${home}. ` +

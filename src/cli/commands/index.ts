@@ -1,7 +1,8 @@
 /**
  * The `shrimpy` commands, in families. A family loads when one of its commands
- * is used, so a session command does not load the agent program or the chat
- * server. It must not know how a command reads its own arguments.
+ * is used, and a command that starts a program, previews a home or signs in
+ * loads that program's front door itself, when it runs, so that no other
+ * command loads it. It must not know how a command reads its own arguments.
  */
 import type { Command } from "./command.ts";
 import type { Pace } from "./up.ts";

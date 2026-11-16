@@ -35,6 +35,24 @@ const CHORD_MODULES = [
   "clients/console/network/",
   "cli/talk/",
 ];
+/**
+ * The CLI files that may import a program's front door, each with the program
+ * it loads: the commands that start a program, preview what a home would tell
+ * an agent or sign the folder in, and the tests and test support that start a
+ * program in their own process or preview a home. Every other CLI file takes
+ * what it needs from contracts/ and lib/.
+ */
+const CLI_STARTS = new Map([
+  ["cli/commands/agent.ts", "agent"],
+  ["cli/commands/chat.ts", "chat"],
+  ["cli/commands/gateway.ts", "gateway"],
+  ["cli/commands/signing-in.ts", "agent"],
+  ["cli/run.ts", "clients/console"],
+  ["cli/apart.test.ts", "gateway"],
+  ["cli/console.test.ts", "clients/console"],
+  ["cli/instructions.test.ts", "agent"],
+  ["cli/testing/console.ts", "clients/console"],
+]);
 /** Chord's entry points that Pi's durable runtime is written in, which go wherever the runtime may. */
 const CHORD_WITH_DURABLE = ["@earendil-works/chord/context", "@earendil-works/chord/json", "@earendil-works/chord/delta"];
 
@@ -45,6 +63,8 @@ const messages = {
     "This file sits inside {{module}}/ and can't reach its files, such as {{target}}: give what both need a directory of its own, with a front door.",
   program:
     "{{from}}/ must not import {{target}}: programs share only contracts/ and lib/.",
+  cliStarts:
+    "{{from}} can't import {{target}}: the CLI imports a program's front door only to start it, preview a home or sign in, from the files CLI_STARTS names in lint/boundaries.js. Take what this file needs from contracts/ or lib/.",
   shared: "{{from}}/ may import only {{allowed}}, not {{target}}.",
   provider:
     "A chat provider may import only chat/providers/index.ts and lib/, not {{target}}.",
@@ -194,9 +214,9 @@ function checkRelative(from, specifier) {
     };
   }
   if (targetOwner === "contracts" || targetOwner === "lib") return undefined;
-  // The CLI starts programs, so it may import each program's own front door.
+  // The CLI starts programs: the files CLI_STARTS names may import the front door of the program each starts.
   if (owner === "cli" && PROGRAMS.includes(targetOwner) && target === `${targetOwner}/index.ts`) {
-    return undefined;
+    return CLI_STARTS.get(from) === targetOwner ? undefined : { messageId: "cliStarts", data: { from, target } };
   }
   return { messageId: "program", data: { from: owner, target } };
 }

@@ -1,6 +1,5 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { startChat } from "../../chat/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { serveUntilStopped } from "./serve.ts";
@@ -20,7 +19,11 @@ const serve: Command = {
     const dataDir = resolve(given);
     return serveUntilStopped(
       io,
-      () => startChat({ dataDir }),
+      async () => {
+        // Loaded here, so that no other command loads the chat server.
+        const { startChat } = await import("../../chat/index.ts");
+        return startChat({ dataDir });
+      },
       () => ({ event: "started", dataDir, pid: process.pid }),
     );
   },

@@ -1,6 +1,5 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { startGateway } from "../../gateway/index.ts";
 import { settingsPath } from "../folder/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
@@ -39,7 +38,11 @@ const serve: Command = {
     const listen = listenAddresses(values.listen);
     return serveUntilStopped(
       io,
-      () => startGateway({ dataDir, listen, settings: settingsPath() }),
+      async () => {
+        // Loaded here, so that no other command loads the gateway.
+        const { startGateway } = await import("../../gateway/index.ts");
+        return startGateway({ dataDir, listen, settings: settingsPath() });
+      },
       ({ socket, listening, listeningAsKept, fingerprint }) => ({
         event: "listening",
         dataDir,
