@@ -10,7 +10,6 @@ As of 2026-11-15. An item leaves when it is fixed or when the design changes to 
 
 Four reviewers read the code on 2026-11-15, and you asked for what they found to be fixed. The order is in the [plan](PLAN.md#order-of-work).
 
-- The contracts carry Pi's codes: why an answer stopped, `followUp` for input that waits, and failure reasons passed on from Pi as they come. The clients match on some of them, so a Pi upgrade can reach a client.
 - The CLI uses the agent's and the gateway's entry points for more than starting them: the trigger files, the wake file, the default model, the gateway's kept addresses, making and joining a home, previewing what it tells an agent, and signing in. So `shrimpy wake` loads Pi's engine to change a JSON file. The lint lets any import of an entry point through.
 - The agent repeats itself: five loops over Pi's tasks, seven waits for something or a stop, three copies of a tool's answer and failure, and two roster lookups. The home's files are walked by four readers and again by the look for changes, so a file a reader starts reading can change unseen.
 - Saving a file whole is written nine times, with different care for crashes. `lib/follow` serves only the agent, while the gateway and chat each have their own. Four layers keep a link. A contract holds the CLI's way of joining a machine, and `Member`, an address's words and the dial to a home are each written twice. A pause helper is in `agent/chat/` and in `lib/retry`, and chat has its own `refusal/` beside `lib/refusal`.
@@ -23,7 +22,7 @@ Four reviewers read the code on 2026-11-15, and you asked for what they found to
 - Shrimpy on Pi 1.5.2 has run only in its tests, which pass on Linux with Node 22.23. It hasn't run for real, or on macOS, so every run for real named below was of the build on Pi 1.0.0.
 - After a crash nothing shows a notice, though the plan's row on recovery asks for one. Only a turn that is given up reaches the sender, as a failed receipt.
 - Pi counts every task that is running when the agent ends uncleanly, so five unclean ends during one chat outage end the tasks waiting on chat: a reply waiting to be posted is lost, with no receipt; a question whose time is up stays open until a receipt arrives; and a trigger has no task until the agent next reads its files.
-- A turn at Pi's limit may make one more model call or start one more tool before the agent stops it after the restart. The session's status then says `aborted`, as Pi records the stop, and the receipt says the agent stopped unexpectedly too many times.
+- A turn at Pi's limit may make one more model call or start one more tool before the agent stops it after the restart. The session's status then says `stopped`, since Pi records the stop as an abort, and the receipt says the agent stopped unexpectedly too many times.
 - The commands warn when a program they reach runs another version of Shrimpy, and say that programs are meant to be upgraded together, though [the contracts](design/2-contracts.md) let a release reach machines one at a time unless it changes the Pi packages or contracts on both sides of a link. No test covers the warning.
 - Untried: power loss, a full disk, log damage, and a kill during a tool commit.
 - The owner lock is untried on network file systems and sandbox mounts.

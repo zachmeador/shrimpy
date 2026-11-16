@@ -122,7 +122,7 @@ Ctrl+O for tool output and Ctrl+T for thinking are Pi's keys, and Claude Code ha
 
 **What the move to Pi 1.5.2 brought,** built on 2026-11-14:
 
-- Why a turn failed is one sentence for each of Pi's reasons, with what to do, and reads the same in the turn's receipt, in `/status` and in `sessions read`.
+- Why a turn failed is one sentence for each reason, with what to do, and reads the same in the turn's receipt, in `/status` and in `sessions read`.
 - A wake-up an agent is waiting on shows as a line beside the thread's work, with its time, its note and that `/stop` cancels it, and in a watched session, `/status` and `sessions read`.
 - `/devices` in the terminal lists your devices, and `/devices take back <label or ID>` ends a device's way in and everything it holds open. No agent may, since a device is you.
 - An image the model was shown is named in a session view by its kind, such as `[image: image/png]`. The web client will show it.
