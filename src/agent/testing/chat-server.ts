@@ -1,7 +1,7 @@
 import type { TestContext } from "node:test";
 import type { Member } from "../../contracts/chat/index.ts";
 import { memberNamed, startTestChat } from "../../contracts/chat/testing/index.ts";
-import type { GatewayClient } from "../../contracts/gateway/node.ts";
+import type { Client } from "../../contracts/gateway/node.ts";
 import { linkTestAgent, startTestGateway, type TestAgent, type TestGateway } from "../../contracts/gateway/testing/index.ts";
 
 export interface ChatServer {
@@ -10,7 +10,7 @@ export interface ChatServer {
   /** Where its store is now. */
   readonly dataDir: string;
   /** A client linked to the gateway as you, which holds chat's objects through it. Closed when the test ends. */
-  person(): Promise<GatewayClient>;
+  person(): Promise<Client>;
   /** A small agent's program called `name`, on the roster, whose host holds chat's objects as the agent. Stopped when the test ends. */
   agent(name: string): Promise<TestAgent>;
   /** The roster's member called `name`, once it has joined. */

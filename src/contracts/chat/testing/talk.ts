@@ -4,7 +4,7 @@ import type { Reference } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { eventually } from "../../../lib/testing/index.ts";
 import type { Answer } from "../../gateway/index.ts";
-import type { GatewayClient } from "../../gateway/node.ts";
+import type { Client } from "../../gateway/node.ts";
 import { startTestGateway } from "../../gateway/testing/index.ts";
 import type { ChatEvent, Member, Message, Receipt, Thread } from "../index.ts";
 import { memberNamed, onChannel, onChat, onThread, valueOf } from "./speaking.ts";
@@ -55,8 +55,8 @@ export interface Talk {
  * gateway again by yourself when it has been away.
  */
 export async function talkTo(t: TestContext, agentName: string): Promise<Talk> {
-  let linked: Promise<GatewayClient> | undefined;
-  const connection = (): Promise<GatewayClient> => {
+  let linked: Promise<Client> | undefined;
+  const connection = (): Promise<Client> => {
     linked ??= startTestGateway(t)
       .then((gateway) => gateway.connect())
       .then(

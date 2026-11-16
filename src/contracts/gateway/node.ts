@@ -7,7 +7,7 @@
  * address is one another machine can use; and making a token. Browser code must
  * not import this file.
  */
-export { connectGateway, type ConnectGatewayOptions, type GatewayClient } from "./connect.node.ts";
+export { type Client, connectClient, type ConnectOptions } from "./connect.node.ts";
 export {
   dialGateway,
   type DialGatewayOptions,

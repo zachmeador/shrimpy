@@ -2,7 +2,7 @@ import type { Host, Reference } from "@earendil-works/chord";
 import { Agent, Session } from "../../contracts/agent/index.ts";
 import { readMembership } from "../../contracts/agent/node.ts";
 import { type Member, needsAdmin, type Principal, type Revocation, type RosterEntry } from "../../contracts/gateway/index.ts";
-import type { GatewayClient } from "../../contracts/gateway/node.ts";
+import type { Client } from "../../contracts/gateway/node.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { GatewayNotRunningError, linkAs, viewOf } from "./gateway.ts";
 import { START_EVERYTHING } from "./hints.ts";
@@ -44,8 +44,8 @@ export function onSession<T>(
  * command run there is when it acts on the agent at `home`. Without a gateway
  * such an agent can't be reached at all, and the error says so.
  */
-async function asTheAgentAt(shell: string, home: string): Promise<{ client: GatewayClient; members: RosterEntry[]; linked: string[]; you: Member }> {
-  let client: GatewayClient;
+async function asTheAgentAt(shell: string, home: string): Promise<{ client: Client; members: RosterEntry[]; linked: string[]; you: Member }> {
+  let client: Client;
   try {
     client = await linkAs(me());
   } catch (error) {

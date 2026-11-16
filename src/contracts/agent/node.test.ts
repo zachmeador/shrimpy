@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
+import { ConfigError } from "../../lib/json-config/index.ts";
 import { startChild, tempDir } from "../../lib/testing/index.ts";
 import { endpointFile } from "./endpoint.ts";
 import { AgentNotRunningError, connectHome, readEndpoint } from "./node.ts";
@@ -38,5 +39,5 @@ test("a socket that nothing answers on means no agent is running", async (t) => 
 test("an endpoint file that cannot be read is an error, not a missing agent", (t) => {
   const home = tempHome(t);
   writeFileSync(endpointFile(home), "{ nope");
-  assert.throws(() => readEndpoint(home), SyntaxError);
+  assert.throws(() => readEndpoint(home), ConfigError);
 });

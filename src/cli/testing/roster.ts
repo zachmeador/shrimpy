@@ -1,7 +1,7 @@
 import type { TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type Invitation, type Member, type Program, Roster, type RosterEntry, type WayIn } from "../../contracts/gateway/index.ts";
-import { connectGateway, type GatewayClient, type GatewayPlace, gatewaySocket } from "../../contracts/gateway/node.ts";
+import { type Client, connectClient, type GatewayPlace, gatewaySocket } from "../../contracts/gateway/node.ts";
 import { stopAfter } from "../../lib/testing/index.ts";
 
 const context = BACKGROUND_CONTEXT;
@@ -9,7 +9,7 @@ const context = BACKGROUND_CONTEXT;
 /** Someone on the roster of a gateway, as a test speaks for them. Each call answers with what it did, or fails with what was refused. */
 export interface OnTheRoster {
   /** The link, which holds the other programs' objects too. */
-  readonly client: GatewayClient;
+  readonly client: Client;
   members(): Promise<RosterEntry[]>;
   programs(): Promise<Program[]>;
   ways(): Promise<WayIn[]>;
@@ -25,7 +25,7 @@ export interface OnTheRoster {
  * you, by default, on this machine's gateway socket, with no token.
  */
 export async function onTheRoster(t: TestContext, place: GatewayPlace = { path: gatewaySocket() }, token: string | null = null): Promise<OnTheRoster> {
-  const client = await connectGateway({ place, token });
+  const client = await connectClient({ place, token });
   stopAfter(t, () => client.close());
   const roster = await client.host.get(Roster, {}, context);
   stopAfter(t, () => roster.release());

@@ -1,14 +1,14 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { AgentNotRunningError, connectHome } from "../../contracts/agent/node.ts";
 import { type Program, Roster } from "../../contracts/gateway/index.ts";
-import { connectGateway, gatewaySocket } from "../../contracts/gateway/node.ts";
+import { connectClient, gatewaySocket } from "../../contracts/gateway/node.ts";
 import { eventually } from "../../lib/testing/index.ts";
 
 /** What the gateway on this machine lists as linked now, or undefined while no gateway answers. */
 async function linkedNow(): Promise<Program[] | undefined> {
   let client;
   try {
-    client = await connectGateway({ place: { path: gatewaySocket() }, token: null });
+    client = await connectClient({ place: { path: gatewaySocket() }, token: null });
   } catch {
     return undefined;
   }

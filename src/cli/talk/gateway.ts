@@ -1,13 +1,8 @@
 import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
+import { type Member, type Program, Roster, type RosterEntry } from "../../contracts/gateway/index.ts";
 import {
-  type Member,
-  type Program,
-  Roster,
-  type RosterEntry,
-} from "../../contracts/gateway/index.ts";
-import {
-  connectGateway,
-  type GatewayClient,
+  type Client,
+  connectClient,
   type GatewayPlace,
   GatewayRefusedError,
   gatewaySocket,
@@ -56,10 +51,10 @@ export async function linkTo(
   token: string | null,
   turnedAway: (error: GatewayRefusedError) => Error,
   signal?: AbortSignal,
-): Promise<GatewayClient> {
-  let client: GatewayClient;
+): Promise<Client> {
+  let client: Client;
   try {
-    client = await connectGateway({ place, token, ...(signal === undefined ? {} : { signal }) });
+    client = await connectClient({ place, token, ...(signal === undefined ? {} : { signal }) });
   } catch (error) {
     if (error instanceof GatewayRefusedError) throw turnedAway(error);
     if (error instanceof UnprovenGatewayError || signal?.aborted === true) throw error;
@@ -75,7 +70,7 @@ export async function linkTo(
 }
 
 /** Link to the gateway as `who`. */
-export const linkAs = (who: Me, signal?: AbortSignal): Promise<GatewayClient> =>
+export const linkAs = (who: Me, signal?: AbortSignal): Promise<Client> =>
   linkTo(who.place, who.token, (error) => who.turnedAway(error), signal);
 
 /**
@@ -87,10 +82,10 @@ export const linkAs = (who: Me, signal?: AbortSignal): Promise<GatewayClient> =>
  */
 export async function withGateway<T>(
   signal: AbortSignal | undefined,
-  use: (client: GatewayClient, who: Me) => Promise<T>,
+  use: (client: Client, who: Me) => Promise<T>,
 ): Promise<T | undefined> {
   const who = me();
-  let client: GatewayClient;
+  let client: Client;
   try {
     client = await linkAs(who, signal);
   } catch (error) {
@@ -105,18 +100,18 @@ export async function withGateway<T>(
 }
 
 /** Use a link to the gateway, as withGateway has it, for the length of `use`. With no gateway the error says what to start. */
-export async function withGatewayAsMe<T>(use: (client: GatewayClient, who: Me) => Promise<T>): Promise<T> {
+export async function withGatewayAsMe<T>(use: (client: Client, who: Me) => Promise<T>): Promise<T> {
   const used = await withGateway(undefined, async (client, who) => ({ value: await use(client, who) }));
   if (used === undefined) throw new Error(`No gateway is running on this machine. Start Shrimpy with: ${START_EVERYTHING}`);
   return used.value;
 }
 
 /** What the gateway `client` is linked to says, as whoever the client is. */
-export async function viewOf(client: GatewayClient, signal?: AbortSignal): Promise<GatewayView> {
+export async function viewOf(client: Client, signal?: AbortSignal): Promise<GatewayView> {
   const context = signal === undefined ? BACKGROUND_CONTEXT : withAbortSignal(signal, BACKGROUND_CONTEXT);
   const roster = await client.host.get(Roster, {}, context);
   try {
-    return { programs: roster.programs.value, members: roster.members.value, you: roster.you.value, version: client.gatewayVersion };
+    return { programs: roster.programs.value, members: roster.members.value, you: roster.you.value, version: client.version };
   } finally {
     roster.release();
   }
@@ -133,7 +128,7 @@ export function askGateway(signal?: AbortSignal): Promise<GatewayView | undefine
  * command that starts what is missing on this machine.
  */
 export async function askLocalGateway(signal?: AbortSignal): Promise<GatewayView | undefined> {
-  let client: GatewayClient;
+  let client: Client;
   try {
     client = await linkTo({ path: gatewaySocket() }, null, (error) => new Error(error.message, { cause: error }), signal);
   } catch (error) {

@@ -1,5 +1,5 @@
 import type { TestContext } from "node:test";
-import type { GatewayClient } from "../../contracts/gateway/node.ts";
+import type { Client } from "../../contracts/gateway/node.ts";
 import { linkTestAgent, startTestGateway, type TestAgent, type TestGateway } from "../../contracts/gateway/testing/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import { stopAfter, tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
@@ -11,7 +11,7 @@ export interface ChatInProcess {
   /** The real gateway the chat server links to. */
   readonly gateway: TestGateway;
   /** A client linked to the gateway as you, which holds chat's objects through it. Closed when the test ends. */
-  person(): Promise<GatewayClient>;
+  person(): Promise<Client>;
   /** An agent's program called `name`, on the roster, whose host holds chat's objects as the agent. Stopped when the test ends. */
   agent(name: string): Promise<TestAgent>;
 }

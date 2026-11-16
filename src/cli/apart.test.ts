@@ -8,7 +8,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Agent, AGENT_HOME_VARIABLE, membershipFile, Session } from "../contracts/agent/index.ts";
 import { initHome, readMembership } from "../contracts/agent/node.ts";
 import { type Entry, type Member, writeLink } from "../contracts/gateway/index.ts";
-import { connectGateway, type GatewayClient, type GatewayPlace, gatewaySocket } from "../contracts/gateway/node.ts";
+import { type Client, connectClient, type GatewayPlace, gatewaySocket } from "../contracts/gateway/node.ts";
 import { type RunningGateway, startGateway } from "../gateway/index.ts";
 import { eventually, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { joinHome } from "./talk/index.ts";
@@ -115,7 +115,7 @@ function apartEnv(t: TestContext): { SHRIMPY_RUNTIME_DIR: string; SHRIMPY_DIR: s
 
 /** A client linked to the gateway at `place` as whoever `token` is, holding crab as a client does. Closed when the test ends. */
 async function crabAs(t: TestContext, place: GatewayPlace, token: string | null) {
-  const client: GatewayClient = await connectGateway({ place, token });
+  const client: Client = await connectClient({ place, token });
   stopAfter(t, () => client.close());
   const agent = await client.host.get(Agent, { agent: "crab" }, context);
   stopAfter(t, () => agent.release());

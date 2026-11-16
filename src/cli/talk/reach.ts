@@ -1,7 +1,7 @@
 import type { Reference } from "@earendil-works/chord";
 import { Chat, type Member } from "../../contracts/chat/index.ts";
 import { type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
-import type { GatewayClient } from "../../contracts/gateway/node.ts";
+import type { Client } from "../../contracts/gateway/node.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import type { Io } from "../io/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
@@ -18,7 +18,7 @@ export interface Reached {
   /** You, as the chat server knows you. */
   readonly me: Member;
   /** The link to the gateway, through which channels and threads are held too. */
-  readonly client: GatewayClient;
+  readonly client: Client;
   /** You as a member of chat. */
   readonly chat: Reference<typeof Chat>;
   /** Every program the gateway listed, oldest first. */
@@ -43,7 +43,7 @@ export interface Reached {
  */
 export async function reachChat(io: Io, signal?: AbortSignal): Promise<Reached> {
   const who = me();
-  let client: GatewayClient;
+  let client: Client;
   try {
     client = await linkAs(who, signal);
   } catch (error) {

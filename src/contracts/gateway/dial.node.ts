@@ -10,7 +10,7 @@ import { type Hello, hello, readAnswer, unreadableAnswer, type Welcome, type Who
  */
 export type GatewayPlace = { readonly path: string } | Entry;
 
-/** The gateway turned a hello away. Its message is the gateway's words. */
+/** The gateway turned a hello away, or an agent did on its home's socket, which takes the same hello. Its message is their words. */
 export class GatewayRefusedError extends Error {
   readonly reason: Reason | null;
 
@@ -53,11 +53,14 @@ export interface GatewayDialed {
 export interface DialGatewayOptions {
   /** Abort to give up while the connection opens or the hello waits for its answer. */
   readonly signal?: AbortSignal;
+  /** Who answers, as the words name it when its answer can't be read: "The gateway" unless given. */
+  readonly answering?: string;
 }
 
 /**
  * Say the hello to the gateway at `place` as `who`, and read its answer: every
- * link to the gateway, and every join, starts here. At the entry the hello goes
+ * link to the gateway or to an agent's home socket, and every join, starts
+ * here. At the entry the hello goes
  * only to the key whose fingerprint the place has: a key with another is an
  * `UnprovenGatewayError`, and nothing is sent. A hello the gateway turns away
  * is a `GatewayRefusedError`, and an answer this code can't read is an
@@ -69,7 +72,7 @@ export async function dialGateway(place: GatewayPlace, who: Who, options: DialGa
   const answer = readAnswer(raw);
   if (answer?.kind === "welcome") return { welcome: answer, linked };
   linked.drop();
-  if (answer === undefined) throw new UnknownAnswerError(unreadableAnswer(raw));
+  if (answer === undefined) throw new UnknownAnswerError(unreadableAnswer(raw, options.answering));
   throw new GatewayRefusedError(answer.words, answer.reason);
 }
 

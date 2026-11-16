@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { formatAddress } from "../../../lib/link/index.ts";
 import { type Child, type ChildOutput, startChild, stopAfter, tempDir, useRuntimeDir } from "../../../lib/testing/index.ts";
 import type { Address } from "../index.ts";
-import { connectGateway, type GatewayClient, type GatewayPlace, gatewaySocket } from "../node.ts";
+import { type Client, connectClient, type GatewayPlace, gatewaySocket } from "../node.ts";
 
 /** The command that runs Shrimpy, which is how a person starts a program. */
 export const SHRIMPY_ENTRY = fileURLToPath(new URL("../../../cli/main.ts", import.meta.url));
@@ -38,7 +38,7 @@ export interface TestGateway {
   /** What the process it last ran as has printed, and how it ended once it has. */
   output(): ChildOutput;
   /** Link a client over its socket, as you, or as the holder of `token`. Closed when the test ends. */
-  connect(token?: string): Promise<GatewayClient>;
+  connect(token?: string): Promise<Client>;
   /** Ask it to stop, as SIGTERM does unless another signal is given, and wait until it has ended. */
   stop(signal?: NodeJS.Signals): Promise<ChildOutput>;
   /** Kill the process, like a gateway that went away. What it knew stays in its data. */
@@ -56,8 +56,8 @@ export interface TestGateway {
 }
 
 /** A client linked to the gateway at `place`, as you with no token or as the holder of `token`, closed when the test ends. */
-export async function connectTestClient(t: TestContext, place: GatewayPlace, token: string | null = null): Promise<GatewayClient> {
-  const client = await connectGateway({ place, token });
+export async function connectTestClient(t: TestContext, place: GatewayPlace, token: string | null = null): Promise<Client> {
+  const client = await connectClient({ place, token });
   stopAfter(t, () => client.close());
   return client;
 }
