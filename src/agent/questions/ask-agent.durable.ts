@@ -2,10 +2,10 @@ import { obj, opt, str } from "@earendil-works/pi-schema";
 import { defineExtension, defineTool, type Extension, type ToolExecutionApi } from "@earendil-works/pi-durable";
 import type { RosterEntry } from "../../contracts/gateway/index.ts";
 import { answer, failure } from "../host/durable.ts";
-import { callSignal, chatFailure, type LiveChat } from "../links/index.ts";
+import type { Member } from "../../contracts/chat/index.ts";
+import { callSignal, type ChatCalls, chatFailure, type LiveChat, memberNamed } from "../links/index.ts";
 import { addressOfPlace, placeOfSession } from "../records/durable.ts";
 import { readTo, readWithin, SHORTEST_WITHIN, startOf } from "./args.ts";
-import { agentNamed, emptyThread } from "./lookup.ts";
 import { MAX_OPEN, type Questions } from "./questions.durable.ts";
 import * as words from "./words.ts";
 
@@ -118,6 +118,31 @@ export function askAgent(options: AskToolsOptions) {
       }
     },
   });
+}
+
+/** The agent the model named, or why it can't be asked, in words for the model. */
+function agentNamed(roster: readonly RosterEntry[] | undefined, name: string, self: Member): { agent: RosterEntry } | { problem: string } {
+  const named = memberNamed(roster, name, self.id);
+  switch (named.kind) {
+    case "unknown":
+      return { problem: words.noRoster(name) };
+    case "nobody":
+      return { problem: words.nobody(name, named.roster.filter((each) => each.kind === "agent" && each.id !== self.id).map((each) => each.name)) };
+    case "self":
+      return { problem: words.yourself(named.member.name) };
+    case "found":
+      return named.member.kind === "person" ? { problem: words.aPerson(named.member.name) } : { agent: named.member };
+  }
+}
+
+/**
+ * The ID of a thread of the DM `channelId` called `name` that has no message in
+ * it, if there is one: what a call that made its thread and ended before it posted
+ * the question leaves.
+ */
+async function emptyThread(chat: ChatCalls, channelId: string, name: string, signal: AbortSignal): Promise<string | undefined> {
+  const threads = await chat.threads(channelId, signal);
+  return threads.find((thread) => !thread.main && thread.name === name && thread.preview === null)?.id;
 }
 
 /** The tool that asks another agent, as an extension to install in the engine's registry. */

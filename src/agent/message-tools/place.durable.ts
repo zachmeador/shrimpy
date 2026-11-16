@@ -2,7 +2,7 @@ import type { Context } from "@earendil-works/chord/context";
 import type { DocumentReader } from "@earendil-works/pi-durable";
 import type { Channel, Member, Thread } from "../../contracts/chat/index.ts";
 import type { RosterEntry } from "../../contracts/gateway/index.ts";
-import type { ChatCalls } from "../links/index.ts";
+import { type ChatCalls, memberNamed } from "../links/index.ts";
 import { threadOfSession } from "../records/durable.ts";
 import * as words from "./words.ts";
 
@@ -60,12 +60,11 @@ export async function placeOf(find: Find): Promise<Place | Unusable> {
   const name = /^@(.+)$/s.exec(written)?.[1]?.trim();
   if (name === undefined) return { problem: words.badPlace(argument) };
 
-  const { roster } = find;
-  if (roster === undefined) return { problem: words.noRoster(name, argument) };
-  const wanted = name.toLowerCase();
-  const member = roster.find((each) => each.name.toLowerCase() === wanted);
-  if (member === undefined) return { problem: words.nobody(name, roster.map((each) => each.name)) };
-  if (member.id === self.id) return { problem: words.yourself(name, argument) };
+  const named = memberNamed(find.roster, name, self.id);
+  if (named.kind === "unknown") return { problem: words.noRoster(name, argument) };
+  if (named.kind === "nobody") return { problem: words.nobody(name, named.roster.map((each) => each.name)) };
+  if (named.kind === "self") return { problem: words.yourself(name, argument) };
+  const { member } = named;
 
   const label = words.dmWith(member.name);
   const channel = find.startDm
