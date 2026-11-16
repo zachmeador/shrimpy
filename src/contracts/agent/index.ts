@@ -6,10 +6,11 @@
  * which the gateway holds. Every reference is live, so a client follows by
  * holding, and nothing polls. A client reaches an agent by its name through the
  * gateway, stamped with who it is, or by the agent's home path on the home's own
- * socket, where it is `home`. It carries Shrimpy's own shapes, which the agent
- * builds, and must not know the engine's record types or any program's
- * internals. The one sentence for each reason a turn ends without an answer is
- * here too, so that the agent's receipts and every client say it the same way.
+ * socket, where it is `home`. It carries Shrimpy's own shapes and values, which
+ * the agent builds, and must not know the engine's record types, its codes or
+ * any program's internals. The one sentence for each reason a turn ends without
+ * an answer is here too, so that the agent's receipts and every client say it
+ * the same way.
  * This door is safe for browsers; `node.ts` adds the parts that need Node.
  */
 export { Agent } from "./agent.ts";
@@ -23,8 +24,10 @@ export {
   AgentModelSchema,
   type AgentModels,
   AgentModelsSchema,
+  type AnswerEnding,
   type Check,
   CheckSchema,
+  type FailureReason,
   type ModelId,
   ModelIdSchema,
   type Occurrence,

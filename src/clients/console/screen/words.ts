@@ -1,4 +1,5 @@
 import {
+  type AnswerEnding,
   failureWords,
   type ModelId,
   type QueuedInput,
@@ -380,10 +381,17 @@ export const markerWords = (marker: Extract<SessionItem, { type: "marker" }>["ma
 
 const QUEUED_CHARACTERS = 200;
 
+/** What a line of input that waits opens with, for when the session will take it. */
+const QUEUED: Record<QueuedInput["when"], string> = {
+  next_step: "queued for the next step",
+  next_turn: "queued for the next turn",
+  other: "queued",
+};
+
 /** Input a session has accepted and not picked up yet, on one line. */
 export function queuedLine(input: QueuedInput): string {
   const text = oneLine(input.text.slice(0, QUEUED_CHARACTERS * 4)).slice(0, QUEUED_CHARACTERS);
-  return `queued (${input.mode === "followUp" ? "follow-up" : input.mode}): ${text}`;
+  return `${QUEUED[input.when]}: ${text}`;
 }
 
 /** A line under a message when its receipt says something a person needs to know, and nothing for one that doesn't. */
@@ -558,10 +566,10 @@ export function toolStatus(status: ToolStatus): { label: string; tone: "good" | 
   }
 }
 
-/** A word on an answer that did not end the way an answer does. */
-export function answerNote(stopReason: string | null): string | undefined {
-  if (stopReason === "aborted") return "answer interrupted";
-  if (stopReason === "error") return "answer failed";
+/** A word on an answer that did not end the way an answer does. `ended` is how it ended, if it has. */
+export function answerNote(ended: AnswerEnding | undefined): string | undefined {
+  if (ended === "interrupted") return "answer interrupted";
+  if (ended === "failed") return "answer failed";
   return undefined;
 }
 

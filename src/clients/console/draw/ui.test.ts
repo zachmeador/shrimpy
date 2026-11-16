@@ -314,7 +314,7 @@ test("Ctrl+O shows tool calls in full and Ctrl+T the thinking, and each press ag
   const work = workingView(
     [
       userItem("go"),
-      assistantItem("Looking.", { thinking, stopReason: "toolUse" }),
+      assistantItem("Looking.", { thinking, ended: "called_tools" }),
       toolItem("bash", { args: { command: "ls", timeout: 30 }, status: "done", output }),
     ],
     { kind: "working" },
@@ -494,7 +494,7 @@ test("text from other members and from tools can't reach the terminal, wherever 
       notice: { kind: "not-sent", problem: { said: `said${hostile}` } },
     },
   );
-  model.session?.status.queued.push({ mode: "steer", text: `queued${hostile}` });
+  model.session?.status.queued.push({ when: "next_step", text: `queued${hostile}` });
   const used = { provider: `provider${hostile}`, id: `model${hostile}` };
   const statuses: Record<"agent" | "room", Status> = {
     agent: {
@@ -512,7 +512,7 @@ test("text from other members and from tools can't reach the terminal, wherever 
           own: true,
           defaultModel: { provider: `home${hostile}`, id: `default${hostile}` },
           usage: { input: 1, output: 2, cost: 0.5 },
-          failure: { reason: `reason${hostile}`, detail: `why${hostile}` },
+          failure: { reason: "other", detail: `why${hostile}` },
           wakeups: [{ due: now, note: `wake${hostile}` }],
         },
         othersWorking: 1,

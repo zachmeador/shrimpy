@@ -189,15 +189,42 @@ export const ReloadedSchema = obj({
 export type Reloaded = Static<typeof ReloadedSchema>;
 
 /**
+ * Why a turn ended without an answer, or why an input was left without one:
+ *
+ * - `model_failed`: the model failed.
+ * - `no_model`: the agent has no model it can use.
+ * - `stopped`: the work was stopped, by someone, or by the agent after it
+ *   stopped unexpectedly too many times during the turn.
+ * - `kept_crashing`: the agent stopped unexpectedly so many times during the
+ *   turn that it gave up.
+ * - `internal_error`: something went wrong inside the agent.
+ * - `updated`: the agent was updated, and could not go on with the work.
+ * - `turn_ahead_failed`: an input was taken back before the agent reached it,
+ *   because the turn ahead of it failed.
+ * - `other`: anything else, with what the engine said in the detail.
+ */
+export const FailureReasonSchema = oneOf(
+  "model_failed",
+  "no_model",
+  "stopped",
+  "kept_crashing",
+  "internal_error",
+  "updated",
+  "turn_ahead_failed",
+  "other",
+);
+export type FailureReason = Static<typeof FailureReasonSchema>;
+
+/**
  * How an accepted input ended. `answered` is the agent's final answer, which
  * may be empty. `cancelled` means someone stopped the work. `unanswered` is
- * anything else that left the input without an answer: `reason` is a short
- * code such as `model_error`, and `detail` says more when the agent knows more.
+ * anything else that left the input without an answer: `reason` says why, and
+ * `detail` says more when the agent knows more.
  */
 export const SettlementSchema = union([
   obj({ status: lit("answered"), text: str() }),
   obj({ status: lit("cancelled") }),
-  obj({ status: lit("unanswered"), reason: str(), detail: union([str(), nul()]) }),
+  obj({ status: lit("unanswered"), reason: FailureReasonSchema, detail: union([str(), nul()]) }),
 ]);
 export type Settlement = Static<typeof SettlementSchema>;
 
@@ -220,6 +247,19 @@ export const SessionImageSchema = obj({ mimeType: str() });
 export type SessionImage = Static<typeof SessionImageSchema>;
 
 /**
+ * How an answer ended:
+ *
+ * - `finished`: the model was done.
+ * - `called_tools`: it stopped for the tools it called to run.
+ * - `too_long`: it reached the most the model may write in one answer.
+ * - `failed`: the model failed.
+ * - `interrupted`: it was cut off, by a stop or by the agent ending.
+ * - `other`: anything else, with what the engine said in the detail.
+ */
+export const AnswerEndingSchema = oneOf("finished", "called_tools", "too_long", "failed", "interrupted", "other");
+export type AnswerEnding = Static<typeof AnswerEndingSchema>;
+
+/**
  * One thing a client draws for a session. A tool call is an item of the answer
  * that made it, and carries how it went: its result, which comes in a later
  * entry, is no item of its own. What the session was shown, and what a tool
@@ -235,7 +275,11 @@ export const SessionItemSchema = union([
     text: str(),
     thinking: str(),
     streaming: bool(),
-    stopReason: union([str(), nul()]),
+    /**
+     * How it ended, or null while it streams. `detail` is what the engine said
+     * about it, such as why the model failed, or null when it said nothing.
+     */
+    ended: union([obj({ how: AnswerEndingSchema, detail: union([str(), nul()]) }), nul()]),
   }),
   obj({
     type: lit("tool"),
@@ -269,8 +313,13 @@ export const SessionActivitySchema = union([
 ]);
 export type SessionActivity = Static<typeof SessionActivitySchema>;
 
-/** Input the session has accepted but not picked up yet. */
-export const QueuedInputSchema = obj({ mode: oneOf("steer", "followUp", "write"), text: str() });
+/**
+ * Input the session has accepted but not picked up yet, and when it will be:
+ * `next_step` joins the running turn at its next step, `next_turn` waits for
+ * the turn after it, and `other` is anything else, such as an entry the engine
+ * writes, which `text` names as the engine does.
+ */
+export const QueuedInputSchema = obj({ when: oneOf("next_step", "next_turn", "other"), text: str() });
 export type QueuedInput = Static<typeof QueuedInputSchema>;
 
 /** A wake-up the session asked for with `check_back` and is waiting on: when it is due, and the note it will bring. */
@@ -281,16 +330,8 @@ export const WaitingWakeupSchema = obj({
 });
 export type WaitingWakeup = Static<typeof WaitingWakeupSchema>;
 
-/**
- * Why a session's last turn ended without an answer. `reason` is a short code,
- * as an unanswered settlement's: `model_error`, `no_model`, `aborted` when its
- * work was stopped, by someone or by the agent after it stopped unexpectedly
- * too many times during the turn, `interrupted` when the agent stopped
- * unexpectedly each time the model was answering, `restart_limit` when it
- * stopped unexpectedly too many times in the turn's own work, or another that
- * the engine gives. `detail` says more when the agent knows more.
- */
-export const TurnFailureSchema = obj({ reason: str(), detail: union([str(), nul()]) });
+/** Why a session's last turn ended without an answer, and more when the agent knows more. */
+export const TurnFailureSchema = obj({ reason: FailureReasonSchema, detail: union([str(), nul()]) });
 export type TurnFailure = Static<typeof TurnFailureSchema>;
 
 /** What a session is doing, what waits, its model and its usage. */

@@ -45,8 +45,8 @@ function renderItem(item: SessionItem): string[] {
 
 function answerNote(item: Extract<SessionItem, { type: "assistant" }>): string {
   if (item.streaming) return " (answering)";
-  if (item.stopReason === "aborted") return " (cut off)";
-  if (item.stopReason === "error") return " (failed)";
+  if (item.ended?.how === "interrupted") return " (cut off)";
+  if (item.ended?.how === "failed") return " (failed)";
   return "";
 }
 

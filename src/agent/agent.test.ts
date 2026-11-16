@@ -85,7 +85,7 @@ test("stop stops a streaming answer and keeps what arrived, and the message is m
 
   const view = await waitForView(session, (current) => !current.status.busy);
   const answer = assistantItems(view).at(-1);
-  assert.equal(answer?.stopReason, "aborted");
+  assert.equal(answer?.ended?.how, "interrupted");
   assert.ok(answer.text.startsWith("line 01"));
   assert.equal((await rig.receiptOn(asked)).status, "stopped");
   assert.deepEqual(await rig.replies(), [], "and nothing is posted");

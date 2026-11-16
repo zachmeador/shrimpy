@@ -15,9 +15,3 @@ export function answerText(answer: EntryRecord | undefined): string {
   const message = answer?.model?.[0];
   return message?.role === "assistant" ? assistantText(message) : "";
 }
-
-/** What the engine says about why an input went unanswered, as text. */
-export function describe(detail: unknown): string | null {
-  if (detail === undefined || detail === null) return null;
-  return typeof detail === "string" ? detail : JSON.stringify(detail);
-}

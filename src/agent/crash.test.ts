@@ -78,7 +78,7 @@ test("killed while the model streams: the request is sent again, and the reply i
   const complete = answers.at(-1);
   assert.ok(complete !== undefined && complete.text.endsWith(LAST_LINE));
   for (const partial of answers.slice(0, -1)) {
-    assert.equal(partial.stopReason, "aborted");
+    assert.equal(partial.ended?.how, "interrupted");
     assert.ok(partial.text.startsWith("line 01"));
   }
   assert.ok(answers.length <= 2);
@@ -199,7 +199,7 @@ test("killed every time a turn's command runs: Pi ends the turn at its limit, an
 
   const receipt = await talk.receiptOn(asked);
   assert.equal(receipt.status, "failed");
-  assert.equal(receipt.detail, failureWords("restart_limit", null));
+  assert.equal(receipt.detail, failureWords("kept_crashing", null));
   await talk.untilIdle();
   assert.deepEqual(await talk.replies(), []);
   const again = await talk.say("hello again");

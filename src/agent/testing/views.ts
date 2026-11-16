@@ -4,7 +4,7 @@ import type { SessionView } from "./attach.ts";
 /** The session has answered: it is idle and its last item is a finished answer. */
 export function answered(view: SessionView): boolean {
   const last = view.items.at(-1);
-  return !view.status.busy && last?.type === "assistant" && last.stopReason === "stop";
+  return !view.status.busy && last?.type === "assistant" && last.ended?.how === "finished";
 }
 
 export function assistantItems(view: SessionView): Extract<SessionItem, { type: "assistant" }>[] {

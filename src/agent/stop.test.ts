@@ -72,7 +72,7 @@ test("stopping at once pauses the turn, even while a stop waits for it, and the 
     ["user", "assistant", "assistant"],
   );
   const [partial, complete] = assistantItems(view);
-  assert.equal(partial?.stopReason, "aborted");
+  assert.equal(partial?.ended?.how, "interrupted");
   assert.ok(partial.text.startsWith("line 01"));
   assert.ok(complete?.text.endsWith(LAST_LINE));
   const sent = loggedRequests(rig.home);

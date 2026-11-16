@@ -1,10 +1,10 @@
 import type { JsonValue } from "@earendil-works/chord/json";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Cursor, Harness, TaskRecord } from "@earendil-works/pi-durable";
-import type { Occurrence as OccurrenceView, TriggerSummary } from "../../contracts/agent/index.ts";
+import { failureWords, type Occurrence as OccurrenceView, type TriggerSummary } from "../../contracts/agent/index.ts";
 import { type Ending, isOccurrence, type OccurrenceInput, type Outstanding } from "../inputs/index.ts";
 import type { StoredTrigger } from "../records/durable.ts";
-import { TURN_TASK } from "../turns/durable.ts";
+import { failureOf, TURN_TASK } from "../turns/durable.ts";
 import { type Standing, TRIGGER_TASK, type Waiting } from "./task.durable.ts";
 
 const context = BACKGROUND_CONTEXT;
@@ -79,12 +79,19 @@ function occurrenceView(input: OccurrenceInput, record: TaskRecord<JsonValue, Js
   };
 }
 
-/** How the task of an occurrence ended, if it has ended. */
+/**
+ * How the task of an occurrence ended, if it has ended. One that the engine
+ * could not take up again after an update is told as the engine tells such a
+ * run: orphaned, with its why as the detail.
+ */
 function endedBy(record: TaskRecord<JsonValue, JsonValue, JsonValue>): Ending | undefined {
   if (record.state.status !== "terminal") return undefined;
   const { outcome } = record.state;
   if ("result" in outcome && outcome.result !== undefined && outcome.result !== null) return outcome.result as Ending;
   if (outcome.status === "faulted" || outcome.status === "failed") return { ended: "failed", reason: outcome.error.message };
-  if (outcome.status === "orphaned") return { ended: "failed", reason: outcome.reason };
+  if (outcome.status === "orphaned") {
+    const failure = failureOf({ reason: "orphaned", detail: outcome.reason });
+    return { ended: "failed", reason: failureWords(failure.reason, failure.detail) };
+  }
   return { ended: "stopped" };
 }

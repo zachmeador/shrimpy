@@ -22,8 +22,9 @@ import type {
   SessionStatus,
   WaitingWakeup,
 } from "../../contracts/agent/index.ts";
-import { assistantText, describe } from "../turns/durable.ts";
+import { assistantText, failureOf } from "../turns/durable.ts";
 
+type AnswerItem = Extract<SessionItem, { type: "assistant" }>;
 type ToolItem = Extract<SessionItem, { type: "tool" }>;
 type Content = string | readonly { type: string; text?: string; mimeType?: string }[];
 
@@ -101,14 +102,35 @@ function toItems(entries: readonly EntryRecord[], live: LiveState): SessionItem[
   return items;
 }
 
-function assistantItem(message: AssistantMessage, entry: number | null, streaming: boolean): SessionItem {
+function assistantItem(message: AssistantMessage, entry: number | null, streaming: boolean): AnswerItem {
   let thinking = "";
   for (const block of message.content) {
     if (block.type === "thinking") thinking += block.thinking;
   }
-  // A partial answer has no stop reason yet.
-  const stopReason = (message as { stopReason?: string }).stopReason ?? null;
-  return { type: "assistant", entry, text: assistantText(message), thinking, streaming, stopReason };
+  return { type: "assistant", entry, text: assistantText(message), thinking, streaming, ended: streaming ? null : endingOf(message) };
+}
+
+/**
+ * How a stored answer ended, from the engine's stop reason, with what the
+ * engine said about it. A stop reason the agent has no word for is `other`,
+ * with the engine's own word, so no client sees it as a value.
+ */
+function endingOf(message: AssistantMessage): AnswerItem["ended"] {
+  const said = message.errorMessage ?? null;
+  switch (message.stopReason) {
+    case "stop":
+      return { how: "finished", detail: said };
+    case "toolUse":
+      return { how: "called_tools", detail: said };
+    case "length":
+      return { how: "too_long", detail: said };
+    case "error":
+      return { how: "failed", detail: said };
+    case "aborted":
+      return { how: "interrupted", detail: said };
+    default:
+      return { how: "other", detail: said === null ? message.stopReason : `${message.stopReason}: ${said}` };
+  }
 }
 
 function toolItems(message: AssistantMessage, entry: number | null, live: LiveState): ToolItem[] {
@@ -152,7 +174,8 @@ function finishTool(tool: ToolItem, entry: EntryRecord, result: ToolResultMessag
  * What a session is doing, from the engine's view of it, and the wake-ups it is
  * waiting on. `home` is the model the agent's home names now: the status says
  * whether the session's model is that one or its own. Why the last turn ended
- * without an answer is the engine's, until the next turn starts.
+ * without an answer is the engine's reason in the contract's words, until the
+ * next turn starts.
  */
 export function statusOf(view: ConversationView, home: ModelRef, wakeups: readonly WaitingWakeup[]): SessionStatus {
   const live = (view.docs["pi.live"] ?? {}) as LiveState;
@@ -173,7 +196,7 @@ export function statusOf(view: ConversationView, home: ModelRef, wakeups: readon
     ownModel: agent.model !== undefined && (agent.model.provider !== home.provider || agent.model.modelId !== home.modelId),
     usage,
     wakeups: wakeups.map(({ due, note }) => ({ due, note })),
-    failure: live.runFailure === undefined ? null : { reason: live.runFailure.reason, detail: describe(live.runFailure.detail) },
+    failure: live.runFailure === undefined ? null : failureOf(live.runFailure),
   };
 }
 
@@ -188,15 +211,28 @@ function toActivity(live: LiveState): SessionActivity {
   return { kind: "idle" };
 }
 
+/**
+ * Input that waits, and when the engine will take it: an input that steers at
+ * the running turn's next step, one that follows up after it, and anything
+ * else, such as an entry the engine writes, which the agent makes none of and
+ * names by its kind, as the engine does.
+ */
 function toQueued(item: InboxState["items"][number]): QueuedInput {
-  if (item.mode === "write") {
-    const kind = item.entry.kind;
-    return { mode: "write", text: typeof kind === "string" ? kind : "entry" };
+  switch (item.mode) {
+    case "steer":
+      return { when: "next_step", text: inputText(item.content as Message["content"]) };
+    case "followUp":
+      return { when: "next_turn", text: inputText(item.content as Message["content"]) };
+    default: {
+      const kind = item.entry.kind;
+      return { when: "other", text: typeof kind === "string" ? kind : "entry" };
+    }
   }
-  const content = item.content as Message["content"];
-  const text = typeof content === "string" ? content : content.map((block) => (block.type === "text" ? block.text : "[image]")).join("");
-  return { mode: item.mode, text };
 }
+
+/** The words of an input, with a mark for each image. */
+const inputText = (content: Message["content"]): string =>
+  typeof content === "string" ? content : content.map((block) => (block.type === "text" ? block.text : "[image]")).join("");
 
 /** The text of a message's content, without its images, which `imagesOf` names. */
 function textOf(content: Content): string {

@@ -125,7 +125,7 @@ test("a session's status shows the wake-ups it waits on, and why its last turn f
 
   await rig.receiptOn(await rig.say("please refuse"));
   const failed = await waitForView(session, (view) => view.status.failure !== null);
-  assert.equal(failed.status.failure?.reason, "model_error");
+  assert.equal(failed.status.failure?.reason, "model_failed");
   assert.ok(failed.status.failure.detail?.includes("The model refused the request."), String(failed.status.failure.detail));
 
   await session.stop();

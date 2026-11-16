@@ -397,7 +397,7 @@ function gaveUp(runtime: Runtime, context: Context, failure: Error): Promise<voi
   );
 }
 
-const failedOutcome = (failure: Error): TurnOutcome => ({ kind: "failed", reason: failureWords("faulted", failure.message) });
+const failedOutcome = (failure: Error): TurnOutcome => ({ kind: "failed", reason: failureWords("internal_error", failure.message) });
 
 /**
  * The input is done with: a skipped one is kept for the next input of its

@@ -9,7 +9,7 @@ import type {
 } from "@earendil-works/pi-durable";
 import type { Settlement } from "../../contracts/agent/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import { answerText, describe } from "../turns/durable.ts";
+import { answerText, failureOf } from "../turns/durable.ts";
 
 /** Wait for a submission of `conversation` to end, and say how it ended. */
 export async function waitForSettlement(
@@ -42,6 +42,7 @@ export async function answerEntry(
 /** `answer` is the entry a `done` submission points to. */
 export function toSettlement(record: SettledSubmissionRecord, answer: EntryRecord | undefined): Settlement {
   if (record.status === "done") return { status: "answered", text: answerText(answer) };
-  if (record.reason === "aborted") return { status: "cancelled" };
-  return { status: "unanswered", reason: record.reason, detail: describe(record.detail) };
+  const failure = failureOf(record);
+  if (failure.reason === "stopped") return { status: "cancelled" };
+  return { status: "unanswered", ...failure };
 }

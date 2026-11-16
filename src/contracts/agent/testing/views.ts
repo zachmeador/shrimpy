@@ -1,4 +1,4 @@
-import type { SessionImage, SessionItem, SessionStatus, ToolStatus } from "../index.ts";
+import type { AnswerEnding, SessionImage, SessionItem, SessionStatus, ToolStatus } from "../index.ts";
 
 /** A session's status as a test writes it down: idle, with whatever `parts` says. */
 export function sessionStatus(parts: Partial<SessionStatus> = {}): SessionStatus {
@@ -22,12 +22,13 @@ export const userItem = (text: string, entry: number | null = null, images: Sess
   images,
 });
 
+/** An answer, finished unless it streams or `ended` says otherwise. */
 export function assistantItem(
   text: string,
-  options: { thinking?: string; streaming?: boolean; stopReason?: string | null; entry?: number | null } = {},
+  options: { thinking?: string; streaming?: boolean; ended?: AnswerEnding; entry?: number | null } = {},
 ): SessionItem {
-  const { thinking = "", streaming = false, stopReason = streaming ? null : "stop", entry = null } = options;
-  return { type: "assistant", entry, text, thinking, streaming, stopReason };
+  const { thinking = "", streaming = false, ended = "finished", entry = null } = options;
+  return { type: "assistant", entry, text, thinking, streaming, ended: streaming ? null : { how: ended, detail: null } };
 }
 
 export function toolItem(

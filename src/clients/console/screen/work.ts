@@ -141,7 +141,7 @@ function stepsOf(item: SessionItem, inFull: InFull, transcript: boolean): Step[]
     case "assistant": {
       const steps: Step[] = [];
       if (item.thinking.trim() !== "") steps.push(thinkingStep(item.thinking.trim(), inFull.thinking));
-      const cutOff = answerNote(item.stopReason);
+      const cutOff = answerNote(item.ended?.how);
       if (item.text.trim() !== "" || cutOff !== undefined) steps.push(textStep(item.text.trimEnd(), cutOff, transcript));
       return steps;
     }
