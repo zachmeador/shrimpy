@@ -151,10 +151,10 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       roster: members,
       ...(options.shortestWaitMs === undefined ? {} : { shortestWaitMs: options.shortestWaitMs }),
     });
-    const defaults: SessionDefaults = { model: options.model, cwd: host.home };
+    const sessions = createSessions(host.harness, { model: options.model, cwd: host.home }, options.models);
     const triggers = createTriggers(host.harness, {
       turn: turn.task,
-      defaults,
+      defaults: sessions.defaults,
       read: () =>
         readTriggers(paths, {
           ...(options.shortestEveryMs === undefined ? {} : { shortestEveryMs: options.shortestEveryMs }),
@@ -175,10 +175,9 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       questions.extension,
       triggers.extension,
     );
-    const sessions = createSessions(host.harness, defaults, options.models);
     const admissions = createAdmissions(
       host.harness,
-      defaults,
+      sessions.defaults,
       turn.task,
       { stopWork, requireModel: (model) => requireModel(options.models, model) },
       breadcrumbs,
@@ -206,17 +205,10 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       const found = await options.reloadModels?.();
       if (found === undefined) return { changedFrom: null, leftOut: [] };
       const leftOut = found.leftOut.map(({ file, reason }) => ({ file: shownIn(options.home, file), reason }));
-      const before = defaults.model;
+      const before = sessions.defaults.model;
       const same = found.model?.provider === before.provider && found.model.modelId === before.modelId;
       if (found.model === undefined || same) return { changedFrom: null, leftOut };
-      // Whoever makes a session reads the model from `defaults`, so a session made while the others are changed follows it too.
-      defaults.model = found.model;
-      try {
-        await sessions.applyDefaults();
-      } catch (error) {
-        defaults.model = before;
-        throw error;
-      }
+      await sessions.followModel(found.model);
       return { changedFrom: { provider: before.provider, id: before.modelId }, leftOut };
     };
     // Reading the home again reads the instructions, context files and skills, the triggers, the wake file and the model,
@@ -232,7 +224,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       return {
         ...read,
         triggers: followed.count,
-        model: { provider: defaults.model.provider, id: defaults.model.modelId },
+        model: { provider: sessions.defaults.model.provider, id: sessions.defaults.model.modelId },
         changedFrom: model.changedFrom,
         leftOut,
       };

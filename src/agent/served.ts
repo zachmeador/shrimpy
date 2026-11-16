@@ -6,7 +6,7 @@ import { follow } from "../lib/follow/index.ts";
 import { isRefusal, refuse } from "../lib/refusal/index.ts";
 import { type Caller, callerOf, type Permission, refusalFor } from "./access/index.ts";
 import type { LiveRoster } from "./links/index.ts";
-import type { Sessions } from "./sessions/durable.ts";
+import { type Sessions, shownOf } from "./sessions/durable.ts";
 import type { Triggers } from "./triggers/durable.ts";
 
 /** What the agent's objects are served from. */
@@ -106,7 +106,10 @@ export function agentFacet(parts: ServedParts): Facet<Principal> {
 
     host.serve(Session, ({ session: address }, principal, self) => {
       const allowed = self.follow(watching(principal));
-      const shown = self.follow(sessions.shown(address));
+      const shown = self.derive(
+        [self.follow(sessions.view(address)), self.follow(sessions.wakeups(address)), self.follow(sessions.homeModel)],
+        ([view, wakeups, home]) => shownOf(view, wakeups, home),
+      );
       const refusal = self.derive([allowed, shown], ([no, view]) =>
         no ?? (view.made ? null : refused(`This agent has no session for ${address} yet.`)),
       );
