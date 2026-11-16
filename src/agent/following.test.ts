@@ -4,8 +4,8 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { eventually, stopAfter, tempDir } from "../lib/testing/index.ts";
-import { LEFT_OUT_BREADCRUMB } from "./following.ts";
-import { homePaths } from "./home/index.ts";
+import { follow, LEFT_OUT_BREADCRUMB } from "./following.ts";
+import { homePaths, lookAtHome } from "./home/index.ts";
 import { startAgentRig, talking, writeTrigger } from "./testing/index.ts";
 
 /*
@@ -18,6 +18,27 @@ import { startAgentRig, talking, writeTrigger } from "./testing/index.ts";
 const timeout = 30_000;
 /** How often the agent looks at its files here, in milliseconds. */
 const LOOK = 250;
+
+test("a file that changes while the agent reads its home is read again before the reading ends", { timeout }, async (t) => {
+  const paths = homePaths(tempDir(t, "agent"));
+  mkdirSync(paths.root, { recursive: true });
+  writeFileSync(paths.soul, "Be brief.\n");
+  let reads = 0;
+  const following = follow({
+    everyMs: 60_000,
+    look: () => lookAtHome(paths),
+    async read() {
+      const text = readFileSync(paths.soul, "utf8");
+      reads += 1;
+      if (reads === 1) writeFileSync(paths.soul, "Answer in rhyme, and be brief.\n");
+      return text;
+    },
+    onError: (error) => assert.fail(error),
+  });
+  stopAfter(t, () => following.close());
+
+  assert.equal(await following.reload(), "Answer in rhyme, and be brief.\n");
+});
 
 test("a file being written is read once it stops changing, and one that can't be used keeps what the agent had", { timeout }, async (t) => {
   const home = tempDir(t, "agent");

@@ -6,6 +6,9 @@ import { homePaths, leftOutSentence, removeBreadcrumb, shownIn, writeBreadcrumb 
 /** How often the agent looks at its files, in milliseconds. A test gives a shorter time. */
 export const LOOK_EVERY_MS = 2_000;
 
+/** The most times one reading reads the files while they move under it. */
+const READS = 3;
+
 export interface FollowOptions<T> {
   /** The time between two looks. */
   everyMs: number;
@@ -33,13 +36,14 @@ export interface Following<T> {
  * when what the look shows has changed and is the same at the look after, so
  * that a file that is being written is not read half-way. It looks and does not
  * watch: file-system events are not delivered for a folder that another machine
- * shares. Until the first reading nothing is known of the files, so whoever
- * starts this asks for that reading once it has read them itself, and a file that
- * changed meanwhile is read then. A look and a reading never overlap another, and
- * a failure is tried again at the next look.
+ * shares. Nothing is known of the files until whoever starts this asks for the
+ * first reading. A reading looks at the files before and after it reads them, and
+ * reads them again when they moved meanwhile, so what is kept of them is what was
+ * read. A look and a reading never overlap another, and a failure is tried again
+ * at the next look.
  */
 export function follow<T>(options: FollowOptions<T>): Following<T> {
-  /** What the files looked like just before they were last read. */
+  /** What the files looked like when they were last read. */
   let read: string | undefined;
   /** What the last look showed, when that differed from `read`. */
   let pending: string | undefined;
@@ -48,13 +52,20 @@ export function follow<T>(options: FollowOptions<T>): Following<T> {
   let closed = false;
   let failure: string | undefined;
 
-  // Looked at before it is read, so that a file that changes while it is read is seen to have changed.
+  // Files that moved while they were read may have been read half-way, so they are read again. Files that move at every
+  // reading are kept as they looked before the last one, so the next looks find the change and read it once it settles.
   const reading = async (): Promise<T> => {
-    const looked = await options.look();
-    const result = await options.read();
-    read = looked;
-    pending = undefined;
-    return result;
+    let before = await options.look();
+    for (let reads = 1; ; reads += 1) {
+      const result = await options.read();
+      const after = await options.look();
+      if (after === before || reads === READS) {
+        read = before;
+        pending = undefined;
+        return result;
+      }
+      before = after;
+    }
   };
 
   const reload = (): Promise<T> => {
