@@ -2,18 +2,8 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { newId } from "../../lib/ids/index.ts";
-import { isLocked } from "../../lib/lock/node.ts";
+import { isLocked, LockHeldError } from "../../lib/lock/node.ts";
 import { SCHEMA, SCHEMA_VERSION } from "./schema.ts";
-
-export class StoreOwnedError extends Error {
-  constructor(dataDir: string, options?: ErrorOptions) {
-    super(
-      `Another chat server is using the data in ${dataDir}. Talk to that server instead of opening its store.`,
-      options,
-    );
-    this.name = "StoreOwnedError";
-  }
-}
 
 /**
  * Open the database as its only user. Exclusive locking mode keeps the file
@@ -37,7 +27,8 @@ export function openDatabase(dataDir: string): DatabaseSync {
     db.exec("COMMIT");
   } catch (error) {
     db.close();
-    throw isLocked(error) ? new StoreOwnedError(dataDir, { cause: error }) : error;
+    if (!isLocked(error)) throw error;
+    throw new LockHeldError(`Another chat server is using the data in ${dataDir}. Talk to that server instead of opening its store.`, { cause: error });
   }
   return db;
 }

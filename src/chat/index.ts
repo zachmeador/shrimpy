@@ -42,7 +42,7 @@ const context = BACKGROUND_CONTEXT;
  * a second chat server here is refused with `ChatRunningError` before it
  * touches its data directory. The store's own lock still guards a data
  * directory that two servers reach from different runtime directories, and
- * refuses with `StoreOwnedError`.
+ * refuses with words of its own.
  *
  * The chat server starts whether or not a gateway is running. It links when it
  * finds one, and again each time the gateway comes back. Without a gateway

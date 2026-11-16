@@ -4,4 +4,4 @@
  * socket. Node only, so this is its only door. It must not know what the lock
  * protects or what a program says when another process holds it.
  */
-export { isLocked, type Lock, takeLock } from "./lock.node.ts";
+export { isLocked, type Lock, LockHeldError, takeLock } from "./lock.node.ts";

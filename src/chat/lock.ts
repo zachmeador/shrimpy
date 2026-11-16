@@ -1,17 +1,9 @@
 import { join } from "node:path";
-import { type Lock, takeLock } from "../lib/lock/node.ts";
+import { type Lock, LockHeldError, takeLock } from "../lib/lock/node.ts";
 import { runtimeDir } from "../lib/runtime/node.ts";
 
 /** Another chat server is already running with this runtime directory. */
-export class ChatRunningError extends Error {
-  readonly lock: string;
-
-  constructor(lock: string, options?: ErrorOptions) {
-    super(`A chat server is already running here, holding ${lock}. Use that one, or stop it before starting another.`, options);
-    this.name = "ChatRunningError";
-    this.lock = lock;
-  }
-}
+export class ChatRunningError extends LockHeldError {}
 
 /**
  * One chat server per runtime directory, with the lock in a file there. Take
@@ -23,5 +15,6 @@ export class ChatRunningError extends Error {
  */
 export function takeChatLock(): Lock {
   const path = join(runtimeDir(), "chat.lock");
-  return takeLock(path, (cause) => new ChatRunningError(path, { cause }));
+  const words = `A chat server is already running here, holding ${path}. Use that one, or stop it before starting another.`;
+  return takeLock(path, (cause) => new ChatRunningError(words, { cause }));
 }

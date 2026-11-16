@@ -29,14 +29,13 @@ import { greeter } from "./hello/index.ts";
 import { createInvitations } from "./invitations/index.ts";
 import { openKey } from "./key/index.ts";
 import { cannotListen } from "./listening/index.ts";
-import { takeGatewayLock } from "./lock.ts";
+import { takeDataLock, takeGatewayLock } from "./lock.ts";
 import { createPrograms } from "./programs/index.ts";
 import { openRoster, type Roster } from "./roster/index.ts";
 import { createActions, createView, gatewayFacet } from "./served/index.ts";
 import { followSettings } from "./settings/index.ts";
 
 export { GatewayRunningError } from "./lock.ts";
-export { RosterOwnedError } from "./roster/index.ts";
 
 export interface GatewayOptions {
   /** Where the gateway keeps the roster and its key. It is made if it is missing, and the key with it. */
@@ -110,8 +109,9 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
   };
 
   try {
+    const data = takeDataLock(options.dataDir);
+    open.push(() => data.release());
     const roster = openRoster(options.dataDir, options.account ?? userInfo().username);
-    open.push(() => roster.close());
     // Made or read once the data directory is held, so that no other gateway makes one at the same time.
     const { key, fingerprint } = openKey(options.dataDir);
     if (options.settings !== undefined) open.push(followYourName(roster, options.settings));

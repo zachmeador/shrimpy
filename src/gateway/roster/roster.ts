@@ -1,6 +1,4 @@
 import { createHash } from "node:crypto";
-import { mkdirSync } from "node:fs";
-import { join } from "node:path";
 import {
   type Answer,
   done,
@@ -12,19 +10,7 @@ import {
   type WayIn,
 } from "../../contracts/gateway/index.ts";
 import { newId } from "../../lib/ids/index.ts";
-import { type Lock, takeLock } from "../../lib/lock/node.ts";
 import { type DeviceRecord, type MemberRecord, readRoster, rosterFile, writeRoster } from "./file.ts";
-
-/** Another gateway is already using this data directory. */
-export class RosterOwnedError extends Error {
-  constructor(dataDir: string, options?: ErrorOptions) {
-    super(
-      `Another gateway is using the roster in ${dataDir}. Use that gateway, or stop it before starting another.`,
-      options,
-    );
-    this.name = "RosterOwnedError";
-  }
-}
 
 /** Characters in a member's name or a device's label. */
 const MAX_NAME = 200;
@@ -76,31 +62,6 @@ export interface Roster {
   takeBack(id: string): WayIn | undefined;
   /** Hear of every change, after it is written. */
   onChange(listener: () => void): () => void;
-  /** Let go of the data directory. */
-  close(): void;
-}
-
-/**
- * Open the roster in `dataDir`, taking the directory for this process alone. A
- * roster with nobody for you yet, as when the gateway first makes its data,
- * gets you, called `firstName`. A file that cannot be read stops the gateway,
- * and so does one with a second person, or a first name another member has:
- * guessing at who is who would be worse.
- */
-export function openRoster(dataDir: string, firstName: string): Roster {
-  const lock = takeOwnerLock(dataDir);
-  try {
-    return keep(dataDir, lock, firstName);
-  } catch (error) {
-    lock.release();
-    throw error;
-  }
-}
-
-function takeOwnerLock(dataDir: string): Lock {
-  const runtime = join(dataDir, "runtime");
-  mkdirSync(runtime, { recursive: true, mode: 0o700 });
-  return takeLock(join(runtime, "owner.lock"), (cause) => new RosterOwnedError(dataDir, { cause }));
 }
 
 const fold = (name: string): string => name.toLowerCase();
@@ -123,7 +84,14 @@ function fit(label: string): string | undefined {
   return trimmed === "" || trimmed.length > MAX_NAME || /\p{Cc}/u.test(trimmed) ? undefined : trimmed;
 }
 
-function keep(dataDir: string, lock: Lock, firstName: string): Roster {
+/**
+ * Open the roster in `dataDir`, which the gateway holds. A roster with nobody
+ * for you yet, as when the gateway first makes its data, gets you, called
+ * `firstName`. A file that cannot be read stops the gateway, and so does one
+ * with a second person, or a first name another member has: guessing at who is
+ * who would be worse.
+ */
+export function openRoster(dataDir: string, firstName: string): Roster {
   const file = rosterFile(dataDir);
   let records = readRoster(dataDir);
   const seen = new Map<string, string>();
@@ -289,6 +257,5 @@ function keep(dataDir: string, lock: Lock, firstName: string): Roster {
       listeners.add(listener);
       return () => void listeners.delete(listener);
     },
-    close: () => lock.release(),
   };
 }

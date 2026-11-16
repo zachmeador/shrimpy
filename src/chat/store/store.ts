@@ -39,8 +39,8 @@ export interface StoreOptions {
 }
 
 /**
- * Open the store in `dataDir`, taking it for this process alone. Throws
- * `StoreOwnedError` while another process or connection has it.
+ * Open the store in `dataDir`, taking it for this process alone. Throws a
+ * `LockHeldError` while another process or connection has it.
  */
 export function openStore(dataDir: string, options: StoreOptions = {}): Store {
   const db = openDatabase(dataDir);

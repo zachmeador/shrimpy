@@ -6,6 +6,19 @@ export interface Lock {
 }
 
 /**
+ * Another process holds a lock this one asked for. Its message is the words of
+ * whoever asked, for a person, saying whose the lock is and what to do. A
+ * program names a class of its own after this one where a caller tells that
+ * program's lock apart.
+ */
+export class LockHeldError extends Error {
+  constructor(words: string, options?: ErrorOptions) {
+    super(words, options);
+    this.name = new.target.name;
+  }
+}
+
+/**
  * Take an exclusive lock on the SQLite file at `path`, which is made if it
  * does not exist. The operating system holds it for the process and drops it
  * when the process dies, so there is no heartbeat, pid file or stale lock to

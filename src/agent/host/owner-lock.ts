@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { type Lock, takeLock } from "../../lib/lock/node.ts";
+import { type Lock, LockHeldError, takeLock } from "../../lib/lock/node.ts";
 import { homePaths } from "../home/index.ts";
 
 /**
@@ -10,15 +10,6 @@ import { homePaths } from "../home/index.ts";
 export function takeOwnerLock(home: string): Lock {
   const { runtime } = homePaths(home);
   mkdirSync(runtime, { recursive: true });
-  return takeLock(join(runtime, "owner.lock"), (cause) => new HomeOwnedError(home, { cause }));
-}
-
-class HomeOwnedError extends Error {
-  constructor(home: string, options?: ErrorOptions) {
-    super(
-      `Another process owns the agent home at ${home}. Talk to that agent instead of opening its storage.`,
-      options,
-    );
-    this.name = "HomeOwnedError";
-  }
+  const words = `Another process owns the agent home at ${home}. Talk to that agent instead of opening its storage.`;
+  return takeLock(join(runtime, "owner.lock"), (cause) => new LockHeldError(words, { cause }));
 }

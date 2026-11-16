@@ -10,6 +10,5 @@
  */
 export type { ChannelRecord } from "./channels.ts";
 export type { Change } from "./changes.ts";
-export { StoreOwnedError } from "./database.ts";
 export { openStore, type Store, type StoreOptions, type Transaction } from "./store.ts";
 export type { ThreadRecord } from "./threads.ts";

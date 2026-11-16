@@ -11,7 +11,7 @@ import type {
 import { saveFile } from "../../lib/files/node.ts";
 import { type ConfigObject, parseConfig } from "../../lib/json-config/index.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
-import { type Lock, takeLock } from "../../lib/lock/node.ts";
+import { type Lock, LockHeldError, takeLock } from "../../lib/lock/node.ts";
 import { backoff } from "../../lib/retry/index.ts";
 
 /**
@@ -186,9 +186,6 @@ async function locked<T>(file: string, signal: AbortSignal | undefined, work: ()
   }
 }
 
-/** Another process holds the lock. */
-class HeldElsewhere extends Error {}
-
 /** Take the lock at `path`, waiting for the process that holds it for a while, and no longer once `signal` aborts. */
 async function takeWaiting(path: string, signal: AbortSignal | undefined): Promise<Lock> {
   const pauses = backoff({ firstMs: 10, maxMs: 250 });
@@ -196,9 +193,9 @@ async function takeWaiting(path: string, signal: AbortSignal | undefined): Promi
   for (;;) {
     signal?.throwIfAborted();
     try {
-      return takeLock(path, (cause) => new HeldElsewhere("The lock is held by another process.", { cause }));
+      return takeLock(path, (cause) => new LockHeldError("The lock is held by another process.", { cause }));
     } catch (error) {
-      if (!(error instanceof HeldElsewhere)) throw error;
+      if (!(error instanceof LockHeldError)) throw error;
       if (Date.now() >= giveUp) {
         throw new Error(
           `Another process has held ${path} for ${LOCK_WAIT_MS / 1000} seconds, so waiting to change the credentials stopped. ` +
