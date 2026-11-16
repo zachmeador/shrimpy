@@ -1,10 +1,10 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { dataFolder, nothingToStart } from "../folder/index.ts";
-import { bringUp, lengthOf, PACE, type Pace, planUp } from "../up/index.ts";
+import { bringUp, PACE, type Pace, planUp } from "../up/index.ts";
 import { parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
-import { ABOUT_LISTEN, LISTEN_OPTION, listenAddresses } from "./listen.ts";
+import { LISTEN_OPTION, listenAddresses } from "./listen.ts";
 import { AN_AGENT } from "./which-agent.ts";
 
 /** `shrimpy up`. A test makes it with a pace of its own. */
@@ -14,38 +14,31 @@ export function upCommand(pace: Pace = PACE): Command {
     usage: "[<agent>...] [--data <dir>] [--listen <host:port>]...",
     summary: "Start what is missing on this machine and keep it running: the gateway, the chat server and your agents.",
     details: [
-      "Your Shrimpy folder is ~/shrimpy or the folder SHRIMPY_DIR names. Its agents/ holds the home of each " +
-        "agent, providers/ the sign-ins and model servers they share, gateway/ and chat/ the data of those " +
-        "programs, and settings.json your own settings, such as your name. If this machine joined a gateway as " +
-        "yours, machine.json says which.",
-      "With no agents named, it starts every agent in your Shrimpy folder: each folder of agents/ that holds an " +
-        "agent.json. The gateway keeps its roster in gateway/ and the chat server its store in chat/, in that " +
-        "folder or in the directory --data names, which is made if it is missing. Each program runs as a process " +
-        "of its own, the same one that gateway serve, chat serve and agent serve start. A gateway, chat server or " +
-        "agent that is already running is used as it " +
-        `is, and left running when this stops. ${ABOUT_LISTEN} This passes --listen to the gateway it starts, and ` +
-        "says where the gateway listens. A gateway that is already running is used as it is, so --listen can't " +
-        "change it, and this says so. When it is told to listen, by --listen or by the addresses the gateway kept, " +
-        "it starts the gateway and the chat server in a folder with no agents too, since agents elsewhere can join " +
-        "it. When every agent it is to start belongs to a gateway elsewhere, because it joined one with shrimpy " +
-        "join, this starts those agents and no gateway or chat server, unless it is told to listen: they are " +
-        "talked to from the gateway's machine. With some agents that belong elsewhere and some that don't, it " +
-        "starts the gateway and the chat server as usual, and all the agents. Ctrl+C or SIGTERM stops what this " +
-        "started, agents first, and exits 0 once they have stopped; a second request tells the agents to stop " +
-        "without waiting for running turns, and a third ends everything at once.",
-      "With no agents named, it also keeps the folder running, which is what a service runs. Every " +
-        `${lengthOf(pace.lookMs)} it looks at the homes in agents/ and starts the agent of any home that has ` +
-        "none running, so an agent made while this runs starts by itself. An agent this started that ends by " +
-        "itself is reported with how it ended, and is started again alone, after a pause that grows from " +
-        `${lengthOf(pace.pauseMs)} to ${lengthOf(pace.longestPauseMs)} while it keeps failing and starts over once ` +
-        `it has stayed up for ${lengthOf(pace.stableMs)}. A home whose agent can't start is reported once, with ` +
-        "what the agent said, and tried again after the same pauses, and at once when its agent.json changes. An " +
-        "agent that someone else started is used as it is, and this starts the home's agent when that one ends. " +
-        "The agent this started at a home that is taken away is stopped. If the gateway or the chat server this " +
-        "started ends by itself, this says which, stops the rest and exits 1, so whatever keeps this running " +
-        "starts it all again.",
-      "With agents named, it starts those and follows nothing: if one of them, or the gateway or the chat " +
-        `server this started, ends by itself, this says which, stops the rest and exits 1. ${AN_AGENT}`,
+      "With no agents named, it starts every agent in your Shrimpy folder and keeps the folder running, which is " +
+        "what the service that shrimpy install sets up runs. An agent made later starts by itself, and one that " +
+        "ends is started again, after a pause that grows while it keeps failing. An agent that can't start is " +
+        "said once, and tried again after the same pauses or at once when its agent.json changes. An agent whose " +
+        "home is taken away is stopped.",
+      "With agents named, it starts only those, and stops everything if one of them ends.",
+      "Whatever already runs is used as it is and left running. Agents that joined a gateway elsewhere with " +
+        "shrimpy join start with no gateway or chat server here, and you talk to them from that gateway's machine.",
+      "Ctrl+C or SIGTERM stops what this started, agents first, and exits 0. A second one stops the agents " +
+        "without waiting for running turns, and a third ends everything at once. If the gateway or the chat " +
+        "server this started ends by itself, this stops the rest and exits 1, so a service starts it all again.",
+      "--listen <host:port> opens the gateway, on that address, to agents and machines of yours that are apart " +
+        "from it. Give it more than once for more addresses. The gateway keeps them for its next start. With an " +
+        "address to listen on, given or kept, this starts the gateway and the chat server in a folder with no " +
+        "agents too. shrimpy gateway serve --help says which addresses it takes.",
+      "--data <dir> keeps the gateway's and the chat server's data in <dir>, in place of your Shrimpy folder.",
+      [
+        "Your Shrimpy folder is ~/shrimpy, or the folder SHRIMPY_DIR names:",
+        "  agents/          a home for each agent",
+        "  providers/       the sign-ins and model servers its agents share",
+        "  gateway/, chat/  the data of those programs",
+        "  settings.json    your own settings, such as your name",
+        "  machine.json     the gateway this machine joined as yours, if it did",
+      ].join("\n"),
+      AN_AGENT,
     ].join("\n\n"),
     async run(args, io) {
       const { values, positionals } = parsing(() =>

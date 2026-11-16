@@ -6,5 +6,5 @@
  * not know how a command reads its arguments, or how a program works inside.
  */
 export { bringUp } from "./bring-up.ts";
-export { lengthOf, PACE, type Pace } from "./pace.ts";
+export { PACE, type Pace } from "./pace.ts";
 export { alreadyRunning, type Plan, planUp } from "./plan.ts";
