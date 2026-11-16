@@ -7,6 +7,6 @@
  * gateway is, so none of this assumes it is on this machine. It must not know
  * what the agent says to chat or does with what chat offers, or who may do what.
  */
-export { type ChatCalls, type ChatLink, isUnavailable, type LiveChat, openChatLink } from "./chat.ts";
+export { callSignal, type ChatCalls, chatFailure, type ChatLink, isUnavailable, type LiveChat, openChatLink } from "./chat.ts";
 export { type GatewayLink, type GatewayLinkOptions, linkToGateway, type MembershipStore } from "./gateway.ts";
 export { createRoster, type LiveRoster } from "./roster.ts";

@@ -2,9 +2,10 @@ import { obj, opt, str } from "@earendil-works/pi-schema";
 import { defineTool, type ToolExecutionApi } from "@earendil-works/pi-durable";
 import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
 import { inParts } from "../chat/index.ts";
+import { answer, failure } from "../host/durable.ts";
+import { callSignal, chatFailure } from "../links/index.ts";
 import type { MessageToolsOptions } from "./options.ts";
 import { placeOf } from "./place.durable.ts";
-import { answer, callSignal, chatFailure, failure } from "./results.durable.ts";
 import * as words from "./words.ts";
 
 /**

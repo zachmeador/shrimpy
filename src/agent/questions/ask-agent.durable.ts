@@ -1,9 +1,8 @@
-import type { Context } from "@earendil-works/chord/context";
 import { obj, opt, str } from "@earendil-works/pi-schema";
-import { defineExtension, defineTool, type Extension, type ToolExecutionApi, type ToolExecutionResult } from "@earendil-works/pi-durable";
+import { defineExtension, defineTool, type Extension, type ToolExecutionApi } from "@earendil-works/pi-durable";
 import type { RosterEntry } from "../../contracts/gateway/index.ts";
-import { isRefusal } from "../../lib/refusal/index.ts";
-import { isUnavailable, type LiveChat } from "../links/index.ts";
+import { answer, failure } from "../host/durable.ts";
+import { callSignal, chatFailure, type LiveChat } from "../links/index.ts";
 import { addressOfPlace, placeOfSession } from "../records/durable.ts";
 import { readTo, readWithin, SHORTEST_WITHIN, startOf } from "./args.ts";
 import { agentNamed, emptyThread } from "./lookup.ts";
@@ -26,12 +25,6 @@ export interface AskToolsOptions {
   /** The shortest wait for an answer a question may be given, in milliseconds. A minute, if not given. Tests shorten it. */
   shortestWaitMs?: number;
 }
-
-/** A tool's answer: just these words. */
-const answer = (text: string): ToolExecutionResult => ({ output: [{ type: "text", text }] });
-
-/** A tool's answer when it did not do what was asked: just these words, marked as an error. */
-const failure = (text: string): ToolExecutionResult => ({ isError: true, output: [{ type: "text", text }] });
 
 /**
  * `ask_agent`: make a thread of its own for a question in the agent's DM with
@@ -142,21 +135,4 @@ export function askTools(options: AskToolsOptions): Extension {
 function requestId(recordsId: string, api: ToolExecutionApi): string {
   const call = api.callId.replace(/[^A-Za-z0-9_.:-]/g, "_").slice(0, 80);
   return `ask-${recordsId}-${String(api.taskId)}-${call}`;
-}
-
-/** The signal that ends a call to chat: the connection being lost, or the turn being stopped. */
-function callSignal(live: LiveChat, context: Context): AbortSignal {
-  return context.abortSignal === undefined ? live.lost : AbortSignal.any([live.lost, context.abortSignal]);
-}
-
-/**
- * Sort out why a call to chat failed: chat answered and said no, for a reason, or
- * the connection ended. A failure that is not about chat, such as the turn being
- * stopped or a mistake in the code, is thrown again for the engine to deal with.
- */
-function chatFailure(error: unknown, live: LiveChat, context: Context): { refused: string } | { lost: true } {
-  if (context.abortSignal?.aborted === true) throw error;
-  if (live.lost.aborted || isUnavailable(error)) return { lost: true };
-  if (isRefusal(error)) return { refused: error.message };
-  throw error;
 }

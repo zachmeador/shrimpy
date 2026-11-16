@@ -1,11 +1,11 @@
 import { int, obj, opt, str } from "@earendil-works/pi-schema";
 import { defineTool } from "@earendil-works/pi-durable";
 import type { Message } from "../../contracts/chat/index.ts";
+import { answer, failure } from "../host/durable.ts";
 import { standing } from "../inputs/index.ts";
-import type { ChatCalls } from "../links/index.ts";
+import { callSignal, type ChatCalls, chatFailure } from "../links/index.ts";
 import type { MessageToolsOptions } from "./options.ts";
 import { placeOf } from "./place.durable.ts";
-import { answer, callSignal, chatFailure, failure } from "./results.durable.ts";
 import * as words from "./words.ts";
 
 const DEFAULT_LIMIT = 20;

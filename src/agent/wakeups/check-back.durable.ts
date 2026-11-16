@@ -1,5 +1,6 @@
 import { obj, opt, str } from "@earendil-works/pi-schema";
-import { defineExtension, defineTool, type Extension, type ToolExecutionResult } from "@earendil-works/pi-durable";
+import { defineExtension, defineTool, type Extension } from "@earendil-works/pi-durable";
+import { answer, failure } from "../host/durable.ts";
 import type { Wakeups } from "./wakeups.durable.ts";
 import { readWhen } from "./when.ts";
 import * as words from "./words.ts";
@@ -11,12 +12,6 @@ export interface WakeupToolsOptions {
 
 /** The most characters a note may have: it is shown to the model again, perhaps with others, when it is woken. */
 const MAX_NOTE = 1_000;
-
-/** A tool's answer: just these words. */
-const answer = (text: string): ToolExecutionResult => ({ output: [{ type: "text", text }] });
-
-/** A tool's answer when it did not do what was asked: just these words, marked as an error. */
-const failure = (text: string): ToolExecutionResult => ({ isError: true, output: [{ type: "text", text }] });
 
 /**
  * `check_back`: wake the session that calls it, once, after a delay or at a

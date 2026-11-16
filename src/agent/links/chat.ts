@@ -11,7 +11,7 @@ import {
 } from "../../contracts/chat/index.ts";
 import type { Answer, Principal, Refused, Revocation } from "../../contracts/gateway/index.ts";
 import { createListeners, type Listeners, untilAborted, untilHeard } from "../../lib/listeners/index.ts";
-import { refuse } from "../../lib/refusal/index.ts";
+import { isRefusal, refuse } from "../../lib/refusal/index.ts";
 
 /**
  * What the agent does in chat, over the `Chat` it holds and the channels and
@@ -91,6 +91,23 @@ const contextFor = (signal: AbortSignal): Context => withAbortSignal(signal, BAC
  */
 export function isUnavailable(error: unknown): boolean {
   return error instanceof ChordError && (error.code === "unavailable" || error.code === "released");
+}
+
+/**
+ * Why a call to chat failed: chat was lost before the call finished, or it
+ * answered and said no, for a reason. A failure that is not about chat, such as
+ * the turn being stopped or a mistake in the code, is thrown again.
+ */
+export function chatFailure(error: unknown, live: LiveChat, context: Context): { lost: true } | { refused: string } {
+  if (context.abortSignal?.aborted === true) throw error;
+  if (live.lost.aborted || isUnavailable(error)) return { lost: true };
+  if (isRefusal(error)) return { refused: error.message };
+  throw error;
+}
+
+/** The signal that ends a call to chat: chat being lost, or the turn being stopped. */
+export function callSignal(live: LiveChat, context: Context): AbortSignal {
+  return context.abortSignal === undefined ? live.lost : AbortSignal.any([live.lost, context.abortSignal]);
 }
 
 /**
