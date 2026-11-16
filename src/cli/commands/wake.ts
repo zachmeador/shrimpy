@@ -8,8 +8,9 @@ import {
   type WakePolicy,
 } from "../../contracts/agent/index.ts";
 import { loadHome, readWake, saveWake } from "../../contracts/agent/node.ts";
+import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
-import { contextOf, onAgent, type Reached, reachChat, roomNamed, roomNameWritten, valueOf } from "../talk/index.ts";
+import { onAgent, type Reached, reachChat, roomNamed, roomNameWritten } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning } from "./connected.ts";

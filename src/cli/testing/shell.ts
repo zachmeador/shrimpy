@@ -2,7 +2,7 @@ import type { TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { AGENT_HOME_VARIABLE } from "../../contracts/agent/index.ts";
 import { initHome, saveMembership } from "../../contracts/agent/node.ts";
-import { type Member, Roster } from "../../contracts/gateway/index.ts";
+import { type Member, Roster, valueOf } from "../../contracts/gateway/index.ts";
 import { newToken } from "../../contracts/gateway/node.ts";
 import { linkTestAgent, startTestGateway } from "../../contracts/gateway/testing/index.ts";
 import { tempDir } from "../../lib/testing/index.ts";
@@ -41,8 +41,7 @@ export async function startAgentShell(t: TestContext, name: string, options: { a
     const roster = await person.host.get(Roster, {}, BACKGROUND_CONTEXT);
     const answer = await (wanted ? roster.promote({ member: member.id }, BACKGROUND_CONTEXT) : roster.demote({ member: member.id }, BACKGROUND_CONTEXT));
     roster.release();
-    if (answer.kind === "refused") throw new Error(answer.words);
-    member = answer.value;
+    member = valueOf(answer);
   }
   return { member, home, run: (args) => shrimpy(args, { env: { [AGENT_HOME_VARIABLE]: home } }) };
 }

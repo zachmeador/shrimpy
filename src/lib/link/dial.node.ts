@@ -2,6 +2,7 @@ import type { createConnection } from "node:net";
 import { connect } from "node:tls";
 import type { JsonValue } from "@earendil-works/chord/json";
 import { WebSocket } from "ws";
+import { codeOf } from "../files/index.ts";
 import { fingerprintOf } from "../tls/node.ts";
 import { type Linked, linkOver, MAX_FRAME, textOf } from "./linked.node.ts";
 import { describePlace, placeUrl } from "./place.ts";
@@ -42,6 +43,12 @@ export class OtherKeyError extends Error {
 }
 
 const ANSWER_MS = 15_000;
+
+/** Whether `error`, from dialing a socket's path, means nothing listens there. */
+export function nobodyThere(error: unknown): boolean {
+  const code = codeOf(error instanceof Error ? error.cause : undefined);
+  return code === "ECONNREFUSED" || code === "ENOENT";
+}
 
 /**
  * Open a WebSocket to `place`, send `hello` as the first frame and wait for

@@ -1,18 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { parseArgs } from "node:util";
 import { type Channel, Thread } from "../../contracts/chat/index.ts";
+import { contextOf, isLost, unlessRefused, valueOf } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
 import {
   agentNamed,
-  contextOf,
   type HeldThread,
-  isLost,
   onChannel,
   type Reached,
   reachChat,
   runningAgent,
-  unlessRefused,
-  valueOf,
   type Waited,
   waitForReceipt,
 } from "../talk/index.ts";

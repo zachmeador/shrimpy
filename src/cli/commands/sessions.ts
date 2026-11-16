@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { parseArgs } from "node:util";
 import { failureWords, MAX_READ, type Settlement } from "../../contracts/agent/index.ts";
+import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
-import { contextOf, type HeldSession, onAgent, onSession, valueOf } from "../talk/index.ts";
+import { type HeldSession, onAgent, onSession } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { withConnection } from "./connected.ts";

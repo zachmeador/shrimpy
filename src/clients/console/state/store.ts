@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { type AgentModels, MAX_READ, type SessionItem, type SessionPage } from "../../../contracts/agent/index.ts";
-import type { Answer } from "../../../contracts/gateway/index.ts";
+import { valueOf } from "../../../contracts/gateway/index.ts";
 import type { GatewayPlace } from "../../../contracts/gateway/node.ts";
 import { createListeners } from "../../../lib/listeners/index.ts";
 import type { Backoff } from "../../../lib/retry/index.ts";
@@ -153,12 +153,6 @@ const MODELS_WAIT_MS = 3000;
 const TAKE_BACK_MS = 10_000;
 /** The most items of a session shown at once, which are its newest: a watch reads back from where the window starts to as many. */
 const SHOWN_ITEMS = 200;
-
-/** What a method did, or `Down` when it could not be asked, or the refusal it answered with, thrown with its words. */
-function valueOf<T>(answer: Answer<T>): T {
-  if (answer.kind === "refused") throw new Error(answer.words);
-  return answer.value;
-}
 
 export async function createConsoleState(options: ConsoleStateOptions): Promise<ConsoleState> {
   const noticeMs = options.noticeMs ?? NOTICE_MS;

@@ -1,6 +1,7 @@
 import { parseArgs } from "node:util";
 import { type Message, Thread } from "../../contracts/chat/index.ts";
-import { contextOf, type Reached, reachChat, valueOf } from "../talk/index.ts";
+import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
+import { type Reached, reachChat } from "../talk/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderThread } from "./render-threads.ts";

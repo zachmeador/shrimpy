@@ -1,8 +1,8 @@
 import { parseArgs } from "node:util";
 import { checkAgentName } from "../../contracts/agent/index.ts";
-import { type Address, type Invitation, writeLink } from "../../contracts/gateway/index.ts";
+import { type Address, contextOf, type Invitation, valueOf, writeLink } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
-import { contextOf, onRoster, valueOf, withGatewayAsMe } from "../talk/index.ts";
+import { onRoster, withGatewayAsMe } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { ADMIN } from "./members.ts";

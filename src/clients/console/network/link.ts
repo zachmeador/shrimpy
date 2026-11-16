@@ -7,6 +7,7 @@ import {
   keepLinked,
   UnprovenGatewayError,
 } from "../../../contracts/gateway/node.ts";
+import { nobodyThere } from "../../../lib/link/node.ts";
 import { createListeners } from "../../../lib/listeners/index.ts";
 import type { Backoff } from "../../../lib/retry/index.ts";
 import { CONNECTING, type LinkStatus, UP, type Why } from "./status.ts";
@@ -31,12 +32,6 @@ export interface GatewayLink {
   onChange(listener: () => void): () => void;
   /** Stop linking, drop the link and close the host. */
   close(): Promise<void>;
-}
-
-/** Whether `error`, from dialing a socket's path, means nothing listens there. */
-function nobodyThere(error: unknown): boolean {
-  const code = ((error as Error).cause as NodeJS.ErrnoException | undefined)?.code;
-  return code === "ECONNREFUSED" || code === "ENOENT";
 }
 
 /**

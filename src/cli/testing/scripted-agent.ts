@@ -1,9 +1,19 @@
 import type { TestContext } from "node:test";
-import { ChordError, createHost, defineFacet, type Reference } from "@earendil-works/chord";
-import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
+import { createHost, defineFacet, type Reference } from "@earendil-works/chord";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { AgentPresence } from "../../contracts/agent/index.ts";
 import { Chat, type ChatEvent, Thread } from "../../contracts/chat/index.ts";
-import { agent, type Answer, hello, type Principal, readAnswer, type Revocation, revokedBy } from "../../contracts/gateway/index.ts";
+import {
+  agent,
+  contextOf,
+  hello,
+  isLost,
+  type Principal,
+  readAnswer,
+  type Revocation,
+  revokedBy,
+  valueOf,
+} from "../../contracts/gateway/index.ts";
 import { gatewaySocket, newToken } from "../../contracts/gateway/node.ts";
 import { linkTestAgent } from "../../contracts/gateway/testing/index.ts";
 import { dial, keepLink } from "../../lib/link/node.ts";
@@ -51,11 +61,6 @@ export interface ScriptedAgent {
 /** The reason a receipt gives: a failure's, or a skip's when it has one. */
 const detailOf = (outcome: Outcome): string | null =>
   outcome.status === "failed" || outcome.status === "skipped" ? (outcome.detail ?? null) : null;
-
-function valueOf<T>(answer: Answer<T>): T {
-  if (answer.kind === "refused") throw new Error(`Refused: ${answer.words}`);
-  return answer.value;
-}
 
 /**
  * Stand in for an agent whose side of chat is not under test: its program
@@ -106,7 +111,7 @@ export async function startScriptedAgent(t: TestContext, options: ScriptedAgentO
   const self = chat.you.value;
   if (self === null) throw new Error("Chat takes the scripted agent for nobody.");
   // What the agent asks of chat ends when it leaves, so that a chat server that went away holds nothing up.
-  const asking = withAbortSignal(leaving.signal, context);
+  const asking = contextOf(leaving.signal);
   const left = new Promise<undefined>((resolve) => leaving.signal.addEventListener("abort", () => resolve(undefined), { once: true }));
 
   const work = async (post: Posted): Promise<void> => {
@@ -162,8 +167,7 @@ export async function startScriptedAgent(t: TestContext, options: ScriptedAgentO
     }
   })().catch((error: unknown) => {
     // A chat server or a gateway that goes away ends the agent's listening without being a failure of the test.
-    const lost = error instanceof ChordError && (error.code === "unavailable" || error.code === "released");
-    if (!hasLeft() && !lost) throw error;
+    if (!hasLeft() && !isLost(error)) throw error;
   });
   stopAfter(t, async () => {
     leaving.abort();

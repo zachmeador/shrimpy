@@ -17,7 +17,7 @@ import {
   type TriggerSummary,
 } from "../../contracts/agent/index.ts";
 import { connectHome } from "../../contracts/agent/node.ts";
-import type { Answer, Principal, Revocation } from "../../contracts/gateway/index.ts";
+import { type Principal, type Revocation, unlessRefused, valueOf } from "../../contracts/gateway/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { stopAfter } from "../../lib/testing/index.ts";
 
@@ -60,12 +60,6 @@ export interface AgentConnection {
   fire(name: string): Promise<Occurrence>;
   reload(): Promise<Reloaded>;
   close(): Promise<void>;
-}
-
-/** What a method did, or its refusal, thrown. */
-function valueOf<T>(answer: Answer<T>): T {
-  if (answer.kind === "refused") refuse(answer.words);
-  return answer.value;
 }
 
 function viewOf(session: Reference<typeof Session>): SessionView {
@@ -120,10 +114,7 @@ export async function holdSession(host: Host<Principal, Revocation>, name: strin
 /** The agent `name`, as `host` holds it, closed with `close`. */
 export async function holdAgent(host: Host<Principal, Revocation>, name: string, close: () => Promise<void>): Promise<AgentConnection> {
   const agent = await host.get(Agent, { agent: name }, context);
-  const allowed = (): void => {
-    const refusal = agent.refusal.value;
-    if (refusal !== null) refuse(refusal.words);
-  };
+  const allowed = (): void => unlessRefused(agent.refusal.value);
   return {
     name,
     async sessions() {

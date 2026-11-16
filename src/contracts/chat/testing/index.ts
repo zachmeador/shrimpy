@@ -7,6 +7,7 @@
  * the roster's member a name means. Only tests and test fixtures import this,
  * and it must not know about any program but the command that starts one.
  */
+export { valueOf } from "../../gateway/index.ts";
 export { startTestChat, type TestChat } from "./chat.ts";
 export {
   enterAsAgent,
@@ -18,6 +19,5 @@ export {
   onThread,
   type Speaking,
   speakingAs,
-  valueOf,
 } from "./speaking.ts";
 export { type Talk, talkTo } from "./talk.ts";

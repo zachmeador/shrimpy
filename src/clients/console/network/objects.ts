@@ -1,5 +1,5 @@
 import type { RefState } from "@earendil-works/chord";
-import { BACKGROUND_CONTEXT, type Context, withAbortSignal } from "@earendil-works/chord/context";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
   Agent,
   type AgentModels,
@@ -11,6 +11,7 @@ import {
 import { Channel, Chat, type Member, type Message, Thread } from "../../../contracts/chat/index.ts";
 import {
   type Answer,
+  contextOf,
   type Member as RosterMember,
   type Program,
   type Refused,
@@ -33,9 +34,6 @@ export interface Holding<V, Calls> {
   /** Let go of it: nothing more is told of it. */
   release(): void;
 }
-
-const contextOf = (signal: AbortSignal | undefined): Context =>
-  signal === undefined ? BACKGROUND_CONTEXT : withAbortSignal(signal, BACKGROUND_CONTEXT);
 
 /** Anything held: its state, and members that throw while it has never had values. */
 interface Reference {

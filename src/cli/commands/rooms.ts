@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
-import { contextOf, membersNamed, onChannel, reachChat, roomNamed, roomNameWritten, valueOf } from "../talk/index.ts";
+import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
+import { membersNamed, onChannel, reachChat, roomNamed, roomNameWritten } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderRooms } from "./render-rooms.ts";

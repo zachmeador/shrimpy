@@ -1,6 +1,7 @@
 import type { Channel, Thread } from "../../contracts/chat/index.ts";
+import { isLost } from "../../contracts/gateway/index.ts";
 import type { Place } from "../inputs/index.ts";
-import { type ChatCalls, isUnavailable, type LiveChat } from "../links/index.ts";
+import { type ChatCalls, type LiveChat } from "../links/index.ts";
 import { describePlace } from "./place.ts";
 
 /** Where a thread is, among the channels whoever asks is in. */
@@ -24,7 +25,7 @@ async function placeOfThread(chat: ChatCalls, threadId: string, signal: AbortSig
     }
     return { kind: "missing" };
   } catch (error) {
-    if (isUnavailable(error)) return { kind: "unreachable" };
+    if (isLost(error)) return { kind: "unreachable" };
     throw error;
   }
 }

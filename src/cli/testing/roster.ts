@@ -1,6 +1,6 @@
 import type { TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { type Invitation, type Member, type Program, Roster, type RosterEntry, type WayIn } from "../../contracts/gateway/index.ts";
+import { type Invitation, type Member, type Program, Roster, type RosterEntry, valueOf, type WayIn } from "../../contracts/gateway/index.ts";
 import { type Client, connectClient, type GatewayPlace, gatewaySocket } from "../../contracts/gateway/node.ts";
 import { stopAfter } from "../../lib/testing/index.ts";
 
@@ -29,10 +29,6 @@ export async function onTheRoster(t: TestContext, place: GatewayPlace = { path: 
   stopAfter(t, () => client.close());
   const roster = await client.host.get(Roster, {}, context);
   stopAfter(t, () => roster.release());
-  const valueOf = <T>(answer: { kind: "done"; value: T } | { kind: "refused"; words: string }): T => {
-    if (answer.kind === "refused") throw new Error(answer.words);
-    return answer.value;
-  };
   return {
     client,
     members: async () => roster.members.value,

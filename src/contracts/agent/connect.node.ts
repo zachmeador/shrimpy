@@ -1,5 +1,5 @@
-import { codeOf } from "../../lib/files/index.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
+import { nobodyThere } from "../../lib/link/node.ts";
 import { type Client, type ConnectOptions, connectClient } from "../gateway/node.ts";
 import { type AgentEndpoint, endpointFile } from "./endpoint.ts";
 
@@ -32,12 +32,6 @@ export interface HomeClient extends Client {
 }
 
 export type ConnectHomeOptions = Pick<ConnectOptions, "signal" | "onError">;
-
-/** Whether `error`, from dialing a socket's path, means nothing listens there. */
-function nobodyThere(error: unknown): boolean {
-  const code = codeOf(error instanceof Error ? error.cause : undefined);
-  return code === "ECONNREFUSED" || code === "ENOENT";
-}
 
 /**
  * Link straight to the agent that owns `home`, by the home's path, with no

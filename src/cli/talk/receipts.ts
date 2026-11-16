@@ -1,6 +1,6 @@
 import type { Reference } from "@earendil-works/chord";
 import type { Message, Receipt, Thread } from "../../contracts/chat/index.ts";
-import { contextOf } from "./objects.ts";
+import { contextOf } from "../../contracts/gateway/index.ts";
 
 /** How waiting for a receipt ended, when nobody gave up. */
 export type Waited =

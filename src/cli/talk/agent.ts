@@ -1,13 +1,21 @@
 import type { Host, Reference } from "@earendil-works/chord";
 import { Agent, Session } from "../../contracts/agent/index.ts";
 import { readMembership } from "../../contracts/agent/node.ts";
-import { type Member, needsAdmin, type Principal, type Revocation, type RosterEntry } from "../../contracts/gateway/index.ts";
+import {
+  contextOf,
+  holding,
+  type Member,
+  needsAdmin,
+  type Principal,
+  type Revocation,
+  type RosterEntry,
+  unlessRefused,
+} from "../../contracts/gateway/index.ts";
 import type { Client } from "../../contracts/gateway/node.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { GatewayNotRunningError, linkAs, viewOf } from "./gateway.ts";
 import { START_EVERYTHING } from "./hints.ts";
 import { me } from "./me.ts";
-import { contextOf, holding, unlessRefused } from "./objects.ts";
 
 /** An agent a command reached: the host that holds its objects, and the name they are at. */
 export interface AgentReached {

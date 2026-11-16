@@ -18,8 +18,9 @@ import {
   switchTrigger,
   TriggerFileError,
 } from "../../contracts/agent/node.ts";
+import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
-import { type AgentReached, contextOf, type HeldAgent, onAgent, onChannel, type Reached, reachChat, valueOf } from "../talk/index.ts";
+import { type AgentReached, type HeldAgent, onAgent, onChannel, type Reached, reachChat } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning, noAgentRunning } from "./connected.ts";

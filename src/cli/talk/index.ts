@@ -29,20 +29,7 @@ export { START_EVERYTHING } from "./hints.ts";
 export { JoinFailedError, joinHome, type JoinedHome, type JoinHomeOptions } from "./join-home.ts";
 export { type JoinAsMachineOptions, joinAsMachine, type MachineJoined, MachineJoinFailedError } from "./join-machine.ts";
 export { type Me, me } from "./me.ts";
-export {
-  contextOf,
-  type HeldAgent,
-  type HeldSession,
-  type HeldThread,
-  type Holder,
-  holding,
-  isLost,
-  onChannel,
-  onRoster,
-  onThread,
-  unlessRefused,
-  valueOf,
-} from "./objects.ts";
+export { type HeldAgent, type HeldSession, type HeldThread, type Holder, onChannel, onRoster, onThread } from "./objects.ts";
 export { type Reached, reachChat } from "./reach.ts";
 export { type Waited, waitForReceipt } from "./receipts.ts";
 export { roomNamed, roomNameWritten } from "./rooms.ts";

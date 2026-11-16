@@ -1,5 +1,4 @@
-import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
-import { type Member, type Program, Roster, type RosterEntry } from "../../contracts/gateway/index.ts";
+import { contextOf, type Member, type Program, Roster, type RosterEntry } from "../../contracts/gateway/index.ts";
 import {
   type Client,
   connectClient,
@@ -9,6 +8,7 @@ import {
   UnprovenGatewayError,
 } from "../../contracts/gateway/node.ts";
 import { formatAddress } from "../../lib/link/index.ts";
+import { nobodyThere } from "../../lib/link/node.ts";
 import { START_EVERYTHING } from "./hints.ts";
 import { type Me, me } from "./me.ts";
 
@@ -30,12 +30,6 @@ export interface GatewayView {
   you: Member | null;
   /** The version of Shrimpy the gateway runs. */
   version: string;
-}
-
-/** Whether `error`, from linking to a socket's path, means nothing listens there. */
-function nobodyThere(error: unknown): boolean {
-  const code = ((error as Error).cause as NodeJS.ErrnoException | undefined)?.code;
-  return code === "ECONNREFUSED" || code === "ENOENT";
 }
 
 /**
@@ -108,8 +102,7 @@ export async function withGatewayAsMe<T>(use: (client: Client, who: Me) => Promi
 
 /** What the gateway `client` is linked to says, as whoever the client is. */
 export async function viewOf(client: Client, signal?: AbortSignal): Promise<GatewayView> {
-  const context = signal === undefined ? BACKGROUND_CONTEXT : withAbortSignal(signal, BACKGROUND_CONTEXT);
-  const roster = await client.host.get(Roster, {}, context);
+  const roster = await client.host.get(Roster, {}, contextOf(signal));
   try {
     return { programs: roster.programs.value, members: roster.members.value, you: roster.you.value, version: client.version };
   } finally {

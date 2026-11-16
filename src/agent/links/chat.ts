@@ -1,5 +1,5 @@
-import { ChordError, type Held, type Host, type Reference } from "@earendil-works/chord";
-import { BACKGROUND_CONTEXT, type Context, withAbortSignal } from "@earendil-works/chord/context";
+import type { Held, Host, Reference } from "@earendil-works/chord";
+import { BACKGROUND_CONTEXT, type Context } from "@earendil-works/chord/context";
 import {
   Channel,
   Chat,
@@ -9,9 +9,16 @@ import {
   type Message,
   Thread,
 } from "../../contracts/chat/index.ts";
-import type { Answer, Principal, Refused, Revocation } from "../../contracts/gateway/index.ts";
+import {
+  contextOf,
+  isLost,
+  type Principal,
+  type Revocation,
+  unlessRefused,
+  valueOf,
+} from "../../contracts/gateway/index.ts";
 import { createListeners, type Listeners, untilAborted, untilHeard } from "../../lib/listeners/index.ts";
-import { isRefusal, refuse } from "../../lib/refusal/index.ts";
+import { isRefusal } from "../../lib/refusal/index.ts";
 
 /**
  * What the agent does in chat, over the `Chat` it holds and the channels and
@@ -72,27 +79,6 @@ export interface ChatLink {
   close(): Promise<void>;
 }
 
-/** What a call answered, or the refusal it answered with, thrown. */
-function valueOf<T>(answer: Answer<T>): T {
-  if (answer.kind === "refused") refuse(answer.words);
-  return answer.value;
-}
-
-/** Throw the refusal an object is held with, if it has one. */
-function unlessRefused(refusal: Refused | null): void {
-  if (refusal !== null) refuse(refusal.words);
-}
-
-const contextFor = (signal: AbortSignal): Context => withAbortSignal(signal, BACKGROUND_CONTEXT);
-
-/**
- * Whether `error` is a call that failed because its link dropped, or because
- * what it was made on went away: the agent's link to the gateway, or chat's.
- */
-export function isUnavailable(error: unknown): boolean {
-  return error instanceof ChordError && (error.code === "unavailable" || error.code === "released");
-}
-
 /**
  * Why a call to chat failed: chat was lost before the call finished, or it
  * answered and said no, for a reason. A failure that is not about chat, such as
@@ -100,7 +86,7 @@ export function isUnavailable(error: unknown): boolean {
  */
 export function chatFailure(error: unknown, live: LiveChat, context: Context): { lost: true } | { refused: string } {
   if (context.abortSignal?.aborted === true) throw error;
-  if (live.lost.aborted || isUnavailable(error)) return { lost: true };
+  if (live.lost.aborted || isLost(error)) return { lost: true };
   if (isRefusal(error)) return { refused: error.message };
   throw error;
 }
@@ -121,7 +107,7 @@ function callsOver(host: Host<Principal, Revocation>, chat: Held<typeof Chat>, m
     signal: AbortSignal,
     work: (held: O, context: Context) => Promise<T>,
   ): Promise<T> {
-    const context = contextFor(signal);
+    const context = contextOf(signal);
     const held = await get(context);
     try {
       return await work(held, context);
@@ -149,16 +135,16 @@ function callsOver(host: Host<Principal, Revocation>, chat: Held<typeof Chat>, m
     },
     channels: () => chat.channels.value,
     async events(after, limit, signal) {
-      return valueOf(await chat.events({ after, limit }, contextFor(signal)));
+      return valueOf(await chat.events({ after, limit }, contextOf(signal)));
     },
     async leaveReceipt(events, receipt, signal) {
-      valueOf(await chat.leaveReceipt({ events: [...events], receipt }, contextFor(signal)));
+      valueOf(await chat.leaveReceipt({ events: [...events], receipt }, contextOf(signal)));
     },
     async setWorking(id, working, signal) {
-      valueOf(await chat.setWorking({ thread: id, working }, contextFor(signal)));
+      valueOf(await chat.setWorking({ thread: id, working }, contextOf(signal)));
     },
     async openDm(member, signal) {
-      return valueOf(await chat.openDm({ member }, contextFor(signal)));
+      return valueOf(await chat.openDm({ member }, contextOf(signal)));
     },
     threads: (id, signal) =>
       channel(id, signal, async (held) => {
@@ -277,7 +263,7 @@ export function openChatLink(
           const lost = (): boolean => live.lost.aborted;
           // A call can fail for the lost link a moment before the loss is known here. A failure that no loss follows
           // soon is the call's own.
-          if (!cancelled() && !lost() && isUnavailable(error)) {
+          if (!cancelled() && !lost() && isLost(error)) {
             await untilAborted(AbortSignal.any([live.lost, signal, AbortSignal.timeout(LOSS_FOLLOWS_MS)]));
           }
           if (cancelled() || !lost()) throw error;

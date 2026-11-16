@@ -1,8 +1,9 @@
 /**
  * The gateway's contract, and what every contract shares: the hosts and their
- * addresses, who is asking, a method's answer and refusal, the hello every
- * caller says before Chord, the roster as `Roster`, and the invitation's link
- * with what a machine of yours keeps. It must not know what the programs say to each other through the
+ * addresses, who is asking, a method's answer and refusal, calling a method of
+ * another program's object, the hello every caller says before Chord, the
+ * roster as `Roster`, and the invitation's link with what a machine of yours
+ * keeps. It must not know what the programs say to each other through the
  * gateway. This door is safe for browsers; `node.ts` adds linking, which needs
  * Node.
  */
@@ -17,6 +18,7 @@ export {
   refused,
   RefusedSchema,
 } from "./answers.ts";
+export { contextOf, holding, isLost, unlessRefused, valueOf } from "./calls.ts";
 export {
   type Hello,
   type HelloAnswer,

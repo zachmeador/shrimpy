@@ -1,6 +1,6 @@
 import type { Reference } from "@earendil-works/chord";
 import { Chat, type Member } from "../../contracts/chat/index.ts";
-import { type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
+import { contextOf, type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
 import type { Client } from "../../contracts/gateway/node.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import type { Io } from "../io/index.ts";
@@ -8,7 +8,6 @@ import { warnIfVersionDiffers } from "../versions/index.ts";
 import { GatewayNotRunningError, linkAs, viewOf } from "./gateway.ts";
 import { START_EVERYTHING } from "./hints.ts";
 import { me } from "./me.ts";
-import { contextOf } from "./objects.ts";
 
 /** How long a command waits for the chat server to answer, once the gateway lists it. */
 const CHAT_MS = 15_000;

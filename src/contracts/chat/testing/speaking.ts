@@ -4,7 +4,7 @@ import type { Host, Reference } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { untilHeard } from "../../../lib/listeners/index.ts";
 import { eventually, stopAfter } from "../../../lib/testing/index.ts";
-import { type Answer, type Principal, type Revocation, Roster } from "../../gateway/index.ts";
+import { type Answer, holding, type Principal, type Revocation, Roster, valueOf } from "../../gateway/index.ts";
 import { linkTestAgent, startTestGateway, type TestAgent } from "../../gateway/testing/index.ts";
 import { Channel, Chat, type ChatEvent, type LeftReceipt, type Member, type Message, Thread } from "../index.ts";
 
@@ -40,22 +40,6 @@ export interface Speaking {
   leaveReceipt(events: string[], receipt: LeftReceipt): Promise<void>;
   /** Mark the member at work in a thread, or not, for as long as this holds chat. */
   setWorking(thread: string, working: boolean): Promise<void>;
-}
-
-/** What a method did, or a failure that says what it refused. */
-export function valueOf<T>(answer: Answer<T>): T {
-  if (answer.kind === "refused") throw new Error(`Refused: ${answer.words}`);
-  return answer.value;
-}
-
-/** Run `work` on an object `get` gives, for as long as it runs. */
-async function holding<T, O extends { release(): void }>(get: Promise<O>, work: (held: O) => Promise<T> | T): Promise<T> {
-  const held = await get;
-  try {
-    return await work(held);
-  } finally {
-    held.release();
-  }
 }
 
 /** The thread `id` as `holder` holds it, for as long as `work` runs. */
