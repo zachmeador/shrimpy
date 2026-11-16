@@ -1,7 +1,8 @@
 import type { JsonValue } from "@earendil-works/chord/json";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { Cursor, Harness, TaskRecord } from "@earendil-works/pi-durable";
+import type { Harness, TaskRecord } from "@earendil-works/pi-durable";
 import { failureWords, type Occurrence as OccurrenceView, type TriggerSummary } from "../../contracts/agent/index.ts";
+import { type TaskScanner, tasksOfKind } from "../host/durable.ts";
 import { type Ending, isOccurrence, type OccurrenceInput, type Outstanding } from "../inputs/index.ts";
 import type { StoredTrigger } from "../records/durable.ts";
 import { failureOf, TURN_TASK } from "../turns/durable.ts";
@@ -30,21 +31,15 @@ export async function nextTimes(harness: Harness): Promise<Map<string, NextTime>
 /**
  * Every occurrence the agent's records hold, in the order they were made, as
  * the engine keeps them: the tasks that follow inputs, of which these are the
- * ones that follow an occurrence. A page at a time, so a long record does not
- * hold up the engine's other commits.
+ * ones that follow an occurrence. Each page is read in a commit of its own, so a
+ * long record does not hold up the engine's other commits.
  */
 export async function occurrences(harness: Harness): Promise<{ trigger: string; view: OccurrenceView }[]> {
-  const found: { trigger: string; view: OccurrenceView }[] = [];
-  let cursor: Cursor | undefined;
-  do {
-    const page = await harness.commit((tx) => tx.scanTasks({ kind: TURN_TASK }, 200, cursor), context);
-    for (const record of page.items) {
-      const input = record.input as Outstanding;
-      if (isOccurrence(input)) found.push({ trigger: input.occurrence.trigger, view: occurrenceView(input, record) });
-    }
-    cursor = page.next;
-  } while (cursor !== undefined);
-  return found;
+  const pages: TaskScanner = { scanTasks: (query, limit, cursor) => harness.commit((tx) => tx.scanTasks(query, limit, cursor), context) };
+  return (await tasksOfKind(pages, TURN_TASK)).flatMap((record) => {
+    const input = record.input as Outstanding;
+    return isOccurrence(input) ? [{ trigger: input.occurrence.trigger, view: occurrenceView(input, record) }] : [];
+  });
 }
 
 /**

@@ -1,7 +1,8 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { Cursor, Harness, TaskId, Tx } from "@earendil-works/pi-durable";
+import type { Harness, TaskId, Tx } from "@earendil-works/pi-durable";
 import { sameSchedule } from "../../contracts/agent/index.ts";
 import { type LeftOut, nextOccurrence, type TriggerFiles, type TriggerProblem } from "../../contracts/agent/node.ts";
+import { tasksOfKind } from "../host/durable.ts";
 import { plain, type StoredTrigger, TriggersDoc } from "../records/durable.ts";
 import { ownerOf } from "./occurrence.durable.ts";
 import { type Standing, type TriggerTask, TRIGGER_TASK, type Waiting } from "./task.durable.ts";
@@ -90,21 +91,11 @@ function checksOf({ last, checkedAt, quiet }: StoredTrigger): Pick<StoredTrigger
 
 /** The tasks that wait for a trigger and are not being ended, with what they are for. */
 async function liveTriggerTasks(tx: Tx): Promise<{ id: TaskId; name: string; revision: number }[]> {
-  const found: { id: TaskId; name: string; revision: number }[] = [];
-  for (const status of ["pending", "running", "sleeping"] as const) {
-    let cursor: Cursor | undefined;
-    do {
-      const page = await tx.scanTasks({ kind: TRIGGER_TASK, status, abortRequested: false }, 100, cursor);
-      for (const record of page.items) {
-        if ("checkpoint" in record.state) {
-          const state = record.state.checkpoint as Standing;
-          found.push({ id: record.id, name: (record.input as Waiting).name, revision: state.revision });
-        }
-      }
-      cursor = page.next;
-    } while (cursor !== undefined);
-  }
-  return found;
+  return (await tasksOfKind(tx, TRIGGER_TASK, { live: true })).flatMap((record) =>
+    "checkpoint" in record.state
+      ? [{ id: record.id, name: (record.input as Waiting).name, revision: (record.state.checkpoint as Standing).revision }]
+      : [],
+  );
 }
 
 /**

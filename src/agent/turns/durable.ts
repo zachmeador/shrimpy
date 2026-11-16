@@ -14,7 +14,6 @@ export { answerText, assistantText } from "./answer.durable.ts";
 export { failureOf } from "./failure.durable.ts";
 export { takeUp } from "./take-up.durable.ts";
 export {
-  liveTurns,
   TURN_TASK,
   type TurnTask,
   type TurnTaskOptions,

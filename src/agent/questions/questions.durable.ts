@@ -1,17 +1,14 @@
 import type { Context } from "@earendil-works/chord/context";
-import type { JsonValue } from "@earendil-works/chord/json";
 import {
   type ConversationId,
-  type Cursor,
   defineExtension,
   defineTask,
   type Extension,
   type Harness,
-  type TaskRecord,
   type ToolExecutionApi,
-  type Tx,
 } from "@earendil-works/pi-durable";
 import { localTime } from "../../lib/time/index.ts";
+import { tasksOfKind } from "../host/durable.ts";
 import type { Breadcrumb, Question } from "../inputs/index.ts";
 import { QuestionsDoc } from "../records/durable.ts";
 import type { TurnTask } from "../turns/durable.ts";
@@ -108,7 +105,7 @@ export function createQuestions(turn: TurnTask, options: QuestionsOptions): Ques
 
     async find(api, id, context) {
       return api.commit(async (tx) => {
-        for (const record of await sleepers(tx, api.conversationId)) {
+        for (const record of await tasksOfKind(tx, QUESTION_TASK, { conversationId: api.conversationId })) {
           const question = record.input as Question;
           if (question.id === id) return question;
         }
@@ -143,16 +140,4 @@ export async function closeQuestions(harness: Harness, conversationId: Conversat
     .map(({ record }) => record.id);
   for (const id of waiting) await harness.abortTask(id, context);
   for (const id of waiting) await harness.waitForTask(id, context);
-}
-
-/** Every task that closes a question of one session, ended or not. */
-async function sleepers(tx: Tx, conversationId: ConversationId): Promise<TaskRecord<JsonValue, JsonValue, JsonValue>[]> {
-  const found: TaskRecord<JsonValue, JsonValue, JsonValue>[] = [];
-  let cursor: Cursor | undefined;
-  do {
-    const page = await tx.scanTasks({ conversationId, kind: QUESTION_TASK }, 100, cursor);
-    found.push(...page.items);
-    cursor = page.next;
-  } while (cursor !== undefined);
-  return found;
 }

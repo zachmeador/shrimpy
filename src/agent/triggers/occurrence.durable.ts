@@ -2,6 +2,7 @@ import type { ConversationId, Tx } from "@earendil-works/pi-durable";
 import { type Check, describeSchedule, type Occurrence as OccurrenceView } from "../../contracts/agent/index.ts";
 import type { TriggerDefinition } from "../../contracts/agent/node.ts";
 import { newId } from "../../lib/ids/index.ts";
+import { tasksOfKind } from "../host/durable.ts";
 import {
   type Breadcrumb,
   isOccurrence,
@@ -21,7 +22,7 @@ import {
   triggerSession,
   TriggersDoc,
 } from "../records/durable.ts";
-import { liveTurns, takeUp, type TurnTask } from "../turns/durable.ts";
+import { takeUp, TURN_TASK, type TurnTask } from "../turns/durable.ts";
 import { interruptedWhile, notedIn } from "./check.durable.ts";
 
 /** What was found out about the thread of a trigger that has no session behind it yet: its channel and where it is, or why there is none. */
@@ -180,7 +181,8 @@ export async function recordInterrupted(tx: Tx, turn: TurnTask, trigger: StoredT
 
 /** Whether an occurrence of this trigger is still going in the session: its task is live and a turn was to run. */
 async function goingOn(tx: Tx, session: SessionRecord, trigger: string): Promise<boolean> {
-  return (await liveTurns(tx, session.conversationId as ConversationId)).some((record) => {
+  const live = await tasksOfKind(tx, TURN_TASK, { conversationId: session.conversationId as ConversationId, live: true });
+  return live.some((record) => {
     const input = record.input as Outstanding;
     return isOccurrence(input) && input.occurrence.trigger === trigger && input.unrun === undefined;
   });

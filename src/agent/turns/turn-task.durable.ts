@@ -3,7 +3,6 @@ import type { Context } from "@earendil-works/chord/context";
 import {
   type ConversationHandle,
   type ConversationId,
-  type Cursor,
   defineExtension,
   defineTask,
   type Harness,
@@ -33,6 +32,7 @@ import {
   threadOf,
   type TurnOutcome,
 } from "../inputs/index.ts";
+import { tasksOfKind } from "../host/durable.ts";
 import { keepSkipped, sessionAddress, SessionsDoc } from "../records/durable.ts";
 import type { Delivery } from "./delivery.ts";
 import { modelChangeOf } from "./model-change.durable.ts";
@@ -290,7 +290,7 @@ async function modelChange(runtime: Runtime, context: Context): Promise<ModelCha
 async function unhanded(turn: Turn, runtime: Runtime, context: Context): Promise<Outstanding[]> {
   const found: TaskRecord<JsonValue, JsonValue, JsonValue>[] = [];
   await runtime.commit(async (tx) => {
-    for (const record of await liveTurns(tx, runtime.conversationId)) {
+    for (const record of await tasksOfKind(tx, TURN_TASK, { conversationId: runtime.conversationId, live: true })) {
       if (phaseOf(record) === "handOver" && record.id < turn.id) found.push(record);
     }
     return undefined;
@@ -311,25 +311,6 @@ export async function withdrawUnhanded(harness: Harness, conversationId: Convers
     if (record.kind !== TURN_TASK || record.conversationId !== conversationId || record.abortRequested) continue;
     if (phaseOf(record) === "handOver") await harness.abortTask(record.id, context);
   }
-}
-
-/**
- * The tasks that follow an input and are live, with none of them being aborted:
- * those of one session, or of all. One whose turn runs waits on the task that
- * waits for that turn.
- */
-export async function liveTurns(tx: Tx, conversationId?: ConversationId): Promise<TaskRecord<JsonValue, JsonValue, JsonValue>[]> {
-  const found: TaskRecord<JsonValue, JsonValue, JsonValue>[] = [];
-  for (const status of ["pending", "running", "waiting"] as const) {
-    let cursor: Cursor | undefined;
-    do {
-      const query = { ...(conversationId === undefined ? {} : { conversationId }), kind: TURN_TASK, status, abortRequested: false };
-      const page = await tx.scanTasks(query, 100, cursor);
-      found.push(...page.items);
-      cursor = page.next;
-    } while (cursor !== undefined);
-  }
-  return found;
 }
 
 /**

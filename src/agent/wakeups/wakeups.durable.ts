@@ -3,16 +3,15 @@ import type { JsonValue } from "@earendil-works/chord/json";
 import {
   type CommitPublication,
   type ConversationId,
-  type Cursor,
   defineExtension,
   defineTask,
   type Extension,
   type Harness,
   type TaskRecord,
   type ToolExecutionApi,
-  type Tx,
 } from "@earendil-works/pi-durable";
 import { localTime } from "../../lib/time/index.ts";
+import { tasksOfKind } from "../host/durable.ts";
 import type { Breadcrumb, Wakeup } from "../inputs/index.ts";
 import { addressOfPlace, keepCancelled, placeOfSession, type SessionPlace, type SessionRecord, SessionsDoc } from "../records/durable.ts";
 import { takeUp, type TurnTask } from "../turns/durable.ts";
@@ -121,7 +120,7 @@ export function createWakeups(turn: TurnTask, options: WakeupsOptions): Wakeups 
       if (place === undefined) throw new Error("The session is not one the agent keeps, so there is nowhere to wake it.");
       return api.commit(async (tx): Promise<WakeupSet> => {
         let waiting = 0;
-        for (const record of await sleepers(tx, api.conversationId)) {
+        for (const record of await tasksOfKind(tx, WAKEUP_TASK, { conversationId: api.conversationId })) {
           const { wakeup } = record.input as Waiting;
           if (wakeup.id === id) return { wakeup, inThread: "threadId" in place };
           if (isWaiting(record)) waiting += 1;
@@ -163,18 +162,6 @@ export function touchesWakeups(publication: CommitPublication, conversationId: C
   return publication.changes.some(
     (change) => change.type === "task" && change.value.kind === WAKEUP_TASK && change.value.conversationId === conversationId,
   );
-}
-
-/** Every task that waits for a wake-up of one session, ended or not. */
-async function sleepers(tx: Tx, conversationId: ConversationId): Promise<TaskRecord<JsonValue, JsonValue, JsonValue>[]> {
-  const found: TaskRecord<JsonValue, JsonValue, JsonValue>[] = [];
-  let cursor: Cursor | undefined;
-  do {
-    const page = await tx.scanTasks({ conversationId, kind: WAKEUP_TASK }, 100, cursor);
-    found.push(...page.items);
-    cursor = page.next;
-  } while (cursor !== undefined);
-  return found;
 }
 
 /** Whether a wake-up is still to come: its task has not ended and is not being ended. */
