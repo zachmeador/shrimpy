@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { TestContext } from "node:test";
 import type { Host, Reference } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { untilHeard } from "../../../lib/listeners/index.ts";
 import { eventually, stopAfter } from "../../../lib/testing/index.ts";
 import { type Answer, type Principal, type Revocation, Roster } from "../../gateway/index.ts";
 import { linkTestAgent, startTestGateway, type TestAgent } from "../../gateway/testing/index.ts";
@@ -69,12 +70,31 @@ export const onChannel = <T>(holder: Holder, id: string, work: (channel: Referen
 export const onChat = <T>(holder: Holder, work: (chat: Reference<typeof Chat>) => Promise<T> | T) =>
   holding(holder.host.get(Chat, {}, context), work);
 
-/** `holder` as a member of chat, holding `Chat` until the test ends. */
+/**
+ * Whom chat takes the holder of `chat` for, once it takes it for a member: at
+ * once when it does, and otherwise as soon as chat hears of it from the roster,
+ * which can come after the gateway has the member.
+ */
+async function knownAs(chat: Reference<typeof Chat>): Promise<Member> {
+  const watch = await chat.you.watch(context);
+  try {
+    if (watch.value !== null) return watch.value;
+    return await untilHeard<Member>((heard) => {
+      watch.start(async (call) => {
+        if (call.kind === "value" && call.value !== null) heard(call.value);
+      });
+      return () => void watch.stop();
+    });
+  } finally {
+    void watch.stop();
+  }
+}
+
+/** `holder` as a member of chat, holding `Chat` until the test ends, once chat knows it. */
 export async function speakingAs(t: TestContext, holder: Holder): Promise<Speaking> {
   const chat = await holder.host.get(Chat, {}, context);
   stopAfter(t, () => chat.release());
-  const me = chat.you.value;
-  if (me === null) throw new Error("Chat takes the holder for nobody.");
+  const me = await knownAs(chat);
   const inThread = (thread: string, work: (held: Reference<typeof Thread>) => Promise<Answer<Message>>) =>
     onThread(holder, thread, async (held) => valueOf(await work(held)));
   // A call's answer comes after every change chat made before it, so what chat shows is caught up once one is answered.
@@ -130,12 +150,17 @@ export async function enterAsAgent(t: TestContext, name: string): Promise<Speaki
   return { ...(await speakingAs(t, agent)), agent };
 }
 
-/** The agent called `name`, joined to the test gateway's roster with a token of its own, and not linked to it, as chat knows members. */
+/**
+ * The agent called `name`, joined to the test gateway's roster with a token of
+ * its own, and not linked to it, as chat knows members, once chat does. The
+ * chat server has to be running.
+ */
 export async function joinRoster(t: TestContext, name: string): Promise<Member> {
   await startTestGateway(t);
   const agent = await linkTestAgent(t, name);
+  const member = await onChat(agent, knownAs);
   await agent.stop();
-  return { id: agent.you.id, kind: agent.you.kind, name: agent.you.name };
+  return member;
 }
 
 /** The member of the test gateway's roster called `name`, as chat knows members, once it has joined. */
