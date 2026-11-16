@@ -1,12 +1,12 @@
 import { parseArgs } from "node:util";
 import { checkAgentName } from "../../contracts/agent/index.ts";
 import { type Address, contextOf, type Invitation, valueOf, writeLink } from "../../contracts/gateway/index.ts";
+import { shellWord } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
 import { onRoster, withGatewayAsMe } from "../talk/index.ts";
 import { checking, expectArguments, parsing } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { ADMIN } from "./members.ts";
-import { shellWord } from "./shell-word.ts";
 
 const invite: Command = {
   name: "invite",

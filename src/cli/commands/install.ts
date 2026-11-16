@@ -3,7 +3,7 @@ import { basename, join } from "node:path";
 import { parseArgs } from "node:util";
 import { keptListenAddresses } from "../../contracts/gateway/node.ts";
 import { formatAddress } from "../../lib/link/index.ts";
-import { listed } from "../../lib/text/index.ts";
+import { listed, shellWord } from "../../lib/text/index.ts";
 import { defaultFolderPath, FOLDER_VARIABLE, folderPath } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
@@ -25,7 +25,6 @@ import {
 import { alreadyRunning, type Plan, planUp } from "../up/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import type { Command } from "./command.ts";
-import { shellWord } from "./shell-word.ts";
 
 const install: Command = {
   name: "install",

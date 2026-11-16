@@ -19,7 +19,7 @@ import {
 } from "../../../contracts/agent/index.ts";
 import { AGENT_COMMANDS, type AgentCommand, type Channel } from "../../../contracts/chat/index.ts";
 import { oneLine } from "../../../lib/plain/index.ts";
-import { listed } from "../../../lib/text/index.ts";
+import { listed, shellWord } from "../../../lib/text/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import type { Problem, Why } from "../network/index.ts";
@@ -290,9 +290,6 @@ export function channelLabel(channel: Pick<Channel, "kind" | "name" | "members">
 export function readOnlyDetail(room: Pick<Channel, "members">, working: boolean): string {
   return [READ_ONLY_TAG, memberNames(room).join(", "), working ? "working" : ""].filter((part) => part !== "").join(" · ");
 }
-
-/** A word of a shell as it is when the shell reads nothing in it, and in single quotes when it does. */
-const shellWord = (text: string): string => (/^[\w@%+=:,./-]+$/.test(text) ? text : `'${text.replaceAll("'", "'\\''")}'`);
 
 /** A room's name as the command that joins it takes it, in quotes since a shell reads a bare `#` as the start of a comment. */
 function roomWord(name: string): string {

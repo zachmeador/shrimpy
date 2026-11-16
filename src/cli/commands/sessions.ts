@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { parseArgs } from "node:util";
 import { failureWords, MAX_READ, type Settlement } from "../../contracts/agent/index.ts";
 import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
+import { shellWord } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
 import { type HeldSession, onAgent, onSession } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
@@ -9,7 +10,6 @@ import type { Command } from "./command.ts";
 import { withConnection } from "./connected.ts";
 import { renderSession, type WholeSession } from "./render.ts";
 import { renderSessions } from "./render-sessions.ts";
-import { shellWord } from "./shell-word.ts";
 import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, command, type Target, WHICH_AGENT } from "./which-agent.ts";
 
 /** The exit code of `steer --wait` for work that someone cancelled, as a shell reports an interrupted command. */
