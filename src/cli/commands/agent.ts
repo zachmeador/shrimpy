@@ -1,12 +1,12 @@
 import { basename, dirname } from "node:path";
 import { parseArgs } from "node:util";
 import type { HomeAgent } from "../../agent/index.ts";
-import { checkAgentName, type ModelChoice, modelLabel, parseModelChoice } from "../../contracts/agent/index.ts";
+import { checkAgentName, modelLabel, parseModelChoice } from "../../contracts/agent/index.ts";
 import { initHome, providerPaths, readEndpoint } from "../../contracts/agent/node.ts";
 import { homeNamed, isPath, newHome, providersPath } from "../folder/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
 import { onAgent } from "../talk/index.ts";
-import { expectArguments, parsing, UsageError } from "../usage/index.ts";
+import { checking, expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning } from "./connected.ts";
 import { folderDefault } from "./folder-default.ts";
@@ -30,7 +30,8 @@ const init: Command = {
       }),
     );
     const [given] = expectArguments(positionals, ["<agent>"]);
-    const model = values.model === undefined ? undefined : modelFromFlag(values.model);
+    const flag = values.model;
+    const model = flag === undefined ? undefined : checking(() => parseModelChoice(flag));
 
     const home = newHome(given);
     const name = values.name ?? folderName(home);
@@ -105,14 +106,6 @@ function folderName(home: string): string {
     );
   }
   return name;
-}
-
-function modelFromFlag(flag: string): ModelChoice {
-  try {
-    return parseModelChoice(flag);
-  } catch (error) {
-    throw new UsageError((error as Error).message);
-  }
 }
 
 const serve: Command = {

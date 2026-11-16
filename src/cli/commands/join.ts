@@ -2,18 +2,12 @@ import { parseArgs } from "node:util";
 import { checkAgentName } from "../../contracts/agent/index.ts";
 import { initHome, providerPaths } from "../../contracts/agent/node.ts";
 import { type Link, readLink } from "../../contracts/gateway/index.ts";
+import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import { gatewayOfItsOwn, homeInFolder, machineFolder, providersPath } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
-import {
-  JoinFailedError,
-  type JoinedHome,
-  joinAsMachine,
-  joinHome,
-  type MachineJoined,
-  MachineJoinFailedError,
-} from "../talk/index.ts";
-import { expectArguments, parsing, UsageError } from "../usage/index.ts";
+import { JoinFailedError, joinAsMachine, joinHome, MachineJoinFailedError } from "../talk/index.ts";
+import { checking, expectArguments, parsing } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
 import { folderDefault } from "./folder-default.ts";
@@ -66,12 +60,7 @@ const join: Command = {
  * person whose machine this is. It waits `giveUpMs` for a gateway that does not answer, which a test shortens.
  */
 export async function joinByLink(io: Io, text: string, giveUpMs = GIVE_UP_MS): Promise<number> {
-  let link: Link;
-  try {
-    link = readLink(text);
-  } catch (error) {
-    throw new UsageError((error as Error).message);
-  }
+  const link = checking(() => readLink(text));
   return link.name === null
     ? joinThisMachine(io, link, giveUpMs)
     : joinAsAgent(io, text, { ...link, name: link.name }, giveUpMs);
@@ -79,30 +68,17 @@ export async function joinByLink(io: Io, text: string, giveUpMs = GIVE_UP_MS): P
 
 /** Make the agent the link names, with a home in the Shrimpy folder unless it has one, and join the gateway as it. */
 async function joinAsAgent(io: Io, text: string, { name, address }: Link & { name: string }, giveUpMs: number): Promise<number> {
-  try {
-    checkAgentName(name);
-  } catch (error) {
-    throw new UsageError((error as Error).message);
-  }
-
+  checking(() => checkAgentName(name));
   const { home, exists } = homeInFolder(name);
   if (!exists) initHome(home, { name });
   const where = formatAddress(address);
-  const gaveUp = new AbortController();
-  const timer = setTimeout(() => gaveUp.abort(), giveUpMs);
-  let joined: JoinedHome;
-  try {
-    joined = await joinHome(home, text, { signal: gaveUp.signal });
-  } catch (error) {
-    // Only an attempt that was made can be made again. A link that does not fit the home is said as it is.
-    if (!(error instanceof JoinFailedError)) throw error;
-    let said = error.message;
-    if (gaveUp.signal.aborted) said = `The gateway at ${where} did not answer within fifteen seconds.`;
-    const stays = exists ? "" : `The agent's home, ${home}, was made and stays. `;
-    throw new Error(`${said}\n${stays}Running this again with the same link is safe while the code is good.`, { cause: error });
-  } finally {
-    clearTimeout(timer);
-  }
+  const joined = await joining({
+    where,
+    giveUpMs,
+    tried: (error) => error instanceof JoinFailedError,
+    stays: exists ? "" : `The agent's home, ${home}, was made and stays. `,
+    join: (signal) => joinHome(home, text, { signal }),
+  });
 
   warnIfVersionDiffers(io, "the gateway", joined.gatewayVersion);
   io.out(
@@ -142,24 +118,43 @@ async function joinThisMachine(io: Io, link: Link, giveUpMs: number): Promise<nu
   }
 
   const where = formatAddress(link.address);
-  const gaveUp = new AbortController();
-  const timer = setTimeout(() => gaveUp.abort(), giveUpMs);
-  let joined: MachineJoined;
-  try {
-    joined = await joinAsMachine(folder, link, { signal: gaveUp.signal });
-  } catch (error) {
-    // Only an attempt that was made can be made again. A link that does not fit this folder is said as it is.
-    if (!(error instanceof MachineJoinFailedError)) throw error;
-    const said = gaveUp.signal.aborted ? `The gateway at ${where} did not answer within fifteen seconds.` : error.message;
-    throw new Error(`${said}\nRunning this again with the same link is safe while the code is good.`, { cause: error });
-  } finally {
-    clearTimeout(timer);
-  }
+  const joined = await joining({
+    where,
+    giveUpMs,
+    tried: (error) => error instanceof MachineJoinFailedError,
+    join: (signal) => joinAsMachine(folder, link, { signal }),
+  });
 
   warnIfVersionDiffers(io, "the gateway", joined.gatewayVersion);
   io.out(`This machine is ${joined.member.name}'s now, on the gateway at ${where}.`);
   io.out("Open the terminal with: shrimpy");
   return 0;
+}
+
+/**
+ * Join the gateway at `where` with `join`, giving up on one that does not answer
+ * within `giveUpMs`. Only an attempt that was made, which `tried` tells, can be
+ * made again, so its failure says so, after what `stays` says was left; a link
+ * that does not fit is said as it is.
+ */
+async function joining<T>(options: {
+  where: string;
+  giveUpMs: number;
+  tried: (error: unknown) => boolean;
+  stays?: string;
+  join: (signal: AbortSignal) => Promise<T>;
+}): Promise<T> {
+  const gaveUp = new AbortController();
+  const timer = setTimeout(() => gaveUp.abort(), options.giveUpMs);
+  try {
+    return await options.join(gaveUp.signal);
+  } catch (error) {
+    if (!options.tried(error)) throw error;
+    const said = gaveUp.signal.aborted ? `The gateway at ${options.where} did not answer within fifteen seconds.` : asError(error).message;
+    throw new Error(`${said}\n${options.stays ?? ""}Running this again with the same link is safe while the code is good.`, { cause: error });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export const joinCommands: Command[] = [join];

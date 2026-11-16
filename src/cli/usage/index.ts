@@ -1,6 +1,6 @@
 /**
  * Telling a person that a command was used wrongly: the error a command
- * raises, and the checks on its arguments that raise it. It must not know any
- * command.
+ * raises, the checks on its arguments that raise it, and a check of what it was
+ * given whose refusal is one. It must not know any command.
  */
-export { expectArguments, parsing, UsageError } from "./usage.ts";
+export { checking, expectArguments, parsing, UsageError } from "./usage.ts";

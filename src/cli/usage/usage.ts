@@ -1,3 +1,5 @@
+import { asError } from "../../lib/errors/index.ts";
+
 /** The command was used wrongly. The CLI prints the message with the command's usage and exits with 2. */
 export class UsageError extends Error {
   constructor(message: string) {
@@ -16,6 +18,15 @@ export function parsing<T>(parse: () => T): T {
       throw new UsageError(error.message);
     }
     throw error;
+  }
+}
+
+/** Run `check` on what the command was given, and report what it refuses as a usage error, in its words. */
+export function checking<T>(check: () => T): T {
+  try {
+    return check();
+  } catch (error) {
+    throw new UsageError(asError(error).message);
   }
 }
 

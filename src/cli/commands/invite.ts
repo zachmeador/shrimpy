@@ -3,7 +3,7 @@ import { checkAgentName } from "../../contracts/agent/index.ts";
 import { type Address, contextOf, type Invitation, valueOf, writeLink } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
 import { onRoster, withGatewayAsMe } from "../talk/index.ts";
-import { expectArguments, parsing, UsageError } from "../usage/index.ts";
+import { checking, expectArguments, parsing } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { ADMIN } from "./members.ts";
 import { shellWord } from "./shell-word.ts";
@@ -36,15 +36,15 @@ const invite: Command = {
     if (positionals.length === 0) return inviteMachine(io);
     const [name] = expectArguments(positionals, ["<name>"]);
     // A home could not be made for any other name, so there is no use in asking.
-    try {
-      checkAgentName(name);
-    } catch (error) {
-      throw new UsageError((error as Error).message);
-    }
+    checking(() => checkAgentName(name));
     const invitation = await withGatewayAsMe((client) =>
       onRoster(client, async (roster) => valueOf(await roster.invite({ name }, contextOf()))),
     );
-    for (const line of invitationLines(name, invitation)) io.out(line);
+    const lines = invitationLines(invitation, name, {
+      header: (run) => `The invitation works once, for fifteen minutes, and only for the name ${name}. Run ${run} where the agent will live:`,
+      loopback: "As another user of this machine, since only this machine reaches a loopback address:",
+    });
+    for (const line of lines) io.out(line);
     return 0;
   },
 };
@@ -52,12 +52,19 @@ const invite: Command = {
 /** Whether `host` reaches only the machine it is used on. */
 const isLoopback = (host: string): boolean => host === "localhost" || host === "::1" || host.startsWith("127.");
 
-/** What `invite` prints: what the invitation is good for, and for each address the gateway listens on the line to run where the agent will live. */
-function invitationLines(name: string, { code, addresses, fingerprint }: Invitation): string[] {
-  const lines = [
-    `The invitation works once, for fifteen minutes, and only for the name ${name}. ` +
-      `Run ${addresses.length > 1 ? "one of these" : "this"} where the agent will live:`,
-  ];
+/**
+ * What `invite` prints: what the invitation is good for, in `header`, which
+ * is told whether there is one line to run or several, and for each address
+ * the gateway listens on the line to run, which joins as `name`, or as a
+ * machine of yours when it is null. A loopback address reaches only the
+ * gateway's machine, which the label `loopback` says when there are others.
+ */
+function invitationLines(
+  { code, addresses, fingerprint }: Invitation,
+  name: string | null,
+  words: { header: (run: string) => string; loopback: string },
+): string[] {
+  const lines = [words.header(addresses.length > 1 ? "one of these" : "this")];
   const near = addresses.filter((address) => isLoopback(address.host));
   const far = addresses.filter((address) => !isLoopback(address.host));
   const group = (label: string | undefined, these: Address[]): void => {
@@ -66,7 +73,7 @@ function invitationLines(name: string, { code, addresses, fingerprint }: Invitat
     if (label !== undefined) lines.push(label);
     for (const address of these) lines.push(`  shrimpy join ${shellWord(writeLink({ name, address, code, fingerprint }))}`);
   };
-  group("As another user of this machine, since only this machine reaches a loopback address:", near);
+  group(words.loopback, near);
   group(near.length > 0 ? "From another machine:" : undefined, far);
   return lines;
 }
@@ -79,30 +86,12 @@ async function inviteMachine(io: Io): Promise<number> {
       person: roster.you.value?.name ?? "you",
     })),
   );
-  for (const line of machineInvitationLines(invitation, person)) io.out(line);
+  const lines = invitationLines(invitation, null, {
+    header: (run) => `The invitation works once, for fifteen minutes, and lets another machine of yours in as ${person}. Run ${run} there:`,
+    loopback: "On the gateway's machine, since only that machine reaches a loopback address:",
+  });
+  for (const line of lines) io.out(line);
   return 0;
-}
-
-/**
- * What `invite` prints for another machine of the person's own: what the invitation is good for, and for each
- * address the gateway listens on the line to run there. A loopback address reaches only the gateway's machine, which
- * the lines say when there are others.
- */
-function machineInvitationLines({ code, addresses, fingerprint }: Invitation, person: string): string[] {
-  const lines = [
-    `The invitation works once, for fifteen minutes, and lets another machine of yours in as ${person}. ` +
-      `Run ${addresses.length > 1 ? "one of these" : "this"} there:`,
-  ];
-  const near = addresses.filter((address) => isLoopback(address.host));
-  const far = addresses.filter((address) => !isLoopback(address.host));
-  const group = (label: string | undefined, these: Address[]): void => {
-    if (these.length === 0) return;
-    if (label !== undefined) lines.push("", label);
-    for (const address of these) lines.push(`  shrimpy join ${shellWord(writeLink({ name: null, address, code, fingerprint }))}`);
-  };
-  group("On the gateway's machine, since only that machine reaches a loopback address:", near);
-  group(near.length > 0 ? "From another machine:" : undefined, far);
-  return lines;
 }
 
 export const inviteCommands: Command[] = [invite];

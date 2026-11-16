@@ -1,7 +1,7 @@
 import { isIPv6 } from "node:net";
 import type { Address } from "../../contracts/gateway/index.ts";
 import { checkListenAddresses } from "../../contracts/gateway/node.ts";
-import { UsageError } from "../usage/index.ts";
+import { checking, UsageError } from "../usage/index.ts";
 
 /** The option that opens the gateway's network entry, for `gateway serve` and `up`. It may be given more than once. */
 export const LISTEN_OPTION = { listen: { type: "string", multiple: true } } as const;
@@ -45,10 +45,6 @@ function readAddress(text: string): Address {
 export function listenAddresses(given: string[] | undefined): Address[] | undefined {
   if (given === undefined || given.length === 0) return undefined;
   const addresses = given.map(readAddress);
-  try {
-    checkListenAddresses(addresses);
-  } catch (error) {
-    throw new UsageError((error as Error).message);
-  }
+  checking(() => checkListenAddresses(addresses));
   return addresses;
 }
