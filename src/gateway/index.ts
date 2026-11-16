@@ -24,6 +24,7 @@ import {
   keptListenAddresses,
   listenAddressesFile,
 } from "../contracts/gateway/node.ts";
+import { asError } from "../lib/errors/index.ts";
 import { type Listener, listen } from "../lib/link/node.ts";
 import { greeter } from "./hello/index.ts";
 import { createInvitations } from "./invitations/index.ts";
@@ -163,7 +164,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     });
 
     const greet = greeter({ roster, programs, invitations, host, context });
-    const onError = (error: unknown): void => console.error("[gateway]", (error as Error).message);
+    const onError = (error: unknown): void => console.error("[gateway]", asError(error).message);
     // The lock is held, so a socket left at the path belongs to a gateway that is gone.
     rmSync(socket, { force: true });
     const own = await listen({ path: socket }, greet("socket"), { onError });
@@ -182,7 +183,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
       } catch (error) {
         if (listeningAsKept === undefined) throw error;
         throw new Error(
-          `${(error as Error).message} The gateway took the address from ${listeningAsKept}, where it kept what it listened on last time. ` +
+          `${asError(error).message} The gateway took the address from ${listeningAsKept}, where it kept what it listened on last time. ` +
             "Start it with other addresses to replace what is kept, or delete that file to listen on none.",
           { cause: error },
         );

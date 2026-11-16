@@ -1,6 +1,7 @@
 import { createPrivateKey, type KeyObject } from "node:crypto";
 import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { asError } from "../../lib/errors/index.ts";
 import { codeOf } from "../../lib/files/index.ts";
 import { saveFile } from "../../lib/files/node.ts";
 import { fingerprintOf, newKey } from "../../lib/tls/node.ts";
@@ -28,7 +29,7 @@ export function openKey(dataDir: string): GatewayKey {
   try {
     pem = readFileSync(file, "utf8");
   } catch (error) {
-    if (codeOf(error) !== "ENOENT") throw cannotUse(file, (error as Error).message, error);
+    if (codeOf(error) !== "ENOENT") throw cannotUse(file, asError(error).message, error);
     const key = newKey();
     save(file, key);
     return { key, fingerprint: fingerprintOf(key) };
