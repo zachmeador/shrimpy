@@ -159,6 +159,8 @@ Under Later in the [order of work](../PLAN.md#order-of-work).
 - Setting up through `shrimpy`, as the commands above have it: the terminal's flow for a machine with nothing set up, its first screen saying when a program is down, `/` commands for signing in again, and the front page led by `shrimpy`. Today a new setup is three commands, which the setup skill gives.
 - Moving over from old Shrimpy, which you asked on 2026-10-08 be tracked with updating. Nothing is built, and [the plan](../PLAN.md) has what it is meant to be.
 - Shell completion for the new commands. Old Shrimpy's is set aside with it, and a line in the shell's startup file still looks for it.
+- An empty main thread reads "(no messages yet) [main]" on an agent's screen, so the main threads of two empty DMs look the same, and only where each is tells them apart. "two entries for main?", 2026-11-17, of an agent's DMs with you and with another agent. A room can be called `#main` too.
+- An agent's screen could set your DMs with it apart from the rest: "probably makes sense to visually group sessions that are user dms vs. not", 2026-11-17.
 
 **Outcome:** the rough edges you found by using it are gone.
 
