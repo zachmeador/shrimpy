@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { parseArgs } from "node:util";
 import { type Channel, receiptWords, Thread } from "../../contracts/chat/index.ts";
 import { contextOf, isLost, unlessRefused, valueOf } from "../../contracts/gateway/index.ts";
+import { asSentence } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
 import {
   agentNamed,
@@ -157,9 +158,6 @@ function report(io: Io, agent: string, thread: string, waited: Waited): number {
   io.out(reply.text.replace(/\n$/, ""));
   return 0;
 }
-
-/** `words` as a sentence: as they are when they end like one, and with a period when they don't. */
-const asSentence = (words: string): string => (/[.!?]$/.test(words) ? words : `${words}.`);
 
 /** The chat server went away: say what became of the message, as far as that is known. */
 function lostConnection(agent: string, progress: Progress): string {

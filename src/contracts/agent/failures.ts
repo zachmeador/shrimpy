@@ -1,3 +1,4 @@
+import { asSentence } from "../../lib/text/index.ts";
 import type { FailureReason } from "./shapes.ts";
 
 /**
@@ -6,15 +7,14 @@ import type { FailureReason } from "./shapes.ts";
  */
 const DETAIL_CHARACTERS = 300;
 
-/** A detail as the end of a sentence, on one line and cut to fit: as it is when it ends like one, and with a period when it doesn't. */
-function asSentence(detail: string): string {
+/** A detail as the end of a sentence, on one line and cut to fit. */
+function detailSentence(detail: string): string {
   const line = detail.replace(/\s+/g, " ").trim();
-  const trimmed = line.length > DETAIL_CHARACTERS ? `${line.slice(0, DETAIL_CHARACTERS - 1)}…` : line;
-  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+  return asSentence(line.length > DETAIL_CHARACTERS ? `${line.slice(0, DETAIL_CHARACTERS - 1)}…` : line);
 }
 
 /** The part of a sentence that says what more there is to know, when there is: ": detail.", or ".". */
-const andDetail = (detail: string | null): string => (detail === null || detail.trim() === "" ? "." : `: ${asSentence(detail)}`);
+const andDetail = (detail: string | null): string => (detail === null || detail.trim() === "" ? "." : `: ${detailSentence(detail)}`);
 
 /**
  * Why a turn ended without an answer, as one sentence or two for a person, with
@@ -30,7 +30,7 @@ export function failureWords(reason: FailureReason, detail: string | null): stri
     case "no_model":
       return detail === null
         ? "The agent has no model it can use. Sign in with shrimpy login where it runs, or give it a model it can reach."
-        : `The agent can't use its model, ${asSentence(detail)} Sign in with shrimpy login where it runs, or give it a model it can reach.`;
+        : `The agent can't use its model, ${detailSentence(detail)} Sign in with shrimpy login where it runs, or give it a model it can reach.`;
     case "stopped":
       return "The work was stopped before it answered. Send it again to start over.";
     case "kept_crashing":
@@ -44,6 +44,6 @@ export function failureWords(reason: FailureReason, detail: string | null): stri
     case "other":
       return detail === null || detail.trim() === ""
         ? "The turn ended without an answer."
-        : `The turn ended without an answer (${asSentence(detail).replace(/\.$/, "")}).`;
+        : `The turn ended without an answer (${detailSentence(detail).replace(/\.$/, "")}).`;
   }
 }
