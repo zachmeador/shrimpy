@@ -1,4 +1,5 @@
 import { parseConfig } from "../../lib/json-config/index.ts";
+import { nameKey } from "../gateway/index.ts";
 
 /**
  * `none` wakes the agent for nothing in the room. `mentions` wakes it for a
@@ -35,8 +36,8 @@ export function parseWake(text: string, file: string): WakeSettings {
   const settings: Record<string, WakePolicy> = {};
   for (const [room, policy] of Object.entries(rooms)) {
     if (!isWakePolicy(policy)) throw root.problem(`rooms.${room}`, `must be ${CHOICES}, not "${policy}"`);
-    if (named.has(room.toLowerCase())) throw root.problem(`rooms.${room}`, "is a room named already, whatever the case");
-    named.add(room.toLowerCase());
+    if (named.has(nameKey(room))) throw root.problem(`rooms.${room}`, "is a room named already, whatever the case");
+    named.add(nameKey(room));
     settings[room] = policy;
   }
   return settings;

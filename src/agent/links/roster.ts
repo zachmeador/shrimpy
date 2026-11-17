@@ -1,3 +1,4 @@
+import { findMember } from "../../contracts/chat/index.ts";
 import type { RosterEntry } from "../../contracts/gateway/index.ts";
 
 /** Who a name on the roster is, as the agent's tools look one up. */
@@ -9,11 +10,10 @@ export type Named =
   | { kind: "self"; member: RosterEntry }
   | { kind: "found"; member: RosterEntry };
 
-/** The member of `roster` called `name`, whatever the case. `self` is the agent's own ID. */
-export function memberNamed(roster: readonly RosterEntry[] | undefined, name: string, self: string): Named {
+/** Who `name` is on `roster`, whatever the case. `self` is the agent's own ID. */
+export function nameOnRoster(roster: readonly RosterEntry[] | undefined, name: string, self: string): Named {
   if (roster === undefined) return { kind: "unknown" };
-  const wanted = name.toLowerCase();
-  const member = roster.find((each) => each.name.toLowerCase() === wanted);
+  const member = findMember(roster, name);
   if (member === undefined) return { kind: "nobody", roster };
   return member.id === self ? { kind: "self", member } : { kind: "found", member };
 }

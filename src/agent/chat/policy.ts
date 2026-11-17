@@ -1,4 +1,5 @@
 import { DEFAULT_WAKE_POLICY, type WakePolicy, type WakeSettings } from "../../contracts/agent/index.ts";
+import { nameKey } from "../../contracts/gateway/index.ts";
 
 /**
  * What wakes the agent in each room, as it chose in a file of its home, which it
@@ -14,7 +15,7 @@ export interface Wakes {
 export function createWakes(settings: WakeSettings = {}): Wakes {
   let held = lowered(settings);
   return {
-    of: (room) => held.get(room.toLowerCase()) ?? DEFAULT_WAKE_POLICY,
+    of: (room) => held.get(nameKey(room)) ?? DEFAULT_WAKE_POLICY,
     replace(next) {
       held = lowered(next);
     },
@@ -22,4 +23,4 @@ export function createWakes(settings: WakeSettings = {}): Wakes {
 }
 
 const lowered = (settings: WakeSettings): ReadonlyMap<string, WakePolicy> =>
-  new Map(Object.entries(settings).map(([room, policy]) => [room.toLowerCase(), policy]));
+  new Map(Object.entries(settings).map(([room, policy]) => [nameKey(room), policy]));

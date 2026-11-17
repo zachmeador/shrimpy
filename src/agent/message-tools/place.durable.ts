@@ -1,8 +1,8 @@
 import type { Context } from "@earendil-works/chord/context";
 import type { DocumentReader } from "@earendil-works/pi-durable";
-import type { Channel, Member, Thread } from "../../contracts/chat/index.ts";
-import type { RosterEntry } from "../../contracts/gateway/index.ts";
-import { type ChatCalls, memberNamed } from "../links/index.ts";
+import { type Channel, findDm, findRoom, type Member, notInRoom, type Thread } from "../../contracts/chat/index.ts";
+import { nameKey, type RosterEntry } from "../../contracts/gateway/index.ts";
+import { type ChatCalls, nameOnRoster } from "../links/index.ts";
 import { threadOfSession } from "../records/durable.ts";
 import * as words from "./words.ts";
 
@@ -60,18 +60,14 @@ export async function placeOf(find: Find): Promise<Place | Unusable> {
   const name = /^@(.+)$/s.exec(written)?.[1]?.trim();
   if (name === undefined) return { problem: words.badPlace(argument) };
 
-  const named = memberNamed(find.roster, name, self.id);
+  const named = nameOnRoster(find.roster, name, self.id);
   if (named.kind === "unknown") return { problem: words.noRoster(name, argument) };
   if (named.kind === "nobody") return { problem: words.nobody(name, named.roster.map((each) => each.name)) };
   if (named.kind === "self") return { problem: words.yourself(name, argument) };
   const { member } = named;
 
   const label = words.dmWith(member.name);
-  const channel = find.startDm
-    ? await find.chat.openDm(member.id, find.signal)
-    : find.chat.channels().find(
-        (each) => each.kind === "dm" && each.members.some((other) => other.id === member.id),
-      );
+  const channel = find.startDm ? await find.chat.openDm(member.id, find.signal) : findDm(find.chat.channels(), member.id);
   if (channel === undefined) return { problem: words.noDmYet(member.name) };
   const main = (await find.chat.threads(channel.id, find.signal)).find((thread) => thread.main);
   if (main === undefined) return { problem: words.noMainThread(label) };
@@ -81,9 +77,9 @@ export async function placeOf(find: Find): Promise<Place | Unusable> {
 /** The main thread of a room the agent is in, or one of its threads when `written` goes on after the room's name with a slash. */
 async function roomPlace(find: Find, written: string, current: string | undefined): Promise<Place | Unusable> {
   const rooms = find.chat.channels().filter((channel) => channel.kind === "room");
-  const found = roomNamed(rooms, written);
+  const found = roomAndThread(rooms, written);
   if (found === undefined) {
-    return { problem: words.notInRoom(written.split("/")[0]?.trim() ?? written, rooms.map((room) => room.name)) };
+    return { problem: notInRoom(written.split("/")[0]?.trim() ?? written, rooms.map((room) => room.name)) };
   }
   const { room, thread } = found;
   const threads = await find.chat.threads(room.id, find.signal);
@@ -94,9 +90,10 @@ async function roomPlace(find: Find, written: string, current: string | undefine
     if (main === undefined) return { problem: words.noMainThread(label) };
     return { threadId: main.id, label, here: main.id === current };
   }
-  const wanted = thread.toLowerCase();
-  const byId = threads.filter((candidate) => candidate.id.toLowerCase() === wanted);
-  const matches = byId.length > 0 ? byId : threads.filter((candidate) => candidate.name?.toLowerCase() === wanted);
+  // An ID or a name, whatever the case, as names are compared.
+  const wanted = nameKey(thread);
+  const byId = threads.filter((candidate) => nameKey(candidate.id) === wanted);
+  const matches = byId.length > 0 ? byId : threads.filter((candidate) => candidate.name !== null && nameKey(candidate.name) === wanted);
   const [only, ...others] = matches;
   if (only === undefined) return { problem: words.noSuchThread(room.name, thread, threads) };
   if (others.length > 0) return { problem: words.manyThreads(room.name, thread, matches) };
@@ -108,14 +105,13 @@ const nameOf = (thread: Thread): string => thread.name ?? thread.id;
 /**
  * The room that `written` means, whatever the case, and the rest of it after a
  * slash, which is a thread, or "" when it names the room alone. A room's name
- * may have a slash in it, so the whole text is tried first and then the longest
- * room name that it starts with.
+ * may have a slash in it, so the whole text is tried first and then each part
+ * of it before a slash, the longest first.
  */
-function roomNamed(rooms: readonly Channel[], written: string): { room: Channel; thread: string } | undefined {
-  const lowered = written.toLowerCase();
-  const named = rooms.map((room) => ({ room, name: room.name.toLowerCase() }));
-  const whole = named.find((each) => each.name === lowered);
-  if (whole !== undefined) return { room: whole.room, thread: "" };
-  const longest = named.filter((each) => lowered.startsWith(`${each.name}/`)).sort((a, b) => b.name.length - a.name.length)[0];
-  return longest === undefined ? undefined : { room: longest.room, thread: written.slice(longest.name.length + 1).trim() };
+function roomAndThread(rooms: readonly Channel[], written: string): { room: Channel; thread: string } | undefined {
+  for (let end = written.length; end > 0; end = written.lastIndexOf("/", end - 1)) {
+    const room = findRoom(rooms, written.slice(0, end));
+    if (room !== undefined) return { room, thread: written.slice(end + 1).trim() };
+  }
+  return undefined;
 }

@@ -12,9 +12,6 @@ export const MAX_PAGE = 200;
 /** Members one call can name, when it makes a room or adds to one. */
 export const MAX_MEMBERS = 200;
 
-/** Characters in a member's, a room's or a thread's name. */
-export const MAX_NAME = 200;
-
 /** Characters in an ID that a caller makes up: a member, a request. */
 export const MAX_ID = 200;
 

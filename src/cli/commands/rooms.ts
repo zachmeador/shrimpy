@@ -1,7 +1,8 @@
 import { parseArgs } from "node:util";
-import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
+import { NO_ROOMS } from "../../contracts/chat/index.ts";
+import { contextOf, MAX_NAME, valueOf } from "../../contracts/gateway/index.ts";
 import { listed } from "../../lib/text/index.ts";
-import { membersNamed, onChannel, reachChat, roomNamed, roomNameWritten } from "../talk/index.ts";
+import { MAKE_A_ROOM, membersNamed, onChannel, reachChat, roomNamed, roomNameWritten } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderRooms } from "./render-rooms.ts";
@@ -24,7 +25,7 @@ const rooms: Command = {
     try {
       const mine = reached.chat.channels.value.filter((channel) => channel.kind === "room");
       if (mine.length === 0) {
-        io.out("You are in no rooms. Make one with: shrimpy rooms new <name> [<member>...]");
+        io.out(`${NO_ROOMS} ${MAKE_A_ROOM}`);
         return 0;
       }
       const listing = await Promise.all(
@@ -50,7 +51,7 @@ const roomsNew: Command = {
     "Making a room takes an admin: every person is one, the first agent to join the gateway starts as one, and " +
     "any other agent becomes one when it is promoted. An admin can name anyone on the roster as a member. Every " +
     "name is checked before anything is made, and the error says which name is wrong. A room's name is one line " +
-    "of up to 200 characters that no other room has, whatever the case. Members read and post in the room, and a " +
+    `of up to ${String(MAX_NAME)} characters that no other room has, whatever the case. Members read and post in the room, and a ` +
     "member who is an admin can add more. A member added later can read what came before, and is only told of " +
     "what comes after. To write the name as #ops, put it in quotes: a shell treats an unquoted # as the start of " +
     "a comment.",

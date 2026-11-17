@@ -51,11 +51,6 @@ export function badPlace(argument: PlaceArgument): string {
 const threadNamed = (thread: Thread): string =>
   thread.name === null ? `${thread.id}${thread.main ? " (the main thread)" : ""}` : `${thread.id} (${thread.name})`;
 
-export function notInRoom(name: string, rooms: string[]): string {
-  const where = rooms.length === 0 ? "You are in no rooms." : `The rooms you are in: ${rooms.map((room) => `#${room}`).join(", ")}.`;
-  return `You are not in a room called #${name}. ${where}`;
-}
-
 export function noSuchThread(room: string, thread: string, threads: readonly Thread[]): string {
   return `#${room} has no thread called ${thread}. Its threads: ${threads.map(threadNamed).join(", ")}.`;
 }

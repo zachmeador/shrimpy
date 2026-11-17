@@ -1,5 +1,5 @@
 import type { AgentModels } from "../../../contracts/agent/index.ts";
-import { valueOf } from "../../../contracts/gateway/index.ts";
+import { nameKey, valueOf } from "../../../contracts/gateway/index.ts";
 import { type AgentCalls, type AgentShown, Down, type Holding, problemOf } from "../network/index.ts";
 import type { Holdings } from "./holdings.ts";
 import type { Notice } from "./model.ts";
@@ -65,9 +65,10 @@ export function createAsking(store: Store, held: Holdings, clock: () => number):
 
     async takeBack(written) {
       const devices = devicesOf(store.model());
-      const wanted = written.trim().toLowerCase();
-      const byId = devices.filter((device) => device.id.toLowerCase() === wanted);
-      const named = byId.length > 0 ? byId : devices.filter((device) => device.label?.toLowerCase() === wanted);
+      // An ID or a label, whatever the case, as names are compared.
+      const wanted = nameKey(written.trim());
+      const byId = devices.filter((device) => nameKey(device.id) === wanted);
+      const named = byId.length > 0 ? byId : devices.filter((device) => device.label !== null && nameKey(device.label) === wanted);
       if (named.length === 0) {
         store.say({ kind: "no-device", written: written.trim(), devices: devices.map((device) => device.label ?? device.id) });
         return;

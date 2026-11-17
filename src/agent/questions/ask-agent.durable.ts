@@ -3,7 +3,7 @@ import { defineExtension, defineTool, type Extension, type ToolExecutionApi } fr
 import type { RosterEntry } from "../../contracts/gateway/index.ts";
 import { answer, failure } from "../host/durable.ts";
 import type { Member } from "../../contracts/chat/index.ts";
-import { callSignal, type ChatCalls, chatFailure, type LiveChat, memberNamed } from "../links/index.ts";
+import { callSignal, type ChatCalls, chatFailure, type LiveChat, nameOnRoster } from "../links/index.ts";
 import { addressOfPlace, placeOfSession } from "../records/durable.ts";
 import { readTo, readWithin, SHORTEST_WITHIN, startOf } from "./args.ts";
 import { MAX_OPEN, type Questions } from "./questions.durable.ts";
@@ -74,7 +74,7 @@ function askAgent(options: AskToolsOptions) {
       const signal = callSignal(live, context);
       let posting = false;
       try {
-        const found = agentNamed(options.roster(), name, live.self);
+        const found = askable(options.roster(), name, live.self);
         if ("problem" in found) return failure(found.problem);
         const open = await options.questions.count(api, session, context);
         if (open >= MAX_OPEN) return failure(words.tooMany(open));
@@ -121,8 +121,8 @@ function askAgent(options: AskToolsOptions) {
 }
 
 /** The agent the model named, or why it can't be asked, in words for the model. */
-function agentNamed(roster: readonly RosterEntry[] | undefined, name: string, self: Member): { agent: RosterEntry } | { problem: string } {
-  const named = memberNamed(roster, name, self.id);
+function askable(roster: readonly RosterEntry[] | undefined, name: string, self: Member): { agent: RosterEntry } | { problem: string } {
+  const named = nameOnRoster(roster, name, self.id);
   switch (named.kind) {
     case "unknown":
       return { problem: words.noRoster(name) };

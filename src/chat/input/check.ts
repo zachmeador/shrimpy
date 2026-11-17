@@ -1,6 +1,7 @@
 import type { Receipt } from "../../contracts/chat/index.ts";
+import { fitName, NAME_RULE } from "../../contracts/gateway/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import { MAX_DETAIL, MAX_ID, MAX_NAME, MAX_TEXT } from "./limits.ts";
+import { MAX_DETAIL, MAX_ID, MAX_TEXT } from "./limits.ts";
 
 // Arguments arrive off the wire, so their TypeScript types promise nothing. Each
 // check refuses with a message that names the argument as `what`.
@@ -13,13 +14,9 @@ export function identifier(value: unknown, what: string): string {
   return value;
 }
 
-/** A name for display: one line, and trimmed. */
+/** A name for display, as every program keeps one: one line, and trimmed. */
 export function label(value: unknown, what: string): string {
-  const name = typeof value === "string" ? value.trim() : "";
-  if (name === "" || name.length > MAX_NAME || /\p{Cc}/u.test(name)) {
-    refuse(`${what} must be 1 to ${MAX_NAME} characters on one line.`);
-  }
-  return name;
+  return (typeof value === "string" ? fitName(value) : undefined) ?? refuse(`${what} ${NAME_RULE}.`);
 }
 
 /** The text of a message, exactly as sent. */

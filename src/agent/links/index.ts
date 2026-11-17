@@ -9,4 +9,4 @@
  */
 export { callSignal, type ChatCalls, chatFailure, type ChatLink, type LiveChat, openChatLink } from "./chat.ts";
 export { linkToGateway } from "./gateway.ts";
-export { memberNamed } from "./roster.ts";
+export { nameOnRoster } from "./roster.ts";

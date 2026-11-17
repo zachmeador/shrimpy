@@ -17,11 +17,13 @@
  * how a text is told to be one, so that a client shows what an agent acts on
  * and for whom, and everyone reads a text the same way; how an agent acts is its
  * own. What a receipt says to a person is here too, so that every client says
- * it the same way. This door is safe for browsers.
+ * it the same way, and finding a member, a room or a DM by what it is called,
+ * as the clients and the agent's tools do. This door is safe for browsers.
  */
 export { Channel } from "./channel.ts";
 export { Chat } from "./chat.ts";
 export { AGENT_COMMANDS, type AgentCommand, agentCommandIn } from "./commands.ts";
+export { findDm, findMember, findRoom } from "./lookups.ts";
 export { ChatPresence } from "./presence.ts";
 export {
   type ChatEvent,
@@ -35,4 +37,4 @@ export {
   type Working,
 } from "./shapes.ts";
 export { Thread } from "./thread.ts";
-export { receiptWords } from "./words.ts";
+export { NO_ROOMS, notInRoom, receiptWords } from "./words.ts";

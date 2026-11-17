@@ -1,4 +1,5 @@
 import type { Member } from "../../contracts/chat/index.ts";
+import { nameKey } from "../../contracts/gateway/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import type { ReportChange } from "./changes.ts";
 import { type MemberRow, toMember } from "./members.ts";
@@ -46,9 +47,6 @@ export interface ChannelOperations {
 }
 
 const directKey = (first: string, second: string): string => JSON.stringify([first, second].sort());
-
-/** The key under which no two rooms share a name: the name in lower case, as names are compared everywhere. */
-const roomKey = (name: string): string => name.toLowerCase();
 
 /**
  * A member joins a channel at the end of the log, so the events it is offered
@@ -128,12 +126,13 @@ export function channelOperations(sql: Sql, report: ReportChange): ChannelOperat
       return stored(id);
     },
     roomNamed(name) {
-      const row = sql.one("SELECT id FROM channels WHERE room_key = ?", roomKey(name)) as { id: string } | undefined;
+      const row = sql.one("SELECT id FROM channels WHERE room_key = ?", nameKey(name)) as { id: string } | undefined;
       return row === undefined ? undefined : channel(row.id);
     },
     createRoom(name, members, now) {
       const id = newId("ch");
-      sql.run("INSERT INTO channels (id, kind, name, room_key) VALUES (?, 'room', ?, ?)", id, name, roomKey(name));
+      // No two rooms share a name in the form names are compared in.
+      sql.run("INSERT INTO channels (id, kind, name, room_key) VALUES (?, 'room', ?, ?)", id, name, nameKey(name));
       for (const member of members) join(sql, id, member.id);
       insertThread(sql, { channelId: id, name: null, main: true, now });
       report({ kind: "channel", channelId: id });

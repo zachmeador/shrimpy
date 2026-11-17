@@ -1,4 +1,7 @@
-import type { Channel } from "../../contracts/chat/index.ts";
+import { type Channel, findRoom, notInRoom } from "../../contracts/chat/index.ts";
+
+/** What a person runs to make a room. */
+export const MAKE_A_ROOM = "Make one with: shrimpy rooms new <name> [<member>...]";
 
 /**
  * The name of a room as a person writes it: `#ops`. The `#` says it is a room
@@ -16,13 +19,8 @@ export function roomNameWritten(written: string): string {
  */
 export function roomNamed(channels: readonly Channel[], written: string): Channel {
   const name = roomNameWritten(written);
-  const wanted = name.toLowerCase();
-  const rooms = channels.filter((channel) => channel.kind === "room");
-  const found = rooms.find((room) => room.name.toLowerCase() === wanted);
+  const found = findRoom(channels, name);
   if (found !== undefined) return found;
-  const where =
-    rooms.length === 0
-      ? "You are in no rooms. Make one with: shrimpy rooms new <name> [<member>...]"
-      : `The rooms you are in: ${rooms.map((room) => `#${room.name}`).join(", ")}.`;
-  throw new Error(`You are not in a room called #${name}. ${where}`);
+  const rooms = channels.filter((channel) => channel.kind === "room").map((room) => room.name);
+  throw new Error(rooms.length === 0 ? `${notInRoom(name, rooms)} ${MAKE_A_ROOM}` : notInRoom(name, rooms));
 }

@@ -2,8 +2,11 @@ import { createHash } from "node:crypto";
 import {
   type Answer,
   done,
+  fitName,
   isToken,
   type Member,
+  NAME_RULE,
+  nameKey,
   type Refused,
   refused,
   type Way,
@@ -12,9 +15,6 @@ import {
 import { newId } from "../../lib/ids/index.ts";
 import { listed } from "../../lib/text/index.ts";
 import { type DeviceRecord, type MemberRecord, readRoster, rosterFile, writeRoster } from "./file.ts";
-
-/** Characters in a member's name or a device's label. */
-const MAX_NAME = 200;
 
 const TOKEN_RULE = "A token is 32 to 200 letters, digits, hyphens or underscores, such as 32 random bytes in base64url.";
 
@@ -65,8 +65,6 @@ export interface Roster {
   onChange(listener: () => void): () => void;
 }
 
-const fold = (name: string): string => name.toLowerCase();
-
 const hashOf = (token: string): string => `sha256:${createHash("sha256").update(token).digest("hex")}`;
 
 /** A way's ID, from its token's hash: it means nothing, never changes and gives nothing of the token away. */
@@ -78,12 +76,6 @@ const publicly = (record: MemberRecord): Member => ({
   name: record.name,
   admin: record.kind === "person" || record.admin,
 });
-
-/** A name or a label that is fit to keep, or undefined. */
-function fit(label: string): string | undefined {
-  const trimmed = label.trim();
-  return trimmed === "" || trimmed.length > MAX_NAME || /\p{Cc}/u.test(trimmed) ? undefined : trimmed;
-}
 
 /**
  * Open the roster in `dataDir`, which the gateway holds. A roster with nobody
@@ -97,11 +89,11 @@ export function openRoster(dataDir: string, firstName: string): Roster {
   let records = readRoster(dataDir);
   const seen = new Map<string, string>();
   for (const record of records) {
-    const clash = seen.get(fold(record.name));
+    const clash = seen.get(nameKey(record.name));
     if (clash !== undefined) {
       throw new Error(`${file} gives the name "${record.name}" to ${clash} and to ${record.id}. Names are unique, whatever the case.`);
     }
-    seen.set(fold(record.name), record.id);
+    seen.set(nameKey(record.name), record.id);
   }
   const people = records.filter((record) => record.kind === "person");
   if (people.length > 1) {
@@ -123,7 +115,7 @@ export function openRoster(dataDir: string, firstName: string): Roster {
 
   /** Why `name` can't be the name of a member other than `except`, if it can't. */
   const unavailable = (name: string, except?: string): Refused | undefined => {
-    const holder = records.find((record) => record.id !== except && fold(record.name) === fold(name));
+    const holder = records.find((record) => record.id !== except && nameKey(record.name) === nameKey(name));
     if (holder === undefined) return undefined;
     return refused(
       `The name "${name}" is taken: it belongs to ${holder.kind === "agent" ? "the agent" : "the person"} "${holder.name}". ` +
@@ -132,7 +124,7 @@ export function openRoster(dataDir: string, firstName: string): Roster {
     );
   };
 
-  const badName = refused(`A name must be 1 to ${String(MAX_NAME)} characters on one line.`);
+  const badName = refused(`A name ${NAME_RULE}.`);
 
   // You are made with the roster, and found from then on as the one person there is, whoever the gateway runs as.
   if (people.length === 0) {
@@ -157,7 +149,7 @@ export function openRoster(dataDir: string, firstName: string): Roster {
   };
 
   const rename = (id: string, name: string): Answer<Member> => {
-    const label = fit(name);
+    const label = fitName(name);
     if (label === undefined) return badName;
     const current = records.find((record) => record.id === id);
     if (current === undefined) return refused(`There is no member ${id}.`);
@@ -196,7 +188,7 @@ export function openRoster(dataDir: string, firstName: string): Roster {
       const holder = recognize(token);
       if (holder?.way.kind === "token") return rename(holder.member.id, name);
       if (holder !== undefined) return refused("That token belongs to a device of yours, and a token belongs to one member.");
-      const label = fit(name);
+      const label = fitName(name);
       if (label === undefined) return badName;
       const taken = unavailable(label);
       if (taken !== undefined) return taken;
@@ -217,9 +209,9 @@ export function openRoster(dataDir: string, firstName: string): Roster {
       const holder = recognize(token);
       if (holder?.way.kind === "token") return refused("That token belongs to an agent, and a token belongs to one member.");
       if (holder !== undefined) return done(holder.member);
-      const kept = fit(label);
+      const kept = fitName(label);
       if (kept === undefined) {
-        return refused(`A device is labelled with the name of the machine it joins from, which must be 1 to ${String(MAX_NAME)} characters on one line.`);
+        return refused(`A device is labelled with the name of the machine it joins from, which ${NAME_RULE}.`);
       }
       const device: DeviceRecord = { tokenHash: hashOf(token), label: kept };
       const by = current.recognizedBy;
@@ -228,7 +220,7 @@ export function openRoster(dataDir: string, firstName: string): Roster {
     },
     rename,
     vacant(name) {
-      const label = fit(name);
+      const label = fitName(name);
       if (label === undefined) return badName;
       return unavailable(label) ?? done(label);
     },

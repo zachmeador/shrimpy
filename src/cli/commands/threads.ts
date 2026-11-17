@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
-import type { Channel } from "../../contracts/chat/index.ts";
-import { dmWith, memberNamed, onChannel, type Reached, reachChat, roomNamed } from "../talk/index.ts";
+import { type Channel, findDm } from "../../contracts/chat/index.ts";
+import { memberNamed, onChannel, type Reached, reachChat, roomNamed } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderThreads } from "./render-threads.ts";
@@ -53,7 +53,7 @@ function channelNamed(reached: Reached, channels: readonly Channel[], name: stri
   if (member.id === reached.me.id) {
     throw new Error(`${member.name} is you. Name the person or agent you have threads with.`);
   }
-  return dmWith(channels, member);
+  return findDm(channels, member.id);
 }
 
 export const threadsCommands: Command[] = [threads];

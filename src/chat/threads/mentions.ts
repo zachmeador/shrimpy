@@ -1,4 +1,5 @@
 import type { Member } from "../../contracts/chat/index.ts";
+import { nameKey } from "../../contracts/gateway/index.ts";
 import type { ChannelRecord } from "../store/index.ts";
 
 /** What `@all` stands for. */
@@ -9,7 +10,7 @@ const BEFORE_A_MENTION = /[\p{L}\p{N}_]/u;
 const INSIDE_A_NAME = /[\p{L}\p{N}_-]/u;
 
 /**
- * Whether lower-cased `text` has `@name` in it, with `name` lower-cased too: on
+ * Whether `text` has `@name` in it, each in the form names are compared in: on
  * its own, not inside an address like `maya@host` or a longer name like
  * `@mayamaya`. A full stop after it is the end of a sentence, not the start of
  * another name.
@@ -31,8 +32,8 @@ function hasMention(text: string, name: string): boolean {
  * the case, or `@all`, which mentions every member.
  */
 function mentions(text: string, name: string): boolean {
-  const lowered = text.toLowerCase();
-  return hasMention(lowered, EVERYONE) || hasMention(lowered, name.toLowerCase());
+  const keyed = nameKey(text);
+  return hasMention(keyed, EVERYONE) || hasMention(keyed, nameKey(name));
 }
 
 /**

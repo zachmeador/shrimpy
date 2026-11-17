@@ -1,6 +1,7 @@
 import type { LeftOut } from "../../lib/files/index.ts";
 import { readText, saveFile } from "../../lib/files/node.ts";
 import { ConfigError } from "../../lib/json-config/index.ts";
+import { nameKey } from "../gateway/index.ts";
 import type { HomePaths } from "./layout.node.ts";
 import { loadHome } from "./load.node.ts";
 import { parseWake, type WakePolicy, type WakeSettings } from "./wake.ts";
@@ -37,8 +38,8 @@ export async function saveWake(home: string, room: string, policy: WakePolicy): 
   if (read.kind === "left out") {
     throw new Error(`${FILE} was not changed, because it does not check out: ${read.leftOut.reason}. Fix it by hand, or delete it.`);
   }
-  const wanted = room.toLowerCase();
-  const others = Object.entries(read.settings).filter(([name]) => name.toLowerCase() !== wanted);
+  const wanted = nameKey(room);
+  const others = Object.entries(read.settings).filter(([name]) => nameKey(name) !== wanted);
   const settings: WakeSettings = { ...Object.fromEntries(others), [room]: policy };
   saveFile(paths.wake, `${JSON.stringify({ rooms: settings }, null, 2)}\n`);
   return { file: paths.wake, settings };

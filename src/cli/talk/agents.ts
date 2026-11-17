@@ -1,4 +1,4 @@
-import type { Member } from "../../contracts/chat/index.ts";
+import { findMember, type Member } from "../../contracts/chat/index.ts";
 import type { Program } from "../../contracts/gateway/index.ts";
 import { listed } from "../../lib/text/index.ts";
 import { lookForHome } from "../folder/index.ts";
@@ -10,7 +10,7 @@ import { START_EVERYTHING } from "./hints.ts";
  * is called that, the error says who there is.
  */
 export function memberNamed<T extends Member>(members: readonly T[], name: string): T {
-  const found = find(members, name);
+  const found = findMember(members, name);
   if (found !== undefined) return found;
   throw nobodyCalled(members, [name]);
 }
@@ -24,17 +24,12 @@ export function membersNamed(members: readonly Member[], names: string[]): Membe
   const found = new Map<string, Member>();
   const nobody: string[] = [];
   for (const name of names) {
-    const member = find(members, name);
+    const member = findMember(members, name);
     if (member === undefined) nobody.push(name);
     else found.set(member.id, member);
   }
   if (nobody.length > 0) throw nobodyCalled(members, nobody);
   return [...found.values()];
-}
-
-function find<T extends Member>(members: readonly T[], name: string): T | undefined {
-  const wanted = name.toLowerCase();
-  return members.find((member) => member.name.toLowerCase() === wanted);
 }
 
 function nobodyCalled(members: readonly Member[], names: string[]): Error {

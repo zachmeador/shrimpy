@@ -27,3 +27,18 @@ export function receiptWords(receipt: Receipt, who: string): string | undefined 
         : `${name} skipped this message: ${oneLine(receipt.detail)}`;
   }
 }
+
+/** What a member in no rooms is told. */
+export const NO_ROOMS = "You are in no rooms.";
+
+/**
+ * That the caller is in no room called `name`, written without its `#`, and
+ * the rooms it is in, by their names: "You are not in a room called #ops. The
+ * rooms you are in: #general." A room the caller isn't in is not told apart
+ * from one there is none of. The agent's tools and the commands each frame it
+ * their own way.
+ */
+export function notInRoom(name: string, rooms: readonly string[]): string {
+  const where = rooms.length === 0 ? NO_ROOMS : `The rooms you are in: ${rooms.map((room) => `#${room}`).join(", ")}.`;
+  return `You are not in a room called #${name}. ${where}`;
+}
