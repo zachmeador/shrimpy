@@ -7,7 +7,8 @@ import { initHome, loadHome, readMembership, saveMembership } from "../../contra
 import { type Address, writeLink } from "../../contracts/gateway/index.ts";
 import { newToken } from "../../contracts/gateway/node.ts";
 import { stopAfter, tempDir } from "../../lib/testing/index.ts";
-import { JoinFailedError, joinHome } from "./join-home.ts";
+import { joinHome } from "./join-home.ts";
+import { JoinFailedError } from "./join.ts";
 
 /*
  * What joining a home with a link refuses before it sends anything. Joining itself, against a gateway that lets the

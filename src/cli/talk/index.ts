@@ -16,8 +16,9 @@
 export { type AgentReached, onAgent, onSession, reachAgent, requireAdminFor } from "./agent.ts";
 export { agentNamed, memberNamed, membersNamed, runningAgent } from "./agents.ts";
 export { askGateway, askLocalGateway, GatewayNotRunningError, NO_GATEWAY, withGatewayAsMe } from "./gateway.ts";
-export { JoinFailedError, joinHome } from "./join-home.ts";
-export { joinAsMachine, MachineJoinFailedError } from "./join-machine.ts";
+export { JoinFailedError } from "./join.ts";
+export { joinHome } from "./join-home.ts";
+export { joinAsMachine } from "./join-machine.ts";
 export { me } from "./me.ts";
 export { type HeldAgent, type HeldSession, type HeldThread, onChannel, onRoster } from "./objects.ts";
 export { type Reached, reachChat } from "./reach.ts";

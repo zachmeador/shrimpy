@@ -6,7 +6,7 @@ import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import { gatewayOfItsOwn, homeInFolder, machineFolder, providersPath } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
-import { JoinFailedError, joinAsMachine, joinHome, MachineJoinFailedError } from "../talk/index.ts";
+import { JoinFailedError, joinAsMachine, joinHome } from "../talk/index.ts";
 import { checking, expectArguments, parsing } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
@@ -76,7 +76,6 @@ async function joinAsAgent(io: Io, text: string, { name, address }: Link & { nam
   const joined = await joining({
     where,
     giveUpMs,
-    tried: (error) => error instanceof JoinFailedError,
     stays: exists ? "" : `The agent's home, ${home}, was made and stays. `,
     join: (signal) => joinHome(home, text, { signal }),
   });
@@ -114,7 +113,6 @@ async function joinThisMachine(io: Io, link: Link, giveUpMs: number): Promise<nu
   const joined = await joining({
     where,
     giveUpMs,
-    tried: (error) => error instanceof MachineJoinFailedError,
     join: (signal) => joinAsMachine(folder, link, { signal }),
   });
 
@@ -126,14 +124,13 @@ async function joinThisMachine(io: Io, link: Link, giveUpMs: number): Promise<nu
 
 /**
  * Join the gateway at `where` with `join`, giving up on one that does not answer
- * within `giveUpMs`. Only an attempt that was made, which `tried` tells, can be
+ * within `giveUpMs`. Only a join that was tried, a `JoinFailedError`, can be
  * made again, so its failure says so, after what `stays` says was left; a link
  * that does not fit is said as it is.
  */
 async function joining<T>(options: {
   where: string;
   giveUpMs: number;
-  tried: (error: unknown) => boolean;
   stays?: string;
   join: (signal: AbortSignal) => Promise<T>;
 }): Promise<T> {
@@ -142,7 +139,7 @@ async function joining<T>(options: {
   try {
     return await options.join(gaveUp.signal);
   } catch (error) {
-    if (!options.tried(error)) throw error;
+    if (!(error instanceof JoinFailedError)) throw error;
     const said = gaveUp.signal.aborted ? `The gateway at ${options.where} did not answer within fifteen seconds.` : asError(error).message;
     throw new Error(`${said}\n${options.stays ?? ""}Running this again with the same link is safe while the code is good.`, { cause: error });
   } finally {

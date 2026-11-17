@@ -1,40 +1,13 @@
 import { hostname } from "node:os";
 import { loadHome, readMembership, saveMembership } from "../../contracts/agent/node.ts";
-import { type Entry, type Member, readLink, type Welcome } from "../../contracts/gateway/index.ts";
-import {
-  HelloRefusedError,
-  newToken,
-  sayHello,
-  UnknownAnswerError,
-  UnprovenGatewayError,
-} from "../../contracts/gateway/node.ts";
-import { asError } from "../../lib/errors/index.ts";
+import { type Entry, readLink } from "../../contracts/gateway/index.ts";
+import { newToken } from "../../contracts/gateway/node.ts";
 import { formatAddress } from "../../lib/link/index.ts";
-
-/**
- * The gateway could not be reached, stopped answering, or turned the agent
- * away. The home keeps the agent's token, so the same link can be used again
- * while its code is good. A link that does not fit the home is no such failure:
- * nothing was tried.
- */
-export class JoinFailedError extends Error {
-  constructor(message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = "JoinFailedError";
-  }
-}
+import { type Joined, joinAnew, joinGateway } from "./join.ts";
 
 export interface JoinHomeOptions {
   /** Abort to give up on a gateway that does not answer, whether the connection was still being made or the join was waiting for its answer. */
   signal?: AbortSignal;
-}
-
-/** What joining a home came to. */
-export interface JoinedHome {
-  /** Who the agent is on the gateway's roster. */
-  member: Member;
-  /** The version of Shrimpy the gateway runs. */
-  gatewayVersion: string;
 }
 
 /**
@@ -52,7 +25,7 @@ export interface JoinedHome {
  * that doesn't answer before `signal` aborts, that shows another key or that
  * turns the agent away is a `JoinFailedError`.
  */
-export async function joinHome(home: string, link: string, options: JoinHomeOptions = {}): Promise<JoinedHome> {
+export async function joinHome(home: string, link: string, options: JoinHomeOptions = {}): Promise<Joined> {
   const invitation = readLink(link);
   if (invitation.name === null) {
     throw new Error(
@@ -69,27 +42,14 @@ export async function joinHome(home: string, link: string, options: JoinHomeOpti
   const saved = readMembership(paths.root);
   if (saved?.memberId !== undefined || saved?.gateway !== undefined) {
     const where = saved.gateway === undefined ? "the gateway on this machine" : `the gateway at ${formatAddress(saved.gateway)}`;
-    throw new Error(
-      `The agent ${name} is a member through ${where} already. To join anew, delete ${paths.member} and run this again.`,
-    );
+    throw new Error(`The agent ${name} is a member through ${where} already. ${joinAnew(paths.member)}`);
   }
   const token = saved?.token ?? newToken();
   if (saved === undefined) saveMembership(paths.root, { token });
 
-  const where = formatAddress(invitation.address);
   const gateway: Entry = { ...invitation.address, fingerprint: invitation.fingerprint };
   const who = { kind: "join", name, token, code: invitation.code, machine: hostname() } as const;
-  let answer: Welcome;
-  try {
-    const dialed = await sayHello(gateway, who, options.signal === undefined ? {} : { signal: options.signal });
-    dialed.linked.drop();
-    answer = dialed.welcome;
-  } catch (error) {
-    if (error instanceof HelloRefusedError) throw new JoinFailedError(`The gateway at ${where} did not let ${name} in: ${error.message}`);
-    if (error instanceof UnknownAnswerError || error instanceof UnprovenGatewayError) throw new JoinFailedError(error.message);
-    throw new JoinFailedError(`Could not join the gateway at ${where}: ${asError(error).message}`, { cause: error });
-  }
-  if (answer.you === null) throw new JoinFailedError(`The gateway at ${where} let ${name} in as nobody.`);
-  saveMembership(paths.root, { token, memberId: answer.you.id, gateway });
-  return { member: answer.you, gatewayVersion: answer.shrimpy };
+  const joined = await joinGateway(gateway, who, name, options.signal);
+  saveMembership(paths.root, { token, memberId: joined.member.id, gateway });
+  return joined;
 }

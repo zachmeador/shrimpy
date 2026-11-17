@@ -5,6 +5,7 @@ import { gatewaySocket, type HelloRefusedError, readMachine } from "../../contra
 import { formatAddress } from "../../lib/link/index.ts";
 import type { DialPlace } from "../../lib/link/node.ts";
 import { folderPath } from "../folder/index.ts";
+import { notLetIn } from "./join.ts";
 
 /** A machine of a person's own that the gateway has let in: it knows who it is. */
 type JoinedMachine = Machine & Required<Pick<Machine, "member">>;
@@ -95,7 +96,7 @@ export function me(): Me {
           { cause: error },
         );
       }
-      return new Error(`The gateway at ${where} did not let this machine in: ${error.message}`, { cause: error });
+      return new Error(notLetIn(where, "this machine", error.message), { cause: error });
     },
   };
 }
