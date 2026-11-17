@@ -7,7 +7,7 @@
  * each other through the gateway. This door is safe for browsers; `node.ts`
  * adds linking, which needs Node.
  */
-export { type Address, type Entry } from "./address.ts";
+export { type Address, type Entry, readAddress, readEntry } from "./address.ts";
 export {
   type Answer,
   answerOf,

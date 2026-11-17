@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { saveFile } from "../../lib/files/node.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
 import { formatAddress } from "../../lib/link/index.ts";
-import type { Address } from "./address.ts";
+import { type Address, readAddress } from "./address.ts";
 
 /** Where the gateway keeps the addresses it listens on, inside its data directory. */
 export const listenAddressesFile = (dataDir: string): string => join(dataDir, "state", "listen.json");
@@ -14,11 +14,9 @@ export function keptListenAddresses(dataDir: string): Address[] {
   const root = readConfig(listenAddressesFile(dataDir));
   if (root === undefined) return [];
   const addresses = root.objects("addresses").map((entry) => {
-    const host = entry.string("host");
-    const port = entry.number("port");
+    const address = readAddress(entry, 0);
     entry.done();
-    if (!Number.isInteger(port) || port > 65_535) throw entry.problem("port", "must be a port number from 0 to 65535");
-    return { host, port };
+    return address;
   });
   root.done();
   return addresses;

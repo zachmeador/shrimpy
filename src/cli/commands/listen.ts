@@ -1,6 +1,6 @@
-import { isIPv6 } from "node:net";
 import type { Address } from "../../contracts/gateway/index.ts";
 import { checkListenAddresses } from "../../contracts/gateway/node.ts";
+import { isPort, parseAddress } from "../../lib/link/index.ts";
 import { checking, UsageError } from "../usage/index.ts";
 
 /** The option that opens the gateway's network entry, for `gateway serve` and `up`. It may be given more than once. */
@@ -20,22 +20,17 @@ export const ABOUT_LISTEN =
   "and listens there again when it starts with no --listen. Giving --listen replaces them. Deleting the file " +
   "makes the gateway listen on none.";
 
-const HOST_OR_ADDRESS = /^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$/;
-
 /** What `--listen` was given as an address, or an error that says what an address looks like. */
-function readAddress(text: string): Address {
-  const found = /^(?:\[([^\]]*)\]|([^:[\]]*)):(\d+)$/.exec(text);
-  const [, bracketed, plain, written] = found ?? [];
-  const host = bracketed ?? plain ?? "";
-  const port = Number(written);
-  const valid = bracketed === undefined ? HOST_OR_ADDRESS.test(host) : isIPv6(host);
-  if (found === null || !valid || port > 65_535) {
+function listenAddress(text: string): Address {
+  const address = parseAddress(text);
+  // A port of 0 has the gateway pick a free one.
+  if (address === undefined || !isPort(address.port, 0)) {
     throw new UsageError(
       `--listen takes an address as host:port, such as 100.101.102.103:7447, with an IPv6 address in brackets, ` +
         `such as [fd7a:115c:a1e0::1]:7447. "${text}" is not one.`,
     );
   }
-  return { host, port };
+  return address;
 }
 
 /**
@@ -44,7 +39,7 @@ function readAddress(text: string): Address {
  */
 export function listenAddresses(given: string[] | undefined): Address[] | undefined {
   if (given === undefined || given.length === 0) return undefined;
-  const addresses = given.map(readAddress);
+  const addresses = given.map(listenAddress);
   checking(() => checkListenAddresses(addresses));
   return addresses;
 }

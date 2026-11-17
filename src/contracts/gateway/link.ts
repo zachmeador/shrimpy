@@ -1,4 +1,4 @@
-import { formatAddress } from "../../lib/link/index.ts";
+import { formatAddress, isPort, parseAddress } from "../../lib/link/index.ts";
 import { isFingerprint } from "../../lib/tls/index.ts";
 import type { Address } from "./address.ts";
 
@@ -25,26 +25,22 @@ export function writeLink({ name, address, code, fingerprint }: Link): string {
   return `shrimpy://${who}${formatAddress(address)}/${encodeURIComponent(code)}/${fingerprint}`;
 }
 
-/** An optional name, a host (an IPv6 address in brackets), a port, a code and a fingerprint. */
-const LINK = /^shrimpy:\/\/(?:([^@/?#]+)@)?(\[[^\]/?#@]+\]|[^:/?#@[\]]+):(\d{1,5})\/([^/?#]+)\/([^/?#]+)$/;
-const IPV6 = /^[0-9A-Fa-f:.]*:[0-9A-Fa-f:.]*$/;
+/** An optional name, an address as `formatAddress` writes it, a code and a fingerprint. */
+const LINK = /^shrimpy:\/\/(?:([^@/?#]+)@)?([^/?#@]+)\/([^/?#]+)\/([^/?#]+)$/;
 
 /**
  * Read what `writeLink` wrote, as someone pastes it. Text that is not a link
  * is an error that says what a link looks like.
  */
 export function readLink(text: string): Link {
-  const [, name, written = "", port = "", code = "", fingerprint = ""] = LINK.exec(text.trim()) ?? [];
-  const bracketed = written.startsWith("[");
-  const host = bracketed ? written.slice(1, -1) : written;
-  const number = Number(port);
+  const [, name, written = "", code = "", fingerprint = ""] = LINK.exec(text.trim()) ?? [];
+  const address = parseAddress(written);
   const decoded = { name: name === undefined ? null : unescaped(name), code: unescaped(code) };
   if (
     decoded.name === undefined ||
     decoded.code === undefined ||
-    host === "" ||
-    (bracketed && !IPV6.test(host)) ||
-    !(number >= 1 && number <= 65_535) ||
+    address === undefined ||
+    !isPort(address.port, 1) ||
     !isFingerprint(fingerprint)
   ) {
     throw new Error(
@@ -54,7 +50,7 @@ export function readLink(text: string): Link {
         "shrimpy://100.101.102.103:7447/K7Q2-9FXD/ocKmkNBacmPG6VxrlnuW3Q for another machine of yours.",
     );
   }
-  return { name: decoded.name, address: { host, port: number }, code: decoded.code, fingerprint };
+  return { name: decoded.name, address, code: decoded.code, fingerprint };
 }
 
 /** A piece of a link with its percent-escapes undone, or undefined when they are not valid. */

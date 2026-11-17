@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { saveFile } from "../../lib/files/node.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
-import type { Entry } from "./address.ts";
+import { readEntry } from "./address.ts";
 import { type Machine, machineFile } from "./machine.ts";
 
 /**
@@ -13,15 +13,7 @@ export function readMachine(folder: string): Machine | undefined {
   const root = readConfig(machineFile(folder));
   if (root === undefined) return undefined;
   const token = root.string("token");
-  const entry = root.object("gateway");
-  const host = entry.string("host");
-  const port = entry.number("port");
-  const fingerprint = entry.string("fingerprint");
-  entry.done();
-  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
-    throw entry.problem("port", "must be a port number from 1 to 65535");
-  }
-  const gateway: Entry = { host, port, fingerprint };
+  const gateway = readEntry(root.object("gateway"));
   const who = root.optionalObject("member");
   let member: Machine["member"];
   if (who !== undefined) {
