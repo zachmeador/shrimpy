@@ -13,6 +13,7 @@
  */
 import type { AgentEndpoint, Reloaded } from "../contracts/agent/index.ts";
 import { loadHome, readMembership, readTriggers } from "../contracts/agent/node.ts";
+import { createLiveRoster } from "../contracts/gateway/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { createAdmissions } from "./chat/durable.ts";
 import { channelOfThread, createDelivery, createWakes } from "./chat/index.ts";
@@ -22,7 +23,6 @@ import { type Following, follow, homeReader, LOOK_EVERY_MS } from "./following.t
 import { homePaths, lookAtHome, readBreadcrumbs, writeBreadcrumb } from "./home/index.ts";
 import { buildModels, type HostOptions, type ModelReload, openHost } from "./host/durable.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
-import { createRoster } from "./links/index.ts";
 import { messageTools } from "./message-tools/durable.ts";
 import { askTools, createQuestions } from "./questions/durable.ts";
 import { openRecords, type SessionDefaults } from "./records/durable.ts";
@@ -122,7 +122,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     // link `join` gives them.
     let joined: Joined | undefined;
     const chat = () => joined?.chat();
-    const roster = createRoster(report);
+    const roster = createLiveRoster(report);
     const members = () => roster.now()?.members;
     const breadcrumbs = () => readBreadcrumbs(paths);
     const messageLimit = options.join?.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit };

@@ -1,11 +1,11 @@
 import type { Host } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { readMembership, saveMembership } from "../contracts/agent/node.ts";
-import type { Entry, Principal, Revocation } from "../contracts/gateway/index.ts";
+import type { Entry, LiveRoster, Principal, Revocation } from "../contracts/gateway/index.ts";
 import type { Backoff } from "../lib/retry/index.ts";
 import { type Admissions, type ChatDelivery, markWorking, readFeed, type Wakes } from "./chat/index.ts";
 import { homePaths } from "./home/index.ts";
-import { type ChatCalls, type LiveChat, type LiveRoster, linkToGateway, openChatLink } from "./links/index.ts";
+import { type ChatCalls, type LiveChat, linkToGateway, openChatLink } from "./links/index.ts";
 import type { Working } from "./turns/index.ts";
 
 export interface JoinOptions {

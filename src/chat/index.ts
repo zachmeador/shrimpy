@@ -89,7 +89,7 @@ export async function startChat(options: ChatOptions): Promise<RunningChat> {
     // The store keeps the names the roster has, so channels and messages name members as they are called now.
     open.push(
       identity.subscribe(() => {
-        const members = identity.members();
+        const members = identity.now()?.members;
         if (members !== undefined) renameMembers(store, members);
       }),
     );

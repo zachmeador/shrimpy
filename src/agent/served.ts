@@ -1,11 +1,10 @@
 import { defineFacet, type Facet, type FollowAttach } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT, type Context } from "@earendil-works/chord/context";
 import { Agent, AgentPresence, type Reloaded, Session, type SessionPage } from "../contracts/agent/index.ts";
-import { type Answer, done, type Principal, type Refused, refused } from "../contracts/gateway/index.ts";
+import { type Answer, done, type LiveRoster, type Principal, type Refused, refused } from "../contracts/gateway/index.ts";
 import { follow } from "../lib/follow/index.ts";
 import { isRefusal, refuse } from "../lib/refusal/index.ts";
 import { type Caller, callerOf, check, type Permission, refusalFor } from "./access/index.ts";
-import type { LiveRoster } from "./links/index.ts";
 import { type Sessions, shownOf } from "./sessions/durable.ts";
 import type { Triggers } from "./triggers/durable.ts";
 

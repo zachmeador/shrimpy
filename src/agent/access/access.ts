@@ -1,11 +1,5 @@
-import { type Member, needsAdmin, type Principal, type Refused, refused, type RosterEntry } from "../../contracts/gateway/index.ts";
+import { needsAdmin, type Principal, type Refused, refused, type RosterNow } from "../../contracts/gateway/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-
-/** The roster as the agent holds it now: everyone on it, and the agent itself. */
-export interface RosterNow {
-  readonly members: readonly RosterEntry[];
-  readonly you: Member;
-}
 
 /** Who is asking the agent, as the agent decides from who the request is stamped as and from the roster now. */
 export type Caller =
@@ -58,7 +52,7 @@ export function callerOf(principal: Principal, roster: RosterNow | undefined): C
     kind: "member",
     member: { id: principal.member, kind: principal.kind, name: entry?.name ?? principal.member },
     admin: entry?.admin ?? false,
-    self: roster?.you.id === principal.member,
+    self: roster?.you?.id === principal.member,
     admins: (roster?.members ?? []).filter((each) => each.admin).map((each) => ({ name: each.name })),
   };
 }
