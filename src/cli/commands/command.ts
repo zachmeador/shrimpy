@@ -13,3 +13,6 @@ export interface Command {
   /** Run with the arguments after the name. The result is the exit code. */
   run(args: string[], io: Io): Promise<number>;
 }
+
+/** The exit code for work that was stopped, or a wait that was, as a shell reports an interrupted command. */
+export const CANCELLED = 130;

@@ -16,10 +16,7 @@ import {
 } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
-import type { Command } from "./command.ts";
-
-/** The exit code for a message nobody answered because work was stopped, or because the wait was, as a shell reports an interrupted command. */
-const CANCELLED = 130;
+import { CANCELLED, type Command } from "./command.ts";
 
 const run: Command = {
   name: "run",

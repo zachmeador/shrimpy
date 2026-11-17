@@ -46,7 +46,7 @@ interface Reference {
  * read what it shows with `read`, and keep whether it was ever live, so that a
  * link that drops reads as lost.
  */
-function holding<R extends Reference, V, Calls>(
+function followHeld<R extends Reference, V, Calls>(
   held: R,
   members: (held: R) => Parameters<typeof follow>[1],
   read: (held: R) => V,
@@ -89,7 +89,7 @@ export interface RosterCalls {
 
 export function holdRoster(link: GatewayLink, changed: () => void): Holding<RosterShown, RosterCalls> {
   const held = link.host.hold(Roster, {}, BACKGROUND_CONTEXT);
-  return holding(
+  return followHeld(
     held,
     (roster) => [roster.you, roster.members, roster.programs, roster.ways],
     (roster) => ({ you: roster.you.value, members: roster.members.value, programs: roster.programs.value, ways: roster.ways.value }),
@@ -108,7 +108,7 @@ export interface ChatCalls {
 
 export function holdChat(link: GatewayLink, changed: () => void): Holding<ChatShown, ChatCalls> {
   const held = link.host.hold(Chat, {}, BACKGROUND_CONTEXT);
-  return holding(
+  return followHeld(
     held,
     (chat) => [chat.you, chat.channels, chat.readOnlyChannels],
     (chat) => ({ you: chat.you.value, channels: chat.channels.value, readOnlyChannels: chat.readOnlyChannels.value }),
@@ -127,7 +127,7 @@ export interface ChannelCalls {
 
 export function holdChannel(link: GatewayLink, id: string, changed: () => void): Holding<ChannelShown, ChannelCalls> {
   const held = link.host.hold(Channel, { channel: id }, BACKGROUND_CONTEXT);
-  return holding(
+  return followHeld(
     held,
     (channel) => [channel.refusal, channel.channel, channel.threads],
     (channel) => ({ refusal: channel.refusal.value, channel: channel.channel.value, threads: channel.threads.value }),
@@ -152,7 +152,7 @@ export interface ThreadCalls {
 
 export function holdThread(link: GatewayLink, id: string, changed: () => void): Holding<ThreadShown, ThreadCalls> {
   const held = link.host.hold(Thread, { thread: id }, BACKGROUND_CONTEXT);
-  return holding(
+  return followHeld(
     held,
     (thread) => [thread.refusal, thread.thread, thread.messages, thread.earlier, thread.readOnly],
     (thread) => ({
@@ -177,7 +177,7 @@ export interface AgentCalls {
 
 export function holdAgent(link: GatewayLink, name: string, changed: () => void): Holding<AgentShown, AgentCalls> {
   const held = link.host.hold(Agent, { agent: name }, BACKGROUND_CONTEXT);
-  return holding(
+  return followHeld(
     held,
     (agent) => [agent.refusal, agent.sessions],
     (agent) => ({ refusal: agent.refusal.value, sessions: agent.sessions.value }),
@@ -196,7 +196,7 @@ export interface SessionCalls {
 
 export function holdSession(link: GatewayLink, agent: string, session: string, changed: () => void): Holding<SessionShown, SessionCalls> {
   const held = link.host.hold(Session, { agent, session }, BACKGROUND_CONTEXT);
-  return holding(
+  return followHeld(
     held,
     (watched) => [watched.refusal, watched.window, watched.status],
     (watched) => ({ refusal: watched.refusal.value, window: watched.window.value, status: watched.status.value }),

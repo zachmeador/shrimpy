@@ -5,7 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import type { Member } from "../../contracts/chat/index.ts";
 import { tempDir } from "../../lib/testing/index.ts";
-import { agent, openTestStore, person } from "../testing/index.ts";
+import { agent, openTestStore, person, reportToStderr } from "../testing/index.ts";
 import { type ChannelRecord, type Change, openStore, type Transaction } from "./index.ts";
 
 function openDm(tx: Transaction, first: Member, second: Member, now = 1000): ChannelRecord {
@@ -108,7 +108,7 @@ test("a store from before the move to Pi 1.5.2 is refused, in words that name it
   old.close();
 
   assert.throws(
-    () => openStore(dataDir),
+    () => openStore(dataDir, { onError: reportToStderr }),
     (error: Error) => error.message.includes(dataDir),
   );
 

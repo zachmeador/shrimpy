@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { type Address, type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
+import { type Address, type Program } from "../../contracts/gateway/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import { listed } from "../../lib/text/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
@@ -12,6 +12,7 @@ import { expectArguments, parsing } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
 import { serviceStatusLine } from "./install.ts";
+import { renderMembers } from "./render-members.ts";
 import { renderTable } from "./table.ts";
 
 
@@ -21,8 +22,8 @@ const status: Command = {
   summary: "List the programs linked to this machine's gateway, and the members on its roster.",
   details:
     "The programs are listed by kind, name and version. " +
-    "The members are everyone the gateway knows, " +
-    "people and agents, by ID, kind and name, with whether a program is linked as each. A version that " +
+    "The members are everyone the gateway knows, people and agents, as shrimpy members lists them: by name and " +
+    "kind, with whether each is an admin, whether a program is linked as it, and its ID. A version that " +
     "differs from this command's own is marked, and so is the gateway's, on standard error. It ends with a " +
     "line that says whether a service is installed for your Shrimpy folder, which shrimpy install sets up, " +
     "and whether it is running. If no gateway is running it says how to start Shrimpy, or, when none is meant " +
@@ -37,6 +38,7 @@ const status: Command = {
     warnIfVersionDiffers(io, "the gateway", version);
     for (const line of renderPrograms(programs, SHRIMPY_VERSION)) io.out(line);
     io.out("");
+    io.out("Members:");
     for (const line of renderMembers(members)) io.out(line);
     const service = await serviceStatusLine(thisAccount());
     if (service !== undefined) {
@@ -94,12 +96,6 @@ function renderPrograms(programs: readonly Program[], own: string): string[] {
       programs[index]?.shrimpy === own ? line : `${line}  (differs from this command's ${own})`,
     ),
   ];
-}
-
-/** The roster as a table: ID, kind, name, and whether a program is linked as the member. */
-function renderMembers(members: readonly RosterEntry[]): string[] {
-  const rows = members.map((member) => [member.id, member.kind, member.name, member.reachable ? "yes" : "no"]);
-  return ["Members:", ...renderTable(["id", "kind", "name", "reachable"], rows)];
 }
 
 export const statusCommands: Command[] = [status];

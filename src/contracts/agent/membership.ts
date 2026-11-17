@@ -43,3 +43,15 @@ export const AGENT_HOME_VARIABLE = "SHRIMPY_AGENT_HOME";
 export function membershipFile(home: string): string {
   return `${home}/${MEMBERSHIP_FILE}`;
 }
+
+/**
+ * What to do when the gateway doesn't know the token that `file` keeps, as the
+ * agent and a command in its shell both say it: join as a new member, which an
+ * agent beside the gateway does by starting again, and one `apart` from it with
+ * a new invitation.
+ */
+export function joinAsNew(file: string, apart: boolean): string {
+  return apart
+    ? `To join as a new member, delete ${file}, get a new invitation and join again with it: shrimpy join <link>`
+    : `To join as a new member, delete ${file} and start the agent again.`;
+}

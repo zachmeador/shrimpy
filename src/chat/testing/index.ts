@@ -10,4 +10,4 @@ export { refusalOf } from "./answers.ts";
 export { startChatInProcess } from "./chat.ts";
 export { openTestDeps } from "./deps.ts";
 export { agent, outcome, person } from "./fixtures.ts";
-export { openTestStore } from "./store.ts";
+export { openTestStore, reportToStderr } from "./store.ts";

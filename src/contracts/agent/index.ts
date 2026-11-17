@@ -11,9 +11,10 @@
  * any program's internals. The one sentence for each reason a turn ends without
  * an answer is here too, so that the agent's receipts and every client say it
  * the same way, and so are the words for what a session is doing, where it is
- * and how what is in it stands, which every client says the same way. It also
- * has the parts of a home's files that the agent and the `shrimpy` command
- * share and that open no file: the rule for an agent's name, how a model is
+ * and how what is in it stands, which every client says the same way, and
+ * what to do when the gateway doesn't know a home's token, which the agent and
+ * a command in its shell both say. It also has the parts of a home's files that
+ * the agent and the `shrimpy` command share and that open no file: the rule for an agent's name, how a model is
  * written, what wakes the agent in a room, how a trigger's schedule and a delay
  * are written, and the front matter a home's Markdown files start with.
  * This door is safe for browsers; `node.ts` adds the parts that need Node.
@@ -23,7 +24,7 @@ export { checkAgentName, type ModelChoice, modelLabel, parseModelChoice } from "
 export { AGENT_RUNTIME_DIR, type AgentEndpoint, endpointFile } from "./endpoint.ts";
 export { failureWords } from "./failures.ts";
 export { frontmatter } from "./frontmatter.ts";
-export { AGENT_HOME_VARIABLE, type Membership, membershipFile } from "./membership.ts";
+export { AGENT_HOME_VARIABLE, joinAsNew, type Membership, membershipFile } from "./membership.ts";
 export { AgentPresence } from "./presence.ts";
 export { delayMs, delayText, describeSchedule, normalizeDelay, sameSchedule } from "./schedule.ts";
 export { MAX_READ, Session } from "./session.ts";

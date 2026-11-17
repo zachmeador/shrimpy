@@ -1,6 +1,7 @@
 import type { Reference } from "@earendil-works/chord";
 import type { Message, Receipt, Thread } from "../../contracts/chat/index.ts";
 import { contextOf } from "../../contracts/gateway/index.ts";
+import { asError } from "../../lib/errors/index.ts";
 
 /** How waiting for a receipt ended, when nobody gave up. */
 export type Waited =
@@ -33,7 +34,7 @@ export async function waitForReceipt(
       settle();
     };
     function abandon(): void {
-      finish(() => reject(abortError(signal)));
+      finish(() => reject(asError(signal.reason)));
     }
     const look = (messages: readonly Message[]): void => {
       const waited = lookFor(messages, message, memberId);
@@ -56,9 +57,4 @@ function lookFor(messages: readonly Message[], wanted: Pick<Message, "id" | "eve
   if (receipt === undefined) return undefined;
   const reply = receipt.reply === null ? undefined : messages.find((candidate) => candidate.id === receipt.reply);
   return { kind: "receipt", receipt, reply };
-}
-
-function abortError(signal: AbortSignal): Error {
-  const reason: unknown = signal.reason;
-  return reason instanceof Error ? reason : new DOMException("The wait was cancelled", "AbortError");
 }

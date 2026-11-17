@@ -35,19 +35,18 @@ export interface Store {
 
 export interface StoreOptions {
   /** Where a failing watcher is reported. A watcher's failure never undoes a commit. */
-  onError?: (error: Error) => void;
+  onError: (error: Error) => void;
 }
 
 /**
  * Open the store in `dataDir`, taking it for this process alone. Throws a
  * `LockHeldError` while another process or connection has it.
  */
-export function openStore(dataDir: string, options: StoreOptions = {}): Store {
+export function openStore(dataDir: string, options: StoreOptions): Store {
   const db = openDatabase(dataDir);
   const sql = createSql(db);
   const { id } = sql.one("SELECT id FROM store") as { id: string };
-  const onError = options.onError ?? reportToStderr;
-  const watchers = createListeners<Change>(onError);
+  const watchers = createListeners<Change>(options.onError);
   // Read through a function, so the compiler does not assume the answer it saw first still holds.
   const inTransaction = (): boolean => db.isTransaction;
   let closed = false;
@@ -117,8 +116,4 @@ function onlyWhile(active: () => boolean, sql: Sql): Sql {
       return sql.run(text, ...params);
     },
   };
-}
-
-function reportToStderr(error: Error): void {
-  console.error("[chat]", error);
 }

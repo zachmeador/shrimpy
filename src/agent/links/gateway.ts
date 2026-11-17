@@ -1,5 +1,5 @@
 import type { Host } from "@earendil-works/chord";
-import type { Membership } from "../../contracts/agent/index.ts";
+import { joinAsNew, type Membership } from "../../contracts/agent/index.ts";
 import {
   type Entry,
   type Member,
@@ -67,9 +67,7 @@ function adviceFor(reason: Reason | null, files: HomeFiles, apart: boolean): str
     case "name_taken":
       return `Change the name in ${files.name} and start the agent again.`;
     case "unknown_token":
-      return apart
-        ? `To join as a new member, delete ${files.membership}, get a new invitation and join again with it: shrimpy join <link>`
-        : `To join as a new member, delete ${files.membership} and start the agent again.`;
+      return joinAsNew(files.membership, apart);
     case "agent_running":
       return (
         `If this home is a copy that should be an agent of its own, stop it, delete ${files.membership}, ` +

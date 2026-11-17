@@ -6,14 +6,11 @@ import { shellWord } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
 import { type HeldSession, onAgent, onSession } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
-import type { Command } from "./command.ts";
+import { CANCELLED, type Command } from "./command.ts";
 import { withConnection } from "./connected.ts";
 import { renderSession, type WholeSession } from "./render.ts";
 import { renderSessions } from "./render-sessions.ts";
 import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, command, type Target, WHICH_AGENT } from "./which-agent.ts";
-
-/** The exit code of `steer --wait` for work that someone cancelled, as a shell reports an interrupted command. */
-const CANCELLED = 130;
 
 /** What a session is called, which every command that takes one says. */
 const ADDRESS =

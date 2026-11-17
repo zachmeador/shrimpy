@@ -2,6 +2,7 @@ import type { createConnection } from "node:net";
 import { connect } from "node:tls";
 import type { JsonValue } from "@earendil-works/chord/json";
 import { WebSocket } from "ws";
+import { asError } from "../errors/index.ts";
 import { codeOf } from "../files/index.ts";
 import { fingerprintOf } from "../tls/node.ts";
 import { type Linked, linkOver, MAX_FRAME, textOf } from "./linked.node.ts";
@@ -65,7 +66,7 @@ export function dial(place: DialPlace, hello: JsonValue, options: DialOptions = 
   const { signal } = options;
   const where = describePlace(place);
   return new Promise((resolve, reject) => {
-    if (signal?.aborted === true) return reject(abortError(signal, where));
+    if (signal?.aborted === true) return reject(asError(signal.reason));
     let otherKey: OtherKeyError | undefined;
     const proving =
       "path" in place
@@ -90,7 +91,7 @@ export function dial(place: DialPlace, hello: JsonValue, options: DialOptions = 
       () => fail(new Error(`${where} did not answer within ${String((options.answerMs ?? ANSWER_MS) / 1000)} seconds.`)),
       options.answerMs ?? ANSWER_MS,
     );
-    const aborted = (): void => fail(abortError(signal, where));
+    const aborted = (): void => fail(asError(signal?.reason));
     const closed = (): void => fail(otherKey ?? new Error(`${where} closed the connection before it answered.`));
     signal?.addEventListener("abort", aborted, { once: true });
     // An error is followed by a close; without a listener it would end the process.
@@ -133,9 +134,4 @@ function proven(place: { host: string; port: number; fingerprint: string }, othe
   };
   // ws asks for net's signature, and takes any socket it can write the request to.
   return connecting as unknown as typeof createConnection;
-}
-
-function abortError(signal: AbortSignal | undefined, where: string): Error {
-  const reason: unknown = signal?.reason;
-  return reason instanceof Error ? reason : new Error(`Gave up on ${where}.`);
 }

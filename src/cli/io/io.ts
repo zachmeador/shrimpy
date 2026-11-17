@@ -1,5 +1,6 @@
 import { createInterface } from "node:readline";
 import { Writable } from "node:stream";
+import { asError } from "../../lib/errors/index.ts";
 import { plain } from "../../lib/plain/index.ts";
 
 /** How a question is asked. */
@@ -99,11 +100,6 @@ function ignoreReaderGone(error: NodeJS.ErrnoException): void {
   if (error.code !== "EPIPE") throw error;
 }
 
-/** Why a question stopped being asked: what the signal says, which is an error unless someone aborted it with something else. */
-function stopped(signal: AbortSignal | undefined): Error {
-  return signal?.reason instanceof Error ? signal.reason : new Error("The question was stopped.");
-}
-
 /**
  * Ask a person at a terminal. readline takes the keyboard for this question
  * alone and gives it back when the line comes, the signal aborts or the input
@@ -112,7 +108,7 @@ function stopped(signal: AbortSignal | undefined): Error {
  * that a pasted link can pass.
  */
 function askPerson(question: string, { secret = false, signal }: AskOptions): Promise<string> {
-  if (signal?.aborted) return Promise.reject(stopped(signal));
+  if (signal?.aborted) return Promise.reject(asError(signal.reason));
   return new Promise((resolve, reject) => {
     let shown = true;
     // What a person types is echoed through the output, so a secret has an output that shows nothing once it is asked.
@@ -135,7 +131,7 @@ function askPerson(question: string, { secret = false, signal }: AskOptions): Pr
     };
     const onAbort = (): void => {
       process.stdout.write("\n");
-      finish(() => reject(stopped(signal)));
+      finish(() => reject(asError(signal?.reason)));
     };
     reader.on("line", (line) => {
       if (secret) process.stdout.write("\n");
@@ -200,7 +196,7 @@ function readLines(input: NodeJS.ReadableStream): Lines {
       const line = queued.shift();
       if (line !== undefined) return Promise.resolve(line);
       if (ended) return Promise.reject(new Error(INPUT_ENDED));
-      if (signal?.aborted) return Promise.reject(stopped(signal));
+      if (signal?.aborted) return Promise.reject(asError(signal.reason));
       return new Promise((resolve, reject) => {
         const forget = (): void => signal?.removeEventListener("abort", onAbort);
         const waiter: Waiter = {
@@ -217,7 +213,7 @@ function readLines(input: NodeJS.ReadableStream): Lines {
           waiting.splice(waiting.indexOf(waiter), 1);
           if (waiting.length === 0) reader.pause();
           forget();
-          reject(stopped(signal));
+          reject(asError(signal?.reason));
         };
         signal?.addEventListener("abort", onAbort, { once: true });
         waiting.push(waiter);

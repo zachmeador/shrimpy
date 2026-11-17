@@ -1,10 +1,10 @@
 import { parseArgs } from "node:util";
-import { contextOf, type RosterEntry, valueOf } from "../../contracts/gateway/index.ts";
+import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
 import { askGateway, memberNamed, NO_GATEWAY, onRoster, withGatewayAsMe } from "../talk/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import type { Command } from "./command.ts";
-import { renderTable } from "./table.ts";
+import { renderMembers } from "./render-members.ts";
 
 /** What an admin is, for the help of the commands that list and change them, and of the one that invites. */
 export const ADMIN =
@@ -16,7 +16,7 @@ const members: Command = {
   name: "members",
   usage: "",
   summary: "List the roster: each member's kind, whether it is an admin, and whether a program is running as it.",
-  details: `${ADMIN} Members are listed oldest first. Exits 1 if no gateway is running.`,
+  details: `${ADMIN} Members are listed oldest first, each with its ID. Exits 1 if no gateway is running.`,
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     expectArguments(positionals, []);
@@ -26,13 +26,6 @@ const members: Command = {
     return 0;
   },
 };
-
-/** The roster as a table: each member's name and kind, whether it is an admin, and whether a program is linked as it. */
-function renderMembers(roster: readonly RosterEntry[]): string[] {
-  const yesNo = (flag: boolean): string => (flag ? "yes" : "no");
-  const rows = roster.map((member) => [member.name, member.kind, yesNo(member.admin), yesNo(member.reachable)]);
-  return renderTable(["name", "kind", "admin", "reachable"], rows);
-}
 
 /**
  * Make the member `name` an admin or an ordinary agent again, as whoever runs the command: the person who runs the

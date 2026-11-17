@@ -1,3 +1,5 @@
+import { asError } from "../errors/index.ts";
+
 /**
  * Wait until `listen` hears something, or until `signal` aborts, whichever comes
  * first, and stop listening either way. `listen` starts listening, calls `heard`
@@ -7,7 +9,7 @@
  */
 export function untilHeard<T = void>(listen: (heard: (value: T) => void) => () => void, signal?: AbortSignal): Promise<T> {
   return new Promise((resolve, reject) => {
-    if (signal?.aborted === true) return reject(reasonOf(signal));
+    if (signal?.aborted === true) return reject(asError(signal.reason));
     // Read through an object: what is heard can come before `listen` gives back what stops it.
     const wait: { over: boolean; stop?: () => void } = { over: false };
     const end = (): void => {
@@ -18,7 +20,7 @@ export function untilHeard<T = void>(listen: (heard: (value: T) => void) => () =
     function abort(this: AbortSignal): void {
       if (wait.over) return;
       end();
-      reject(reasonOf(this));
+      reject(asError(this.reason));
     }
     signal?.addEventListener("abort", abort, { once: true });
     wait.stop = listen((value) => {
@@ -33,9 +35,4 @@ export function untilHeard<T = void>(listen: (heard: (value: T) => void) => () =
 /** Resolve once `signal` aborts, holding nothing up until then. */
 export function untilAborted(signal: AbortSignal): Promise<void> {
   return untilHeard(() => () => undefined, signal).catch(() => undefined);
-}
-
-function reasonOf(signal: AbortSignal): Error {
-  const reason: unknown = signal.reason;
-  return reason instanceof Error ? reason : new DOMException("The wait was stopped.", "AbortError");
 }

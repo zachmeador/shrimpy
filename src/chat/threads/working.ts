@@ -32,13 +32,12 @@ export interface WorkingMarks {
 
 export interface WorkingMarksOptions {
   /** Where a failing watcher is reported. */
-  onError?: (error: Error) => void;
+  onError: (error: Error) => void;
 }
 
-export function createWorkingMarks(options: WorkingMarksOptions = {}): WorkingMarks {
-  const onError = options.onError ?? reportToStderr;
+export function createWorkingMarks(options: WorkingMarksOptions): WorkingMarks {
   const byThread = new Map<string, Map<string, Mark>>();
-  const watchers = createListeners<string>(onError);
+  const watchers = createListeners<string>(options.onError);
   const changed = (threadId: string): void => watchers.notify(threadId);
 
   /** Take one holder off a member's mark. True when that cleared the mark. */
@@ -90,8 +89,4 @@ export function createWorkingMarks(options: WorkingMarksOptions = {}): WorkingMa
 /** A stored thread, with the members working in it now. */
 export function withWorking(record: ThreadRecord, marks: WorkingMarks): Thread {
   return { ...record, working: marks.list(record.id) };
-}
-
-function reportToStderr(error: Error): void {
-  console.error("[chat]", error);
 }
