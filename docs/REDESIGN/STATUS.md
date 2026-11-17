@@ -11,7 +11,6 @@ As of 2026-11-16. An item leaves when it is fixed or when the design changes to 
 Four reviewers read the code on 2026-11-15, and you asked for what they found to be fixed. The [log](history/LOG.md#log) has what was fixed by 2026-11-16. This is what is left.
 
 - The CLI still uses the agent's front door for more than starting it: to preview what a home would tell its agent, and to sign in. Each is loaded only by its own command, and the lint names both. Whether the rule names them or they move is [waiting on you](AUTHOR-TO-REVIEW.md).
-- `shrimpy run` words a receipt for the message it sent its own way, where the terminal and `read` take the words from `contracts/chat/words.ts`. The CLI writes "No gateway is running on this machine" in three places.
 
 ### The three programs and what each owns
 
@@ -30,7 +29,7 @@ Four reviewers read the code on 2026-11-15, and you asked for what they found to
 - Edits, deletes and reactions carry no request ID, so a provider replaying an old edit after a newer one would undo it.
 - Only the author edits or deletes, checked against the caller, so a provider acting for a person it maps has no way to.
 - The chat server's log of events never shrinks, and nothing shows a message's earlier versions.
-- A message waiting behind a turn that Pi's restart limit ended is withdrawn by the stop the agent makes then, so its skipped receipt has no reason and `shrimpy run` exits 130 for it, as if someone had stopped it. Pi records both withdrawals the same way.
+- A message waiting behind a turn that Pi's restart limit ended is withdrawn by the stop the agent makes then, so its skipped receipt has no reason. The terminal, `read` and `run` then say that its work was stopped, as if someone had stopped it, and `run` exits 130. Pi records both withdrawals the same way.
 - Each post or read by an agent holds the thread's `Thread` for the call, which brings up to its newest 200 messages each time.
 
 ### Identity and addressing

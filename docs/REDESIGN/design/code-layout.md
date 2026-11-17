@@ -85,8 +85,8 @@ src/
                     chat server, the agents, following the folder's homes, and stopping them all
   lib/              helpers with no knowledge of Shrimpy's domain: locks, retries, listeners and waiting on them,
                     a thrown value as an error, files read and saved whole, IDs, refusals, times, config
-                    checking, text made harmless for a terminal, a list written as a sentence and a word quoted
-                    for a shell, the runtime directory, versions and test support
+                    checking, text made harmless for a terminal, a list written as a sentence, words ended like a
+                    sentence, a word quoted for a shell, the runtime directory, versions and test support
     link/           links for Chord: a WebSocket on a socket's path, or over TLS at an address, with the hello
                     before Chord; listening, dialing, telling when nothing listens at a path, and keeping a link;
                     and, safe for browsers, how an address is written and what a host reports going wrong
@@ -138,7 +138,7 @@ Every sentence a model or a person reads is kept in a few files, so that wording
 | Everything else the terminal shows | `clients/console/screen/words.ts` |
 | Why a turn ended without an answer, with what to do, as receipts, `/status` and `sessions read` say it | `contracts/agent/failures.ts`, since the agent and every client say it the same way |
 | How a session is said: what it is doing, where it is, its tool calls, a reset, its model, what it has used and a wake-up it waits on, as the terminal and the `sessions` commands say it | `contracts/agent/words.ts`, since every client says it the same way |
-| What a receipt tells a person, as the terminal and `read` say it | `contracts/chat/words.ts` |
+| What a receipt tells a person, as the terminal, `read` and `run` say it | `contracts/chat/words.ts` |
 | What a command for agents does, in the one line a client shows beside it | `contracts/chat/commands.ts`, since every client shows the same |
 | What an agent says in a thread about `/model` | `agent/chat/model-command.ts` |
 | A command's usage and help | The command's own file in `cli/commands/` |
