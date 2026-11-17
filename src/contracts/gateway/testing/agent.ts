@@ -38,13 +38,11 @@ export interface TestAgent {
 }
 
 /**
- * An agent's program called `name`, kept linked to the gateway as a program is,
- * serving its presence and `Echo`. A token the gateway doesn't know joins the
- * roster. Rejects with the gateway's refusal if its first hello is turned away.
- * Stopped when the test ends.
+ * The host of a small agent's program called `name`, at `agent({ name })`,
+ * loaded with what it serves: its presence and `Echo`. Whoever makes it links
+ * it to the gateway and closes it.
  */
-export async function linkTestAgent(t: TestContext, name: string, options: TestAgentOptions = {}): Promise<TestAgent> {
-  const token = options.token ?? newToken();
+export async function testAgentHost(name: string): Promise<Host<Principal, Revocation>> {
   const host = createHost<Principal, Revocation>({
     address: agent({ name }),
     principal: { kind: "home" },
@@ -56,6 +54,18 @@ export async function linkTestAgent(t: TestContext, name: string, options: TestA
     serving.serve(Echo, (_params, caller) => ({ variant: "only", members: { caller: constant(caller) } }));
   });
   await host.load([{ name: "@shrimpy/test-agent", facet }], BACKGROUND_CONTEXT);
+  return host;
+}
+
+/**
+ * An agent's program called `name`, kept linked to the gateway as a program is,
+ * serving its presence and `Echo`. A token the gateway doesn't know joins the
+ * roster. Rejects with the gateway's refusal if its first hello is turned away.
+ * Stopped when the test ends.
+ */
+export async function linkTestAgent(t: TestContext, name: string, options: TestAgentOptions = {}): Promise<TestAgent> {
+  const token = options.token ?? newToken();
+  const host = await testAgentHost(name);
   const stopping = new AbortController();
   const welcomes: Welcome[] = [];
   let welcome = (_you: Member): void => undefined;

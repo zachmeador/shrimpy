@@ -1,21 +1,10 @@
 import type { TestContext } from "node:test";
-import { createHost, defineFacet, type Reference } from "@earendil-works/chord";
+import type { Reference } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { AgentPresence } from "../../contracts/agent/index.ts";
 import { Chat, type ChatEvent, Thread } from "../../contracts/chat/index.ts";
-import {
-  agent,
-  contextOf,
-  hello,
-  isLost,
-  type Principal,
-  readAnswer,
-  type Revocation,
-  revokedBy,
-  valueOf,
-} from "../../contracts/gateway/index.ts";
+import { contextOf, hello, isLost, readAnswer, valueOf } from "../../contracts/gateway/index.ts";
 import { gatewaySocket, newToken } from "../../contracts/gateway/node.ts";
-import { linkTestAgent } from "../../contracts/gateway/testing/index.ts";
+import { linkTestAgent, testAgentHost } from "../../contracts/gateway/testing/index.ts";
 import { dial, keepLink } from "../../lib/link/node.ts";
 import { backoff } from "../../lib/retry/index.ts";
 import { stopAfter, within } from "../../lib/testing/index.ts";
@@ -78,16 +67,7 @@ export async function startScriptedAgent(t: TestContext, options: ScriptedAgentO
     return { offered };
   }
 
-  const host = createHost<Principal, Revocation>({
-    address: agent({ name: options.name }),
-    principal: { kind: "home" },
-    revokedBy,
-    onError: () => undefined,
-  });
-  const facet = defineFacet<Principal>((serving) => {
-    serving.serve(AgentPresence, () => ({ variant: "present", members: {} }));
-  });
-  await host.load([{ name: "@shrimpy/scripted-agent", facet }], context);
+  const host = await testAgentHost(options.name);
   const leaving = new AbortController();
   const token = newToken();
   // Its own hello, since it gives the version the test asks for.

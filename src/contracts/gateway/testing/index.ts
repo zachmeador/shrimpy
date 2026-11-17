@@ -3,8 +3,9 @@
  * the command in a process of its own, for tests of whatever links to it; a
  * client linked to a gateway; and a small agent's program linked to it, which
  * serves its presence and `Echo`, which shows whom a request reached it as, so a
- * test has agents on the roster. Only tests and test fixtures import this, and
- * it must not know about any program but the command that starts one.
+ * test has agents on the roster, and that program's host alone, for a stand-in
+ * that links its own way. Only tests and test fixtures import this, and it must
+ * not know about any program but the command that starts one.
  */
-export { Echo, linkTestAgent, type TestAgent } from "./agent.ts";
+export { Echo, linkTestAgent, type TestAgent, testAgentHost } from "./agent.ts";
 export { connectTestClient, SHRIMPY_ENTRY, startTestGateway, type TestGateway } from "./gateway.ts";
