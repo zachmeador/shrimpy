@@ -7,15 +7,7 @@ import {
   type Reason,
   type Revocation,
 } from "../../contracts/gateway/index.ts";
-import {
-  gatewaySocket,
-  HelloRefusedError,
-  keepLinked,
-  newToken,
-  UnknownAnswerError,
-  UnprovenGatewayError,
-} from "../../contracts/gateway/node.ts";
-import { formatAddress } from "../../lib/link/index.ts";
+import { gatewaySocket, keepLinked, newToken, reportLinking } from "../../contracts/gateway/node.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
 
 /** Where the agent keeps who it is on the network between starts. */
@@ -109,12 +101,22 @@ function adviceFor(reason: Reason | null, files: HomeFiles, apart: boolean): str
  */
 export function linkToGateway(options: GatewayLinkOptions): GatewayLink {
   const { name, membership, files, apart } = options;
-  const where = apart === undefined ? undefined : formatAddress(apart);
+  const place = apart ?? { path: gatewaySocket() };
   const tell = (line: string): void => options.onError(new Error(line));
   const stopping = new AbortController();
   let you: Member | undefined;
-  let reported: string | undefined;
-  let away = false;
+  // One beside the gateway says nothing of a gateway it can't reach, and keeps trying, as it does while no gateway is listening.
+  const standing = reportLinking(
+    place,
+    {
+      refused(error) {
+        const advice = adviceFor(error.reason, files, apart !== undefined);
+        return `Could not join the network: the gateway did not let ${name} in: ${error.message}${advice === undefined ? "" : ` ${advice}`}`;
+      },
+      meanwhile: apart === undefined ? undefined : "This agent keeps trying.",
+    },
+    tell,
+  );
 
   /** The token the home keeps, made and kept first if it has none. */
   const token = (): string => {
@@ -127,13 +129,11 @@ export function linkToGateway(options: GatewayLinkOptions): GatewayLink {
 
   const linking = keepLinked({
     host: options.host,
-    place: apart ?? { path: gatewaySocket() },
+    place,
     who: () => ({ kind: "agent", name, token: token() }),
     signal: stopping.signal,
     onWelcome(answer) {
-      reported = undefined;
-      if (away && where !== undefined) tell(`The gateway at ${where} is back.`);
-      away = false;
+      standing.welcomed();
       if (answer.you === null) return;
       you = answer.you;
       const kept = membership.read();
@@ -144,30 +144,7 @@ export function linkToGateway(options: GatewayLinkOptions): GatewayLink {
       }
       membership.save({ ...kept, memberId: answer.you.id });
     },
-    onError(error) {
-      if (stopping.signal.aborted) return;
-      if (error instanceof HelloRefusedError) {
-        const advice = adviceFor(error.reason, files, apart !== undefined);
-        const told = `Could not join the network: the gateway did not let ${name} in: ${error.message}${advice === undefined ? "" : ` ${advice}`}`;
-        if (told === reported) return;
-        reported = told;
-        tell(told);
-        return;
-      }
-      if (error instanceof UnknownAnswerError || error instanceof UnprovenGatewayError) {
-        if (error.message === reported) return;
-        reported = error.message;
-        // An agent apart says when its own gateway is back, as it does after one it couldn't reach.
-        if (error instanceof UnprovenGatewayError) away = true;
-        tell(error.message);
-        return;
-      }
-      // Anything else is the gateway being out of reach. One beside it says nothing and keeps trying, as it does while
-      // no gateway is listening.
-      if (where === undefined || away) return;
-      away = true;
-      tell(`Can't reach the gateway at ${where}. This agent keeps trying.`);
-    },
+    onError: (error) => standing.failed(error),
     ...(options.backoff === undefined ? {} : { backoff: options.backoff }),
   });
 

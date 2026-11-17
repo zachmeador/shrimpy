@@ -12,7 +12,7 @@ import { createHost, type HostError } from "@earendil-works/chord";
 import { nodeCompression } from "@earendil-works/chord/compression";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { chat, type Principal, type Revocation, revokedBy } from "../contracts/gateway/index.ts";
-import { gatewaySocket, HelloRefusedError, keepLinked, UnknownAnswerError } from "../contracts/gateway/node.ts";
+import { gatewaySocket, keepLinked, reportLinking } from "../contracts/gateway/node.ts";
 import { hostFailure } from "../lib/link/index.ts";
 import type { Backoff } from "../lib/retry/index.ts";
 import { createIdentity } from "./identity/index.ts";
@@ -94,30 +94,22 @@ export async function startChat(options: ChatOptions): Promise<RunningChat> {
       }),
     );
     const stopping = new AbortController();
-    let away = false;
-    let reported: string | undefined;
+    const place = { path: socket };
+    const standing = reportLinking(
+      place,
+      {
+        refused: (error) => `Could not link to the gateway: ${error.message}`,
+        meanwhile: "The chat server keeps trying, and nobody can reach chat until it is back.",
+      },
+      (line) => onError(new Error(line)),
+    );
     const linking = keepLinked({
       host,
-      place: { path: socket },
+      place,
       who: () => ({ kind: "chat" }),
       signal: stopping.signal,
-      onWelcome() {
-        reported = undefined;
-        if (away) onError(new Error(`The gateway at ${socket} is back.`));
-        away = false;
-      },
-      onError(error) {
-        if (error instanceof HelloRefusedError || error instanceof UnknownAnswerError) {
-          const told = error instanceof HelloRefusedError ? `Could not link to the gateway: ${error.message}` : error.message;
-          if (told === reported) return;
-          reported = told;
-          onError(new Error(told));
-          return;
-        }
-        if (away) return;
-        away = true;
-        onError(new Error(`Can't reach the gateway at ${socket}. The chat server keeps trying, and nobody can reach chat until it is back.`));
-      },
+      onWelcome: () => standing.welcomed(),
+      onError: (error) => standing.failed(error),
       ...(options.backoff === undefined ? {} : { backoff: options.backoff }),
     });
     open.push(async () => {
