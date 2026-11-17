@@ -1,5 +1,14 @@
 import { placeLabel, threadLabel, YOUR_DM } from "../../../contracts/agent/index.ts";
-import { type Channel, type Message, receiptWords, type Thread } from "../../../contracts/chat/index.ts";
+import {
+  type Channel,
+  channelLabel,
+  type Message,
+  receiptWords,
+  roomLabel,
+  taggedTitle,
+  type Thread,
+  titleOf,
+} from "../../../contracts/chat/index.ts";
 import { oneLine, plain } from "../../../lib/plain/index.ts";
 import {
   agentEntries,
@@ -24,7 +33,6 @@ import {
   agentStatusRows,
   agentTitle,
   type Can,
-  channelLabel,
   channelThreadsTitle,
   chatNote,
   DELETED,
@@ -39,7 +47,6 @@ import {
   type ListFilter,
   newRoomThreadHint,
   newThreadHint,
-  NO_TITLE,
   noticeText,
   placeWords,
   queuedLine,
@@ -47,7 +54,6 @@ import {
   readOnlyLine,
   reactionsLine,
   refusalNote,
-  roomLabel,
   roomStatusRows,
   SESSION_EMPTY,
   sessionTitle,
@@ -55,7 +61,7 @@ import {
   THREAD_EMPTY,
   threadsEmpty,
   threadTitle,
-  versionWarning,
+  versionNote,
   wakeupLine,
   workingLine,
 } from "./words.ts";
@@ -294,7 +300,7 @@ function threadsScreen(model: Model, place: Exclude<Place, { kind: "agent" }>, n
   const rows: Row[] = here.threads.map((thread) => ({
     id: thread.id,
     kind: "thread",
-    label: titleWithTags(thread),
+    label: taggedTitle(thread),
     detail: [whenOf(thread.updatedAt, now), thread.working.length > 0 ? "working" : undefined].filter((part) => part !== undefined).join(" · "),
     working: thread.working.length > 0,
   }));
@@ -350,7 +356,7 @@ function partRow(part: Part, me: string | undefined, now: number): Row {
   }
   // Chat names a thread. A thread only the agent has said it has is called what the agent knows of it.
   let label = oneLine(part.id);
-  if (part.thread !== undefined) label = titleWithTags(part.thread);
+  if (part.thread !== undefined) label = taggedTitle(part.thread);
   else if (part.place !== null && part.place.kind !== "trigger") label = threadLabel(part.place.thread, part.id);
   const when = part.at === undefined ? undefined : whenOf(part.at, now);
   return {
@@ -493,16 +499,6 @@ function statusBlock(status: Status): StatusBlock {
   }
 }
 
-/** A thread's name, or the start of its first message, or a word saying it has none. */
-function titleOf(thread: Thread): string {
-  return oneLine(thread.name ?? thread.preview ?? NO_TITLE);
-}
-
-function titleWithTags(thread: Thread): string {
-  const tags = [thread.main ? "main" : undefined, thread.archived ? "archived" : undefined].filter((tag) => tag !== undefined);
-  return tags.length === 0 ? titleOf(thread) : `${titleOf(thread)} [${tags.join(", ")}]`;
-}
-
 /** What a member is called, for the IDs that receipts and marks carry. */
 function namer(channel: Channel | undefined, model: Model): (memberId: string) => string {
   const known = new Map<string, string>();
@@ -554,12 +550,12 @@ function notesOf(model: Model, agent: string | undefined): string[] {
     warn(refusalNote(listing ? "sessions" : "session", agent, model.refusal));
   }
 
-  warn(model.listing === undefined || model.listing.version === "" ? undefined : versionWarning("the gateway", model.listing.version));
+  warn(model.listing === undefined || model.listing.version === "" ? undefined : versionNote("the gateway", model.listing.version));
   const linked = model.listing?.programs ?? [];
   const chat = linked.findLast((program) => program.kind === "chat");
-  warn(chat === undefined ? undefined : versionWarning("the chat server", chat.shrimpy));
+  warn(chat === undefined ? undefined : versionNote("the chat server", chat.shrimpy));
   const running = agent === undefined ? undefined : linked.findLast((program) => program.kind === "agent" && program.name === agent);
-  warn(running === undefined ? undefined : versionWarning(`the agent ${oneLine(agent ?? "")}`, running.shrimpy));
+  warn(running === undefined ? undefined : versionNote(`the agent ${oneLine(agent ?? "")}`, running.shrimpy));
 
   if (model.notice !== undefined) warn(noticeText(model.notice, oneLine(agent ?? "")));
   return notes;

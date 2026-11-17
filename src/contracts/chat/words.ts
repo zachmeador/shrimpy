@@ -1,5 +1,8 @@
 import { oneLine } from "../../lib/plain/index.ts";
+import { listed } from "../../lib/text/index.ts";
+import type { Channel } from "./channel.ts";
 import type { Receipt } from "./shapes.ts";
+import type { Thread } from "./thread.ts";
 
 /**
  * What a receipt says that a person needs to know, with `who` that left it:
@@ -41,4 +44,33 @@ export const NO_ROOMS = "You are in no rooms.";
 export function notInRoom(name: string, rooms: readonly string[]): string {
   const where = rooms.length === 0 ? NO_ROOMS : `The rooms you are in: ${rooms.map((room) => `#${room}`).join(", ")}.`;
   return `You are not in a room called #${name}. ${where}`;
+}
+
+/** What a thread with no messages yet shows, and what it is called while it has no name. */
+export const NO_MESSAGES = "(no messages yet)";
+
+/** What a thread is called: its name, or the start of its first message, or that it has none yet, on one line. */
+export function titleOf(thread: Thread): string {
+  return oneLine(thread.name ?? thread.preview ?? NO_MESSAGES);
+}
+
+/** What a thread is called, marked when it is the main thread or archived: "deploys [main, archived]". */
+export function taggedTitle(thread: Thread): string {
+  const tags = [thread.main ? "main" : undefined, thread.archived ? "archived" : undefined].filter((tag) => tag !== undefined);
+  return tags.length === 0 ? titleOf(thread) : `${titleOf(thread)} [${tags.join(", ")}]`;
+}
+
+/** A room as it is written wherever a person reads its name: "#ops". */
+export const roomLabel = (name: string): string => `#${oneLine(name)}`;
+
+/**
+ * What a channel is called to the member reading it, whose ID is `you`: a room
+ * as `roomLabel` writes it, their own DM by the member it is with, "your DM
+ * with scout", and a DM between two others by both, in alphabetical order,
+ * "DM between crab and scout".
+ */
+export function channelLabel(channel: Pick<Channel, "kind" | "name" | "members">, you?: string): string {
+  if (channel.kind === "room") return roomLabel(channel.name);
+  if (channel.members.some((member) => member.id === you)) return `your DM with ${oneLine(channel.name)}`;
+  return `DM between ${listed(channel.members.map((member) => oneLine(member.name)).sort((a, b) => a.localeCompare(b)))}`;
 }

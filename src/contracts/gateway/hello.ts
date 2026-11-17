@@ -1,5 +1,6 @@
 import { lit, map, nul, obj, str, union } from "@earendil-works/chord";
 import { compile } from "@earendil-works/pi-schema";
+import { oneLine } from "../../lib/plain/index.ts";
 import { PI_PACKAGES, SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { type Reason, ReasonSchema, type Refused } from "./answers.ts";
 import { type Member, MemberSchema } from "./roster.ts";
@@ -109,6 +110,17 @@ export function unreadableAnswer(value: unknown, who = "The gateway"): string {
   const what = `${who} answered the hello with something this Shrimpy doesn't know.`;
   if (theirs === undefined) return what;
   return `${what} It runs Shrimpy ${theirs.shrimpy} on ${describePi(theirs.pi)}, and this runs Shrimpy ${SHRIMPY_VERSION} on ${describePi(PI_PACKAGES)}.`;
+}
+
+/**
+ * The warning a client gives when `what`, such as "the gateway", runs another
+ * version of Shrimpy than the client, which names itself as `self`, such as
+ * "this command", or nothing when they are the same. Programs are meant to be
+ * upgraded together, and a client carries on either way.
+ */
+export function versionWarning(what: string, version: string, self: string): string | undefined {
+  if (version === SHRIMPY_VERSION) return undefined;
+  return `Warning: ${oneLine(what)} runs Shrimpy ${oneLine(version)}, but ${self} is ${SHRIMPY_VERSION}. Programs are meant to be upgraded together.`;
 }
 
 /** Whether `pi` is exactly the Pi packages this code runs. */

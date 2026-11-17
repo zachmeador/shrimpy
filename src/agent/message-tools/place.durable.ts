@@ -86,7 +86,7 @@ async function roomPlace(find: Find, written: string, current: string | undefine
 
   if (thread === "") {
     const main = threads.find((candidate) => candidate.main);
-    const label = words.roomLabel(room.name);
+    const label = words.theRoom(room.name);
     if (main === undefined) return { problem: words.noMainThread(label) };
     return { threadId: main.id, label, here: main.id === current };
   }

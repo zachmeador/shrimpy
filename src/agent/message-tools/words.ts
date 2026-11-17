@@ -33,7 +33,7 @@ export const THIS_THREAD = "this thread";
 
 export const dmWith = (name: string): string => `your DM with ${name}`;
 
-export const roomLabel = (name: string): string => `the room #${name}`;
+export const theRoom = (name: string): string => `the room #${name}`;
 
 export const roomThreadLabel = (thread: string, room: string): string => `the thread ${thread} of #${room}`;
 

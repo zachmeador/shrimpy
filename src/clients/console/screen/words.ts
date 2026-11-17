@@ -17,7 +17,8 @@ import {
   type WaitingWakeup,
   wakeupWords,
 } from "../../../contracts/agent/index.ts";
-import { AGENT_COMMANDS, type AgentCommand, type Channel } from "../../../contracts/chat/index.ts";
+import { AGENT_COMMANDS, type AgentCommand, type Channel, roomLabel } from "../../../contracts/chat/index.ts";
+import { versionWarning } from "../../../contracts/gateway/index.ts";
 import { oneLine } from "../../../lib/plain/index.ts";
 import { listed, shellWord } from "../../../lib/text/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
@@ -27,8 +28,9 @@ import type { AgentStatus, DevicesStatus, Notice, RoomStatus } from "../state/in
 
 /*
  * Every sentence the console says, in one place, but for what it says of a
- * session and a receipt, which it takes from the contracts as the commands do,
- * and frames here. They are plain and short, in the voice of the commands:
+ * session, a receipt, what a thread or a channel is called and a program of
+ * another version, which it takes from the contracts as the commands do, and
+ * frames here. They are plain and short, in the voice of the commands:
  * what happened, and what to do next. Where the commands already say it, the
  * console says it the same way. A name, an ID or a message that came from
  * another program is put on one line and made harmless here, whoever calls,
@@ -130,10 +132,7 @@ export function refusalNote(looking: "sessions" | "session", agent: string, said
 }
 
 /** A program runs another version of Shrimpy than the console does. */
-export function versionWarning(what: string, version: string): string | undefined {
-  if (version === SHRIMPY_VERSION) return undefined;
-  return `Warning: ${oneLine(what)} runs Shrimpy ${oneLine(version)}, but this console is ${SHRIMPY_VERSION}. Programs are meant to be upgraded together.`;
-}
+export const versionNote = (what: string, version: string): string | undefined => versionWarning(what, version, "this console");
 
 /** Why something could not be done, as the end of a sentence. */
 function because(program: Program, problem: Problem): string {
@@ -219,7 +218,6 @@ export function farewellLine(agentName: string, threadId: string): string {
 
 export const AGENTS_EMPTY = `No agent has joined this machine's roster yet. Start one with: shrimpy agent serve <agent>, or start everything with: ${START_EVERYTHING}`;
 export const THREAD_EMPTY = "No messages yet.";
-export const NO_TITLE = "(no messages yet)";
 export const DELETED = "This message was deleted.";
 
 /** What marks a message that was edited, with when. */
@@ -239,7 +237,7 @@ export type ListFilter = "everything" | "yours";
 /** The title of an agent's screen, which says which of the two the list shows. */
 export const agentTitle = (agent: string, filter: ListFilter): string =>
   `${oneLine(agent)} · ${filter === "everything" ? "everything" : "your threads"}`;
-/** `channel` is what the channel is called, as `channelLabel` says. */
+/** `channel` is what the channel is called, as the chat contract's `channelLabel` says. */
 export const channelThreadsTitle = (channel: string): string => `${oneLine(channel)} · threads`;
 /** `where` is what is watched: where the session is, as `placeWords` says, or the thread it is behind. */
 export const sessionTitle = (agent: string, where: string): string => `${oneLine(agent)} · watching ${oneLine(where)}`;
@@ -256,27 +254,12 @@ export const threadsEmpty = (agent: string, more: boolean): string =>
 export const newThreadHint = (agent: string): string => `New thread with ${oneLine(agent)}. Type below to start it.`;
 export const newRoomThreadHint = (room: string): string => `New thread in ${roomLabel(room)}. Type below to start it.`;
 
-/** A room as it is written wherever the console names one. */
-export const roomLabel = (name: string): string => `#${oneLine(name)}`;
-
 /** The word on a row of the first screen for a room that the person is not in and only reads. */
 export const READ_ONLY_TAG = "read-only";
 
 /** The names of a channel's members, in alphabetical order, each on one line. */
 const memberNames = (channel: Pick<Channel, "members">): string[] =>
   channel.members.map((member) => oneLine(member.name)).sort((a, b) => a.localeCompare(b));
-
-/** A DM between two members that the person is not one of, as a thread of it is titled: by both, in alphabetical order. */
-const dmBetween = (names: string[]): string => `DM between ${listed(names.map(oneLine).sort((a, b) => a.localeCompare(b)))}`;
-
-/**
- * What a channel is called wherever the console names it, other than the
- * person's DM with an agent: a room by its name, and a DM between two others by
- * both its members.
- */
-export function channelLabel(channel: Pick<Channel, "kind" | "name" | "members">): string {
-  return channel.kind === "room" ? roomLabel(channel.name) : dmBetween(channel.members.map((member) => member.name));
-}
 
 /**
  * What the first screen says of a room the person only reads: that it is only

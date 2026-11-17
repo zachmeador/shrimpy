@@ -1,5 +1,13 @@
-import { type Channel, type Member, type Message, receiptWords, type Thread } from "../../contracts/chat/index.ts";
-import { listed } from "../../lib/text/index.ts";
+import {
+  type Channel,
+  channelLabel,
+  type Member,
+  type Message,
+  NO_MESSAGES,
+  receiptWords,
+  taggedTitle,
+  type Thread,
+} from "../../contracts/chat/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { indent } from "./render.ts";
 import { renderTable } from "./table.ts";
@@ -10,15 +18,6 @@ function namer(channel: Channel): (memberId: string) => string {
   return (memberId) => names.get(memberId) ?? memberId;
 }
 
-/** A thread's name, or the start of its first message, or a word saying it is empty, with what kind of thread it is. */
-function titleOf(thread: Thread): string {
-  const title = thread.name ?? thread.preview ?? "(no messages yet)";
-  const tags = [thread.main ? "main" : undefined, thread.archived ? "archived" : undefined].filter(
-    (tag) => tag !== undefined,
-  );
-  return tags.length === 0 ? title : `${title} [${tags.join(", ")}]`;
-}
-
 /** The threads of a channel as a table: ID, when last updated, who is working in it now, and its name or preview. */
 export function renderThreads(threads: Thread[], channel: Channel): string[] {
   const nameOf = namer(channel);
@@ -26,17 +25,9 @@ export function renderThreads(threads: Thread[], channel: Channel): string[] {
     thread.id,
     localTime(thread.updatedAt),
     thread.working.map((mark) => nameOf(mark.memberId)).join(", "),
-    titleOf(thread),
+    taggedTitle(thread),
   ]);
   return renderTable(["thread", "updated", "working", "name"], rows);
-}
-
-/** Where a channel is, to the one reading it: their DM, a room, or a DM between two others. */
-function placeOf(channel: Channel, you: Member): string {
-  if (channel.kind === "room") return `the room #${channel.name}`;
-  if (channel.members.some((member) => member.id === you.id)) return `your DM with ${channel.name}`;
-  const names = channel.members.map((member) => member.name).toSorted((a, b) => a.localeCompare(b));
-  return `the DM between ${listed(names)}`;
 }
 
 /**
@@ -50,8 +41,8 @@ function placeOf(channel: Channel, you: Member): string {
  */
 export function renderThread(thread: Thread, messages: Message[], channel: Channel, you: Member): string[] {
   const nameOf = namer(channel);
-  const lines = [`Thread ${thread.id} in ${placeOf(channel, you)}: ${titleOf(thread)}`];
-  if (messages.length === 0) lines.push("", "(no messages yet)");
+  const lines = [`Thread ${thread.id} in ${channelLabel(channel, you.id)}: ${taggedTitle(thread)}`];
+  if (messages.length === 0) lines.push("", NO_MESSAGES);
   for (const message of messages) {
     const edited = message.editedAt === null || message.deleted ? "" : `  edited ${localTime(message.editedAt)}`;
     lines.push(

@@ -30,6 +30,7 @@ export {
   readVersions,
   samePi,
   turnAway,
+  versionWarning,
   type Welcome,
   welcome,
   type Who,

@@ -1,4 +1,5 @@
 import { oneLine } from "../../lib/plain/index.ts";
+import { roomLabel } from "../chat/index.ts";
 import type {
   AnswerEnding,
   ModelId,
@@ -49,7 +50,7 @@ export function placeLabel(place: SessionPlace, you?: string): string {
     case "dm":
       return place.with.kind === "person" && place.with.name === you ? YOUR_DM : `DM with ${oneLine(place.with.name)}`;
     case "room":
-      return `#${oneLine(place.room)}`;
+      return roomLabel(place.room);
     case "trigger":
       return `trigger ${oneLine(place.trigger)}`;
   }
