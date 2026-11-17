@@ -13,6 +13,7 @@ import { nodeCompression } from "@earendil-works/chord/compression";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { chat, type Principal, type Revocation, revokedBy } from "../contracts/gateway/index.ts";
 import { gatewaySocket, keepLinked, reportLinking } from "../contracts/gateway/node.ts";
+import { opening } from "../lib/closing/index.ts";
 import { hostFailure } from "../lib/link/index.ts";
 import type { Backoff } from "../lib/retry/index.ts";
 import { createIdentity } from "./identity/index.ts";
@@ -54,24 +55,13 @@ const context = BACKGROUND_CONTEXT;
 export async function startChat(options: ChatOptions): Promise<RunningChat> {
   const socket = gatewaySocket();
   const lock = takeChatLock();
-  const open: (() => void | Promise<void>)[] = [() => lock.release()];
-  const closeAll = async (): Promise<void> => {
-    const errors: unknown[] = [];
-    for (const close of open.splice(0).reverse()) {
-      try {
-        await close();
-      } catch (error) {
-        errors.push(error);
-      }
-    }
-    if (errors.length === 1) throw errors[0];
-    if (errors.length > 1) throw new AggregateError(errors, "The chat server did not close cleanly");
-  };
+  const open = opening("The chat server did not close cleanly");
+  open.add(() => lock.release());
 
   try {
     const onError = (error: Error): void => console.error("[chat]", error.message);
     const store = openStore(options.dataDir, { onError });
-    open.push(() => store.close());
+    open.add(() => store.close());
     const identity = createIdentity(onError);
     const working = createWorkingMarks({ onError });
     const report = (error: HostError): void => console.error(`[chat] ${hostFailure(error).message}`);
@@ -82,12 +72,12 @@ export async function startChat(options: ChatOptions): Promise<RunningChat> {
       compression: nodeCompression,
       onError: report,
     });
-    open.push(() => host.close(context));
+    open.add(() => host.close(context));
     await host.load([{ name: "@shrimpy/chat", facet: chatFacet({ store, working, identity, now: () => Date.now() }) }], context);
     identity.follow(host, context);
-    open.push(() => identity.close());
+    open.add(() => identity.close());
     // The store keeps the names the roster has, so channels and messages name members as they are called now.
-    open.push(
+    open.add(
       identity.subscribe(() => {
         const members = identity.now()?.members;
         if (members !== undefined) renameMembers(store, members);
@@ -112,13 +102,13 @@ export async function startChat(options: ChatOptions): Promise<RunningChat> {
       onError: (error) => standing.failed(error),
       ...(options.backoff === undefined ? {} : { backoff: options.backoff }),
     });
-    open.push(async () => {
+    open.add(async () => {
       stopping.abort();
       await linking;
     });
-    return { close: closeAll };
+    return { close: () => open.closeAll() };
   } catch (error) {
-    await closeAll().catch(() => undefined);
+    await open.closeAll().catch(() => undefined);
     throw error;
   }
 }

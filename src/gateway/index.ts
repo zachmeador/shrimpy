@@ -24,6 +24,7 @@ import {
   keptListenAddresses,
   listenAddressesFile,
 } from "../contracts/gateway/node.ts";
+import { opening } from "../lib/closing/index.ts";
 import { asError } from "../lib/errors/index.ts";
 import { hostFailure } from "../lib/link/index.ts";
 import { type Listener, listen } from "../lib/link/node.ts";
@@ -96,27 +97,16 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
   if (given !== undefined) checkListenAddresses(given);
   const socket = gatewaySocket();
   const lock = takeGatewayLock(socket);
-  const open: (() => void | Promise<void>)[] = [() => lock.release()];
-  const closeAll = async (): Promise<void> => {
-    const errors: unknown[] = [];
-    for (const close of open.splice(0).reverse()) {
-      try {
-        await close();
-      } catch (error) {
-        errors.push(error);
-      }
-    }
-    if (errors.length === 1) throw errors[0];
-    if (errors.length > 1) throw new AggregateError(errors, "The gateway did not close cleanly");
-  };
+  const open = opening("The gateway did not close cleanly");
+  open.add(() => lock.release());
 
   try {
     const data = takeDataLock(options.dataDir);
-    open.push(() => data.release());
+    open.add(() => data.release());
     const roster = openRoster(options.dataDir, options.account ?? userInfo().username);
     // Made or read once the data directory is held, so that no other gateway makes one at the same time.
     const { key, fingerprint } = openKey(options.dataDir);
-    if (options.settings !== undefined) open.push(followYourName(roster, options.settings));
+    if (options.settings !== undefined) open.add(followYourName(roster, options.settings));
     // What was kept is read once the data directory is held, so that no other gateway is changing it, and before anything listens.
     const kept = given === undefined ? keptListenAddresses(options.dataDir) : [];
     const wanted = given ?? (kept.length > 0 ? kept : undefined);
@@ -129,14 +119,14 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
       revokedBy,
       onError: (error) => report(error),
     });
-    open.push(() => host.close(context));
+    open.add(() => host.close(context));
     const programs = createPrograms({
       host,
       agents: () => roster.members().filter((member) => member.kind === "agent"),
       onChange: () => view.changed(),
       context,
     });
-    open.push(() => programs.close());
+    open.add(() => programs.close());
     const report = (error: HostError): void => {
       if (error.kind === "resolve_failed" && programs.notLinked(error.error)) return;
       console.error(`[gateway] ${hostFailure(error).message}`);
@@ -168,7 +158,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     // The lock is held, so a socket left at the path belongs to a gateway that is gone.
     rmSync(socket, { force: true });
     const own = await listen({ path: socket }, greet("socket"), { onError });
-    open.push(() => own.close());
+    open.add(() => own.close());
     if (wanted !== undefined) {
       try {
         // A file edited by hand may name an address that is refused.
@@ -177,7 +167,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
           const entry = await listen({ ...address, key }, greet("entry"), { onError }).catch((error: unknown) => {
             throw cannotListen(address, error);
           });
-          open.push(() => entry.close());
+          open.add(() => entry.close());
           entries.push(entry);
         }
       } catch (error) {
@@ -192,9 +182,9 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     const listening = entries.map(({ place }) => place as Address);
     // Only addresses that were listened on replace what was kept.
     if (given !== undefined) keepListenAddresses(options.dataDir, listening);
-    return { socket, listening, listeningAsKept, fingerprint, close: closeAll };
+    return { socket, listening, listeningAsKept, fingerprint, close: () => open.closeAll() };
   } catch (error) {
-    await closeAll().catch(() => undefined);
+    await open.closeAll().catch(() => undefined);
     throw error;
   }
 }
