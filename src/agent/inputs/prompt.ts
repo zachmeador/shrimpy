@@ -1,5 +1,5 @@
 import { modelWords } from "../../contracts/agent/index.ts";
-import type { Message } from "../../contracts/chat/index.ts";
+import { type Message, roomLabel } from "../../contracts/chat/index.ts";
 import { listed, singleSpaced } from "../../lib/text/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import {
@@ -69,7 +69,7 @@ function inWords(place: Place): string {
   const others = place.others.map((other) => `${other.name} (${aKind(other.kind)})`);
   if (place.more !== undefined) others.push(`${String(place.more)} more`);
   const who = others.length === 0 ? "Nobody else is in it." : `Also in it: ${listed(others)}.`;
-  return `You are in ${side}the room #${place.room}. ${who}`;
+  return `You are in ${side}the room ${roomLabel(place.room)}. ${who}`;
 }
 
 const aKind = (kind: "person" | "agent"): string => (kind === "person" ? "a person" : "an agent");

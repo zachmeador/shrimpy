@@ -3,7 +3,7 @@
  * for, what its arguments mean, and what it answers. Nothing else in this
  * module writes words for the model.
  */
-import type { Thread } from "../../contracts/chat/index.ts";
+import { roomLabel, type Thread } from "../../contracts/chat/index.ts";
 
 /** The argument that names a place: where `send_message` posts, and what `read_messages` reads. */
 export type PlaceArgument = "to" | "from";
@@ -33,9 +33,9 @@ export const THIS_THREAD = "this thread";
 
 export const dmWith = (name: string): string => `your DM with ${name}`;
 
-export const theRoom = (name: string): string => `the room #${name}`;
+export const theRoom = (name: string): string => `the room ${roomLabel(name)}`;
 
-export const roomThreadLabel = (thread: string, room: string): string => `the thread ${thread} of #${room}`;
+export const roomThreadLabel = (thread: string, room: string): string => `the thread ${thread} of ${roomLabel(room)}`;
 
 // Where a message goes or comes from, when that cannot be worked out.
 
@@ -52,11 +52,11 @@ const threadNamed = (thread: Thread): string =>
   thread.name === null ? `${thread.id}${thread.main ? " (the main thread)" : ""}` : `${thread.id} (${thread.name})`;
 
 export function noSuchThread(room: string, thread: string, threads: readonly Thread[]): string {
-  return `#${room} has no thread called ${thread}. Its threads: ${threads.map(threadNamed).join(", ")}.`;
+  return `${roomLabel(room)} has no thread called ${thread}. Its threads: ${threads.map(threadNamed).join(", ")}.`;
 }
 
 export function manyThreads(room: string, thread: string, threads: readonly Thread[]): string {
-  return `More than one thread of #${room} is called ${thread}: ${threads.map(threadNamed).join(", ")}. Give its ID instead.`;
+  return `More than one thread of ${roomLabel(room)} is called ${thread}: ${threads.map(threadNamed).join(", ")}. Give its ID instead.`;
 }
 
 const nowhere = (argument: PlaceArgument): string =>

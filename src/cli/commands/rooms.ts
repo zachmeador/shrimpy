@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { NO_ROOMS } from "../../contracts/chat/index.ts";
+import { NO_ROOMS, roomLabel } from "../../contracts/chat/index.ts";
 import { contextOf, MAX_NAME, valueOf } from "../../contracts/gateway/index.ts";
 import { listed } from "../../lib/text/index.ts";
 import { MAKE_A_ROOM, membersNamed, onChannel, reachChat, roomNamed, roomNameWritten } from "../talk/index.ts";
@@ -66,7 +66,7 @@ const roomsNew: Command = {
     try {
       const members = membersNamed(reached.members, named);
       const room = valueOf(await reached.chat.createRoom({ name, members: members.map((member) => member.id) }, contextOf()));
-      io.out(`Made the room #${room.name} with ${listedNames(room.members.map((member) => member.name))}.`);
+      io.out(`Made the room ${roomLabel(room.name)} with ${listedNames(room.members.map((member) => member.name))}.`);
       return 0;
     } finally {
       await reached.close();
@@ -101,10 +101,10 @@ const roomsAdd: Command = {
       const newcomers = members.filter((member) => !there.has(member.id)).map((member) => member.name);
       const before = members.filter((member) => there.has(member.id)).map((member) => member.name);
       if (newcomers.length === 0) {
-        io.out(`${listedNames(before)} ${before.length === 1 ? "is" : "are"} in #${room.name} already.`);
+        io.out(`${listedNames(before)} ${before.length === 1 ? "is" : "are"} in ${roomLabel(room.name)} already.`);
       } else {
         const already = before.length === 0 ? "" : ` ${listedNames(before)} ${before.length === 1 ? "was" : "were"} in it already.`;
-        io.out(`Added ${listedNames(newcomers)} to #${room.name}.${already}`);
+        io.out(`Added ${listedNames(newcomers)} to ${roomLabel(room.name)}.${already}`);
       }
       return 0;
     } finally {

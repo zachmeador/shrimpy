@@ -1,5 +1,5 @@
 import { oneLine } from "../../lib/plain/index.ts";
-import { listed } from "../../lib/text/index.ts";
+import { listed, shellWord } from "../../lib/text/index.ts";
 import type { Channel } from "./channel.ts";
 import type { Receipt } from "./shapes.ts";
 import type { Thread } from "./thread.ts";
@@ -42,8 +42,8 @@ export const NO_ROOMS = "You are in no rooms.";
  * their own way.
  */
 export function notInRoom(name: string, rooms: readonly string[]): string {
-  const where = rooms.length === 0 ? NO_ROOMS : `The rooms you are in: ${rooms.map((room) => `#${room}`).join(", ")}.`;
-  return `You are not in a room called #${name}. ${where}`;
+  const where = rooms.length === 0 ? NO_ROOMS : `The rooms you are in: ${rooms.map(roomLabel).join(", ")}.`;
+  return `You are not in a room called ${roomLabel(name)}. ${where}`;
 }
 
 /** That whoever reads it has no DM with `name` yet, which each client follows with its own way to start a thread. */
@@ -63,8 +63,22 @@ export function taggedTitle(thread: Thread): string {
   return tags.length === 0 ? titleOf(thread) : `${titleOf(thread)} [${tags.join(", ")}]`;
 }
 
-/** A room as it is written wherever a person reads its name: "#ops". */
+/** A room as it is written wherever a person or an agent reads its name: "#ops". */
 export const roomLabel = (name: string): string => `#${oneLine(name)}`;
+
+/**
+ * A room's name as a command takes it: in double quotes, since a shell reads a
+ * bare `#` as the start of a comment, or as `shellWord` quotes it when double
+ * quotes would not keep it whole.
+ */
+export function roomWord(name: string): string {
+  const written = roomLabel(name);
+  return /^[^"$`\\!]*$/.test(written) ? `"${written}"` : shellWord(written);
+}
+
+/** The command that adds the member called `member` to the room `room`, or whoever runs it when their name isn't known. */
+export const addToRoom = (room: string, member: string | undefined): string =>
+  `shrimpy rooms add ${roomWord(room)} ${member === undefined ? "<your name>" : shellWord(oneLine(member))}`;
 
 /**
  * What a channel is called to the member reading it, whose ID is `you`: a room

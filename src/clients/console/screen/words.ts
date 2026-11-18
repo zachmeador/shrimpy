@@ -17,7 +17,7 @@ import {
   type WaitingWakeup,
   wakeupWords,
 } from "../../../contracts/agent/index.ts";
-import { AGENT_COMMANDS, type AgentCommand, type Channel, notTalkedTo, roomLabel } from "../../../contracts/chat/index.ts";
+import { addToRoom, AGENT_COMMANDS, type AgentCommand, type Channel, notTalkedTo, roomLabel } from "../../../contracts/chat/index.ts";
 import { NO_CHAT_SERVER, NO_GATEWAY, startAgent, versionWarning } from "../../../contracts/gateway/index.ts";
 import { oneLine } from "../../../lib/plain/index.ts";
 import { listed, shellWord, withoutPeriod } from "../../../lib/text/index.ts";
@@ -265,12 +265,6 @@ export function readOnlyDetail(room: Pick<Channel, "members">, working: boolean)
   return [READ_ONLY_TAG, memberNames(room).join(", "), working ? "working" : ""].filter((part) => part !== "").join(" · ");
 }
 
-/** A room's name as the command that joins it takes it, in quotes since a shell reads a bare `#` as the start of a comment. */
-function roomWord(name: string): string {
-  const written = `#${oneLine(name)}`;
-  return /^[^"$`\\!]*$/.test(written) ? `"${written}"` : shellWord(written);
-}
-
 /**
  * The line that stands where the input would be in a thread of a channel the
  * person only reads: that they only read it, and, for a room, how to join it,
@@ -281,8 +275,7 @@ export function readOnlyLine(channel: Pick<Channel, "kind" | "name" | "members">
   if (channel.kind === "dm") {
     return `You are only reading this DM. It has two members, ${listed(memberNames(channel))}, and takes no more.`;
   }
-  const you = me === undefined ? "<your name>" : shellWord(oneLine(me));
-  return `You are only reading ${roomLabel(channel.name)}. To join it, run: shrimpy rooms add ${roomWord(channel.name)} ${you}`;
+  return `You are only reading ${roomLabel(channel.name)}. To join it, run: ${addToRoom(channel.name, me)}`;
 }
 
 export const earlierMessages = (count: number, threadId: string): string =>

@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
 import { DEFAULT_WAKE_POLICY, isWakePolicy, WAKE_POLICIES, type WakePolicy } from "../../contracts/agent/index.ts";
+import { roomLabel } from "../../contracts/chat/index.ts";
 import { loadHome, readWake, saveWake } from "../../contracts/agent/node.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { listed } from "../../lib/text/index.ts";
@@ -39,7 +40,7 @@ const MEANING: Record<WakePolicy, string> = {
  */
 async function checkRoom(io: Io, target: Target, written: string): Promise<string> {
   const name = roomNameWritten(written).trim();
-  const unchecked = { what: `The room #${name}`, only: "which rooms it is in" };
+  const unchecked = { what: `The room ${roomLabel(name)}`, only: "which rooms it is in" };
   const room = await asTheAgent(io, target, unchecked, (reached) => {
     try {
       return roomNamed(reached.chat.channels.value, written);
@@ -84,7 +85,7 @@ const wake: Command = {
     await mayActOn(target, "Choosing what wakes another agent");
     const room = await checkRoom(io, target, written);
     const { file } = await saveWake(target.home, room, policy);
-    io.out(`Set #${room} to ${policy}: ${MEANING[policy]} Written to ${file}.`);
+    io.out(`Set ${roomLabel(room)} to ${policy}: ${MEANING[policy]} Written to ${file}.`);
     await toldOfChange(io, target);
     return 0;
   },
@@ -102,8 +103,8 @@ async function list(io: Io, target: Target): Promise<number> {
     io.out(`No room is set, so every room has the default, ${DEFAULT_WAKE_POLICY}. Set one with: ${command(target, 'wake "#ops" all')}`);
     return 0;
   }
-  const width = Math.max(...rooms.map(([room]) => room.length + 1));
-  for (const [room, policy] of rooms) io.out(`${`#${room}`.padEnd(width)}  ${policy}`);
+  const width = Math.max(...rooms.map(([room]) => roomLabel(room).length));
+  for (const [room, policy] of rooms) io.out(`${roomLabel(room).padEnd(width)}  ${policy}`);
   io.out(`Every other room has the default, ${DEFAULT_WAKE_POLICY}.`);
   return 0;
 }

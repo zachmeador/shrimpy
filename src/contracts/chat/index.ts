@@ -17,9 +17,10 @@
  * how a text is told to be one, so that a client shows what an agent acts on
  * and for whom, and everyone reads a text the same way; how an agent acts is its
  * own. What a receipt says to a person is here too, what a thread and a
- * channel are called, and that whoever reads has not talked to a member yet,
- * so that every client says them the same way, and finding
- * a member, a room or a DM by what it is called, as the clients and the agent's
+ * channel are called, how a room is written for the command that adds a
+ * member to it, and that whoever reads has not talked to a member yet, so that
+ * every client and chat's own refusals say them the same way, and finding a
+ * member, a room or a DM by what it is called, as the clients and the agent's
  * tools do. This door is safe for browsers.
  */
 export { Channel } from "./channel.ts";
@@ -40,6 +41,7 @@ export {
 } from "./shapes.ts";
 export { Thread } from "./thread.ts";
 export {
+  addToRoom,
   channelLabel,
   NO_MESSAGES,
   NO_ROOMS,
@@ -47,6 +49,7 @@ export {
   notTalkedTo,
   receiptWords,
   roomLabel,
+  roomWord,
   taggedTitle,
   titleOf,
 } from "./words.ts";
