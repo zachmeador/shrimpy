@@ -1,4 +1,4 @@
-import { AGENT_HOME_VARIABLE, joinAsNew, membershipFile } from "../../contracts/agent/index.ts";
+import { AGENT_HOME_VARIABLE, membershipFile, unknownTokenAdvice } from "../../contracts/agent/index.ts";
 import { readMembership } from "../../contracts/agent/node.ts";
 import { type Entry, type Machine, machineFile } from "../../contracts/gateway/index.ts";
 import { gatewaySocket, type HelloRefusedError, readMachine } from "../../contracts/gateway/node.ts";
@@ -69,7 +69,7 @@ export function me(): Me {
       token: membership.token,
       home,
       turnedAway(error) {
-        const advice = error.reason === "unknown_token" ? ` ${joinAsNew(membershipFile(home), entry !== undefined)}` : "";
+        const advice = error.reason === "unknown_token" ? ` ${unknownTokenAdvice(membershipFile(home), entry !== undefined)}` : "";
         return new Error(`The gateway did not let the agent at ${home} in: ${error.message}${advice}`, { cause: error });
       },
     };

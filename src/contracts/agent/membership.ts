@@ -50,7 +50,7 @@ export function membershipFile(home: string): string {
  * agent beside the gateway does by starting again, and one `apart` from it with
  * a new invitation.
  */
-export function joinAsNew(file: string, apart: boolean): string {
+export function unknownTokenAdvice(file: string, apart: boolean): string {
   return apart
     ? `To join as a new member, delete ${file}, get a new invitation and join again with it: shrimpy join <link>`
     : `To join as a new member, delete ${file} and start the agent again.`;

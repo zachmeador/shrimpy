@@ -2,7 +2,7 @@ import { hostname } from "node:os";
 import { type Entry, type Link, machineFile } from "../../contracts/gateway/index.ts";
 import { newToken, readMachine, saveMachine } from "../../contracts/gateway/node.ts";
 import { formatAddress } from "../../lib/link/index.ts";
-import { type Joined, joinAnew, joinGateway } from "./join.ts";
+import { type Joined, joinedAlready, joinGateway } from "./join.ts";
 
 export interface JoinAsMachineOptions {
   /** Abort to give up on a gateway that does not answer. */
@@ -33,7 +33,7 @@ export async function joinAsMachine(folder: string, link: Link, options: JoinAsM
   const saved = readMachine(folder);
   if (saved?.member !== undefined) {
     throw new Error(
-      `This machine is ${saved.member.name}'s already, on the gateway at ${formatAddress(saved.gateway)}. ${joinAnew(machineFile(folder))}`,
+      `This machine is ${saved.member.name}'s already, on the gateway at ${formatAddress(saved.gateway)}. ${joinedAlready(machineFile(folder))}`,
     );
   }
   const where = formatAddress(link.address);

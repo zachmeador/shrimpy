@@ -24,8 +24,8 @@ export interface Joined {
   gatewayVersion: string;
 }
 
-/** What to do to join again with `file`, which keeps a token that has joined, deleted first. */
-export const joinAnew = (file: string): string => `To join anew, delete ${file} and run this again.`;
+/** How a home or a machine that has joined already joins anew: delete `file`, which keeps the token that joined, and join again. */
+export const joinedAlready = (file: string): string => `To join anew, delete ${file} and run this again.`;
 
 /** That the gateway at `where` turned `who` away, with the gateway's words. */
 export const notLetIn = (where: string, who: string, words: string): string => `The gateway at ${where} did not let ${who} in: ${words}`;

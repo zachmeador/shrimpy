@@ -3,7 +3,7 @@ import { loadHome, readMembership, saveMembership } from "../../contracts/agent/
 import { type Entry, readLink } from "../../contracts/gateway/index.ts";
 import { newToken } from "../../contracts/gateway/node.ts";
 import { formatAddress } from "../../lib/link/index.ts";
-import { type Joined, joinAnew, joinGateway } from "./join.ts";
+import { type Joined, joinedAlready, joinGateway } from "./join.ts";
 
 export interface JoinHomeOptions {
   /** Abort to give up on a gateway that does not answer, whether the connection was still being made or the join was waiting for its answer. */
@@ -42,7 +42,7 @@ export async function joinHome(home: string, link: string, options: JoinHomeOpti
   const saved = readMembership(paths.root);
   if (saved?.memberId !== undefined || saved?.gateway !== undefined) {
     const where = saved.gateway === undefined ? "the gateway on this machine" : `the gateway at ${formatAddress(saved.gateway)}`;
-    throw new Error(`The agent ${name} is a member through ${where} already. ${joinAnew(paths.member)}`);
+    throw new Error(`The agent ${name} is a member through ${where} already. ${joinedAlready(paths.member)}`);
   }
   const token = saved?.token ?? newToken();
   if (saved === undefined) saveMembership(paths.root, { token });
