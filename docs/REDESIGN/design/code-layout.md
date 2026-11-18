@@ -11,29 +11,37 @@ src/
   contracts/        the only code programs share: each contract's Chord object types and the shapes they carry,
                     and the files a home, the folder and the gateway keep that the `shrimpy` command shares
     agent/          Agent, Session and AgentPresence at agent({ name }), the shapes the agent builds, one sentence
-                    for each way a turn ends without an answer, the words a session is said in, and linking to an
-                    agent by its home's path, with the membership a home keeps; a home's layout, `agent.json`, its
-                    wake and trigger files and their schedules, making a home, the folder's default model and
-                    where it keeps sign-ins
+                    for each way a turn ends without an answer, the words a session and a model are said in, and
+                    linking to an agent by its home's path, with the membership a home keeps and what to do when
+                    the gateway doesn't know it; a home's layout, `agent.json`, its wake and trigger files and
+                    their schedules, making a home, the folder's default model and where it keeps sign-ins
     chat/           Chat, Channel, Thread and ChatPresence at chat(): channels, threads, messages, events and
-                    receipts, what a receipt tells a person, and the commands a person writes for agents
+                    receipts, the commands a person writes for agents, finding a member, a room or a DM by name
+                    and a member's name by ID, and the words chat and every client say the same way: what a
+                    receipt tells a person, how a thread, a room, a channel and its members are written, and
+                    what a reader is told when they can't find or join one
     gateway/        what every contract shares (the hosts and their addresses, who is asking, the fields a member
-                    is named by, a method's answer or refusal, the hello before Chord, and the helpers for a call
-                    on another program's object), Roster at gateway(), and the invitation's link and
-                    what a machine of yours keeps; through node.ts, the hello every link and join starts with, a
-                    client's link to the gateway or to an agent's home socket, keeping a program or a client
-                    linked, and the addresses the gateway keeps between starts
+                    is named by and the rule a name follows, a method's answer or refusal, the hello before Chord
+                    and what is said to one that can't be read or comes from another version, and the helpers for
+                    a call on another program's object), Roster at gateway() and the roster as a program follows
+                    it, that the roster has no such member, what a client tells a person to start when the
+                    gateway, the chat server or an agent isn't linked, and the invitation's link and what a
+                    machine of yours keeps; through node.ts, the hello every link and join starts with, a client's
+                    link to the gateway or to an agent's home socket, keeping a program or a client linked and
+                    saying when its link is lost and back, and the addresses the gateway keeps between starts
   agent/            the agent program, one process per home, whose files at the top make its host, serve its
                     objects, read its home and wire the modules together
     home/           what the agent alone reads of its home: where it keeps its own files, its instructions,
                     context and skills in one snapshot, its breadcrumbs, and the look for changes
     host/           owner lock, model runtime and provider login, registry, environment, storage, supervision,
                     and what the modules share of the engine: reading a kind of task a page at a time, ending
-                    the tasks a session leaves open, and a tool's answer
+                    the tasks a session leaves open, what a task ends with when it is done or aborted, ending
+                    one that failed and saying so, a tool's answer, and what names a request a tool call makes
     links/          its link to the gateway, kept as the agent, over which requests for it arrive and it holds the
                     roster and chat, who a name on the roster is, and why a call to chat failed
     access/         who is asking, from a request's stamp and the roster as it is now, and what they may do
-    inputs/         what an input is, from any source, how it reads to the model, and how its turn can end
+    inputs/         what an input is, from any source, how it reads to the model, and how its turn can end, with
+                    what the tools that come back later tell the model of ending its turn and of how long to wait
     records/        Shrimpy's own documents in the engine's storage, and the changes to a session's record
                     that another module makes in its own commit
     turns/          the task that follows one input to its end: taking it up, what is being worked on,
@@ -84,12 +92,15 @@ src/
     up/             what `shrimpy up` starts and how it keeps it running: what is missing, the gateway and the
                     chat server, the agents, following the folder's homes, and stopping them all
   lib/              helpers with no knowledge of Shrimpy's domain: locks, retries, listeners and waiting on them,
-                    a thrown value as an error, files read and saved whole, IDs, refusals, times, config
-                    checking, text made harmless for a terminal, a list written as a sentence, words ended like a
-                    sentence, a word quoted for a shell, the runtime directory, versions and test support
+                    closing what was opened, last first, a thrown value as an error, files read and saved whole
+                    and folders listed, IDs, refusals, times and lengths of time, config checking, text made
+                    harmless for a terminal, a list written as a sentence or cut short, words ended like a
+                    sentence or without their period, text on one line with single spaces or cut to a length, a
+                    word quoted for a shell, the runtime directory, versions and test support
     link/           links for Chord: a WebSocket on a socket's path, or over TLS at an address, with the hello
                     before Chord; listening, dialing, telling when nothing listens at a path, and keeping a link;
-                    and, safe for browsers, how an address is written and what a host reports going wrong
+                    and, safe for browsers, how an address is written and read, and what a host reports going
+                    wrong
     follow/         a value worked out from a read and a watch, as a Chord object follows it, and the type of
                     what Chord follows, for code that doesn't import Chord
     tls/            keys that prove a link's end by their fingerprint, and the certificate TLS serves them in
@@ -100,7 +111,7 @@ src/
 | Code | May import |
 |---|---|
 | `lib/` | nothing else in `src/` |
-| `contracts/` | `lib/` |
+| `contracts/` | `lib/`; and, within `contracts/`, `gateway/` imports no other contract, `chat/` and `agent/` import `gateway/`, and `agent/` imports how a room is written from `chat/` |
 | `agent/`, `chat/`, `gateway/`, `clients/console/`, `clients/web/` | its own code, `contracts/` and `lib/`, and never another program |
 | `chat/providers/<name>/` | the chat server's provider interface and `lib/` |
 | `cli/` | `contracts/` and `lib/`, plus each program's front door to start it |
@@ -110,7 +121,7 @@ src/
 - **Shared plumbing stays plumbing.** Shared code may remove repetition around Pi, but it adds no concepts of its own: no registry, discovery or lifecycle. `lib/link` wraps Chord's links once for every program and client, and `lib/follow` turns a read and a watch into what a Chord object follows. The test is whether a module could be deleted and inlined into its callers in an hour with no change in behavior. If deleting it would mean redesigning the programs, it has become the service framework this plan doesn't build. Check `lib/`'s size at each review pause.
 - **Contracts carry Shrimpy's own shapes, never Pi's.** Only `agent/` imports Pi's durable runtime, and `pi-ai` with it, apart from tests. `agent/sessions/` is the one place that turns Pi's records into the session view clients see, and `agent/turns/` the one that says why a turn ended without an answer in the contract's words. A Pi upgrade can then change the agent without touching a client.
 - **Inside the agent, a file that needs Pi says so in its name.** A file imports Pi's durable runtime only if it is named `*.durable.ts` or is a module's `durable.ts` door, as `*.node.ts` marks what needs Node. Inside a module, a file that isn't marked can't import one that is, so plain code never reaches the engine. The files at the top of `agent/` wire the modules together, so they may import a marked door, and still can't import the package unless they are marked themselves.
-- **Chord stays where programs meet,** settled by the coordinator on 2026-11-14 with the move to Pi 1.5.2, and yours to change. It keeps replacing Chord, or keeping a fork of it, as bounded as Durable is. `contracts/` imports it, since a contract is a Chord object type, and so do `lib/link` and `lib/follow`. In a program or a client, only the modules that make its host, serve its objects or hold another program's import it, and the lint names them: the files at the top of each program, the gateway's `hello/`, `programs/` and `served/`, the chat server's `served/` and `identity/`, the agent's `links/`, the terminal's `network/` and the CLI's `talk/`. Chord's `context`, `json` and `delta` entry points go wherever Pi's durable runtime may, since the runtime is written in their types. Tests and `testing/` modules may import any of it. A rule by folder fits here, where it didn't for Durable: code that talks to another program belongs in the module that does.
+- **Chord stays where programs meet,** settled by the coordinator on 2026-11-14 with the move to Pi 1.5.2, and yours to change. It keeps replacing Chord, or keeping a fork of it, as bounded as Durable is. `contracts/` imports it, since a contract is a Chord object type, and so do `lib/link` and `lib/follow`. In a program or a client, only the modules that make its host, serve its objects or hold another program's import it, and the lint names them: the files at the top of each program, the gateway's `hello/`, `programs/` and `served/`, the chat server's `served/`, the agent's `links/`, the terminal's `network/` and the CLI's `talk/`. Chord's `context`, `json` and `delta` entry points go wherever Pi's durable runtime may, since the runtime is written in their types. Tests and `testing/` modules may import any of it. A rule by folder fits here, where it didn't for Durable: code that talks to another program belongs in the module that does.
 - **Only `clients/console/draw/` imports `pi-tui`,** and only from the package root, because `pi-tui` has no exports map to stop deep imports. Nothing else in the console imports the drawing, so its state and its words are tested without a terminal.
 
 ## Inside each module
@@ -132,13 +143,16 @@ Every sentence a model or a person reads is kept in a few files, so that wording
 | What | Where |
 |---|---|
 | What every agent is told | `agent/context/base.ts`, one function that returns the whole text |
-| How an input reads to the model: a message, a wake-up, a trigger's occurrence, a question's result, breadcrumbs, and where the session is | `agent/inputs/prompt.ts` |
+| How an input reads to the model: a message, a wake-up, a trigger's occurrence, a question's result, breadcrumbs, and where the session is; and what `check_back` and `ask_agent` both tell the model of ending its turn and of a wait too short or too long | `agent/inputs/prompt.ts` |
 | What a tool says: its description, its arguments and its answers | `words.ts` in the tool's module: `agent/message-tools/`, `agent/wakeups/` and `agent/questions/` |
 | The skills Shrimpy ships | `skills/<name>/SKILL.md` |
 | Everything else the terminal shows | `clients/console/screen/words.ts` |
 | Why a turn ended without an answer, with what to do, as receipts, `/status` and `sessions read` say it | `contracts/agent/failures.ts`, since the agent and every client say it the same way |
-| How a session is said: what it is doing, where it is, its tool calls, a reset, its model, what it has used and a wake-up it waits on, as the terminal and the `sessions` commands say it | `contracts/agent/words.ts`, since every client says it the same way |
-| What a receipt tells a person, as the terminal, `read` and `run` say it | `contracts/chat/words.ts` |
+| How a session is said: what it is doing, where it is, its tool calls, a reset, its model, what it has used and a wake-up it waits on, as the terminal and the `sessions` commands say it; and a model as `provider/id`, wherever the agent or a client writes one | `contracts/agent/words.ts`, since every client says it the same way |
+| What to do when the gateway doesn't know a home's token, that no agent runs at a home, and that a file which must start with front matter doesn't | `contracts/agent/`: `membership.ts`, `connect.node.ts` and `frontmatter.ts`, since the agent and the commands say them the same way |
+| What a receipt tells a person, as the terminal, `read` and `run` say it; how a thread, a room, a channel and its members are written, and a room as the command that adds a member takes it; and what a reader is told when they are in no such room, can't join a DM, aren't a member, or have not talked to someone yet | `contracts/chat/words.ts`, since chat's refusals, the agent and every client say them the same way |
+| What a client tells a person to start when the gateway, the chat server or an agent isn't linked | `contracts/gateway/words.ts`, since the commands and the terminal say it the same way, each with a first sentence of its own |
+| The rule a name follows, what is said to a hello that can't be read or comes from another version, and that the roster has no such member | `contracts/gateway/`: `names.ts`, `hello.ts` and `roster.ts`, since the gateway, chat, the agent and the clients say them the same way |
 | What a command for agents does, in the one line a client shows beside it | `contracts/chat/commands.ts`, since every client shows the same |
 | What an agent says in a thread about `/model` | `agent/chat/model-command.ts` |
 | A command's usage and help | The command's own file in `cli/commands/` |
@@ -151,9 +165,9 @@ Approved on 2026-10-05 and built that day. Each module has one job.
 
 | Module | Its one job | Touches Pi |
 |---|---|---|
-| `inputs/` | What an input is, from any source, how it reads to the model, and how its turn can end. Data and words. | Never |
+| `inputs/` | What an input is, from any source, how it reads to the model, and how its turn can end, with what the tools that come back later tell the model of ending its turn and of how long to wait. Data and words. | Never |
 | `home/`, `links/`, `access/` | The home's files, the link to the gateway and what is held over it, and who may do what. | Never |
-| `host/` | Opens the engine, and is the only place that does, with what the modules share of it: reading a kind of task a page at a time, ending the tasks a session leaves open, and a tool's answer. | Throughout |
+| `host/` | Opens the engine, and is the only place that does, with what the modules share of it: reading a kind of task a page at a time, ending the tasks a session leaves open, what a task ends with when it is done or aborted, ending one that failed and saying so, a tool's answer, and what names a request a tool call makes. | Throughout |
 | `records/` | Shrimpy's own documents in the engine's storage, and the changes to a session's record made inside another module's commit. | Throughout: it defines the documents |
 | `turns/` | The task that follows one input to its end: taking it up, what is being worked on, what a crash costs it, and why a turn ended without an answer, in the contract's words. | Defines the task. Its plain door has what it asks of whoever tells an input's source |
 | `questions/` | `ask_agent`: the tool, the questions that are open, and closing one on a receipt or when its time is up. | A tool and a task. Its plain door has what it asks of chat |
