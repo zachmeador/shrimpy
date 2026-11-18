@@ -1,12 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
-import { type ModelChoice, parseAgentConfig } from "./agent-config.ts";
+import { parseAgentConfig } from "./agent-config.ts";
 import { type HomePaths, homePaths } from "./layout.node.ts";
+import type { ModelId } from "./shapes.ts";
 
 /** An agent home, read from disk and checked. */
 export interface LoadedHome {
   readonly name: string;
   /** The model a new session starts with, when `agent.json` names one. */
-  readonly model: ModelChoice | undefined;
+  readonly model: ModelId | undefined;
   readonly paths: HomePaths;
 }
 

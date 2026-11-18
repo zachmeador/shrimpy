@@ -1,16 +1,11 @@
 import { type ConfigObject, parseConfig } from "../../lib/json-config/index.ts";
-
-/** A model by the provider that serves it and the ID that provider knows it by. */
-export interface ModelChoice {
-  readonly provider: string;
-  readonly id: string;
-}
+import type { ModelId } from "./shapes.ts";
 
 /** What `agent.json` holds. */
 export interface AgentConfig {
   readonly name: string;
   /** The model a new session starts with. Without one, the agent starts with the folder's default model. */
-  readonly model?: ModelChoice;
+  readonly model?: ModelId;
 }
 
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -36,7 +31,7 @@ export function parseAgentConfig(text: string, file: string): AgentConfig {
 }
 
 /** A model as `agent.json` and the folder's `default-model.json` write it: the provider and the ID. */
-export function readModelChoice(object: ConfigObject): ModelChoice {
+export function readModelChoice(object: ConfigObject): ModelId {
   const choice = { provider: object.string("provider"), id: object.string("id") };
   object.done();
   return choice;
@@ -47,7 +42,7 @@ export function formatAgentConfig(config: AgentConfig): string {
 }
 
 /** Read `provider/id`, like `anthropic/claude-sonnet-4-5`. Everything after the first slash is the ID. */
-export function parseModelChoice(text: string): ModelChoice {
+export function parseModelChoice(text: string): ModelId {
   const slash = text.indexOf("/");
   if (slash < 1 || slash === text.length - 1) {
     throw new Error(`Model "${text}" should be provider/id, such as anthropic/claude-sonnet-4-5.`);
@@ -56,4 +51,4 @@ export function parseModelChoice(text: string): ModelChoice {
 }
 
 /** Whether `a` and `b` are one model: the same provider and the same ID. */
-export const sameModel = (a: ModelChoice, b: ModelChoice): boolean => a.provider === b.provider && a.id === b.id;
+export const sameModel = (a: ModelId, b: ModelId): boolean => a.provider === b.provider && a.id === b.id;

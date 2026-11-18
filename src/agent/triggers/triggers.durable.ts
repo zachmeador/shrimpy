@@ -224,4 +224,3 @@ function changesTriggers(publication: CommitPublication): boolean {
 const noTrigger = (name: string): string => `This agent has no trigger called ${name}.`;
 
 const changed = (name: string): string => `The trigger ${name} was changed as it was being run, so it did not run. Run it again.`;
-

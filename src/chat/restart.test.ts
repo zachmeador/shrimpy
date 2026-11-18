@@ -58,4 +58,3 @@ test("while the gateway is away the chat server says so once, and once again whe
   assert.ok(back.you.value !== null, "and chat is reached through it again");
   assert.equal(ofGateway().length, 2, "and that was all it said of it");
 });
-

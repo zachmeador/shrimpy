@@ -5,17 +5,17 @@ import {
   type AgentConfig,
   checkAgentName,
   formatAgentConfig,
-  type ModelChoice,
   parseAgentConfig,
   sameModel,
 } from "./agent-config.ts";
 import { type HomePaths, homePaths } from "./layout.node.ts";
+import type { ModelId } from "./shapes.ts";
 import { modelWords } from "./words.ts";
 
 export interface InitOptions {
   readonly name: string;
   /** The model the agent starts with. Without one, `agent.json` names none, and the agent starts with the folder's default. */
-  readonly model?: ModelChoice;
+  readonly model?: ModelId;
 }
 
 export interface InitResult {
