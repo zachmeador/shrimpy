@@ -11,7 +11,7 @@ import { type ProviderPaths, providerPaths, readDefaultModel } from "../../contr
 import { asError } from "../../lib/errors/index.ts";
 import type { LeftOut } from "../../lib/files/index.ts";
 import { ConfigError } from "../../lib/json-config/index.ts";
-import { listed } from "../../lib/text/index.ts";
+import { listed, upTo } from "../../lib/text/index.ts";
 import { credentialStore, NO_AMBIENT_AUTH } from "./credentials.ts";
 import { type CustomApi, type CustomProvider, readCustomProviders } from "./custom-providers.ts";
 
@@ -273,13 +273,12 @@ async function requireUsable(models: Models, start: Start, declared: Declared, f
   const declaredIn = declared.get(providerId)?.file;
   if (models.getModel(providerId, modelId) === undefined) {
     const ids = models.getModels(providerId).map(({ id }) => id);
-    const shown = ids.slice(0, LISTED_MODELS).join(", ");
-    const more = ids.length > LISTED_MODELS ? ` and ${ids.length - LISTED_MODELS} more` : "";
+    const shown = upTo(ids, LISTED_MODELS).join(", ");
     const fix =
       declaredIn === undefined
         ? `Correct the model in ${start.file}.`
         : `Add it under providers.${providerId}.models in ${declaredIn}, or correct the model in ${start.file}.`;
-    throw new ModelSetupError(`The provider "${providerId}" has no model "${modelId}". It has: ${shown}${more}. ${fix}`);
+    throw new ModelSetupError(`The provider "${providerId}" has no model "${modelId}". It has: ${shown}. ${fix}`);
   }
   if ((await models.checkAuth(providerId)) !== undefined) return;
   throw new ModelSetupError(missingKey(provider, declaredIn, files));

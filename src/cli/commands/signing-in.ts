@@ -2,6 +2,7 @@ import { dirname } from "node:path";
 import type { Dialogue, Notice, ProviderToSignIn, SignIns, SignInWay } from "../../agent/index.ts";
 import { providerPaths, readDefaultModel, saveDefaultModel } from "../../contracts/agent/node.ts";
 import { asError } from "../../lib/errors/index.ts";
+import { upTo } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
 import { UsageError } from "../usage/index.ts";
 
@@ -205,10 +206,8 @@ async function chooseDefaultModel(
     io.out(`No default model is set, and ${provider.name} has no models to choose from yet. ${later}`);
     return;
   }
-  const listed = ids.slice(0, LISTED_MODELS);
-  const more = ids.length - listed.length;
   io.out(`Agents that name no model start with a default one. ${provider.name} has:`);
-  for (const line of wrapped([...listed, ...(more > 0 ? [`and ${more} more`] : [])])) io.out(`  ${line}`);
+  for (const line of wrapped(upTo(ids, LISTED_MODELS))) io.out(`  ${line}`);
   for (;;) {
     const answer = (await io.ask("Which model? Type its ID, or press Enter to choose later: ", { signal })).trim();
     if (answer === "") {
