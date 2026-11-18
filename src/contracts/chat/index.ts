@@ -26,7 +26,7 @@
 export { Channel } from "./channel.ts";
 export { Chat } from "./chat.ts";
 export { AGENT_COMMANDS, type AgentCommand, agentCommandIn } from "./commands.ts";
-export { findDm, findMember, findRoom } from "./lookups.ts";
+export { findDm, findMember, findRoom, namer } from "./lookups.ts";
 export { ChatPresence } from "./presence.ts";
 export {
   type ChatEvent,
@@ -44,6 +44,7 @@ export {
   addToRoom,
   channelLabel,
   DM_TAKES_NO_MORE,
+  memberNames,
   NO_MESSAGES,
   NO_ROOMS,
   notInRoom,

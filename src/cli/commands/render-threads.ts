@@ -3,6 +3,7 @@ import {
   channelLabel,
   type Member,
   type Message,
+  namer,
   NO_MESSAGES,
   receiptWords,
   taggedTitle,
@@ -12,15 +13,9 @@ import { localTime } from "../../lib/time/index.ts";
 import { indent } from "./render.ts";
 import { renderTable } from "./table.ts";
 
-/** What a member of the channel is called, for the IDs that threads and receipts carry. */
-function namer(channel: Channel): (memberId: string) => string {
-  const names = new Map(channel.members.map((member) => [member.id, member.name]));
-  return (memberId) => names.get(memberId) ?? memberId;
-}
-
 /** The threads of a channel as a table: ID, when last updated, who is working in it now, and its name or preview. */
 export function renderThreads(threads: Thread[], channel: Channel): string[] {
-  const nameOf = namer(channel);
+  const nameOf = namer(channel.members);
   const rows = threads.map((thread) => [
     thread.id,
     localTime(thread.updatedAt),
@@ -40,7 +35,7 @@ export function renderThreads(threads: Thread[], channel: Channel): string[] {
  * member working in it now.
  */
 export function renderThread(thread: Thread, messages: Message[], channel: Channel, you: Member): string[] {
-  const nameOf = namer(channel);
+  const nameOf = namer(channel.members);
   const lines = [`Thread ${thread.id} in ${channelLabel(channel, you.id)}: ${taggedTitle(thread)}`];
   if (messages.length === 0) lines.push("", NO_MESSAGES);
   for (const message of messages) {

@@ -2,7 +2,9 @@ import { placeLabel, threadLabel, YOUR_DM } from "../../../contracts/agent/index
 import {
   type Channel,
   channelLabel,
+  memberNames,
   type Message,
+  namer,
   receiptWords,
   roomLabel,
   taggedTitle,
@@ -244,7 +246,7 @@ function agentsScreen(model: Model, inFull: InFull): AgentsScreen {
     id: entry.id,
     kind: "room",
     label: roomLabel(entry.name),
-    detail: [entry.members.map(oneLine).join(", "), entry.working ? "working" : undefined].filter((part) => part !== undefined && part !== "").join(" · "),
+    detail: [memberNames(entry.members).join(", "), entry.working ? "working" : undefined].filter((part) => part !== undefined && part !== "").join(" · "),
     working: entry.working,
   }));
   // The rooms the person is not in come last, apart from their own.
@@ -433,7 +435,10 @@ function threadScreen(model: Model, where: ThreadWhere, now: number, inFull: InF
   const live = threadId !== undefined && model.thread?.thread.id === threadId ? model.thread : undefined;
   const listed = threadId === undefined ? undefined : here.threads.find((thread) => thread.id === threadId);
   const thread = live?.thread ?? listed;
-  const names = namer(here.channel, model);
+  // A thread can be shown before its channel is known, so the messages' authors name members too. The channel's members
+  // come last, so theirs are the names used.
+  const known = namer([...(model.thread?.messages ?? []).map((message) => message.author), ...(here.channel?.members ?? [])]);
+  const names = (memberId: string): string => oneLine(known(memberId));
   // The agent whose screen the thread was opened from has its work shown beside it, from its session behind the thread.
   // A room's own threads have none: the marks chat keeps say who is working.
   const agent = agentOfThread(where);
@@ -497,14 +502,6 @@ function statusBlock(status: Status): StatusBlock {
     case "devices":
       return { header: statusHeader(status.at, "devices"), rows: devicesRows(about) };
   }
-}
-
-/** What a member is called, for the IDs that receipts and marks carry. */
-function namer(channel: Channel | undefined, model: Model): (memberId: string) => string {
-  const known = new Map<string, string>();
-  for (const message of model.thread?.messages ?? []) known.set(message.author.id, message.author.name);
-  for (const member of channel?.members ?? []) known.set(member.id, member.name);
-  return (memberId) => oneLine(known.get(memberId) ?? memberId.replace(/^[^:]*:/, ""));
 }
 
 function messageRow(message: Message, model: Model, names: (memberId: string) => string, now: number): MessageRow {

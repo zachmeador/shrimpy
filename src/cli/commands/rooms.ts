@@ -1,14 +1,11 @@
 import { parseArgs } from "node:util";
-import { NO_ROOMS, roomLabel } from "../../contracts/chat/index.ts";
+import { memberNames, NO_ROOMS, roomLabel } from "../../contracts/chat/index.ts";
 import { contextOf, MAX_NAME, valueOf } from "../../contracts/gateway/index.ts";
 import { listed } from "../../lib/text/index.ts";
 import { MAKE_A_ROOM, membersNamed, onChannel, reachChat, roomNamed, roomNameWritten } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderRooms } from "./render-rooms.ts";
-
-/** Names as a sentence lists them, in alphabetical order: "scout", "scout and maya", "maya, scout and zach". */
-const listedNames = (names: string[]): string => listed(names.toSorted((a, b) => a.localeCompare(b)));
 
 const rooms: Command = {
   name: "rooms",
@@ -66,7 +63,7 @@ const roomsNew: Command = {
     try {
       const members = membersNamed(reached.members, named);
       const room = valueOf(await reached.chat.createRoom({ name, members: members.map((member) => member.id) }, contextOf()));
-      io.out(`Made the room ${roomLabel(room.name)} with ${listedNames(room.members.map((member) => member.name))}.`);
+      io.out(`Made the room ${roomLabel(room.name)} with ${listed(memberNames(room.members))}.`);
       return 0;
     } finally {
       await reached.close();
@@ -98,13 +95,13 @@ const roomsAdd: Command = {
       await onChannel(reached.client, room.id, async (held) =>
         valueOf(await held.addMembers({ members: members.map((member) => member.id) }, contextOf())),
       );
-      const newcomers = members.filter((member) => !there.has(member.id)).map((member) => member.name);
-      const before = members.filter((member) => there.has(member.id)).map((member) => member.name);
+      const newcomers = members.filter((member) => !there.has(member.id));
+      const before = members.filter((member) => there.has(member.id));
       if (newcomers.length === 0) {
-        io.out(`${listedNames(before)} ${before.length === 1 ? "is" : "are"} in ${roomLabel(room.name)} already.`);
+        io.out(`${listed(memberNames(before))} ${before.length === 1 ? "is" : "are"} in ${roomLabel(room.name)} already.`);
       } else {
-        const already = before.length === 0 ? "" : ` ${listedNames(before)} ${before.length === 1 ? "was" : "were"} in it already.`;
-        io.out(`Added ${listedNames(newcomers)} to ${roomLabel(room.name)}.${already}`);
+        const already = before.length === 0 ? "" : ` ${listed(memberNames(before))} ${before.length === 1 ? "was" : "were"} in it already.`;
+        io.out(`Added ${listed(memberNames(newcomers))} to ${roomLabel(room.name)}.${already}`);
       }
       return 0;
     } finally {

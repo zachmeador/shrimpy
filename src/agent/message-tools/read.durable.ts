@@ -1,6 +1,6 @@
 import { int, obj, opt, str } from "@earendil-works/pi-schema";
 import { defineTool } from "@earendil-works/pi-durable";
-import type { Message } from "../../contracts/chat/index.ts";
+import { type Message, namer } from "../../contracts/chat/index.ts";
 import { answer, failure } from "../host/durable.ts";
 import { standing } from "../inputs/index.ts";
 import { callSignal, type ChatCalls, chatFailure } from "../links/index.ts";
@@ -58,7 +58,7 @@ export function readMessages(options: MessageToolsOptions) {
         const oldest = shown[0];
         if (oldest === undefined) return answer(words.nothingToRead(place.label, before !== undefined));
 
-        const nameOf = namer(live.chat, shown);
+        const nameOf = reactorNames(live.chat, shown);
         const text = shown.map((message) => standing(message, nameOf)).join("\n\n");
         const lines = [words.readHeader(place.label), "", text];
         if (older) lines.push("", words.olderMessages(oldest.seq, from));
@@ -75,10 +75,9 @@ export function readMessages(options: MessageToolsOptions) {
  * What the members who reacted are called. Reactions name members by ID, and
  * the channel knows their names, so it is asked only when there is a reaction.
  */
-function namer(chat: ChatCalls, messages: Message[]): (memberId: string) => string {
+function reactorNames(chat: ChatCalls, messages: Message[]): (memberId: string) => string {
   const first = messages[0];
-  if (first === undefined || messages.every((message) => message.reactions.length === 0)) return (memberId) => memberId;
-  const channel = chat.channels().find((each) => each.id === first.channelId);
-  const names = new Map(channel?.members.map((member) => [member.id, member.name]));
-  return (memberId) => names.get(memberId) ?? memberId;
+  const reacted = messages.some((message) => message.reactions.length > 0);
+  const channel = first === undefined || !reacted ? undefined : chat.channels().find((each) => each.id === first.channelId);
+  return namer(channel?.members ?? []);
 }

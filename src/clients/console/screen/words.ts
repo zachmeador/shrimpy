@@ -24,6 +24,7 @@ import {
   type Channel,
   channelLabel,
   DM_TAKES_NO_MORE,
+  memberNames,
   notTalkedTo,
   roomLabel,
 } from "../../../contracts/chat/index.ts";
@@ -261,17 +262,13 @@ export const newRoomThreadHint = (room: string): string => `New thread in ${room
 /** The word on a row of the first screen for a room that the person is not in and only reads. */
 export const READ_ONLY_TAG = "read-only";
 
-/** The names of a channel's members, in alphabetical order, each on one line. */
-const memberNames = (channel: Pick<Channel, "members">): string[] =>
-  channel.members.map((member) => oneLine(member.name)).sort((a, b) => a.localeCompare(b));
-
 /**
  * What the first screen says of a room the person only reads: that it is only
  * read, which comes first so that a narrow terminal does not cut it, then its
  * members, and whether anyone is working in it.
  */
 export function readOnlyDetail(room: Pick<Channel, "members">, working: boolean): string {
-  return [READ_ONLY_TAG, memberNames(room).join(", "), working ? "working" : ""].filter((part) => part !== "").join(" · ");
+  return [READ_ONLY_TAG, memberNames(room.members).join(", "), working ? "working" : ""].filter((part) => part !== "").join(" · ");
 }
 
 /**

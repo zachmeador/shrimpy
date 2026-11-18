@@ -332,8 +332,8 @@ export interface RoomEntry {
   /** The room's channel ID. */
   id: string;
   name: string;
-  /** The names of its members but the person's own, in alphabetical order. */
-  members: string[];
+  /** Its members but the person. */
+  members: Member[];
   /** Whether anyone is working in a thread of the room. */
   working: boolean;
 }
@@ -344,10 +344,7 @@ export function roomEntries(model: Pick<Model, "me" | "rooms">): RoomEntry[] {
     .map(({ channel, threads }) => ({
       id: channel.id,
       name: channel.name,
-      members: channel.members
-        .filter((member) => member.id !== model.me?.id)
-        .map((member) => member.name)
-        .sort((a, b) => a.localeCompare(b)),
+      members: channel.members.filter((member) => member.id !== model.me?.id),
       working: threads.some((thread) => thread.working.length > 0),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));

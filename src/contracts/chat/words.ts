@@ -80,6 +80,10 @@ export function roomWord(name: string): string {
 export const addToRoom = (room: string, member: string | undefined): string =>
   `shrimpy rooms add ${roomWord(room)} ${member === undefined ? "<your name>" : shellWord(oneLine(member))}`;
 
+/** The names of `members`, each on one line, in alphabetical order. */
+export const memberNames = (members: readonly { readonly name: string }[]): string[] =>
+  members.map((member) => oneLine(member.name)).sort((a, b) => a.localeCompare(b));
+
 /** Why a DM can't be joined. */
 export const DM_TAKES_NO_MORE = "A DM has two members and takes no more.";
 
@@ -92,5 +96,5 @@ export const DM_TAKES_NO_MORE = "A DM has two members and takes no more.";
 export function channelLabel(channel: Pick<Channel, "kind" | "name" | "members">, you?: string): string {
   if (channel.kind === "room") return roomLabel(channel.name);
   if (channel.members.some((member) => member.id === you)) return `your DM with ${oneLine(channel.name)}`;
-  return `DM between ${listed(channel.members.map((member) => oneLine(member.name)).sort((a, b) => a.localeCompare(b)))}`;
+  return `DM between ${listed(memberNames(channel.members))}`;
 }

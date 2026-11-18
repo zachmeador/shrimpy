@@ -1,4 +1,4 @@
-import { type Channel, roomLabel } from "../../contracts/chat/index.ts";
+import { type Channel, memberNames, roomLabel } from "../../contracts/chat/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { renderTable } from "./table.ts";
 
@@ -13,10 +13,7 @@ export function renderRooms(rooms: RoomListing[]): string[] {
   const rows = rooms.map(({ room, updatedAt }) => [
     roomLabel(room.name),
     localTime(updatedAt),
-    room.members
-      .map((member) => member.name)
-      .sort((a, b) => a.localeCompare(b))
-      .join(", "),
+    memberNames(room.members).join(", "),
   ]);
   return renderTable(["room", "updated", "members"], rows);
 }
