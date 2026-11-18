@@ -6,6 +6,7 @@ import {
   holding,
   type Member,
   needsAdmin,
+  NO_GATEWAY,
   type Principal,
   type Revocation,
   type RosterEntry,
@@ -13,7 +14,7 @@ import {
 } from "../../contracts/gateway/index.ts";
 import type { Client } from "../../contracts/gateway/node.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import { GatewayNotRunningError, linkAs, NO_GATEWAY, viewOf } from "./gateway.ts";
+import { GatewayNotRunningError, linkAs, viewOf } from "./gateway.ts";
 import { me } from "./me.ts";
 
 /** An agent a command reached: the host that holds its objects, and the name they are at. */

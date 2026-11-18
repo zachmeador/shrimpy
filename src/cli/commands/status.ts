@@ -1,12 +1,12 @@
 import { parseArgs } from "node:util";
-import { type Address, type Program } from "../../contracts/gateway/index.ts";
+import { type Address, GATEWAY_NOT_RUNNING, NO_GATEWAY, type Program } from "../../contracts/gateway/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import { listed } from "../../lib/text/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { folderPath } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { thisAccount } from "../service/index.ts";
-import { askLocalGateway, GatewayNotRunningError, NO_GATEWAY } from "../talk/index.ts";
+import { askLocalGateway } from "../talk/index.ts";
 import { planUp } from "../up/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
@@ -33,7 +33,7 @@ const status: Command = {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     expectArguments(positionals, []);
     const inspected = await askLocalGateway();
-    if (inspected === undefined) return noGatewayHere(io, new GatewayNotRunningError());
+    if (inspected === undefined) return noGatewayHere(io);
     const { programs, members, version } = inspected;
     warnIfVersionDiffers(io, "the gateway", version);
     for (const line of renderPrograms(programs, SHRIMPY_VERSION)) io.out(line);
@@ -65,7 +65,7 @@ function gatewaysElsewhere(): Address[] {
  * belong to a gateway elsewhere and none is meant to run here, where theirs is. The line on the service comes after
  * either. Exits 1.
  */
-async function noGatewayHere(io: Io, error: GatewayNotRunningError): Promise<number> {
+async function noGatewayHere(io: Io): Promise<number> {
   const elsewhere = gatewaysElsewhere();
   const where = listed(elsewhere.map(formatAddress));
   if (elsewhere.length === 0) {
@@ -73,9 +73,9 @@ async function noGatewayHere(io: Io, error: GatewayNotRunningError): Promise<num
   } else {
     io.err(
       elsewhere.length === 1
-        ? `${error.message} The agents in your Shrimpy folder belong to the gateway at ${where}, so Shrimpy starts none here. ` +
+        ? `${GATEWAY_NOT_RUNNING} The agents in your Shrimpy folder belong to the gateway at ${where}, so Shrimpy starts none here. ` +
             "To see what runs there, run shrimpy status on that machine."
-        : `${error.message} The agents in your Shrimpy folder belong to the gateways at ${where}, so Shrimpy starts none here. ` +
+        : `${GATEWAY_NOT_RUNNING} The agents in your Shrimpy folder belong to the gateways at ${where}, so Shrimpy starts none here. ` +
             "To see what runs there, run shrimpy status on each of those machines.",
     );
   }

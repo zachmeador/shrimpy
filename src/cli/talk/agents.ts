@@ -1,8 +1,7 @@
 import { findMember, type Member } from "../../contracts/chat/index.ts";
-import type { Program } from "../../contracts/gateway/index.ts";
+import { NO_AGENT_YET, type Program, startAgent } from "../../contracts/gateway/index.ts";
 import { listed } from "../../lib/text/index.ts";
 import { lookForHome } from "../folder/index.ts";
-import { START_EVERYTHING } from "./hints.ts";
 
 /**
  * The member called `name` on the roster, whatever the case. A name is the only
@@ -33,13 +32,10 @@ export function membersNamed(members: readonly Member[], names: string[]): Membe
 }
 
 function nobodyCalled(members: readonly Member[], names: string[]): Error {
+  const nobody = `Nobody called ${listed(names, "or")} is on the roster.`;
   const agents = members.filter((member) => member.kind === "agent").map((member) => member.name);
-  const others = agents.length === 0 ? "No agent has joined yet." : `The agents are: ${agents.join(", ")}.`;
-  const who = listed(names, "or");
-  return new Error(
-    `Nobody called ${who} is on the roster. ${others} ` +
-      "An agent joins when it first runs: shrimpy agent serve <agent>",
-  );
+  if (agents.length === 0) return new Error(`${nobody} ${NO_AGENT_YET}`);
+  return new Error(`${nobody} The agents are: ${agents.join(", ")}. An agent joins when it first runs: shrimpy agent serve <agent>`);
 }
 
 /** The agent called `name` on the roster. A person called that is an error that says so. */
@@ -59,11 +55,5 @@ export function agentNamed(members: readonly Member[], name: string): Member {
 export function runningAgent(programs: readonly Program[], agent: Member): Program {
   const linked = programs.findLast((program) => program.kind === "agent" && program.member === agent.id);
   if (linked !== undefined) return linked;
-  const { found, where } = lookForHome(agent.name);
-  throw new Error(
-    `The agent ${agent.name} is on the roster but is not running. ` +
-      (found
-        ? `Start it with: shrimpy agent serve ${agent.name}, or start everything with: ${START_EVERYTHING}`
-        : `It has no home in ${where}, so it lives somewhere else: start it where it lives.`),
-  );
+  throw new Error(`The agent ${agent.name} is on the roster but is not running. ${startAgent(agent.name, lookForHome(agent.name))}`);
 }

@@ -3,10 +3,11 @@
  * addresses, who is asking, a method's answer and refusal, calling a method of
  * another program's object, the hello every caller says before Chord, the
  * roster as `Roster`, and as a program holds it live, the rule for a name and
- * how names are compared, and the invitation's link with what a machine of
- * yours keeps. It must not know what the programs say to each other through the
- * gateway. This door is safe for browsers; `node.ts` adds linking, which needs
- * Node.
+ * how names are compared, the invitation's link with what a machine of yours
+ * keeps, and what every client tells a person to start when the gateway, the
+ * chat server or an agent isn't linked. It must not know what the programs say
+ * to each other through the gateway. This door is safe for browsers; `node.ts`
+ * adds linking, which needs Node.
  */
 export { type Address, type Entry, readAddress, readEntry } from "./address.ts";
 export {
@@ -51,3 +52,4 @@ export {
   type WayIn,
 } from "./roster.ts";
 export { isToken } from "./token.ts";
+export { GATEWAY_NOT_RUNNING, NO_AGENT_YET, NO_CHAT_SERVER, NO_GATEWAY, startAgent } from "./words.ts";

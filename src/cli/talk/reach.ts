@@ -1,13 +1,12 @@
 import type { Reference } from "@earendil-works/chord";
 import { Chat, type Member } from "../../contracts/chat/index.ts";
-import { contextOf, type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
+import { contextOf, NO_CHAT_SERVER, NO_GATEWAY, type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
 import type { Client } from "../../contracts/gateway/node.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import type { Io } from "../io/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
-import { GatewayNotRunningError, linkAs, NO_GATEWAY, viewOf } from "./gateway.ts";
-import { START_EVERYTHING } from "./hints.ts";
+import { GatewayNotRunningError, linkAs, viewOf } from "./gateway.ts";
 import { me } from "./me.ts";
 
 /** How long a command waits for the chat server to answer, once the gateway lists it. */
@@ -55,12 +54,7 @@ export async function reachChat(io: Io, signal?: AbortSignal): Promise<Reached> 
     warnIfVersionDiffers(io, "the gateway", listing.version);
     const server = listing.programs.findLast((program) => program.kind === "chat");
     if (server === undefined) {
-      throw new Error(
-        who.entry === undefined
-          ? "No chat server is linked to this machine's gateway. " +
-              `Start one with: shrimpy chat serve <data-dir>, or start everything with: ${START_EVERYTHING}`
-          : `No chat server is linked to the gateway at ${formatAddress(who.entry)}.`,
-      );
+      throw new Error(who.entry === undefined ? NO_CHAT_SERVER : `No chat server is linked to the gateway at ${formatAddress(who.entry)}.`);
     }
     warnIfVersionDiffers(io, "the chat server", server.shrimpy);
     let chat: Reference<typeof Chat>;

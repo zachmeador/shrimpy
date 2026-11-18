@@ -1,7 +1,7 @@
 import { parseArgs } from "node:util";
-import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
+import { contextOf, NO_GATEWAY, valueOf } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
-import { askGateway, memberNamed, NO_GATEWAY, onRoster, withGatewayAsMe } from "../talk/index.ts";
+import { askGateway, memberNamed, onRoster, withGatewayAsMe } from "../talk/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderMembers } from "./render-members.ts";

@@ -9,6 +9,7 @@ import {
   type Thread,
   titleOf,
 } from "../../../contracts/chat/index.ts";
+import { NO_AGENT_YET } from "../../../contracts/gateway/index.ts";
 import { oneLine, plain } from "../../../lib/plain/index.ts";
 import {
   agentEntries,
@@ -29,7 +30,6 @@ import {
   agentDetail,
   agentNote,
   agentsTitle,
-  AGENTS_EMPTY,
   agentStatusRows,
   agentTitle,
   type Can,
@@ -261,7 +261,7 @@ function agentsScreen(model: Model, inFull: InFull): AgentsScreen {
     title: agentsTitle(),
     stale: model.gateway.state === "down" && model.listing !== undefined,
     rows,
-    empty: rows.length === 0 && model.gateway.state === "up" && model.listing !== undefined ? AGENTS_EMPTY : undefined,
+    empty: rows.length === 0 && model.gateway.state === "up" && model.listing !== undefined ? NO_AGENT_YET : undefined,
     notes: notesOf(model, undefined),
     keys: keyHints("agents", can, inFull),
     can,

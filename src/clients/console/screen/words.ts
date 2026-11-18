@@ -18,7 +18,7 @@ import {
   wakeupWords,
 } from "../../../contracts/agent/index.ts";
 import { AGENT_COMMANDS, type AgentCommand, type Channel, roomLabel } from "../../../contracts/chat/index.ts";
-import { versionWarning } from "../../../contracts/gateway/index.ts";
+import { NO_CHAT_SERVER, NO_GATEWAY, startAgent, versionWarning } from "../../../contracts/gateway/index.ts";
 import { oneLine } from "../../../lib/plain/index.ts";
 import { listed, shellWord, withoutPeriod } from "../../../lib/text/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
@@ -29,17 +29,14 @@ import { shortLine } from "./cut.ts";
 
 /*
  * Every sentence the console says, in one place, but for what it says of a
- * session, a receipt, what a thread or a channel is called and a program of
- * another version, which it takes from the contracts as the commands do, and
- * frames here. They are plain and short, in the voice of the commands:
+ * session, a receipt, what a thread or a channel is called, what to start and a
+ * program of another version, which it takes from the contracts as the commands
+ * do, and frames here. They are plain and short, in the voice of the commands:
  * what happened, and what to do next. Where the commands already say it, the
  * console says it the same way. A name, an ID or a message that came from
  * another program is put on one line and made harmless here, whoever calls,
  * so no sentence can carry anything else.
  */
-
-/** The command that starts everything a conversation needs, as the commands name it. */
-const START_EVERYTHING = "shrimpy up";
 
 /** The command a person writes in a thread to stop the work there. */
 const STOP: AgentCommand = "stop";
@@ -62,7 +59,7 @@ const CHAT = "the chat server";
 export function gatewayNote(why: Why): string | undefined {
   switch (why.kind) {
     case "not-running":
-      return `No gateway is running on this machine. Start Shrimpy with: ${START_EVERYTHING}`;
+      return NO_GATEWAY;
     case "refused":
       return `The gateway turned this terminal away: ${oneLine(why.words)}`;
     case "unproven":
@@ -81,7 +78,7 @@ export function gatewayNote(why: Why): string | undefined {
 export function chatNote(why: Why): string | undefined {
   switch (why.kind) {
     case "not-linked":
-      return `No chat server is linked to this machine's gateway. Start one with: shrimpy chat serve <data-dir>, or start everything with: ${START_EVERYTHING}`;
+      return NO_CHAT_SERVER;
     case "lost":
       return "Lost the connection to the chat server. What is shown may be out of date, and nothing can be sent. Trying again.";
     case "unreachable":
@@ -109,9 +106,7 @@ export function agentNote(
   const name = oneLine(agent);
   switch (why.kind) {
     case "not-linked":
-      return home?.found === false
-        ? `No agent named ${name} is linked to this machine's gateway. It has no home in ${oneLine(home.where)}, so it lives somewhere else: start it where it lives.`
-        : `No agent named ${name} is linked to this machine's gateway. Start it with: shrimpy agent serve ${name}, or start everything with: ${START_EVERYTHING}`;
+      return `No agent named ${name} is linked to this machine's gateway. ${startAgent(agent, home)}`;
     case "lost":
       return looking === "work"
         ? `Lost the connection to ${name}. The work shown may be out of date. Trying again.`
@@ -217,7 +212,6 @@ export function farewellLine(agentName: string, threadId: string): string {
   );
 }
 
-export const AGENTS_EMPTY = `No agent has joined this machine's roster yet. Start one with: shrimpy agent serve <agent>, or start everything with: ${START_EVERYTHING}`;
 export const THREAD_EMPTY = "No messages yet.";
 export const DELETED = "This message was deleted.";
 

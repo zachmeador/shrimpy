@@ -1,23 +1,25 @@
-import { contextOf, type Member, type Program, Roster, type RosterEntry } from "../../contracts/gateway/index.ts";
+import {
+  contextOf,
+  GATEWAY_NOT_RUNNING,
+  type Member,
+  NO_GATEWAY,
+  type Program,
+  Roster,
+  type RosterEntry,
+} from "../../contracts/gateway/index.ts";
 import { type Client, connectClient, gatewaySocket, HelloRefusedError, UnprovenGatewayError } from "../../contracts/gateway/node.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import { type DialPlace, nobodyThere } from "../../lib/link/node.ts";
-import { START_EVERYTHING } from "./hints.ts";
 import { type Me, me } from "./me.ts";
-
-const NOT_RUNNING = "No gateway is running on this machine.";
 
 /** Nothing is listening for the gateway on this machine. */
 export class GatewayNotRunningError extends Error {
   constructor(options?: ErrorOptions) {
-    super(NOT_RUNNING, options);
+    super(GATEWAY_NOT_RUNNING, options);
     this.name = "GatewayNotRunningError";
   }
 }
-
-/** What a command says when it needs the gateway on this machine and none is running: that, and how to start Shrimpy. */
-export const NO_GATEWAY = `${NOT_RUNNING} Start Shrimpy with: ${START_EVERYTHING}`;
 
 /** What the gateway says is linked and who is on its roster. */
 export interface GatewayView {
