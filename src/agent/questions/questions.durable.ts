@@ -1,8 +1,7 @@
 import type { Context } from "@earendil-works/chord/context";
 import { defineExtension, defineTask, type Extension, type ToolExecutionApi } from "@earendil-works/pi-durable";
-import { asError } from "../../lib/errors/index.ts";
 import { localTime } from "../../lib/time/index.ts";
-import { tasksOfKind } from "../host/durable.ts";
+import { failTask, tasksOfKind } from "../host/durable.ts";
 import type { Breadcrumb, Question } from "../inputs/index.ts";
 import { QuestionsDoc } from "../records/durable.ts";
 import type { TurnTask } from "../turns/durable.ts";
@@ -74,15 +73,9 @@ export function createQuestions(turn: TurnTask, options: QuestionsOptions): Ques
             return { status: "terminal", outcome: { status: "completed", result: null } };
           }, context);
         } catch (error) {
-          // The engine is closing, or the task was aborted: the engine ends the phase and carries on from the checkpoint.
-          if (runtime.signal.aborted) throw error;
-          const message = asError(error).message;
+          const what = `The question asked of ${question.of.name} at ${localTime(question.askedAt)} could not be closed`;
           // The question is closed all the same, since nothing else would: it has no time left, and would keep a place.
-          await runtime.commit(async (tx) => {
-            await forgetQuestion(tx, question.id);
-            return { status: "terminal", outcome: { status: "failed", error: { message } } };
-          }, context);
-          options.onError(new Error(`The question asked of ${question.of.name} at ${localTime(question.askedAt)} could not be closed: ${message}`));
+          await failTask(runtime, context, error, options, what, (tx) => forgetQuestion(tx, question.id));
         }
       },
     },

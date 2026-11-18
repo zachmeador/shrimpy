@@ -1,8 +1,8 @@
 import type { Context } from "@earendil-works/chord/context";
 import { defineTask, type TaskRuntime, type Tx } from "@earendil-works/pi-durable";
 import type { Check } from "../../contracts/agent/index.ts";
-import { asError } from "../../lib/errors/index.ts";
 import { localTime } from "../../lib/time/index.ts";
+import { failTask } from "../host/durable.ts";
 import { type StoredTrigger, TriggersDoc } from "../records/durable.ts";
 import { errorsOf, runCheck } from "./check.durable.ts";
 import { recordInterrupted, settle } from "./occurrence.durable.ts";
@@ -41,16 +41,9 @@ export function runTask(options: TriggerTaskOptions) {
     return Object.hasOwn(triggers, name) ? triggers[name] : undefined;
   };
 
-  /**
-   * The occurrence could not be made, and nothing runs the check again: the task ends, and the failure is reported.
-   * Rethrown when the engine is closing or the task was aborted, which ends the phase to carry on from the checkpoint.
-   */
-  const gaveUp = async (runtime: TaskRuntime<Asked, Ran, null, object>, context: Context, asked: Asked, error: unknown) => {
-    if (runtime.signal.aborted) throw error;
-    const message = asError(error).message;
-    await runtime.commit(() => ({ status: "terminal", outcome: { status: "failed", error: { message } } }), context);
-    options.onError(new Error(`The trigger ${asked.name} could not make the occurrence that was run by hand at ${localTime(asked.firedAt)}: ${message}`));
-  };
+  /** The occurrence could not be made, and nothing runs the check again: the task ends, and the failure is reported. */
+  const gaveUp = (runtime: TaskRuntime<Asked, Ran, null, object>, context: Context, asked: Asked, error: unknown) =>
+    failTask(runtime, context, error, options, `The trigger ${asked.name} could not make the occurrence that was run by hand at ${localTime(asked.firedAt)}`);
 
   return defineTask<Asked, Ran, null>({
     name: RUN_TASK,

@@ -1,6 +1,7 @@
 import type { Context } from "@earendil-works/chord/context";
 import type { JsonValue } from "@earendil-works/chord/json";
-import type { ConversationId, Cursor, Harness, TaskRecord, Tx } from "@earendil-works/pi-durable";
+import type { ConversationId, Cursor, Harness, TaskRecord, TaskRuntime, Tx } from "@earendil-works/pi-durable";
+import { asError } from "../../lib/errors/index.ts";
 
 /** What a scan of tasks reads from: the commit it is part of, or one that makes a commit of its own for each page. */
 export type TaskScanner = Pick<Tx, "scanTasks">;
@@ -46,4 +47,29 @@ export async function endTasks(harness: Harness, conversationId: ConversationId,
     .map(({ record }) => record.id);
   for (const id of ending) await harness.abortTask(id, context);
   for (const id of ending) await harness.waitForTask(id, context);
+}
+
+/**
+ * End the task that `runtime` runs as failed, in one commit with whatever
+ * `also` writes, and tell `told` that `what` could not be done, with the message
+ * of `error` as why. When the engine is closing or the task was aborted, `error`
+ * is thrown again instead: the engine ends the phase and carries on from the
+ * checkpoint. A task being aborted refuses the commit too, and then nothing went
+ * wrong that needs reporting.
+ */
+export async function failTask<I, S, R, H extends object>(
+  runtime: TaskRuntime<I, S, R, H>,
+  context: Context,
+  error: unknown,
+  told: { onError(error: Error): void },
+  what: string,
+  also?: (tx: Tx) => Promise<void>,
+): Promise<void> {
+  if (runtime.signal.aborted) throw error;
+  const message = asError(error).message;
+  await runtime.commit(async (tx) => {
+    await also?.(tx);
+    return { status: "terminal", outcome: { status: "failed", error: { message } } };
+  }, context);
+  told.onError(new Error(`${what}: ${message}`));
 }
