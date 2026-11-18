@@ -1,6 +1,7 @@
 import type { LeftOut } from "../../lib/files/index.ts";
 import { readText, saveFile } from "../../lib/files/node.ts";
 import { ConfigError } from "../../lib/json-config/index.ts";
+import { withoutPeriod } from "../../lib/text/index.ts";
 import { nameKey } from "../gateway/index.ts";
 import type { HomePaths } from "./layout.node.ts";
 import { loadHome } from "./load.node.ts";
@@ -22,7 +23,7 @@ export async function readWake(paths: HomePaths): Promise<WakeRead> {
   } catch (error) {
     if (!(error instanceof ConfigError)) throw error;
     // The message names the file and ends with a full stop; a left-out file's reason finishes "<file> was left out: ".
-    return { kind: "left out", leftOut: { file: FILE, reason: error.message.replace(`${paths.wake}: `, "").replace(/\.$/, "") } };
+    return { kind: "left out", leftOut: { file: FILE, reason: withoutPeriod(error.message.replace(`${paths.wake}: `, "")) } };
   }
 }
 

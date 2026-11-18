@@ -1,4 +1,4 @@
-import { asSentence, singleSpaced } from "../../lib/text/index.ts";
+import { asSentence, singleSpaced, withoutPeriod } from "../../lib/text/index.ts";
 import type { FailureReason } from "./shapes.ts";
 
 /**
@@ -44,6 +44,6 @@ export function failureWords(reason: FailureReason, detail: string | null): stri
     case "other":
       return detail === null || detail.trim() === ""
         ? "The turn ended without an answer."
-        : `The turn ended without an answer (${detailSentence(detail).replace(/\.$/, "")}).`;
+        : `The turn ended without an answer (${withoutPeriod(detailSentence(detail))}).`;
   }
 }

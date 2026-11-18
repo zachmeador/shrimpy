@@ -1,6 +1,7 @@
 import { parseArgs } from "node:util";
 import { type Message, Thread } from "../../contracts/chat/index.ts";
 import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
+import { withoutPeriod } from "../../lib/text/index.ts";
 import { type Reached, reachChat } from "../talk/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import type { Command } from "./command.ts";
@@ -54,7 +55,7 @@ async function wholeThread(reached: Reached, threadId: string): Promise<{ thread
     // this far, so every refusal of a thread here is one that the threads of a conversation can help with.
     const refusal = held.refusal.value;
     if (refusal !== null) {
-      throw new Error(`${refusal.words.replace(/\.$/, "")}. See the threads of a conversation with: shrimpy threads <member|#room>`);
+      throw new Error(`${withoutPeriod(refusal.words)}. See the threads of a conversation with: shrimpy threads <member|#room>`);
     }
     const thread = held.thread.value;
     if (thread === null) throw new Error(`Chat did not say what thread ${threadId} is.`);

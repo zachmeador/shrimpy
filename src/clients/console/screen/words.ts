@@ -20,7 +20,7 @@ import {
 import { AGENT_COMMANDS, type AgentCommand, type Channel, roomLabel } from "../../../contracts/chat/index.ts";
 import { versionWarning } from "../../../contracts/gateway/index.ts";
 import { oneLine } from "../../../lib/plain/index.ts";
-import { listed, shellWord } from "../../../lib/text/index.ts";
+import { listed, shellWord, withoutPeriod } from "../../../lib/text/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import type { Problem, Why } from "../network/index.ts";
@@ -137,7 +137,7 @@ export const versionNote = (what: string, version: string): string | undefined =
 /** Why something could not be done, as the end of a sentence. */
 function because(program: Program, problem: Problem): string {
   const who = program.kind === "chat" ? CHAT : program.kind === "gateway" ? "the gateway" : oneLine(program.name);
-  if ("said" in problem) return oneLine(problem.said).replace(/\.$/, "");
+  if ("said" in problem) return withoutPeriod(oneLine(problem.said));
   switch (problem.down.kind) {
     case "connecting":
       return `not connected to ${who} yet`;
@@ -148,11 +148,11 @@ function because(program: Program, problem: Problem): string {
     case "not-running":
       return "no gateway is running";
     case "refused":
-      return `the gateway turned this terminal away: ${oneLine(problem.down.words).replace(/\.$/, "")}`;
+      return `the gateway turned this terminal away: ${withoutPeriod(oneLine(problem.down.words))}`;
     case "unproven":
-      return oneLine(problem.down.words).replace(/\.$/, "");
+      return withoutPeriod(oneLine(problem.down.words));
     case "unreachable":
-      return oneLine(problem.down.message).replace(/\.$/, "");
+      return withoutPeriod(oneLine(problem.down.message));
   }
 }
 

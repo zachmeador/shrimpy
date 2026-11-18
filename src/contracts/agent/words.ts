@@ -1,4 +1,5 @@
 import { oneLine } from "../../lib/plain/index.ts";
+import { withoutPeriod } from "../../lib/text/index.ts";
 import { roomLabel } from "../chat/index.ts";
 import type {
   AnswerEnding,
@@ -109,4 +110,4 @@ export function usageWords(usage: SessionStatus["usage"]): string {
 
 /** A wake-up a session waits on: when it comes, as `when` writes it, and the note it brings. */
 export const wakeupWords = (wakeup: WaitingWakeup, when: string): string =>
-  `Checks back at ${when}: ${oneLine(wakeup.note).replace(/\.$/, "")}`;
+  `Checks back at ${when}: ${withoutPeriod(oneLine(wakeup.note))}`;
