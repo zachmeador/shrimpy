@@ -46,6 +46,9 @@ export type SessionShown = { made: boolean; window: SessionPage; status: Session
 
 const NOT_MADE: SessionShown = { made: false, window: { items: [], before: null }, status: null };
 
+/** What a caller is told of a session the agent has not made yet. */
+export const noSessionYet = (address: string): string => `This agent has no session for ${address} yet.`;
+
 /** A session as clients see it, from the engine's view of it, or null before it is made, the wake-ups it waits on and the home's model. */
 export function shownOf(view: ConversationView | null, wakeups: readonly WaitingWakeup[], home: ModelRef): SessionShown {
   return view === null ? NOT_MADE : { made: true, window: windowOf(view), status: statusOf(view, home, wakeups) };
@@ -122,7 +125,7 @@ export function createSessions(harness: Harness, start: SessionDefaults, models:
   const conversationOf = async (address: string, at: Context): Promise<Conversation> => {
     const session = await recordOf(address);
     const conversation = session === undefined ? undefined : await harness.conversation(session.conversationId as ConversationId, at);
-    if (conversation === undefined) refuse(`This agent has no session for ${address} yet.`);
+    if (conversation === undefined) refuse(noSessionYet(address));
     return conversation;
   };
   /** Be told after each commit that `relevant` picks, outside the commit, where the engine may be asked again. */
