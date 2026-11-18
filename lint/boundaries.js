@@ -31,7 +31,6 @@ const CHORD_MODULES = [
   "gateway/programs/",
   "gateway/served/",
   "chat/served/",
-  "chat/identity/",
   "agent/links/",
   "clients/console/network/",
   "cli/talk/",

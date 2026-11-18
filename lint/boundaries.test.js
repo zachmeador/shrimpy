@@ -75,7 +75,7 @@ tester.run("imports", importsRule, {
     allowed("gateway/index.ts", "@earendil-works/chord"),
     allowed("agent/served.ts", "@earendil-works/chord"),
     allowed("gateway/programs/programs.ts", "@earendil-works/chord/watch"),
-    allowed("chat/identity/roster.ts", "@earendil-works/chord"),
+    allowed("chat/served/facet.ts", "@earendil-works/chord"),
     allowed("agent/links/chat.ts", "@earendil-works/chord"),
     allowed("clients/console/network/link.ts", "@earendil-works/chord"),
     allowed("cli/talk/objects.ts", "@earendil-works/chord"),
