@@ -12,6 +12,7 @@ import { asError } from "../../lib/errors/index.ts";
 import type { LeftOut } from "../../lib/files/index.ts";
 import { ConfigError } from "../../lib/json-config/index.ts";
 import { listed, upTo } from "../../lib/text/index.ts";
+import { builtinProviders } from "./builtin-providers.ts";
 import { credentialStore, NO_AMBIENT_AUTH } from "./credentials.ts";
 import { type CustomApi, type CustomProvider, readCustomProviders } from "./custom-providers.ts";
 
@@ -176,9 +177,7 @@ export async function buildModels(options: ModelRuntimeOptions): Promise<ModelRu
   // A file that doesn't fit stops the start here, naming itself, and not at the first request.
   await credentials.list();
   const models = createModels({ credentials, authContext: NO_AMBIENT_AUTH });
-  // Loaded here because it brings in every provider's model list.
-  const { builtinProviders } = await import("@earendil-works/pi-ai/providers/all");
-  const builtin = new Map(builtinProviders().map((provider) => [provider.id, provider]));
+  const builtin = new Map((await builtinProviders()).map((provider) => [provider.id, provider]));
   for (const provider of builtin.values()) models.setProvider(provider);
 
   /** The providers that the models.json files declared when they were last read, which are set on `models`. */

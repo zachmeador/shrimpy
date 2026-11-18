@@ -5,6 +5,7 @@ import { type AuthEvent, type AuthPrompt, createModels, ModelsError, type Provid
 import { type ProviderPaths, providerPaths } from "../../contracts/agent/node.ts";
 import { codeOf } from "../../lib/files/index.ts";
 import { saveFile } from "../../lib/files/node.ts";
+import { builtinProviders } from "./builtin-providers.ts";
 import { credentialStore, NO_AMBIENT_AUTH } from "./credentials.ts";
 import { CHECKED_SUBSCRIPTIONS, type Withheld, whyWithheld } from "./subscriptions.ts";
 
@@ -90,9 +91,7 @@ const SIGNS_IN_AS = "Shrimpy";
 
 /** Sign in to Pi's own providers, keeping what is signed in to in the `providers/` directory at `providers`. */
 export async function openSignIns(providers: string): Promise<SignIns> {
-  // Loaded here because it brings in every provider's model list.
-  const { builtinProviders } = await import("@earendil-works/pi-ai/providers/all");
-  return signInsOver(builtinProviders(), providers);
+  return signInsOver(await builtinProviders(), providers);
 }
 
 /** `openSignIns` with the providers to offer given, which a test makes up, and the providers whose subscription is offered. */
