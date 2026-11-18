@@ -12,7 +12,7 @@ import {
   type Snapshot,
   type Wakeup,
 } from "../inputs/index.ts";
-import { plain, type SessionRecord } from "./documents.durable.ts";
+import { copyOf, type SessionRecord } from "./documents.durable.ts";
 
 /*
  * What a session keeps in its record for its next input, because the model has
@@ -33,21 +33,21 @@ const digestOf = (text: string): string => createHash("sha256").update(text).dig
 
 /** The chat events kept for the session's next chat event, oldest first. The session keeps none afterwards. */
 export function takeEvents(session: SessionRecord): Snapshot[] {
-  const events = plain(session.unacted);
+  const events = copyOf(session.unacted);
   session.unacted = [];
   return events;
 }
 
 /** The wake-ups kept as cancelled. The session keeps none afterwards. */
 export function takeCancelled(session: SessionRecord): Wakeup[] {
-  const cancelled = plain(session.cancelled);
+  const cancelled = copyOf(session.cancelled);
   if (cancelled.length > 0) session.cancelled = [];
   return cancelled;
 }
 
 /** The results of questions kept as missed, oldest question first. The session keeps none afterwards. */
 export function takeMissed(session: SessionRecord): CameBack[] {
-  const missed = plain(session.missed);
+  const missed = copyOf(session.missed);
   if (missed.length > 0) session.missed = [];
   return missed;
 }
@@ -87,7 +87,7 @@ export function carrying(
 
 /** Where the session's thread is, as a copy, or nothing for a session that has not learned it or is behind no thread. */
 export function keptPlace(session: SessionRecord): Place | undefined {
-  return session.channelId === null || session.place === undefined ? undefined : plain(session.place);
+  return session.channelId === null || session.place === undefined ? undefined : copyOf(session.place);
 }
 
 /**
@@ -97,20 +97,20 @@ export function keptPlace(session: SessionRecord): Place | undefined {
  */
 export function learnPlace(session: SessionRecord, place: Place): void {
   if (session.channelId === null) return;
-  if (session.place !== undefined && isDeepStrictEqual(plain(session.place), place)) return;
-  session.place = plain(place);
+  if (session.place !== undefined && isDeepStrictEqual(copyOf(session.place), place)) return;
+  session.place = copyOf(place);
 }
 
 /** Keep wake-ups as cancelled, each once, in the order they were for. */
 export function keepCancelled(session: SessionRecord, wakeups: readonly Wakeup[]): void {
-  const byId = new Map([...plain(session.cancelled), ...wakeups].map((wakeup) => [wakeup.id, wakeup]));
+  const byId = new Map([...copyOf(session.cancelled), ...wakeups].map((wakeup) => [wakeup.id, wakeup]));
   session.cancelled = [...byId.values()].sort((a, b) => a.due - b.due);
 }
 
 /** Keep results of questions as missed, each once, the question asked first coming first. */
 function keepMissed(session: SessionRecord, results: readonly CameBack[]): void {
   if (results.length === 0) return;
-  const byId = new Map([...plain(session.missed), ...results].map((each) => [each.question.id, each]));
+  const byId = new Map([...copyOf(session.missed), ...results].map((each) => [each.question.id, each]));
   session.missed = [...byId.values()].sort((a, b) => a.question.askedAt - b.question.askedAt);
 }
 
@@ -130,12 +130,12 @@ export function keepSkipped(session: SessionRecord, input: Outstanding): void {
   if (isWakeup(input)) keepCancelled(session, [input.wakeup]);
   else if (isQuestion(input)) keepMissed(session, [{ question: input.question, result: input.result }]);
   else if (isChat(input)) {
-    session.unacted = inOrder([...plain(session.unacted), ...input.earlier, ...(input.backlog?.messages ?? []), input.event]);
+    session.unacted = inOrder([...copyOf(session.unacted), ...input.earlier, ...(input.backlog?.messages ?? []), input.event]);
   }
   keepCancelled(session, input.cancelled);
   keepMissed(session, input.missed);
   if (input.breadcrumbs !== undefined) {
-    const shown = plain(session.shown);
+    const shown = copyOf(session.shown);
     const carried = new Map(input.breadcrumbs.files.map(({ name, text }) => [name, digestOf(text)]));
     session.shown = Object.fromEntries(Object.entries(shown).filter(([name, digest]) => carried.get(name) !== digest));
   }

@@ -4,7 +4,7 @@ import type { Check } from "../../contracts/agent/index.ts";
 import { nextOccurrence } from "../../contracts/agent/node.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { localTime } from "../../lib/time/index.ts";
-import { plain, type SessionDefaults, type StoredTrigger, TriggersDoc } from "../records/durable.ts";
+import { copyOf, type SessionDefaults, type StoredTrigger, TriggersDoc } from "../records/durable.ts";
 import type { Breadcrumb } from "../inputs/index.ts";
 import type { TurnTask } from "../turns/durable.ts";
 import { errorsOf, isNews, noteOf, runCheck } from "./check.durable.ts";
@@ -164,9 +164,9 @@ export function triggerTask(options: TriggerTaskOptions) {
             const { check } = found.definition;
             // A trigger with a check starts it, and makes its occurrence once it knows whether there is news.
             if (check !== undefined) {
-              return { status: "running", checkpoint: { phase: "check", revision, next, firedAt: now, check: plain(check) } } as const;
+              return { status: "running", checkpoint: { phase: "check", revision, next, firedAt: now, check: copyOf(check) } } as const;
             }
-            await fire(tx, { turn, defaults, breadcrumbs }, plain(found.definition), { due: next, firedAt: now, byHand: false }, where);
+            await fire(tx, { turn, defaults, breadcrumbs }, copyOf(found.definition), { due: next, firedAt: now, byHand: false }, where);
             return asleep(revision, nextOccurrence(found.definition.schedule, now));
           }, context);
         } catch (error) {

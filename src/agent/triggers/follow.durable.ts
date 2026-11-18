@@ -5,7 +5,7 @@ import { nextOccurrence, type TriggerFiles, type TriggerProblem } from "../../co
 import { asError } from "../../lib/errors/index.ts";
 import type { LeftOut } from "../../lib/files/index.ts";
 import { tasksOfKind } from "../host/durable.ts";
-import { plain, type StoredTrigger, TriggersDoc } from "../records/durable.ts";
+import { copyOf, type StoredTrigger, TriggersDoc } from "../records/durable.ts";
 import { ownerOf } from "./occurrence.durable.ts";
 import { type Standing, type TriggerTask, TRIGGER_TASK, type Waiting } from "./task.durable.ts";
 
@@ -26,7 +26,7 @@ export async function reconcile(
   const result = await harness.commit(async (tx) => {
     const live = await liveTriggerTasks(tx);
     const doc = await tx.doc(TriggersDoc);
-    const before = plain(doc.triggers);
+    const before = copyOf(doc.triggers);
     const after: Record<string, StoredTrigger> = {};
     const leftOut: LeftOut[] = [];
 

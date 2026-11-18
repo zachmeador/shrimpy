@@ -12,9 +12,9 @@ import {
   type Place,
 } from "../inputs/index.ts";
 import {
+  copyOf,
   learnPlace,
   openSession,
-  plain,
   type SessionDefaults,
   type SessionRecord,
   SessionsDoc,
@@ -164,7 +164,7 @@ export async function settle(
     return;
   }
   trigger.quiet = 0;
-  const definition = plain(trigger.definition);
+  const definition = copyOf(trigger.definition);
   const made =
     finding.check.then === "wake"
       ? await fire(tx, parts, definition, { ...firing, output: finding.output }, where)
@@ -176,7 +176,7 @@ export async function settle(
 export async function recordInterrupted(tx: Tx, turn: TurnTask, trigger: StoredTrigger, firing: Firing): Promise<void> {
   trigger.checkedAt = firing.firedAt;
   trigger.quiet = 0;
-  await recordUnrun(tx, turn, plain(trigger.definition), firing, { outcome: "interrupted", reason: interruptedWhile(firing.byHand) });
+  await recordUnrun(tx, turn, copyOf(trigger.definition), firing, { outcome: "interrupted", reason: interruptedWhile(firing.byHand) });
 }
 
 /** Whether an occurrence of this trigger is still going in the session: its task is live and a turn was to run. */

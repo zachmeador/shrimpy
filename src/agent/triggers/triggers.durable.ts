@@ -8,7 +8,7 @@ import { newId } from "../../lib/ids/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { type Breadcrumb, isOccurrence, type Outstanding, type Place } from "../inputs/index.ts";
 import {
-  plain,
+  copyOf,
   type SessionDefaults,
   SessionsDoc,
   type StoredTrigger,
@@ -190,7 +190,7 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
           if (found === undefined) refuse(noTrigger(name));
           if (found.definition.check === undefined) refuse(changed(name));
           const now = Date.now();
-          const asked = { name, id: newId("occ"), firedAt: now, check: plain(found.definition.check) };
+          const asked = { name, id: newId("occ"), firedAt: now, check: copyOf(found.definition.check) };
           await tx.createTask(run, asked, { ownership: { kind: "conversation" }, conversationId: await ownerOf(tx), background: true });
           return { id: asked.id, due: now, firedAt: now, byHand: true, ended: null, reason: null };
         }, context);
@@ -202,7 +202,7 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
         const found = Object.hasOwn(triggers, name) ? triggers[name] : undefined;
         if (found === undefined) refuse(noTrigger(name));
         const now = Date.now();
-        return fire(tx, { turn, defaults, breadcrumbs }, plain(found.definition), { due: now, firedAt: now, byHand: true }, where);
+        return fire(tx, { turn, defaults, breadcrumbs }, copyOf(found.definition), { due: now, firedAt: now, byHand: true }, where);
       }, context);
     },
   };

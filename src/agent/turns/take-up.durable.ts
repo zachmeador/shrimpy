@@ -2,8 +2,8 @@ import type { ConversationId, Tx } from "@earendil-works/pi-durable";
 import type { Breadcrumb, Outstanding } from "../inputs/index.ts";
 import {
   carrying,
+  copyOf,
   keptPlace,
-  plain,
   sessionAddress,
   SessionsDoc,
   takeBreadcrumbs,
@@ -51,7 +51,7 @@ export async function takeUp(
   const there = place === undefined ? {} : { place };
   const taken: Outstanding =
     "event" in input
-      ? { ...plain(input), earlier: session === undefined ? [] : takeEvents(session), ...carried, ...there }
+      ? { ...copyOf(input), earlier: session === undefined ? [] : takeEvents(session), ...carried, ...there }
       : input.threadId === undefined
         ? { ...input, ...carried }
         : { ...input, ...carried, ...there };

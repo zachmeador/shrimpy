@@ -1,6 +1,6 @@
 import type { ConversationId, Tx } from "@earendil-works/pi-durable";
 import type { Breadcrumb, QuestionResult } from "../inputs/index.ts";
-import { FeedDoc, type OpenQuestion, plain, QuestionsDoc, SessionsDoc } from "../records/durable.ts";
+import { copyOf, FeedDoc, type OpenQuestion, QuestionsDoc, SessionsDoc } from "../records/durable.ts";
 import { takeUp, type TurnTask } from "../turns/durable.ts";
 
 /** What is left of a question that was closed: the engine's ID for the task that sleeps until its time is up, which is not needed any more. */
@@ -33,7 +33,7 @@ export async function closeQuestion(
 ): Promise<Closed | undefined> {
   const doc = await tx.doc(QuestionsDoc);
   if (!Object.hasOwn(doc.open, id) || doc.open[id]!.through !== undefined) return undefined;
-  const { task, ...question } = plain(doc.open[id]!);
+  const { task, ...question } = copyOf(doc.open[id]!);
   if (through !== undefined && ((await tx.doc(FeedDoc)).cursor ?? 0) < through) doc.open[id]!.through = through;
   else doc.open = without(doc.open, id);
 
@@ -64,11 +64,11 @@ export async function forgetPassed(tx: Tx, position: number): Promise<void> {
   const doc = await tx.doc(QuestionsDoc);
   const passed = (question: OpenQuestion): boolean => question.through !== undefined && question.through <= position;
   if (Object.values(doc.open).some(passed)) {
-    doc.open = Object.fromEntries(Object.entries(plain(doc.open)).filter(([, question]) => !passed(question)));
+    doc.open = Object.fromEntries(Object.entries(copyOf(doc.open)).filter(([, question]) => !passed(question)));
   }
 }
 
 /** The questions without the one named `id`. */
 function without(open: Record<string, OpenQuestion>, id: string): Record<string, OpenQuestion> {
-  return Object.fromEntries(Object.entries(plain(open)).filter(([key]) => key !== id));
+  return Object.fromEntries(Object.entries(copyOf(open)).filter(([key]) => key !== id));
 }

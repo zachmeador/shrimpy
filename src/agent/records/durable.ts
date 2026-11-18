@@ -15,9 +15,9 @@
  */
 export type { SessionDefaults } from "./defaults.durable.ts";
 export {
+  copyOf,
   FeedDoc,
   type OpenQuestion,
-  plain,
   QuestionsDoc,
   type SessionRecord,
   sessionAddress,

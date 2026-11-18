@@ -202,7 +202,7 @@ export const FeedDoc = defineDoc<{ cursor: number | null; store: string | null }
   checkpointWhen: () => false,
 });
 
-/** A plain copy of something read from a document, safe to keep after the commit. */
-export function plain<T>(value: T): T {
+/** A copy of something read from a document, safe to keep after the commit. */
+export function copyOf<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
