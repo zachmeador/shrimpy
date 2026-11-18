@@ -80,6 +80,9 @@ export function roomWord(name: string): string {
 export const addToRoom = (room: string, member: string | undefined): string =>
   `shrimpy rooms add ${roomWord(room)} ${member === undefined ? "<your name>" : shellWord(oneLine(member))}`;
 
+/** Why a DM can't be joined. */
+export const DM_TAKES_NO_MORE = "A DM has two members and takes no more.";
+
 /**
  * What a channel is called to the member reading it, whose ID is `you`: a room
  * as `roomLabel` writes it, their own DM by the member it is with, "your DM

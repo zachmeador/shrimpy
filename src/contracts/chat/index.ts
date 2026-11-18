@@ -43,6 +43,7 @@ export { Thread } from "./thread.ts";
 export {
   addToRoom,
   channelLabel,
+  DM_TAKES_NO_MORE,
   NO_MESSAGES,
   NO_ROOMS,
   notInRoom,

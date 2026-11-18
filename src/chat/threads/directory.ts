@@ -1,4 +1,4 @@
-import type { Channel, Member, Thread } from "../../contracts/chat/index.ts";
+import { type Channel, DM_TAKES_NO_MORE, type Member, type Thread } from "../../contracts/chat/index.ts";
 import { flag, identifier, identifiers, label, MAX_MEMBERS } from "../input/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import type { ChannelRecord, Transaction } from "../store/index.ts";
@@ -75,7 +75,7 @@ export function createRoom(deps: ChatDeps, caller: Member, name: unknown, member
  */
 function roomOf(tx: Transaction, caller: Member, channelId: string): ChannelRecord {
   const channel = readsOthers(caller) ? readableChannel(tx, caller, channelId) : visibleChannel(tx, caller, channelId);
-  if (channel.kind !== "room") refuse("A DM has two members and takes no more. Make a room to talk with more.");
+  if (channel.kind !== "room") refuse(`${DM_TAKES_NO_MORE} Make a room to talk with more.`);
   return channel;
 }
 

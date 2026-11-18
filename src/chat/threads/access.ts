@@ -1,7 +1,14 @@
-import { addToRoom, type ChatEvent, type Member, type Message, roomLabel } from "../../contracts/chat/index.ts";
+import {
+  addToRoom,
+  channelLabel,
+  type ChatEvent,
+  DM_TAKES_NO_MORE,
+  type Member,
+  type Message,
+  roomLabel,
+} from "../../contracts/chat/index.ts";
 import { needsAdmin } from "../../contracts/gateway/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import { listed } from "../../lib/text/index.ts";
 import type { ChannelRecord, ThreadRecord, Transaction } from "../store/index.ts";
 import type { ChatDeps } from "./deps.ts";
 
@@ -49,10 +56,10 @@ export function readableThread(
 /** Refuse unless the caller is in the channel. */
 function requireMember(channel: ChannelRecord, caller: Member): void {
   if (isMember(channel, caller.id)) return;
+  const name = channel.name ?? "";
   const room = channel.kind === "room";
-  const names = channel.members.map((member) => member.name).toSorted((a, b) => a.localeCompare(b));
-  const where = room ? `the room ${roomLabel(channel.name ?? "")}` : `the DM between ${listed(names)}`;
-  const how = room ? `To write there, add yourself: ${addToRoom(channel.name ?? "", caller.name)}` : "A DM has two members and takes no more.";
+  const where = room ? `the room ${roomLabel(name)}` : `the ${channelLabel({ ...channel, name }, caller.id)}`;
+  const how = room ? `To write there, add yourself: ${addToRoom(name, caller.name)}` : DM_TAKES_NO_MORE;
   refuse(`You can read ${where} but you are not in it, so you can't write there. ${how}`);
 }
 

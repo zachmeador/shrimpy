@@ -17,7 +17,16 @@ import {
   type WaitingWakeup,
   wakeupWords,
 } from "../../../contracts/agent/index.ts";
-import { addToRoom, AGENT_COMMANDS, type AgentCommand, type Channel, notTalkedTo, roomLabel } from "../../../contracts/chat/index.ts";
+import {
+  addToRoom,
+  AGENT_COMMANDS,
+  type AgentCommand,
+  type Channel,
+  channelLabel,
+  DM_TAKES_NO_MORE,
+  notTalkedTo,
+  roomLabel,
+} from "../../../contracts/chat/index.ts";
 import { NO_CHAT_SERVER, NO_GATEWAY, startAgent, versionWarning } from "../../../contracts/gateway/index.ts";
 import { oneLine } from "../../../lib/plain/index.ts";
 import { listed, shellWord, withoutPeriod } from "../../../lib/text/index.ts";
@@ -267,14 +276,11 @@ export function readOnlyDetail(room: Pick<Channel, "members">, working: boolean)
 
 /**
  * The line that stands where the input would be in a thread of a channel the
- * person only reads: that they only read it, and, for a room, how to join it,
- * with their own name, `me`, as the command takes it. A DM has two members and
- * takes no more, so there is no way to join it.
+ * person only reads: that they only read it, and how to join a room, with their
+ * own name, `me`, as the command takes it, or that a DM can't be joined.
  */
 export function readOnlyLine(channel: Pick<Channel, "kind" | "name" | "members">, me: string | undefined): string {
-  if (channel.kind === "dm") {
-    return `You are only reading this DM. It has two members, ${listed(memberNames(channel))}, and takes no more.`;
-  }
+  if (channel.kind === "dm") return `You are only reading the ${channelLabel(channel)}. ${DM_TAKES_NO_MORE}`;
   return `You are only reading ${roomLabel(channel.name)}. To join it, run: ${addToRoom(channel.name, me)}`;
 }
 
