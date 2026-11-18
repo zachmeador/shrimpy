@@ -4,6 +4,7 @@
  * for the model.
  */
 import { howLong, localTime } from "../../lib/time/index.ts";
+import { CAN_END_TURN } from "../inputs/index.ts";
 
 export const ASK_DESCRIPTION =
   "Ask another agent a question, and carry on with its answer. Use it when you need that agent's answer to go on " +
@@ -56,5 +57,4 @@ export const uncertain = (name: string): string =>
   `To check before you ask again, run \`shrimpy threads ${name}\` in your shell: the question's thread is named for how it starts.`;
 
 export const asked = (name: string, due: number): string =>
-  `Asked @${name}. The answer comes to you here as a new input, and if there is none by ${localTime(due)} you are told that instead. ` +
-  "You can end your turn now. What you write last is posted as your reply, so write a line meant for whoever you are talking to, such as what you are waiting for, or write only END to post nothing.";
+  `Asked @${name}. The answer comes to you here as a new input, and if there is none by ${localTime(due)} you are told that instead. ${CAN_END_TURN}`;

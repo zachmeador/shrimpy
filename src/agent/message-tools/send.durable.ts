@@ -1,8 +1,8 @@
 import { obj, opt, str } from "@earendil-works/pi-schema";
-import { defineTool, type ToolExecutionApi } from "@earendil-works/pi-durable";
+import { defineTool } from "@earendil-works/pi-durable";
 import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
 import { inParts } from "../chat/index.ts";
-import { answer, failure } from "../host/durable.ts";
+import { answer, failure, toolRequestId } from "../host/durable.ts";
 import { callSignal, chatFailure } from "../links/index.ts";
 import type { MessageToolsOptions } from "./options.ts";
 import { placeOf } from "./place.durable.ts";
@@ -52,7 +52,7 @@ export function sendMessage(options: MessageToolsOptions) {
           // A connection already lost means this part was never sent, which is not the same as not knowing.
           signal.throwIfAborted();
           asking = true;
-          await live.chat.post(place.threadId, part, requestId(options.recordsId, api, index), signal);
+          await live.chat.post(place.threadId, part, toolRequestId("send", options.recordsId, api, index), signal);
           asking = false;
           confirmed += 1;
         }
@@ -66,16 +66,4 @@ export function sendMessage(options: MessageToolsOptions) {
       }
     },
   });
-}
-
-/**
- * What names one part of one call. Chat posts a request ID once, so a call that
- * runs again posts nothing twice. The call's own ID is the model's and may
- * repeat in another session, so the engine's number for the call goes with it,
- * and the engine numbers its tasks again in a new database, so what the agent's
- * records are called goes with both.
- */
-function requestId(recordsId: string, api: ToolExecutionApi, part: number): string {
-  const call = api.callId.replace(/[^A-Za-z0-9_.:-]/g, "_").slice(0, 80);
-  return `send-${recordsId}-${String(api.taskId)}-${call}-${String(part)}`;
 }

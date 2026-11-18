@@ -22,6 +22,13 @@ import {
 } from "./input.ts";
 
 /**
+ * What a tool that leaves something to come back later tells the model: that it
+ * can end its turn, and what becomes of what it writes last.
+ */
+export const CAN_END_TURN =
+  "You can end your turn now. What you write last is posted as your reply, so write a line meant for whoever you are talking to, such as what you are waiting for, or write only END to post nothing.";
+
+/**
  * What the model is shown for an input. It travels with the input and is never
  * part of the prompt sections, which stay the same on every request.
  */

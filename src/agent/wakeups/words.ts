@@ -4,6 +4,7 @@
  * for the model.
  */
 import { howLong, localTime } from "../../lib/time/index.ts";
+import { CAN_END_TURN } from "../inputs/index.ts";
 
 export const CHECK_DESCRIPTION =
   "Wake yourself once, later, to look at something again, such as a build or a deploy. Say how long to wait with " +
@@ -48,5 +49,5 @@ export const tooMany = (waiting: number): string =>
   "Wait for one to wake you first.";
 
 export const wakeSet = (due: number, askedAt: number, inThread: boolean): string =>
-  `You will be woken ${inThread ? "in this thread " : ""}at ${localTime(due)}, in ${howLong(due - askedAt)}, with your note. You can end your turn now. What you write last is posted as your reply, so write a line meant for whoever you are talking to, such as what you are waiting for, or write only END to post nothing.`;
+  `You will be woken ${inThread ? "in this thread " : ""}at ${localTime(due)}, in ${howLong(due - askedAt)}, with your note. ${CAN_END_TURN}`;
 

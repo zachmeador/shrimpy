@@ -1,7 +1,7 @@
 import { obj, opt, str } from "@earendil-works/pi-schema";
-import { defineExtension, defineTool, type Extension, type ToolExecutionApi } from "@earendil-works/pi-durable";
+import { defineExtension, defineTool, type Extension } from "@earendil-works/pi-durable";
 import type { RosterEntry } from "../../contracts/gateway/index.ts";
-import { answer, failure } from "../host/durable.ts";
+import { answer, failure, toolRequestId } from "../host/durable.ts";
 import type { Member } from "../../contracts/chat/index.ts";
 import { callSignal, type ChatCalls, chatFailure, type LiveChat, nameOnRoster } from "../links/index.ts";
 import { addressOfPlace, placeOfSession } from "../records/durable.ts";
@@ -90,7 +90,7 @@ function askAgent(options: AskToolsOptions) {
           thread = await api.memo("thread", left ?? (await live.chat.createThread(channel.id, start, signal)).id, context);
         }
         posting = true;
-        const posted = await live.chat.post(thread, question, requestId(options.recordsId, api), signal);
+        const posted = await live.chat.post(thread, question, toolRequestId("ask", options.recordsId, api), signal);
         posting = false;
         const due = askedAt + wait.ms;
         await options.questions.keep(
@@ -148,16 +148,4 @@ async function emptyThread(chat: ChatCalls, channelId: string, name: string, sig
 /** The tool that asks another agent, as an extension to install in the engine's registry. */
 export function askTools(options: AskToolsOptions): Extension {
   return defineExtension({ name: "question-tools", tools: [askAgent(options)] });
-}
-
-/**
- * What names the one post of a call. Chat posts a request ID once, so a call that
- * runs again posts nothing twice. The call's own ID is the model's and may repeat
- * in another session, so the engine's number for the call goes with it, and the
- * engine numbers its tasks again in a new database, so what the agent's records
- * are called goes with both.
- */
-function requestId(recordsId: string, api: ToolExecutionApi): string {
-  const call = api.callId.replace(/[^A-Za-z0-9_.:-]/g, "_").slice(0, 80);
-  return `ask-${recordsId}-${String(api.taskId)}-${call}`;
 }

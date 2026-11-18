@@ -36,4 +36,4 @@ export {
   type TurnOutcome,
   type Wakeup,
 } from "./input.ts";
-export { promptFor, standing, written } from "./prompt.ts";
+export { CAN_END_TURN, promptFor, standing, written } from "./prompt.ts";
