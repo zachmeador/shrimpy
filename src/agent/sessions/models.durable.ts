@@ -1,6 +1,6 @@
 import type { Api, Model, Models } from "@earendil-works/pi-ai";
 import type { ModelRef } from "@earendil-works/pi-durable";
-import type { AgentModels } from "../../contracts/agent/index.ts";
+import { type AgentModels, modelWords } from "../../contracts/agent/index.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { compare } from "../../lib/files/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
@@ -56,5 +56,5 @@ export async function requireModel(models: Models, wanted: ModelRef): Promise<vo
     models.getProvider(wanted.provider) === undefined
       ? `it has no provider called "${wanted.provider}"`
       : `it has no key or sign-in for "${wanted.provider}"`;
-  refuse(`This agent can't use ${wanted.provider}/${wanted.modelId}: ${reason}. It can use models of: ${upTo(providers, LISTED).join(", ")}.`);
+  refuse(`This agent can't use ${modelWords({ provider: wanted.provider, id: wanted.modelId })}: ${reason}. It can use models of: ${upTo(providers, LISTED).join(", ")}.`);
 }

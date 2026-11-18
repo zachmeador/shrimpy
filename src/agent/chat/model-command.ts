@@ -1,4 +1,4 @@
-import type { ModelId } from "../../contracts/agent/index.ts";
+import { type ModelId, modelWords, sameModel } from "../../contracts/agent/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import type { Admissions } from "./admissions.ts";
 
@@ -32,9 +32,6 @@ function modelAskOf(words: string): ModelAsk {
 const UNCLEAR =
   "Write /model provider/id to choose a model for this thread, or /model default to follow my default model again. /model alone says which model the thread runs on.";
 
-const written = (model: ModelId): string => `${model.provider}/${model.id}`;
-const same = (a: ModelId, b: ModelId): boolean => a.provider === b.provider && a.id === b.id;
-
 /**
  * What a person's `/model` does in a thread, and the one line the agent says
  * about it there. The session behind the thread is made to use the model from
@@ -51,15 +48,15 @@ export async function actOnModel(admissions: Admissions, thread: { threadId: str
   if (ask.kind === "unclear") return UNCLEAR;
   if (ask.kind === "show") {
     const { used, home } = await admissions.modelOf(thread.threadId);
-    return same(used, home)
-      ? `This thread runs on ${written(used)}, my default model.`
-      : `This thread runs on ${written(used)}. My default model is ${written(home)}.`;
+    return sameModel(used, home)
+      ? `This thread runs on ${modelWords(used)}, my default model.`
+      : `This thread runs on ${modelWords(used)}. My default model is ${modelWords(home)}.`;
   }
   try {
     const { before, now } = await admissions.useModel(thread, ask.kind === "default" ? null : ask.model);
-    return same(before, now)
-      ? `Nothing changed: this thread already runs on ${written(now)}.`
-      : `This thread runs on ${written(now)} now. Before, it ran on ${written(before)}.`;
+    return sameModel(before, now)
+      ? `Nothing changed: this thread already runs on ${modelWords(now)}.`
+      : `This thread runs on ${modelWords(now)} now. Before, it ran on ${modelWords(before)}.`;
   } catch (error) {
     if (isRefusal(error)) return error.message;
     throw error;

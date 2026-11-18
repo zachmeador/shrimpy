@@ -55,6 +55,5 @@ export function parseModelChoice(text: string): ModelChoice {
   return { provider: text.slice(0, slash), id: text.slice(slash + 1) };
 }
 
-export function modelLabel(model: ModelChoice): string {
-  return `${model.provider}/${model.id}`;
-}
+/** Whether `a` and `b` are one model: the same provider and the same ID. */
+export const sameModel = (a: ModelChoice, b: ModelChoice): boolean => a.provider === b.provider && a.id === b.id;

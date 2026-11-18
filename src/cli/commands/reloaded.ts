@@ -1,4 +1,4 @@
-import type { Reloaded } from "../../contracts/agent/index.ts";
+import { type ModelId, modelWords, type Reloaded } from "../../contracts/agent/index.ts";
 import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
 import { type HeldAgent, onAgent } from "../talk/index.ts";
@@ -21,12 +21,9 @@ export function whatItReads({ soul, files, skills, triggers }: Read): string {
   return parts.length === 0 ? last : `${parts.join(", ")} and ${last}`;
 }
 
-/** What a reload found about the model: the agent's default, and the one it replaced when it replaced one. */
-function modelLine({ model, changedFrom }: Pick<Reloaded, "model" | "changedFrom">): string {
-  const now = `${model.provider}/${model.id}`;
-  if (changedFrom === null) return `Its default model is ${now}.`;
-  return `Its default model is now ${now}, not ${changedFrom.provider}/${changedFrom.id}. Each session uses it from its next request.`;
-}
+/** What a reload that changed the agent's default model says: the model it is now, and the one it replaced. */
+const modelLine = (now: ModelId, was: ModelId): string =>
+  `Its default model is now ${modelWords(now)}, not ${modelWords(was)}. Each session uses it from its next request.`;
 
 /** The files an agent could not use, one to a line, each with why. */
 export function leftOutLines(leftOut: readonly { file: string; reason: string }[]): string[] {
@@ -53,7 +50,7 @@ export async function toldOfChange(
     await onAgent(reached, async (agent) => {
       const reloaded = valueOf(await agent.reload(contextOf()));
       io.out(`Told the agent to read its files again. It now reads ${whatItReads(reloaded)}.`);
-      if (reloaded.changedFrom !== null) io.out(modelLine(reloaded));
+      if (reloaded.changedFrom !== null) io.out(modelLine(reloaded.model, reloaded.changedFrom));
       if (reloaded.leftOut.length > 0) io.out(`Left out:\n${leftOutLines(reloaded.leftOut).join("\n")}`);
       await options.then?.(agent);
     });

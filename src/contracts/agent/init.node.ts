@@ -6,10 +6,11 @@ import {
   checkAgentName,
   formatAgentConfig,
   type ModelChoice,
-  modelLabel,
   parseAgentConfig,
+  sameModel,
 } from "./agent-config.ts";
 import { type HomePaths, homePaths } from "./layout.node.ts";
+import { modelWords } from "./words.ts";
 
 export interface InitOptions {
   readonly name: string;
@@ -80,11 +81,9 @@ export function initHome(home: string, options: InitOptions): InitResult {
 
 function checkSame(paths: HomePaths, wanted: AgentConfig): void {
   const existing = parseAgentConfig(readFileSync(paths.config, "utf8"), paths.config);
-  const sameModel =
-    wanted.model === undefined ||
-    (existing.model !== undefined && modelLabel(existing.model) === modelLabel(wanted.model));
-  if (existing.name === wanted.name && sameModel) return;
-  const has = existing.model === undefined ? "no model of its own" : `the model ${modelLabel(existing.model)}`;
+  const keepsModel = wanted.model === undefined || (existing.model !== undefined && sameModel(existing.model, wanted.model));
+  if (existing.name === wanted.name && keepsModel) return;
+  const has = existing.model === undefined ? "no model of its own" : `the model ${modelWords(existing.model)}`;
   throw new Error(
     `${paths.config} already describes the agent "${existing.name}" with ${has}. ` +
       "Init does not change an existing agent. Edit that file to change it.",

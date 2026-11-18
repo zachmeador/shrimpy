@@ -1,5 +1,6 @@
 import { dirname } from "node:path";
 import type { Dialogue, Notice, ProviderToSignIn, SignIns, SignInWay } from "../../agent/index.ts";
+import { modelWords } from "../../contracts/agent/index.ts";
 import { providerPaths, readDefaultModel, saveDefaultModel } from "../../contracts/agent/node.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { upTo } from "../../lib/text/index.ts";
@@ -215,8 +216,9 @@ async function chooseDefaultModel(
       return;
     }
     if (ids.includes(answer)) {
-      saveDefaultModel(file, { provider: provider.id, id: answer });
-      io.out(`Agents that name no model now start with ${provider.id}/${answer}. That is set in ${file}.`);
+      const model = { provider: provider.id, id: answer };
+      saveDefaultModel(file, model);
+      io.out(`Agents that name no model now start with ${modelWords(model)}. That is set in ${file}.`);
       return;
     }
     io.out(`Unknown model "${answer}": ${provider.name} has no model with that ID.`);

@@ -7,6 +7,7 @@ import {
 } from "@earendil-works/pi-ai";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 import type { ModelRef } from "@earendil-works/pi-durable";
+import { modelWords } from "../../contracts/agent/index.ts";
 import { type ProviderPaths, providerPaths, readDefaultModel } from "../../contracts/agent/node.ts";
 import { asError } from "../../lib/errors/index.ts";
 import type { LeftOut } from "../../lib/files/index.ts";
@@ -264,7 +265,7 @@ async function requireUsable(models: Models, start: Start, declared: Declared, f
       .sort()
       .join(", ");
     throw new ModelSetupError(
-      `The model ${providerId}/${modelId}, named in ${start.file}, names the provider "${providerId}", ` +
+      `The model ${modelWords({ provider: providerId, id: modelId })}, named in ${start.file}, names the provider "${providerId}", ` +
         `which is not declared in ${listed(files.models, "or")} (declared there: ${declaredIds}) ` +
         `and is not built in (built in: ${builtin}).`,
     );

@@ -1,7 +1,7 @@
 import { basename, dirname } from "node:path";
 import { parseArgs } from "node:util";
 import type { HomeAgent } from "../../agent/index.ts";
-import { checkAgentName, modelLabel, parseModelChoice } from "../../contracts/agent/index.ts";
+import { checkAgentName, modelWords, parseModelChoice } from "../../contracts/agent/index.ts";
 import { initHome, providerPaths, readEndpoint } from "../../contracts/agent/node.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { homeNamed, isPath, newHome, providersPath } from "../folder/index.ts";
@@ -49,9 +49,9 @@ const init: Command = {
     const shared = model === undefined ? folderDefault(folder.defaultModel) : undefined;
     io.out(
       model !== undefined
-        ? `Created the agent ${name} in ${paths.root}, with the model ${modelLabel(model)}.`
+        ? `Created the agent ${name} in ${paths.root}, with the model ${modelWords(model)}.`
         : shared !== undefined
-          ? `Created the agent ${name} in ${paths.root}. It names no model, so it starts with ${modelLabel(shared)}, your Shrimpy folder's default.`
+          ? `Created the agent ${name} in ${paths.root}. It names no model, so it starts with ${modelWords(shared)}, your Shrimpy folder's default.`
           : `Created the agent ${name} in ${paths.root}. It names no model, so it starts with the one in ${folder.defaultModel}.`,
     );
     const own = dirname(paths.models);

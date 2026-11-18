@@ -20,7 +20,7 @@
  * This door is safe for browsers; `node.ts` adds the parts that need Node.
  */
 export { Agent } from "./agent.ts";
-export { checkAgentName, type ModelChoice, modelLabel, parseModelChoice } from "./agent-config.ts";
+export { checkAgentName, type ModelChoice, parseModelChoice, sameModel } from "./agent-config.ts";
 export { AGENT_RUNTIME_DIR, type AgentEndpoint, endpointFile } from "./endpoint.ts";
 export { failureWords } from "./failures.ts";
 export { frontmatter } from "./frontmatter.ts";

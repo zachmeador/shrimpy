@@ -99,7 +99,7 @@ export const markerWords = (marker: Extract<SessionItem, { type: "marker" }>["ma
 /** An image the model was shown, named by its media type. */
 export const imageWords = (mimeType: string): string => `[image: ${oneLine(mimeType)}]`;
 
-/** A model as it is written after `/model`: its provider, a slash and its ID. */
+/** A model as Shrimpy writes it, and as `/model` and `--model` take it: its provider, a slash and its ID. */
 export const modelWords = (model: ModelId): string => `${oneLine(model.provider)}/${oneLine(model.id)}`;
 
 /** What a session has used: "1,234 tokens in, 56 out, cost $0.0012". */

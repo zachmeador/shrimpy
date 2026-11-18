@@ -1,3 +1,4 @@
+import { modelWords } from "../../contracts/agent/index.ts";
 import type { Message } from "../../contracts/chat/index.ts";
 import { listed, singleSpaced } from "../../lib/text/index.ts";
 import { localTime } from "../../lib/time/index.ts";
@@ -47,8 +48,7 @@ export function promptFor(outstanding: Outstanding, change?: ModelChange): strin
 
 /** That the session's model changed since its last answer, which models the two are, and nothing about what to do with it. */
 function modelChanged({ was, now }: ModelChange): string {
-  const written = ({ provider, id }: ModelChange["was"]): string => `${provider}/${id}`;
-  return `The model changed since your last answer: that one was written by ${written(was)}, and you are ${written(now)} now.`;
+  return `The model changed since your last answer: that one was written by ${modelWords(was)}, and you are ${modelWords(now)} now.`;
 }
 
 /** Where an input is: its place in words, when its session knows it, and the IDs `shrimpy read` takes. */
