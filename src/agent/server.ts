@@ -5,6 +5,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type AgentEndpoint, endpointFile } from "../contracts/agent/index.ts";
 import {
   agent,
+  notAHello,
   otherPi,
   type Principal,
   readHello,
@@ -59,7 +60,7 @@ function greeter(host: Host<Principal, Revocation>): (raw: unknown) => Greeted {
     if (versions !== undefined && !samePi(versions.pi)) return { answer: turnAway(otherPi(versions, ANSWERING)) };
     const hello = readHello(raw);
     if (hello === undefined) {
-      return { answer: turnAway("That isn't a hello this agent knows, so the other end may be another version of Shrimpy, or not Shrimpy at all.") };
+      return { answer: turnAway(notAHello("this agent")) };
     }
     if (hello.who.kind !== "client" || hello.who.token !== null) {
       return { answer: turnAway("An agent's own socket takes a client that shows no token. Anything else links to the gateway.") };

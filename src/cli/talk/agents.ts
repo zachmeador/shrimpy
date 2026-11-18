@@ -1,5 +1,5 @@
 import { findMember, type Member } from "../../contracts/chat/index.ts";
-import { NO_AGENT_YET, type Program, startAgent } from "../../contracts/gateway/index.ts";
+import { howToStartAgent, NO_AGENT_YET, type Program } from "../../contracts/gateway/index.ts";
 import { listed } from "../../lib/text/index.ts";
 import { lookForHome } from "../folder/index.ts";
 
@@ -55,5 +55,5 @@ export function agentNamed(members: readonly Member[], name: string): Member {
 export function runningAgent(programs: readonly Program[], agent: Member): Program {
   const linked = programs.findLast((program) => program.kind === "agent" && program.member === agent.id);
   if (linked !== undefined) return linked;
-  throw new Error(`The agent ${agent.name} is on the roster but is not running. ${startAgent(agent.name, lookForHome(agent.name))}`);
+  throw new Error(`The agent ${agent.name} is on the roster but is not running. ${howToStartAgent(agent.name, lookForHome(agent.name))}`);
 }

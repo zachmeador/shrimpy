@@ -23,7 +23,7 @@ export { Agent } from "./agent.ts";
 export { checkAgentName, type ModelChoice, parseModelChoice, sameModel } from "./agent-config.ts";
 export { AGENT_RUNTIME_DIR, type AgentEndpoint, endpointFile } from "./endpoint.ts";
 export { failureWords } from "./failures.ts";
-export { frontmatter } from "./frontmatter.ts";
+export { frontmatter, NO_FRONTMATTER } from "./frontmatter.ts";
 export { AGENT_HOME_VARIABLE, type Membership, membershipFile, unknownTokenAdvice } from "./membership.ts";
 export { AgentPresence } from "./presence.ts";
 export { delayMs, delayText, describeSchedule, normalizeDelay, sameSchedule } from "./schedule.ts";

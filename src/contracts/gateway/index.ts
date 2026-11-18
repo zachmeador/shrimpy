@@ -25,6 +25,7 @@ export {
   type Hello,
   type HelloAnswer,
   hello,
+  notAHello,
   otherPi,
   readAnswer,
   readHello,
@@ -46,10 +47,11 @@ export {
   type Invitation,
   type Member,
   MEMBER_FIELDS,
+  noMember,
   type Program,
   Roster,
   type RosterEntry,
   type WayIn,
 } from "./roster.ts";
 export { isToken } from "./token.ts";
-export { GATEWAY_NOT_RUNNING, NO_AGENT_YET, NO_CHAT_SERVER, NO_GATEWAY, startAgent } from "./words.ts";
+export { GATEWAY_NOT_RUNNING, howToStartAgent, NO_AGENT_YET, NO_CHAT_SERVER, NO_GATEWAY } from "./words.ts";

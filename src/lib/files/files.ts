@@ -20,6 +20,15 @@ export function codeOf(error: unknown): string | undefined {
   return typeof code === "string" ? code : undefined;
 }
 
+/**
+ * Why an entry a folder lists could not be looked at, in a few words that
+ * finish "<file> was left out: <reason>.": a link to nothing when what it names
+ * is not there, and otherwise as `why` says.
+ */
+export function whyUnseen(error: unknown): string {
+  return codeOf(error) === "ENOENT" ? "it is a link to nothing" : why(error);
+}
+
 /** Why a file could not be read, in a few words that finish "<file> was left out: <reason>." */
 export function why(error: unknown): string {
   switch (codeOf(error)) {

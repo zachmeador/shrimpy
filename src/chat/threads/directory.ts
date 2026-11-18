@@ -1,4 +1,5 @@
 import { type Channel, DM_TAKES_NO_MORE, type Member, type Thread } from "../../contracts/chat/index.ts";
+import { noMember } from "../../contracts/gateway/index.ts";
 import { flag, identifier, identifiers, label, MAX_MEMBERS } from "../input/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import type { ChannelRecord, Transaction } from "../store/index.ts";
@@ -23,7 +24,7 @@ export function toChannel(record: ChannelRecord, viewer: Member): Channel {
 
 /** The member the roster has with this ID, or a refusal that says there is none. */
 function onRoster(deps: ChatDeps, id: string): Member {
-  return deps.identity.member(id) ?? refuse(`There is no member ${id} on the roster.`);
+  return deps.identity.member(id) ?? refuse(noMember(id));
 }
 
 /**

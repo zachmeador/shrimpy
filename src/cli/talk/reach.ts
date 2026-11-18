@@ -1,5 +1,5 @@
 import type { Reference } from "@earendil-works/chord";
-import { Chat, type Member } from "../../contracts/chat/index.ts";
+import { Chat, type Member, ONLY_MEMBERS } from "../../contracts/chat/index.ts";
 import { contextOf, NO_CHAT_SERVER, NO_GATEWAY, type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
 import type { Client } from "../../contracts/gateway/node.ts";
 import { asError } from "../../lib/errors/index.ts";
@@ -67,7 +67,7 @@ export async function reachChat(io: Io, signal?: AbortSignal): Promise<Reached> 
     const you = chat.you.value;
     if (you === null) {
       chat.release();
-      throw new Error("The chat server takes this command for nobody: only the network's members use chat.");
+      throw new Error(ONLY_MEMBERS);
     }
     return {
       me: you,

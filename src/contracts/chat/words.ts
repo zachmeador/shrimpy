@@ -31,6 +31,9 @@ export function receiptWords(receipt: Receipt, who: string): string | undefined 
   }
 }
 
+/** Why chat takes whoever asks for nobody: the roster has no member for them. */
+export const ONLY_MEMBERS = "Only the network's members use chat, and the roster has no member for whoever is asking.";
+
 /** What a member in no rooms is told. */
 export const NO_ROOMS = "You are in no rooms.";
 

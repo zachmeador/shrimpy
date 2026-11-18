@@ -28,7 +28,7 @@ import {
   notTalkedTo,
   roomLabel,
 } from "../../../contracts/chat/index.ts";
-import { NO_CHAT_SERVER, NO_GATEWAY, startAgent, versionWarning } from "../../../contracts/gateway/index.ts";
+import { howToStartAgent, NO_CHAT_SERVER, NO_GATEWAY, versionWarning } from "../../../contracts/gateway/index.ts";
 import { oneLine } from "../../../lib/plain/index.ts";
 import { listed, shellWord, withoutPeriod } from "../../../lib/text/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
@@ -56,6 +56,9 @@ const MODEL: AgentCommand = "model";
 
 /** How a device is taken back, as the person writes it. */
 const TAKE_BACK = "/devices take back <device>";
+
+/** What `/devices` does, the same in a DM and a room. */
+const DEVICES = `List your devices, or take one back: ${TAKE_BACK}`;
 
 /** What `/model` is written with to have the thread follow the agent's model again. */
 export const MODEL_DEFAULT = "default";
@@ -116,7 +119,7 @@ export function agentNote(
   const name = oneLine(agent);
   switch (why.kind) {
     case "not-linked":
-      return `No agent named ${name} is linked to this machine's gateway. ${startAgent(agent, home)}`;
+      return `No agent named ${name} is linked to this machine's gateway. ${howToStartAgent(agent, home)}`;
     case "lost":
       return looking === "work"
         ? `Lost the connection to ${name}. The work shown may be out of date. Trying again.`
@@ -352,10 +355,7 @@ export function workingLine(names: string[], activity: SessionActivity | undefin
  * the commands for agents.
  */
 export const TERMINAL_COMMANDS = {
-  devices: {
-    dm: `List your devices, or take one back: ${TAKE_BACK}`,
-    room: `List your devices, or take one back: ${TAKE_BACK}`,
-  },
+  devices: { dm: DEVICES, room: DEVICES },
   status: {
     dm: "Show what the agent is doing, its model, tokens and cost.",
     room: "Show which agents here are running and working.",

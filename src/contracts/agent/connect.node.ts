@@ -3,10 +3,13 @@ import { nobodyThere } from "../../lib/link/node.ts";
 import { type Client, type ConnectOptions, connectClient } from "../gateway/node.ts";
 import { type AgentEndpoint, endpointFile } from "./endpoint.ts";
 
+/** That no agent is running at `home`, for a sentence to end or go on from. */
+export const noAgentAt = (home: string): string => `No agent is running at ${home}`;
+
 /** Nothing is listening for the agent of a home. */
 export class AgentNotRunningError extends Error {
   constructor(home: string, options?: ErrorOptions) {
-    super(`No agent is running at ${home}.`, options);
+    super(`${noAgentAt(home)}.`, options);
     this.name = "AgentNotRunningError";
   }
 }

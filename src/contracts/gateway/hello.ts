@@ -129,6 +129,10 @@ export function samePi(pi: PiPackages): boolean {
   return Object.keys(pi).length === ours.length && ours.every(([name, version]) => pi[name] === version);
 }
 
+/** What whoever answers says to a hello it can't read: `answerer` is what it calls itself, such as "this gateway". */
+export const notAHello = (answerer: string): string =>
+  `That isn't a hello ${answerer} knows, so the other end may be another version of Shrimpy, or not Shrimpy at all.`;
+
 /**
  * The words for a caller that runs other Pi packages than this code, said by
  * whoever answers its hello: `who` is what it calls itself, such as "The gateway", and

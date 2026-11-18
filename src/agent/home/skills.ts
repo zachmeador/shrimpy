@@ -1,8 +1,8 @@
 import type { Dirent } from "node:fs";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
-import { frontmatter } from "../../contracts/agent/index.ts";
-import { codeOf, compare, type LeftOut, why } from "../../lib/files/index.ts";
+import { frontmatter, NO_FRONTMATTER } from "../../contracts/agent/index.ts";
+import { codeOf, compare, type LeftOut, why, whyUnseen } from "../../lib/files/index.ts";
 import { listFolder, readText } from "../../lib/files/node.ts";
 
 /** A skill as the agent is shown it: what it is for and where to read it. */
@@ -43,7 +43,7 @@ export async function readSkills(
       // A link to nothing, or a folder that can't be looked at, may have been a skill, so it is named. An entry that
       // vanished while the folder was read is gone.
       const dangling = codeOf(error) === "ENOENT";
-      if (!dangling || entry.isSymbolicLink()) leftOut.push({ file: shown(directory), reason: dangling ? "it is a link to nothing" : why(error) });
+      if (!dangling || entry.isSymbolicLink()) leftOut.push({ file: shown(directory), reason: whyUnseen(error) });
       continue;
     }
     if (!isFolder) continue;
@@ -57,7 +57,7 @@ export async function readSkills(
     const values = frontmatter(read.text);
     const description = values?.get("description") ?? "";
     if (values === undefined) {
-      leftOut.push({ file: shown(file), reason: "it does not start with a front matter block, between --- lines" });
+      leftOut.push({ file: shown(file), reason: NO_FRONTMATTER });
     } else if (description === "") {
       leftOut.push({ file: shown(file), reason: "its front matter has no description" });
     } else {

@@ -53,6 +53,9 @@ export type WayIn = Static<typeof WayInSchema>;
 const InvitationSchema = obj({ code: str(), addresses: arr(AddressSchema), fingerprint: str(), expires: num() });
 export type Invitation = Static<typeof InvitationSchema>;
 
+/** That the roster has no member with the ID `id`, as the gateway and chat refuse it. */
+export const noMember = (id: string): string => `There is no member ${id} on the roster.`;
+
 /**
  * The roster as the caller sees it, at `gateway()`. Its state follows the
  * roster live, so a promotion, a rename or a member arriving shows at once.

@@ -2,11 +2,11 @@ import type { Dirent, Stats } from "node:fs";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import { asError } from "../../lib/errors/index.ts";
-import { codeOf, isMarkdown, why } from "../../lib/files/index.ts";
+import { codeOf, isMarkdown, why, whyUnseen } from "../../lib/files/index.ts";
 import { listFolder, readText } from "../../lib/files/node.ts";
 import { listed } from "../../lib/text/index.ts";
 import { isName, NAME_RULE } from "./agent-config.ts";
-import { frontmatterAndBody } from "./frontmatter.ts";
+import { frontmatterAndBody, NO_FRONTMATTER } from "./frontmatter.ts";
 import type { HomePaths } from "./layout.node.ts";
 import { cronFields, delayMs, delayText, normalizeDelay, SHORTEST_EVERY_MS } from "./schedule.ts";
 import { isTimezone, machineTimezone, nextOccurrence } from "./schedule.node.ts";
@@ -93,7 +93,7 @@ export function parseTrigger(name: string, text: string, check: TriggerCheck = {
   if (!isName(name)) throw new TriggerFileError(`its name ${NAME_RULE}`);
   const parts = frontmatterAndBody(text);
   if (parts === undefined) {
-    throw new TriggerFileError("it does not start with a front matter block, between --- lines, with the schedule in it");
+    throw new TriggerFileError(`${NO_FRONTMATTER}, with the schedule in it`);
   }
   const { values, body } = parts;
   for (const [key, value] of values) {
@@ -257,7 +257,7 @@ export async function readTriggers(paths: HomePaths, check: TriggerCheck = {}): 
     try {
       info = await stat(join(paths.triggers, entry.name));
     } catch (error) {
-      found.problems.push({ name: known, file, reason: codeOf(error) === "ENOENT" ? "it is a link to nothing" : why(error) });
+      found.problems.push({ name: known, file, reason: whyUnseen(error) });
       continue;
     }
     if (!info.isFile()) continue;

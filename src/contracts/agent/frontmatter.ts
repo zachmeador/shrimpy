@@ -3,6 +3,9 @@ import { singleSpaced } from "../../lib/text/index.ts";
 const KEY = /^([A-Za-z0-9_-]+):[ \t]*(.*)$/;
 const BLOCK = /^[|>][+-]?\d*$/;
 
+/** Why a file that must start with front matter is left out when it doesn't, to finish "<file> was left out: <reason>." */
+export const NO_FRONTMATTER = "it does not start with a front matter block, between --- lines";
+
 /**
  * The values of the `key: value` lines in the front matter at the top of a
  * Markdown file, the block between two `---` lines, or undefined when the file

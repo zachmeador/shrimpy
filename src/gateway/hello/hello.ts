@@ -3,6 +3,7 @@ import type { Context } from "@earendil-works/chord/context";
 import {
   type Hello,
   type Member,
+  notAHello,
   otherPi,
   type Principal,
   type Reason,
@@ -145,7 +146,7 @@ export function greeter(deps: HelloDeps): (door: Door) => (raw: unknown) => Gree
     const versions = readVersions(raw);
     if (versions !== undefined && !samePi(versions.pi)) return away(otherPi(versions, ANSWERING));
     const hello: Hello | undefined = readHello(raw);
-    if (hello === undefined) return away("That isn't a hello this gateway knows, so the other end may be another version of Shrimpy, or not Shrimpy at all.");
+    if (hello === undefined) return away(notAHello("this gateway"));
     const { who } = hello;
     switch (who.kind) {
       case "client":

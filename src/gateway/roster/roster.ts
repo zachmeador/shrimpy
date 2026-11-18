@@ -7,6 +7,7 @@ import {
   type Member,
   NAME_RULE,
   nameKey,
+  noMember,
   type Refused,
   refused,
   type Way,
@@ -152,7 +153,7 @@ export function openRoster(dataDir: string, firstName: string): Roster {
     const label = fitName(name);
     if (label === undefined) return badName;
     const current = records.find((record) => record.id === id);
-    if (current === undefined) return refused(`There is no member ${id}.`);
+    if (current === undefined) return refused(noMember(id));
     if (current.name === label) return done(publicly(current));
     const taken = unavailable(label, id);
     if (taken !== undefined) return taken;
@@ -226,7 +227,7 @@ export function openRoster(dataDir: string, firstName: string): Roster {
     },
     setAdmin(id, admin) {
       const current = records.find((record) => record.id === id);
-      if (current === undefined) return refused(`There is no member ${id} on the roster.`);
+      if (current === undefined) return refused(noMember(id));
       if (current.kind === "person") return refused(`${current.name} is a person, and every person is an admin.`);
       if (current.admin === admin) return done(publicly(current));
       const changed = { ...current, admin };

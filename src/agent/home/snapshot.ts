@@ -1,5 +1,5 @@
 import { relative, sep } from "node:path";
-import { codeOf, compare, type LeftOut, why } from "../../lib/files/index.ts";
+import { codeOf, compare, type LeftOut, why, whyUnseen } from "../../lib/files/index.ts";
 import { readText } from "../../lib/files/node.ts";
 import { shownIn } from "./files.ts";
 import { INCLUDED_SKILLS } from "./included.ts";
@@ -49,7 +49,7 @@ export async function readHomeSnapshot(paths: HomePaths): Promise<HomeSnapshot> 
     if (entry.kind === "unread") {
       if (codeOf(entry.error) !== "ENOENT") leftOut.push({ file: inHome(entry.path), reason: why(entry.error) });
     } else if (entry.kind === "unseen") {
-      leftOut.push({ file: inHome(entry.path), reason: brokenLink(entry.error) });
+      leftOut.push({ file: inHome(entry.path), reason: whyUnseen(entry.error) });
     } else if (entry.info.isFile()) {
       const read = await readText(entry.path);
       if (read.kind === "unreadable") leftOut.push({ file: inHome(entry.path), reason: read.reason });
@@ -66,10 +66,6 @@ export async function readHomeSnapshot(paths: HomePaths): Promise<HomeSnapshot> 
     skills: mergeSkills(own, included),
     leftOut,
   };
-}
-
-function brokenLink(error: unknown): string {
-  return codeOf(error) === "ENOENT" ? "it is a link to nothing" : why(error);
 }
 
 /** What a left-out file says when the agent goes on with what it had of it. */

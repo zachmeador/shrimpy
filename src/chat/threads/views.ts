@@ -1,4 +1,4 @@
-import type { Channel, Member, Message, Thread } from "../../contracts/chat/index.ts";
+import { type Channel, type Member, type Message, ONLY_MEMBERS, type Thread } from "../../contracts/chat/index.ts";
 import { type Answer, refused, type Refused } from "../../contracts/gateway/index.ts";
 import { fitAnswer } from "../input/index.ts";
 import { isMember, readableChannel, readableThread, readsOthers } from "./access.ts";
@@ -11,7 +11,7 @@ import { withWorking } from "./working.ts";
 const VIEW_MESSAGES = 200;
 
 /** What a program that is no member is told when it asks chat for anything. */
-export const NOT_A_MEMBER = refused("Only the network's members use chat, and the roster has no member for whoever is asking.");
+export const NOT_A_MEMBER = refused(ONLY_MEMBERS);
 
 /** What `Chat` shows its caller. */
 export type ChatView = {

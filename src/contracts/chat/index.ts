@@ -17,11 +17,12 @@
  * how a text is told to be one, so that a client shows what an agent acts on
  * and for whom, and everyone reads a text the same way; how an agent acts is its
  * own. What a receipt says to a person is here too, what a thread and a
- * channel are called, how a room is written for the command that adds a
- * member to it, and that whoever reads has not talked to a member yet, so that
- * every client and chat's own refusals say them the same way, and finding a
- * member, a room or a DM by what it is called, as the clients and the agent's
- * tools do. This door is safe for browsers.
+ * channel are called, members' names in order, how a room is written for the
+ * command that adds a member to it, why a DM can't be joined, why chat takes
+ * someone for nobody, and that whoever reads has not talked to a member yet, so
+ * that every client and chat's own refusals say them the same way; and finding
+ * a member, a room or a DM by what it is called, and a member's name by its ID,
+ * as the clients and the agent's tools do. This door is safe for browsers.
  */
 export { Channel } from "./channel.ts";
 export { Chat } from "./chat.ts";
@@ -49,6 +50,7 @@ export {
   NO_ROOMS,
   notInRoom,
   notTalkedTo,
+  ONLY_MEMBERS,
   receiptWords,
   roomLabel,
   roomWord,

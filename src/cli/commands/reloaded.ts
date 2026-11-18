@@ -1,5 +1,7 @@
 import { type ModelId, modelWords, type Reloaded } from "../../contracts/agent/index.ts";
+import { noAgentAt } from "../../contracts/agent/node.ts";
 import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
+import { listed } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
 import { type HeldAgent, onAgent } from "../talk/index.ts";
 import { connectIfRunning, startOne } from "./connected.ts";
@@ -16,9 +18,7 @@ export function whatItReads({ soul, files, skills, triggers }: Read): string {
     ...(skills > 0 ? [`${skills} ${skills === 1 ? "skill" : "skills"}`] : []),
     ...(triggers > 0 ? [`${triggers} ${triggers === 1 ? "trigger" : "triggers"}`] : []),
   ];
-  const last = parts.pop();
-  if (last === undefined) return "nothing from its home's files";
-  return parts.length === 0 ? last : `${parts.join(", ")} and ${last}`;
+  return parts.length === 0 ? "nothing from its home's files" : listed(parts);
 }
 
 /** What a reload that changed the agent's default model says: the model it is now, and the one it replaced. */
@@ -43,7 +43,7 @@ export async function toldOfChange(
 ): Promise<void> {
   const reached = await connectIfRunning(target.home);
   if (reached === undefined) {
-    io.out(`No agent is running at ${target.home}, so the change takes effect when the agent starts${options.afterStart ?? ""}. ${startOne(target)}`);
+    io.out(`${noAgentAt(target.home)}, so the change takes effect when the agent starts${options.afterStart ?? ""}. ${startOne(target)}`);
     return;
   }
   try {

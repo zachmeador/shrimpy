@@ -7,7 +7,7 @@
  * `providers/` directory of the folder agents are started in, with its
  * default model. Browser code must not import this file.
  */
-export { AgentNotRunningError, connectHome, readEndpoint } from "./connect.node.ts";
+export { AgentNotRunningError, connectHome, noAgentAt, readEndpoint } from "./connect.node.ts";
 export { readDefaultModel, saveDefaultModel } from "./default-model.node.ts";
 export { initHome } from "./init.node.ts";
 export { type HomePaths, homePaths, type ProviderPaths, providerPaths } from "./layout.node.ts";

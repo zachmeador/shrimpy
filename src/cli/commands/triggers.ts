@@ -3,6 +3,7 @@ import { describeSchedule, type Occurrence, type TriggerDetail, type TriggerSche
 import {
   draftTrigger,
   loadHome,
+  noAgentAt,
   NoTriggerError,
   readTriggers,
   removeTrigger,
@@ -51,7 +52,7 @@ function noTrigger(target: Target, name: string, known: readonly string[]): stri
 /** What a command says when a trigger has to be asked of an agent that is not running, which only the files of its home can stand in for. */
 function saysFilesOnly(io: Io, target: Target): void {
   io.err(
-    `No agent is running at ${target.home}, so this shows only what its trigger files say, and nothing about ` +
+    `${noAgentAt(target.home)}, so this shows only what its trigger files say, and nothing about ` +
       `when a trigger runs next or how its last occurrence ended. ${startOne(target)}`,
   );
 }

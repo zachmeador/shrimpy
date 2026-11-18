@@ -1,4 +1,4 @@
-import { AgentNotRunningError, connectHome } from "../../contracts/agent/node.ts";
+import { AgentNotRunningError, connectHome, noAgentAt } from "../../contracts/agent/node.ts";
 import { type AgentReached, reachAgent, shellActingOn } from "../talk/index.ts";
 import type { Target } from "./which-agent.ts";
 
@@ -25,7 +25,7 @@ export async function connectIfRunning(home: string): Promise<AgentReached | und
 export const startOne = (target: Target): string => `Start one with: shrimpy agent serve ${target.given}`;
 
 /** What to tell someone who needs a running agent that is not there. */
-export const noAgentRunning = (target: Target): string => `No agent is running at ${target.home}. ${startOne(target)}`;
+export const noAgentRunning = (target: Target): string => `${noAgentAt(target.home)}. ${startOne(target)}`;
 
 /** Reach the agent `target` is, for the length of `use`. */
 export async function withConnection<T>(target: Target, use: (agent: AgentReached) => Promise<T>): Promise<T> {

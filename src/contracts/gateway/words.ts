@@ -33,7 +33,7 @@ export const NO_AGENT_YET = `No agent has joined yet. ${startWith("one", "shrimp
  * it lives, since an agent can live on another machine or under another user,
  * where nothing here can start it.
  */
-export function startAgent(name: string, home?: { found: boolean; where: string }): string {
+export function howToStartAgent(name: string, home?: { found: boolean; where: string }): string {
   return home?.found === false
     ? `It has no home in ${oneLine(home.where)}, so it lives somewhere else: start it where it lives.`
     : startWith("it", `shrimpy agent serve ${oneLine(name)}`);
