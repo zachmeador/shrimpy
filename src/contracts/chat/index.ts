@@ -16,8 +16,9 @@
  * on, with a line on each, who each is for in a room when it names nobody, and
  * how a text is told to be one, so that a client shows what an agent acts on
  * and for whom, and everyone reads a text the same way; how an agent acts is its
- * own. What a receipt says to a person is here too, and what a thread and a
- * channel are called, so that every client says them the same way, and finding
+ * own. What a receipt says to a person is here too, what a thread and a
+ * channel are called, and that whoever reads has not talked to a member yet,
+ * so that every client says them the same way, and finding
  * a member, a room or a DM by what it is called, as the clients and the agent's
  * tools do. This door is safe for browsers.
  */
@@ -38,4 +39,14 @@ export {
   type Working,
 } from "./shapes.ts";
 export { Thread } from "./thread.ts";
-export { channelLabel, NO_MESSAGES, NO_ROOMS, notInRoom, receiptWords, roomLabel, taggedTitle, titleOf } from "./words.ts";
+export {
+  channelLabel,
+  NO_MESSAGES,
+  NO_ROOMS,
+  notInRoom,
+  notTalkedTo,
+  receiptWords,
+  roomLabel,
+  taggedTitle,
+  titleOf,
+} from "./words.ts";

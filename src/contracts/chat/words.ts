@@ -46,6 +46,9 @@ export function notInRoom(name: string, rooms: readonly string[]): string {
   return `You are not in a room called #${name}. ${where}`;
 }
 
+/** That whoever reads it has no DM with `name` yet, which each client follows with its own way to start a thread. */
+export const notTalkedTo = (name: string): string => `You have not talked to ${oneLine(name)} yet.`;
+
 /** What a thread with no messages yet shows, and what it is called while it has no name. */
 export const NO_MESSAGES = "(no messages yet)";
 

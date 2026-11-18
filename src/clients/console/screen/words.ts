@@ -17,7 +17,7 @@ import {
   type WaitingWakeup,
   wakeupWords,
 } from "../../../contracts/agent/index.ts";
-import { AGENT_COMMANDS, type AgentCommand, type Channel, roomLabel } from "../../../contracts/chat/index.ts";
+import { AGENT_COMMANDS, type AgentCommand, type Channel, notTalkedTo, roomLabel } from "../../../contracts/chat/index.ts";
 import { NO_CHAT_SERVER, NO_GATEWAY, startAgent, versionWarning } from "../../../contracts/gateway/index.ts";
 import { oneLine } from "../../../lib/plain/index.ts";
 import { listed, shellWord, withoutPeriod } from "../../../lib/text/index.ts";
@@ -245,7 +245,7 @@ export const threadTitle = (who: string, title: string | undefined): string =>
   `${oneLine(who)} · ${title === undefined ? "new thread" : oneLine(title)}`;
 /** What an agent's screen says when its list is empty. `more` is whether there is anything else on the other side of the filter. */
 export const threadsEmpty = (agent: string, more: boolean): string =>
-  `You have not talked to ${oneLine(agent)} yet. Press Ctrl+N to start a thread.${more ? ` Left shows everything ${oneLine(agent)} takes part in.` : ""}`;
+  `${notTalkedTo(agent)} Press Ctrl+N to start a thread.${more ? ` Left shows everything ${oneLine(agent)} takes part in.` : ""}`;
 export const newThreadHint = (agent: string): string => `New thread with ${oneLine(agent)}. Type below to start it.`;
 export const newRoomThreadHint = (room: string): string => `New thread in ${roomLabel(room)}. Type below to start it.`;
 
