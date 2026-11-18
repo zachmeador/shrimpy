@@ -1,4 +1,4 @@
-import { asSentence } from "../../lib/text/index.ts";
+import { asSentence, singleSpaced } from "../../lib/text/index.ts";
 import type { FailureReason } from "./shapes.ts";
 
 /**
@@ -9,7 +9,7 @@ const DETAIL_CHARACTERS = 300;
 
 /** A detail as the end of a sentence, on one line and cut to fit. */
 function detailSentence(detail: string): string {
-  const line = detail.replace(/\s+/g, " ").trim();
+  const line = singleSpaced(detail);
   return asSentence(line.length > DETAIL_CHARACTERS ? `${line.slice(0, DETAIL_CHARACTERS - 1)}…` : line);
 }
 

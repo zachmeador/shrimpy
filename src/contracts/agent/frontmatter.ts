@@ -1,3 +1,5 @@
+import { singleSpaced } from "../../lib/text/index.ts";
+
 const KEY = /^([A-Za-z0-9_-]+):[ \t]*(.*)$/;
 const BLOCK = /^[|>][+-]?\d*$/;
 
@@ -59,9 +61,4 @@ function unquoted(text: string): string {
   } catch {
     return inside;
   }
-}
-
-/** Line breaks and runs of spaces made into single spaces, and nothing at either end. */
-function singleSpaced(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
 }

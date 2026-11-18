@@ -1,5 +1,5 @@
 import type { Message } from "../../contracts/chat/index.ts";
-import { listed } from "../../lib/text/index.ts";
+import { listed, singleSpaced } from "../../lib/text/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import {
   type Asked,
@@ -202,7 +202,7 @@ function missedResults(missed: CameBack[]): string {
 /** The wake-ups that were cancelled, each with when it was for, when it was asked for and its note on one line. */
 function cancellations(cancelled: Wakeup[]): string {
   const lines = cancelled.map(
-    (wakeup) => `- for ${localTime(wakeup.due)}, asked at ${localTime(wakeup.askedAt)}: ${wakeup.note.replace(/\s+/g, " ").trim()}`,
+    (wakeup) => `- for ${localTime(wakeup.due)}, asked at ${localTime(wakeup.askedAt)}: ${singleSpaced(wakeup.note)}`,
   );
   return [
     "Your work was stopped or a turn before them failed, so these wake-ups you had asked for will not come. " +

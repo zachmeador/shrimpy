@@ -2,6 +2,7 @@ import { posix } from "node:path";
 import type { Context } from "@earendil-works/chord/context";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
 import { AGENT_RUNTIME_DIR, type Check, delayMs } from "../../contracts/agent/index.ts";
+import { singleSpaced } from "../../lib/text/index.ts";
 import { cutText } from "../home/index.ts";
 
 /** The most of what a check printed that is kept: more is cut. */
@@ -100,7 +101,7 @@ function failed(what: string, standardError = ""): string {
 
 /** The last `ERROR_END` characters of `text`, as one line. */
 function endOf(text: string): string {
-  const line = text.replace(/\s+/g, " ").trim();
+  const line = singleSpaced(text);
   if (line.length <= ERROR_END) return line;
   const end = line.slice(-ERROR_END);
   const first = end.charCodeAt(0);
