@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { MAX_RECEIPT_DETAIL_LENGTH } from "../../contracts/chat/index.ts";
+import { type LeftReceipt, MAX_RECEIPT_DETAIL_LENGTH } from "../../contracts/chat/index.ts";
 import { cutEnd } from "../../lib/text/index.ts";
 
 /**
@@ -23,13 +23,19 @@ export function inParts(text: string, limit: number): string[] {
 function cutPoint(text: string, limit: number): number {
   const lineBreak = text.lastIndexOf("\n", limit - 1);
   if (lineBreak >= limit / 2) return lineBreak + 1;
-  const last = text.charCodeAt(limit - 1);
-  const splitsAPair = last >= 0xd800 && last <= 0xdbff;
-  return Math.max(splitsAPair ? limit - 1 : limit, 1);
+  // A part is never empty, or the text would never run out.
+  return Math.max(cutEnd(text, limit).length, 1);
 }
 
 /** `text` as the detail of a receipt: cut to what chat takes, with an ellipsis when it was cut. */
 export const receiptDetail = (text: string): string => cutEnd(text, MAX_RECEIPT_DETAIL_LENGTH, { ending: "…" });
+
+/** The receipt left when chat refused the reply, which says so with chat's words. */
+export const replyRefused = (words: string): LeftReceipt => ({
+  status: "failed",
+  reply: null,
+  detail: receiptDetail(`The reply could not be posted: ${words}`),
+});
 
 /**
  * Names a posted reply by the agent's records, the thread's session and the

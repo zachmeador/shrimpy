@@ -1,7 +1,7 @@
 import type { Context } from "@earendil-works/chord/context";
 import { defineExtension, defineTask, type Extension, type ToolExecutionApi } from "@earendil-works/pi-durable";
 import { localTime } from "../../lib/time/index.ts";
-import { failTask, tasksOfKind } from "../host/durable.ts";
+import { ABORTED, COMPLETED, failTask, tasksOfKind } from "../host/durable.ts";
 import type { Breadcrumb, Question } from "../inputs/index.ts";
 import { QuestionsDoc } from "../records/durable.ts";
 import type { TurnTask } from "../turns/durable.ts";
@@ -70,7 +70,7 @@ export function createQuestions(turn: TurnTask, options: QuestionsOptions): Ques
           const crumbs = await options.breadcrumbs();
           await runtime.commit(async (tx) => {
             await closeQuestion(tx, turn, question.id, looked?.result ?? { kind: "unanswered" }, crumbs, looked?.through);
-            return { status: "terminal", outcome: { status: "completed", result: null } };
+            return COMPLETED;
           }, context);
         } catch (error) {
           const what = `The question asked of ${question.of.name} at ${localTime(question.askedAt)} could not be closed`;
@@ -83,7 +83,7 @@ export function createQuestions(turn: TurnTask, options: QuestionsOptions): Ques
     abort: async (waiting, runtime, context) => {
       await runtime.commit(async (tx) => {
         await forgetQuestion(tx, waiting.input.id);
-        return { status: "terminal", outcome: { status: "aborted" } };
+        return ABORTED;
       }, context);
     },
   });

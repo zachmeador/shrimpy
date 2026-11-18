@@ -7,9 +7,6 @@ import { upTo } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
 import { UsageError } from "../usage/index.ts";
 
-/** How many of a provider's model IDs are listed when a person is asked which to start with. */
-const LISTED_MODELS = 12;
-
 /** How wide a list of IDs is made. */
 const WIDTH = 78;
 
@@ -208,7 +205,7 @@ async function chooseDefaultModel(
     return;
   }
   io.out(`Agents that name no model start with a default one. ${provider.name} has:`);
-  for (const line of wrapped(upTo(ids, LISTED_MODELS))) io.out(`  ${line}`);
+  for (const line of wrapped(upTo(ids))) io.out(`  ${line}`);
   for (;;) {
     const answer = (await io.ask("Which model? Type its ID, or press Enter to choose later: ", { signal })).trim();
     if (answer === "") {

@@ -83,8 +83,6 @@ const STREAMS: Record<CustomApi, () => ProviderStreams> = {
   "openai-completions": openAICompletionsApi,
 };
 
-const LISTED_MODELS = 12;
-
 /** The files a person changes to make a model usable: the home's, and the folder's when the agent was told of one. */
 interface Files {
   readonly models: readonly string[];
@@ -273,7 +271,7 @@ async function requireUsable(models: Models, start: Start, declared: Declared, f
   const declaredIn = declared.get(providerId)?.file;
   if (models.getModel(providerId, modelId) === undefined) {
     const ids = models.getModels(providerId).map(({ id }) => id);
-    const shown = upTo(ids, LISTED_MODELS).join(", ");
+    const shown = upTo(ids).join(", ");
     const fix =
       declaredIn === undefined
         ? `Correct the model in ${start.file}.`
@@ -286,9 +284,10 @@ async function requireUsable(models: Models, start: Start, declared: Declared, f
 
 function missingKey(provider: Provider, declaredIn: string | undefined, files: Files): string {
   const id = provider.id;
+  const noKey = `The provider "${id}" has no API key.`;
   if (declaredIn !== undefined) {
     return (
-      `The provider "${id}" has no API key. A server that needs none still takes a placeholder: ` +
+      `${noKey} A server that needs none still takes a placeholder: ` +
       `set "apiKey": "local" under providers.${id} in ${declaredIn}.`
     );
   }
@@ -302,10 +301,10 @@ function missingKey(provider: Provider, declaredIn: string | undefined, files: F
           `Run shrimpy login ${id} to sign in, for every agent in the Shrimpy folder.`;
   }
   const entry = JSON.stringify({ [id]: { type: "api_key", key: "<your key>" } });
-  if (folder === undefined) return `The provider "${id}" has no API key. Add one to ${own}, for example ${entry}`;
+  if (folder === undefined) return `${noKey} Add one to ${own}, for example ${entry}`;
   const verb = provider.auth.oauth === undefined ? "add a key" : "sign in or add a key";
   return (
-    `The provider "${id}" has no API key. Run shrimpy login ${id} to ${verb}, which keeps it in ${folder} ` +
+    `${noKey} Run shrimpy login ${id} to ${verb}, which keeps it in ${folder} ` +
     `for every agent in the Shrimpy folder, or put a key in ${own} for this agent alone, for example ${entry}`
   );
 }

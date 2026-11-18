@@ -4,6 +4,7 @@ import type { Check } from "../../contracts/agent/index.ts";
 import { nextOccurrence } from "../../contracts/agent/node.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { localTime } from "../../lib/time/index.ts";
+import { ABORTED, COMPLETED } from "../host/durable.ts";
 import { copyOf, type SessionDefaults, type StoredTrigger, TriggersDoc } from "../records/durable.ts";
 import type { Breadcrumb } from "../inputs/index.ts";
 import type { TurnTask } from "../turns/durable.ts";
@@ -65,8 +66,6 @@ export interface TriggerTaskOptions {
   onError(error: Error): void;
 }
 
-export const ENDED = { status: "terminal", outcome: { status: "completed", result: null } } as const;
-
 /** The task asleep until its next occurrence is due at `next`, for the revision of the schedule it is for. */
 const asleep = (revision: number, next: number) => ({ status: "sleeping", until: next, checkpoint: { phase: "due", revision, next } }) as const;
 
@@ -123,7 +122,7 @@ export function triggerTask(options: TriggerTaskOptions) {
    */
   const onward = async (tx: Tx, runtime: Runtime, name: string, revision: number, make?: (found: StoredTrigger) => Promise<void>) => {
     const found = await stillThere(tx, name, revision);
-    if (found === undefined) return ENDED;
+    if (found === undefined) return COMPLETED;
     await make?.(found);
     return asleep(revision, nextOccurrence(found.definition.schedule, runtime.now()));
   };
@@ -159,7 +158,7 @@ export function triggerTask(options: TriggerTaskOptions) {
           const breadcrumbs = await options.breadcrumbs();
           await runtime.commit(async (tx) => {
             const found = await stillThere(tx, name, revision);
-            if (found === undefined) return ENDED;
+            if (found === undefined) return COMPLETED;
             const now = runtime.now();
             const { check } = found.definition;
             // A trigger with a check starts it, and makes its occurrence once it knows whether there is news.
@@ -182,7 +181,7 @@ export function triggerTask(options: TriggerTaskOptions) {
         const output = await runCheck(await runtime.env(context), errorsOf(name, false), check, context);
         await runtime.commit(async (tx) => {
           const found = await stillThere(tx, name, revision);
-          if (found === undefined) return ENDED;
+          if (found === undefined) return COMPLETED;
           const news = isNews(check.when, output, found.last);
           return { status: "running", checkpoint: { phase: "checked", revision, next, firedAt, check, output, news } } as const;
         }, context);
@@ -222,7 +221,7 @@ export function triggerTask(options: TriggerTaskOptions) {
     },
 
     abort: async (_waiting, runtime, context) => {
-      await runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted" } }), context);
+      await runtime.commit(() => ABORTED, context);
     },
   });
 }

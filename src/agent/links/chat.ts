@@ -162,6 +162,9 @@ function callsOver(host: Host<Principal, Revocation>, chat: Held<typeof Chat>, m
 /** How long a call that failed for want of its link waits for the loss of chat to be known, before it counts as its own failure. */
 const LOSS_FOLLOWS_MS = 5_000;
 
+/** Why chat can't be reached once the agent has let go of its link. */
+const CLOSED = "The link to chat is closed.";
+
 /**
  * Hold `Chat` through `host`, which has loaded, for as long as the link is
  * open: the hold goes up the agent's link to the gateway, so chat takes it for
@@ -246,7 +249,7 @@ export function openChatLink(
   const untilUp = (signal: AbortSignal): Promise<LiveChat> => {
     const now = current();
     if (now !== undefined) return Promise.resolve(now);
-    if (closed) return Promise.reject(new Error("The link to chat is closed."));
+    if (closed) return Promise.reject(new Error(CLOSED));
     return untilHeard((heard) => arrivals.add(heard), signal);
   };
 
@@ -278,7 +281,7 @@ export function openChatLink(
     },
     async close() {
       closed = true;
-      up?.lost.abort(new Error("The link to chat is closed."));
+      up?.lost.abort(new Error(CLOSED));
       up = undefined;
       for (const watch of watches.splice(0)) await watch.stop();
       arrivals.clear();

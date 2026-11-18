@@ -4,14 +4,14 @@ import {
   agentCommandIn,
   type Channel,
   type ChatEvent,
+  type LeftReceipt,
   type Member,
-  type Receipt,
 } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import type { ChatCalls } from "../links/index.ts";
 import type { Admissions } from "./admissions.ts";
 import { actOnModel } from "./model-command.ts";
-import { commandReplyRequestId, receiptDetail } from "./reply.ts";
+import { commandReplyRequestId, replyRefused } from "./reply.ts";
 
 /**
  * What the agent does for each command a person can write in a thread, with no
@@ -57,9 +57,6 @@ export interface Obeying {
   onError: (error: Error) => void;
 }
 
-/** What an agent's receipt says: `Receipt` without the member who left it and the event it is left on. */
-type Left = Omit<Receipt, "memberId" | "event">;
-
 /**
  * Act on a command now, ahead of anything queued, say the one line it has in the
  * thread if it has one, and leave its receipt, which points at that line, or is
@@ -71,7 +68,7 @@ type Left = Omit<Receipt, "memberId" | "event">;
 export async function obey(command: AgentCommand, event: ChatEvent, { chat, admissions, signal, onError }: Obeying): Promise<void> {
   const words = (event.kind === "posted" ? agentCommandIn(event.text)?.words : undefined) ?? "";
   const line = await ACTIONS[command](admissions, event, words);
-  let receipt: Left = { status: "silent", reply: null, detail: null };
+  let receipt: LeftReceipt = { status: "silent", reply: null, detail: null };
   if (line !== undefined) {
     try {
       const posted = await chat.post(event.message.threadId, line, commandReplyRequestId(event.id, line), signal);
@@ -79,7 +76,7 @@ export async function obey(command: AgentCommand, event: ChatEvent, { chat, admi
     } catch (error) {
       if (!isRefusal(error)) throw error;
       onError(new Error(`Chat refused the reply to the command ${event.id}, so its receipt says it failed: ${error.message}`));
-      receipt = { status: "failed", reply: null, detail: receiptDetail(`The reply could not be posted: ${error.message}`) };
+      receipt = replyRefused(error.message);
     }
   }
   try {

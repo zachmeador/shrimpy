@@ -1,7 +1,7 @@
 import { modelWords } from "../../contracts/agent/index.ts";
 import { type Message, roomLabel } from "../../contracts/chat/index.ts";
 import { listed, singleSpaced } from "../../lib/text/index.ts";
-import { localTime } from "../../lib/time/index.ts";
+import { howLong, localTime } from "../../lib/time/index.ts";
 import {
   type Asked,
   type Audience,
@@ -28,6 +28,14 @@ import {
  */
 export const CAN_END_TURN =
   "You can end your turn now. What you write last is posted as your reply, so write a line meant for whoever you are talking to, such as what you are waiting for, or write only END to post nothing.";
+
+/**
+ * What a tool that leaves something to come back later tells the model of a
+ * wait it asked for that is too short or too long, after the tool's own first
+ * words: the shortest or the longest wait there may be, and what to give instead.
+ */
+export const waitTooShort = (shortest: number): string => `the shortest wait is ${howLong(shortest)}. Give a longer one.`;
+export const waitTooLong = (longest: number): string => `the longest wait is ${howLong(longest)}. Give a shorter one.`;
 
 /**
  * What the model is shown for an input. It travels with the input and is never

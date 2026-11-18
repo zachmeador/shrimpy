@@ -2,11 +2,11 @@ import type { Context } from "@earendil-works/chord/context";
 import { defineTask, type TaskRuntime, type Tx } from "@earendil-works/pi-durable";
 import type { Check } from "../../contracts/agent/index.ts";
 import { localTime } from "../../lib/time/index.ts";
-import { failTask } from "../host/durable.ts";
+import { ABORTED, COMPLETED, failTask } from "../host/durable.ts";
 import { type StoredTrigger, TriggersDoc } from "../records/durable.ts";
 import { errorsOf, runCheck } from "./check.durable.ts";
 import { recordInterrupted, settle } from "./occurrence.durable.ts";
-import { beforeSettling, ENDED, type TriggerTaskOptions } from "./task.durable.ts";
+import { beforeSettling, type TriggerTaskOptions } from "./task.durable.ts";
 
 /** The name of the task that runs a trigger's check when someone asks for it, and makes the occurrence from what it printed. */
 export const RUN_TASK = "shrimpy.trigger-run";
@@ -64,7 +64,7 @@ export function runTask(options: TriggerTaskOptions) {
           await runtime.commit(async (tx) => {
             const found = await stored(tx, name);
             if (found !== undefined) await recordInterrupted(tx, turn, found, { id, due: firedAt, firedAt, byHand: true });
-            return ENDED;
+            return COMPLETED;
           }, context);
         } catch (error) {
           await gaveUp(runtime, context, interrupted.input, error);
@@ -81,7 +81,7 @@ export function runTask(options: TriggerTaskOptions) {
             if (found !== undefined) {
               await settle(tx, { turn, defaults, breadcrumbs }, found, finding, { id, due: firedAt, firedAt, byHand: true }, where);
             }
-            return ENDED;
+            return COMPLETED;
           }, context);
         } catch (error) {
           await gaveUp(runtime, context, done.input, error);
@@ -90,7 +90,7 @@ export function runTask(options: TriggerTaskOptions) {
     },
 
     abort: async (_asked, runtime, context) => {
-      await runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted" } }), context);
+      await runtime.commit(() => ABORTED, context);
     },
   });
 }

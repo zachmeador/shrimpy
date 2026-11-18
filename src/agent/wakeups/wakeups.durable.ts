@@ -11,7 +11,7 @@ import {
   type ToolExecutionApi,
 } from "@earendil-works/pi-durable";
 import { localTime } from "../../lib/time/index.ts";
-import { failTask, tasksOfKind } from "../host/durable.ts";
+import { ABORTED, COMPLETED, failTask, tasksOfKind } from "../host/durable.ts";
 import type { Breadcrumb, Wakeup } from "../inputs/index.ts";
 import { addressOfPlace, keepCancelled, placeOfSession, type SessionPlace, type SessionRecord, SessionsDoc } from "../records/durable.ts";
 import { takeUp, type TurnTask } from "../turns/durable.ts";
@@ -89,7 +89,7 @@ export function createWakeups(turn: TurnTask, options: WakeupsOptions): Wakeups 
           const crumbs = await options.breadcrumbs();
           await runtime.commit(async (tx) => {
             await takeUp(tx, turn, runtime.conversationId, waiting.input, crumbs);
-            return { status: "terminal", outcome: { status: "completed", result: null } };
+            return COMPLETED;
           }, context);
         } catch (error) {
           await failTask(runtime, context, error, options, `The wake-up for ${localTime(wakeup.due)} could not be taken up`);
@@ -101,7 +101,7 @@ export function createWakeups(turn: TurnTask, options: WakeupsOptions): Wakeups 
       await runtime.commit(async (tx) => {
         const session = sessionOfWaiting((await tx.doc(SessionsDoc)).sessions, waiting.input);
         if (session !== undefined) keepCancelled(session, [waiting.input.wakeup]);
-        return { status: "terminal", outcome: { status: "aborted" } };
+        return ABORTED;
       }, context);
     },
   });

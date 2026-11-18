@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import { AGENT_HOME_VARIABLE } from "../../contracts/agent/index.ts";
 import { saveFile } from "../../lib/files/node.ts";
+import { shellWord } from "../../lib/text/index.ts";
 import { homePaths } from "../home/index.ts";
 
 /** Used when the agent was started with no PATH at all, so its shell still finds the ordinary commands. */
@@ -34,7 +35,7 @@ export function shellWithShrimpy(home: string, command: readonly string[]): Node
 
 function writeLauncher(file: string, home: string, command: readonly string[]): void {
   // The home it names is how a command run from the agent's shell knows it is the agent's.
-  const text = `#!/bin/sh\n${AGENT_HOME_VARIABLE}=${quote(home)} exec ${command.map(quote).join(" ")} "$@"\n`;
+  const text = `#!/bin/sh\n${AGENT_HOME_VARIABLE}=${shellWord(home)} exec ${command.map(shellWord).join(" ")} "$@"\n`;
   if (existing(file) === text) return;
   // Saved whole: a shell may be running it as it changes.
   saveFile(file, text, { mode: 0o755 });
@@ -47,6 +48,3 @@ function existing(file: string): string | undefined {
     return undefined;
   }
 }
-
-/** One word for a POSIX shell, whatever is in it. */
-const quote = (word: string): string => `'${word.replaceAll("'", "'\\''")}'`;

@@ -2,7 +2,7 @@ import { posix } from "node:path";
 import type { Context } from "@earendil-works/chord/context";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
 import { AGENT_RUNTIME_DIR, type Check, delayMs } from "../../contracts/agent/index.ts";
-import { cutStart, singleSpaced } from "../../lib/text/index.ts";
+import { cutStart, shellWord, singleSpaced, withoutPeriod } from "../../lib/text/index.ts";
 import { cutText } from "../home/index.ts";
 
 /** The most of what a check printed that is kept: more is cut. */
@@ -40,15 +40,15 @@ export const errorsOf = (trigger: string, byHand: boolean): string => `${AGENT_R
  * stopped with it, and the check has not found anything.
  */
 export async function runCheck(env: ExecutionEnv | undefined, errors: string, check: Check, context: Context): Promise<string> {
-  if (env === undefined) return failed("it could not be started: the agent has no shell to run it in");
+  if (env === undefined) return failed(notStarted("the agent has no shell to run it in"));
   const made = await env.createDir(posix.dirname(errors), { recursive: true }, context);
   if (!made.ok) {
     context.abortSignal?.throwIfAborted();
-    return failed(`it could not be started: ${made.error.message}`);
+    return failed(notStarted(made.error.message));
   }
   let printed = "";
   const ran = await env.exec(
-    `exec 2>${quote(errors)}\n${check.command}`,
+    `exec 2>${shellWord(errors)}\n${check.command}`,
     {
       timeout: delayMs(check.timeout) / 1000,
       onOutput: (text) => {
@@ -65,7 +65,7 @@ export async function runCheck(env: ExecutionEnv | undefined, errors: string, ch
   };
   if (!ran.ok) {
     if (ran.error.code === "timeout") return failed(`it did not finish in ${check.timeout}, so it was stopped`, await printedOnError());
-    return failed(`it could not be started: ${ran.error.message}`);
+    return failed(notStarted(ran.error.message));
   }
   if (ran.value.exitCode !== 0) return failed(`it exited with status ${String(ran.value.exitCode)}`, await printedOnError());
   return cutText(printed.trim(), OUTPUT_LIMIT);
@@ -96,8 +96,8 @@ export const noteOf = (prompt: string, output: string): string => `${prompt === 
 /** The line a failed check has for its output: what went wrong, and the end of what it printed on standard error. */
 function failed(what: string, standardError = ""): string {
   const end = cutStart(singleSpaced(standardError), ERROR_END);
-  return `The check failed: ${what.replace(/[.\s]+$/, "")}.${end === "" ? "" : ` The end of what it printed on standard error: ${end}`}`;
+  return `The check failed: ${withoutPeriod(what.trimEnd())}.${end === "" ? "" : ` The end of what it printed on standard error: ${end}`}`;
 }
 
-/** One word for a POSIX shell, whatever is in it. */
-const quote = (word: string): string => `'${word.replaceAll("'", "'\\''")}'`;
+/** Why a check failed when it could not be started. */
+const notStarted = (why: string): string => `it could not be started: ${why}`;

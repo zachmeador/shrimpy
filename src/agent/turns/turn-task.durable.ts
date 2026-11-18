@@ -33,7 +33,7 @@ import {
   threadOf,
   type TurnOutcome,
 } from "../inputs/index.ts";
-import { tasksOfKind } from "../host/durable.ts";
+import { ABORTED, tasksOfKind } from "../host/durable.ts";
 import { keepSkipped, sessionAddress, SessionsDoc } from "../records/durable.ts";
 import type { Delivery } from "./delivery.ts";
 import { modelChangeOf } from "./model-change.durable.ts";
@@ -154,7 +154,7 @@ export function turnTask(options: TurnTaskOptions) {
         await runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: outcome } }), context);
       },
     },
-    abort: (_waiting, runtime, context) => runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted" } }), context),
+    abort: (_waiting, runtime, context) => runtime.commit(() => ABORTED, context),
   });
 
   /** Run a phase so that nothing unexpected leaves it: report the failure, and let `recover` end the task. */

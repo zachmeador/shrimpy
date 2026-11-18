@@ -49,6 +49,12 @@ export async function endTasks(harness: Harness, conversationId: ConversationId,
   for (const id of ending) await harness.waitForTask(id, context);
 }
 
+/** What a commit gives to end its task as done, with nothing to give back. */
+export const COMPLETED = { status: "terminal", outcome: { status: "completed", result: null } } as const;
+
+/** What a commit gives to end its task as aborted. */
+export const ABORTED = { status: "terminal", outcome: { status: "aborted" } } as const;
+
 /**
  * End the task that `runtime` runs as failed, in one commit with whatever
  * `also` writes, and tell `told` that `what` could not be done, with the message

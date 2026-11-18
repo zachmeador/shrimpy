@@ -1,8 +1,9 @@
 /**
  * What an input is, whichever source it comes from: a chat event, a wake-up the
  * agent asked for, an occurrence of a trigger or the result of a question the
- * agent asked another agent. It holds their shapes, how each reads to the model,
- * and how an input's turn can end, as data and words. It must not know the
+ * agent asked another agent. It holds their shapes, how each reads to the model
+ * and how an input's turn can end, as data and words, and what the tools that
+ * ask for one later say of how long they may wait. It must not know the
  * engine, how an input is stored or run, or how its source is told how the turn
  * ended.
  */
@@ -36,4 +37,4 @@ export {
   type TurnOutcome,
   type Wakeup,
 } from "./input.ts";
-export { CAN_END_TURN, promptFor, standing, written } from "./prompt.ts";
+export { CAN_END_TURN, promptFor, standing, waitTooLong, waitTooShort, written } from "./prompt.ts";

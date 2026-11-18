@@ -1,8 +1,8 @@
-import type { Message, Receipt } from "../../contracts/chat/index.ts";
+import type { LeftReceipt, Message } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { isChat, type Outstanding, readFinalText, type TurnOutcome } from "../inputs/index.ts";
 import type { ChatCalls } from "../links/index.ts";
-import { inParts, receiptDetail, replyRequestId } from "./reply.ts";
+import { inParts, receiptDetail, replyRefused, replyRequestId } from "./reply.ts";
 
 /** Events one receipt call takes, as the chat contract describes. */
 const RECEIPTS_AT_ONCE = 200;
@@ -16,9 +16,6 @@ interface Posting {
   /** Told when chat refuses a reply for good, which a chat event's receipt then says. */
   onRefused(outstanding: Outstanding, error: Error): void;
 }
-
-/** What an agent's receipt says: `Receipt` without the member who left it and the event it is left on. */
-type Left = Omit<Receipt, "memberId" | "event">;
 
 /** Whether a turn ended with a reply to post: it answered, and not with `END` or nothing. */
 export function hasReply(outcome: TurnOutcome): boolean {
@@ -41,17 +38,13 @@ export async function deliver(
   posting: Posting,
   signal: AbortSignal,
 ): Promise<void> {
-  let receipt: Left;
+  let receipt: LeftReceipt;
   try {
     receipt = await postReply(chat, threadId, outcome, posting, signal);
   } catch (error) {
     if (!isRefusal(error)) throw error;
     posting.onRefused(outstanding, error);
-    receipt = {
-      status: "failed",
-      reply: null,
-      detail: receiptDetail(`The reply could not be posted: ${error.message}`),
-    };
+    receipt = replyRefused(error.message);
   }
   if (!isChat(outstanding)) return;
   const ids = [...outstanding.earlier, outstanding.event].map((event) => event.id);
@@ -67,7 +60,7 @@ async function postReply(
   outcome: TurnOutcome,
   { messageLimit, recordsId }: Posting,
   signal: AbortSignal,
-): Promise<Left> {
+): Promise<LeftReceipt> {
   switch (outcome.kind) {
     case "answered": {
       const reading = readFinalText(outcome.text);

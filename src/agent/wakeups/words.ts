@@ -4,7 +4,7 @@
  * for the model.
  */
 import { howLong, localTime } from "../../lib/time/index.ts";
-import { CAN_END_TURN } from "../inputs/index.ts";
+import { CAN_END_TURN, waitTooLong, waitTooShort } from "../inputs/index.ts";
 
 export const CHECK_DESCRIPTION =
   "Wake yourself once, later, to look at something again, such as a build or a deploy. Say how long to wait with " +
@@ -25,11 +25,9 @@ export const GIVE_WHEN =
   "Not set: say when. Give in, how long to wait, such as 30s, 5m, 2h or 1d, or at, a time, such as 2026-10-05T09:00:00-04:00.";
 export const NOTE_EMPTY = "Not set: write a note, what you want to be told when you wake.";
 
-export const tooSoon = (shortest: number): string =>
-  `Not set: the shortest wait is ${howLong(shortest)}. Give a longer one.`;
+export const tooSoon = (shortest: number): string => `Not set: ${waitTooShort(shortest)}`;
 
-export const tooFar = (longest: number): string =>
-  `Not set: the longest wait is ${howLong(longest)}. Give a shorter one.`;
+export const tooFar = (longest: number): string => `Not set: ${waitTooLong(longest)}`;
 
 export const badDelay = (text: string): string =>
   `Not set: in: "${text}" is not a delay I can read. Write a whole number and a unit: 30s, 5m, 2h or 1d.`;
@@ -50,4 +48,3 @@ export const tooMany = (waiting: number): string =>
 
 export const wakeSet = (due: number, askedAt: number, inThread: boolean): string =>
   `You will be woken ${inThread ? "in this thread " : ""}at ${localTime(due)}, in ${howLong(due - askedAt)}, with your note. ${CAN_END_TURN}`;
-

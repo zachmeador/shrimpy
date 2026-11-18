@@ -6,9 +6,6 @@ import { compare } from "../../lib/files/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { upTo } from "../../lib/text/index.ts";
 
-/** How many a refusal lists before it says how many more there are. */
-const LISTED = 12;
-
 /** What went wrong, with the cause under it when there is one. */
 function why(thrown: unknown): string {
   const error = asError(thrown);
@@ -47,7 +44,7 @@ export async function requireModel(models: Models, wanted: ModelRef): Promise<vo
   if (ofProvider.length > 0) {
     refuse(
       `The provider "${wanted.provider}" has no model "${wanted.modelId}" that this agent can use. ` +
-        `It can use: ${upTo(ofProvider.sort(compare), LISTED).join(", ")}.`,
+        `It can use: ${upTo(ofProvider.sort(compare)).join(", ")}.`,
     );
   }
   const providers = [...new Set(found.map(({ provider }) => provider))].sort(compare);
@@ -56,5 +53,5 @@ export async function requireModel(models: Models, wanted: ModelRef): Promise<vo
     models.getProvider(wanted.provider) === undefined
       ? `it has no provider called "${wanted.provider}"`
       : `it has no key or sign-in for "${wanted.provider}"`;
-  refuse(`This agent can't use ${modelWords({ provider: wanted.provider, id: wanted.modelId })}: ${reason}. It can use models of: ${upTo(providers, LISTED).join(", ")}.`);
+  refuse(`This agent can't use ${modelWords({ provider: wanted.provider, id: wanted.modelId })}: ${reason}. It can use models of: ${upTo(providers).join(", ")}.`);
 }
