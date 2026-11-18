@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { Member, Message } from "../../contracts/chat/index.ts";
 import { fitAnswer, identifier, MAX_PAGE, messageText, whole } from "../input/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import { singleSpaced } from "../../lib/text/index.ts";
+import { cutEnd, singleSpaced } from "../../lib/text/index.ts";
 import { readableThread, visibleThread } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
 import { mentionedMembers } from "./mentions.ts";
@@ -11,7 +11,7 @@ const PREVIEW_LENGTH = 80;
 
 /** The start of a text on one line, for a thread that has no name yet and for events that name a message. */
 export function previewOf(text: string): string {
-  return Array.from(singleSpaced(text)).slice(0, PREVIEW_LENGTH).join("");
+  return cutEnd(singleSpaced(text), PREVIEW_LENGTH, { unit: "characters" });
 }
 
 /**

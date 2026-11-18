@@ -1,8 +1,8 @@
-import { MAX_RECEIPT_DETAIL_LENGTH, type Message, type Receipt } from "../../contracts/chat/index.ts";
+import type { Message, Receipt } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { isChat, type Outstanding, readFinalText, type TurnOutcome } from "../inputs/index.ts";
 import type { ChatCalls } from "../links/index.ts";
-import { clip, inParts, replyRequestId } from "./reply.ts";
+import { inParts, receiptDetail, replyRequestId } from "./reply.ts";
 
 /** Events one receipt call takes, as the chat contract describes. */
 const RECEIPTS_AT_ONCE = 200;
@@ -50,7 +50,7 @@ export async function deliver(
     receipt = {
       status: "failed",
       reply: null,
-      detail: clip(`The reply could not be posted: ${error.message}`, MAX_RECEIPT_DETAIL_LENGTH),
+      detail: receiptDetail(`The reply could not be posted: ${error.message}`),
     };
   }
   if (!isChat(outstanding)) return;
@@ -85,8 +85,8 @@ async function postReply(
     case "stopped":
       return { status: "stopped", reply: null, detail: null };
     case "skipped":
-      return { status: "skipped", reply: null, detail: outcome.reason === undefined ? null : clip(outcome.reason, MAX_RECEIPT_DETAIL_LENGTH) };
+      return { status: "skipped", reply: null, detail: outcome.reason === undefined ? null : receiptDetail(outcome.reason) };
     case "failed":
-      return { status: "failed", reply: null, detail: clip(outcome.reason, MAX_RECEIPT_DETAIL_LENGTH) };
+      return { status: "failed", reply: null, detail: receiptDetail(outcome.reason) };
   }
 }

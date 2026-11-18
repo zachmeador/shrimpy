@@ -1,22 +1,15 @@
-/** `index`, moved back off the middle of a character that takes two code units. */
-function whole(text: string, index: number): number {
-  const before = text.charCodeAt(index - 1);
-  const after = text.charCodeAt(index);
-  return before >= 0xd800 && before <= 0xdbff && after >= 0xdc00 && after <= 0xdfff ? index - 1 : index;
-}
-
-/** The first `characters` characters of `text`, and how many were left out after them. */
-export function firstCharacters(text: string, characters: number): { text: string; cut: number } {
-  if (text.length <= characters) return { text, cut: 0 };
-  const end = whole(text, characters);
-  return { text: text.slice(0, end), cut: text.length - end };
-}
+import { oneLine } from "../../../lib/plain/index.ts";
+import { cutEnd, cutStart } from "../../../lib/text/index.ts";
 
 /** The last `characters` characters of `text`, and how many were left out before them. */
 export function lastCharacters(text: string, characters: number): { text: string; cut: number } {
-  if (text.length <= characters) return { text, cut: 0 };
-  const start = whole(text, text.length - characters);
-  return { text: text.slice(start), cut: start };
+  const kept = cutStart(text, characters);
+  return { text: kept, cut: text.length - kept.length };
+}
+
+/** `text` on one line, as `oneLine` makes it, and no longer than `characters`, made from only the start of a long text. */
+export function shortLine(text: string, characters: number): string {
+  return cutEnd(oneLine(cutEnd(text, characters * 4)), characters);
 }
 
 /** How many lines `text` has: one more than its line breaks. */
@@ -31,7 +24,7 @@ export function countLines(text: string): number {
  * characters, for what streams and grows and may have one line of megabytes.
  */
 export function lastLines(text: string, lines: number, characters = Number.POSITIVE_INFINITY): string {
-  const kept = text.length > characters ? text.slice(text.length - characters) : text;
+  const kept = cutStart(text, characters);
   let from = kept.endsWith("\n") ? kept.length - 1 : kept.length;
   for (let seen = 0; seen < lines; seen++) {
     if (from <= 0) return kept;

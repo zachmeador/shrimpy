@@ -1,7 +1,8 @@
 import { imageWords, markerWords, type SessionItem } from "../../../contracts/agent/index.ts";
 import { oneLine, plain } from "../../../lib/plain/index.ts";
 import type { SessionView } from "../state/index.ts";
-import { countLines, firstCharacters, lastCharacters, lastLines } from "./cut.ts";
+import { cutEnd } from "../../../lib/text/index.ts";
+import { countLines, lastCharacters, lastLines, shortLine } from "./cut.ts";
 import { answerNote, hiddenCharacters, hiddenLines, hiddenSteps, type InFull, moreCharacters, SHOWN, THINKING, toolStatus } from "./words.ts";
 
 /** One thing the agent is doing or has done in the turn it is working on now, or, in a session being watched, one thing in it. */
@@ -189,7 +190,7 @@ function callOf(name: string, args: string): string {
   } catch {
     // Arguments that are not JSON are shown as they are.
   }
-  return oneLine(call.slice(0, CALL_CHARACTERS * 4)).slice(0, CALL_CHARACTERS);
+  return shortLine(call, CALL_CHARACTERS);
 }
 
 /**
@@ -210,6 +211,7 @@ function wholeCallOf(name: string, args: string): string {
   } catch {
     // Arguments that are not JSON are shown as they are.
   }
-  const { text, cut } = firstCharacters(call, FULL_CHARACTERS);
-  return plain(cut > 0 ? `${text}\n${moreCharacters(cut)}` : text).trimEnd();
+  const text = cutEnd(call, FULL_CHARACTERS);
+  const more = call.length - text.length;
+  return plain(more > 0 ? `${text}\n${moreCharacters(more)}` : text).trimEnd();
 }

@@ -1,5 +1,6 @@
 import { isAbsolute, relative, sep } from "node:path";
 import type { LeftOut } from "../../lib/files/index.ts";
+import { cutEnd } from "../../lib/text/index.ts";
 
 /** A left-out file as a sentence, which is how the agent says it on standard error and in the breadcrumb it leaves. */
 export const leftOutSentence = ({ file, reason }: LeftOut): string => `${file} was left out: ${reason}.`;
@@ -17,8 +18,6 @@ export function shownIn(root: string, path: string): string {
  * fits is as it is.
  */
 export function cutText(text: string, limit: number): string {
-  if (text.length <= limit) return text;
-  const last = text.charCodeAt(limit - 1);
-  const splitsAPair = last >= 0xd800 && last <= 0xdbff;
-  return `${text.slice(0, splitsAPair ? limit - 1 : limit).trimEnd()}\n[cut here: there is more]`;
+  const kept = cutEnd(text, limit);
+  return kept === text ? text : `${kept.trimEnd()}\n[cut here: there is more]`;
 }

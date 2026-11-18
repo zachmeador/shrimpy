@@ -2,7 +2,7 @@ import { posix } from "node:path";
 import type { Context } from "@earendil-works/chord/context";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
 import { AGENT_RUNTIME_DIR, type Check, delayMs } from "../../contracts/agent/index.ts";
-import { singleSpaced } from "../../lib/text/index.ts";
+import { cutStart, singleSpaced } from "../../lib/text/index.ts";
 import { cutText } from "../home/index.ts";
 
 /** The most of what a check printed that is kept: more is cut. */
@@ -95,17 +95,8 @@ export const noteOf = (prompt: string, output: string): string => `${prompt === 
 
 /** The line a failed check has for its output: what went wrong, and the end of what it printed on standard error. */
 function failed(what: string, standardError = ""): string {
-  const end = endOf(standardError);
+  const end = cutStart(singleSpaced(standardError), ERROR_END);
   return `The check failed: ${what.replace(/[.\s]+$/, "")}.${end === "" ? "" : ` The end of what it printed on standard error: ${end}`}`;
-}
-
-/** The last `ERROR_END` characters of `text`, as one line. */
-function endOf(text: string): string {
-  const line = singleSpaced(text);
-  if (line.length <= ERROR_END) return line;
-  const end = line.slice(-ERROR_END);
-  const first = end.charCodeAt(0);
-  return first >= 0xdc00 && first <= 0xdfff ? end.slice(1) : end;
 }
 
 /** One word for a POSIX shell, whatever is in it. */

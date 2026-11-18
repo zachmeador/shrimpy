@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { MAX_RECEIPT_DETAIL_LENGTH } from "../../contracts/chat/index.ts";
+import { cutEnd } from "../../lib/text/index.ts";
 
 /**
  * Split text into messages of at most `limit` characters. A part ends where a
@@ -26,13 +28,8 @@ function cutPoint(text: string, limit: number): number {
   return Math.max(splitsAPair ? limit - 1 : limit, 1);
 }
 
-/** The first `limit` characters, ending in an ellipsis when something was cut, without splitting a two-unit character. */
-export function clip(text: string, limit: number): string {
-  if (text.length <= limit) return text;
-  const last = text.charCodeAt(limit - 2);
-  const splitsAPair = last >= 0xd800 && last <= 0xdbff;
-  return `${text.slice(0, splitsAPair ? limit - 2 : limit - 1)}…`;
-}
+/** `text` as the detail of a receipt: cut to what chat takes, with an ellipsis when it was cut. */
+export const receiptDetail = (text: string): string => cutEnd(text, MAX_RECEIPT_DETAIL_LENGTH, { ending: "…" });
 
 /**
  * Names a posted reply by the agent's records, the thread's session and the

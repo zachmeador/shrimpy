@@ -25,6 +25,7 @@ import { localTime } from "../../../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import type { Problem, Why } from "../network/index.ts";
 import type { AgentStatus, DevicesStatus, Notice, RoomStatus } from "../state/index.ts";
+import { shortLine } from "./cut.ts";
 
 /*
  * Every sentence the console says, in one place, but for what it says of a
@@ -336,7 +337,7 @@ const QUEUED: Record<QueuedInput["when"], string> = {
 
 /** Input a session has accepted and not picked up yet, on one line. */
 export function queuedLine(input: QueuedInput): string {
-  const text = oneLine(input.text.slice(0, QUEUED_CHARACTERS * 4)).slice(0, QUEUED_CHARACTERS);
+  const text = shortLine(input.text, QUEUED_CHARACTERS);
   return `${QUEUED[input.when]}: ${text}`;
 }
 

@@ -1,4 +1,4 @@
-import { asSentence, singleSpaced, withoutPeriod } from "../../lib/text/index.ts";
+import { asSentence, cutEnd, singleSpaced, withoutPeriod } from "../../lib/text/index.ts";
 import type { FailureReason } from "./shapes.ts";
 
 /**
@@ -9,8 +9,7 @@ const DETAIL_CHARACTERS = 300;
 
 /** A detail as the end of a sentence, on one line and cut to fit. */
 function detailSentence(detail: string): string {
-  const line = singleSpaced(detail);
-  return asSentence(line.length > DETAIL_CHARACTERS ? `${line.slice(0, DETAIL_CHARACTERS - 1)}…` : line);
+  return asSentence(cutEnd(singleSpaced(detail), DETAIL_CHARACTERS, { ending: "…" }));
 }
 
 /** The part of a sentence that says what more there is to know, when there is: ": detail.", or ".". */

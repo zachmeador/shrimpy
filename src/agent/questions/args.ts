@@ -1,4 +1,5 @@
 import { delayMs, normalizeDelay } from "../../contracts/agent/index.ts";
+import { cutEnd } from "../../lib/text/index.ts";
 import * as words from "./words.ts";
 
 /** How long the agent waits for an answer when it says nothing, and the shortest and the longest it may ask to wait, in milliseconds. */
@@ -38,8 +39,5 @@ export function readTo(written: string): string | undefined {
  * such as the escape of a terminal's colors, so those count as spaces.
  */
 export function startOf(text: string): string {
-  return Array.from(text.replace(/[\p{Cc}\s]+/gu, " ").trim())
-    .slice(0, START_LENGTH)
-    .join("")
-    .trimEnd();
+  return cutEnd(text.replace(/[\p{Cc}\s]+/gu, " ").trim(), START_LENGTH, { unit: "characters" }).trimEnd();
 }

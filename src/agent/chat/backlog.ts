@@ -1,8 +1,8 @@
 import type { Channel, Member, Message } from "../../contracts/chat/index.ts";
+import { cutEnd } from "../../lib/text/index.ts";
 import { type Backlog, type Said, written } from "../inputs/index.ts";
 import type { ChatCalls } from "../links/index.ts";
 import { audienceOf } from "./audience.ts";
-import { clip } from "./reply.ts";
 
 /** Characters of messages the model is shown of what it missed. */
 const BACKLOG_BUDGET = 20_000;
@@ -93,5 +93,5 @@ function said(message: Message, self: Member, room: Channel): Said {
 function clippedTo(message: Said, left: number): Said | undefined {
   const marked: Said = { ...message, text: "", clipped: true };
   const room = left - written(marked).length - BETWEEN;
-  return room < LEAST_CLIPPED ? undefined : { ...marked, text: clip(message.text, room) };
+  return room < LEAST_CLIPPED ? undefined : { ...marked, text: cutEnd(message.text, room, { ending: "…" }) };
 }

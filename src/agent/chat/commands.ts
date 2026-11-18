@@ -4,7 +4,6 @@ import {
   agentCommandIn,
   type Channel,
   type ChatEvent,
-  MAX_RECEIPT_DETAIL_LENGTH,
   type Member,
   type Receipt,
 } from "../../contracts/chat/index.ts";
@@ -12,7 +11,7 @@ import { isRefusal } from "../../lib/refusal/index.ts";
 import type { ChatCalls } from "../links/index.ts";
 import type { Admissions } from "./admissions.ts";
 import { actOnModel } from "./model-command.ts";
-import { clip, commandReplyRequestId } from "./reply.ts";
+import { commandReplyRequestId, receiptDetail } from "./reply.ts";
 
 /**
  * What the agent does for each command a person can write in a thread, with no
@@ -80,7 +79,7 @@ export async function obey(command: AgentCommand, event: ChatEvent, { chat, admi
     } catch (error) {
       if (!isRefusal(error)) throw error;
       onError(new Error(`Chat refused the reply to the command ${event.id}, so its receipt says it failed: ${error.message}`));
-      receipt = { status: "failed", reply: null, detail: clip(`The reply could not be posted: ${error.message}`, MAX_RECEIPT_DETAIL_LENGTH) };
+      receipt = { status: "failed", reply: null, detail: receiptDetail(`The reply could not be posted: ${error.message}`) };
     }
   }
   try {
