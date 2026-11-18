@@ -3,8 +3,7 @@
  * arguments mean, and what it answers. Nothing else in this module writes words
  * for the model.
  */
-import { delayText } from "../../contracts/agent/index.ts";
-import { localTime } from "../../lib/time/index.ts";
+import { howLong, localTime } from "../../lib/time/index.ts";
 
 export const ASK_DESCRIPTION =
   "Ask another agent a question, and carry on with its answer. Use it when you need that agent's answer to go on " +
@@ -26,9 +25,9 @@ export const badWithin = (text: string): string =>
   `Not asked: within: "${text}" is not a delay I can read. Write a whole number and a unit: 30m, 2h or 1d.`;
 
 export const tooSoon = (shortest: number): string =>
-  `Not asked: the shortest wait is ${delayText(shortest)}. Give a longer one.`;
+  `Not asked: the shortest wait is ${howLong(shortest)}. Give a longer one.`;
 
-export const tooFar = (longest: number): string => `Not asked: the longest wait is ${delayText(longest)}. Give a shorter one.`;
+export const tooFar = (longest: number): string => `Not asked: the longest wait is ${howLong(longest)}. Give a shorter one.`;
 
 export const noRoster = (name: string): string =>
   `Not asked: can't look up @${name}, because the gateway is unreachable right now. Try again later.`;

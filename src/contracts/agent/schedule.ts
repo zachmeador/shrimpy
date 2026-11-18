@@ -8,11 +8,12 @@ const DELAY = /^(\d+)\s*([smhd])$/;
 
 /**
  * A delay such as 15m, 1h or 1d written the plain way, with no space and no
- * leading zero, or undefined when `text` is not a delay.
+ * leading zero, or undefined when `text` is not a delay. The number keeps every
+ * digit, so that `delayMs` reads a long one too.
  */
 export function normalizeDelay(text: string): string | undefined {
   const match = DELAY.exec(text.trim());
-  return match === null ? undefined : `${String(Number(match[1]))}${match[2]}`;
+  return match === null ? undefined : `${String(BigInt(match[1] ?? ""))}${match[2]}`;
 }
 
 /** What a delay written as `normalizeDelay` writes it comes to, in milliseconds. */

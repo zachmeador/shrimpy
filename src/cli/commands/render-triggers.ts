@@ -7,29 +7,9 @@ import {
   type TriggerSummary,
 } from "../../contracts/agent/index.ts";
 import type { TriggerDefinition } from "../../contracts/agent/node.ts";
-import { localTime } from "../../lib/time/index.ts";
+import { howLong, localTime } from "../../lib/time/index.ts";
 import { indent } from "./render.ts";
 import { renderTable } from "./table.ts";
-
-/** A length of time in its two largest units: "2 hours 30 minutes", "5 minutes", "1 day". */
-function howLong(milliseconds: number): string {
-  const seconds = Math.round(Math.abs(milliseconds) / 1_000);
-  const counts = [
-    Math.floor(seconds / 86_400),
-    Math.floor((seconds % 86_400) / 3_600),
-    Math.floor((seconds % 3_600) / 60),
-    seconds % 60,
-  ];
-  const names = ["day", "hour", "minute", "second"];
-  const first = Math.max(
-    0,
-    counts.findIndex((count) => count > 0),
-  );
-  return counts
-    .slice(first, first + 2)
-    .flatMap((count, index) => (count > 0 ? [`${count} ${names[first + index] ?? ""}${count === 1 ? "" : "s"}`] : []))
-    .join(" ");
-}
 
 /** A time with how far it is from `now`: "2026-10-06T03:00:00+02:00, in 9 hours 12 minutes". */
 export function when(time: number, now: number): string {

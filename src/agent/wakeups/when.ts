@@ -1,10 +1,9 @@
+import { delayMs, normalizeDelay } from "../../contracts/agent/index.ts";
 import * as words from "./words.ts";
-
-const UNIT_MS = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 } as const;
 
 /** The shortest and the longest time from asking that a wake-up may be for, in milliseconds. */
 export const SHORTEST = 1_000;
-export const LONGEST = 366 * UNIT_MS.d;
+export const LONGEST = delayMs("366d");
 
 /** When a wake-up is due, or why what was asked for can't be used, in words for the model. */
 export type When = { due: number } | { problem: string };
@@ -20,9 +19,9 @@ export function readWhen(asked: { in?: string | undefined; at?: string | undefin
 
   let due: number;
   if (delay !== undefined) {
-    const wait = delayOf(delay);
+    const wait = normalizeDelay(delay);
     if (wait === undefined) return { problem: words.badDelay(delay) };
-    due = now + wait;
+    due = now + delayMs(wait);
   } else if (at !== undefined) {
     const time = timeOf(at);
     if (time === undefined) return { problem: words.badTime(at) };
@@ -41,13 +40,6 @@ export function readWhen(asked: { in?: string | undefined; at?: string | undefin
 function given(text: string | undefined): string | undefined {
   const trimmed = text?.trim();
   return trimmed === undefined || trimmed === "" ? undefined : trimmed;
-}
-
-/** A delay such as 30s, 5m, 2h or 1d, in milliseconds. */
-function delayOf(text: string): number | undefined {
-  const match = /^(\d+)\s*([smhd])$/.exec(text);
-  if (match === null) return undefined;
-  return Number(match[1]) * UNIT_MS[match[2] as keyof typeof UNIT_MS];
 }
 
 const ISO_TIME =

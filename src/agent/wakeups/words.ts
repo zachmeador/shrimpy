@@ -3,7 +3,7 @@
  * arguments mean, and what it answers. Nothing else in this module writes words
  * for the model.
  */
-import { localTime } from "../../lib/time/index.ts";
+import { howLong, localTime } from "../../lib/time/index.ts";
 
 export const CHECK_DESCRIPTION =
   "Wake yourself once, later, to look at something again, such as a build or a deploy. Say how long to wait with " +
@@ -50,22 +50,3 @@ export const tooMany = (waiting: number): string =>
 export const wakeSet = (due: number, askedAt: number, inThread: boolean): string =>
   `You will be woken ${inThread ? "in this thread " : ""}at ${localTime(due)}, in ${howLong(due - askedAt)}, with your note. You can end your turn now. What you write last is posted as your reply, so write a line meant for whoever you are talking to, such as what you are waiting for, or write only END to post nothing.`;
 
-/** A length of time in its two largest units: "2 hours 30 minutes", "5 minutes", "1 day". */
-export function howLong(milliseconds: number): string {
-  const seconds = Math.round(milliseconds / 1_000);
-  const counts = [
-    Math.floor(seconds / 86_400),
-    Math.floor((seconds % 86_400) / 3_600),
-    Math.floor((seconds % 3_600) / 60),
-    seconds % 60,
-  ];
-  const names = ["day", "hour", "minute", "second"];
-  const first = Math.max(
-    0,
-    counts.findIndex((count) => count > 0),
-  );
-  return counts
-    .slice(first, first + 2)
-    .flatMap((count, index) => (count > 0 ? [`${count} ${names[first + index] ?? ""}${count === 1 ? "" : "s"}`] : []))
-    .join(" ");
-}
