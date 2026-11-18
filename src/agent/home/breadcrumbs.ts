@@ -1,8 +1,8 @@
 import type { Dirent } from "node:fs";
-import { mkdir, open, readdir, rm, stat } from "node:fs/promises";
+import { mkdir, open, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { compare } from "../../lib/files/index.ts";
-import { saveFile } from "../../lib/files/node.ts";
+import { isMarkdown } from "../../lib/files/index.ts";
+import { listFolder, saveFile } from "../../lib/files/node.ts";
 import { cutText } from "./files.ts";
 import type { HomePaths } from "./layout.ts";
 
@@ -30,13 +30,12 @@ const READ = 4 * LONGEST + 4;
 export async function readBreadcrumbs(paths: HomePaths): Promise<BreadcrumbFile[]> {
   let entries: Dirent[];
   try {
-    entries = await readdir(paths.breadcrumbs, { withFileTypes: true });
+    entries = await listFolder(paths.breadcrumbs, isMarkdown);
   } catch {
     return [];
   }
   const found: BreadcrumbFile[] = [];
-  for (const entry of entries.sort((a, b) => compare(a.name, b.name))) {
-    if (entry.name.startsWith(".") || !entry.name.toLowerCase().endsWith(".md")) continue;
+  for (const entry of entries) {
     const text = (await startOf(join(paths.breadcrumbs, entry.name)))?.trim();
     if (text !== undefined && text !== "") found.push({ name: entry.name, text: cutText(text, LONGEST) });
   }

@@ -1,9 +1,9 @@
 import type { Dirent } from "node:fs";
-import { readdir, stat } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import { frontmatter } from "../../contracts/agent/index.ts";
 import { codeOf, compare, type LeftOut, why } from "../../lib/files/index.ts";
-import { readText } from "../../lib/files/node.ts";
+import { listFolder, readText } from "../../lib/files/node.ts";
 
 /** A skill as the agent is shown it: what it is for and where to read it. */
 export interface SkillTrail {
@@ -28,14 +28,13 @@ export async function readSkills(
 ): Promise<SkillTrail[]> {
   let entries: Dirent[];
   try {
-    entries = await readdir(folder, { withFileTypes: true });
+    entries = await listFolder(folder);
   } catch (error) {
     if (codeOf(error) !== "ENOENT") leftOut.push({ file: shown(folder), reason: why(error) });
     return [];
   }
   const skills: SkillTrail[] = [];
-  for (const entry of entries.sort((a, b) => compare(a.name, b.name))) {
-    if (entry.name.startsWith(".")) continue;
+  for (const entry of entries) {
     const directory = join(folder, entry.name);
     let isFolder: boolean;
     try {

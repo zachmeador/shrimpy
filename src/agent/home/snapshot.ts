@@ -1,12 +1,11 @@
-import type { Dirent, Stats } from "node:fs";
-import { readdir, realpath, stat } from "node:fs/promises";
-import { join, relative, sep } from "node:path";
+import { relative, sep } from "node:path";
 import { codeOf, compare, type LeftOut, why } from "../../lib/files/index.ts";
 import { readText } from "../../lib/files/node.ts";
 import { shownIn } from "./files.ts";
 import { INCLUDED_SKILLS } from "./included.ts";
 import type { HomePaths } from "./layout.ts";
 import { mergeSkills, readSkills, type SkillTrail } from "./skills.ts";
+import { walkContext } from "./walk.ts";
 
 /** A Markdown file from the home's `context/` folder. */
 export interface ContextFile {
@@ -46,39 +45,17 @@ export async function readHomeSnapshot(paths: HomePaths): Promise<HomeSnapshot> 
   if (soul.kind === "unreadable") leftOut.push({ file: inHome(paths.soul), reason: soul.reason });
 
   const files: ContextFile[] = [];
-  const seen = new Set<string>();
-  const walk = async (folder: string): Promise<void> => {
-    let entries: Dirent[];
-    try {
-      const real = await realpath(folder);
-      // A link back to a folder already read would never end.
-      if (seen.has(real)) return;
-      seen.add(real);
-      entries = await readdir(folder, { withFileTypes: true });
-    } catch (error) {
-      if (codeOf(error) !== "ENOENT") leftOut.push({ file: inHome(folder), reason: why(error) });
-      return;
+  for await (const entry of walkContext(paths.context)) {
+    if (entry.kind === "unread") {
+      if (codeOf(entry.error) !== "ENOENT") leftOut.push({ file: inHome(entry.path), reason: why(entry.error) });
+    } else if (entry.kind === "unseen") {
+      leftOut.push({ file: inHome(entry.path), reason: brokenLink(entry.error) });
+    } else if (entry.info.isFile()) {
+      const read = await readText(entry.path);
+      if (read.kind === "unreadable") leftOut.push({ file: inHome(entry.path), reason: read.reason });
+      else if (read.kind === "text" && read.text.trim() !== "") files.push({ path: inHome(entry.path), text: read.text });
     }
-    for (const entry of entries.sort((a, b) => compare(a.name, b.name))) {
-      if (entry.name.startsWith(".")) continue;
-      const path = join(folder, entry.name);
-      let info: Stats;
-      try {
-        info = await stat(path);
-      } catch (error) {
-        if (isMarkdown(entry.name)) leftOut.push({ file: inHome(path), reason: brokenLink(error) });
-        continue;
-      }
-      if (info.isDirectory()) {
-        await walk(path);
-      } else if (info.isFile() && isMarkdown(entry.name)) {
-        const read = await readText(path);
-        if (read.kind === "unreadable") leftOut.push({ file: inHome(path), reason: read.reason });
-        else if (read.kind === "text" && read.text.trim() !== "") files.push({ path: inHome(path), text: read.text });
-      }
-    }
-  };
-  await walk(paths.context);
+  }
 
   const own = await readSkills(paths.skills, inHome, leftOut);
   // Where the files of a skill that ships with Shrimpy are, if any is wrong, is told in full: they are not in the home.
@@ -90,8 +67,6 @@ export async function readHomeSnapshot(paths: HomePaths): Promise<HomeSnapshot> 
     leftOut,
   };
 }
-
-const isMarkdown = (name: string): boolean => name.toLowerCase().endsWith(".md");
 
 function brokenLink(error: unknown): string {
   return codeOf(error) === "ENOENT" ? "it is a link to nothing" : why(error);

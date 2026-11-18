@@ -1,9 +1,9 @@
 import type { Dirent, Stats } from "node:fs";
-import { readdir, stat } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import { asError } from "../../lib/errors/index.ts";
-import { codeOf, compare, why } from "../../lib/files/index.ts";
-import { readText } from "../../lib/files/node.ts";
+import { codeOf, isMarkdown, why } from "../../lib/files/index.ts";
+import { listFolder, readText } from "../../lib/files/node.ts";
 import { listed } from "../../lib/text/index.ts";
 import { isName, NAME_RULE } from "./agent-config.ts";
 import { frontmatterAndBody } from "./frontmatter.ts";
@@ -244,13 +244,12 @@ export async function readTriggers(paths: HomePaths, check: TriggerCheck = {}): 
   const found: TriggerFiles = { triggers: [], problems: [] };
   let entries: Dirent[];
   try {
-    entries = await readdir(paths.triggers, { withFileTypes: true });
+    entries = await listFolder(paths.triggers, isMarkdown);
   } catch (error) {
     if (codeOf(error) !== "ENOENT") found.problems.push({ name: null, file: "triggers", reason: why(error) });
     return found;
   }
-  for (const entry of entries.sort((a, b) => compare(a.name, b.name))) {
-    if (entry.name.startsWith(".") || !entry.name.toLowerCase().endsWith(".md")) continue;
+  for (const entry of entries) {
     const file = `triggers/${entry.name}`;
     const name = entry.name.slice(0, -".md".length);
     const known = isName(name) ? name : null;

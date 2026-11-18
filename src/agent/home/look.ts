@@ -1,9 +1,11 @@
 import type { Dirent, Stats } from "node:fs";
-import { readdir, realpath, stat } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import { join } from "node:path";
-import { codeOf, compare } from "../../lib/files/index.ts";
+import { codeOf, compare, isMarkdown } from "../../lib/files/index.ts";
+import { listFolder } from "../../lib/files/node.ts";
 import { INCLUDED_SKILLS } from "./included.ts";
 import type { HomePaths } from "./layout.ts";
+import { walkContext } from "./walk.ts";
 
 /**
  * A look at the files that reading the home reads: `SOUL.md`, the Markdown files
@@ -15,15 +17,15 @@ import type { HomePaths } from "./layout.ts";
  * that is made unreadable, or readable again, changes neither its size nor its
  * time. Two looks are the same text when none of those files has changed
  * between them. It never fails: a file that can't be looked at is in the text
- * with the reason. It picks the files that
- * `readHomeSnapshot` and `readTriggers` read, so whatever they would read
- * differently shows in the look.
+ * with the reason. It picks the files that `readHomeSnapshot` and
+ * `readTriggers` read, with the same walk of `context/` and the same listing of
+ * a folder, so whatever they would read differently shows in the look.
  */
 export async function lookAtHome(paths: HomePaths, outside: readonly string[] = []): Promise<string> {
   const found = new Map<string, string>();
   await Promise.all([
     ...[paths.soul, paths.wake, paths.config, ...outside].map(async (file) => void found.set(file, await lookAtFile(file))),
-    lookAtContext(paths.context, new Set(), found),
+    lookAtContext(paths.context, found),
     lookAtSkills(paths.skills, found),
     lookAtSkills(INCLUDED_SKILLS, found),
     lookAtTriggers(paths.triggers, found),
@@ -45,82 +47,38 @@ async function lookAtFile(path: string): Promise<string> {
   }
 }
 
-/** An entry of a folder, looked at: what it is, or why that can't be said. */
-type Looked = { path: string; info: Stats } | { path: string; failure: string };
-
-const isHidden = (entry: Dirent): boolean => entry.name.startsWith(".");
-const isMarkdown = (name: string): boolean => name.toLowerCase().endsWith(".md");
-
-/**
- * The Markdown files under `folder`, folders under it included, links followed.
- * A folder that was looked at already by another path is not looked at again, as
- * `readHomeSnapshot` has it. The folders are taken in order of name, one after
- * the other, so the same path is the one that is skipped every time.
- */
-async function lookAtContext(folder: string, seen: Set<string>, found: Map<string, string>): Promise<void> {
-  let entries: Dirent[];
-  try {
-    const real = await realpath(folder);
-    if (seen.has(real)) return;
-    seen.add(real);
-    entries = await readdir(folder, { withFileTypes: true });
-  } catch (error) {
-    found.set(folder, why(error));
-    return;
-  }
-  const visible = entries.filter((entry) => !isHidden(entry)).sort((a, b) => compare(a.name, b.name));
-  const looks = await Promise.all(
-    visible.map(async ({ name }): Promise<Looked> => {
-      const path = join(folder, name);
-      try {
-        return { path, info: await stat(path) };
-      } catch (error) {
-        return { path, failure: why(error) };
-      }
-    }),
-  );
-  for (const look of looks) {
-    if ("info" in look && look.info.isDirectory()) await lookAtContext(look.path, seen, found);
-    else if (isMarkdown(look.path)) found.set(look.path, "info" in look ? describe(look.info) : look.failure);
-  }
+/** The Markdown files under `folder`, as reading the home walks it, and the folders there that can't be read. */
+async function lookAtContext(folder: string, found: Map<string, string>): Promise<void> {
+  for await (const entry of walkContext(folder)) found.set(entry.path, entry.kind === "markdown" ? describe(entry.info) : why(entry.error));
 }
 
 /** The `SKILL.md` of each folder under `folder`: whether there is one is what makes the folder a skill. */
-async function lookAtSkills(folder: string, found: Map<string, string>): Promise<void> {
-  let entries: Dirent[];
-  try {
-    entries = await readdir(folder, { withFileTypes: true });
-  } catch (error) {
-    found.set(folder, why(error));
-    return;
-  }
-  await Promise.all(
-    entries
-      .filter((entry) => !isHidden(entry))
-      .map(async ({ name }) => {
-        const directory = join(folder, name);
-        if (!(await stat(directory).then((info) => info.isDirectory(), () => false))) return;
-        const file = join(directory, "SKILL.md");
-        found.set(file, await lookAtFile(file));
-      }),
-  );
+function lookAtSkills(folder: string, found: Map<string, string>): Promise<void> {
+  return lookInFolder(folder, found, undefined, async (directory) => {
+    if (!(await stat(directory).then((info) => info.isDirectory(), () => false))) return;
+    const file = join(directory, "SKILL.md");
+    found.set(file, await lookAtFile(file));
+  });
 }
 
 /** The Markdown files directly in `folder`. */
-async function lookAtTriggers(folder: string, found: Map<string, string>): Promise<void> {
+function lookAtTriggers(folder: string, found: Map<string, string>): Promise<void> {
+  return lookInFolder(folder, found, isMarkdown, async (file) => void found.set(file, await lookAtFile(file)));
+}
+
+/** Look at each entry of `folder` that `keep` takes, as `listFolder` lists them, by its path, or say why the folder can't be read. */
+async function lookInFolder(
+  folder: string,
+  found: Map<string, string>,
+  keep: ((name: string) => boolean) | undefined,
+  look: (path: string) => Promise<void>,
+): Promise<void> {
   let entries: Dirent[];
   try {
-    entries = await readdir(folder, { withFileTypes: true });
+    entries = await listFolder(folder, keep);
   } catch (error) {
     found.set(folder, why(error));
     return;
   }
-  await Promise.all(
-    entries
-      .filter((entry) => !isHidden(entry) && isMarkdown(entry.name))
-      .map(async ({ name }) => {
-        const file = join(folder, name);
-        found.set(file, await lookAtFile(file));
-      }),
-  );
+  await Promise.all(entries.map(({ name }) => look(join(folder, name))));
 }

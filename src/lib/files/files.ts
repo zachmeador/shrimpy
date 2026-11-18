@@ -11,6 +11,9 @@ export interface LeftOut {
 /** Plain order of the characters, which does not change with the machine's language. */
 export const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
+/** Whether `name` is a Markdown file's: it ends in `.md`, whatever the case. */
+export const isMarkdown = (name: string): boolean => name.toLowerCase().endsWith(".md");
+
 /** The code a failure carries, such as `ENOENT`, or undefined when it has none. */
 export function codeOf(error: unknown): string | undefined {
   const code = (error as { code?: unknown } | null)?.code;
