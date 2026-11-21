@@ -14,7 +14,7 @@ Four reviewers read the code on 2026-11-15, and you asked for what they found to
 
 ### The three programs and what each owns
 
-- Shrimpy on Pi 1.5.2 has run only in its tests, which pass on Linux with Node 22.23. It hasn't run for real, or on macOS, so every run for real named below was of the build on Pi 1.0.0.
+- Shrimpy on Pi 1.5.2 has run for real since 2026-11-17 in a Linux container on your Mac that you use: a gateway, a chat server and two agents under one account, on a model server on the LAN. Its tests pass on Linux with Node 22.23. It hasn't run on macOS itself, between machines or between OS accounts, and every other run for real named below was of the build on Pi 1.0.0.
 - After a crash nothing shows a notice, though the plan's row on recovery asks for one. Only a turn that is given up reaches the sender, as a failed receipt.
 - Pi counts every task that is running when the agent ends uncleanly, so five unclean ends during one chat outage end the tasks waiting on chat: a reply waiting to be posted is lost, with no receipt; a question whose time is up stays open until a receipt arrives; and a trigger has no task until the agent next reads its files.
 - A turn at Pi's limit may make one more model call or start one more tool before the agent stops it after the restart. The session's status then says `stopped`, since Pi records the stop as an abort, and the receipt says the agent stopped unexpectedly too many times.
@@ -37,6 +37,7 @@ Four reviewers read the code on 2026-11-15, and you asked for what they found to
 - The terminal reaches agents by name only, so with the gateway down it can't watch one. The `sessions` commands by a home's path can.
 - A command's `--agent` takes the name of a home's folder, or a path, and not the name on the roster. For an agent whose name in `agent.json` differs from its folder, the line the terminal prints about stopping its work names an agent the command can't find.
 - From an agent's shell, `agent init`, `agent serve` and `up` skip the admin check, and `status` lists no admins.
+- An agent names itself: each time it links, it asks for the name in its `agent.json`, and the gateway renames its entry to match, an agent apart included. The design has renaming an agent take an admin. Who owns an agent's name is part of a question [waiting on you](AUTHOR-TO-REVIEW.md).
 
 ### The conversation model
 

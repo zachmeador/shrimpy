@@ -79,6 +79,8 @@ How an agent is removed, and how an agent's token is replaced, aren't designed y
 
 Nor is a way back in for an agent elsewhere whose gateway lost its key or its data, so that it can't check the gateway's key. An invitation can't be made for a name in use, so such an agent has no way in until this is designed. A device of yours joins again with a new invitation.
 
+What I'd do is [waiting on you](../AUTHOR-TO-REVIEW.md).
+
 **Not built yet**
 
 What the design of 2026-11-14 still asks for:
