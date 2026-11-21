@@ -8,7 +8,7 @@ import { newToken } from "../../contracts/gateway/node.ts";
 import { dial } from "../../lib/link/node.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { until } from "../../lib/testing/index.ts";
-import { type AgentRig, holdAgent, SCOUT, startAgentRig } from "../testing/index.ts";
+import { type AgentRig, holdAgent, startAgentRig } from "../testing/index.ts";
 import type { AgentConnection } from "../testing/index.ts";
 import { valueOf } from "../../contracts/chat/testing/index.ts";
 
@@ -42,7 +42,7 @@ test("through the gateway another agent may watch and control the sessions only 
   // A command in rex's shell holds scout's session through the gateway as rex, who is not an admin: the session is
   // refused, shows nothing, and so is every call on it.
   const shell = await rig.chat.gateway.connect(rex.token);
-  const asRex = await shell.host.get(Session, { agent: SCOUT, session: rig.thread.id }, context);
+  const asRex = await shell.host.get(Session, { agent: rig.partner.id, session: rig.thread.id }, context);
   const refusal = asRex.refusal.value;
   assert.ok(refusal !== null && refusal.words.includes("rex"), "the refusal names who asked");
   assert.deepEqual(asRex.window.value.items, []);
@@ -54,7 +54,7 @@ test("through the gateway another agent may watch and control the sessions only 
   ]) {
     assert.equal(answer.kind, "refused");
   }
-  const rexAgent = await holdAgent(shell.host, SCOUT, async () => undefined);
+  const rexAgent = await holdAgent(shell.host, rig.partner.id, async () => undefined);
   await assert.rejects(rexAgent.sessions(), isRefusal);
   await assert.rejects(rexAgent.triggers(), isRefusal);
   await assert.rejects(rexAgent.models(), isRefusal);
@@ -78,9 +78,9 @@ test("through the gateway another agent may watch and control the sessions only 
   assert.ok(membership?.memberId !== undefined, "the agent keeps the ID it knows itself by");
   valueOf(await roster.demote({ member: membership.memberId }, context));
   const own = await rig.chat.gateway.connect(membership.token);
-  await readSteerAndStop(await holdAgent(own.host, SCOUT, async () => undefined), rig);
+  await readSteerAndStop(await holdAgent(own.host, rig.partner.id, async () => undefined), rig);
   // And so may you.
-  await readSteerAndStop(await holdAgent(person.host, SCOUT, async () => undefined), rig);
+  await readSteerAndStop(await holdAgent(person.host, rig.partner.id, async () => undefined), rig);
 });
 
 test("on the home's own socket everything works, as it does with the gateway gone", { timeout }, async (t) => {
@@ -95,22 +95,21 @@ test("on the home's own socket everything works, as it does with the gateway gon
   assert.equal((await connection.reload()).triggers, 0);
 });
 
-test("a client on the home's own socket holds what the agent doesn't serve through the agent's own link, as the agent", { timeout }, async (t) => {
+test("a client on the home's own socket is the home's owner and reaches only this agent's objects", { timeout }, async (t) => {
   const rig = await startAgentRig(t);
   await rig.receiptOn(await rig.say("hello"));
   const client = await connectHome(rig.home);
   t.after(() => client.close());
 
-  // The roster is the gateway's, so the hold goes up the agent's link, where the gateway takes it for the agent.
-  const roster = await client.host.get(Roster, {}, context);
-  assert.equal(roster.you.value?.id, rig.partner.id);
+  // The home socket has no parent link to the gateway, so objects it doesn't serve are unavailable there.
+  await assert.rejects(client.host.get(Roster, {}, context));
   // And the agent's own objects it holds as the home's owner, who may do anything, whatever the roster says of the agent.
   const membership = readMembership(rig.home);
   assert.ok(membership?.memberId !== undefined);
   const person = await rig.chat.gateway.connect();
   const admin = await person.host.get(Roster, {}, context);
   valueOf(await admin.demote({ member: membership.memberId }, context));
-  await readSteerAndStop(await holdAgent(client.host, client.name, async () => undefined), rig);
+  await readSteerAndStop(await holdAgent(client.host, client.agent, async () => undefined), rig);
 });
 
 test("the home's own socket turns away a client of other Pi packages, and one that shows a token", { timeout }, async (t) => {

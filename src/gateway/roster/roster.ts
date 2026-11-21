@@ -31,6 +31,8 @@ export interface Recognized {
  * holds a connection. What a caller got wrong is answered with a refusal.
  */
 export interface Roster {
+  /** The roster's ID, made with it and never changed. */
+  readonly id: string;
   /** Everyone, oldest first. */
   members(): Member[];
   member(id: string): Member | undefined;
@@ -42,20 +44,33 @@ export interface Roster {
    * Make a new agent called `name` that is recognized by `token`, which the
    * caller made. The first agent a roster has is an admin from the moment it
    * joins, and any other is not. When the roster has the agent that holds the
-   * token already, that is the agent, renamed to `name` if it is not called
-   * that.
+   * token already, that is the agent, unchanged (the roster owns the name).
    */
   join(name: string, token: string): Answer<Member>;
+  /**
+   * Put `token` on the existing agent `id` in place of any token it had,
+   * keeping its ID, name and admin role. Says which way was replaced, if any.
+   */
+  replaceToken(id: string, token: string): Answer<{ member: Member; replacedWay: string | undefined }>;
   /**
    * Let a device of the person `id` in: keep the hash of the token it made,
    * with `label`. A device that is in already is the same device. A token is
    * one member's, so one that an agent has is refused.
    */
   addDevice(id: string, token: string, label: string): Answer<Member>;
-  /** Give a member a new name. The name it has already, or a change of case in it, is fine. */
+  /** Give a member a new name (used for your name from `settings.json`). The name it has already, or a change of case in it, is fine. */
   rename(id: string, name: string): Answer<Member>;
-  /** The name as it would be kept, when no member has it. */
-  vacant(name: string): Answer<string>;
+  /**
+   * Remove an agent from the roster, ending its ways in and freeing its name;
+   * a later agent taking the name gets a fresh ID. A person cannot be removed.
+   */
+  remove(id: string): Answer<Member>;
+  /**
+   * Who an invitation for `name` would let in: a new agent (`member: null`)
+   * when nobody has the name, or an existing agent (`member: id`, with its
+   * roster spelling) to replace its token. Naming a person is refused.
+   */
+  canInvite(name: string): Answer<{ name: string; member: string | null }>;
   /** Make an agent an admin, or an ordinary agent again. Doing what is done already changes nothing. A person is always one. */
   setAdmin(id: string, admin: boolean): Answer<Member>;
   /** Every way in a token opens, oldest member first. */
@@ -87,14 +102,21 @@ const publicly = (record: MemberRecord): Member => ({
  */
 export function openRoster(dataDir: string, firstName: string): Roster {
   const file = rosterFile(dataDir);
-  let records = readRoster(dataDir);
-  const seen = new Map<string, string>();
+  const loaded = readRoster(dataDir);
+  const rosterId = loaded?.id ?? newId("ros");
+  let records = loaded?.members ?? [];
+  const seenNames = new Map<string, string>();
+  const seenIds = new Set<string>();
   for (const record of records) {
-    const clash = seen.get(nameKey(record.name));
+    if (seenIds.has(record.id)) {
+      throw new Error(`${file} uses the member ID ${record.id} more than once. Member IDs are unique.`);
+    }
+    seenIds.add(record.id);
+    const clash = seenNames.get(nameKey(record.name));
     if (clash !== undefined) {
       throw new Error(`${file} gives the name "${record.name}" to ${clash} and to ${record.id}. Names are unique, whatever the case.`);
     }
-    seen.set(nameKey(record.name), record.id);
+    seenNames.set(nameKey(record.name), record.id);
   }
   const people = records.filter((record) => record.kind === "person");
   if (people.length > 1) {
@@ -107,12 +129,19 @@ export function openRoster(dataDir: string, firstName: string): Roster {
   const listeners = new Set<() => void>();
 
   const save = (next: MemberRecord[]): void => {
-    writeRoster(file, next);
+    writeRoster(file, { id: rosterId, members: next });
     records = next;
     for (const listener of [...listeners]) listener();
   };
 
   const replace = (changed: MemberRecord): void => save(records.map((record) => (record.id === changed.id ? changed : record)));
+
+  /** Mint a member ID not in use on the roster. */
+  const mintMemberId = (): string => {
+    let id = newId("mem");
+    while (records.some((record) => record.id === id)) id = newId("mem");
+    return id;
+  };
 
   /** Why `name` can't be the name of a member other than `except`, if it can't. */
   const unavailable = (name: string, except?: string): Refused | undefined => {
@@ -131,7 +160,7 @@ export function openRoster(dataDir: string, firstName: string): Roster {
   if (people.length === 0) {
     const taken = unavailable(firstName);
     if (taken !== undefined) throw new Error(taken.words);
-    save([...records, { id: newId("mem"), kind: "person", name: firstName, recognizedBy: {} }]);
+    save([...records, { id: mintMemberId(), kind: "person", name: firstName, recognizedBy: {} }]);
   }
   // Nothing takes you off the roster.
   const you = (): Member => publicly(records.find((record) => record.kind === "person")!);
@@ -177,6 +206,7 @@ export function openRoster(dataDir: string, firstName: string): Roster {
     });
 
   return {
+    id: rosterId,
     members: () => records.map(publicly),
     member(id) {
       const record = records.find((each) => each.id === id);
@@ -187,14 +217,14 @@ export function openRoster(dataDir: string, firstName: string): Roster {
     join(name, token) {
       if (!isToken(token)) return refused(TOKEN_RULE);
       const holder = recognize(token);
-      if (holder?.way.kind === "token") return rename(holder.member.id, name);
+      if (holder?.way.kind === "token") return done(holder.member);
       if (holder !== undefined) return refused("That token belongs to a device of yours, and a token belongs to one member.");
       const label = fitName(name);
       if (label === undefined) return badName;
       const taken = unavailable(label);
       if (taken !== undefined) return taken;
       const record: MemberRecord = {
-        id: newId("mem"),
+        id: mintMemberId(),
         kind: "agent",
         name: label,
         admin: !records.some((each) => each.kind === "agent"),
@@ -202,6 +232,22 @@ export function openRoster(dataDir: string, firstName: string): Roster {
       };
       save([...records, record]);
       return done(publicly(record));
+    },
+    replaceToken(id, token) {
+      if (!isToken(token)) return refused(TOKEN_RULE);
+      const current = records.find((record) => record.id === id);
+      if (current === undefined) return refused(noMember(id));
+      if (current.kind !== "agent") return refused(`${current.name} is a person, not an agent.`);
+      const holder = recognize(token);
+      if (holder !== undefined) {
+        if (holder.member.id === id) return done({ member: publicly(current), replacedWay: undefined });
+        return refused("That token belongs to another member, and a token belongs to one member.");
+      }
+      const previous = current.recognizedBy.tokenHash;
+      const replacedWay = previous === undefined ? undefined : wayId(previous);
+      const updated: MemberRecord = { ...current, recognizedBy: { tokenHash: hashOf(token) } };
+      replace(updated);
+      return done({ member: publicly(updated), replacedWay });
     },
     addDevice(id, token, label) {
       if (!isToken(token)) return refused(TOKEN_RULE);
@@ -220,10 +266,20 @@ export function openRoster(dataDir: string, firstName: string): Roster {
       return done(publicly(current));
     },
     rename,
-    vacant(name) {
+    remove(id) {
+      const current = records.find((record) => record.id === id);
+      if (current === undefined) return refused(noMember(id));
+      if (current.kind === "person") return refused(`${current.name} is a person, and a gateway always has its one person.`);
+      save(records.filter((record) => record.id !== id));
+      return done(publicly(current));
+    },
+    canInvite(name) {
       const label = fitName(name);
       if (label === undefined) return badName;
-      return unavailable(label) ?? done(label);
+      const holder = records.find((record) => nameKey(record.name) === nameKey(label));
+      if (holder === undefined) return done({ name: label, member: null });
+      if (holder.kind === "person") return unavailable(label)!;
+      return done({ name: holder.name, member: holder.id });
     },
     setAdmin(id, admin) {
       const current = records.find((record) => record.id === id);

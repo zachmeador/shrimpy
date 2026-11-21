@@ -48,25 +48,41 @@ test("a link for another agent's name, or no link at all, is refused before the 
   assert.equal(existsSync(paths.member), false, "no token was made for any of them");
 });
 
-test("a home that is a member somewhere already is refused, and nothing in it changes", async (t) => {
+test("a home that is a member already keeps its membership while trying a new link, and restores it if refused", async (t) => {
   const address = await closedAddress();
+  const secondAddress = await closedAddress();
   const link = writeLink({ name: "crab", address, code: "K7Q2-9FXD", fingerprint });
-  const kept = [
-    { home: homeOf(t, "crab"), membership: { token: newToken(), memberId: "mem_aaaaaaaaaaaa" } },
-    {
-      home: homeOf(t, "crab"),
-      membership: { token: newToken(), memberId: "mem_bbbbbbbbbbbb", gateway: { host: "100.101.102.103", port: 7447, fingerprint } },
-    },
-  ];
+  const existing = {
+    token: newToken(),
+    memberId: "mem_bbbbbbbbbbbb",
+    rosterId: "ros_111111111111",
+    gateway: { host: "100.101.102.103", port: 7447, fingerprint },
+  };
+  const home = homeOf(t, "crab");
+  saveMembership(home, existing);
 
-  for (const { home, membership } of kept) {
-    saveMembership(home, membership);
-    await assert.rejects(joinHome(home, link), (error: Error) => {
-      assert.ok(error.message.includes(loadHome(home).paths.member), "it names the file to delete");
-      return true;
-    });
-    assert.deepEqual(readMembership(home), membership);
-  }
+  // Unreachable gateway: existing membership stays intact, and a new pending token is recorded under `joining`.
+  await assert.rejects(joinHome(home, link), JoinFailedError);
+  const first = readMembership(home);
+  assert.ok(first !== undefined);
+  assert.equal(first.token, existing.token);
+  assert.equal(first.memberId, existing.memberId);
+  assert.equal(first.rosterId, existing.rosterId);
+  assert.deepEqual(first.gateway, existing.gateway);
+  assert.ok(first.joining !== undefined && first.joining.token !== existing.token);
+  assert.deepEqual(first.joining.gateway, { ...address, fingerprint });
+
+  // Retrying to the same gateway reuses the pending token.
+  await assert.rejects(joinHome(home, link), JoinFailedError);
+  assert.equal(readMembership(home)?.joining?.token, first.joining.token);
+
+  // Switching to a different gateway address mints a fresh pending token.
+  const otherLink = writeLink({ name: "crab", address: secondAddress, code: "K7Q2-9FXD", fingerprint });
+  await assert.rejects(joinHome(home, otherLink), JoinFailedError);
+  const switched = readMembership(home);
+  assert.ok(switched !== undefined);
+  assert.equal(switched.token, existing.token);
+  assert.ok(switched.joining !== undefined && switched.joining.token !== first.joining.token);
 });
 
 test("a home keeps its token before it joins, and asks again with the same token when the gateway can't be reached", async (t) => {
@@ -79,10 +95,12 @@ test("a home keeps its token before it joins, and asks again with the same token
     (error: Error) => error instanceof JoinFailedError && error.message.includes(`127.0.0.1:${String(address.port)}`),
   );
   const made = readMembership(home);
-  assert.deepEqual(Object.keys(made ?? {}), ["token"], "it has a token, and is no member yet");
+  assert.ok(made?.token !== undefined);
+  assert.equal(made.memberId, undefined, "it has a token, and is no member yet");
+  assert.equal(made.joining?.token, made.token);
 
   await assert.rejects(joinHome(home, link), JoinFailedError);
-  assert.equal(readMembership(home)?.token, made?.token);
+  assert.equal(readMembership(home)?.token, made.token);
 });
 
 test("a join given up on while the gateway says nothing can be made again, with the token kept", async (t) => {
@@ -104,5 +122,8 @@ test("a join given up on while the gateway says nothing can be made again, with 
 
   await assert.rejects(joinHome(home, link, { signal: giveUp.signal }), JoinFailedError);
 
-  assert.deepEqual(Object.keys(readMembership(home) ?? {}), ["token"]);
+  const kept = readMembership(home);
+  assert.ok(kept?.token !== undefined);
+  assert.equal(kept.memberId, undefined);
+  assert.equal(kept.joining?.token, kept.token);
 });

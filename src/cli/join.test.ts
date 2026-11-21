@@ -53,11 +53,21 @@ test("join makes the home for the agent the link names, joins with it, and says 
   assert.equal(second.code, 0, second.stderr);
   assert.deepEqual(commandLines(second.stdout), ["shrimpy up"]);
 
-  // Pasting the line again where it was used says what is there, and which file to delete to join anew. Nothing changes.
+  // Pasting the used link again is refused by the gateway, and leaves the home's membership untouched.
+  const beforeRetry = readMembership(home);
   const again = await shrimpy(["join", link]);
   assert.equal(again.code, 1);
-  assert.ok(again.stderr.includes(join(home, "state", "member.json")), again.stderr);
-  assert.equal(readMembership(home)?.memberId, crab.id);
+  assert.deepEqual(readMembership(home), beforeRetry);
+
+  // Inviting crab again and joining replaces its token on the same member ID.
+  const replaced = await shrimpy(["join", await linkFor("crab")]);
+  assert.equal(replaced.code, 0, replaced.stderr);
+  const afterReplace = readMembership(home);
+  assert.ok(afterReplace !== undefined);
+  assert.equal(afterReplace.memberId, crab.id, "same member ID");
+  assert.notEqual(afterReplace.token, beforeRetry?.token, "new token");
+  assert.equal(afterReplace.joining, undefined, "no leftover pending join");
+  assert.equal((await person.members()).filter((member) => member.name === "crab").length, 1);
 });
 
 test("join makes nothing of text that is not a link or a name no agent can have", { timeout }, async (t) => {
@@ -90,11 +100,13 @@ test("join gives up on a gateway that does not answer, and the same link joins o
   const home = join(useShrimpyDir(t), "agents", "crab");
   assert.ok(existsSync(join(home, "agent.json")), "the home it made is still there");
   const waiting = readMembership(home);
-  assert.deepEqual(Object.keys(waiting ?? {}), ["token"], "with the token the agent will join with");
+  assert.ok(waiting?.token !== undefined, "with the token the agent will join with");
+  assert.equal(waiting.memberId, undefined);
+  assert.equal(waiting.joining?.token, waiting.token);
 
   gateway.thaw();
   const joined = await shrimpy(["join", link]);
   assert.equal(joined.code, 0, joined.stderr);
-  assert.equal(readMembership(home)?.token, waiting?.token, "it is the same agent");
+  assert.equal(readMembership(home)?.token, waiting.token, "it is the same agent");
   assert.equal((await person.members()).filter((member) => member.name === "crab").length, 1);
 });

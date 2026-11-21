@@ -26,6 +26,7 @@ export function gatewayFacet(view: View, actions: Actions): Facet<Principal> {
       return {
         variant: "all",
         members: {
+          id: self.derive([followed], ([current]) => current.id),
           you: self.derive([followed], ([current]) => youIn(current, caller)),
           members: self.derive([followed], ([current]) => current.members),
           programs: self.derive([followed], ([current]) => current.programs),
@@ -34,6 +35,7 @@ export function gatewayFacet(view: View, actions: Actions): Facet<Principal> {
           inviteDevice: async () => actions.inviteDevice(caller),
           promote: async ({ member }) => actions.setAdmin(caller, member, true),
           demote: async ({ member }) => actions.setAdmin(caller, member, false),
+          remove: async ({ member }) => actions.remove(caller, member),
           takeBack: async ({ way }) => actions.takeBack(caller, way),
         },
       };

@@ -7,8 +7,8 @@ export const gateway = hostKind("gateway");
 export const chat = hostKind("chat");
 
 /**
- * An agent, by its name on the roster, which links out to the gateway while it
- * runs. A rename moves its address, and since Chord matches addresses exactly,
- * a client takes the roster's spelling.
+ * An agent, by its member ID on the roster, which links out to the gateway
+ * while it runs. Because its address is its ID, renaming the agent on the
+ * roster does not move it.
  */
-export const agent = hostKind("agent", { name: str() });
+export const agent = hostKind("agent", { id: str() });

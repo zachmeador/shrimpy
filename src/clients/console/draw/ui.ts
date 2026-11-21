@@ -26,7 +26,7 @@ import {
   type ThreadScreen,
   writtenIn,
 } from "../screen/index.ts";
-import type { ConsoleState, Where } from "../state/index.ts";
+import { agentNameOf, type ConsoleState, type Where } from "../state/index.ts";
 import { commandList } from "./commands.ts";
 import { interrupt } from "./interrupt.ts";
 import { keysComponent } from "./keys.ts";
@@ -193,10 +193,11 @@ export function startDrawing(options: DrawingOptions): Drawing {
     commandList({
       commands: () => (current.kind === "thread" ? current.commands : []),
       async models() {
-        const { where } = state.model();
+        const model = state.model();
+        const { where } = model;
         if (where.screen !== "thread" || where.place.kind !== "agent") return undefined;
         const models = await state.models();
-        return models === undefined ? undefined : modelLines(models, where.place.name);
+        return models === undefined ? undefined : modelLines(models, agentNameOf(model, where.place.id));
       },
     }),
   );

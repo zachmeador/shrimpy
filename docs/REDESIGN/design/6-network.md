@@ -37,7 +37,7 @@ To let an agent in, make an invitation for it:
 shrimpy invite crab
 ```
 
-A name that is taken is refused there and then. Otherwise it prints one line to run where the agent will live, with the agent's name, an address and a code. The code works once, for fifteen minutes, and for that name only. Where the agent will live, with Shrimpy at the same version, you sign the folder in if it isn't yet, paste the line and start the agent:
+Your own name is refused there and then. For a vacant name, or an agent that is already on the roster, it prints one line to run where the agent will live, with the agent's name, an address and a code. The code works once, for fifteen minutes, and for that name only. Where the agent will live, with Shrimpy at the same version, you sign the folder in if it isn't yet, paste the line and start the agent:
 
 ```bash
 shrimpy login
@@ -45,7 +45,7 @@ shrimpy join shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD/ocKmkNBacmPG6VxrlnuW3
 shrimpy up
 ```
 
-- `join` is about who is let in, and takes nothing else. It makes the home `crab` if the folder has none, with a name and no model. It makes the home's token, checks the gateway's key against the link's fingerprint, shows the gateway the name, the code and the token, and writes the gateway's address and the fingerprint into the home. It says at once whether the gateway let the agent in, and whether the two versions differ.
+- `join` is about who is let in, and takes nothing else. It makes the home `crab` if the folder has none, with a name and no model, or re-joins an existing home for that agent. It makes a token (leaving any existing membership intact while trying), checks the gateway's key against the link's fingerprint, shows the gateway the name, the code and the token, and writes the token, member ID, roster ID, gateway address and fingerprint into the home. For an existing agent, the gateway replaces its token on the same roster entry, revoking the old way and dropping any live link. It says at once whether the gateway let the agent in, and whether the two versions differ.
 - `up`, in a folder whose agents all belong to a gateway elsewhere, starts those agents and no gateway or chat server. So `shrimpy up` runs what lives on a machine, whichever machine it is.
 - The agent takes its model from the folder it is started in, as any agent does, which [providers](5-home.md) has. A model is no business of the gateway's, so none is in the line you paste.
 
@@ -56,9 +56,9 @@ By hand that is one line on the gateway's machine and two where the agent will l
 **Underneath**
 
 1. **The entry.** The gateway listens on each address you chose, over WebSocket inside TLS, as the next paragraph has it. A connection there that shows an agent's token is that agent, and may do what the agent may on the gateway's machine. One that shows the token of a device of yours is you. One that shows a code, with what the code is for, may join. One that shows neither gets nothing: only the gateway's own socket takes a connection that shows no token for you. A connection that says it comes from a web page is refused.
-2. **An invitation.** You or an admin agent asks the gateway for one for an agent, with a name that nobody has, and only you ask for one for a device. It is a code of eight characters from an alphabet with no look-alikes, written `K7Q2-9FXD`. It is kept in memory, so a gateway that restarts forgets it. The link, `shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD/ocKmkNBacmPG6VxrlnuW3Q`, is the name, the address, the code and the fingerprint of the gateway's key.
-3. **Joining.** The home makes its token and keeps it first, as it does beside the gateway. The gateway keeps a hash of the token and never the token, and a home that never heard the answer asks again with the same token and is the same member. The home keeps the gateway's address and the key's fingerprint beside its token.
-4. **Routing.** A client's request names the object it wants, and the object's address names its program: an agent by name, or the chat server. The gateway routes the request by that address over the program's link, stamped with who is asking, and never reads the contract. A request for a program that is away waits, and binds when the program is back.
+2. **An invitation.** You or an admin agent asks the gateway for one for an agent—either a vacant name or an existing agent on the roster—and only you ask for one for a device. It is a code of eight characters from an alphabet with no look-alikes, written `K7Q2-9FXD`. It is kept in memory, so a gateway that restarts forgets it. The link, `shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD/ocKmkNBacmPG6VxrlnuW3Q`, is the name, the address, the code and the fingerprint of the gateway's key.
+3. **Joining.** The home makes its token and keeps it first, as it does beside the gateway (or under `joining` when re-joining an existing home so a failed attempt never disturbs the old membership). The gateway keeps a hash of the token and never the token, and a home that never heard the answer asks again with the same token and is the same member. The home keeps the member ID, the roster ID, the gateway's address and the key's fingerprint beside its token.
+4. **Routing.** A client's request names the object it wants, and the object's address names its program: an agent by its member ID (`agent({ id })`), or the chat server (`chat()`). The gateway routes the request by that address over the program's link, stamped with who is asking, and never reads the contract. A request for a program that is away waits, and binds when the program is back.
 5. **One link for each program.** An agent apart and one beside the gateway both connect out, so no program is dialed and the gateway never has to reach one. The link carries the program's own requests up and every request for it down.
 6. **A dead link.** Chord pings a link that has been silent for 15 seconds and closes one that stays silent, so a program that lost its network comes back on a new link.
 7. **Chat.** The chat server stays on the gateway's machine. An agent apart reaches it by name through the gateway, as an agent beside the gateway does.
@@ -127,9 +127,9 @@ The [sandbox runtime scout](../../research/sandbox-runtime-scout-2026-08-26.md) 
 - **An invitation.** It is good once and for fifteen minutes. The answer has the code, the addresses the gateway listens on and its key's fingerprint, and with no address it is refused: nobody could use it.
 - **The link.** One function writes it and one reads it, for the command that prints it and the one that takes it.
 - **Being there.** An agent apart links in at the entry with its token, so the roster says it is reachable, and a copy of its home is turned away while it runs.
-- **Reached by name.** A client asks for an agent apart by its name, as for one beside the gateway, and the gateway routes the request over the agent's link. A request for an agent that is away waits, and binds when the agent is back.
+- **Reached by ID.** A client looks up the agent's member ID on the roster and asks for it at `agent({ id })`, for an agent apart as for one beside the gateway, and the gateway routes the request over the agent's link. A request for an agent that is away waits, and binds when the agent is back.
 - **What the agent says.** One line when it loses its gateway, with the address and that it keeps trying, and one line when it is back.
-- **A token the gateway doesn't know.** The agent is told to delete its membership and join again with a new invitation, since only an invitation lets it in.
+- **A token the gateway doesn't know.** An agent apart is told to get a new invitation and run `shrimpy join <link>` to replace its token. An agent beside the gateway is told to delete its membership so it makes a new token (or to move its home out if it was removed).
 - **A stop always ends.** A link's socket is dropped the moment Chord closes it, so an agent apart that is told to stop ends whatever the network is doing.
 - **Limits.** A dial waits a quarter of a minute for the gateway's answer, and Chord closes a link that stays silent for half a minute.
 - **Chat follows the gateway.** An agent holds chat over its link to the gateway, so losing one loses both, and its marks of where it works are set again when it is back.

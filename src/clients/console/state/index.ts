@@ -17,6 +17,7 @@
 export { type ConsoleState, createConsoleState } from "./console-state.ts";
 export {
   agentEntries,
+  agentNameOf,
   agentOfThread,
   type AgentStatus,
   type ChannelThreads,

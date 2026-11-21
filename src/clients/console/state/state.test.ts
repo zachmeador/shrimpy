@@ -18,10 +18,11 @@ const textsOf = (model: Model): string[] => model.thread?.messages.map((message)
 
 test("with one agent it goes straight to that agent's threads", { timeout }, async (t) => {
   const rig = await startRig(t);
+  const scout = await rig.member("scout");
 
   const model = await rig.until((each) => each.where.screen === "threads", "the only agent's threads");
 
-  assert.deepEqual(model.where, { screen: "threads", place: { kind: "agent", name: "scout" } });
+  assert.deepEqual(model.where, { screen: "threads", place: { kind: "agent", id: scout.id } });
   assert.deepEqual(model.gateway, { state: "up" });
 });
 
@@ -64,6 +65,7 @@ test("an agent the person has not talked to has no threads, and viewing it makes
 
 test("an open thread follows what is said in it, here and elsewhere", { timeout }, async (t) => {
   const rig = await startRig(t);
+  const scout = await rig.member("scout");
   const thread = await rig.thread("scout", "first");
   await rig.until((model) => model.where.screen === "threads", "the threads");
 
@@ -73,7 +75,7 @@ test("an open thread follows what is said in it, here and elsewhere", { timeout 
   await (await rig.asAgent("scout")).post(thread.id, "second");
   await rig.until((model) => textsOf(model).length === 2, "the agent's reply");
   assert.deepEqual(textsOf(rig.state.model()), ["first", "second"]);
-  assert.deepEqual(rig.state.model().where, { screen: "thread", place: { kind: "agent", name: "scout" }, thread: thread.id });
+  assert.deepEqual(rig.state.model().where, { screen: "thread", place: { kind: "agent", id: scout.id }, thread: thread.id });
 });
 
 test("a thread that cannot be opened says so, in chat's words", { timeout }, async (t) => {
@@ -88,6 +90,7 @@ test("a thread that cannot be opened says so, in chat's words", { timeout }, asy
 
 test("saying something posts it as the person, and a new thread is made with its first message", { timeout }, async (t) => {
   const rig = await startRig(t);
+  const scout = await rig.member("scout");
   const thread = await rig.thread("scout", "first");
   await rig.until((model) => model.where.screen === "threads", "the threads");
   rig.state.openThread(thread.id);
@@ -100,12 +103,12 @@ test("saying something posts it as the person, and a new thread is made with its
 
   rig.state.back();
   rig.state.startThread();
-  assert.deepEqual(rig.state.model().where, { screen: "thread", place: { kind: "agent", name: "scout" }, thread: undefined });
+  assert.deepEqual(rig.state.model().where, { screen: "thread", place: { kind: "agent", id: scout.id }, thread: undefined });
   assert.equal(await rig.state.send("a fresh topic"), true);
   const started = await rig.until((each) => each.where.screen === "thread" && each.where.thread !== undefined, "the new thread to open");
   assert.notEqual(started.where.screen === "thread" && started.where.thread, thread.id);
   await rig.until((each) => textsOf(each).join() === "a fresh topic", "the first message in the view");
-  await rig.until((each) => each.dms.scout?.threads.some((one) => one.preview === "a fresh topic") === true, "the thread to be listed");
+  await rig.until((each) => each.dms[scout.id]?.threads.some((one) => one.preview === "a fresh topic") === true, "the thread to be listed");
 });
 
 test("a message that is not sent says why, and the notice goes away by itself", { timeout }, async (t) => {
@@ -177,18 +180,19 @@ test("while chat is away nothing is sent, and once it is back the thread is foll
 
 test("going back leaves the thread, then the agent, and lets go of what was followed", { timeout }, async (t) => {
   const rig = await startRig(t);
+  const scout = await rig.member("scout");
   const thread = await rig.thread("scout", "go");
   await rig.until((model) => model.where.screen === "threads", "the threads");
   rig.state.openThread(thread.id);
   await rig.until((model) => textsOf(model).length === 1, "the thread's view");
 
   rig.state.back();
-  assert.deepEqual(rig.state.model().where, { screen: "threads", place: { kind: "agent", name: "scout" } });
+  assert.deepEqual(rig.state.model().where, { screen: "threads", place: { kind: "agent", id: scout.id } });
   assert.equal(rig.state.model().thread, undefined);
-  const before = rig.state.model().dms.scout?.threads.find((each) => each.id === thread.id)?.updatedAt ?? 0;
+  const before = rig.state.model().dms[scout.id]?.threads.find((each) => each.id === thread.id)?.updatedAt ?? 0;
   await (await rig.asAgent("scout")).post(thread.id, "unheard");
   // The agent's list hears of the message, after which the thread would have too, were it still followed.
-  await rig.until((model) => (model.dms.scout?.threads.find((each) => each.id === thread.id)?.updatedAt ?? 0) > before, "the list to hear of the message");
+  await rig.until((model) => (model.dms[scout.id]?.threads.find((each) => each.id === thread.id)?.updatedAt ?? 0) > before, "the list to hear of the message");
   assert.equal(rig.state.model().thread, undefined, "the thread is no longer followed");
 
   rig.state.back();
@@ -198,6 +202,7 @@ test("going back leaves the thread, then the agent, and lets go of what was foll
 
 test("leaving names the agent still working and its thread, and nothing when it is idle", { timeout }, async (t) => {
   const rig = await startRig(t);
+  const scout = await rig.member("scout");
   const busy = await rig.thread("scout", "go");
   const other = await rig.thread("scout", "something else");
   await rig.until((model) => model.where.screen === "threads", "the threads");
@@ -208,7 +213,7 @@ test("leaving names the agent still working and its thread, and nothing when it 
   const working = await rig.asAgent("scout");
   await working.setWorking(busy.id, true);
 
-  await rig.until((model) => model.dms.scout?.threads.some((thread) => thread.id === busy.id && thread.working.length === 1) === true, "the work to be listed");
+  await rig.until((model) => model.dms[scout.id]?.threads.some((thread) => thread.id === busy.id && thread.working.length === 1) === true, "the work to be listed");
   assert.deepEqual(rig.state.farewell(), { agent: "scout", thread: busy.id });
   await working.setWorking(other.id, true);
   await rig.until((model) => model.thread?.thread.working.length === 1, "the open thread to show the work");

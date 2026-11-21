@@ -3,6 +3,7 @@ import { type FollowAttach, follow } from "../../lib/follow/index.ts";
 
 /** What the gateway's objects show, before each caller's share of it is taken. */
 export type GatewayView = {
+  id: string;
   members: RosterEntry[];
   programs: Program[];
   ways: WayIn[];

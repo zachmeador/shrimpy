@@ -6,7 +6,7 @@ import { SessionPageSchema, SessionStatusSchema, SettlementSchema, SubmittedSche
 export const MAX_READ = 200;
 
 /**
- * One session of an agent as the caller sees it, at `agent({ name: agent })`:
+ * One session of an agent as the caller sees it, at `agent({ id: agent })`:
  * the newest stretch of its history and what it is doing, kept live, older
  * history a page at a time, and control over its work. `session` is its address
  * at the agent: a thread's ID, or `trigger:` and a trigger's name. Holding it is
@@ -21,7 +21,7 @@ export const MAX_READ = 200;
 export const Session = remote("shrimpy.agent.session", {
   version: 1,
   params: { agent: str(), session: str() },
-  hostAddress: ({ agent: name }) => agent({ name }),
+  hostAddress: ({ agent: id }) => agent({ id }),
   variants: {
     all: {
       state: {

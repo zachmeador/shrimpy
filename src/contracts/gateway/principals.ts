@@ -30,16 +30,19 @@ export type Principal =
   /** The gateway's own requests. */
   | { kind: "gateway" };
 
-/** A token taken back, by its way's ID. */
-export type Revocation = { way: string };
+/** What takes a principal's access away: one way in (a device's or an agent's token), or a removed member as a whole. */
+export type Revocation = { way: string } | { member: string };
 
 /**
- * What takes a principal's access away: its token's way, for a device or an
- * agent. The other ways are guarded by the operating system. Every program's
- * host uses this one function, as Chord asks.
+ * What takes a principal's access away: its member ID (when an agent is
+ * removed) and, for a device or an agent, its token's way. The other ways are
+ * guarded by the operating system. Every program's host uses this one function,
+ * as Chord asks.
  */
 export function revokedBy(principal: Principal): Revocation[] {
   if (principal.kind !== "person" && principal.kind !== "agent") return [];
   const { way } = principal;
-  return way.kind === "device" || way.kind === "token" ? [{ way: way.id }] : [];
+  const revocations: Revocation[] = [{ member: principal.member }];
+  if (way.kind === "device" || way.kind === "token") revocations.push({ way: way.id });
+  return revocations;
 }

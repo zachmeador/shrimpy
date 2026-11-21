@@ -17,10 +17,10 @@ import { refuse } from "../../lib/refusal/index.ts";
 import { GatewayNotRunningError, linkAs, viewOf } from "./gateway.ts";
 import { me } from "./me.ts";
 
-/** An agent a command reached: the host that holds its objects, and the name they are at. */
+/** An agent a command reached: the host that holds its objects, and the agent address they are at. */
 export interface AgentReached {
-  /** The name the agent answers to, which its objects' `agent` param takes. */
-  readonly name: string;
+  /** The address its objects' `agent` param takes: its member ID through the gateway, or `HOME_AGENT` on its home socket. */
+  readonly agent: string;
   readonly host: Host<Principal, Revocation>;
   /** Let go of the agent. Its work goes on. */
   close(): Promise<void>;
@@ -28,7 +28,7 @@ export interface AgentReached {
 
 /** The agent as a whole, held through `reached` for as long as `work` runs. It is refused as the agent refuses it. */
 export function onAgent<T>(reached: AgentReached, work: (agent: Reference<typeof Agent>) => Promise<T>, signal?: AbortSignal): Promise<T> {
-  return holding(reached.host.get(Agent, { agent: reached.name }, contextOf(signal)), (agent) => {
+  return holding(reached.host.get(Agent, { agent: reached.agent }, contextOf(signal)), (agent) => {
     unlessRefused(agent.refusal.value);
     return work(agent);
   });
@@ -41,7 +41,7 @@ export function onSession<T>(
   work: (held: Reference<typeof Session>) => Promise<T>,
   signal?: AbortSignal,
 ): Promise<T> {
-  return holding(reached.host.get(Session, { agent: reached.name, session }, contextOf(signal)), (held) => {
+  return holding(reached.host.get(Session, { agent: reached.agent, session }, contextOf(signal)), (held) => {
     unlessRefused(held.refusal.value);
     return work(held);
   });
@@ -94,7 +94,7 @@ export async function reachAgent(shell: string, home: string): Promise<AgentReac
       await client.close();
       return undefined;
     }
-    return { name: target.name, host: client.host, close: () => client.close() };
+    return { agent: target.id, host: client.host, close: () => client.close() };
   } catch (error) {
     await client.close();
     throw error;

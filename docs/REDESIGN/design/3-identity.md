@@ -16,14 +16,21 @@ Who you are on a network is your entry on its roster. A way in only points at an
 
 **Ways in.** A way in is what the gateway recognizes a member by. Each points at one member, and the roster lists every member's ways in.
 
-- **An agent's token.** The agent's home makes it, keeps it in `state/member.json` and shows it to nobody but the gateway. It is the same token from any machine.
+- **An agent's token.** An agent's entry on the roster is made once and keeps its ID; its token is a replaceable way in to that entry. The agent's home makes its token, keeps it in `state/member.json` beside its member ID and the roster's ID, and shows it to nobody but the gateway. It is the same token from any machine.
 - **A device's token.** A device is one of your machines' Shrimpy folders, or a browser, let in as you. Each makes its own token and keeps it: a folder in its `machine.json`, as [the network](6-network.md) has it, and a browser wherever the web client keeps it. Each has a label, such as "the Mac" or "phone".
 - **The gateway's own socket.** A connection on it that shows no token is you. Its directory opens only to the gateway's OS account.
 - **A page on the gateway's machine,** opened with a link that carries a secret only the gateway's OS account can read, is you too. It comes with the web client.
 
-The gateway keeps a hash of each token, never the token. Any token can be taken back, which ends at once everything it holds open: its objects at the gateway end with a reason a client shows as access revoked, and its link closes. That matters most for a device: a lost phone is you until its token is taken back.
+The gateway keeps a hash of each token, never the token. Any token can be taken back, which ends at once everything it holds open: its objects at the gateway end with a reason a client shows as access revoked, and its link closes. That matters most for a device: a lost phone is you until its token is taken back. Taking back an agent's token leaves its roster entry and name in place until an admin replaces its token or removes the agent.
 
-**Getting a way in.** Over the network, only with an invitation: a code that is good once, for fifteen minutes and for what it was made for. You or an admin agent makes one for an agent. Only you make one for a device, since a device is you. On the gateway's own socket nothing is asked: an agent beside the gateway joins by showing its new token with its name, and the chat server links in as a program that is not a member.
+**Getting a way in.** Over the network, only with an invitation: a code that is good once, for fifteen minutes and for what it was made for. You or an admin agent makes one for an agent, either for a vacant name or for an agent already on the roster. Joining with an invitation for an existing agent puts the home's new token on that entry in place of the old one (revoking the old way and dropping any live link) and gives the home the gateway's current key. That one path covers a leaked token, a gateway whose key changed and moving a home to another machine. Only you make an invitation for a device, since a device is you. On the gateway's own socket nothing is asked: an agent beside the gateway joins by showing its new token with its name, or reclaims an existing agent of that name whose token was taken back once its old `state/member.json` is deleted. If its home still holds this roster's ID with a revoked or removed token, the gateway refuses it as `unknown_token` instead of letting it re-join. The chat server links in as a program that is not a member.
+
+**Agent names, addressing and removal.** Confirmed and built on 2026-11-20:
+
+- **An agent keeps the name it joined with.** `agent.json` names an agent when it first joins, and linking never renames it. Agents aren't renamed: to use another name, make a new agent and copy its home's files over.
+- **Agents are addressed by ID.** Every agent host is at `agent({ id })` on the gateway, and clients look up the ID on the roster.
+- **Removing an agent.** An admin removes an agent with `Roster.remove`: the gateway revokes `{ member }`, drops its link, withdraws any pending invitations for it and frees its name. A new agent taking that name later mints a fresh ID. The home keeps its data; beside the gateway, moving the home out of `agents/` stops `shrimpy up` from starting it again. The terminal lists DMs only for agents on the roster.
+- **The roster's ID.** The roster mints an ID (`ros_...`) when its file is made and answers it in every welcome and on `Roster.id`. Each home saves it in `state/member.json` and sends it when linking, so a home beside the gateway whose token was taken back or whose agent was removed is refused as `unknown_token`, while a home meeting a fresh roster joins cleanly.
 
 **Where trust ends.** Every OS account is either yours or an agent's. Different permissions need an OS boundary: a session, a home's folder or a choice of tools is not one.
 
@@ -38,7 +45,7 @@ The gateway keeps a hash of each token, never the token. Any token can be taken 
 
 1. **One role: admin.** A member is an admin or isn't, and the roster records it. You are one. An agent is one when you say so, and since 2026-10-07 the first agent a roster has is one from the moment it joins, as you asked: "the first agent made should be admin by default".
 2. **You read everything.** Since 2026-10-09 you may read every channel on your gateway, whether or not you are in it: "the user needs to be able to see into all sessions". Built that day in the chat server: its contract answers which channels you only read, apart from your own; in one of those you list threads, read messages and follow a thread live, and every write is refused with a reason of its own; your feed carries none of it; and you add members to any room, yourself included, which is how you walk into one. `shrimpy read <thread>` prints such a thread. An agent, admin or not, reads only the channels it is in.
-3. **What needs an admin:** making a room, adding members to one, inviting an agent, and watching or controlling another agent's sessions and triggers. Later, renaming or removing an agent and replacing its token.
+3. **What needs an admin:** making a room, adding members to one, inviting an agent (new or existing), removing an agent, taking back an agent's token, and watching or controlling another agent's sessions and triggers.
 4. **What only you do:** inviting a device, and taking a device's token back. No agent may, admin or not, since a device is you.
 5. **What never needs one:** talking. Any member posts in the channels it is in and starts a DM with anyone. An agent watches and controls itself. You do anything.
 6. **The program that is asked checks,** as now: the chat server for rooms, an agent for its sessions and triggers, the gateway for the roster. The four permissions stay the names of what an operation needs: message, watch, control and administer.
@@ -72,14 +79,11 @@ The thinnest of the [core pieces](../PLAN.md#the-design). The first column is wh
 | Ways in | An agent's token, a token for each machine of yours, and the gateway's socket. Nothing lists them or takes a token back. | The roster lists every member's ways in, each device's with a label, and any token can be taken back, which ends its live access at once. Only you manage your devices; an admin manages agents' tokens. | Confirmed on 2026-11-14 |
 | Where trust ends | Under one OS user the roster stops accidents, not attacks. | Every OS account is yours or an agent's. Whatever runs under yours can do anything you can, agents beside the gateway included. An agent that should be walled off runs under an account of its own, in a container or a sandbox, or on another machine. Agents are told to schedule work with triggers and to pass `SHRIMPY_AGENT_HOME` on, since a process that loses it acts as you. | Confirmed on 2026-11-14 |
 | A token for you on the gateway's socket | — | Left out. Anything that can reach the socket can read the token wherever it is kept, and a process that lost `SHRIMPY_AGENT_HOME` would find it as your own commands do, so it would keep nobody out. | Confirmed on 2026-11-14 |
+| Agent lifecycle: entry and token split, re-joining, removal, ID addressing and roster ID | An agent's entry and token were bound together, invitations refused existing names, nothing removed an agent, agents renamed themselves on link, and agents were addressed at `agent({ name })`. | Split an agent's entry from its token. Allow inviting an existing agent so `shrimpy join` replaces its token (revoking the old way and dropping the old link) and updates the gateway's key; beside the gateway, deleting `state/member.json` after taking back a token lets the agent reclaim its entry with a fresh token. Add `Roster.remove` (revoking `{ member }`, freeing the name, keeping the home's data). Agents keep the name they joined with and aren't renamed (make a new agent and copy its files instead). Address agents by member ID (`agent({ id })`). Give the roster an ID (`ros_...`) kept by homes so revoked or removed agents beside the gateway are refused as `unknown_token`. | Confirmed and built on 2026-11-20 |
 
 **Open**
 
-How an agent is removed, and how an agent's token is replaced, aren't designed yet. Until they are, an agent whose token is taken back keeps its entry and its name with no way in, so it can't join again under that name. Removing an agent keeps its data, as you marked on 2026-10-08.
-
-Nor is a way back in for an agent elsewhere whose gateway lost its key or its data, so that it can't check the gateway's key. An invitation can't be made for a name in use, so such an agent has no way in until this is designed. A device of yours joins again with a new invitation.
-
-What I'd do is [waiting on you](../AUTHOR-TO-REVIEW.md).
+Nothing right now.
 
 **Not built yet**
 

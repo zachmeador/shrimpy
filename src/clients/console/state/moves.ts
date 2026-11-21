@@ -4,7 +4,7 @@ import type { Store } from "./store.ts";
 
 /** Where the person goes: an agent's screen or a room's, a thread or a session, and back. */
 export interface Moves {
-  selectAgent(name: string): void;
+  selectAgent(id: string): void;
   selectChannel(place: Extract<Place, { id: string }>): void;
   /** Open one of the threads on show, or start one there when `threadId` is undefined. */
   open(threadId: string | undefined): void;
@@ -20,12 +20,12 @@ export interface Moves {
 export function createMoves(store: Store, held: Holdings): Moves {
   let landed = false;
   const moves: Moves = {
-    selectAgent(name) {
+    selectAgent(id) {
       landed = true;
-      held.useAgent(name);
+      held.useAgent(id);
       held.useThread(undefined);
       held.useSession(undefined, undefined);
-      store.set({ where: { screen: "threads", place: { kind: "agent", name } }, thread: undefined, session: undefined, refusal: undefined, notice: undefined });
+      store.set({ where: { screen: "threads", place: { kind: "agent", id } }, thread: undefined, session: undefined, refusal: undefined, notice: undefined });
     },
     selectChannel(place) {
       landed = true;
@@ -59,8 +59,8 @@ export function createMoves(store: Store, held: Holdings): Moves {
       const { where } = store.model();
       if (where.screen !== "threads" || where.place.kind !== "agent") return;
       held.useThread(undefined);
-      held.useSession(where.place.name, address);
-      store.set({ where: { screen: "session", agent: where.place.name, session: address }, session: undefined, notice: undefined, refusal: undefined });
+      held.useSession(where.place.id, address);
+      store.set({ where: { screen: "session", agent: where.place.id, session: address }, session: undefined, notice: undefined, refusal: undefined });
     },
     back() {
       const { where } = store.model();
@@ -79,7 +79,7 @@ export function createMoves(store: Store, held: Holdings): Moves {
       const model = store.model();
       const [only] = entries;
       const channelsToChoose = Object.keys(model.rooms).length + readOnlyEntries(model).length;
-      if (only !== undefined && entries.length === 1 && channelsToChoose === 0 && model.where.screen === "agents") moves.selectAgent(only.name);
+      if (only !== undefined && entries.length === 1 && channelsToChoose === 0 && model.where.screen === "agents") moves.selectAgent(only.id);
     },
     landed: () => landed,
   };

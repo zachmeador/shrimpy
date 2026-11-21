@@ -1,9 +1,9 @@
 /**
  * The agent program: one process that owns one home and serves the agent's
- * contract for it as a Chord host at `agent({ name })`: through the gateway,
- * which it links out to and which relays every request for it stamped with who
- * asks, and on the home's own socket, where a client is `home`. Over the same
- * link it takes part in the network as a member and in chat.
+ * contract for it at `agent({ id })` over its link to the gateway (which relays
+ * every request for it stamped with who asks) and at `agent({ id: HOME_AGENT })`
+ * on the home's own socket, where a client is `home`. Over its gateway link it
+ * takes part in the network as a member and in chat.
  * Other programs reach an agent only through `contracts/agent`; they never
  * import this program's modules, except that the CLI starts an agent, previews
  * what a home would tell an agent, and signs the folder its agents are started
@@ -184,13 +184,14 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     await sessions.applyDefaults();
     await keeping.reload();
     host.resume();
-    // The agent's objects are served once its host has loaded them, on the home's socket at once, and through the gateway
-    // once it links there. They take new work until the agent begins to stop.
+    // The agent's objects are served on the home's socket at once, and through the gateway once it links there. They
+    // take new work until the agent begins to stop.
     let takingInput = true;
+    const facet = agentFacet({ sessions, triggers, reload: () => keeping.reload(), roster, takingInput: () => takingInput });
     const server = await startServer({
       home: options.home,
       name: options.name,
-      facet: agentFacet({ sessions, triggers, reload: () => keeping.reload(), roster, takingInput: () => takingInput }),
+      facet,
       onError: report,
     });
     try {
@@ -206,7 +207,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
           {
             name: options.name,
             home: options.home,
-            host: server.host,
+            facet,
             roster,
             admissions,
             wakes,

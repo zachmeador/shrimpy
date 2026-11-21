@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
 import { checkAgentName } from "../../contracts/agent/index.ts";
+import { findMember } from "../../contracts/chat/index.ts";
 import { type Address, contextOf, type Invitation, valueOf, writeLink } from "../../contracts/gateway/index.ts";
 import { shellWord } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
@@ -19,10 +20,13 @@ const invite: Command = {
       "run where the agent will live: on another machine, in a container or as another user of the gateway's " +
       "machine, which is what a loopback address is for. The invitation works once, for fifteen minutes, and only " +
       "for that name. The gateway keeps it in memory, so one that has not been used is gone when the gateway " +
-      "restarts. A name another member has is refused, whatever the case, and so is a name no agent can have: it " +
-      "starts with a letter or digit and has only letters, digits, dots, hyphens and underscores. The gateway has " +
-      "to listen for agents apart from it, which it is told with shrimpy up --listen <host:port>: with no " +
-      "address, nobody could use an invitation, and it refuses to make one. Exits 1 if no gateway is running.",
+      "restarts. Naming an agent that is already on the roster makes an invitation that replaces that agent's " +
+      "token and updates its gateway key when used, which covers a leaked token, a gateway whose key changed " +
+      "and a home that moves to another machine. A name the person has is refused, whatever the case, and so " +
+      "is a name no agent can have: it starts with a letter or digit and has only letters, digits, dots, hyphens " +
+      "and underscores. The gateway has to listen for agents apart from it, which it is told with shrimpy up " +
+      "--listen <host:port>: with no address, nobody could use an invitation, and it refuses to make one. " +
+      "Exits 1 if no gateway is running.",
     "With no name, asks for an invitation for another machine of yours, and prints shrimpy join <link>, once " +
       "for each address the gateway listens on, to run on that machine. It lets that machine in as you, with " +
       "everything you may do, so only you can ask for it: on the gateway's machine, or on a machine of yours that " +
@@ -37,11 +41,22 @@ const invite: Command = {
     const [name] = expectArguments(positionals, ["<name>"]);
     // A home could not be made for any other name, so there is no use in asking.
     checking(() => checkAgentName(name));
-    const invitation = await withGatewayAsMe((client) =>
-      onRoster(client, async (roster) => valueOf(await roster.invite({ name }, contextOf()))),
+    const { invitation, target, replaces } = await withGatewayAsMe((client) =>
+      onRoster(client, async (roster) => {
+        const existing = findMember(roster.members.value, name);
+        const invitation = valueOf(await roster.invite({ name }, contextOf()));
+        return {
+          invitation,
+          target: existing?.kind === "agent" ? existing.name : name,
+          replaces: existing?.kind === "agent",
+        };
+      }),
     );
-    const lines = invitationLines(invitation, name, {
-      header: (run) => `The invitation works once, for fifteen minutes, and only for the name ${name}. Run ${run} where the agent will live:`,
+    const lines = invitationLines(invitation, target, {
+      header: (run) =>
+        replaces
+          ? `${target} is already on the roster. The invitation works once, for fifteen minutes, and replaces ${target}'s token when used. Run ${run} where ${target} lives:`
+          : `The invitation works once, for fifteen minutes, and only for the name ${target}. Run ${run} where the agent will live:`,
       loopback: "As another user of this machine, since only this machine reaches a loopback address:",
     });
     for (const line of lines) io.out(line);

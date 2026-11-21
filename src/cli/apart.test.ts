@@ -115,10 +115,10 @@ function apartEnv(t: TestContext): { SHRIMPY_RUNTIME_DIR: string; SHRIMPY_DIR: s
 }
 
 /** A client linked to the gateway at `place` as whoever `token` is, holding crab as a client does. Closed when the test ends. */
-async function crabAs(t: TestContext, place: DialPlace, token: string | null) {
+async function crabAs(t: TestContext, place: DialPlace, token: string | null, crabId: string) {
   const client: Client = await connectClient({ place, token });
   stopAfter(t, () => client.close());
-  const agent = await client.host.get(Agent, { agent: "crab" }, context);
+  const agent = await client.host.get(Agent, { agent: crabId }, context);
   stopAfter(t, () => agent.release());
   return {
     client,
@@ -127,7 +127,7 @@ async function crabAs(t: TestContext, place: DialPlace, token: string | null) {
     sessions: () => agent.sessions.value.map((session) => session.threadId),
     /** Hold one of crab's sessions, as a client watches it. */
     session: async (thread: string): Promise<Reference<typeof Session>> => {
-      const held = await client.host.get(Session, { agent: "crab", session: thread }, context);
+      const held = await client.host.get(Session, { agent: crabId, session: thread }, context);
       stopAfter(t, () => held.release());
       return held;
     },
@@ -258,10 +258,10 @@ test("a shrimpy command in the shell of an agent apart reaches its gateway as th
   assert.ok(down.stderr.includes(`${gatewayAddress.host}:${String(gatewayAddress.port)}`), down.stderr);
 });
 
-test("an agent apart is reached by its name through the gateway, by whoever it lets in", { timeout }, async (t) => {
+test("an agent apart is reached through the gateway, by whoever it lets in", { timeout }, async (t) => {
   const network = await startNetwork(t);
   const { person, gateway } = network;
-  const { home } = await homeFromApart(t, network, "crab");
+  const { home, member } = await homeFromApart(t, network, "crab");
   const crab = await serve(t, home, [], { env: apartEnv(t) });
   await untilLinked("agent", "crab");
   const [address] = gateway.listening;
@@ -269,15 +269,15 @@ test("an agent apart is reached by its name through the gateway, by whoever it l
 
   // You, at the gateway's machine, find crab's work, watch it as it happens, and stop it.
   const thread = await startSlowWork(network);
-  const yours = await crabAs(t, { path: gatewaySocket() }, null);
+  const yours = await crabAs(t, { path: gatewaySocket() }, null, member.id);
   assert.deepEqual(yours.sessions(), [thread]);
   await watchAndStop(await yours.session(thread));
 
   // An agent that is no admin may not look at another's sessions, from beside the gateway or from apart: it comes in on
   // the gateway's own socket and over its entry with the same token.
   const rex = await memberApart(t, network, "rex");
-  const beside = await crabAs(t, { path: gatewaySocket() }, rex.token);
-  const apart = await crabAs(t, rex.entry, rex.token);
+  const beside = await crabAs(t, { path: gatewaySocket() }, rex.token, member.id);
+  const apart = await crabAs(t, rex.entry, rex.token, member.id);
   for (const refused of [beside, apart]) {
     await until(() => refused.refusal() !== null, "crab to refuse rex");
     assert.ok(refused.refusal()?.includes("rex"), "the agent knows who is asking");
@@ -300,10 +300,10 @@ test("an agent apart is reached by its name through the gateway, by whoever it l
 
 test("an agent apart links again by itself when the gateway starts again, and says so", { timeout }, async (t) => {
   const network = await startNetwork(t);
-  const { home } = await homeFromApart(t, network, "crab");
+  const { home, member } = await homeFromApart(t, network, "crab");
   const crab = await serve(t, home, [], { env: apartEnv(t) });
   await untilLinked("agent", "crab");
-  const before = await crabAs(t, { path: gatewaySocket() }, null);
+  const before = await crabAs(t, { path: gatewaySocket() }, null, member.id);
   assert.deepEqual(before.sessions(), []);
   const [address] = network.gateway.listening;
   assert.ok(address);
@@ -322,7 +322,7 @@ test("an agent apart links again by itself when the gateway starts again, and sa
   assert.deepEqual(back.listening, network.gateway.listening);
   await untilLinked("agent", "crab");
   await until(() => saidOfGateway().length === 2, "the agent to say that it is back");
-  const after = await crabAs(t, { path: gatewaySocket() }, null);
+  const after = await crabAs(t, { path: gatewaySocket() }, null, member.id);
   assert.deepEqual(after.sessions(), []);
   const said = await shrimpy(["run", "crab", "hi"]);
   assert.equal(said.stdout.trim(), "Hello from the test model.", "and it answers in a thread as before");

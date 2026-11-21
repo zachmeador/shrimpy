@@ -10,7 +10,7 @@ The tree is organized by program. Shrimpy is three programs (an agent, the chat 
 src/
   contracts/        the only code programs share: each contract's Chord object types and the shapes they carry,
                     and the files a home, the folder and the gateway keep that the `shrimpy` command shares
-    agent/          Agent, Session and AgentPresence at agent({ name }), the shapes the agent builds, one sentence
+    agent/          Agent, Session and AgentPresence at agent({ id }), the shapes the agent builds, one sentence
                     for each way a turn ends without an answer, the words a session and a model are said in, and
                     linking to an agent by its home's path, with the membership a home keeps and what to do when
                     the gateway doesn't know it; a home's layout, `agent.json`, its wake and trigger files and
@@ -114,10 +114,10 @@ src/
 | `contracts/` | `lib/`; and, within `contracts/`, `gateway/` imports no other contract, `chat/` and `agent/` import `gateway/`, and `agent/` imports how a room is written from `chat/` |
 | `agent/`, `chat/`, `gateway/`, `clients/console/`, `clients/web/` | its own code, `contracts/` and `lib/`, and never another program |
 | `chat/providers/<name>/` | the chat server's provider interface and `lib/` |
-| `cli/` | `contracts/` and `lib/`, plus each program's front door to start it |
+| `cli/` | `contracts/` and `lib/`, plus each program's front door to start it, and the agent's to preview a home and to sign in |
 
 - **Programs never import each other.** They talk only through `contracts/`, as [the contracts](2-contracts.md) describe.
-- **The CLI loads a program only to start it.** Each command imports its program's front door when it runs, so no other command loads it, and the lint names the files that may.
+- **The CLI loads a program only to start it, plus the agent's front door to preview a home and to sign in.** Confirmed on 2026-11-20: `shrimpy agent context` previews what a home would tell its agent, and `shrimpy login` runs `pi-ai`'s sign-in. Each command imports its program's front door when it runs, so no other command loads it, and the lint names the files that may.
 - **Shared plumbing stays plumbing.** Shared code may remove repetition around Pi, but it adds no concepts of its own: no registry, discovery or lifecycle. `lib/link` wraps Chord's links once for every program and client, and `lib/follow` turns a read and a watch into what a Chord object follows. The test is whether a module could be deleted and inlined into its callers in an hour with no change in behavior. If deleting it would mean redesigning the programs, it has become the service framework this plan doesn't build. Check `lib/`'s size at each review pause.
 - **Contracts carry Shrimpy's own shapes, never Pi's.** Only `agent/` imports Pi's durable runtime, and `pi-ai` with it, apart from tests. `agent/sessions/` is the one place that turns Pi's records into the session view clients see, and `agent/turns/` the one that says why a turn ended without an answer in the contract's words. A Pi upgrade can then change the agent without touching a client.
 - **Inside the agent, a file that needs Pi says so in its name.** A file imports Pi's durable runtime only if it is named `*.durable.ts` or is a module's `durable.ts` door, as `*.node.ts` marks what needs Node. Inside a module, a file that isn't marked can't import one that is, so plain code never reaches the engine. The files at the top of `agent/` wire the modules together, so they may import a marked door, and still can't import the package unless they are marked themselves.

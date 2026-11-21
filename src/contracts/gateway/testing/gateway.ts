@@ -39,6 +39,8 @@ export interface GatewayListening {
 export interface TestGateway extends Omit<Restartable<GatewayListening>, "recover"> {
   /** Where it keeps its roster. */
   readonly dataDir: string;
+  /** The Shrimpy folder the gateway runs in, where `settings.json` lives. */
+  readonly folder: string;
   /** Link a client over its socket, as you, or as the holder of `token`. Closed when the test ends. */
   connect(token?: string): Promise<Client>;
   /** Start it again on the same data, like a gateway that came back: where it listened, unless `listen` says where now. */
@@ -87,6 +89,7 @@ async function start(t: TestContext, options: TestGatewayOptions): Promise<TestG
       return gateway.listening;
     },
     dataDir,
+    folder,
     connect: (token) => connectTestClient(t, { path: gatewaySocket() }, token ?? null),
     recover: (listen = []) => gateway.recover(() => serve(listen)),
   };

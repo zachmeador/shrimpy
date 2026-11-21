@@ -103,10 +103,19 @@ test("invite prints a line for each address the gateway listens on, whose code l
   const joined = await joinWith(link);
   assert.equal(joined?.kind === "welcome" ? joined.you?.name : joined?.words, "crab");
 
-  // What the gateway refuses is passed on as it says it: here a name that another member has.
+  // Inviting an existing agent succeeds so its token can be replaced on the same roster entry.
+  const replacement = await shrimpy(["invite", "crab"]);
+  assert.equal(replacement.code, 0, replacement.stderr);
+  const [replacementLine] = commandLines(replacement.stdout);
+  assert.ok(replacementLine !== undefined);
+  const replacementLink = readLink(replacementLine.slice("shrimpy join ".length).replace(/^'(.*)'$/, "$1"));
+  const rejoined = await joinWith(replacementLink);
+  assert.equal(rejoined?.kind === "welcome" ? rejoined.you?.id : rejoined?.words, joined?.kind === "welcome" ? joined.you?.id : undefined);
+
+  // What the gateway refuses is passed on as it says it: here the person's name.
   const onTheSocket: OnTheRoster = await onTheRoster(t);
-  const says = await refusalOf(() => onTheSocket.invite("crab"));
-  const taken = await shrimpy(["invite", "crab"]);
+  const says = await refusalOf(() => onTheSocket.invite(person));
+  const taken = await shrimpy(["invite", person]);
   assert.equal(taken.code, 1);
   assert.ok(taken.stderr.includes(says), taken.stderr);
 });

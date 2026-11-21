@@ -16,13 +16,24 @@ export function readMembership(home: string): Membership | undefined {
   if (root === undefined) return undefined;
   const token = root.string("token");
   const memberId = root.optionalString("memberId");
+  const rosterId = root.optionalString("rosterId");
   const entry = root.optionalObject("gateway");
   const gateway = entry === undefined ? undefined : readEntry(entry);
+  const pending = root.optionalObject("joining");
+  let joining: Membership["joining"];
+  if (pending !== undefined) {
+    const pendingToken = pending.string("token");
+    const pendingGateway = readEntry(pending.object("gateway"));
+    pending.done();
+    joining = { token: pendingToken, gateway: pendingGateway };
+  }
   root.done();
   return {
     token,
     ...(memberId === undefined ? {} : { memberId }),
+    ...(rosterId === undefined ? {} : { rosterId }),
     ...(gateway === undefined ? {} : { gateway }),
+    ...(joining === undefined ? {} : { joining }),
   };
 }
 

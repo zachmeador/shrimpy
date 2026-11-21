@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
 import { checkAgentName } from "../../contracts/agent/index.ts";
-import { initHome, providerPaths } from "../../contracts/agent/node.ts";
+import { initHome, providerPaths, readMembership } from "../../contracts/agent/node.ts";
 import { type Link, readLink } from "../../contracts/gateway/index.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
@@ -35,8 +35,9 @@ const join: Command = {
       "gateway's address and the fingerprint of its key in the home, where shrimpy up finds them: the agent " +
       "connects to that gateway from then on, checking its key each time, and is talked to from the gateway's " +
       "machine. It says whether the gateway let the agent in. The invitation " +
-      "works only for the name it was made for. A failure leaves a home that was just made. A home that has " +
-      "joined a gateway already is refused, and the error names the file to delete to join anew.",
+      "works only for the name it was made for. A failure leaves a home that was just made. Running this on a " +
+      "home that has joined already replaces its token on the gateway and updates the gateway's key in the " +
+      "home, leaving the existing membership untouched if the join is refused.",
     "A link that names nobody, which shrimpy invite printed with no name, on the gateway's machine or on a " +
       "machine of yours that has joined, makes this machine one of yours. It makes a token, keeps it in " +
       "machine.json in your Shrimpy folder with the gateway's address and the fingerprint of its key, and shows " +
@@ -71,6 +72,8 @@ export async function joinByLink(io: Io, text: string, giveUpMs = GIVE_UP_MS): P
 async function joinAsAgent(io: Io, text: string, { name, address }: Link & { name: string }, giveUpMs: number): Promise<number> {
   checking(() => checkAgentName(name));
   const { home, exists } = homeInFolder(name);
+  const previous = exists ? readMembership(home) : undefined;
+  const replacing = previous !== undefined && (previous.memberId !== undefined || previous.gateway !== undefined);
   if (!exists) initHome(home, { name });
   const where = formatAddress(address);
   const joined = await joining({
@@ -82,8 +85,10 @@ async function joinAsAgent(io: Io, text: string, { name, address }: Link & { nam
 
   warnIfVersionDiffers(io, "the gateway", joined.gatewayVersion);
   io.out(
-    `${name} joined the gateway at ${where}. ` +
-      (exists ? `Its home is ${home}.` : `Its home is ${home}, made just now with no model.`),
+    replacing
+      ? `${name} joined the gateway at ${where}, with a new token and the gateway's current key. Its home is ${home}.`
+      : `${name} joined the gateway at ${where}. ` +
+          (exists ? `Its home is ${home}.` : `Its home is ${home}, made just now with no model.`),
   );
   const steps: Step[] = [];
   if (folderDefault(providerPaths(providersPath()).defaultModel) === undefined) {

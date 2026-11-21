@@ -10,7 +10,7 @@ import {
 } from "./shapes.ts";
 
 /**
- * One agent as the caller sees it, at `agent({ name: agent })`: its sessions
+ * One agent as the caller sees it, at `agent({ id: agent })`: its sessions
  * and its triggers, kept live, and what a client does with the agent as a whole.
  *
  * `refusal` is null, or why the caller may not watch this agent, and then the
@@ -21,7 +21,7 @@ import {
 export const Agent = remote("shrimpy.agent", {
   version: 1,
   params: { agent: str() },
-  hostAddress: ({ agent: name }) => agent({ name }),
+  hostAddress: ({ agent: id }) => agent({ id }),
   variants: {
     all: {
       state: {

@@ -1,12 +1,12 @@
 import type { ModelId, SessionActivity, SessionSummary } from "../../../contracts/agent/index.ts";
 import type { Thread } from "../../../contracts/chat/index.ts";
-import { agentEntries, type DevicesStatus, type Model, type Place, type Status, type Where, workingIn } from "./model.ts";
+import { agentEntries, agentNameOf, type DevicesStatus, type Model, type Place, type Status, type Where, workingIn } from "./model.ts";
 
 /** The thread the person is in, as far as the console knows it: undefined for one that is not started. */
 function threadOf(model: Model, where: Extract<Where, { screen: "thread" }>, place: Exclude<Place, { kind: "read-only" }>): Thread | undefined {
   if (where.thread === undefined) return undefined;
   if (model.thread?.thread.id === where.thread) return model.thread.thread;
-  const threads = place.kind === "agent" ? model.dms[place.name]?.threads : model.rooms[place.id]?.threads;
+  const threads = place.kind === "agent" ? model.dms[place.id]?.threads : model.rooms[place.id]?.threads;
   return threads?.find((each) => each.id === where.thread);
 }
 
@@ -42,8 +42,9 @@ export function statusOf(
     return { at, about: { kind: "room", agents } };
   }
 
-  const { name } = place;
-  const entry = entries.find((each) => each.name === name);
+  const { id } = place;
+  const entry = entries.find((each) => each.id === id);
+  const name = agentNameOf(model, id);
   const reached = model.agent?.state === "up";
   // A session seen before the agent went away says nothing about now.
   const view = reached ? model.session : undefined;

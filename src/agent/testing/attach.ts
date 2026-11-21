@@ -69,9 +69,9 @@ function viewOf(session: Reference<typeof Session>): SessionView {
   return { items, before, status };
 }
 
-/** The session `address` of the agent `name`, as `host` holds it. */
-export async function holdSession(host: Host<Principal, Revocation>, name: string, address: string): Promise<SessionHandle> {
-  const session = await host.get(Session, { agent: name, session: address }, context);
+/** The session `address` of the agent `agent`, as `host` holds it. */
+export async function holdSession(host: Host<Principal, Revocation>, agent: string, address: string): Promise<SessionHandle> {
+  const session = await host.get(Session, { agent, session: address }, context);
   const refusal = session.refusal.value;
   if (refusal !== null) {
     session.release();
@@ -111,27 +111,27 @@ export async function holdSession(host: Host<Principal, Revocation>, name: strin
   };
 }
 
-/** The agent `name`, as `host` holds it, closed with `close`. */
-export async function holdAgent(host: Host<Principal, Revocation>, name: string, close: () => Promise<void>): Promise<AgentConnection> {
-  const agent = await host.get(Agent, { agent: name }, context);
-  const allowed = (): void => unlessRefused(agent.refusal.value);
+/** The agent `agent` (its member ID through the gateway, or `HOME_AGENT` on its home socket), as `host` holds it, closed with `close`. */
+export async function holdAgent(host: Host<Principal, Revocation>, agent: string, close: () => Promise<void>): Promise<AgentConnection> {
+  const held = await host.get(Agent, { agent }, context);
+  const allowed = (): void => unlessRefused(held.refusal.value);
   return {
-    name,
+    name: agent,
     async sessions() {
       allowed();
-      return agent.sessions.value;
+      return held.sessions.value;
     },
-    attach: (address) => holdSession(host, name, address),
-    models: async () => valueOf(await agent.models(context)),
+    attach: (address) => holdSession(host, agent, address),
+    models: async () => valueOf(await held.models(context)),
     async triggers() {
       allowed();
-      return agent.triggers.value;
+      return held.triggers.value;
     },
-    trigger: async (trigger) => valueOf(await agent.trigger({ name: trigger }, context)),
-    fire: async (trigger) => valueOf(await agent.fire({ name: trigger }, context)),
-    reload: async () => valueOf(await agent.reload(context)),
+    trigger: async (trigger) => valueOf(await held.trigger({ name: trigger }, context)),
+    fire: async (trigger) => valueOf(await held.fire({ name: trigger }, context)),
+    reload: async () => valueOf(await held.reload(context)),
     async close() {
-      agent.release();
+      held.release();
       await close();
     },
   };
@@ -141,7 +141,7 @@ export async function holdAgent(host: Host<Principal, Revocation>, name: string,
 export async function connectAgent(t: TestContext, home: string): Promise<AgentConnection> {
   const client = await connectHome(home);
   stopAfter(t, () => client.close());
-  return holdAgent(client.host, client.name, () => client.close());
+  return holdAgent(client.host, client.agent, () => client.close());
 }
 
 /** Stop `agent` when the test ends, whether or not the test passed. Stopping twice is fine. */

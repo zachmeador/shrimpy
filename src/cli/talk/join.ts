@@ -20,6 +20,8 @@ export class JoinFailedError extends Error {
 export interface Joined {
   /** Who the gateway says the joiner is: the agent, or you for a machine of yours. */
   member: Member;
+  /** The ID of the roster the joiner joined, or null if the gateway sent none. */
+  rosterId: string | null;
   /** The version of Shrimpy the gateway runs. */
   gatewayVersion: string;
 }
@@ -51,10 +53,12 @@ export async function joinGateway(
     dialed.linked.drop();
     answer = dialed.welcome;
   } catch (error) {
-    if (error instanceof HelloRefusedError) throw new JoinFailedError(notLetIn(where, named, error.message));
-    if (error instanceof UnknownAnswerError || error instanceof UnprovenGatewayError) throw new JoinFailedError(error.message);
+    if (error instanceof HelloRefusedError) throw new JoinFailedError(notLetIn(where, named, error.message), { cause: error });
+    if (error instanceof UnknownAnswerError || error instanceof UnprovenGatewayError) {
+      throw new JoinFailedError(error.message, { cause: error });
+    }
     throw new JoinFailedError(`Could not join the gateway at ${where}: ${asError(error).message}`, { cause: error });
   }
   if (answer.you === null) throw new JoinFailedError(`The gateway at ${where} let ${named} in as nobody.`);
-  return { member: answer.you, gatewayVersion: answer.shrimpy };
+  return { member: answer.you, rosterId: answer.roster, gatewayVersion: answer.shrimpy };
 }

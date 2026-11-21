@@ -11,7 +11,6 @@ import {
   assistantItems,
   attachThread,
   releaseGate,
-  SCOUT,
   type SessionView,
   startAgentRig,
   toolItems,
@@ -155,7 +154,7 @@ test("a client holding a session sees it once the agent makes it, and its turn l
   const rig = await startAgentRig(t, { tokensPerSecond: 100, tokenSize: { min: 10, max: 10 } });
   const person = await rig.chat.gateway.connect();
   // Held before the agent has the session: refused for now, and followed.
-  const session = await person.host.get(Session, { agent: SCOUT, session: rig.thread.id }, BACKGROUND_CONTEXT);
+  const session = await person.host.get(Session, { agent: rig.partner.id, session: rig.thread.id }, BACKGROUND_CONTEXT);
   assert.notEqual(session.refusal.value, null);
 
   const asked = await rig.say("stream a long answer");
@@ -183,7 +182,7 @@ test("a client pages back through a session's whole history with read", { timeou
   }
 
   const person = await rig.chat.gateway.connect();
-  const held = await person.host.get(Session, { agent: SCOUT, session: rig.thread.id }, BACKGROUND_CONTEXT);
+  const held = await person.host.get(Session, { agent: rig.partner.id, session: rig.thread.id }, BACKGROUND_CONTEXT);
   const asked = (items: readonly SessionItem[]): string[] =>
     items.flatMap((item) => (item.type === "user" ? [/number \d+/.exec(item.text)?.[0] ?? item.text] : []));
   const window = held.window.value;

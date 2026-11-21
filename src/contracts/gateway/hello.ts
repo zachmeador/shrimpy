@@ -10,8 +10,13 @@ export type PiPackages = Readonly<Record<string, string>>;
 
 /** Who a hello says the caller is. */
 export type Who =
-  /** An agent's program. A name that differs from the roster's renames it. A token the gateway doesn't know joins it, on the gateway's socket only. */
-  | { kind: "agent"; name: string; token: string }
+  /**
+   * An agent's program. `name` names it only when it first joins. On the
+   * gateway's socket, a token the gateway doesn't know joins it unless `roster`
+   * matches this roster's ID, in which case its token was taken back or
+   * replaced, or the agent was removed, and it is turned away as unknown.
+   */
+  | { kind: "agent"; name: string; token: string; roster: string | null }
   /** The chat server, which shows no token, on the gateway's socket. */
   | { kind: "chat" }
   /**
@@ -29,8 +34,8 @@ export type Who =
 /** The first frame a caller sends, before any of Chord's: its Shrimpy version, its Pi packages and who it is. */
 export type Hello = { shrimpy: string; pi: PiPackages; who: Who };
 
-/** The gateway lets the caller in, as `you`, or as nobody for a program that isn't a member. */
-export type Welcome = { kind: "welcome"; you: Member | null; shrimpy: string; pi: PiPackages };
+/** The gateway lets the caller in, as `you` (or nobody for a program that isn't a member), with its roster's ID (null on an agent's home socket). */
+export type Welcome = { kind: "welcome"; you: Member | null; roster: string | null; shrimpy: string; pi: PiPackages };
 
 /** The gateway turns the caller away, and closes the connection. */
 export type TurnedAway = Refused & { shrimpy: string; pi: PiPackages };
@@ -44,7 +49,7 @@ const HelloSchema = obj({
   shrimpy: str(),
   pi: PiSchema,
   who: union([
-    obj({ kind: lit("agent"), name: str(), token: str() }),
+    obj({ kind: lit("agent"), name: str(), token: str(), roster: union([str(), nul()]) }),
     obj({ kind: lit("chat") }),
     obj({ kind: lit("client"), token: union([str(), nul()]) }),
     obj({ kind: lit("join"), name: union([str(), nul()]), token: str(), code: str(), machine: str() }),
@@ -52,7 +57,7 @@ const HelloSchema = obj({
 });
 
 const AnswerSchema = union([
-  obj({ kind: lit("welcome"), you: union([MemberSchema, nul()]), shrimpy: str(), pi: PiSchema }),
+  obj({ kind: lit("welcome"), you: union([MemberSchema, nul()]), roster: union([str(), nul()]), shrimpy: str(), pi: PiSchema }),
   obj({ kind: lit("refused"), words: str(), reason: union([ReasonSchema, nul()]), shrimpy: str(), pi: PiSchema }),
 ]);
 
@@ -64,9 +69,9 @@ export function hello(who: Who): Hello {
   return { shrimpy: SHRIMPY_VERSION, pi: PI_PACKAGES, who };
 }
 
-/** This code's welcome, for `you`. */
-export function welcome(you: Member | null): Welcome {
-  return { kind: "welcome", you, shrimpy: SHRIMPY_VERSION, pi: PI_PACKAGES };
+/** This code's welcome, for `you`, on the roster `roster` (null when there is no roster, as on an agent's home socket). */
+export function welcome(you: Member | null, roster: string | null = null): Welcome {
+  return { kind: "welcome", you, roster, shrimpy: SHRIMPY_VERSION, pi: PI_PACKAGES };
 }
 
 /** This code's refusal of a hello. */

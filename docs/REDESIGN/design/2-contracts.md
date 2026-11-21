@@ -70,9 +70,9 @@ The design for the move to the latest Pi, written by a builder on 2026-11-14 and
 |---|---|---|---|
 | The gateway | `gateway()` | None | Clients, on its own socket and its entry, and programs, as their routes |
 | The chat server | `chat()` | To the gateway | Nobody |
-| An agent | `agent({ name })`, with its name on the roster | To the gateway, while it is linked | Clients, on its home's own socket |
+| An agent | `agent({ id })`, with its member ID on the roster (and a separate home-socket host at `agent({ id: "home" })` with no parent link) | To the gateway, while it is linked | Clients, on its home's own socket |
 
-Clients are hosts with no address: the terminal, each `shrimpy` command that talks, and later the web client. A client serves nothing. It holds objects over one link, to the gateway, or by a home's path to that one agent. An object's params pick it, and its host's address is worked out from them, so every type an agent serves has an `agent` param: `Session({ agent: "scout", session: "th_8" })` reaches scout wherever scout runs. Each program loads its object types once, when it starts, and nothing reloads.
+Clients are hosts with no address: the terminal, each `shrimpy` command that talks, and later the web client. A client serves nothing. It holds objects over one link, to the gateway, or by a home's path to that one agent. An object's params pick it, and its host's address is worked out from them, so every type an agent serves has an `agent` param: `Session({ agent: "mem_4k9x2m7q0b3d", session: "th_8" })` reaches that agent wherever it runs. Each program loads its object types once, when it starts, and nothing reloads.
 
 *Who is asking.* Chord stamps a principal on every request and keeps a separate object for each principal. A host believes the principal a request carries only on its parent link, which for a program is its link from the gateway.
 
@@ -89,7 +89,9 @@ type Way =
   | { kind: "device"; id: string } // a device's token
   | { kind: "token"; id: string }  // an agent's token
 
-type Revocation = { way: string }  // a token taken back
+type Revocation =
+  | { way: string }    // a token taken back or replaced
+  | { member: string } // an agent removed from the roster
 ```
 
 | Link | Who stamps it | With |
@@ -101,7 +103,7 @@ type Revocation = { way: string }  // a token taken back
 
 - No principal carries a name or whether it is an admin. Names change and a promotion counts at once, so the program that is asked reads both from the roster, which it holds live.
 - `way` is the provenance. Two of your devices hold separate objects, and taking one device's token back ends only what it holds.
-- `revokedBy` gives `[{ way: id }]` for a device's token or an agent's, and nothing for the rest, which the operating system guards. Taking a token back is Chord's `revoke` at the gateway: it ends every object that way holds there at once, closes its clients' links, and passes down to every program, which ends that way's objects too. Its objects at the gateway end as `forbidden/revoked`, which a client shows as access revoked. Chord closes the client's link in the same turn, so its holds at programs end with the link rather than as revoked. Chord leaves a route link open, so for an agent's token the gateway closes the agent's own link as well.
+- `revokedBy` gives `[{ member }]` for a person or an agent, plus `{ way: id }` for a device's token or an agent's, and nothing for the rest, which the operating system guards. Taking a token back or replacing it revokes `{ way }`; removing an agent revokes `{ member }`. Chord's `revoke` at the gateway ends every matching object there at once, closes matching clients' links, and passes down to every program, which ends matching objects too. Its objects at the gateway end as `forbidden/revoked`, which a client shows as access revoked. Chord closes the client's link in the same turn, so its holds at programs end with the link rather than as revoked. Chord leaves a route link open, so for an agent's token or a removed agent the gateway closes the agent's own link as well.
 
 *Answers and refusals.* A method answers `{ kind: "done", value }` or `{ kind: "refused", words, reason }`. The words are for a person and say what to do. The reason is null unless the contract lists the case. `Channel`, `Thread`, `Agent` and `Session` each have a `refusal` member: null, or a refusal like a method's when the object doesn't exist or the caller may not see it, and then the rest of its state is empty. It follows the live roster, so a promotion shows at once. Chord's own errors stay for a dropped link, revoked access, a contract that doesn't fit and a program that isn't connected.
 
@@ -113,13 +115,15 @@ The contracts list three reasons. All three come when connecting, and the agent 
 
 | Member | What it is | Today |
 |---|---|---|
+| `id` | The roster's ID, made once with its file, which each home keeps | Added on 2026-11-20 |
 | `you` | The member the caller is, or null for a program that isn't one | What `signIn` answered |
 | `members` | Everyone on the roster, oldest first, each with whether it is an admin and whether it is reachable | `members` |
 | `programs` | The programs linked now: kind, name, member and the Shrimpy version each gave in its hello | `list` |
 | `ways` | Each way in, with its ID, its member and a device's label: all of them for you, the agents' for an admin, and none for anyone else | New, from [identity](3-identity.md) |
-| `invite({ name })` | An invitation for an agent. Only you or an admin, for a name nobody has, while the gateway listens on an address | `invite` |
+| `invite({ name })` | An invitation for a new agent, or to replace an existing agent's token on its entry. Only you or an admin, refusing the person's name, while the gateway listens on an address | `invite` |
 | `inviteDevice()` | An invitation for a device of yours. Only you. The device is named for the machine it joins from | `inviteMachine` |
 | `promote({ member })`, `demote({ member })` | The agent as it now is. Only you or an admin | The same |
+| `remove({ member })` | Removes an agent, revoking `{ member }`, dropping its link, withdrawing its invitations and freeing its name. Only you or an admin; you can't be removed | Added on 2026-11-20 |
 | `takeBack({ way })` | Ends a way in at once. You take back any, and an admin an agent's | New, from [identity](3-identity.md) |
 
 *The chat contract.* `enter` goes: the relay says who is asking, and `you` says whom chat takes the caller for. Holding a `Thread` is what attaching to it was.
@@ -167,7 +171,7 @@ The contracts list three reasons. All three come when connecting, and the agent 
 
 *The agent's contract.* `enter` goes: a request through the gateway carries its stamp, and one on the home's socket is `home`. Holding a `Session` is what attaching to it was.
 
-`Agent`, at `agent({ name: agent })`, with params `{ agent }`:
+`Agent`, at `agent({ id: agent })`, with params `{ agent }` (the agent's member ID through the gateway, or `"home"` on its home's own socket):
 
 | Member | What it is | Today |
 |---|---|---|
@@ -179,7 +183,7 @@ The contracts list three reasons. All three come when connecting, and the agent 
 | `fire({ name })` | Fires a trigger once, now | `fire` |
 | `reload()` | Reads the home's files again, now | `reload` |
 
-`Session`, at `agent({ name: agent })`, with params `{ agent, session }`, where `session` is its address at the agent: a thread's ID, or `trigger:` and a trigger's name.
+`Session`, at `agent({ id: agent })`, with params `{ agent, session }`, where `session` is its address at the agent: a thread's ID, or `trigger:` and a trigger's name.
 
 | Member | What it is | Today |
 |---|---|---|
@@ -191,9 +195,9 @@ The contracts list three reasons. All three come when connecting, and the agent 
 | `wait({ submission })` | How an input ended, once it has. A dropped link fails the call, and the caller asks again | `wait` |
 | `stop()` | Stops the session's work | `stop` |
 
-`Presence`, at `agent({ name: agent })`, with params `{ agent }`, has no members. The gateway holds it.
+`Presence`, at `agent({ id: agent })`, with params `{ agent }`, has no members. The gateway holds it.
 
-Server IDs go, with the paths that carried tickets and answered calls, `reachProgram`, `keepRegistered`, and an agent's second socket, the one the gateway piped to. The invitation's link, `machine.json`, a home's `state/member.json`, `SHRIMPY_AGENT_HOME` and the commands for agents stay. A home's `runtime/endpoint.json` keeps its socket's path and gains the name the agent answers to.
+Server IDs go, with the paths that carried tickets and answered calls, `reachProgram`, `keepRegistered`, and an agent's second socket, the one the gateway piped to. The invitation's link, `machine.json`, a home's `state/member.json`, `SHRIMPY_AGENT_HOME` and the commands for agents stay. A home's `runtime/endpoint.json` keeps its socket's path, pid and name for `agent status` and `up`; clients on the home's socket hold objects at `agent({ id: "home" })`.
 
 *Versions.* Every type starts at version 1. Any change bumps it with Chord's `evolve`, and the program that serves the type maps each older version it still takes with `checkAccepts`. A consumer newer than the program that serves it waits with `contract_mismatch`, so a provider updates before its consumers. An agent apart serves the agent contract to the gateway's machine and uses the chat and gateway contracts served there, so a release that changes contracts on both sides of a link between machines reaches every machine together, as a change of Pi packages does. Any other release reaches the machines one at a time, each provider before its consumers, and `shrimpy update` says which kind a release is from what it changes. `Presence` has no members, so it never needs a new version.
 
@@ -209,18 +213,18 @@ Server IDs go, with the paths that carried tickets and answered calls, `reachPro
 
 | Who it is | Means | Where |
 |---|---|---|
-| `{ kind: "agent", name, token }` | An agent's program. A name that differs from the roster's renames it. A token the gateway doesn't know joins it, on the gateway's socket only | Either |
+| `{ kind: "agent", name, token, roster }` | An agent's program. Linking never renames a recognized agent. A token the gateway doesn't know is refused as `unknown_token` over the entry, and on the gateway's socket when `roster` matches this roster's ID; otherwise it joins or reclaims a tokenless entry of that name | Either |
 | `{ kind: "chat" }` | The chat server, which shows no token | The gateway's socket |
 | `{ kind: "client", token }` | A client: you with no token or a device's token, and an agent with its token | Either. With no token, the gateway's socket only |
-| `{ kind: "join", name, token, code, machine }` | `shrimpy join`. The agent `name`, or a device of yours when it is null, joins with an invitation, and the gateway closes the connection. `machine` is the joining machine's name, which a device is labelled with | The entry |
+| `{ kind: "join", name, token, code, machine }` | `shrimpy join`. The agent `name` (new or existing), or a device of yours when it is null, joins with an invitation, and the gateway closes the connection. `machine` is the joining machine's name, which a device is labelled with | The entry |
 
-**The answer** is `{ kind: "welcome", you }` or `{ kind: "refused", words, reason }`, either one with the gateway's Shrimpy version and its Pi packages. A different set of Pi packages is refused with what to run where, and so is a second program for one agent (`agent_running`) or a second chat server.
+**The answer** is `{ kind: "welcome", you, roster }` or `{ kind: "refused", words, reason }`, either one with the gateway's Shrimpy version and its Pi packages. A different set of Pi packages is refused with what to run where, and so is a second program for one agent (`agent_running`) or a second chat server.
 
-**Then Chord.** The caller wraps the socket as a Chord link and connects with the gateway as its parent. The gateway accepts a client's link, stamped with its principal, and takes a program's link as its route.
+**Then Chord.** The caller wraps the socket as a Chord link and connects with the gateway as its parent. An agent learns its member ID from `welcome.you.id` and makes its network host at `agent({ id })` before connecting (replacing it if a new roster gives it another ID). The gateway accepts a client's link, stamped with its principal, and takes a program's link as its route.
 
-An agent's home socket takes the same hello, with no token. The agent compares the Pi packages there too, and stamps `home`. Chord sends a hold that the agent doesn't serve up the agent's own link, where it acts as the agent, so a client there holds only that agent's types. Nothing is lost by it: the home's socket opens only to the account the agent runs under, which can be the agent anyway, as [where trust ends](3-identity.md) has it.
+An agent's home socket takes the same hello, with no token, and answers `welcome(null, null)`. The agent compares the Pi packages there too, and serves its objects on a separate host at `agent({ id: "home" })` with no parent link, stamping `home`. A client on the home socket works whether or not a gateway runs, and holds only this agent's objects.
 
-Agents are addressed by name, as everything on the network is reached by name. A rename moves an agent's address, so a client reads the roster again, and since Chord matches addresses exactly and names are unique whatever their case, a client takes the roster's spelling. Once the gateway has its key, the entry is TLS checked against the fingerprint a member keeps, and the hello happens inside it.
+Agents are addressed by their member ID (`agent({ id })`). Clients look up the member ID on the roster and show the agent's name from there, and a hold to an agent that is removed never binds to a new agent that takes its name later. Once the gateway has its key, the entry is TLS checked against the fingerprint a member keeps, and the hello happens inside it.
 
 *A program's link as its route.* The gateway has a Chord route for each kind of program, `agent` and `chat`. Chord resolves an address only when something holds an object there, and a program closes a link whose handshake goes unanswered for 30 seconds. So the gateway holds the `Presence` of every program it knows, every agent on the roster and the chat server, from when it starts or an agent joins:
 
@@ -253,7 +257,6 @@ So every link is a WebSocket, on one machine as well. Every link is untrusted, s
 
 *Open.*
 
-- Removing an agent and replacing its token would add `{ member }` to `Revocation`, once [identity](3-identity.md) designs them.
 - The rest of the agent's operations become members of `Agent` and `Session` as they are built.
 
 **Decisions**

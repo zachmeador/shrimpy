@@ -40,7 +40,7 @@ test("a second program for one agent is turned away while the first is linked", 
   const scout = await linkTestAgent(t, "scout", { place, token });
   await until(() => scout.welcomes.length === 1, "scout to be let in");
 
-  const answer = await answerTo(place, hello({ kind: "agent", name: "scout", token }));
+  const answer = await answerTo(place, hello({ kind: "agent", name: "scout", token, roster: scout.roster }));
   assert.equal(answer.kind === "refused" ? answer.reason : answer.kind, "agent_running");
 
   const you = await connectTestClient(t, place);
@@ -77,4 +77,48 @@ test("an agent joins over the entry with an invitation's code, once, and then li
 
   await linkTestAgent(t, "crab", { place: entry, token });
   await until(() => roster.members.value.some((member) => member.name === "crab" && member.reachable), "crab to link in");
+});
+
+test("an agent beside the gateway whose token was taken back is refused as unknown_token, reclaims its entry with a fresh token, and does not resurrect after removal", { timeout }, async (t) => {
+  const gateway = await startGatewayInProcess(t);
+  const place = { path: gateway.socket };
+  const token = newToken();
+  const scout = await linkTestAgent(t, "scout", { place, token });
+  assert.ok(scout.roster !== null);
+  const you = await connectTestClient(t, place);
+  const roster = await you.host.get(Roster, {}, context);
+  assert.equal(roster.id.value, scout.roster);
+
+  await until(() => roster.ways.value.some((way) => way.member === scout.you.id), "scout's way to be listed");
+  const way = roster.ways.value.find((each) => each.member === scout.you.id);
+  assert.ok(way !== undefined);
+  assert.equal((await roster.takeBack({ way: way.id }, context)).kind, "done");
+  await scout.stop();
+
+  // Presenting the same roster ID with a revoked token tells the gateway it knew this roster already: refuse as unknown_token.
+  const revoked = await answerTo(place, hello({ kind: "agent", name: "scout", token, roster: scout.roster }));
+  assert.equal(revoked.kind === "refused" ? revoked.reason : revoked.kind, "unknown_token");
+
+  // Deleting state/member.json (a fresh token with roster: null) on the gateway's socket reclaims the tokenless entry.
+  const replacementToken = newToken();
+  const reclaimed = await answerTo(place, hello({ kind: "agent", name: "scout", token: replacementToken, roster: null }));
+  assert.equal(reclaimed.kind, "welcome");
+  assert.equal(reclaimed.you?.id, scout.you.id, "same member ID");
+
+  // Once scout has a token again, another home asking for the same name is refused as name_taken.
+  const duplicate = await answerTo(place, hello({ kind: "agent", name: "scout", token: newToken(), roster: null }));
+  assert.equal(duplicate.kind === "refused" ? duplicate.reason : duplicate.kind, "name_taken");
+
+  // After removal, presenting this roster's ID does not silently recreate the removed agent.
+  assert.equal((await roster.remove({ member: scout.you.id }, context)).kind, "done");
+  const removed = await answerTo(place, hello({ kind: "agent", name: "scout", token: replacementToken, roster: scout.roster }));
+  assert.equal(removed.kind === "refused" ? removed.reason : removed.kind, "unknown_token");
+  assert.equal(roster.members.value.some((member) => member.name === "scout"), false);
+
+  // Presenting a different roster ID (such as after the gateway's roster was wiped and recreated) joins the fresh roster.
+  const fresh = await answerTo(place, hello({ kind: "agent", name: "scout", token: newToken(), roster: "ros_otherroster00" }));
+  assert.equal(fresh.kind, "welcome");
+  assert.equal(fresh.you?.name, "scout");
+  assert.equal(fresh.roster, roster.id.value);
+  assert.notEqual(fresh.you.id, scout.you.id, "a new agent taking a freed name gets a fresh ID");
 });

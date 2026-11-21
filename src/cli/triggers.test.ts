@@ -54,7 +54,7 @@ async function servedScout(t: TestContext): Promise<{ home: string; agent: Serve
   const connection = async (): Promise<Triggering> => {
     const client = await connectHome(home);
     stopAfter(t, () => client.close());
-    const agent = await client.host.get(Agent, { agent: client.name }, BACKGROUND_CONTEXT);
+    const agent = await client.host.get(Agent, { agent: client.agent }, BACKGROUND_CONTEXT);
     return {
       triggers: async () => agent.triggers.value,
       async trigger(name) {

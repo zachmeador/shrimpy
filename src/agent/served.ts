@@ -35,13 +35,14 @@ async function answering<T>(work: () => Promise<T>): Promise<Answer<T>> {
 }
 
 /**
- * The objects an agent serves at `agent({ name })`: `Agent` and a `Session` for
- * each one a caller holds, one of each for each caller, kept live from the
- * engine and the roster, so nothing polls; `AgentPresence`, which the gateway
- * holds; and each method, answered with what it did or a refusal. Who the caller
- * is comes from the stamp on the request: the gateway's, on the agent's link
- * from it, or `home`, on the home's own socket. A member's name and whether it
- * is an admin come from the roster as it is now, so a promotion counts at once.
+ * The objects an agent serves at `agent({ id })` (or `agent({ id: HOME_AGENT })`
+ * on the home's own socket): `Agent` and a `Session` for each one a caller
+ * holds, one of each for each caller, kept live from the engine and the roster,
+ * so nothing polls; `AgentPresence`, which the gateway holds; and each method,
+ * answered with what it did or a refusal. Who the caller is comes from the
+ * stamp on the request: the gateway's, on the agent's link from it, or `home`,
+ * on the home's own socket. A member's name and whether it is an admin come
+ * from the roster as it is now, so a promotion counts at once.
  */
 export function agentFacet(parts: ServedParts): Facet<Principal> {
   const { sessions, triggers, roster } = parts;

@@ -8,10 +8,17 @@ import type { Welcome, Who } from "./hello.ts";
 import type { Principal, Revocation } from "./principals.ts";
 
 export interface KeepLinkedOptions {
-  /** The host to keep linked: a program's, at its own address, `chat()` or `agent({ name })`, or a client's, which serves nothing. */
-  readonly host: Host<Principal, Revocation>;
-  /** The gateway's own socket, or its entry, with the fingerprint of its key. */
-  readonly place: DialPlace;
+  /**
+   * The host to keep linked: a program's, at its own address (`chat()` or
+   * `agent({ id })`), or a client's, which serves nothing. A function returns
+   * the host once the gateway's welcome has said who the program is, so an
+   * agent's host can be addressed by its member ID.
+   */
+  readonly host:
+    | Host<Principal, Revocation>
+    | ((welcome: Welcome) => Promise<Host<Principal, Revocation>> | Host<Principal, Revocation>);
+  /** The gateway's own socket, or its entry, with the fingerprint of its key. A function is asked afresh for each hello. */
+  readonly place: DialPlace | (() => DialPlace);
   /** Who the host says it is, asked afresh for each hello: a program, or a client with its token or none. */
   who(): Exclude<Who, { kind: "join" }>;
   /** Abort to stop: the link is dropped at once, whatever the network is doing. */
@@ -35,8 +42,20 @@ export function keepLinked(options: KeepLinkedOptions): Promise<void> {
   return keepLink({
     signal: options.signal,
     async link(signal) {
-      const { welcome, linked } = await sayHello(options.place, options.who(), { signal });
-      options.host.connect(linked.link, { principal: { kind: "gateway" } }, BACKGROUND_CONTEXT);
+      const place = typeof options.place === "function" ? options.place() : options.place;
+      const { welcome, linked } = await sayHello(place, options.who(), { signal });
+      let host: Host<Principal, Revocation>;
+      try {
+        host = typeof options.host === "function" ? await options.host(welcome) : options.host;
+      } catch (error) {
+        linked.drop();
+        throw error;
+      }
+      if (signal.aborted) {
+        linked.drop();
+        throw signal.reason;
+      }
+      host.connect(linked.link, { principal: { kind: "gateway" } }, BACKGROUND_CONTEXT);
       options.onWelcome?.(welcome, linked.closed);
       return linked;
     },
@@ -73,8 +92,12 @@ export interface LinkReport {
  * gateway lets the program in. An entry that didn't prove itself is out of
  * reach too, so the program says when it is back.
  */
-export function reportLinking(place: DialPlace, words: LinkWords, tell: (line: string) => void): LinkReport {
-  const where = describePlace(place);
+export function reportLinking(
+  place: DialPlace | (() => DialPlace),
+  words: LinkWords,
+  tell: (line: string) => void,
+): LinkReport {
+  const where = (): string => describePlace(typeof place === "function" ? place() : place);
   let away = false;
   let reported: string | undefined;
   const once = (line: string): void => {
@@ -85,7 +108,7 @@ export function reportLinking(place: DialPlace, words: LinkWords, tell: (line: s
   return {
     welcomed() {
       reported = undefined;
-      if (away && words.meanwhile !== undefined) tell(`The gateway at ${where} is back.`);
+      if (away && words.meanwhile !== undefined) tell(`The gateway at ${where()} is back.`);
       away = false;
     },
     failed(error) {
@@ -97,7 +120,7 @@ export function reportLinking(place: DialPlace, words: LinkWords, tell: (line: s
       }
       if (away || words.meanwhile === undefined) return;
       away = true;
-      tell(`Can't reach the gateway at ${where}. ${words.meanwhile}`);
+      tell(`Can't reach the gateway at ${where()}. ${words.meanwhile}`);
     },
   };
 }

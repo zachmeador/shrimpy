@@ -34,12 +34,12 @@ export interface SessionView {
 
 /**
  * Whose threads the person looks at, and which channel a thread is in: their DM
- * with an agent, by the agent's name, a room they are in, by its channel's ID,
- * or a channel they are not in and only read, by its channel's ID. An agent's
- * screen lists every thread the agent takes part in, so a thread opened from it
- * is in whichever of these it is.
+ * with an agent, by the agent's member ID, a room they are in, by its channel's
+ * ID, or a channel they are not in and only read, by its channel's ID. An
+ * agent's screen lists every thread the agent takes part in, so a thread opened
+ * from it is in whichever of these it is.
  */
-export type Place = { kind: "agent"; name: string } | { kind: "room"; id: string } | { kind: "read-only"; id: string };
+export type Place = { kind: "agent"; id: string } | { kind: "room"; id: string } | { kind: "read-only"; id: string };
 
 /**
  * Where in the console the person is. An agent's screen is one list of
@@ -51,20 +51,20 @@ export type Where =
   /**
    * `thread` is undefined for a thread that is not started yet: it comes to be
    * with its first message. `place` is the channel the thread is in. `agent` is
-   * the agent whose screen the thread was opened from, said only when `place`
-   * does not say it: that agent's work is shown beside the thread, and Esc goes
-   * back to its screen. `turned` shows the session behind the thread as that
-   * agent sees it, in place of the conversation.
+   * the member ID of the agent whose screen the thread was opened from, said
+   * only when `place` does not say it: that agent's work is shown beside the
+   * thread, and Esc goes back to its screen. `turned` shows the session behind
+   * the thread as that agent sees it, in place of the conversation.
    */
   | { screen: "thread"; place: Place; thread: string | undefined; agent?: string; turned?: boolean }
-  /** One session of that agent that is behind no thread, watched, by its address at the agent. Nothing is said or done in it. */
+  /** One session of that agent (by member ID) that is behind no thread, watched, by its address at the agent. Nothing is said or done in it. */
   | { screen: "session"; agent: string; session: string };
 
 type ThreadWhere = Extract<Where, { screen: "thread" }>;
 
-/** The agent whose screen a thread was opened from, whose work is shown beside it. A room's own threads have none. */
+/** The member ID of the agent whose screen a thread was opened from, whose work is shown beside it. A room's own threads have none. */
 export function agentOfThread(where: ThreadWhere): string | undefined {
-  return where.place.kind === "agent" ? where.place.name : where.agent;
+  return where.place.kind === "agent" ? where.place.id : where.agent;
 }
 
 /**
@@ -72,9 +72,9 @@ export function agentOfThread(where: ThreadWhere): string | undefined {
  * was opened from, or else the threads of the channel it is in.
  */
 export function listedIn(where: Extract<Where, { screen: "thread" | "session" }>): Place {
-  if (where.screen === "session") return { kind: "agent", name: where.agent };
+  if (where.screen === "session") return { kind: "agent", id: where.agent };
   const agent = agentOfThread(where);
-  return agent === undefined ? where.place : { kind: "agent", name: agent };
+  return agent === undefined ? where.place : { kind: "agent", id: agent };
 }
 
 /** Whether the session on show is watched whole, which reads it back from where its window starts: one behind no thread, or a thread turned over. */
@@ -82,18 +82,26 @@ export function watchedWhole(where: Where): boolean {
   return where.screen === "session" || (where.screen === "thread" && where.turned === true);
 }
 
-/** The name of the agent whose screen, or whose thread or session, is on show, if the person is looking at an agent's. */
+/** The member ID of the agent whose screen, or whose thread or session, is on show, if the person is looking at an agent's. */
 function agentLookedAt(where: Where): string | undefined {
   switch (where.screen) {
     case "agents":
       return undefined;
     case "threads":
-      return where.place.kind === "agent" ? where.place.name : undefined;
+      return where.place.kind === "agent" ? where.place.id : undefined;
     case "thread":
       return agentOfThread(where);
     case "session":
       return where.agent;
   }
+}
+
+/** The current name of the agent with member ID `id`, from the roster or its DM, falling back to `id`. */
+export function agentNameOf(model: Pick<Model, "listing" | "dms">, id: string): string {
+  const onRoster = model.listing?.members.find((member) => member.id === id);
+  if (onRoster !== undefined) return onRoster.name;
+  const inDm = model.dms[id]?.channel.members.find((member) => member.id === id);
+  return inDm?.name ?? id;
 }
 
 /**
@@ -114,11 +122,11 @@ export function openedThread(
   const { place } = from;
   if (place.kind !== "agent" || thread === undefined) return at(place, undefined);
   const has = (threads: Thread[]): boolean => threads.some((each) => each.id === thread);
-  if (has(model.dms[place.name]?.threads ?? [])) return at(place, undefined);
+  if (has(model.dms[place.id]?.threads ?? [])) return at(place, undefined);
   const room = Object.values(model.rooms).find((each) => has(each.threads));
-  if (room !== undefined) return at({ kind: "room", id: room.channel.id }, place.name);
+  if (room !== undefined) return at({ kind: "room", id: room.channel.id }, place.id);
   const reading = Object.values(model.readOnly).find((each) => has(each.threads));
-  return reading === undefined ? at(place, undefined) : at({ kind: "read-only", id: reading.channel.id }, place.name);
+  return reading === undefined ? at(place, undefined) : at({ kind: "read-only", id: reading.channel.id }, place.id);
 }
 
 /** A channel as chat lists it to the person, and its threads, newest first. */
@@ -235,7 +243,7 @@ export interface Model {
   chat: LinkStatus;
   /** The agent that is selected, once one is. */
   agent: LinkStatus | undefined;
-  /** The person's DM with each agent that is running and that they have talked to, by the agent's name. */
+  /** The person's DM with each agent that they have talked to, by the agent's member ID. */
   dms: Record<string, ChannelThreads>;
   /** The rooms the person is in, by their channels' IDs. */
   rooms: Record<string, ChannelThreads>;
@@ -248,9 +256,9 @@ export interface Model {
   /** The sessions of the agent that is selected, as it lists them now and in its order. Undefined until it has. */
   sessions: SessionSummary[] | undefined;
   /**
-   * The sessions each running agent is working in, by the agent's name, as it
-   * lists them now, while the list of agents is on show. Only an agent that is
-   * reached and is working in some session has an entry here.
+   * The sessions each running agent is working in, by the agent's member ID,
+   * as it lists them now while the list of agents is on show. Only an agent
+   * that is reached and is working in some session has an entry here.
    */
   workingSessions: Record<string, SessionSummary[]>;
   /**
@@ -307,8 +315,8 @@ export function agentEntries(model: Pick<Model, "listing" | "dms" | "workingSess
   return (model.listing?.members ?? [])
     .filter((member) => member.kind === "agent")
     .map((member) => {
-      const dm = model.dms[member.name];
-      const said = model.workingSessions[member.name] ?? [];
+      const dm = model.dms[member.id];
+      const said = model.workingSessions[member.id] ?? [];
       // Chat's marks and the agent's word are two ways to learn the same thing, so a session that both name counts once.
       const working = new Set([
         ...(dm?.threads ?? []).filter((thread) => workingIn(thread, member.id)).map((thread) => thread.id),
@@ -401,17 +409,16 @@ function placeIn(channel: Channel, thread: Thread, agentId: string | undefined):
 const isYours = (place: SessionPlace | null): boolean => place?.kind === "dm" && place.with.kind === "person";
 
 /**
- * Everything the agent called `agent` takes part in, newest first: the threads
- * of its DM with the person, the threads of its DMs with other members, and the
- * threads of rooms it has a session in, all as chat lists them, and its sessions
- * behind no thread. What has no time, which only a session behind no thread
- * has, comes last, in the agent's order. The agent's word on which sessions it
- * has, and whether it is working in them, is not taken for true of an agent that
- * cannot be reached now.
+ * Everything the agent with member ID `agentId` takes part in, newest first:
+ * the threads of its DM with the person, the threads of its DMs with other
+ * members, and the threads of rooms it has a session in, all as chat lists
+ * them, and its sessions behind no thread. What has no time, which only a
+ * session behind no thread has, comes last, in the agent's order. The agent's
+ * word on which sessions it has, and whether it is working in them, is not
+ * taken for true of an agent that cannot be reached now.
  */
-export function partsOf(model: Model, agent: string): Part[] {
-  const dm = model.dms[agent];
-  const agentId = agentEntries(model).find((entry) => entry.name === agent)?.id ?? dm?.channel.members.find((member) => member.kind === "agent")?.id;
+export function partsOf(model: Model, agentId: string): Part[] {
+  const dm = model.dms[agentId];
   const reached = model.agent?.state === "up";
   const listed = model.sessions ?? [];
   const sessionBehind = new Map<string, SessionSummary>();
@@ -428,14 +435,14 @@ export function partsOf(model: Model, agent: string): Part[] {
       thread,
       place,
       yours: isYours(place),
-      working: (agentId !== undefined && workingIn(thread, agentId)) || (reached && sessionBehind.get(thread.id)?.working === true),
+      working: workingIn(thread, agentId) || (reached && sessionBehind.get(thread.id)?.working === true),
       at: thread.updatedAt,
     });
   };
 
   if (dm !== undefined) for (const thread of dm.threads) addThread(dm.channel, thread);
   for (const { channel, threads } of Object.values(model.readOnly)) {
-    if (channel.kind === "dm" && agentId !== undefined && channel.members.some((member) => member.id === agentId)) {
+    if (channel.kind === "dm" && channel.members.some((member) => member.id === agentId)) {
       for (const thread of threads) addThread(channel, thread);
     }
   }
@@ -486,19 +493,19 @@ export function farewellOf(model: Model): Farewell | undefined {
   const entries = agentEntries(model);
   // A thread of a room has no one agent to name, unless it was opened from an agent's screen.
   const shown = agentLookedAt(where);
-  const names = [...(shown === undefined ? [] : [shown]), ...entries.map((entry) => entry.name)];
-  for (const name of new Set(names)) {
-    const id = entries.find((entry) => entry.name === name)?.id;
-    if (id === undefined) continue;
+  const ids = [...(shown === undefined ? [] : [shown]), ...entries.map((entry) => entry.id)];
+  for (const id of new Set(ids)) {
+    const entry = entries.find((each) => each.id === id);
+    if (entry === undefined) continue;
     // A session that was working when the agent went away is not working now, whatever its last view says.
     const sessionWorking = model.session?.status.busy === true && model.agent?.state === "up";
     const onScreen =
-      where.screen === "thread" && shown === name && where.thread !== undefined
+      where.screen === "thread" && shown === id && where.thread !== undefined
         ? { thread: where.thread, working: sessionWorking || (model.thread !== undefined && workingIn(model.thread.thread, id)) }
         : undefined;
-    if (onScreen?.working === true) return { agent: name, thread: onScreen.thread };
-    const working = model.dms[name]?.threads.find((each) => workingIn(each, id));
-    if (working !== undefined) return { agent: name, thread: working.id };
+    if (onScreen?.working === true) return { agent: entry.name, thread: onScreen.thread };
+    const working = model.dms[id]?.threads.find((each) => workingIn(each, id));
+    if (working !== undefined) return { agent: entry.name, thread: working.id };
   }
   return undefined;
 }

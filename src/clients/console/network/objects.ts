@@ -175,8 +175,8 @@ export interface AgentCalls {
   models(signal?: AbortSignal): Promise<Answer<AgentModels>>;
 }
 
-export function holdAgent(link: GatewayLink, name: string, changed: () => void): Holding<AgentShown, AgentCalls> {
-  const held = link.host.hold(Agent, { agent: name }, BACKGROUND_CONTEXT);
+export function holdAgent(link: GatewayLink, id: string, changed: () => void): Holding<AgentShown, AgentCalls> {
+  const held = link.host.hold(Agent, { agent: id }, BACKGROUND_CONTEXT);
   return followHeld(
     held,
     (agent) => [agent.refusal, agent.sessions],
@@ -194,8 +194,8 @@ export interface SessionCalls {
   read(before: number, limit: number, signal?: AbortSignal): Promise<Answer<SessionPage>>;
 }
 
-export function holdSession(link: GatewayLink, agent: string, session: string, changed: () => void): Holding<SessionShown, SessionCalls> {
-  const held = link.host.hold(Session, { agent, session }, BACKGROUND_CONTEXT);
+export function holdSession(link: GatewayLink, agentId: string, session: string, changed: () => void): Holding<SessionShown, SessionCalls> {
+  const held = link.host.hold(Session, { agent: agentId, session }, BACKGROUND_CONTEXT);
   return followHeld(
     held,
     (watched) => [watched.refusal, watched.window, watched.status],

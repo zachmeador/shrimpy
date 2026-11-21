@@ -2,7 +2,7 @@ import { rmSync } from "node:fs";
 import { createHost, type Facet, type Host } from "@earendil-works/chord";
 import { nodeCompression } from "@earendil-works/chord/compression";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { type AgentEndpoint, endpointFile } from "../contracts/agent/index.ts";
+import { type AgentEndpoint, endpointFile, HOME_AGENT } from "../contracts/agent/index.ts";
 import {
   agent,
   notAHello,
@@ -27,25 +27,49 @@ const context = BACKGROUND_CONTEXT;
 /** What answers a hello on the home's socket, for the words that tell another release what to run where. */
 const ANSWERING = { who: "The agent", where: "where the agent runs" };
 
-/** The agent's host, at `agent({ name })`, and the home's own socket. */
+/** The home's own socket server, at `agent({ id: HOME_AGENT })`, apart from any gateway. */
 export interface AgentServer {
-  /** The host the agent's objects are served from, and its own requests go out from as the agent. */
-  readonly host: Host<Principal, Revocation>;
   /** Where the agent is reached by its home's path. */
   readonly endpoint: AgentEndpoint;
-  /** Stop listening on the home's socket and close the host, which ends every object and drops every link. */
+  /** Stop listening on the home's socket and close its host, which ends every object and drops every home link. */
   close(): Promise<void>;
 }
 
 export interface ServerOptions {
   /** The agent's home. */
   home: string;
-  /** The name the agent answers to, which is its host's address. */
+  /** The name from agent.json when the agent started, kept in endpoint.json. */
   name: string;
   /** The agent's objects. */
   facet: Facet<Principal>;
   /** Told of what fails in the background. */
   onError(error: Error): void;
+}
+
+/**
+ * Create and load a Chord host for the agent at `agent({ id })`: `HOME_AGENT`
+ * for the home's own socket, or the agent's member ID on the roster for its
+ * link to the gateway.
+ */
+export async function createAgentHost(
+  id: string,
+  facet: Facet<Principal>,
+  onError: (error: Error) => void,
+): Promise<Host<Principal, Revocation>> {
+  const host = createHost<Principal, Revocation>({
+    address: agent({ id }),
+    principal: { kind: "home" },
+    revokedBy,
+    compression: nodeCompression,
+    onError: (error) => onError(hostFailure(error)),
+  });
+  try {
+    await host.load([{ name: "@shrimpy/agent", facet }], context);
+    return host;
+  } catch (error) {
+    await host.close(context).catch(() => undefined);
+    throw error;
+  }
 }
 
 /**
@@ -65,27 +89,19 @@ function greeter(host: Host<Principal, Revocation>): (raw: unknown) => Greeted {
     if (hello.who.kind !== "client" || hello.who.token !== null) {
       return { answer: turnAway("An agent's own socket takes a client that shows no token. Anything else links to the gateway.") };
     }
-    return { answer: welcome(null), take: (linked) => host.accept(linked.link, { principal: { kind: "home" } }, context) };
+    return { answer: welcome(null, null), take: (linked) => host.accept(linked.link, { principal: { kind: "home" } }, context) };
   };
 }
 
 /**
- * The agent's host at `agent({ name })`, with its objects loaded, listening on
- * the home's own socket, whose path is written to the home for clients to find
- * with the name the agent answers to. A client that links there holds the
- * agent's objects as `home`, and anything else it holds goes up the agent's own
- * link to the gateway, as the agent. Linking to the gateway is the caller's to
- * start, once the host has loaded.
+ * Listen on the home's own socket, serving the agent's objects at
+ * `agent({ id: HOME_AGENT })` as `home`, and write the socket path to
+ * `endpoint.json`. It has no parent link, so clients here hold only this
+ * agent's objects and work with or without a gateway.
  */
 export async function startServer(options: ServerOptions): Promise<AgentServer> {
   const socket = socketPathFor(options.home);
-  const host = createHost<Principal, Revocation>({
-    address: agent({ name: options.name }),
-    principal: { kind: "home" },
-    revokedBy,
-    compression: nodeCompression,
-    onError: (error) => options.onError(hostFailure(error)),
-  });
+  const host = await createAgentHost(HOME_AGENT, options.facet, (error) => options.onError(error));
   let listener: Listener | undefined;
   const closeAll = async (): Promise<void> => {
     try {
@@ -96,13 +112,12 @@ export async function startServer(options: ServerOptions): Promise<AgentServer> 
     }
   };
   try {
-    await host.load([{ name: "@shrimpy/agent", facet: options.facet }], context);
     // This process holds the home's lock, so a socket left at the path is stale.
     rmSync(socket, { force: true });
     listener = await listen({ path: socket }, greeter(host), { onError: (error) => options.onError(asError(error)) });
     const endpoint: AgentEndpoint = { socket, name: options.name, pid: process.pid };
     saveFile(endpointFile(options.home), JSON.stringify(endpoint));
-    return { host, endpoint, close: closeAll };
+    return { endpoint, close: closeAll };
   } catch (error) {
     await closeAll().catch(() => undefined);
     throw error;

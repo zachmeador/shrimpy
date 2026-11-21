@@ -13,15 +13,19 @@ const context = BACKGROUND_CONTEXT;
 test("a hold of an agent's object waits until the agent links, and reaches it as the client", { timeout }, async (t) => {
   const gateway = await startGatewayInProcess(t);
   const place = { path: gateway.socket };
+  const token = newToken();
+  const initial = await linkTestAgent(t, "scout", { place, token });
+  const scoutId = initial.you.id;
+  await initial.stop();
   const you = await connectTestClient(t, place);
 
-  const echo = you.host.hold(Echo, { agent: "scout" }, context);
+  const echo = you.host.hold(Echo, { agent: scoutId }, context);
   await until(() => echo.state.value.kind === "failed", "the hold to wait for scout");
   const waiting = echo.state.value;
   assert.ok(waiting.kind === "failed" && waiting.cause.kind === "waiting", "it waits, not failed for good");
-  assert.ok(waiting.cause.error.message.length > 0, "with words");
+  assert.ok(waiting.cause.error.message.includes("scout"), "with words naming the agent");
 
-  const scout = await linkTestAgent(t, "scout", { place });
+  const scout = await linkTestAgent(t, "scout", { place, token });
   await until(() => echo.state.value.kind === "live", "the hold to bind once scout links");
   assert.deepEqual(echo.variant === "only" ? echo.caller.value : undefined, {
     kind: "person",
@@ -39,9 +43,9 @@ test("an agent that lost its gateway links again when it is back, and the holds 
   const gateway = await startGatewayInProcess(t);
   const place = { path: gateway.socket };
   const token = newToken();
-  await linkTestAgent(t, "scout", { place, token });
+  const scout = await linkTestAgent(t, "scout", { place, token });
   const before = await connectTestClient(t, place);
-  const echo = before.host.hold(Echo, { agent: "scout" }, context);
+  const echo = before.host.hold(Echo, { agent: scout.you.id }, context);
   await until(() => echo.state.value.kind === "live", "the hold to bind");
 
   await gateway.close();
@@ -49,6 +53,6 @@ test("an agent that lost its gateway links again when it is back, and the holds 
   const again = await startGatewayInProcess(t, { dataDir: gateway.dataDir });
   assert.equal(again.socket, gateway.socket);
   const after = await connectTestClient(t, place);
-  const held = after.host.hold(Echo, { agent: "scout" }, context);
+  const held = after.host.hold(Echo, { agent: scout.you.id }, context);
   await until(() => held.state.value.kind === "live", "scout to link again and the hold to bind");
 });

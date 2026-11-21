@@ -75,6 +75,8 @@ export interface ChatLink {
   use<T>(use: (live: LiveChat, signal: AbortSignal) => Promise<T>, signal: AbortSignal): Promise<T>;
   /** Call `listener` with chat as it is up now, if it is, and each time it comes up again. Returns what stops that. */
   onUp(listener: (live: LiveChat) => void): () => void;
+  /** Hold `Chat` on `host`, replacing any earlier host if the agent's member ID changed on a new roster. */
+  follow(host: Host<Principal, Revocation>): void;
   /** Let go of chat. Resolves once it is let go. */
   close(): Promise<void>;
 }
@@ -166,31 +168,31 @@ const LOSS_FOLLOWS_MS = 5_000;
 const CLOSED = "The link to chat is closed.";
 
 /**
- * Hold `Chat` through `host`, which has loaded, for as long as the link is
- * open: the hold goes up the agent's link to the gateway, so chat takes it for
- * the agent, and it is what keeps the agent's working marks. Chat is up while
+ * Manage the agent's hold of `Chat`: stays detached until `follow(host)` gives
+ * it the agent's network host (once the gateway has welcomed it with its member
+ * ID), and can switch to a new host if the roster is replaced. Chat is up while
  * the hold is live and chat takes the agent for a member, and is lost whenever
  * the hold stops being live, as when the agent's link or chat's own drops, which
  * also ends the marks: each time chat comes up again is a new `LiveChat`.
  * `through` stands between the agent and chat's calls, which tests use.
  */
 export function openChatLink(
-  host: Host<Principal, Revocation>,
   onError: (error: Error) => void,
   through: (calls: ChatCalls) => ChatCalls = (calls) => calls,
 ): ChatLink {
   const context = BACKGROUND_CONTEXT;
-  const held = host.hold(Chat, {}, context);
   const moved = createListeners<undefined>(onError);
-  const calls = through(callsOver(host, held, moved));
   const arrivals = createListeners<LiveChat>(onError);
   const watches: { stop(): unknown }[] = [];
+  let currentHost: Host<Principal, Revocation> | undefined;
+  let held: Held<typeof Chat> | undefined;
+  let calls: ChatCalls | undefined;
   let up: { live: LiveChat; lost: AbortController } | undefined;
   let closed = false;
 
   /** Who chat takes the agent for while the hold is live, or undefined. */
   const member = (): Member | undefined => {
-    if (held.state.value.kind !== "live") return undefined;
+    if (held === undefined || held.state.value.kind !== "live") return undefined;
     try {
       return held.you.value ?? undefined;
     } catch {
@@ -206,10 +208,11 @@ export function openChatLink(
       up.lost.abort(new Error("Chat was lost."));
       up = undefined;
     }
-    if (self === undefined) return;
+    if (self === undefined || calls === undefined) return;
     const lost = new AbortController();
+    const liveCalls = calls;
     const live: LiveChat = {
-      chat: calls,
+      chat: liveCalls,
       get self() {
         return member() ?? self;
       },
@@ -219,30 +222,51 @@ export function openChatLink(
     arrivals.notify(live);
   };
 
-  void held.state.watch(context).then((watch) => {
-    if (closed) return void watch.stop();
-    watches.push(watch);
-    recheck();
-    watch.start(async () => recheck());
-  });
-  void held.you.watch(context).then(
-    (watch) => {
-      if (closed) return void watch.stop();
+  const follow = (host: Host<Principal, Revocation>): void => {
+    if (closed || currentHost === host) return;
+    currentHost = host;
+    if (up !== undefined) {
+      up.lost.abort(new Error("Chat was lost."));
+      up = undefined;
+    }
+    for (const watch of watches.splice(0)) void watch.stop();
+    held?.release();
+
+    const next = host.hold(Chat, {}, context);
+    held = next;
+    calls = through(callsOver(host, next, moved));
+
+    void next.state.watch(context).then((watch) => {
+      if (closed || held !== next) return void watch.stop();
       watches.push(watch);
       recheck();
-      watch.start(async () => recheck());
-    },
-    () => undefined,
-  );
-  void held.head.watch(context).then(
-    (watch) => {
-      if (closed) return void watch.stop();
-      watches.push(watch);
-      moved.notify(undefined);
-      watch.start(async () => moved.notify(undefined));
-    },
-    () => undefined,
-  );
+      watch.start(async () => {
+        if (held === next) recheck();
+      });
+    });
+    void next.you.watch(context).then(
+      (watch) => {
+        if (closed || held !== next) return void watch.stop();
+        watches.push(watch);
+        recheck();
+        watch.start(async () => {
+          if (held === next) recheck();
+        });
+      },
+      () => undefined,
+    );
+    void next.head.watch(context).then(
+      (watch) => {
+        if (closed || held !== next) return void watch.stop();
+        watches.push(watch);
+        moved.notify(undefined);
+        watch.start(async () => {
+          if (held === next) moved.notify(undefined);
+        });
+      },
+      () => undefined,
+    );
+  };
 
   const current = (): LiveChat | undefined => (up !== undefined && !up.lost.signal.aborted ? up.live : undefined);
 
@@ -279,14 +303,18 @@ export function openChatLink(
       if (now !== undefined) listener(now);
       return stop;
     },
+    follow,
     async close() {
       closed = true;
+      currentHost = undefined;
       up?.lost.abort(new Error(CLOSED));
       up = undefined;
       for (const watch of watches.splice(0)) await watch.stop();
       arrivals.clear();
       moved.clear();
-      held.release();
+      held?.release();
+      held = undefined;
+      calls = undefined;
     },
   };
 }

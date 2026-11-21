@@ -18,6 +18,7 @@ export interface OnTheRoster {
   inviteDevice(): Promise<Invitation>;
   /** Make the member `member` an admin, or an ordinary agent again, and say what it is now. */
   setAdmin(member: string, admin: boolean): Promise<Member>;
+  remove(member: string): Promise<void>;
   takeBack(way: string): Promise<void>;
 }
 
@@ -39,6 +40,9 @@ export async function onTheRoster(t: TestContext, place: DialPlace = { path: gat
     inviteDevice: async () => valueOf(await roster.inviteDevice(context)),
     setAdmin: async (member, admin) =>
       valueOf(admin ? await roster.promote({ member }, context) : await roster.demote({ member }, context)),
+    async remove(member) {
+      valueOf(await roster.remove({ member }, context));
+    },
     async takeBack(way) {
       valueOf(await roster.takeBack({ way }, context));
     },

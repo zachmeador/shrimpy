@@ -1,7 +1,7 @@
 import { readConfig } from "../../lib/json-config/node.ts";
 import { nobodyThere } from "../../lib/link/node.ts";
 import { type Client, type ConnectOptions, connectClient } from "../gateway/node.ts";
-import { type AgentEndpoint, endpointFile } from "./endpoint.ts";
+import { type AgentEndpoint, endpointFile, HOME_AGENT } from "./endpoint.ts";
 
 /** That no agent is running at `home`, for a sentence to end or go on from. */
 export const noAgentAt = (home: string): string => `No agent is running at ${home}`;
@@ -30,8 +30,8 @@ export function readEndpoint(home: string): AgentEndpoint | undefined {
 
 /** A client's link to one agent by its home's path, through which it holds that agent's objects as `home`. */
 export interface HomeClient extends Client {
-  /** The name the agent answers to, which its objects' `agent` param takes. */
-  readonly name: string;
+  /** The address its objects' `agent` param takes on the home's own socket. */
+  readonly agent: string;
 }
 
 export type ConnectHomeOptions = Pick<ConnectOptions, "signal" | "onError">;
@@ -48,7 +48,7 @@ export async function connectHome(home: string, options: ConnectHomeOptions = {}
   if (endpoint === undefined) throw new AgentNotRunningError(home);
   try {
     const client = await connectClient({ ...options, place: { path: endpoint.socket }, token: null, home });
-    return { ...client, name: endpoint.name };
+    return { ...client, agent: HOME_AGENT };
   } catch (error) {
     if (nobodyThere(error)) throw new AgentNotRunningError(home, { cause: error });
     throw error;

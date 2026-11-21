@@ -35,7 +35,7 @@ export interface Programs {
   list(): Program[];
   /** Whether the gateway's hold of the agent's presence is live. */
   reachable(member: string): boolean;
-  /** The roster changed: hold the presence of every agent on it, at its name now. */
+  /** The roster changed: hold the presence of every agent on it, by its ID. */
   followRoster(): void;
   /** Drop the agent's own link at once, as when its token is taken back. */
   dropAgent(member: string): void;
@@ -58,7 +58,6 @@ interface ProgramLink {
 
 /** The gateway's hold of one program's presence, and whether it is live. */
 interface Presence {
-  readonly name: string;
   readonly held: Held<typeof AgentPresence> | Held<typeof ChatPresence>;
   watch: NativeWatchHandle<RefState> | undefined;
   live: boolean;
@@ -84,10 +83,12 @@ export function createPrograms(options: ProgramsOptions): Programs {
   const refusals = new WeakSet<object>();
   let closed = false;
 
+  const agentName = (id: string): string | undefined => options.agents().find((each) => each.id === id)?.name;
+
   const resolve = (address: Address) => {
     const entry = waiting.get(address.key);
     if (entry === undefined) {
-      const refusal = notConnected(address);
+      const refusal = notConnected(address, agentName);
       refusals.add(refusal);
       // Thrown at once, not as a rejection, so the route has settled before a link that arrives next asks it again.
       throw refusal;
@@ -107,12 +108,12 @@ export function createPrograms(options: ProgramsOptions): Programs {
       if (!closed) options.onChange();
     });
     if (entry.kind === "chat") chats.retry(chat());
-    else agents.retry(agent({ name: entry.name }));
+    else agents.retry(agent({ id }));
     options.onChange();
   };
 
-  const hold = (name: string, held: Presence["held"]): Presence => {
-    const presence: Presence = { name, held, watch: undefined, live: held.state.value.kind === "live", released: false };
+  const hold = (held: Presence["held"]): Presence => {
+    const presence: Presence = { held, watch: undefined, live: held.state.value.kind === "live", released: false };
     const now = (live: boolean): void => {
       if (live === presence.live) return;
       presence.live = live;
@@ -137,36 +138,43 @@ export function createPrograms(options: ProgramsOptions): Programs {
 
   const followRoster = (): void => {
     if (closed) return;
-    const wanted = new Map(options.agents().map((each) => [each.id, each.name]));
+    const wanted = new Set(options.agents().map((each) => each.id));
     let changed = false;
     for (const [id, presence] of presences) {
-      if (id === CHAT || wanted.get(id) === presence.name) continue;
+      if (id === CHAT || wanted.has(id)) continue;
       release(presence);
       presences.delete(id);
       changed ||= presence.live;
     }
-    for (const [id, name] of wanted) {
+    for (const id of wanted) {
       if (presences.has(id)) continue;
-      presences.set(id, hold(name, host.hold(AgentPresence, { agent: name }, BACKGROUND_CONTEXT)));
+      presences.set(id, hold(host.hold(AgentPresence, { agent: id }, BACKGROUND_CONTEXT)));
     }
     if (changed) options.onChange();
   };
 
   return {
     start() {
-      presences.set(CHAT, hold(CHAT, host.hold(ChatPresence, {}, BACKGROUND_CONTEXT)));
+      presences.set(CHAT, hold(host.hold(ChatPresence, {}, BACKGROUND_CONTEXT)));
       followRoster();
     },
     agentLinked: (member) => linkedNow.has(member),
     chatLinked: () => linkedNow.has(CHAT),
     takeAgent(principal, name, shrimpy, linked) {
-      take(principal.member, { kind: "agent", member: principal.member, name, shrimpy, address: agent({ name }), principal, linked });
+      take(principal.member, {
+        kind: "agent",
+        member: principal.member,
+        name,
+        shrimpy,
+        address: agent({ id: principal.member }),
+        principal,
+        linked,
+      });
     },
     takeChat(shrimpy, linked) {
       take(CHAT, { kind: "chat", member: null, name: CHAT, shrimpy, address: chat(), principal: { kind: "chat" }, linked });
     },
-    list: () =>
-      [...linkedNow.values()].map(({ kind, name, member, shrimpy }) => ({ kind, name, member, shrimpy })),
+    list: () => [...linkedNow.values()].map(({ kind, name, member, shrimpy }) => ({ kind, name, member, shrimpy })),
     reachable: (member) => presences.get(member)?.live ?? false,
     followRoster,
     dropAgent(member) {
@@ -183,13 +191,13 @@ export function createPrograms(options: ProgramsOptions): Programs {
 }
 
 /** What a hold of a program that isn't linked waits with. */
-function notConnected(address: Address): ChordError {
-  const name = typeof address.params.name === "string" ? address.params.name : undefined;
+function notConnected(address: Address, agentName: (id: string) => string | undefined): ChordError {
+  const id = typeof address.params.id === "string" ? address.params.id : undefined;
   return new ChordError({
     code: "unavailable",
     message:
-      name === undefined
+      id === undefined
         ? "The chat server isn't connected to the gateway."
-        : `${name} isn't connected to the gateway.`,
+        : `${agentName(id) ?? id} isn't connected to the gateway.`,
   });
 }

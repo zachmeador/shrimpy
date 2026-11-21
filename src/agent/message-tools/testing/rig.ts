@@ -53,7 +53,8 @@ export async function startToolRig(t: TestContext, options: ToolRigOptions = {})
   const chat = await startChatServer(t);
   const scout = await chat.agent(SCOUT);
   const talk = await talkTo(t, SCOUT);
-  const link = openChatLink(scout.host, () => undefined);
+  const link = openChatLink(() => undefined);
+  link.follow(scout.host);
   stopAfter(t, () => link.close());
   const up = await link.use(async (live) => live, never);
   const lost = new AbortController();

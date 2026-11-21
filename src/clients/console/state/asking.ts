@@ -50,7 +50,7 @@ export function createAsking(store: Store, held: Holdings, clock: () => number):
       const asking = where.place.kind === "agent" && selected !== undefined && model.agent?.state === "up" ? selected : undefined;
       // The agent is asked which model is its default, when the thread's is not that one. It may not answer.
       const own = model.session?.status.ownModel === true;
-      const models = own && asking !== undefined ? await modelsOf(asking.name, asking.held) : undefined;
+      const models = own && asking !== undefined ? await modelsOf(asking.id, asking.held) : undefined;
       const now = store.model();
       const sessions = asking === undefined ? undefined : now.sessions;
       if (current()) store.set({ status: statusOf(now, sessions, clock(), models?.default) });
@@ -99,7 +99,7 @@ export function createAsking(store: Store, held: Holdings, clock: () => number):
       const { where } = model;
       const asking = held.agent();
       if (where.screen !== "thread" || where.place.kind !== "agent" || asking === undefined || model.agent?.state !== "up") return undefined;
-      return modelsOf(asking.name, asking.held);
+      return modelsOf(asking.id, asking.held);
     },
 
     async showModel() {
@@ -121,10 +121,10 @@ export function createAsking(store: Store, held: Holdings, clock: () => number):
       const status = model.agent;
       if (status?.state === "down") return tell({ kind: "model-not-shown", problem: { down: status.why } });
       const view = threadId === undefined ? undefined : model.session;
-      if (view === undefined) return tell({ kind: "model-unstarted", defaultModel: (await modelsOf(asking.name, asking.held))?.default });
+      if (view === undefined) return tell({ kind: "model-unstarted", defaultModel: (await modelsOf(asking.id, asking.held))?.default });
       const { model: used, ownModel } = view.status;
       // The default is worth asking for when the thread's model is not it.
-      const defaultModel = ownModel ? (await modelsOf(asking.name, asking.held))?.default : undefined;
+      const defaultModel = ownModel ? (await modelsOf(asking.id, asking.held))?.default : undefined;
       tell({ kind: "model-is", model: used, own: ownModel, defaultModel });
     },
   };

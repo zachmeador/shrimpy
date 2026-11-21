@@ -3,6 +3,7 @@ import type { Context } from "@earendil-works/chord/context";
 import {
   type Hello,
   type Member,
+  nameKey,
   notAHello,
   otherPi,
   type Principal,
@@ -74,28 +75,40 @@ export function greeter(deps: HelloDeps): (door: Door) => (raw: unknown) => Gree
       you = found.member;
       principal = { kind: you.kind, member: you.id, way: found.way };
     }
-    return { answer: welcome(you), take: (linked) => host.accept(linked.link, { principal }, context) };
+    return { answer: welcome(you, roster.id), take: (linked) => host.accept(linked.link, { principal }, context) };
   };
 
   const agentProgram = (who: Extract<Who, { kind: "agent" }>, shrimpy: string, door: Door): Greeted => {
     const found = roster.recognize(who.token);
     if (found?.way.kind === "device") return away(NOT_A_PROGRAM);
-    // A token the gateway doesn't know joins it beside the gateway, where its socket is the check, and nowhere else.
-    if (found === undefined && door !== "socket") return unknownToken;
+    // A token this roster doesn't know is refused over the entry, and also on the gateway's socket when the home already
+    // belonged to this roster (its token was taken back or replaced, or the agent was removed).
+    if (found === undefined && (door !== "socket" || who.roster === roster.id)) return unknownToken;
     if (found !== undefined && programs.agentLinked(found.member.id)) return running(found.member);
-    const made = found === undefined ? roster.join(who.name, who.token) : roster.rename(found.member.id, who.name);
-    if (made.kind === "refused") return away(made.words, made.reason);
-    const member = made.value;
+    let member: Member;
+    if (found !== undefined) {
+      member = found.member;
+    } else {
+      // On the gateway's own socket, a home with a fresh token (such as after deleting state/member.json) reclaims an
+      // existing agent of that name whose token was taken back, keeping its ID and DMs without needing an invitation.
+      const ways = roster.ways();
+      const tokenless = roster
+        .members()
+        .find((each) => each.kind === "agent" && nameKey(each.name) === nameKey(who.name) && !ways.some((way) => way.member === each.id));
+      const made = tokenless === undefined ? roster.join(who.name, who.token) : roster.replaceToken(tokenless.id, who.token);
+      if (made.kind === "refused") return away(made.words, made.reason);
+      member = "member" in made.value ? made.value.member : made.value;
+    }
     const way = roster.recognize(who.token)?.way;
     if (way?.kind !== "token") return unknownToken;
     const principal = { kind: "agent", member: member.id, way } as const;
-    return { answer: welcome(member), take: (linked) => programs.takeAgent(principal, member.name, shrimpy, linked) };
+    return { answer: welcome(member, roster.id), take: (linked) => programs.takeAgent(principal, member.name, shrimpy, linked) };
   };
 
   const chatProgram = (shrimpy: string, door: Door): Greeted => {
     if (door !== "socket") return away("The chat server links in on the gateway's own socket, on the gateway's machine.");
     if (programs.chatLinked()) return away("A chat server is linked already, and a gateway has one.");
-    return { answer: welcome(null), take: (linked) => programs.takeChat(shrimpy, linked) };
+    return { answer: welcome(null, roster.id), take: (linked) => programs.takeChat(shrimpy, linked) };
   };
 
   const join = (who: Extract<Who, { kind: "join" }>, door: Door): Greeted => {
@@ -105,7 +118,7 @@ export function greeter(deps: HelloDeps): (door: Door) => (raw: unknown) => Gree
     const known = roster.recognize(who.token);
     if (who.name === null) {
       // A device that never heard its answer shows the same token again, and is let in: its code was used for it.
-      if (known?.way.kind === "device") return { answer: welcome(known.member) };
+      if (known?.way.kind === "device") return { answer: welcome(known.member, roster.id) };
       if (known !== undefined) return away("That token is an agent's, and a token belongs to one member.");
       const invited = invitations.checkForDevice(who.code);
       if (!invited.ok) {
@@ -118,14 +131,13 @@ export function greeter(deps: HelloDeps): (door: Door) => (raw: unknown) => Gree
       const added = roster.addDevice(invited.person, who.token, who.machine);
       if (added.kind === "refused") return away(added.words, added.reason);
       invited.spend();
-      return { answer: welcome(added.value) };
+      return { answer: welcome(added.value, roster.id) };
     }
     if (known?.way.kind === "device") return away(NOT_A_PROGRAM);
     // An agent that never heard its answer joins again with the same token and is the same member.
     if (known !== undefined) {
       if (programs.agentLinked(known.member.id)) return running(known.member);
-      const renamed = roster.rename(known.member.id, who.name);
-      return renamed.kind === "refused" ? away(renamed.words, renamed.reason) : { answer: welcome(renamed.value) };
+      return { answer: welcome(known.member, roster.id) };
     }
     const invited = invitations.check(who.code, who.name);
     if (!invited.ok) {
@@ -135,10 +147,21 @@ export function greeter(deps: HelloDeps): (door: Door) => (raw: unknown) => Gree
           : `The gateway has no invitation like that for ${who.name}. An invitation is good once, for fifteen minutes and for one name. Check the code, or ask for a new one.`,
       );
     }
-    const joined = roster.join(who.name, who.token);
+    if (invited.member !== null) {
+      const replaced = roster.replaceToken(invited.member, who.token);
+      if (replaced.kind === "refused") return away(replaced.words, replaced.reason);
+      invited.spend();
+      const { member, replacedWay } = replaced.value;
+      if (replacedWay !== undefined) {
+        host.revoke({ way: replacedWay }, context);
+        programs.dropAgent(member.id);
+      }
+      return { answer: welcome(member, roster.id) };
+    }
+    const joined = roster.join(invited.name, who.token);
     if (joined.kind === "refused") return away(joined.words, joined.reason);
     invited.spend();
-    return { answer: welcome(joined.value) };
+    return { answer: welcome(joined.value, roster.id) };
   };
 
   return (door) => (raw) => {

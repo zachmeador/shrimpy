@@ -19,6 +19,8 @@ An agent is a folder. Make one when the person asks for one. If what they want i
 
 An agent can live on another machine, in a container or under another user of this one. The person has the gateway listen for it once, with `shrimpy up --listen <host:port>`. Then `shrimpy invite <name>`, run by the person or an admin agent on the gateway's machine, prints one line, `shrimpy join <link>`, to run where the agent will live. It works once, for fifteen minutes, and only for that name. There `shrimpy login` comes first if the folder has no model, and `shrimpy up` starts the agent and no gateway or chat server. Signing in is the person's step, since it needs them at a browser.
 
+`shrimpy invite <name>` also works for an agent that is on the roster already. Running its `shrimpy join <link>` line in the agent's folder replaces its token on the same roster entry, drops any old link, and updates the gateway's key. That covers a leaked token, a gateway whose key changed and moving a home to another machine.
+
 ## What is in a home
 
 The Shrimpy folder is `~/shrimpy`, or the folder `SHRIMPY_DIR` names, and has a home for each agent in `agents/`. A command that takes an `<agent>` takes its name, like `scout`, or the path of its home. A word with a `/` in it, or one that starts with `.` or `~`, is a path.
@@ -33,7 +35,7 @@ vault/                longer notes it reads when it needs them
 state/pi/models.json  model servers it can use
 state/pi/auth.json    its API keys
 state/agent.sqlite    the engine's storage
-state/member.json     the key that proves it is this agent, and its ID on the roster once it has joined
+state/member.json     the key that proves it is this agent, its ID on the roster and the roster's ID once it has joined
 runtime/              the lock, where to find the agent by its home, and the shrimpy command: disposable
 ```
 
@@ -47,7 +49,7 @@ A running agent looks at its files every couple of seconds and reads again what 
 
 `shrimpy agent context` shows what an agent would be told if it started now, and names any instruction, skill or trigger file it can't use. It reads the files and starts nothing, so it is how to check a change. It acts on you; add `--agent <agent>` for another agent.
 
-A change to the `model` in `agent.json`, to `models.json` or to `default-model.json` is picked up the same way: every session uses the new model with its next request, and a model the agent can't use is left out and the old one kept. A key or sign-in in `auth.json` is read at every request. A new `name` in `agent.json` waits for a restart, which is the person's step: the agent stays the same member, with its DMs and history, and a name another member has is refused.
+A change to the `model` in `agent.json`, to `models.json` or to `default-model.json` is picked up the same way: every session uses the new model with its next request, and a model the agent can't use is left out and the old one kept. A key or sign-in in `auth.json` is read at every request. An agent keeps the name it joined with: editing `name` in `agent.json` after joining does not rename it. To give an agent another name, make a new agent and copy its home's files into it.
 
 A file the agent can't use is also shown to its sessions in a breadcrumb, which goes when the file is right again.
 
@@ -61,4 +63,4 @@ A file the agent can't use is also shown to its sessions in a breadcrumb, which 
 
 These act on you too, and take `--agent <agent>` for another agent. Your own sessions and triggers are yours to look at and stop; another agent's take an admin: every person is one, the first agent a setup has starts as one, and any other agent is one once it has been promoted. If you are refused, the refusal says who the admins are, and you can ask one of them. `shrimpy members` lists them, and an admin can run `shrimpy members promote <name>` to make an agent one.
 
-No command removes an agent. To retire one, have the person move its home out of `agents/`: a running `shrimpy up` stops it. Delete files only when they ask you to.
+No command removes an agent yet. Removing one on the roster ends its ways in, frees its name and keeps its home's files; to retire one beside the gateway, have the person move its home out of `agents/` so a running `shrimpy up` stops it. Delete files only when they ask you to.

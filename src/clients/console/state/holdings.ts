@@ -40,9 +40,9 @@ export interface SessionOnShow {
   reading: number | undefined;
 }
 
-/** An agent held through the link, by its name. */
+/** An agent held through the link, by its member ID. */
 export interface HeldAgent {
-  readonly name: string;
+  readonly id: string;
   readonly held: Holding<AgentShown, AgentCalls>;
 }
 
@@ -54,19 +54,19 @@ export interface Holdings {
   channel(id: string): Holding<ChannelShown, ChannelCalls> | undefined;
   /** The agent whose screen, or whose thread or session, is on show. */
   agent(): HeldAgent | undefined;
-  /** Each running agent, held for what it is working in, while the list of agents is on show. */
+  /** Each running agent, by its member ID, held for what it is working in while the list of agents is on show. */
   rollCall(): ReadonlyMap<string, Holding<AgentShown, AgentCalls>>;
   thread(): OpenThread | undefined;
   session(): SessionOnShow | undefined;
   /** Hold the channels chat lists to the person, and let go of those it no longer lists. */
   followChannels(): void;
-  /** Hold each agent `names` has for what it is working in, and let go of every other. */
-  callRoll(names: ReadonlySet<string>): void;
-  /** Hold the agent called `name`, and let go of any other, or of every one with none. */
-  useAgent(name: string | undefined): void;
+  /** Hold each agent in `ids` for what it is working in, and let go of every other. */
+  callRoll(ids: ReadonlySet<string>): void;
+  /** Hold the agent with member ID `id`, and let go of any other, or of every one with none. */
+  useAgent(id: string | undefined): void;
   /** Hold the thread `id`, and let go of any other, or of every one with none. */
   useThread(id: string | undefined): void;
-  /** Hold the session at `address` of the agent `agent`, and let go of any other, or of every one with none. */
+  /** Hold the session at `address` of the agent with member ID `agent`, and let go of any other, or of every one with none. */
   useSession(agent: string | undefined, address: string | undefined): void;
   /** Run `work` on the channel `id`: as it is held, or held for as long as `work` runs. */
   onChannel<T>(id: string, work: (channel: Holding<ChannelShown, ChannelCalls>) => Promise<T>): Promise<T>;
@@ -118,11 +118,11 @@ export function createHoldings(link: GatewayLink, changed: () => void): Holdings
       const wanted = new Set([...shown.channels, ...shown.readOnlyChannels].map((channel) => channel.id));
       keepOnly(channels, wanted, (id) => holdChannel(link, id, changed));
     },
-    callRoll: (names) => keepOnly(rollCall, names, (name) => holdAgent(link, name, changed)),
-    useAgent(name) {
-      if (selected?.name === name) return;
+    callRoll: (ids) => keepOnly(rollCall, ids, (id) => holdAgent(link, id, changed)),
+    useAgent(id) {
+      if (selected?.id === id) return;
       selected?.held.release();
-      selected = name === undefined ? undefined : { name, held: holdAgent(link, name, changed) };
+      selected = id === undefined ? undefined : { id, held: holdAgent(link, id, changed) };
     },
     useThread(id) {
       if (thread?.id === id) return;

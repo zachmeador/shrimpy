@@ -67,6 +67,8 @@ export const Roster = remote("shrimpy.gateway.roster", {
   variants: {
     all: {
       state: {
+        /** The roster's ID, made with it and never changed. */
+        id: str(),
         /** The member the caller is, or null for a program that isn't one. */
         you: union([MemberSchema, nul()]),
         /** Everyone, oldest first. */
@@ -77,7 +79,12 @@ export const Roster = remote("shrimpy.gateway.roster", {
         ways: arr(WayInSchema),
       },
       methods: {
-        /** An invitation for an agent called `name`. Only you or an admin, for a name nobody has, while the gateway listens on an address. */
+        /**
+         * An invitation for an agent called `name`, while the gateway listens
+         * on an address. Only you or an admin. Naming an agent that exists makes
+         * an invitation that replaces its token and updates its gateway key;
+         * naming a person is refused.
+         */
         invite: method(obj({ name: str() }), answerOf(InvitationSchema)),
         /** An invitation for a device of yours, named for the machine it joins from. Only you. */
         inviteDevice: method(undefined, answerOf(InvitationSchema)),
@@ -85,6 +92,8 @@ export const Roster = remote("shrimpy.gateway.roster", {
         promote: method(obj({ member: str() }), answerOf(MemberSchema)),
         /** Makes an admin agent an ordinary agent again. Only you or an admin. */
         demote: method(obj({ member: str() }), answerOf(MemberSchema)),
+        /** Removes an agent from the roster, ending its ways in and freeing its name; its ID is never used again. Only you or an admin. */
+        remove: method(obj({ member: str() }), answerOf(nul())),
         /** Ends a way in at once, and everything it holds. You take back any, and an admin an agent's. */
         takeBack: method(obj({ way: str() }), answerOf(nul())),
       },

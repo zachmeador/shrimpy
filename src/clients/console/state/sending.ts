@@ -15,12 +15,12 @@ export interface Sending {
 }
 
 /** A place as a string, for telling one from another. */
-const placeKey = (place: Place): string => (place.kind === "agent" ? `agent ${place.name}` : `${place.kind} ${place.id}`);
+const placeKey = (place: Place): string => `${place.kind} ${place.id}`;
 
-/** The agent on the roster that is called `name`. */
-function rosterAgent(model: Model, name: string): AgentEntry {
-  const found = agentEntries(model).find((entry) => entry.name === name);
-  if (found === undefined) throw new Error(`${name} is not on the roster.`);
+/** The agent on the roster with member ID `id`. */
+function rosterAgent(model: Model, id: string): AgentEntry {
+  const found = agentEntries(model).find((entry) => entry.id === id);
+  if (found === undefined) throw new Error(`${id} is not on the roster.`);
   return found;
 }
 
@@ -47,9 +47,9 @@ export function createSending(store: Store, held: Holdings, moves: Moves, sendMs
       if (model.rooms[place.id] === undefined) throw new Error("You are not in that room.");
       return place.id;
     }
-    const dm = model.dms[place.name];
+    const dm = model.dms[place.id];
     if (dm !== undefined) return dm.channel.id;
-    return valueOf(await held.chat.calls.openDm(rosterAgent(model, place.name).id, signal)).id;
+    return valueOf(await held.chat.calls.openDm(rosterAgent(model, place.id).id, signal)).id;
   }
 
   /** The thread a message in `place` goes in: the open one, the new one it was tried in before, or one made now. */

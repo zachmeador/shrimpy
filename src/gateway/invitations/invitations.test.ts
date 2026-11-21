@@ -15,8 +15,10 @@ test("a code is good once, for its name only and for its time, and is read witho
   assert.deepEqual(invitations.check(code, "rex"), { ok: false, why: "unknown" }, "not for another name");
   assert.deepEqual(invitations.check("AAAA-AAAA", "crab"), { ok: false, why: "unknown" }, "nor one that was never made");
   assert.deepEqual(invitations.check(undefined, "crab"), { ok: false, why: "unknown" });
-  const checked = invitations.check(code.replace("-", "").toLowerCase(), "crab");
+  const checked = invitations.check(code.replace("-", "").toLowerCase(), "CRAB");
   assert.ok(checked.ok);
+  assert.equal(checked.name, "crab", "it returns the spelling the invitation was made with");
+  assert.equal(checked.member, null);
 
   // Looking is not using: it is spent when whoever looked says so, once.
   assert.equal(invitations.check(code, "crab").ok, true);
@@ -27,6 +29,20 @@ test("a code is good once, for its name only and for its time, and is read witho
   assert.equal(invitations.check(other.code, "rex").ok, true);
   now += 1;
   assert.deepEqual(invitations.check(other.code, "rex"), { ok: false, why: "unknown" }, "and it stops being good when its time is up");
+});
+
+test("an invitation for an existing agent carries its member ID, and forgetting that member withdraws it", () => {
+  const invitations = createInvitations();
+  const existing = invitations.issue("crab", "mem_123456789abc");
+  const fresh = invitations.issue("rex");
+
+  const checked = invitations.check(existing.code, "crab");
+  assert.ok(checked.ok);
+  assert.equal(checked.member, "mem_123456789abc");
+
+  invitations.forgetMember("mem_123456789abc");
+  assert.deepEqual(invitations.check(existing.code, "crab"), { ok: false, why: "unknown" });
+  assert.equal(invitations.check(fresh.code, "rex").ok, true, "other invitations stay");
 });
 
 test("a code for a device is good once and for its time, and only for a device", () => {

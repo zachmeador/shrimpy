@@ -12,23 +12,27 @@ import { gatewaySocket, keepLinked, newToken } from "../node.ts";
 export const Echo = remote("shrimpy.test.echo", {
   version: 1,
   params: { agent: str() },
-  hostAddress: ({ agent: name }) => agent({ name }),
+  hostAddress: ({ agent: id }) => agent({ id }),
   variants: { only: { state: { caller: unknown() } } },
 });
 
 export interface TestAgentOptions {
   /** The token it shows: a new one, which joins the roster, unless the test gives one. */
   token?: string;
+  /** The roster ID it says it last belonged to, or null when joining anew. */
+  roster?: string | null;
   /** Where the gateway is: its socket in the test's runtime directory, unless the test gives its entry with the fingerprint of its key. */
   place?: DialPlace;
 }
 
 /** A small agent's program, linked to the gateway as an agent's program is. */
 export interface TestAgent {
-  /** Its host, at `agent({ name })`, which holds the other programs' objects through the gateway as the agent. */
+  /** Its host, at `agent({ id })`, which holds the other programs' objects through the gateway as the agent. */
   readonly host: Host<Principal, Revocation>;
   /** The member the gateway first welcomed it as. */
   readonly you: Member;
+  /** The ID of the roster it joined, as the first welcome gave it. */
+  readonly roster: string | null;
   /** The token it showed, which a client can link with to be the agent too. */
   readonly token: string;
   /** Every answer the gateway welcomed it with, the first and one each time it linked again. */
@@ -38,13 +42,13 @@ export interface TestAgent {
 }
 
 /**
- * The host of a small agent's program called `name`, at `agent({ name })`,
+ * The host of a small agent's program whose member ID is `id`, at `agent({ id })`,
  * loaded with what it serves: its presence and `Echo`. Whoever makes it links
  * it to the gateway and closes it.
  */
-export async function testAgentHost(name: string): Promise<Host<Principal, Revocation>> {
+export async function testAgentHost(id: string): Promise<Host<Principal, Revocation>> {
   const host = createHost<Principal, Revocation>({
-    address: agent({ name }),
+    address: agent({ id }),
     principal: { kind: "home" },
     revokedBy,
     onError: () => undefined,
@@ -65,24 +69,36 @@ export async function testAgentHost(name: string): Promise<Host<Principal, Revoc
  */
 export async function linkTestAgent(t: TestContext, name: string, options: TestAgentOptions = {}): Promise<TestAgent> {
   const token = options.token ?? newToken();
-  const host = await testAgentHost(name);
+  let rosterId = options.roster ?? null;
+  let currentHost: Host<Principal, Revocation> | undefined;
+  let currentId: string | undefined;
   const stopping = new AbortController();
   const welcomes: Welcome[] = [];
-  let welcome = (_you: Member): void => undefined;
+  let welcome = (_answer: Welcome): void => undefined;
   let refuse = (_error: unknown): void => undefined;
-  const welcomed = new Promise<Member>((resolve, reject) => {
+  const welcomed = new Promise<Welcome>((resolve, reject) => {
     welcome = resolve;
     refuse = reject;
   });
   const linking = keepLinked({
-    host,
+    host: async (answer) => {
+      if (answer.you === null) throw new Error("The gateway welcomed an agent as nobody.");
+      if (currentHost === undefined || currentId !== answer.you.id) {
+        const previous = currentHost;
+        currentHost = await testAgentHost(answer.you.id);
+        currentId = answer.you.id;
+        await previous?.close(BACKGROUND_CONTEXT);
+      }
+      return currentHost;
+    },
     place: options.place ?? { path: gatewaySocket() },
-    who: () => ({ kind: "agent", name, token }),
+    who: () => ({ kind: "agent", name, token, roster: rosterId }),
     signal: stopping.signal,
     backoff: backoff({ firstMs: 5, maxMs: 50 }),
     onWelcome: (answer) => {
       welcomes.push(answer);
-      if (answer.you !== null) welcome(answer.you);
+      if (answer.roster !== null) rosterId = answer.roster;
+      if (answer.you !== null) welcome(answer);
     },
     onError: (error) => refuse(error),
   });
@@ -91,13 +107,15 @@ export async function linkTestAgent(t: TestContext, name: string, options: TestA
     stopped ??= (async () => {
       stopping.abort();
       await linking;
-      await host.close(BACKGROUND_CONTEXT);
+      await currentHost?.close(BACKGROUND_CONTEXT);
     })();
     return stopped;
   };
   stopAfter(t, stop);
   try {
-    return { host, you: await welcomed, token, welcomes, stop };
+    const first = await welcomed;
+    if (first.you === null || currentHost === undefined) throw new Error("The gateway welcomed an agent as nobody.");
+    return { host: currentHost, you: first.you, roster: first.roster, token, welcomes, stop };
   } catch (error) {
     await stop();
     throw error;

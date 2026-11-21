@@ -37,6 +37,7 @@ export function createLiveRoster(onError: (error: Error) => void): LiveRoster {
   let you: Member | null | undefined;
   /** What a program reads of the roster, as text: whether a member is reachable is none of it. */
   let read: string | undefined;
+  let currentHost: Host<Principal, Revocation> | undefined;
   let held: Held<typeof Roster> | undefined;
   const watches: { stop(): unknown }[] = [];
   let closed = false;
@@ -53,16 +54,21 @@ export function createLiveRoster(onError: (error: Error) => void): LiveRoster {
     changed.notify(undefined);
   };
 
-  /** Follow one member of the held roster, from its first value, which a watch waits for. */
-  const watching = <T>(member: { watch(context: Context): Promise<WatchHandle<T>> }, set: (value: T) => void, context: Context): void => {
+  /** Follow one member of `owner`, from its first value, which a watch waits for. */
+  const watching = <T>(
+    owner: Held<typeof Roster>,
+    member: { watch(context: Context): Promise<WatchHandle<T>> },
+    set: (value: T) => void,
+    context: Context,
+  ): void => {
     void member.watch(context).then(
       (watch) => {
-        if (closed) return void watch.stop();
+        if (closed || held !== owner) return void watch.stop();
         watches.push(watch);
         set(watch.value);
         take();
         watch.start(async (call) => {
-          if (call.kind !== "value") return;
+          if (call.kind !== "value" || held !== owner) return;
           set(call.value);
           take();
         });
@@ -79,16 +85,21 @@ export function createLiveRoster(onError: (error: Error) => void): LiveRoster {
     },
     subscribe: (listener) => changed.add(listener),
     follow(host, context) {
-      if (held !== undefined || closed) return;
+      if (closed || currentHost === host) return;
+      currentHost = host;
+      for (const watch of watches.splice(0)) void watch.stop();
+      held?.release();
       const roster = host.hold(Roster, {}, context);
       held = roster;
-      watching(roster.members, (value) => void (members = value), context);
-      watching(roster.you, (value) => void (you = value), context);
+      watching(roster, roster.members, (value) => void (members = value), context);
+      watching(roster, roster.you, (value) => void (you = value), context);
     },
     close() {
       closed = true;
+      currentHost = undefined;
       for (const watch of watches.splice(0)) void watch.stop();
       held?.release();
+      held = undefined;
       changed.clear();
     },
   };

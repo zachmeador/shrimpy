@@ -48,7 +48,8 @@ export async function startChatRig(t: TestContext, options: Pick<DeliveryOptions
   const errors: Error[] = [];
   const faults = planFaults();
 
-  const link = openChatLink(scout.host, (error) => errors.push(error), (calls) => faulty(calls, faults));
+  const link = openChatLink((error) => errors.push(error), (calls) => faulty(calls, faults));
+  link.follow(scout.host);
   const delivery = createDelivery({
     recordsId: "rec_test",
     onError: (error) => errors.push(error),

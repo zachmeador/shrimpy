@@ -14,8 +14,8 @@ export function worked(model: Model, held: Holdings, link: GatewayLink): Model {
   const shownRoster = held.roster.shown();
   const version = link.version() ?? model.listing?.version ?? "";
   const listing = shownRoster === undefined ? model.listing : { ...shownRoster, version };
-  const linked = (kind: "chat" | "agent", name?: string): boolean =>
-    listing?.programs.some((program) => program.kind === kind && (name === undefined || program.name === name)) ?? false;
+  const linked = (kind: "chat" | "agent", member?: string): boolean =>
+    listing?.programs.some((program) => program.kind === kind && (member === undefined || program.member === member)) ?? false;
   const shownChat = held.chat.shown();
   const { dms, rooms, readOnly } = channelsOf(
     shownChat?.channels ?? [],
@@ -27,9 +27,9 @@ export function worked(model: Model, held: Holdings, link: GatewayLink): Model {
   const agent = held.agent();
   const agentShown = agent?.held.shown();
   const workingSessions: Model["workingSessions"] = {};
-  for (const [name, each] of held.rollCall()) {
-    const working = sessionsWorking(each.shown(), each.status(linked("agent", name)).state === "up");
-    if (working.length > 0) workingSessions[name] = working;
+  for (const [id, each] of held.rollCall()) {
+    const working = sessionsWorking(each.shown(), each.status(linked("agent", id)).state === "up");
+    if (working.length > 0) workingSessions[id] = working;
   }
   return {
     ...model,
@@ -41,7 +41,7 @@ export function worked(model: Model, held: Holdings, link: GatewayLink): Model {
     dms,
     rooms,
     readOnly,
-    agent: agent === undefined ? undefined : agent.held.status(linked("agent", agent.name)),
+    agent: agent === undefined ? undefined : agent.held.status(linked("agent", agent.id)),
     sessions: agentShown === undefined || agentShown.refusal !== null ? undefined : agentShown.sessions,
     refusal: refusalOf(where, agentShown, held.session()?.held.shown()),
     thread: threadViewOf(held.thread()?.held.shown()),

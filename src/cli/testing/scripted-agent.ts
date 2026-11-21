@@ -67,26 +67,44 @@ export async function startScriptedAgent(t: TestContext, options: ScriptedAgentO
     return { offered };
   }
 
-  const host = await testAgentHost(options.name);
   const leaving = new AbortController();
   const token = newToken();
-  // Its own hello, since it gives the version the test asks for.
-  const said = { ...hello({ kind: "agent", name: options.name, token }), shrimpy: options.version ?? SHRIMPY_VERSION };
+  let rosterId: string | null = null;
+  let currentHost: Awaited<ReturnType<typeof testAgentHost>> | undefined;
+  let currentId: string | undefined;
+  let ready = (_host: Awaited<ReturnType<typeof testAgentHost>>): void => undefined;
+  const hostReady = new Promise<Awaited<ReturnType<typeof testAgentHost>>>((resolve) => {
+    ready = resolve;
+  });
   const linking = keepLink({
     signal: leaving.signal,
     backoff: backoff({ firstMs: 5, maxMs: 50 }),
     async link(signal) {
+      // Its own hello, since it gives the version the test asks for.
+      const said = {
+        ...hello({ kind: "agent", name: options.name, token, roster: rosterId }),
+        shrimpy: options.version ?? SHRIMPY_VERSION,
+      };
       const { answer: raw, linked } = await dial({ path: gatewaySocket() }, said, { signal });
       const answer = readAnswer(raw);
-      if (answer?.kind !== "welcome") {
+      if (answer?.kind !== "welcome" || answer.you === null) {
         linked.drop();
-        throw new Error(answer?.words ?? "The gateway answered with something else.");
+        throw new Error(answer?.kind === "refused" ? answer.words : "The gateway answered with something else.");
       }
-      host.connect(linked.link, { principal: { kind: "gateway" } }, context);
+      if (answer.roster !== null) rosterId = answer.roster;
+      if (currentHost === undefined || currentId !== answer.you.id) {
+        const previous = currentHost;
+        currentHost = await testAgentHost(answer.you.id);
+        currentId = answer.you.id;
+        await previous?.close(context);
+      }
+      currentHost.connect(linked.link, { principal: { kind: "gateway" } }, context);
+      ready(currentHost);
       return linked;
     },
   });
 
+  const host = await hostReady;
   const chat: Reference<typeof Chat> = await host.get(Chat, {}, context);
   const self = chat.you.value;
   if (self === null) throw new Error("Chat takes the scripted agent for nobody.");

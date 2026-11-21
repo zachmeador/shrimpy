@@ -42,7 +42,7 @@ test("taking a device's token back ends what it holds as revoked, closes its lin
   const entry = { ...address, fingerprint: gateway.fingerprint };
   const you = await connectTestClient(t, { path: gateway.socket });
   const yours = await you.host.get(Roster, {}, context);
-  await linkTestAgent(t, "scout", { place: { path: gateway.socket } });
+  const scout = await linkTestAgent(t, "scout", { place: { path: gateway.socket } });
 
   const invitation = await yours.inviteDevice(context);
   assert.equal(invitation.kind, "done");
@@ -53,7 +53,7 @@ test("taking a device's token back ends what it holds as revoked, closes its lin
 
   const device = await connectTestClient(t, entry, token);
   const roster = await device.host.get(Roster, {}, context);
-  const echo = device.host.hold(Echo, { agent: "scout" }, context);
+  const echo = device.host.hold(Echo, { agent: scout.you.id }, context);
   await until(() => echo.state.value.kind === "live", "the device's hold at scout to bind");
   if (echo.variant !== "only") return;
   await until(() => yours.ways.value.some((each) => each.kind === "device"), "you to see the device's way in");
@@ -77,16 +77,143 @@ test("taking a device's token back ends what it holds as revoked, closes its lin
   );
 });
 
-test("a roster from before the move to Pi 1.5.2 is refused and left as it is", { timeout }, async (t) => {
-  const dataDir = tempDir(t, "gateway-data");
-  const file = join(dataDir, "state", "roster.json");
-  mkdirSync(dirname(file), { recursive: true });
-  // As the gateway wrote it until the move: version 1, which found you by the OS account it ran as.
-  const old = JSON.stringify({ version: 1, members: [{ id: "mem_you", kind: "person", name: "zach", recognizedBy: { osUser: "zach" } }] });
-  writeFileSync(file, old);
+test("a roster of an older version is refused and left as it is", { timeout }, async (t) => {
+  for (const old of [
+    JSON.stringify({ version: 1, members: [{ id: "mem_you", kind: "person", name: "zach", recognizedBy: { osUser: "zach" } }] }),
+    JSON.stringify({ version: 2, members: [{ id: "mem_you", kind: "person", name: "zach" }], ways: [] }),
+  ]) {
+    const dataDir = tempDir(t, "gateway-data");
+    const file = join(dataDir, "state", "roster.json");
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, old);
 
-  await assert.rejects(startGatewayInProcess(t, { dataDir }), (error: Error) => error.message.includes(dataDir));
+    await assert.rejects(startGatewayInProcess(t, { dataDir }), (error: Error) => error.message.includes(dataDir));
 
-  assert.equal(readFileSync(file, "utf8"), old);
-  assert.equal(existsSync(join(dataDir, "state", "key.pem")), false);
+    assert.equal(readFileSync(file, "utf8"), old);
+    assert.equal(existsSync(join(dataDir, "state", "key.pem")), false);
+  }
+});
+
+test("taking back an agent's token keeps its entry, and inviting it again replaces the token and drops the old link", { timeout }, async (t) => {
+  const gateway = await startGatewayInProcess(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
+  const [address] = gateway.listening;
+  assert.ok(address);
+  const entry = { ...address, fingerprint: gateway.fingerprint };
+  const you = await connectTestClient(t, { path: gateway.socket });
+  const yours = await you.host.get(Roster, {}, context);
+  const rosterId = yours.id.value;
+  assert.match(rosterId, /^ros_/);
+
+  // First invite + join creates scout with a token.
+  const firstInvite = await yours.invite({ name: "scout" }, context);
+  assert.equal(firstInvite.kind, "done");
+  const firstToken = newToken();
+  const joined = await sayHello(entry, { kind: "join", name: "scout", token: firstToken, code: firstInvite.value.code, machine: "box-1" });
+  joined.linked.drop();
+  assert.equal(joined.welcome.roster, rosterId);
+  const scoutId = joined.welcome.you?.id;
+  assert.ok(scoutId !== undefined);
+
+  const running = await linkTestAgent(t, "scout", { place: entry, token: firstToken, roster: rosterId });
+  const scoutsRoster = await running.host.get(Roster, {}, context);
+  await until(() => yours.members.value.some((member) => member.id === scoutId && member.reachable), "scout to be reachable");
+  const firstWay = yours.ways.value.find((way) => way.member === scoutId);
+  assert.ok(firstWay !== undefined);
+
+  // Inviting an existing agent replaces its token on join, revoking the old way and dropping the old link.
+  const secondInvite = await yours.invite({ name: "SCOUT" }, context);
+  assert.equal(secondInvite.kind, "done");
+  const secondToken = newToken();
+  const replaced = await sayHello(entry, { kind: "join", name: "scout", token: secondToken, code: secondInvite.value.code, machine: "box-2" });
+  replaced.linked.drop();
+  assert.equal(replaced.welcome.you?.id, scoutId, "same member ID");
+  assert.equal(replaced.welcome.you.name, "scout", "canonical roster spelling");
+
+  await until(() => scoutsRoster.state.value.kind === "ended", "the old link's roster to end as revoked");
+  const ended = scoutsRoster.state.value;
+  assert.ok(ended.kind === "ended" && ended.error.code === "forbidden" && ended.error.reason === "revoked");
+  await running.stop();
+  await assert.rejects(
+    connectTestClient(t, entry, firstToken),
+    (error) => error instanceof HelloRefusedError && error.reason === "unknown_token",
+    "the old token is gone",
+  );
+
+  // Taking back the new token leaves scout's entry and name intact, with no way in.
+  const secondWay = yours.ways.value.find((way) => way.member === scoutId);
+  assert.ok(secondWay !== undefined && secondWay.id !== firstWay.id);
+  assert.equal((await yours.takeBack({ way: secondWay.id }, context)).kind, "done");
+  await until(() => !yours.ways.value.some((way) => way.member === scoutId), "scout's way to go");
+  assert.equal(yours.members.value.some((member) => member.id === scoutId && member.name === "scout" && !member.reachable), true);
+
+  // Inviting the person's name is still refused.
+  const personName = you.you?.name ?? "";
+  const refused = await yours.invite({ name: personName }, context);
+  assert.equal(refused.kind, "refused");
+  assert.equal(refused.reason, "name_taken");
+
+  // Roster ID persists across restarts.
+  await gateway.close();
+  const restarted = await startGatewayInProcess(t, { dataDir: gateway.dataDir });
+  const again = await connectTestClient(t, { path: restarted.socket });
+  const rosterAgain = await again.host.get(Roster, {}, context);
+  assert.equal(rosterAgain.id.value, rosterId);
+});
+
+test("removing an agent revokes its link, withdraws its invitations, frees its name, and never reuses its ID", { timeout }, async (t) => {
+  const gateway = await startGatewayInProcess(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
+  const [address] = gateway.listening;
+  assert.ok(address);
+  const entry = { ...address, fingerprint: gateway.fingerprint };
+  const place = { path: gateway.socket };
+  const you = await connectTestClient(t, place);
+  const yours = await you.host.get(Roster, {}, context);
+  const scoutToken = newToken();
+  const scout = await linkTestAgent(t, "scout", { place, token: scoutToken });
+  const rex = await linkTestAgent(t, "rex", { place });
+  const scoutsRoster = await scout.host.get(Roster, {}, context);
+  const rexsRoster = await rex.host.get(Roster, {}, context);
+
+  // Non-admin agent is refused; person cannot be removed.
+  assert.equal((await rexsRoster.remove({ member: scout.you.id }, context)).kind, "refused");
+  assert.equal((await yours.remove({ member: you.you?.id ?? "" }, context)).kind, "refused");
+
+  // Issue a replacement invitation before removing scout; removing scout must withdraw it.
+  const pending = await yours.invite({ name: "scout" }, context);
+  assert.equal(pending.kind, "done");
+
+  assert.equal((await yours.remove({ member: scout.you.id }, context)).kind, "done");
+  await until(() => scoutsRoster.state.value.kind === "ended", "scout's roster hold to end as revoked");
+  const ended = scoutsRoster.state.value;
+  assert.ok(ended.kind === "ended" && ended.error.code === "forbidden" && ended.error.reason === "revoked");
+  await scout.stop();
+  await until(() => !yours.members.value.some((member) => member.id === scout.you.id), "scout to leave the roster");
+  assert.equal(yours.ways.value.some((way) => way.member === scout.you.id), false);
+  assert.equal(yours.programs.value.some((program) => program.member === scout.you.id), false);
+
+  // The pending invitation was withdrawn and the old token is refused.
+  await assert.rejects(
+    sayHello(entry, { kind: "join", name: "scout", token: newToken(), code: pending.value.code, machine: "box" }),
+    HelloRefusedError,
+  );
+  await assert.rejects(
+    connectTestClient(t, entry, scoutToken),
+    (error) => error instanceof HelloRefusedError && error.reason === "unknown_token",
+  );
+
+  // A new agent can take the freed name and gets a fresh member ID.
+  const reborn = await linkTestAgent(t, "scout", { place });
+  assert.notEqual(reborn.you.id, scout.you.id);
+});
+
+test("reconnecting with another name in hello does not rename the agent", { timeout }, async (t) => {
+  const gateway = await startGatewayInProcess(t);
+  const place = { path: gateway.socket };
+  const token = newToken();
+  const scout = await linkTestAgent(t, "scout", { place, token });
+  await scout.stop();
+
+  const reconnected = await linkTestAgent(t, "other", { place, token });
+  assert.equal(reconnected.you.id, scout.you.id);
+  assert.equal(reconnected.you.name, "scout");
 });

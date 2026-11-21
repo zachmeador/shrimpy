@@ -600,30 +600,31 @@ test("a home that kept its token but never heard it had joined joins again as th
   assert.equal(person.partner.id, joined.id);
   assert.equal(receipt.status, "answered");
   assert.deepEqual(await agentNames(gateway), ["scout"], "and the name is not taken by a second member");
-  assert.deepEqual(readMembership(paths.root), { memberId: joined.id, token });
+  const saved = readMembership(paths.root);
+  assert.ok(saved !== undefined);
+  assert.equal(saved.memberId, joined.id);
+  assert.equal(saved.token, token);
+  assert.ok(saved.rosterId !== undefined, "the home keeps the roster's ID");
 });
 
-test("a home whose name was changed is the same member under the new name, in the same DM", { timeout }, async (t) => {
+test("an agent keeps the name it joined with: changing agent.json after joining does not rename it", { timeout }, async (t) => {
   const paths = newHome(t);
   stubChatCompletions(t, "Hello");
   const { gateway } = await startNetwork(t);
-  const first = await startAt(t, paths.root);
+  const running = await startAt(t, paths.root);
   const before = await talkToAgent(t, "scout");
   await before.ask("first hello");
-  await first.close();
+  await running.close();
 
-  renameHome(paths, "skipper");
+  // Changing agent.json after first join does not rename the agent on the roster.
+  renameHome(paths, "ignored-name");
   await startAt(t, paths.root);
-  const after = await talkToAgent(t, "skipper");
-  const { receipt } = await after.ask("second hello");
+  const still = await talkToAgent(t, "scout");
+  const { receipt } = await still.ask("second hello");
 
-  assert.deepEqual([after.partner.id, after.thread.id], [before.partner.id, before.thread.id]);
+  assert.deepEqual([still.partner.id, still.thread.id], [before.partner.id, before.thread.id]);
   assert.equal(receipt.status, "answered");
-  assert.deepEqual((await after.replies()).map((reply) => [reply.text, reply.author.name]), [
-    ["Hello", "skipper"],
-    ["Hello", "skipper"],
-  ]);
-  assert.deepEqual(await agentNames(gateway), ["skipper"]);
+  assert.deepEqual(await agentNames(gateway), ["scout"]);
 });
 
 test("no model, or one that cannot be used, stops the start before the home is claimed", { timeout }, async (t) => {

@@ -25,16 +25,22 @@ export type MemberRecord =
   | { id: string; kind: "person"; name: string; recognizedBy: { machines?: DeviceRecord[] } }
   | { id: string; kind: "agent"; name: string; admin: boolean; recognizedBy: { tokenHash?: string } };
 
+/** The roster as kept in its file: its own ID and active members, oldest first. */
+export interface RosterFile {
+  id: string;
+  members: MemberRecord[];
+}
+
 /** The file's format. A roster of any other version is refused, never changed. */
-const VERSION = 2;
+const VERSION = 3;
 
 /** Where the roster is kept inside the gateway's data directory. */
 export const rosterFile = (dataDir: string): string => join(dataDir, "state", "roster.json");
 
-/** The members in the roster of the gateway's data directory, oldest first, or none when there is no file yet. */
-export function readRoster(dataDir: string): MemberRecord[] {
+/** The roster in the gateway's data directory, or undefined when there is no file yet. */
+export function readRoster(dataDir: string): RosterFile | undefined {
   const root = readConfig(rosterFile(dataDir));
-  if (root === undefined) return [];
+  if (root === undefined) return undefined;
   if (root.number("version") !== VERSION) {
     throw new Error(
       `The roster in ${dataDir} was written by another version of Shrimpy, and nothing converts it. ` +
@@ -42,9 +48,10 @@ export function readRoster(dataDir: string): MemberRecord[] {
         "Whatever joined with an invitation, an agent or a machine of yours, needs a new one.",
     );
   }
+  const id = root.string("id");
   const members = root.objects("members").map(parseMember);
   root.done();
-  return members;
+  return { id, members };
 }
 
 function parseMember(entry: ConfigObject): MemberRecord {
@@ -78,7 +85,7 @@ function parseDevice(entry: ConfigObject): DeviceRecord {
 }
 
 /** Write the roster whole, so that nobody reads half of it and a power cut leaves the old one or the new, readable only by its owner. */
-export function writeRoster(file: string, members: readonly MemberRecord[]): void {
+export function writeRoster(file: string, roster: RosterFile): void {
   mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-  saveFile(file, `${JSON.stringify({ version: VERSION, members }, null, 2)}\n`, { mode: 0o600 });
+  saveFile(file, `${JSON.stringify({ version: VERSION, id: roster.id, members: roster.members }, null, 2)}\n`, { mode: 0o600 });
 }

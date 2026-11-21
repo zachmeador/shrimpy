@@ -1,5 +1,11 @@
 import type { Entry } from "../gateway/index.ts";
 
+/** A join that was tried and has not heard the gateway's answer yet, so retrying with the same link shows the same token. */
+export interface JoiningMembership {
+  token: string;
+  gateway: Entry;
+}
+
 /**
  * What an agent's home keeps so that the agent is the same member of the
  * network every time it starts, and so that a `shrimpy` command run from the
@@ -20,6 +26,13 @@ export interface Membership {
    */
   memberId?: string;
   /**
+   * The ID of the roster this home last belonged to. An agent beside the
+   * gateway sends it in its hello so a roster that forgot or took back its token
+   * turns it away as unknown instead of letting it join again and colliding with
+   * its own name.
+   */
+  rosterId?: string;
+  /**
    * The gateway's entry, for an agent apart from the gateway: the one it joined
    * through, where it reaches the gateway and chat from then on, and where a
    * command run in its shell does, with the fingerprint of the gateway's key,
@@ -27,6 +40,8 @@ export interface Membership {
    * own machine.
    */
   gateway?: Entry;
+  /** A pending join whose answer has not arrived yet, kept apart so a failed join leaves an existing membership intact. */
+  joining?: JoiningMembership;
 }
 
 /** Where a home keeps its membership, inside the home. */
@@ -46,12 +61,13 @@ export function membershipFile(home: string): string {
 
 /**
  * What to do when the gateway doesn't know the token that `file` keeps, as the
- * agent and a command in its shell both say it: join as a new member, which an
- * agent beside the gateway does by starting again, and one `apart` from it with
- * a new invitation.
+ * agent and a command in its shell both say it: apart from the gateway, get a
+ * new invitation and run `shrimpy join <link>`; beside the gateway, delete
+ * `file` so the agent makes a new token (or move its home out if it was
+ * removed).
  */
 export function unknownTokenAdvice(file: string, apart: boolean): string {
   return apart
-    ? `To join as a new member, delete ${file}, get a new invitation and join again with it: shrimpy join <link>`
-    : `To join as a new member, delete ${file} and start the agent again.`;
+    ? `Get a new invitation and run shrimpy join <link> here to give this agent a new token (replacing ${file}).`
+    : `Delete ${file} so this agent makes a new token, or move its home out of the Shrimpy folder if it was removed.`;
 }

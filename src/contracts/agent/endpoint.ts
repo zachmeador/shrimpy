@@ -1,14 +1,20 @@
 /**
+ * The agent address served on a home's own socket (`agent({ id: HOME_AGENT })`),
+ * apart from the agent's member ID on a gateway's roster so a home's socket
+ * works before it has joined any gateway and while the gateway is down.
+ */
+export const HOME_AGENT = "home";
+
+/**
  * Where a running agent is reached by its home's path: its home's own socket,
- * which asks for no token and stamps whoever links there `home`, and the name it
- * answers to, which its objects' `agent` param takes. That is how an agent is
- * watched and stopped with no gateway running. Everyone else reaches an agent
- * by its name through the gateway.
+ * which asks for no token and stamps whoever links there `home`. That is how an
+ * agent is watched and stopped with no gateway running. Everyone else reaches
+ * an agent by its member ID through the gateway.
  */
 export interface AgentEndpoint {
   /** Absolute path of the home's own socket. */
   socket: string;
-  /** The name the agent answers to: its objects are at `agent({ name })`. */
+  /** The name from agent.json when the agent started. */
   name: string;
   pid: number;
 }

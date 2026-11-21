@@ -1,12 +1,12 @@
 /**
  * The agent's contract: what any client may ask of a running agent, as Chord
- * objects at `agent({ name })`. `Agent` is the agent as a whole, with its
+ * objects at `agent({ id })`. `Agent` is the agent as a whole, with its
  * sessions and its triggers; `Session` is one session, a window over its
  * history and control over its work; `AgentPresence` is the agent being there,
  * which the gateway holds. Every reference is live, so a client follows by
- * holding, and nothing polls. A client reaches an agent by its name through the
- * gateway, stamped with who it is, or by the agent's home path on the home's own
- * socket, where it is `home`. It carries Shrimpy's own shapes and values, which
+ * holding, and nothing polls. A client reaches an agent by its member ID
+ * through the gateway, stamped with who it is, or by the agent's home path on
+ * the home's own socket (at `HOME_AGENT`), where it is `home`. It carries Shrimpy's own shapes and values, which
  * the agent builds, and must not know the engine's record types, its codes or
  * any program's internals. The one sentence for each reason a turn ends without
  * an answer is here too, so that the agent's receipts and every client say it
@@ -21,10 +21,10 @@
  */
 export { Agent } from "./agent.ts";
 export { checkAgentName, parseModelChoice, sameModel } from "./agent-config.ts";
-export { AGENT_RUNTIME_DIR, type AgentEndpoint, endpointFile } from "./endpoint.ts";
+export { AGENT_RUNTIME_DIR, type AgentEndpoint, endpointFile, HOME_AGENT } from "./endpoint.ts";
 export { failureWords } from "./failures.ts";
 export { frontmatter, NO_FRONTMATTER } from "./frontmatter.ts";
-export { AGENT_HOME_VARIABLE, type Membership, membershipFile, unknownTokenAdvice } from "./membership.ts";
+export { AGENT_HOME_VARIABLE, type JoiningMembership, type Membership, membershipFile, unknownTokenAdvice } from "./membership.ts";
 export { AgentPresence } from "./presence.ts";
 export { delayMs, delayText, describeSchedule, normalizeDelay, sameSchedule } from "./schedule.ts";
 export { MAX_READ, Session } from "./session.ts";

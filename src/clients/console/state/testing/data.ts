@@ -150,8 +150,9 @@ export function onSession(
   view: SessionView | undefined,
   parts: Partial<Model> = {},
 ): Model {
+  const member = agentMember(agent);
   return aModel({
-    where: { screen: "session", agent, session: session.id },
+    where: { screen: "session", agent: member.id, session: session.id },
     listing: {
       programs: [anAgent(agent), aChatServer()],
       members: [{ ...zach, admin: true, reachable: false }, aRosterAgent(agent)],
@@ -167,8 +168,9 @@ export function onSession(
 
 /** A model on a thread of an agent's, with whatever else `parts` adds. */
 export function onThread(agent: string, thread: Thread, view: ThreadView | undefined, parts: Partial<Model> = {}): Model {
+  const member = agentMember(agent);
   return aModel({
-    where: { screen: "thread", place: { kind: "agent", name: agent }, thread: thread.id },
+    where: { screen: "thread", place: { kind: "agent", id: member.id }, thread: thread.id },
     listing: {
       programs: [anAgent(agent), aChatServer()],
       members: [{ ...zach, admin: true, reachable: false }, aRosterAgent(agent)],
@@ -176,7 +178,7 @@ export function onThread(agent: string, thread: Thread, view: ThreadView | undef
       version: SHRIMPY_VERSION,
     },
     agent: { state: "up" },
-    dms: { [agent]: aDm(agent, [thread]) },
+    dms: { [member.id]: aDm(agent, [thread]) },
     thread: view,
     ...parts,
   });

@@ -239,7 +239,7 @@ test("/model alone posts nothing, and a model chosen in a thread not started yet
   terminal.type(ENTER);
   assert.deepEqual(state.calls, ["model"], "the terminal says which model the thread uses");
 
-  state.show(aModel({ where: { screen: "thread", place: { kind: "agent", name: "scout" }, thread: undefined }, listing: aListing([anAgent("scout"), aChatServer()]) }));
+  state.show(aModel({ where: { screen: "thread", place: { kind: "agent", id: scout.id }, thread: undefined }, listing: aListing([anAgent("scout"), aChatServer()]) }));
   terminal.type("/model big");
   await until(() => drawn().includes("local/big-model"), "the list of models");
   terminal.type(ENTER);
@@ -401,9 +401,9 @@ test("leaving a thread whose agent is working stops its spinner, so a list does 
   assert.ok(terminal.output().includes("/stop"), "the working line is drawn");
 
   const list = aModel({
-    where: { screen: "threads", place: { kind: "agent", name: "scout" } },
+    where: { screen: "threads", place: { kind: "agent", id: scout.id } },
     listing: aListing([anAgent("scout"), aChatServer()]),
-    dms: { scout: aDm("scout", [aThread("th_a", { preview: "Check the disk usage", updatedAt: at(14, 5), working: [{ memberId: scout.id, since: now }] })]) },
+    dms: { [scout.id]: aDm("scout", [aThread("th_a", { preview: "Check the disk usage", updatedAt: at(14, 5), working: [{ memberId: scout.id, since: now }] })]) },
   });
   state.show(list);
   await pass(100);
@@ -438,13 +438,13 @@ test("nothing drawn is wider than the terminal, however narrow, whatever the cha
 
   const place = { kind: "room" as const, room: "日本語のとても長い部屋", thread: { main: false, name: "averyveryveryverylongthreadnamewithoutanyspacesatall".repeat(2) } };
   const sessions = [aSession("th_2", { place, working: true })];
-  const agent = { kind: "agent" as const, name: "scout" };
+  const agent = { kind: "agent" as const, id: scout.id };
   for (const filter of [LEFT, RIGHT]) {
     state.show({ ...model, where: { screen: "threads", place: agent }, sessions });
     terminal.type(filter);
     fits();
   }
-  state.show({ ...model, where: { screen: "session", agent: "scout", session: "th_2" }, sessions });
+  state.show({ ...model, where: { screen: "session", agent: scout.id, session: "th_2" }, sessions });
   fits();
   state.show({ ...model, where: { screen: "thread", place: agent, thread: "th_1", turned: true }, sessions });
   fits();
@@ -484,7 +484,7 @@ test("text from other members and from tools can't reach the terminal, wherever 
         { kind: "tool", name: `tool${hostile}` },
       ),
       sessions,
-      workingSessions: { scout: sessions.filter((each) => each.working) },
+      workingSessions: { [scout.id]: sessions.filter((each) => each.working) },
       listing: aListing([anAgent("scout", `1.0${hostile}`), aChatServer(`3.0${hostile}`)], `2.0${hostile}`),
       rooms: { ch_2: aRoom(`ops${hostile}`, ["scout"], [thread]) },
       readOnly: {
@@ -526,7 +526,7 @@ test("text from other members and from tools can't reach the terminal, wherever 
     { kind: "model-unstarted", defaultModel: used },
     { kind: "model-not-shown", problem: { down: { kind: "unreachable", message: `agent${hostile}` } } },
   ];
-  const dm = { kind: "agent" as const, name: "scout" };
+  const dm = { kind: "agent" as const, id: scout.id };
   const room = { kind: "room" as const, id: "ch_2" };
   const { terminal, drawing, state } = start(t, model);
 
@@ -536,13 +536,13 @@ test("text from other members and from tools can't reach the terminal, wherever 
     drawn.push(...drawing.render(80));
   };
   show({ ...model, where: { screen: "threads", place: dm } });
-  show({ ...model, where: { screen: "session", agent: "scout", session: "th_9" }, refusal: `refused${hostile}` });
+  show({ ...model, where: { screen: "session", agent: scout.id, session: "th_9" }, refusal: `refused${hostile}` });
   show({ ...model, where: { screen: "thread", place: dm, thread: "th_1", turned: true } });
   show({ ...model, where: { screen: "thread", place: dm, thread: "th_1" }, status: statuses.agent });
   show({ ...model, where: { screen: "threads", place: room } });
   show({ ...model, where: { screen: "thread", place: room, thread: "th_1" }, status: statuses.room });
   show({ ...model, where: { screen: "threads", place: { kind: "read-only", id: "ch_4" } } });
-  show({ ...model, where: { screen: "thread", place: { kind: "read-only", id: "ch_3" }, thread: "th_1", agent: "scout" } });
+  show({ ...model, where: { screen: "thread", place: { kind: "read-only", id: "ch_3" }, thread: "th_1", agent: scout.id } });
   show({
     ...model,
     chat: { state: "down", why: { kind: "unreachable", message: `chat${hostile}` } },
@@ -637,10 +637,10 @@ test("a trigger's own session is on the agent's list, which opens on it while it
   const nightly = aSession("trigger:nightly", { place: { kind: "trigger", trigger: "nightly" }, working: true });
   const disk = aThread("th_a", { preview: "check the disk", updatedAt: at(14, 5) });
   const list = aModel({
-    where: { screen: "threads", place: { kind: "agent", name: "scout" } },
+    where: { screen: "threads", place: { kind: "agent", id: scout.id } },
     listing: aListing([anAgent("scout"), aChatServer()]),
     agent: { state: "up" },
-    dms: { scout: aDm("scout", [disk]) },
+    dms: { [scout.id]: aDm("scout", [disk]) },
     sessions: [nightly],
   });
   const { terminal, state, lines } = start(t, list, { columns: 100 });
@@ -734,11 +734,11 @@ async function amongOthers(t: TestContext) {
   const drawn = (): string => lines().join("\n");
   const seen = (text: string): Promise<void> => until(() => drawn().includes(text), `the screen to show ${text}`);
   const said = async (threadId: string): Promise<string[]> => (await you.read(threadId, null, 50)).map((message) => message.text);
-  return { rig, you, asScout, mine, home, dm, lab, terminal, lines, drawn, seen, said };
+  return { rig, scout, mechanic, you, asScout, mine, home, dm, lab, terminal, lines, drawn, seen, said };
 }
 
 test("the first screen marks a room the person only reads, and an agent's screen lists its DMs with other agents", { timeout: 30_000 }, async (t) => {
-  const { rig, home, lab, terminal, lines, seen, said } = await amongOthers(t);
+  const { rig, scout: scoutMember, mechanic: mechanicMember, home, lab, terminal, lines, seen, said } = await amongOthers(t);
   await seen("#lab");
   const rowOf = (text: string): string => lines().find((line) => line.includes(text)) ?? "";
   const onlyRead = lines().filter((line) => line.includes(READ_ONLY_TAG));
@@ -771,13 +771,13 @@ test("the first screen marks a room the person only reads, and an agent's screen
   terminal.type(ENTER);
   await eventually(() => said(home.thread.id), (texts) => texts.includes("is it fixed?"), { what: "what was typed to be posted in the room" });
   terminal.type(ESC);
-  assert.deepEqual(rig.state.model().where, { screen: "threads", place: { kind: "agent", name: "scout" } });
+  assert.deepEqual(rig.state.model().where, { screen: "threads", place: { kind: "agent", id: scoutMember.id } });
 
   // The other agent in that DM has it on its screen too.
   terminal.type(ESC);
   terminal.type(UP);
   terminal.type(ENTER);
-  await rig.until((model) => model.where.screen === "threads" && model.where.place.kind === "agent" && model.where.place.name === "mechanic", "mechanic's screen");
+  await rig.until((model) => model.where.screen === "threads" && model.where.place.kind === "agent" && model.where.place.id === mechanicMember.id, "mechanic's screen");
   await seen("the backup finished");
   assert.ok(rowOf("the backup finished").includes("scout"));
 });

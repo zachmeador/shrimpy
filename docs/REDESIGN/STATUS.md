@@ -2,15 +2,9 @@
 
 Where the code falls short of the [design](README.md): promises it doesn't keep yet, and rough edges that are known. Work that hasn't started isn't listed here: each design file has its own under "Not built yet". A shortfall whose fix is designed stays here until the fix is built, and says only what falls short. What was built and decided, by date, is in the [log](history/LOG.md).
 
-As of 2026-11-16. An item leaves when it is fixed or when the design changes to match the code. Before each review pause, every item is fixed, raised with the owner or left here on purpose.
+As of 2026-11-20. An item leaves when it is fixed or when the design changes to match the code. Before each review pause, every item is fixed, raised with the owner or left here on purpose.
 
 ## Where the code trails the plan
-
-### Found by the review of 2026-11-15
-
-Four reviewers read the code on 2026-11-15, and you asked for what they found to be fixed. The [log](history/LOG.md#log) has what was fixed by 2026-11-16. This is what is left.
-
-- The CLI still uses the agent's front door for more than starting it: to preview what a home would tell its agent, and to sign in. Each is loaded only by its own command, and the lint names both. Whether the rule names them or they move is [waiting on you](AUTHOR-TO-REVIEW.md).
 
 ### The three programs and what each owns
 
@@ -37,7 +31,7 @@ Four reviewers read the code on 2026-11-15, and you asked for what they found to
 - The terminal reaches agents by name only, so with the gateway down it can't watch one. The `sessions` commands by a home's path can.
 - A command's `--agent` takes the name of a home's folder, or a path, and not the name on the roster. For an agent whose name in `agent.json` differs from its folder, the line the terminal prints about stopping its work names an agent the command can't find.
 - From an agent's shell, `agent init`, `agent serve` and `up` skip the admin check, and `status` lists no admins.
-- An agent names itself: each time it links, it asks for the name in its `agent.json`, and the gateway renames its entry to match, an agent apart included. The design has renaming an agent take an admin. Who owns an agent's name is part of a question [waiting on you](AUTHOR-TO-REVIEW.md).
+- `Roster.remove` is on the contract and has no `shrimpy` command yet.
 
 ### The conversation model
 
@@ -70,7 +64,7 @@ Four reviewers read the code on 2026-11-15, and you asked for what they found to
 ### The network
 
 - An agent apart from the gateway is paired with three commands: `shrimpy up --listen`, `shrimpy invite` and `shrimpy join`. Nothing lists the invitations that are out or takes one back, nothing shows where a gateway listens but its own start, and nothing makes it forget an address but deleting the file it keeps them in. `--listen` given to `up` when a gateway is already running only warns.
-- An agent apart is reached by its name through the gateway, by the code the terminal uses, and no command reaches it: `shrimpy sessions` and `triggers` find an agent by its home's folder, and `shrimpy status` looks only on the machine it runs on. Two messages still say to start an agent apart with `shrimpy agent serve` on the gateway's machine, where it has no home.
+- An agent apart is reached through the gateway, by the code the terminal uses, and no command reaches it: `shrimpy sessions` and `triggers` find an agent by its home's folder, and `shrimpy status` looks only on the machine it runs on. Two messages still say to start an agent apart with `shrimpy agent serve` on the gateway's machine, where it has no home.
 - A machine of your own comes in with `shrimpy invite` and `shrimpy join`, and keeps its place in `machine.json` in its Shrimpy folder. A folder that has joined as you and also holds agents that belong to no gateway is at odds with itself: `shrimpy up` there starts a gateway and a chat server for them, and the commands that talk reach the gateway elsewhere and find nobody. The terminal's words still say "this machine's gateway".
 - It has run for real since 2026-10-07 on a Linux machine of yours: a gateway, a chat server and two agents under one account, a third agent under another account of that machine that joined over loopback, each account's kept running by a service that `shrimpy install` set up, and all on model servers on the LAN. Before that, a gateway on a Mac with Node 26 was paired with an agent, and then a machine of your own, on Linux with Node 22, through an SSH tunnel and straight over a tailnet.
 - `shrimpy install` and `uninstall` have run for real on Linux only, on your machine: a first install, an update of a unit written by hand and an uninstall, for the account with the gateway and for one whose agent belongs to a gateway elsewhere. Not run for real: lingering that takes an administrator, and everything on macOS, where the LaunchAgent passes `plutil -lint` and no `launchctl` command has run.

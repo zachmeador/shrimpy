@@ -34,8 +34,8 @@ export interface ConsoleState {
   /** Tell `listener` after each change. Returns what stops that. */
   subscribe(listener: (model: Model) => void): () => void;
 
-  /** Show everything an agent takes part in. */
-  selectAgent(name: string): void;
+  /** Show everything an agent takes part in, by its member ID. */
+  selectAgent(id: string): void;
   /** Show the threads of a room the person is in, by its channel's ID. */
   selectRoom(roomId: string): void;
   /** Show the threads of a channel the person is not in and only reads, by its channel's ID. */
@@ -163,14 +163,14 @@ export async function createConsoleState(options: ConsoleStateOptions): Promise<
     const entries = agentEntries(store.model());
     moves.land(entries);
     const listed = store.model().where.screen === "agents" && moves.landed();
-    held.callRoll(new Set(listed ? entries.filter((entry) => entry.running).map((entry) => entry.name) : []));
+    held.callRoll(new Set(listed ? entries.filter((entry) => entry.running).map((entry) => entry.id) : []));
     readBack(held, store.model().where, () => store.changed());
   }
 
   return {
     model: () => store.model(),
     subscribe: (listener) => store.subscribe(listener),
-    selectAgent: (name) => moves.selectAgent(name),
+    selectAgent: (id) => moves.selectAgent(id),
     selectRoom: (id) => moves.selectChannel({ kind: "room", id }),
     selectReadOnly: (id) => moves.selectChannel({ kind: "read-only", id }),
     openThread: (threadId) => moves.open(threadId),

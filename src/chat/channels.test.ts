@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Channel, Chat, Thread } from "../contracts/chat/index.ts";
-import { linkTestAgent } from "../contracts/gateway/testing/index.ts";
 import { until } from "../lib/testing/index.ts";
 import { refusalOf, startChatInProcess, valueOf } from "./testing/index.ts";
 
@@ -79,23 +80,22 @@ test("you read a channel you are not in, with its thread read-only and a post th
   assert.deepEqual(yours.readOnlyChannels.value, []);
 });
 
-test("an agent renamed on the roster is the same member, named so in the channels and messages it is in", { timeout }, async (t) => {
+test("a person renamed in settings.json is the same member, named so in the channels and messages they are in", { timeout }, async (t) => {
   const chat = await startChatInProcess(t);
   const you = await chat.person();
   const scout = await chat.agent("scout");
   const yours = await you.host.get(Chat, {}, context);
+  const scouts = await scout.host.get(Chat, {}, context);
   const dm = valueOf(await yours.openDm({ member: scout.you.id }, context));
   const [main] = (await you.host.get(Channel, { channel: dm.id }, context)).threads.value;
   assert.ok(main);
-  const watching = await you.host.get(Thread, { thread: main.id }, context);
-  valueOf(await (await scout.host.get(Thread, { thread: main.id }, context)).post({ text: "Hello.", request: "scout-1" }, context));
+  const watching = await scout.host.get(Thread, { thread: main.id }, context);
+  valueOf(await (await you.host.get(Thread, { thread: main.id }, context)).post({ text: "Hello.", request: "you-1" }, context));
 
-  // An agent's program that links under another name renames it.
-  await scout.stop();
-  const renamed = await linkTestAgent(t, "scouty", { token: scout.token });
-  assert.equal(renamed.you.id, scout.you.id);
+  mkdirSync(chat.gateway.folder, { recursive: true });
+  writeFileSync(join(chat.gateway.folder, "settings.json"), JSON.stringify({ name: "zachary" }));
 
-  await until(() => yours.channels.value[0]?.name === "scouty", "the DM to be named for scouty");
-  await until(() => watching.messages.value[0]?.author.name === "scouty", "the message to name its author scouty");
-  assert.equal((await renamed.host.get(Chat, {}, context)).channels.value[0]?.id, dm.id, "with its channels");
+  await until(() => scouts.channels.value[0]?.name === "zachary", "the DM to be named for zachary");
+  await until(() => watching.messages.value[0]?.author.name === "zachary", "the message to name its author zachary");
+  assert.equal(yours.channels.value[0]?.id, dm.id, "with your channels");
 });

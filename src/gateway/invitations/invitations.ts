@@ -1,4 +1,5 @@
 import { randomInt } from "node:crypto";
+import { nameKey } from "../../contracts/gateway/index.ts";
 
 /** How long an invitation is good for. */
 const INVITATION_MS = 15 * 60_000;
@@ -8,12 +9,14 @@ const ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
 const LENGTH = 8;
 
 /**
- * What asking whether a code is good came to. A good code comes with `spend`,
- * which uses it up, for the caller to do once the member it lets in has been
- * made. `unknown` is a code that the gateway never made, that ran out or that
- * is for someone else.
+ * What asking whether a code is good came to. A good code comes with `name`
+ * (the spelling the invitation was made for), `member` (the existing agent's
+ * member ID when the invitation replaces its token, or null for a new agent),
+ * and `spend`, which uses it up once the member has joined or been given its
+ * new token. `unknown` is a code that the gateway never made, that ran out or
+ * that is for someone else.
  */
-export type Checked = { ok: true; spend(): void } | { ok: false; why: "unknown" | "used" };
+export type Checked = { ok: true; name: string; member: string | null; spend(): void } | { ok: false; why: "unknown" | "used" };
 
 /** What asking about a code for a device came to: as `Checked`, with the person the device is let in as. */
 export type CheckedForDevice = { ok: true; person: string; spend(): void } | { ok: false; why: "unknown" | "used" };
@@ -26,21 +29,24 @@ export interface Issued {
 }
 
 /**
- * The invitations in flight: a code that lets one agent in from apart, for one
- * name, or one device of yours, for you. A code is good once
- * and for a short time, and only for what it was made for, so whoever holds one
- * can't take another. They are kept in memory only, so a gateway that restarts
- * forgets them, and whoever held one asks for another.
+ * The invitations in flight: a code that lets one agent in from apart (as a new
+ * agent for one name, or to replace an existing agent's token), or one device
+ * of yours, for you. A code is good once and for a short time, and only for
+ * what it was made for, so whoever holds one can't take another. They are kept
+ * in memory only, so a gateway that restarts forgets them, and whoever held one
+ * asks for another.
  */
 export interface Invitations {
-  /** A new code for an agent called `name`. */
-  issue(name: string): Issued;
+  /** A new code for an agent called `name`, replacing `member`'s token when non-null or making a new agent when null. */
+  issue(name: string, member?: string | null): Issued;
   /** A new code for a device of the person `memberId`, who is who the device is from then on. */
   issueForDevice(memberId: string): Issued;
-  /** Whether `code` is good for an agent called `name` now. It is read without regard to case or the hyphen, and nothing is spent. */
+  /** Whether `code` is good for an agent called `name` now (case-insensitively). Nothing is spent. */
   check(code: unknown, name: unknown): Checked;
   /** Whether `code` is good for a device now, read as `check` reads it, and nothing is spent. */
   checkForDevice(code: unknown): CheckedForDevice;
+  /** Drop any unspent invitations targeting the existing agent `memberId`, as when that agent is removed. */
+  forgetMember(memberId: string): void;
 }
 
 export interface InvitationsOptions {
@@ -49,8 +55,8 @@ export interface InvitationsOptions {
   ttlMs?: number;
 }
 
-/** Who a code lets in: an agent by its name, or a device of the person who has this member ID. */
-type Whom = { agent: string } | { person: string };
+/** Who a code lets in: an agent by its name (and existing member ID when replacing a token), or a device of the person. */
+type Whom = { agent: string; member: string | null } | { person: string };
 
 interface Entry {
   whom: Whom;
@@ -83,14 +89,23 @@ export function createInvitations(options: InvitationsOptions = {}): Invitations
   };
 
   return {
-    issue: (name) => make({ agent: name }),
+    issue: (name, member = null) => make({ agent: name, member }),
     issueForDevice: (memberId) => make({ person: memberId }),
     check(code, name) {
       const found = find(code);
-      if (found === undefined || !("agent" in found.whom) || found.whom.agent !== name) return { ok: false, why: "unknown" };
+      if (
+        found === undefined ||
+        !("agent" in found.whom) ||
+        typeof name !== "string" ||
+        nameKey(found.whom.agent) !== nameKey(name)
+      ) {
+        return { ok: false, why: "unknown" };
+      }
       if (found.used) return { ok: false, why: "used" };
       return {
         ok: true,
+        name: found.whom.agent,
+        member: found.whom.member,
         spend() {
           found.used = true;
         },
@@ -107,6 +122,11 @@ export function createInvitations(options: InvitationsOptions = {}): Invitations
           found.used = true;
         },
       };
+    },
+    forgetMember(memberId) {
+      for (const [key, entry] of issued) {
+        if ("agent" in entry.whom && entry.whom.member === memberId && !entry.used) issued.delete(key);
+      }
     },
   };
 }

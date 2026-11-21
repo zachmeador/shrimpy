@@ -18,9 +18,9 @@ export interface MembershipStore {
 }
 
 export interface GatewayLinkOptions {
-  /** The agent's host, at `agent({ name })`, which has loaded. */
-  host: Host<Principal, Revocation>;
-  /** The name the agent asks the roster to call it, which is its host's address too. */
+  /** Prepare and return the agent's Chord host for `memberId`, at `agent({ id: memberId })`, once the gateway welcomes it. */
+  serve(memberId: string): Promise<Host<Principal, Revocation>>;
+  /** The agent's name, from `agent.json`, used when it first joins a roster. */
   name: string;
   /**
    * Where the gateway's entry is, when the agent is apart from the gateway,
@@ -81,34 +81,36 @@ function adviceFor(reason: Reason | null, files: HomeFiles, apart: boolean): str
 }
 
 /**
- * Keep the agent linked to the gateway as the agent called `name`: on the
- * gateway's own socket beside it, or at its entry from apart. Its link is its
- * registration, requests for its objects arrive over it, and its own go up it,
- * as the agent. The first time, the agent makes its token and keeps it in its
- * home before its first hello, so that a hello whose answer never arrives is
- * said again with the same token and finds the same member. Once the gateway has
- * said who it is, the agent keeps that too. A name that differs from the
- * roster's renames it. None of it delays or fails anything: the gateway may
- * start after the agent, and the agent finds it again each time it comes back. A
- * refusal is told once, with what to do about it when the gateway names the
- * case, and is told again only if it changes or the agent has been let in since.
- * An agent apart says once that it can't reach the gateway, however long that
- * lasts, and once that it is back. It says hello only to the key it kept, so
- * an entry that doesn't prove it is the agent's gateway is told once, sent
- * nothing, and tried again, as one that can't be reached is.
+ * Keep the agent linked to the gateway: on the gateway's own socket beside it,
+ * or at its entry from apart. Its link is its registration, requests for its
+ * objects arrive over it, and its own go up it, as the agent. The first time,
+ * the agent makes its token and keeps it in its home before its first hello, so
+ * that a hello whose answer never arrives is said again with the same token and
+ * finds the same member. Once the gateway has welcomed it, the agent keeps its
+ * member ID and the roster's ID too, and prepares its host at `agent({ id })`.
+ * An agent keeps the name it joined with: linking never renames it.
+ * None of it delays or fails anything: the gateway may start after the agent,
+ * and the agent finds it again each time it comes back. A refusal is told once,
+ * with what to do about it when the gateway names the case, and is told again
+ * only if it changes or the agent has been let in since. An agent apart says
+ * once that it can't reach the gateway, however long that lasts, and once that
+ * it is back. It says hello only to the key it kept, so an entry that doesn't
+ * prove it is the agent's gateway is told once, sent nothing, and tried again,
+ * as one that can't be reached is.
  */
 export function linkToGateway(options: GatewayLinkOptions): GatewayLink {
   const { name, membership, files, apart } = options;
-  const place = apart ?? { path: gatewaySocket() };
+  const currentPlace = () => membership.read()?.gateway ?? apart ?? { path: gatewaySocket() };
+  const isApart = () => membership.read()?.gateway !== undefined || apart !== undefined;
   const tell = (line: string): void => options.onError(new Error(line));
   const stopping = new AbortController();
   let you: Member | undefined;
   // One beside the gateway says nothing of a gateway it can't reach, and keeps trying, as it does while no gateway is listening.
   const standing = reportLinking(
-    place,
+    currentPlace,
     {
       refused(error) {
-        const advice = adviceFor(error.reason, files, apart !== undefined);
+        const advice = adviceFor(error.reason, files, isApart());
         return `Could not join the network: the gateway did not let ${name} in: ${error.message}${advice === undefined ? "" : ` ${advice}`}`;
       },
       meanwhile: apart === undefined ? undefined : "This agent keeps trying.",
@@ -116,31 +118,39 @@ export function linkToGateway(options: GatewayLinkOptions): GatewayLink {
     tell,
   );
 
-  /** The token the home keeps, made and kept first if it has none. */
-  const token = (): string => {
+  /** The membership the home keeps, making and saving its token first if it has none. */
+  const currentMembership = (): Membership => {
     const saved = membership.read();
-    if (saved !== undefined) return saved.token;
+    if (saved !== undefined) return saved;
     const made: Membership = { token: newToken(), ...(apart === undefined ? {} : { gateway: apart }) };
     membership.save(made);
-    return made.token;
+    return made;
   };
 
   const linking = keepLinked({
-    host: options.host,
-    place,
-    who: () => ({ kind: "agent", name, token: token() }),
+    host: async (answer) => {
+      if (answer.you === null) throw new Error("The gateway welcomed an agent as nobody.");
+      return options.serve(answer.you.id);
+    },
+    place: currentPlace,
+    who: () => {
+      const saved = currentMembership();
+      return { kind: "agent", name, token: saved.token, roster: saved.rosterId ?? null };
+    },
     signal: stopping.signal,
     onWelcome(answer) {
       standing.welcomed();
       if (answer.you === null) return;
       you = answer.you;
       const kept = membership.read();
-      if (kept === undefined || kept.memberId === answer.you.id) return;
+      if (kept === undefined) return;
+      const rosterId = answer.roster ?? kept.rosterId;
+      if (kept.memberId === answer.you.id && kept.rosterId === rosterId) return;
       // The gateway's word is who the token is: a home whose roster was replaced is a new member beside the gateway.
-      if (kept.memberId !== undefined) {
+      if (kept.memberId !== undefined && kept.memberId !== answer.you.id) {
         tell(`${files.membership} said this agent is ${kept.memberId}, and the gateway takes its token for ${answer.you.id}, which it keeps from now on.`);
       }
-      membership.save({ ...kept, memberId: answer.you.id });
+      membership.save({ ...kept, memberId: answer.you.id, ...(rosterId === undefined ? {} : { rosterId }) });
     },
     onError: (error) => standing.failed(error),
     ...(options.backoff === undefined ? {} : { backoff: options.backoff }),

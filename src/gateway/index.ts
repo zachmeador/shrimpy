@@ -132,6 +132,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
       console.error(`[gateway] ${hostFailure(error).message}`);
     };
     const view = createView(() => ({
+      id: roster.id,
       members: roster.members().map((member) => ({ ...member, reachable: programs.reachable(member.id) })),
       programs: programs.list(),
       ways: roster.ways(),

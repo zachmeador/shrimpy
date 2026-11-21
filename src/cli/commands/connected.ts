@@ -14,7 +14,7 @@ export async function connectIfRunning(home: string): Promise<AgentReached | und
   if (shell !== undefined) return reachAgent(shell, home);
   try {
     const client = await connectHome(home);
-    return { name: client.name, host: client.host, close: () => client.close() };
+    return { agent: client.agent, host: client.host, close: () => client.close() };
   } catch (error) {
     if (error instanceof AgentNotRunningError) return undefined;
     throw error;

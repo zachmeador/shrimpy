@@ -32,6 +32,7 @@ export interface Actions {
   invite(caller: Principal, name: string): Answer<Invitation>;
   inviteDevice(caller: Principal): Answer<Invitation>;
   setAdmin(caller: Principal, member: string, admin: boolean): Answer<Member>;
+  remove(caller: Principal, member: string): Answer<null>;
   takeBack(caller: Principal, way: string): Answer<null>;
 }
 
@@ -64,9 +65,9 @@ export function createActions(deps: ActionsDeps): Actions {
       if (!asking.admin) return needsAdmin("Inviting an agent", asking, admins());
       const addresses = listening();
       if (addresses === undefined) return nowhere;
-      const vacant = roster.vacant(name);
-      if (vacant.kind === "refused") return vacant;
-      const { code, expires } = invitations.issue(vacant.value);
+      const target = roster.canInvite(name);
+      if (target.kind === "refused") return target;
+      const { code, expires } = invitations.issue(target.value.name, target.value.member);
       return done({ code, addresses, fingerprint: deps.fingerprint, expires });
     },
     inviteDevice(caller) {
@@ -86,6 +87,17 @@ export function createActions(deps: ActionsDeps): Actions {
       if (asking === undefined) return notAMember;
       if (!asking.admin) return needsAdmin(admin ? "Promoting an agent" : "Demoting an agent", asking, admins());
       return roster.setAdmin(member, admin);
+    },
+    remove(caller, member) {
+      const asking = memberOf(caller);
+      if (asking === undefined) return notAMember;
+      if (!asking.admin) return needsAdmin("Removing an agent", asking, admins());
+      const removed = roster.remove(member);
+      if (removed.kind === "refused") return removed;
+      invitations.forgetMember(member);
+      host.revoke({ member }, deps.context);
+      programs.dropAgent(member);
+      return done(null);
     },
     takeBack(caller, id) {
       const way = roster.ways().find((each) => each.id === id);

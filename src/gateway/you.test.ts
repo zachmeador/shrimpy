@@ -43,7 +43,7 @@ test("a roster that holds a second person is refused, with words that name both"
     { id: "mem_first", kind: "person", name: "first", recognizedBy: {} },
     { id: "mem_second", kind: "person", name: "second", recognizedBy: {} },
   ];
-  writeFileSync(file, JSON.stringify({ version: 2, members: people }));
+  writeFileSync(file, JSON.stringify({ version: 3, id: "ros_testroster01", members: people }));
 
   await assert.rejects(
     startGatewayInProcess(t, { dataDir }),

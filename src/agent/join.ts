@@ -1,4 +1,4 @@
-import type { Host } from "@earendil-works/chord";
+import type { Facet, Host } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { readMembership, saveMembership } from "../contracts/agent/node.ts";
 import type { Entry, LiveRoster, Principal, Revocation } from "../contracts/gateway/index.ts";
@@ -6,6 +6,7 @@ import type { Backoff } from "../lib/retry/index.ts";
 import { type Admissions, type ChatDelivery, markWorking, readFeed, type Wakes } from "./chat/index.ts";
 import { homePaths } from "./home/index.ts";
 import { type ChatCalls, type LiveChat, linkToGateway, openChatLink } from "./links/index.ts";
+import { createAgentHost } from "./server.ts";
 import type { Working } from "./turns/index.ts";
 
 export interface JoinOptions {
@@ -45,12 +46,12 @@ export interface Joined {
 
 /** What taking part in the network needs to know about the agent. */
 export interface Participant {
-  /** What the agent asks the roster to call it, which its host's address is for. */
+  /** The agent's name, from `agent.json`, used when it first joins a roster. */
   name: string;
   /** The agent's home, where its membership is kept. */
   home: string;
-  /** The agent's host, which has loaded: its link to the gateway, and every hold it makes over it, is the agent's. */
-  host: Host<Principal, Revocation>;
+  /** The agent's objects, loaded on its network host once the gateway welcomes it with its member ID. */
+  facet: Facet<Principal>;
   /** The roster, which the agent holds at the gateway from now on. */
   roster: LiveRoster;
   /** Where the agent stands in chat's feed, and how it takes an event up. */
@@ -65,20 +66,34 @@ export interface Participant {
 }
 
 /**
- * Take part in the network as the agent called `name`: keep the agent's host
- * linked to the gateway, which is how it is a member and how requests for it
- * arrive, hold the roster and chat over that link, and take up the events chat
- * brings that wake the agent. Who the agent is comes from the gateway and from
- * nothing the agent says. None of it delays the agent's start or stops its
- * sessions working: the gateway and chat may not be there yet, or go away, and
- * the agent finds them again.
+ * Take part in the network: keep the agent linked to the gateway, which is how
+ * it is a member and how requests for it arrive at `agent({ id })`, hold the
+ * roster and chat over that link, and take up the events chat brings that wake
+ * the agent. Who the agent is comes from the gateway and from nothing the agent
+ * says. None of it delays the agent's start or stops its sessions working: the
+ * gateway and chat may not be there yet, or go away, and the agent finds them
+ * again.
  */
 export function join(participant: Participant, options: JoinOptions): Joined {
-  const { name, host, roster, admissions, wakes, working, delivery, onError } = participant;
+  const { name, facet, roster, admissions, wakes, working, delivery, onError } = participant;
   const paths = homePaths(participant.home);
   const backoff = options.backoff;
+  const link = openChatLink(onError, options.chatCalls);
+  let network: { id: string; host: Host<Principal, Revocation> } | undefined;
+
+  const serve = async (memberId: string): Promise<Host<Principal, Revocation>> => {
+    if (network?.id === memberId) return network.host;
+    const host = await createAgentHost(memberId, facet, onError);
+    const previous = network?.host;
+    network = { id: memberId, host };
+    roster.follow(host, BACKGROUND_CONTEXT);
+    link.follow(host);
+    await previous?.close(BACKGROUND_CONTEXT);
+    return host;
+  };
+
   const gateway = linkToGateway({
-    host,
+    serve,
     name,
     membership: { read: () => readMembership(paths.root), save: (membership) => saveMembership(paths.root, membership) },
     files: { name: paths.config, membership: paths.member },
@@ -86,8 +101,6 @@ export function join(participant: Participant, options: JoinOptions): Joined {
     ...(options.apart === undefined ? {} : { apart: options.apart }),
     ...(backoff === undefined ? {} : { backoff: backoff() }),
   });
-  roster.follow(host, BACKGROUND_CONTEXT);
-  const link = openChatLink(host, onError, options.chatCalls);
   delivery.attach(link);
   const stopMarking = markWorking(link, working, onError);
   const taking = new AbortController();
@@ -120,6 +133,7 @@ export function join(participant: Participant, options: JoinOptions): Joined {
         } finally {
           await link.close();
           roster.close();
+          await network?.host.close(BACKGROUND_CONTEXT);
         }
       }
     },
