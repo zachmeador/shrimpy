@@ -40,7 +40,7 @@ It covers waking itself later, standing triggers, breadcrumbs, asking another ag
 - A trigger and each of its occurrences are separate durable tasks. A trigger's task belongs to a conversation of the agent's own that is no session, and an occurrence belongs to the session it goes to. Occurrences are marked `background: true`, so changing or cancelling a trigger doesn't cancel a running occurrence.
 - The trigger's task keeps its revision and its next occurrence. The definition, with its thread, prompt and overlap, is kept in Shrimpy's records and read at each occurrence. Admit prompt work with a stable trigger and occurrence ID.
 - **What a trigger brings in is data, not instructions.** The trigger's own prompt is the instruction, and it comes from whoever wrote the trigger. What a firing brings with it, a command's output today and perhaps an outside event's payload later, reaches the model marked as something to read, never as something to obey. Old Shrimpy pasted a command's output into a message its skill called an instruction; this one doesn't.
-- **An occurrence keeps its payload apart from the prompt.** It carries an ID from its source, when it fired and a payload, beside the trigger's prompt and never merged into it, so the two can be told apart in storage, in what the model is shown and in what a client draws. Both rules come from the [MCP events research](../../research/mcp-events-and-triggers-2026-10-04.md).
+- **An occurrence keeps its payload apart from the prompt.** It carries an ID from its source, when it fired and a payload, beside the trigger's prompt and never merged into it, so the two can be told apart in storage, in what the model is shown and in what a client draws. Both rules come from research on MCP events, on 2026-10-04.
 - Command occurrences record intent before running. If an unsafe command had started when the owner died, the occurrence reports interrupted and isn't rerun. A finished result and emission decision are kept, so an admission retry doesn't repeat the check.
 - The extension owns coalescing, overlap, timeouts, emission, reload and cancellation policy. Pi owns checkpoints, outcomes and observation. The host only installs code and seeds selected definitions.
 - Cancelling all work in a home includes running occurrences and helpers, not enabled triggers.
@@ -95,7 +95,7 @@ The old row's "output filters" are `when`. A fact that changes while an input wa
 | Cancel, disable and stop | — | Three separate controls. Cancelling work stops running occurrences and helpers but not the triggers themselves. Disabling a trigger stops future firings without killing a running one. Service stop interrupts everything and keeps state. | Confirmed |
 | Context producers | Opt-in commands with channel matching, caching and bounds | Replaced by breadcrumbs, and no command runs before a turn. A fact that moves is one small file in a folder of the home: a line or two, and how to look closer. A trigger's check, a script or the agent writes it. When an input is handed to a session, the files that differ from what that session last saw come with it. So a fact is told once, when it is new to that session, nothing enters the prompt, and nobody is woken. A check that fails writes that into its file. To be built with a trigger's checks ([contract](7-on-its-own.md)). | Confirmed |
 | Helpers | — | An agent can start helpers: child sessions in its own process, with its home and authority. Foreground helpers join and stop with their parent. Background helpers outlive it and wake the parent with their result when they finish. Helpers appear in a work view and never become agents. Pi calls them subagents. | Confirmed |
-| Workers | Detach and outlive the caller | Same default. Codex keeps its real continue, send, wait and cancel protocol; after the owner dies it isn't a restored Pi child. Renaming or removing worker commands or backends needs review. | Keep |
+| Workers | Worker commands and backends, with runs that detach and outlive the caller | Gone, with nothing of Shrimpy's in their place. Handing a task to another program, such as Codex, is the agent's own shell and a trigger: it starts the program's CLI, a trigger's check wakes it when the run has news, and the program's own resume carries the conversation on. Shrimpy keeps no record of such a run. A skill says how, when that is wanted. | Changed on 2026-11-21: "yeah remove the workers thing". Old Shrimpy's watches became triggers, and a trigger with a check already does a worker's waiting |
 
 **Open**
 
@@ -113,11 +113,11 @@ Under Later in the [order of work](../PLAN.md#order-of-work).
 
 **Build**
 
-- Helpers in the foreground and background, and the retained Codex workflow.
+- Helpers in the foreground and background.
 
 **Prove**
 
-- Delegation through the real Codex backend: start, inspect, continue, wait, cancel, close and outputs, across caller disconnect and owner death. A background helper wakes its parent when it finishes, and Pi task ownership never cancels detached external workers.
+- A background helper wakes its parent when it finishes.
 
 **Replaces:** the old watch and worker stores and supervisors.
 

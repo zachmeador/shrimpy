@@ -83,7 +83,7 @@ By hand that is one line on the gateway's machine and two where the agent will l
 - **Administration.** An agent with the admin role reaches its neighbors over SSH to the machine that hosts them, then edits their homes directly or through the sandbox's own exec or mount. The sandbox itself still accepts nothing inbound.
 - **Shared configuration.** A shared read-only config referenced by path needs a mount or a copy inside the sandbox.
 
-The [sandbox runtime scout](../../research/sandbox-runtime-scout-2026-08-26.md) compares candidate sandboxes.
+A scout of sandbox runtimes on 2026-08-26 compared the candidates.
 
 **Decisions**
 
@@ -121,7 +121,7 @@ The [sandbox runtime scout](../../research/sandbox-runtime-scout-2026-08-26.md) 
 - **`shrimpy join <link>`** makes the home in the Shrimpy folder if there is none, joins, and gives up on a gateway that doesn't answer within a quarter of a minute.
 - **`shrimpy up` where there is no gateway.** When every agent it is to start belongs to a gateway elsewhere, it starts those agents and no gateway or chat server, unless it is told to listen.
 
-**Underneath, since the move to Pi 1.5.2.** The first three steps were built on 2026-10-06 and 2026-10-07 with tickets, calls the gateway made for an agent apart, and pings of Shrimpy's own, as [the log](../history/LOG.md) has it. Chord's relay replaced those on 2026-11-14, and what holds now is this.
+**Underneath, since the move to Pi 1.5.2.** The first three steps were built on 2026-10-06 and 2026-10-07 with tickets, calls the gateway made for an agent apart, and pings of Shrimpy's own. Chord's relay replaced those on 2026-11-14, and what holds now is this.
 
 - **Who a connection is.** A connection over the entry is apart from the gateway. Until it shows a token or a code it gets nothing. One that shows an agent's token is that agent, and every request it makes is stamped as the agent.
 - **An invitation.** It is good once and for fifteen minutes. The answer has the code, the addresses the gateway listens on and its key's fingerprint, and with no address it is refused: nobody could use it.

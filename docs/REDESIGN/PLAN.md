@@ -7,7 +7,7 @@ Shrimpy's session machinery gets replaced with `pi-durable`. Each agent becomes 
 
 The aim is fewer state machines, clearer ownership, and a smaller, better organized codebase. Switching engines doesn't license quiet changes to how people or agents use Shrimpy: every visible change is a row in a piece's Decisions table, under [the design](#the-design).
 
-This file owns why, the direction, the words and the order of work. The [design files](#the-design) own the architecture and the experience decisions, and each one's Not built yet holds what isn't built of its piece. [STATUS.md](STATUS.md) lists where built code trails them, [your list](AUTHOR-TO-REVIEW.md) holds what waits on you, and the [log](history/LOG.md) records what was built and decided. Each of these has one home, and other files link to it instead of saying it again. The [Pi research note](../research/pi-agent.md#pi-durable-source-and-recovery-investigation) owns upstream findings and probes. [Reference docs](../../shrimpy-old/docs/reference/README.md) describe old Shrimpy.
+This file owns why, the direction, the words and the order of work. The [design files](#the-design) own the architecture and the experience decisions, and each one's Not built yet holds what isn't built of its piece. [STATUS.md](STATUS.md) lists where built code trails them, [your list](AUTHOR-TO-REVIEW.md) holds what waits on you, and the commit messages record what was built and why. Each of these has one home, and other files link to it instead of saying it again. [Reference docs](../../shrimpy-old/docs/reference/README.md) describe old Shrimpy.
 
 ## Why
 
@@ -112,15 +112,17 @@ Everything else sits on top of these and can change without touching them: wordi
 
 **Tests earn their place.** A test protects something that would be missed: a seam between programs, starting, stopping, crashing and recovering, a promise this plan makes, or a bug that was actually seen. Nothing else needs one. A test doesn't pin wording or an internal shape. There are no tests of test support, of trivial helpers or of every permutation, and one test through the real path beats several on its pieces. When a change breaks a test that only recorded how things were, the test goes, not the change. Old Shrimpy's tests are a guide to nothing: they are deleted with the old tree, and nobody building the new one reads them.
 
-**The build follows this plan, and every mismatch gets raised.** Slop piles up when code quietly drifts from the design. Whoever builds, a person or an agent, builds what this plan says. When the plan is wrong, unclear or silent, or the code can't follow it, that is raised with the user and the agent coordinating the build. It is never settled quietly in the code. Then the plan changes or the code does, so the two don't stay apart. A visible choice a builder made alone isn't decided. One that changes the design goes to [the author's list](AUTHOR-TO-REVIEW.md), a small one is noted in the [log](history/LOG.md) entry of the change that made it, and a known gap goes into the list in [STATUS.md](STATUS.md).
+**The README stays small.** It says how to run and check Shrimpy, the layout rules in short and the commands, in a table written from the CLI. Nobody adds behavior to it, and no copy of what the code does is kept anywhere else: the code, its tests and `--help` say it and stay current, and a copy that nothing keeps current misleads. It was cut back on 2026-10-05, from about 8,200 words, after builders had added to it with each change.
 
-Each review pause has a shape review against the [layout rules](design/code-layout.md), a look at how large `lib/` has grown, and a new row in the [size log](history/size-baseline.md). The [log](history/LOG.md) records progress, and [STATUS.md](STATUS.md) lists where the code trails this plan.
+**The build follows this plan, and every mismatch gets raised.** Slop piles up when code quietly drifts from the design. Whoever builds, a person or an agent, builds what this plan says. When the plan is wrong, unclear or silent, or the code can't follow it, that is raised with the user and the agent coordinating the build. It is never settled quietly in the code. Then the plan changes or the code does, so the two don't stay apart. A visible choice a builder made alone isn't decided. One that changes the design goes to [the author's list](AUTHOR-TO-REVIEW.md), a small one is noted in the message of the commit that made it, and a known gap goes into the list in [STATUS.md](STATUS.md).
 
-The order follows what daily use shows is rough or missing. Two things are built side by side when they barely share code, as rooms and triggers were. What is built, in order, is at the top of the [log](history/LOG.md).
+Each review pause has a shape review against the [layout rules](design/code-layout.md) and a look at how large `src/` and its `lib/` have grown. [STATUS.md](STATUS.md) lists where the code trails this plan.
+
+The order follows what daily use shows is rough or missing. Two things are built side by side when they barely share code, as rooms and triggers were. What is built, in order, is `git log`.
 
 **Now:**
 
-- Putting the move to Pi 1.5.2 on a setup in use: what Shrimpy wrote before it goes into an archive beside the Shrimpy folder, an agent elsewhere joins again with a new invitation, and your name goes in `settings.json`, as [the home](design/5-home.md) has it. The move itself is in the [log](history/LOG.md#log).
+- Putting the move to Pi 1.5.2 on a setup in use: what Shrimpy wrote before it goes into an archive beside the Shrimpy folder, an agent elsewhere joins again with a new invitation, and your name goes in `settings.json`, as [the home](design/5-home.md) has it.
 - In the terminal, a room's thread showing each agent's work, and `/devices invite`. [Not built yet](design/using-it.md)
 - Cleaning up for the release, which you said on 2026-10-08 is close: the skills cover what a person and an agent do with Shrimpy, the reference documentation shrinks to very little, and old Shrimpy is replaced.
 - Living with it: what you notice goes on the list in [using it](design/using-it.md), and decides what is built next.
@@ -148,7 +150,7 @@ Work this plan defers on purpose, to pick up after cutover:
 - Each context file as a prompt section of its own, so that a changed file is sent alone.
 - A desktop chat app as the native client for channels.
 - Seams that would let more of Shrimpy be built in parallel, to look at once the core contracts have settled: extensions in the agent as folders with one entry point that are handed the same few things; the chat provider interface with a fake provider as its reference; a client core that the terminal and the web client share; and landing a contract change on its own before the programs that follow it. No seam where only one thing will ever plug in: the gateway stays one piece.
-- Events from outside apps, such as MCP events or webhooks. They would arrive as a chat provider's messages, not as triggers, so agents keep taking nothing inbound. The [research note](../research/mcp-events-and-triggers-2026-10-04.md) says why not yet, and when to look again.
+- Events from outside apps, such as MCP events or webhooks. They would arrive as a chat provider's messages, not as triggers, so agents keep taking nothing inbound. Look again when all three hold: events are in an accepted proposal or a revision of MCP's spec, `pi-mcp` speaks protocol `2026-07-28`, and there is a server whose events an agent should react to.
 
 **Not building**
 
@@ -181,7 +183,7 @@ This plan deliberately leaves these out, so they don't creep back in:
 - A decision for every command and affordance of today's Shrimpy that hasn't come back, from what [using it](design/using-it.md) has of them.
 - Updating Shrimpy, setting up through `shrimpy`, and moving over from old Shrimpy, from the list from living with it in [using it](design/using-it.md).
 - Choosing the model an agent starts with from the terminal, which you called a priority before the release on 2026-10-06 ([using it](design/using-it.md)).
-- `SECURITY.md`, `CONTRIBUTING.md` and `THIRD_PARTY_NOTICES.md` go with `shrimpy-old/` and are written anew, from [the keep list](history/keep-list.md).
+- `SECURITY.md`, `CONTRIBUTING.md` and `THIRD_PARTY_NOTICES.md` go with `shrimpy-old/` and are written anew, from [the keep list](keep-list.md).
 - `AGENTS.md`, `README.md`, `docs/README.md` and `lint/boundaries.js` point into this folder, and are repointed when it goes.
 - Default locations for machine-level data, and service installation for each program.
 - The changelog starts over. On 2026-10-08 you had the notes of old Shrimpy's releases and its unreleased entries removed from `CHANGELOG.md`: "i say we purge all the old stuff". The [changelog skill](../../dev-skills/shrimpy-dev-changelog/SKILL.md) says how the release that replaces old Shrimpy is written, and that from then on a change adds its line in the same change. `AGENTS.md` is to say so too, from that release.
@@ -192,7 +194,7 @@ This plan deliberately leaves these out, so they don't creep back in:
 
 - Build, lint, package, lifecycle and full test runs in the isolated checkout.
 - On macOS and Linux: install, first setup, tagged update, stop and restart, and uninstall without losing home data.
-- Code and dependency deletion against old Shrimpy at `574bb2c`, resource use at startup, idle and under load, and remaining deviations and evidence gaps, all recorded in [STATUS.md](STATUS.md).
+- Code and dependency deletion against old Shrimpy at `574bb2c`, resource use at startup, idle and under load, and remaining deviations and evidence gaps, all recorded in [STATUS.md](STATUS.md). Old Shrimpy there has 45,536 lines in `src/` and `extensions/`, 3,099 in `web/` and 27,026 in `test/`, blanks and comments included. On 2026-11-17 the new `src/` had 30,378 lines of product code, 13,795 of tests and 3,960 of test support.
 
 **Gate:** if client and framework complexity outweigh the runtime savings, revise before going live. Reference docs describe only what the candidate implements.
 
@@ -224,6 +226,7 @@ Fable was asked about this shape on 2026-10-04 and argued against it. An agent t
 - `send_message` and `read_messages` can't name a thread of a DM, only a room's. A result of `ask_agent` points to `shrimpy read <thread>` in the shell for that.
 - Whether input steered into a session by `shrimpy sessions steer` should say who sent it.
 - `react`, an `edit` option and `quiet` on `send_message`, as the design names them.
+- Watching one job to its end. `check_back` waits for a time, and a trigger's check goes on until the trigger is removed, so an agent that starts a long job adds a trigger for it and removes it after.
 
 ### A member that is neither a person nor an agent
 

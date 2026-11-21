@@ -22,7 +22,7 @@ This is the terminal, the web client, the commands, setup and sign-in. It is tun
 | `shrimpy update` | Opens the mechanic TUI with the update skill | A deterministic preview by default. `--guide` runs the update skill in an ordinary thread. Exact tag or SHA apply stays explicit, with approval before consequential changes. The hidden `update check-mechanic` becomes ordinary preflight. An update says first which kind it is: one that changes the Pi packages reaches every machine together, after a copy of every home, since a machine on other packages is refused, and so does one that changes contracts on both sides of a link between machines, as [the contracts](2-contracts.md) have it; any other reaches machines one at a time. | Confirmed. The two kinds came on 2026-11-14 |
 | Web app | Read-only inspector | A client for talking and watching: browse channels, threads and agents, talk in threads, and open the work behind them. Keeps the inspector views: files, tree, context, channels, triggers, runtime, bounded transcripts, folded output, images, thinking, usage and follow-latest. Pi-backed queries replace JSONL reading. URLs, anchors, pagination and write permissions need review, including loopback, same-origin and CSRF rules once the web app can send input. | Confirmed |
 
-[Command coverage](../history/from-old-shrimpy.md#old-command-families) lists every CLI family and inherited slash command. A command missing upstream isn't removed implicitly.
+What old Shrimpy had that isn't back is listed under Not built yet below, as you marked each. A command missing upstream isn't removed implicitly.
 
 **Commands**
 
@@ -96,6 +96,7 @@ Ctrl+O for tool output and Ctrl+T for thinking are Pi's keys, and Claude Code ha
 - **The list.** While what is typed in a thread starts with `/`, the editor lists the commands that can be written there, each with one line on what it does where you are. Typing narrows it, Up and Down choose, Enter acts on the chosen one, Tab only puts it in the input, and Esc closes the list. It is the editor's own list, and its keys do what they do in Pi.
 - **A slash always starts a command.** Decided on 2026-10-08: "we should consistently interpret `/` as only a slash command preview, not something someone can input. they can just wrap it in backticks". A text that starts with a slash is never posted as an ordinary message. A name that is no command gets a note that says so and names the commands there are, and the text stays in the input. A message that starts with a slash is written in backticks, or with anything before it. A text that starts with a mention and then a command, as in `@scout /stop`, is posted, and the agent acts on it.
 - **Two kinds.** A command for agents is a message: it is posted, the thread keeps it, and each agent it is for acts on it with no model call, so it works from every client. `/stop` and `/model` are these. A command for the terminal is acted on by the terminal and posted nowhere. `/status` is the one.
+- **A change to how an agent behaves in a thread shows in the thread.** The first `/model` changed the model behind a thread and left nothing there: "the user isn't presented with something in the transcript about this change, which can be very impactful. likewise it should be obvious to the agent that this changed". So a command that changes an agent is a message, the agent answers it in the thread with one line, and the agent is told with its next input.
 - **`/status`** shows a block above the input, for you alone, of what was true when you asked. In a DM: the agent, its version and whether it is running, what it is doing in this thread, the inputs that wait, the model, the tokens and the cost of the thread's session, and how many of its other sessions are working. In a room: each agent there, whether it is running and whether it is working in the thread. It goes when you send a message or leave the thread.
 - **One place says which commands agents act on:** the chat contract, with the line a client shows for each. The agent's actions are typed by those names.
 - **`/model`** is for a quick try of another model in one thread: "just for moments where i want to quickly try a different model in a thread with an agent". It was first the terminal's own, which changed the model behind the thread and posted nothing. You used it that day and found three things wrong, so it is a message now. `/model` and a space lists `default` and the models the agent can use, and Enter posts `/model provider/id`. The agent has the thread's session use that model from its next request, and answers in the thread with one line: which model the thread runs on now, and which it ran on before, or why it can't use that one. It can be the first thing in a new thread: "i'll open a thread with an agent and switch that thread's model to something at the beginning". It lasts until the agent is started again or its default model changes, and `/model default` follows the agent's model again. Bare `/model` is answered by the terminal, in a note, and posts nothing. An agent's default model is not this command's: you tell the agent, and [a reload applies it](5-home.md).
@@ -147,7 +148,7 @@ What daily use asks for is under Not built yet below.
 
 *Using it: the web client,* under Next in the [order of work](../PLAN.md#order-of-work).
 
-A web client for talking and watching: channels, threads, agents and sessions, with history, live view and input, alongside the inspector views. Since 2026-10-08 it is how your phone reaches Shrimpy, as [the plan's direction](../PLAN.md#direction) has it, so it is built for a phone first: installed to the home screen, with a push notification when an agent answers or writes while you are away. Three things follow for how it is built, so that a companion app can wrap it later, and you agreed to them: every screen works with no browser bar around it, a phone comes in as a device of yours, with an invitation, as a machine does, and what sends a notification doesn't know whether a browser or an app receives it. Installing and push need HTTPS, which on a tailnet is a certificate for the machine's name there: how the gateway gets one is to settle. It is one web client, and one frontend that lays itself out for the width it has, a level at a time on a phone and side by side on a desk. You said you will be opinionated about how it looks and feels: "i am going to be very opinionated on the aesthetics and ux", 2026-10-08. So its look is shown to you as mockups before any of it is built, and what decides the look is kept in one place, apart from the screens' structure.
+A web client for talking and watching: channels, threads, agents and sessions, with history, live view and input, alongside the inspector views. Since 2026-10-08 it is how your phone reaches Shrimpy, as [the plan's direction](../PLAN.md#direction) has it, so it is built for a phone first: installed to the home screen, with a push notification when an agent answers or writes while you are away. Three things follow for how it is built, so that a companion app can wrap it later, and you agreed to them: every screen works with no browser bar around it, a phone comes in as a device of yours, with an invitation, as a machine does, and what sends a notification doesn't know whether a browser or an app receives it. On an iPhone the installed web app gets Web Push from iOS 16.4, with nothing of Apple's to sign up for, and you want that for sure: "that is desired for the web app for sure", 2026-11-21. A companion app can't bring it along, since a web view has no push of its own. It needs Apple's push service: through a relay that holds the app's key, for a build from the App Store, or with your own key on the gateway, for a build you sign. Which of the two, and whether the project runs a relay, is to settle when the companion app comes. Installing and push need HTTPS, which on a tailnet is a certificate for the machine's name there: how the gateway gets one is to settle. It is one web client, and one frontend that lays itself out for the width it has, a level at a time on a phone and side by side on a desk. You said you will be opinionated about how it looks and feels: "i am going to be very opinionated on the aesthetics and ux", 2026-10-08. So its look is shown to you as mockups before any of it is built, and what decides the look is kept in one place, apart from the screens' structure. The first spike's page, built on packages Shrimpy no longer uses, showed two things a web client has to do: mark its view stale while it has no connection, since the page went on showing "model is answering", and back off when it retries, since a retry every second left about ten thousand failed requests in the browser.
 
 *Using it: what daily use asks for.*
 
@@ -187,13 +188,13 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 
 **Replaces:** private TUI patches, the old transcript readers and duplicated settings and lifecycle bindings.
 
-*What old Shrimpy had, and isn't back,* as you marked each on 2026-10-08: keep, later or drop.
+*What old Shrimpy had, and isn't back,* as you marked each on 2026-10-08: keep, later or drop. It is listed by what a person or an agent could do with it and nothing else: "i do not want to accidentally bring over old code and poison the design".
 
 **In outside chat apps.** None is in the first release, and each comes with a chat adapter if one is ever written, as [the plan's direction](../PLAN.md#direction) has it: talking to an agent from Telegram, a bot for each agent, choosing which agent answers in a chat, limiting which chats and people may talk to an agent, typing, formatted and split replies and sender labels, merging quick bursts, photos the agent sees, a message that doesn't notify, reaching a person where they were last active, binding and unbinding a channel, guided Telegram setup, and `/new`, `/clear`, `/help` and `/thinking` in a chat app.
 
 **Conversations and sessions.**
 
-Marked on 2026-10-08. Nine lines were dropped and are gone from this list.
+Marked on 2026-10-08. What you dropped is under the list, with why.
 
 - Archive or rename a thread — wanted: "yeah this is needed ux". The chat server does both, and nothing a person uses reaches them.
 - Post to a room from the shell — wanted: "i can think of reasons this is needed. and it's not that complicated".
@@ -203,9 +204,16 @@ Marked on 2026-10-08. Nine lines were dropped and are gone from this list.
 - Compact a session by hand — later, with the compaction work.
 - Copy the agent's last answer — later.
 
+Dropped, nine:
+
+- Resetting or restoring a session: "i don't really see a point in resetting a session. just make a new one imo? and archive the old if it's junk".
+- Forking or cloning a conversation: "i kinda don't think it makes sense to fork sessions in shrimpy. you just make a new thread and reference a past convo".
+- Choosing a model, a thinking level or a skill for one `run`: "people can just run pi if they want that".
+- Following a channel from the shell, exporting a conversation, since `shrimpy read` prints one, importing an old session, naming a session and showing its details, an agent's text along the way while `run` waits, and nudging an agent that said nothing.
+
 **The terminal.**
 
-Marked on 2026-10-08. Fourteen lines were dropped and are gone from this list.
+Marked on 2026-10-08. What you dropped is under the list, with why.
 
 - A way to show the keys — wanted: the line of keys at the bottom "is getting a bit crowded. some way to display keys is needed". You mean to restyle the terminal a little at some point.
 - The shrimp in the terminal's tab title — wanted, and soon: "move this bad boy up the priority stack".
@@ -216,7 +224,16 @@ Marked on 2026-10-08. Fourteen lines were dropped and are gone from this list.
 - Sign in or out from the terminal — later, and since 2026-11-14 wanted, as a `/` command, since a person needs one command.
 - Paste clipboard images into a message — later, with attachments.
 - Edit a message the agent hasn't picked up yet — later, with the ways in for edits and reactions.
-- Use a fullscreen mode — later.
+- Use a fullscreen mode — later. In the first spike, leaving `pi-tui`'s fullscreen lost the transcript.
+
+Dropped, fourteen:
+
+- `/reload`: "users shouldn't have to think about needing to reloading things and don't need a tui path for it".
+- `/skill:name` and prompt templates: "ux is just 'hey @crab run my weekly update pls' and it runs that skill".
+- A shrimp that swims while an agent works: "i like the current animation in the tui".
+- Recalling an earlier message with Up in the input: "user can issue a correction in the next message. and they can /stop if they said something rly dumb and then send another message".
+- An external editor, suspending and copying with keys, which you leaned towards dropping.
+- `/changelog`, `/quit`, `/agents`, `/trust`, a shell line with `!`, completing file paths, which are on the agent's machine and not the terminal's, hidden context with a header, a footer and constant usage, favourite models, and starting the terminal with a first message.
 
 **Models and signing in.**
 
@@ -239,7 +256,7 @@ Marked on 2026-10-08. Fourteen lines were dropped and are gone from this list.
 - Ask an agent to remember, search or search the web — wait until wanted.
 - Add a command's output to an agent's context each turn — gone; small fact files replace it.
 - Be told fleet status, other sessions' activity and worker summaries unasked — dropped.
-- Hand a coding task to Codex, then follow, steer and cancel it — later, with helpers.
+- Hand a coding task to Codex, then follow, steer and cancel it — later, as a skill over the agent's shell and a trigger.
 - Give an agent extra tools and commands through extensions — dropped.
 
 **Looking after Shrimpy.**
