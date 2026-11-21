@@ -46,8 +46,8 @@ const join: Command = {
       "triggers, still acts on the homes of this machine. It says whose machine this is now. A failure leaves the " +
       "token. A Shrimpy folder that has a gateway of its own is refused, since there you are the person who runs " +
       "the gateway already, and so is one that has joined already: the error names the file to delete to join " +
-      "anew. Deleting that file is also how this machine leaves, though the gateway has no way yet to take the " +
-      "token back.",
+      "anew. Deleting that file is also how this machine leaves, and /devices take back in the terminal ends its " +
+      "token at the gateway.",
   ].join("\n\n"),
   run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
