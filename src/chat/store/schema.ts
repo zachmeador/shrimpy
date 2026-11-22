@@ -1,5 +1,5 @@
 /** The tables' version. A store written by any other version is refused, never changed. */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /**
  * `events` is the log, and the one thing that gives positions. AUTOINCREMENT
@@ -22,6 +22,10 @@ export const SCHEMA_VERSION = 8;
  * by its `room_key`, its name in lower case, which no other room has. A member
  * is offered a channel's events after its `since_seq`: the position of the
  * newest event when it joined, so that nothing from before comes with it.
+ *
+ * `read_marks` keeps a member's read mark in a thread: the position of the last
+ * message it has seen there. A mark only moves forward. It is no event, so
+ * nothing in the log or the feed tells of it.
  *
  * `store` has one row: the store's own ID, made when the store was and never
  * changed.
@@ -137,5 +141,12 @@ CREATE TABLE posts (
   message_seq INTEGER NOT NULL UNIQUE REFERENCES messages (seq),
   digest TEXT NOT NULL,
   PRIMARY KEY (author_id, request_id)
+) STRICT, WITHOUT ROWID;
+
+CREATE TABLE read_marks (
+  member_id TEXT NOT NULL REFERENCES members (id),
+  thread_id TEXT NOT NULL REFERENCES threads (id),
+  message_seq INTEGER NOT NULL REFERENCES messages (seq),
+  PRIMARY KEY (member_id, thread_id)
 ) STRICT, WITHOUT ROWID;
 `;

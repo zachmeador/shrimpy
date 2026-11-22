@@ -7,7 +7,9 @@
  * by holding, and nothing polls. Channels, DMs and rooms, and their threads are
  * the shared record of what was said: a log of events (posted, edited,
  * deleted, reacted, receipted) and the messages they add up to. A member writes
- * only in the channels it is in, and you read the others too.
+ * only in the channels it is in, and you read the others too. For you alone,
+ * chat keeps the last message you have seen in each thread, and counts what is
+ * new to you after it.
  *
  * It carries facts, such as which members a message mentions, and must not
  * know what a fact means to whoever reads it, or anything about agents'

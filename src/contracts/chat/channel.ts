@@ -1,4 +1,4 @@
-import { arr, method, nul, obj, oneOf, remote, type Static, str, union } from "@earendil-works/chord";
+import { arr, evolve, int, map, method, nul, obj, oneOf, remote, type Static, str, union } from "@earendil-works/chord";
 import { answerOf, chat, RefusedSchema } from "../gateway/index.ts";
 import { MemberSchema } from "./shapes.ts";
 import { ThreadSchema } from "./thread.ts";
@@ -27,17 +27,8 @@ export const ChannelSchema = obj({
  */
 export type Channel = Static<typeof ChannelSchema>;
 
-/**
- * One channel as the caller sees it, at `chat()`: the channel and its threads,
- * kept live, and what a member does with it.
- *
- * `refusal` is null, or why the caller can't have this channel, and then the
- * rest of its state is empty and every method answers with that refusal. An
- * agent has only its own channels, and to an agent a channel that doesn't exist
- * and one it isn't in look the same. You read every channel, and a write in one
- * you aren't in is refused, but for adding members.
- */
-export const Channel = remote("shrimpy.chat.channel", {
+/** `Channel` as it was first served, before read marks. */
+const ChannelV1 = remote("shrimpy.chat.channel", {
   version: 1,
   params: { channel: str() },
   hostAddress: () => chat(),
@@ -66,3 +57,23 @@ export const Channel = remote("shrimpy.chat.channel", {
     },
   },
 });
+
+/**
+ * One channel as the caller sees it, at `chat()`: the channel and its threads,
+ * kept live, how many messages in each are new to you, and what a member does
+ * with it.
+ *
+ * `refusal` is null, or why the caller can't have this channel, and then the
+ * rest of its state is empty and every method answers with that refusal. An
+ * agent has only its own channels, and to an agent a channel that doesn't exist
+ * and one it isn't in look the same. You read every channel, and a write in one
+ * you aren't in is refused, but for adding members.
+ */
+export const Channel = evolve(ChannelV1, (edit) =>
+  /**
+   * How many messages are new to you in each of its threads, by the thread's
+   * ID, as `Thread`'s `unread` counts them: what is new in the channel is
+   * their sum. Null for an agent, which keeps no read marks.
+   */
+  edit.addState("all", "unread", union([map(int()), nul()])),
+);

@@ -82,10 +82,10 @@ export function visibleThread(
 }
 
 /**
- * A message in `threadId`, a thread of a channel the caller is in, with that
+ * A message in `threadId`, a thread of a channel the caller reads, with that
  * channel. A message in another thread is unknown here.
  */
-export function visibleMessage(
+export function readableMessage(
   tx: Transaction,
   caller: Member,
   threadId: string,
@@ -94,8 +94,19 @@ export function visibleMessage(
   const { channel } = readableThread(tx, caller, threadId);
   const message = tx.message(messageId);
   if (message?.threadId !== threadId) refuse(`Unknown message: ${messageId}`);
-  requireMember(channel, caller);
   return { message, channel };
+}
+
+/** A message in `threadId`, a thread of a channel the caller is in, with that channel. */
+export function visibleMessage(
+  tx: Transaction,
+  caller: Member,
+  threadId: string,
+  messageId: string,
+): { message: Message; channel: ChannelRecord } {
+  const found = readableMessage(tx, caller, threadId, messageId);
+  requireMember(found.channel, caller);
+  return found;
 }
 
 /** An event in a channel the caller is in. */

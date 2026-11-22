@@ -19,6 +19,7 @@ import {
   deleteMessage,
   editMessage,
   leaveReceipt,
+  markRead,
   NOT_A_MEMBER,
   openDm,
   post,
@@ -40,6 +41,15 @@ function whoIs(deps: ServedDeps, principal: Principal): Member | undefined {
 }
 
 const wayKey = (way: Way): string => ("id" in way ? `${way.kind} ${way.id}` : way.kind);
+
+/**
+ * Whether a change in the store can change what `principal` is shown. Any
+ * change can, but a read mark that moved changes only what its own member is
+ * shown.
+ */
+function shownTo(deps: ServedDeps, principal: Principal, change: Change): boolean {
+  return change.kind !== "read" || whoIs(deps, principal)?.id === change.memberId;
+}
 
 /** Whether two principals are one: the same kind, and for a member the same member by the same way in. */
 function samePrincipal(a: Principal, b: Principal): boolean {
@@ -121,7 +131,7 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
             since = view.head;
             return view;
           },
-          (change) => change.kind !== "thread",
+          (change) => change.kind === "event" || change.kind === "channel",
           () => false,
         ),
       );
@@ -173,58 +183,73 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
       };
     });
 
-    host.serve(Channel, ({ channel: channelId }, principal, self) => {
-      const state = self.follow(
-        followed(
-          deps,
-          () => channelView(deps, whoIs(deps, principal), channelId),
-          (change) => change.channelId === channelId,
-          (threadId, last) => last.threads.some((thread) => thread.id === threadId),
-        ),
-      );
-      const caller = (): Member => callerOf(principal);
-      return {
-        variant: "all",
-        members: {
-          refusal: self.derive([state], ([view]) => view.refusal),
-          channel: self.derive([state], ([view]) => view.channel),
-          threads: self.derive([state], ([view]) => view.threads),
-          createThread: async ({ name }) => answer(() => createThread(deps, caller(), channelId, name)),
-          addMembers: async ({ members }) => answer(() => addMembers(deps, caller(), channelId, members)),
-        },
-      };
-    });
+    // Version 1 of `Channel` and `Thread` is from before read marks. A holder of it, such as an agent on another
+    // machine that runs an older Shrimpy, binds as it did and is shown no counts.
+    host.serve(
+      Channel,
+      ({ channel: channelId }, principal, self) => {
+        const state = self.follow(
+          followed(
+            deps,
+            () => channelView(deps, whoIs(deps, principal), channelId),
+            (change) => change.channelId === channelId && shownTo(deps, principal, change),
+            (threadId, last) => last.threads.some((thread) => thread.id === threadId),
+          ),
+        );
+        const caller = (): Member => callerOf(principal);
+        return {
+          variant: "all",
+          members: {
+            refusal: self.derive([state], ([view]) => view.refusal),
+            channel: self.derive([state], ([view]) => view.channel),
+            threads: self.derive([state], ([view]) => view.threads),
+            unread: self.derive([state], ([view]) => view.unread),
+            createThread: async ({ name }) => answer(() => createThread(deps, caller(), channelId, name)),
+            addMembers: async ({ members }) => answer(() => addMembers(deps, caller(), channelId, members)),
+          },
+        };
+      },
+      { accepts: { 1: {} } },
+    );
 
-    host.serve(Thread, ({ thread: threadId }, principal, self) => {
-      const state = self.follow(
-        followed(
-          deps,
-          () => threadView(deps, whoIs(deps, principal), threadId),
-          // A refused view doesn't show its channel, and a member let in to a channel is let in by a channel's change.
-          (change, last) =>
-            change.kind === "channel" ? last.thread === null || change.channelId === last.thread.channelId : change.threadId === threadId,
-          (marked) => marked === threadId,
-        ),
-      );
-      const caller = (): Member => callerOf(principal);
-      return {
-        variant: "all",
-        members: {
-          refusal: self.derive([state], ([view]) => view.refusal),
-          thread: self.derive([state], ([view]) => view.thread),
-          messages: self.derive([state], ([view]) => view.messages),
-          earlier: self.derive([state], ([view]) => view.earlier),
-          readOnly: self.derive([state], ([view]) => view.readOnly),
-          read: async ({ before, limit }) => answer(() => readMessages(deps, caller(), threadId, before, limit)),
-          post: async ({ text, request }) => answer(() => post(deps, caller(), threadId, text, request)),
-          edit: async ({ message, text }) => answer(() => editMessage(deps, caller(), threadId, message, text)),
-          delete: async ({ message }) => answer(() => deleteMessage(deps, caller(), threadId, message)),
-          react: async ({ message, emoji }) => answer(() => react(deps, caller(), threadId, message, emoji)),
-          unreact: async ({ message, emoji }) => answer(() => unreact(deps, caller(), threadId, message, emoji)),
-          rename: async ({ name }) => answer(() => renameThread(deps, caller(), threadId, name)),
-          archive: async ({ archived }) => answer(() => archiveThread(deps, caller(), threadId, archived)),
-        },
-      };
-    });
+    host.serve(
+      Thread,
+      ({ thread: threadId }, principal, self) => {
+        const state = self.follow(
+          followed(
+            deps,
+            () => threadView(deps, whoIs(deps, principal), threadId),
+            // A refused view doesn't show its channel, and a member let in to a channel is let in by a channel's change.
+            (change, last) =>
+              change.kind === "channel"
+                ? last.thread === null || change.channelId === last.thread.channelId
+                : change.threadId === threadId && shownTo(deps, principal, change),
+            (marked) => marked === threadId,
+          ),
+        );
+        const caller = (): Member => callerOf(principal);
+        return {
+          variant: "all",
+          members: {
+            refusal: self.derive([state], ([view]) => view.refusal),
+            thread: self.derive([state], ([view]) => view.thread),
+            messages: self.derive([state], ([view]) => view.messages),
+            earlier: self.derive([state], ([view]) => view.earlier),
+            readOnly: self.derive([state], ([view]) => view.readOnly),
+            unread: self.derive([state], ([view]) => view.unread),
+            read: async ({ before, limit }) => answer(() => readMessages(deps, caller(), threadId, before, limit)),
+            post: async ({ text, request }) => answer(() => post(deps, caller(), threadId, text, request)),
+            edit: async ({ message, text }) => answer(() => editMessage(deps, caller(), threadId, message, text)),
+            delete: async ({ message }) => answer(() => deleteMessage(deps, caller(), threadId, message)),
+            react: async ({ message, emoji }) => answer(() => react(deps, caller(), threadId, message, emoji)),
+            unreact: async ({ message, emoji }) => answer(() => unreact(deps, caller(), threadId, message, emoji)),
+            rename: async ({ name }) => answer(() => renameThread(deps, caller(), threadId, name)),
+            archive: async ({ archived }) => answer(() => archiveThread(deps, caller(), threadId, archived)),
+            markRead: async ({ message }) => answer(() => markRead(deps, caller(), threadId, message)),
+          },
+        };
+      },
+      { accepts: { 1: {} } },
+    );
   });
 }

@@ -3,6 +3,7 @@ import { type ChannelOperations, channelOperations } from "./channels.ts";
 import type { Change } from "./changes.ts";
 import { openDatabase } from "./database.ts";
 import { type EventOperations, eventOperations } from "./events.ts";
+import { type MarkOperations, markOperations } from "./marks.ts";
 import { type MemberOperations, memberOperations } from "./members.ts";
 import { type MessageOperations, messageOperations } from "./messages.ts";
 import { type ReactionOperations, reactionOperations } from "./reactions.ts";
@@ -16,7 +17,8 @@ export type Transaction = MemberOperations &
   MessageOperations &
   ReactionOperations &
   EventOperations &
-  ReceiptOperations;
+  ReceiptOperations &
+  MarkOperations;
 
 export interface Store {
   /** The ID the store was given when it was made, which it keeps for good. */
@@ -94,6 +96,7 @@ function createTransaction(sql: Sql, report: (change: Change) => void): Transact
     ...reactionOperations(sql, report),
     ...eventOperations(sql),
     ...receiptOperations(sql, report),
+    ...markOperations(sql, report),
   };
 }
 

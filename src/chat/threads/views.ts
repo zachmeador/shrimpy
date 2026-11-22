@@ -5,6 +5,7 @@ import { isMember, readableChannel, readableThread, readsOthers } from "./access
 import { answer } from "./answer.ts";
 import type { ChatDeps } from "./deps.ts";
 import { toChannel } from "./directory.ts";
+import { keepsMarks } from "./marks.ts";
 import { withWorking } from "./working.ts";
 
 /** Messages a thread shows at once. Older ones are counted in `earlier` and read with `read`. */
@@ -41,9 +42,11 @@ export type ChannelView = {
   refusal: Refused | null;
   channel: Channel | null;
   threads: Thread[];
+  /** How many messages are new to the caller in each thread, by thread ID, or null when chat keeps it no read marks. */
+  unread: Record<string, number> | null;
 };
 
-/** `Channel` for `channelId` as `caller` sees it: the channel and its threads, or why it can't have them. */
+/** `Channel` for `channelId` as `caller` sees it: the channel, its threads and what is new to it there, or why it can't have them. */
 export function channelView(deps: ChatDeps, caller: Member | undefined, channelId: string): ChannelView {
   const found: Answer<ChannelView> =
     caller === undefined
@@ -55,10 +58,11 @@ export function channelView(deps: ChatDeps, caller: Member | undefined, channelI
               refusal: null,
               channel: toChannel(record, caller),
               threads: tx.threadsIn(channelId).map((thread) => withWorking(thread, deps.working)),
+              unread: keepsMarks(caller) ? tx.unreadInChannel(caller.id, channelId) : null,
             };
           }),
         );
-  return found.kind === "done" ? found.value : { refusal: found, channel: null, threads: [] };
+  return found.kind === "done" ? found.value : { refusal: found, channel: null, threads: [], unread: null };
 }
 
 /** What `Thread` shows its caller. */
@@ -68,12 +72,14 @@ export type ThreadView = {
   messages: Message[];
   earlier: number;
   readOnly: boolean;
+  /** How many messages are new to the caller, or null when chat keeps it no read marks. */
+  unread: number | null;
 };
 
 /**
  * `Thread` for `threadId` as `caller` sees it: the thread, its newest messages
- * and how many come before them, and whether the caller only reads it; or why
- * it can't have them.
+ * and how many come before them, whether the caller only reads it, and how
+ * many are new to it; or why it can't have them.
  */
 export function threadView(deps: ChatDeps, caller: Member | undefined, threadId: string): ThreadView {
   const found: Answer<ThreadView> =
@@ -89,8 +95,9 @@ export function threadView(deps: ChatDeps, caller: Member | undefined, threadId:
               messages,
               earlier: tx.messageCount(threadId) - messages.length,
               readOnly: !isMember(channel, caller.id),
+              unread: keepsMarks(caller) ? tx.unreadIn(caller.id, threadId) : null,
             };
           }),
         );
-  return found.kind === "done" ? found.value : { refusal: found, thread: null, messages: [], earlier: 0, readOnly: false };
+  return found.kind === "done" ? found.value : { refusal: found, thread: null, messages: [], earlier: 0, readOnly: false, unread: null };
 }
