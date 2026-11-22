@@ -152,7 +152,7 @@ html[data-view="live"] body { overflow: hidden; }
 
   <section class="sheet">
     <h2><span>04</span>Finding a key</h2>
-    <p class="cap">A key that acts on one thing is named beside that thing. The last line names the keys that move you, and Ctrl+G lists every key. In a thread ← crosses what is typed first, and goes back from its start. A slash opens the commands, as it does now.</p>
+    <p class="cap">A key that acts on one thing is named beside that thing. The last line names the keys that move you, and Ctrl+G lists every key. In a thread ← crosses what is typed first, and goes back from its start, and Esc goes back whatever is typed. A slash opens the commands, as it does now.</p>
     <div class="fit">
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route="agent:lighthouse/thread:lh-backup" data-keys="1"></div></div>
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="day" data-route="agent:shrimpy/thread:sh-night" data-slash="1"></div></div>
@@ -225,7 +225,7 @@ html[data-view="live"] body { overflow: hidden; }
         <h3>Changed here</h3>
         <ol>
           <li><b>The whole screen.</b> Today the client draws into the terminal's scrollback. Here it takes the alternate screen, so lists can stay on show and the input stays at the bottom. The plan had this as later, and you took it: "all of the agent cli apps are moving to whole screen, as well as pi. so that's fine". pi-tui 1.5.2, the one Shrimpy is on, says it prints the whole thread back when the client leaves. That is from its README, and not tried.</li>
-          <li><b>The arrows move you.</b> Your words: "left arrow instead of esc. right arrow for enter", and in an input, left "would only leave the session if there's no text to traverse in the box". So → goes in and ← goes out. In a thread ← moves through what is typed, and goes back a level from its start. What was typed stays with the thread. Three things follow that you didn't say, and are yours to strike: the choice between everything and yours moved from ← → to Tab, Esc only closes the list of keys and the list of commands, and Enter still opens a row as → does.</li>
+          <li><b>The arrows move you.</b> Your words: "left arrow instead of esc. right arrow for enter", and in an input, left "would only leave the session if there's no text to traverse in the box". So → goes in and ← goes out. In a thread ← moves through what is typed, and goes back a level from its start. What was typed stays with the thread. Esc still goes back, from anywhere and whatever is typed: "yep keep esc for back", 2026-11-22. With the list of keys or the list of commands open, it closes that first. Two things follow that you didn't say, and are yours to strike: the choice between everything and yours moved from ← → to Tab, and Enter still opens a row as → does.</li>
           <li><b>Scrolling is the client's.</b> PgUp, PgDn and the wheel scroll the pane they are in, a drag selects and copies, and Ctrl+Shift+F searches. All three are pi-tui's. The plan left scrolling keys for later because the scrollback had them.</li>
           <li><b>The levels sit side by side</b> where there is room, and Ctrl+\ puts them back to one at a time. The web mockup folds its lists on the same key.</li>
           <li><b>Where a key is named.</b> The plan's fourth rule has every key on the last line, and you called that line crowded. Here a key is named beside what it acts on, the last line has the keys that move, and Ctrl+G lists them all. You kept Ctrl+G, and Ctrl+\ for one level at a time: "sure, those key combos can stay".</li>
@@ -252,7 +252,6 @@ html[data-view="live"] body { overflow: hidden; }
         </ul>
         <h3 style="margin-top:18px">Yours to choose</h3>
         <ul>
-          <li><b>Leaving a thread with something typed.</b> ← goes back only from the start of the text, so it takes Ctrl+A or Home first. Esc could still go back from anywhere, if you want one key for it.</li>
           <li><b>Braille in your font.</b> The dots depend on the font, and the client can't ask a terminal which font it has. The client is whole without sigils.</li>
         </ul>
       </div>
@@ -920,12 +919,13 @@ const KEYS = [
   ['moving'],
   ['↑ ↓', 'choose'],
   ['→', 'open what is chosen'],
-  ['←', 'back a level'],
+  ['← esc', 'back a level'],
   ['tab', 'the other view: yours, or the agent\'s'],
   ['ctrl+n', 'a new thread'],
   ['in a thread'],
   ['enter', 'send what is typed'],
-  ['←', 'back, once the cursor is at the start'],
+  ['←', 'through what is typed, then back'],
+  ['esc', 'back, whatever is typed'],
   ['/', 'commands, and esc closes their list'],
   ['ctrl+o', 'tool calls in full, and back to brief'],
   ['ctrl+t', 'thinking in full, and back to brief'],
@@ -1412,8 +1412,9 @@ function term(win, o) {
     g.fill(0, y, s.cols, 1, 'ground');
     if (s.armed) { g.text(1, y, 'Press Ctrl+C again to quit.', SAND); return; }
     const th = thread();
+    /* Left crosses what is typed before it goes back, so with something typed the line names the key that goes back at once. */
     const keys = s.keys ? [['esc', 'close']]
-      : s.level === 3 && canWrite(th) ? [['enter', 'send'], ['/', 'commands'], ['←', 'back']]
+      : s.level === 3 && canWrite(th) ? [['enter', 'send'], ['/', 'commands'], [s.input ? 'esc' : '←', 'back']]
       : s.level === 3 ? [['←', 'back']]
       : s.down ? []
       : s.level === 2 ? [...(listRows().length ? [['↑↓', 'choose'], ['→', 'open']] : []), ['←', 'back']]
@@ -1602,7 +1603,8 @@ function term(win, o) {
     if (ctrl && s.level === 3 && (k === 'a' || k === 'e')) { s.caret = k === 'a' ? 0 : [...s.input].length; return true; }
     if (ctrl) return false;
     if (k === 'PageUp' || k === 'PageDown') { s.scroll += (k === 'PageUp' ? 1 : -1) * Math.max(1, s.rows - 8); return true; }
-    if (k === 'Escape') { const open = Boolean(s.slash); s.slash = null; return open; }
+    /* Esc closes the list of commands when it is open, and otherwise goes back a level, whatever is typed. */
+    if (k === 'Escape') { if (s.slash) s.slash = null; else out(); return true; }
     if (s.level < 3) {
       const rows = s.level === 1 ? (s.down ? [] : railRows()) : listRows();
       if (k === 'ArrowDown' || k === 'ArrowUp') s.cur[s.level] = Math.max(0, Math.min(rows.length - 1, s.cur[s.level] + (k === 'ArrowDown' ? 1 : -1)));

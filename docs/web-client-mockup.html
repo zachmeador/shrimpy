@@ -44,12 +44,6 @@
   --step-2: polygon(0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px));
 }
 
-/* The other face on trial: the system's own. The switch at the top of the page sets this. */
-html[data-face="system"] {
-  --face: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-
 /* Dusk: navy heather, the ribbing of the sweater. Cream is the ink. */
 [data-mode="dusk"] {
   color-scheme: dark;
@@ -723,7 +717,6 @@ body:not([data-view="live"]) .live { display: none; }
       <div class="mast-acts">
         <button class="bbtn" id="swap"><i class="px bm-moon" aria-hidden="true"></i>swap dusk and day</button>
         <button class="bbtn" id="golive"><i class="px bm-flip" aria-hidden="true"></i>fill the window with it</button>
-        <button class="bbtn" id="face"></button>
       </div>
     </div>
   </header>
@@ -847,21 +840,21 @@ body:not([data-view="live"]) .live { display: none; }
         <div class="sigs" id="sigs"></div>
       </div>
       <div class="card" data-follow><div class="wool"></div>
-        <h3>Type <small>the one choice still open</small></h3>
-        <p>The file asks for the first pair. Your first look at this page was in the second, because the preview it opened in had no network to fetch a face. The switch at the top of the page flips every frame between them.</p>
+        <h3>Type <small>Atkinson Hyperlegible</small></h3>
+        <p>You chose it over the system's own face on 2026-11-22: "that one". It was drawn for readers with low vision, so its letters are hard to mistake for each other, and it is the same on every device. The web client serves its files itself. This page fetches them from Google, and falls back to the system's own face with no network.</p>
         <div class="faces">
-          <div style="--face:'Atkinson Hyperlegible Next',sans-serif;--mono:'Atkinson Hyperlegible Mono',monospace">
-            <p class="type-a">Atkinson Hyperlegible</p>
-            <p class="type-s">Drawn for readers with low vision, so its letters are hard to mistake for each other. It is the same on every device.</p>
-            <p class="type-s m">restic snapshots --latest 1 · 0O 1lI 5S rn m</p>
+          <div>
+            <p class="type-a">Atkinson Hyperlegible Next</p>
+            <p class="type-s">For what a person or an agent wrote.</p>
+            <p class="type-s">0O 1lI 5S rn m</p>
           </div>
-          <div style="--face:system-ui,-apple-system,'Segoe UI',sans-serif;--mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace">
-            <p class="type-a">The system's own</p>
-            <p class="type-s">Whatever the device reads everything else in. It needs no network, and it is a different face on each kind of device.</p>
+          <div>
+            <p class="type-a" style="font-family:var(--mono)">Atkinson Hyperlegible Mono</p>
+            <p class="type-s">For what a machine wrote: tool calls, paths, times, commands and the line of keys.</p>
             <p class="type-s m">restic snapshots --latest 1 · 0O 1lI 5S rn m</p>
           </div>
         </div>
-        <p class="type-s" style="margin-top:14px">Either way, the proportional face is for what a person or an agent wrote and the mono is for what a machine wrote: tool calls, paths, times, commands and the line of keys. No bitmap type: pixels are the material, and words stay crisp beside them.</p>
+        <p class="type-s" style="margin-top:14px">No bitmap type: pixels are the material, and words stay crisp beside them.</p>
       </div>
     </div>
 
@@ -914,10 +907,6 @@ body:not([data-view="live"]) .live { display: none; }
           <li>The rest of the inspector: context, the request a turn sent, runtime.</li>
           <li>Paging back through a long thread or session.</li>
           <li>Your own settings and your devices, beyond <code>/devices</code>.</li>
-        </ul>
-        <h3 style="margin-top:18px">Still yours to choose</h3>
-        <ul>
-          <li><b>The face.</b> Atkinson Hyperlegible or the system's own: the Type card above has both, and the switch at the top of the page flips them.</li>
         </ul>
       </div>
     </div>
@@ -2329,15 +2318,8 @@ document.getElementById('swap').addEventListener('click', () => {
   drawBoard();
 });
 
-/* The face on trial. The page opens in the one the file asks for. */
-const faceButton = document.getElementById('face');
-function setFace(face) {
-  document.documentElement.dataset.face = face;
-  faceButton.textContent = face === 'system' ? `type: the system's own` : 'type: Atkinson Hyperlegible';
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
-}
-faceButton.addEventListener('click', () => setFace(document.documentElement.dataset.face === 'system' ? 'atkinson' : 'system'));
-setFace('atkinson');
+/* The frames are fitted again once the face has arrived, since it changes how wide things are. */
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
 
 /* The same client with the whole window to itself. */
 let live = null;
