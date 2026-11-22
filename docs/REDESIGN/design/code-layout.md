@@ -85,8 +85,8 @@ src/
     network/        one link to the gateway, kept across losses, and the objects held through it, handed how to
                     dial, and behind its `node.ts` door, dialing from Node: apart from tests, the only client code
                     that imports Chord
-    state/          what a client knows, where the person is and what they can do
-    view/           what is shown, as plain text and facts, with foreign text made harmless
+    state/          what a client knows, what is open at each level, and what the person can do
+    view/           what is shown, as plain text and facts, a level at a time, with foreign text made harmless
     console/        terminal client
       draw/         the only code that imports `pi-tui`
     web/            the web client: for now a placeholder page that links to the gateway and lists the roster,
@@ -155,7 +155,8 @@ Every sentence a model or a person reads is kept in a few files, so that wording
 | How an input reads to the model: a message, a wake-up, a trigger's occurrence, a question's result, breadcrumbs, and where the session is; and what `check_back` and `ask_agent` both tell the model of ending its turn and of a wait too short or too long | `agent/inputs/prompt.ts` |
 | What a tool says: its description, its arguments and its answers | `words.ts` in the tool's module: `agent/message-tools/`, `agent/wakeups/` and `agent/questions/` |
 | The skills Shrimpy ships | `skills/<name>/SKILL.md` |
-| Everything else the terminal shows | `clients/view/words.ts` |
+| A sentence that names a client's key or gesture, such as the line of keys and how to quit | The client's own: `clients/console/draw/words.ts` for the terminal |
+| Everything else a client shows | `clients/view/words.ts` |
 | Why a turn ended without an answer, with what to do, as receipts, `/status` and `sessions read` say it | `contracts/agent/failures.ts`, since the agent and every client say it the same way |
 | How a session is said: what it is doing, where it is, its tool calls, a reset, its model, what it has used and a wake-up it waits on, as the terminal and the `sessions` commands say it; and a model as `provider/id`, wherever the agent or a client writes one | `contracts/agent/words.ts`, since every client says it the same way |
 | What to do when the gateway doesn't know a home's token, that no agent runs at a home, and that a file which must start with front matter doesn't | `contracts/agent/`: `membership.ts`, `connect.node.ts` and `frontmatter.ts`, since the agent and the commands say them the same way |
@@ -170,7 +171,7 @@ Every sentence a model or a person reads is kept in a few files, so that wording
 
 ## The clients' modules
 
-Decided on 2026-11-21, with the two mockups in front of you: "sure, track it in the docs. but i want to get building asap". The terminal and the web client are one client, drawn twice. They share what a client knows, does and says, and each keeps only its drawing and its input. The move below was built that day, with no change in behavior. `look/`, the views by level and the web client are not built.
+Decided on 2026-11-21, with the two mockups in front of you: "sure, track it in the docs. but i want to get building asap". The terminal and the web client are one client, drawn twice. They share what a client knows, does and says, and each keeps only its drawing and its input. The move below was built that day, with no change in behavior, and the views by level after it. `look/` and the web client are not built.
 
 Three of the terminal's four modules had no terminal in them, about 3,500 of its 4,500 lines, and moved up to be shared. Node reached them in three files. Two dialed the gateway: the link is now handed how to dial, and the console hands it the Node way, which is behind `network/`'s `node.ts` door. The third took a request's ID from `node:crypto`, and now takes it from the `crypto` that Node and a browser both have.
 
@@ -178,25 +179,26 @@ Three of the terminal's four modules had no terminal in them, about 3,500 of its
 src/clients/
   network/    the link to the gateway, kept across losses, and the objects held through it: apart from tests,
               the only client code that imports Chord
-  state/      what a client knows, where the person is and what they can do
+  state/      what a client knows, what is open at each level, and what the person can do
   view/       what is shown, as plain text and facts, a level at a time, with the words
   look/       the colors of dusk and day, and a sigil's twelve lines as dots, half blocks or pixels
-  console/    the terminal: `pi-tui`, the keys, and a socket or an address to dial
+  console/    the terminal: `pi-tui`, which level is in front, the keys and the sentences that name them,
+              and a socket or an address to dial
   web/        the browser: the page, the pointer and the keys, a WebSocket to dial, and what a phone needs
 ```
 
 | Module | Its one job | Knows a terminal or a browser |
 |---|---|---|
 | `network/` | One link to the gateway, kept across losses, and the objects held through it. It is handed how to dial, and offers dialing from Node behind its `node.ts` door. | Never |
-| `state/` | What a client knows, where the person is and what they can do. | Never |
-| `view/` | What each level shows, as data, and every sentence said of it. | Never |
+| `state/` | What a client knows, what is open at each level, and what the person can do. | Never |
+| `view/` | What each level shows, as data, and every sentence said of it but those that name a key or a gesture. | Never |
 | `look/` | The colors and the sigils, as data. | Never |
-| `console/` | Drawing in cells, the keys, and the socket or address to dial, which it hands the link with `network/`'s Node dial. | A terminal |
+| `console/` | Drawing in cells, which level is in front, the keys and the sentences that name them, and the socket or address to dial, which it hands the link with `network/`'s Node dial. | A terminal |
 | `web/` | Drawing in the page, the pointer and the keys, dialing from a browser, installing and push. | A browser |
 
 **What is shared is what is true and what is said.** How it is laid out and how it is touched stays with each client. The test is whether the other client would be wrong if it differed: `working · #ops` differing is a bug, and where the list sits is not. A sentence that names a key or a gesture belongs to the client that has it. Everything else a client says is in `view/`, and a sentence in either client's drawing is a mistake.
 
-**A view is of one level.** Today a screen is one of four, and the state says which one is on show. Both mockups show the levels side by side. So the state says what is open at each level, and `view/` has a view for each: agents and rooms, what one of them takes part in, a thread, and a session. Each client decides how many it shows at once. Which row the keys are on is the terminal's own.
+**A view is of one level,** since 2026-11-21, because both mockups show the levels side by side. The state says what is open at each level, and not which screen is in front: whose list is open, an agent's or a room's, and the thread or the session behind no thread open in it, with whose side of a thread is on show, the conversation or one agent's view of the session behind it. Opening another list closes what was open in the one before. `view/` has a view for each level, each a function of the state: agents and rooms, the open list, the open thread, and the session on show. A view carries everything a client might draw and leaves the drawing to it: every agent's work and every wake-up in a thread, what is new to the person on each thread, agent and room and in all, and how each agent looks. Each client decides how many levels it shows at once, which one is in front, and how to go back. The terminal still shows one at a time. A client says whether the person is looking, and the state moves the read mark of the thread they look at: the terminal says so while it has the thread in front.
 
 **Imports.** `network/`, `state/`, `view/` and `look/` import `contracts/` and `lib/` by their main doors, which are safe for browsers. `state/` imports `network/`, and `view/` imports both. None of the four imports `console/` or `web/`, `pi-tui` or the page, and their main doors reach no `node.ts` door. Dialing from Node is behind `network/`'s own `node.ts` door: the console hands it to the link, and their tests reach a real gateway with it. `console/` and `web/` import the four, and never each other. The helper that bundles a contract's door for a browser bundles each of their doors too.
 
