@@ -78,6 +78,12 @@ export interface ClientState {
    * thread.
    */
   turnOver(): void;
+  /**
+   * In a thread, put the view of the agent with member ID `agent` of the
+   * session behind it on show in place of the conversation. It does nothing
+   * where that agent has no session behind the thread.
+   */
+  showView(agent: string): void;
   /** Open a session of the agent whose list is open that is behind no thread, by its address. Nothing can be said or done in it. */
   openSession(address: string): void;
   /**
@@ -277,6 +283,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
     openThread: (threadId) => moves.open(threadId),
     startThread: (place) => sending.startThread(place),
     turnOver: () => moves.turnOver(),
+    showView: (agent) => moves.showView(agent),
     openSession: (address) => moves.openSession(address),
     look(yes) {
       if (looking === yes) return;

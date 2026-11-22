@@ -32,6 +32,7 @@ export function fakeState(initial: Model): FakeState {
     openThread: (threadId) => void calls.push(`open ${threadId}`),
     startThread: (place) => void calls.push(place === undefined ? "start" : `start in ${place.kind} ${place.id}`),
     turnOver: () => void calls.push("turn over"),
+    showView: (agent) => void calls.push(`show view ${agent}`),
     openSession: (address) => void calls.push(`watch ${address}`),
     look: () => undefined,
     joinRoom() {

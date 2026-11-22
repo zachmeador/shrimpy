@@ -1,5 +1,5 @@
 import type { Holdings } from "./holdings.ts";
-import { type AgentEntry, agentOfList, type Item, nextSide, type Place, placeKey, placeOf, readOnlyEntries } from "./model.ts";
+import { type AgentEntry, agentOfList, type Item, nextSide, type Place, placeKey, placeOf, readOnlyEntries, sidesOf } from "./model.ts";
 import type { Store } from "./store.ts";
 
 /**
@@ -17,6 +17,8 @@ export interface Moves {
   /** The new thread that is open came to be, as `threadId`, with its first message. */
   started(threadId: string): void;
   turnOver(): void;
+  /** In a thread, put the view of the agent with member ID `agent` on show, if it is one of its sides. */
+  showView(agent: string): void;
   openSession(address: string): void;
   /** With one agent and no room to choose from, open the agent's list, once chat has said which channels the person has. */
   land(entries: AgentEntry[]): void;
@@ -73,6 +75,13 @@ export function createMoves(store: Store, held: Holdings): Moves {
       const side = nextSide(model);
       if (side === item.side) return;
       store.set({ open: { ...open, item: { ...item, side } }, notice: undefined });
+    },
+    showView(agent) {
+      const model = store.model();
+      const { open } = model;
+      const { item } = open;
+      if (item?.kind !== "thread" || item.thread === undefined || item.side === agent || !sidesOf(model).includes(agent)) return;
+      store.set({ open: { ...open, item: { ...item, side: agent } }, notice: undefined });
     },
     openSession(address) {
       const agent = agentOfList(store.model().open);

@@ -275,21 +275,14 @@ export function SessionView({ session, back, retry }: { session: SessionLevel; b
           </div>
         </div>
       </div>
-      <SessionFoot session={session} retry={retry} />
+      {session.notes.length > 0 && (
+        <footer class="dock">
+          <div class="dock-col">
+            <Notes notes={session.notes} retry={retry} />
+          </div>
+        </footer>
+      )}
     </>
-  );
-}
-
-/** What a watched session is doing now, or that it is idle, and what waits for it. */
-export function SessionFoot({ session, retry }: { session: SessionLevel; retry: string | undefined }) {
-  const lines = [session.working ?? session.idle, ...session.queued, ...session.waiting].filter((line) => line !== undefined);
-  return (
-    <footer class="watch-foot">
-      <Notes notes={session.notes} retry={retry} />
-      {lines.map((line) => (
-        <div key={line}>{line}</div>
-      ))}
-    </footer>
   );
 }
 

@@ -4,11 +4,17 @@
  */
 import type { AgentWork, InFull, Step } from "../view/index.ts";
 import { thinkingShown, toolCallsShown } from "../view/index.ts";
-import { Sigil } from "./marks.tsx";
+import type { GlyphName } from "./glyphs.ts";
+import { Glyph, Lamp, Sigil } from "./marks.tsx";
 import { Prose } from "./prose.tsx";
 
-/** How a tool call is drawn for each way it can stand. */
-const TONES: Record<Extract<Step, { kind: "tool" }>["tone"], string> = { good: "done", bad: "error", busy: "running", idle: "pending" };
+/** The mark before a tool call that is not running, by how it stands. A running call has a lit lamp. */
+const MARKS: Record<Exclude<Extract<Step, { kind: "tool" }>["state"], "running">, GlyphName> = {
+  pending: "wait",
+  done: "done",
+  error: "fail",
+  interrupted: "bang",
+};
 
 function StepItem({ step }: { step: Step }) {
   switch (step.kind) {
@@ -27,7 +33,7 @@ function StepItem({ step }: { step: Step }) {
       );
     case "thinking":
       return (
-        <li class="step thinking">
+        <li class={`step thinking${step.whole ? "" : " brief"}`}>
           {step.earlier !== undefined && `${step.earlier} · `}
           {step.label}: {step.text}
         </li>
@@ -36,13 +42,14 @@ function StepItem({ step }: { step: Step }) {
       return (
         <li class="step said">
           {step.earlier !== undefined && <p class="step note">{step.earlier}</p>}
-          <Prose text={step.text} breaks />
+          <Prose text={step.text} breaks streaming={step.streaming} />
           {step.note !== undefined && <p class="step note">{step.note}</p>}
         </li>
       );
     case "tool":
       return (
-        <li class={`step tool ${TONES[step.tone]}${step.whole ? " whole" : ""}`}>
+        <li class={`step tool ${step.state}${step.whole ? " whole" : ""}`}>
+          <span class="mk">{step.state === "running" ? <Lamp /> : <Glyph name={MARKS[step.state]} />}</span>
           <span class="st">{step.status}</span>
           <b>{step.name}</b>
           <span class="call">{step.call}</span>
@@ -99,15 +106,14 @@ export function WorkBlock({ work, named, inFull, toggle }: WorkProps) {
   );
 }
 
-/** One agent's work beside a thread, shut to a line while another's is open: its latest step. */
+/** One agent's work beside a thread, shut to a line while another's is open: what it is doing, and its latest call. */
 export function WorkRow({ work, open }: { work: AgentWork; open: () => void }) {
-  const last = work.work.steps.at(-1);
-  const doing = last?.kind === "tool" ? last.name : last?.kind === "thinking" ? last.label : "";
+  const last = work.work.steps.findLast((step) => step.kind === "tool");
   return (
     <button class={`work-row pg-${work.look.pigment}`} type="button" onClick={open}>
       <Sigil look={work.look} size="s12" />
       <b>{work.name}</b>
-      <span class="doing">{doing}</span>
+      <span class="doing">{work.doing}</span>
       <span class="call">{last?.kind === "tool" ? last.call : ""}</span>
     </button>
   );

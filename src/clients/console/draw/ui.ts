@@ -363,7 +363,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
 
     frame.running = runningIn(model);
     frame.levels = levelsOf(model, { now: now(), inFull, filter: frame.filter });
-    const { agents, list: listLevel, thread: threadLevel, session } = frame.levels;
+    const { agents, list: listLevel, thread: threadLevel } = frame.levels;
     frame.chosen.agents = kept(agents.rows, frame.chosen.agents);
     const rows = listLevel === undefined ? [] : listRows(listLevel);
     frame.chosen.list ??= openedKey(item);
@@ -389,7 +389,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
       tui.setFocus(next);
     }
     const working = agents.rows.filter((each) => each.kind === "agent" && each.working).length;
-    animate(working > 0 || threadLevel?.working !== undefined || session?.working !== undefined);
+    animate(working > 0 || threadLevel?.working !== undefined);
     const named = windowTitle(working, agents.unread);
     if (named !== title) {
       title = named;

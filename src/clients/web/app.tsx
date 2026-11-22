@@ -154,6 +154,9 @@ function upFrom(route: Route): Route {
   return { ...route, shown: undefined };
 }
 
+/** How many of a tool's last lines a brief call shows beside a thread. */
+const OUTPUT_LINES = 2;
+
 /** How long a route to a thread waits to learn which channel the thread is in, before it is opened all the same. */
 const WAIT_MS = 8000;
 
@@ -345,7 +348,7 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
   const listView = page.level >= 2 ? listLevel(model, { ...at, filter: page.filter }) : undefined;
   const file = page.level === 3 && list?.kind === "agent" ? page.file : undefined;
   const front = page.level === 3 && file === undefined;
-  const thread = front ? threadLevel(model, { ...at, inFull: page.inFull }) : undefined;
+  const thread = front ? threadLevel(model, { ...at, inFull: page.inFull, outputLines: OUTPUT_LINES }) : undefined;
   const session = front && item?.kind === "session" ? sessionLevel(model, { ...at, inFull: { toolCalls: true, thinking: true } }) : undefined;
   const running = useMemo(() => runningOf(model), [model]);
   const listAgent = list?.kind === "agent" ? list.id : undefined;
@@ -615,7 +618,7 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
           {pane}
         </section>
         <section class="pane watch" onPointerDown={() => setPeek(false)}>
-          {watching !== undefined && <WatchView session={{ ...watching, notes: watchNotes }} close={back} retry={retryLine} />}
+          {watching !== undefined && <WatchView session={{ ...watching, notes: watchNotes }} close={back} show={(agent) => state.showView(agent)} retry={retryLine} />}
         </section>
       </div>
     </div>

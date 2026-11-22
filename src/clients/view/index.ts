@@ -26,7 +26,7 @@ export {
 export { BRIEF, type LevelOptions, type Row } from "./level.ts";
 export { type ListLevel, listLevel, type ListOptions, nothingOpen, type NothingOpen } from "./list.ts";
 export type { Look } from "./look.ts";
-export { sessionLevel, type SessionLevel, type SessionOptions } from "./session.ts";
+export { sessionLevel, type SessionLevel, type SessionOptions, type Side } from "./session.ts";
 export { type AgentWork, type MessageRow, type StatusBlock, threadLevel, type ThreadLevel, type ThreadOptions, type Waiting } from "./thread.ts";
 export type { Step, Work } from "./work.ts";
 export {

@@ -102,6 +102,7 @@ body { background: var(--pane); color: var(--ink); font: 400 var(--t-ui)/1.45 va
 @keyframes flow-v { to { -webkit-mask-position: 0 32px; mask-position: 0 32px; } }
 @keyframes walk { 0% { transform: translateX(0); } 25% { transform: translateX(6px); } 50% { transform: translateX(12px); } 75% { transform: translateX(6px); } }
 @keyframes legs { to { -webkit-mask-position: -48px 0; mask-position: -48px 0; } }
+@keyframes caret { 50% { opacity: 0; } }
 
 /* ==========================================================================
    THE CLIENT
@@ -298,6 +299,7 @@ button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent
 .prose :is(th, td) { padding: 3px 10px 4px 0; text-align: left; border-bottom: 1px solid var(--line); }
 .prose th { font-weight: 600; }
 .deleted { color: var(--ink-3); font-style: italic; }
+.streaming > :last-child::after { content: ""; display: inline-block; width: 7px; height: 1em; margin-left: 2px; vertical-align: -2px; background: var(--ink-2); animation: caret 0.9s steps(1) infinite; }
 
 .reactions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .react { display: inline-flex; align-items: center; gap: 6px; padding: 1px 8px 2px 6px; font-size: var(--t-code); color: var(--ink-2); background: var(--raise); clip-path: var(--step); }
@@ -321,11 +323,16 @@ button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent
 
 .steps { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; margin: 0; padding: 0; list-style: none; font: 400 var(--t-code)/1.55 var(--mono); }
 .step.thinking { font: italic 400 var(--t-small)/1.45 var(--face); color: var(--ink-3); white-space: pre-wrap; overflow-wrap: anywhere; }
+.step.thinking.brief { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .step.tool { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; }
+.step .mk { align-self: center; width: 10px; height: 10px; display: grid; place-items: center; }
+.step.done .mk { color: var(--good-ink); }
+.step.error .mk, .step.interrupted .mk { color: var(--bad-ink); }
+.step.pending .mk { color: var(--ink-3); }
 .step .st { color: var(--ink-3); white-space: nowrap; }
-.step.done .st { color: var(--good-ink); }
+.step.done:not(.whole) .st { display: none; }
 .step.running .st { color: var(--busy-ink); }
-.step.error .st { color: var(--bad-ink); }
+.step.error .st, .step.interrupted .st { color: var(--bad-ink); }
 .step b { font-weight: 600; }
 .step .call { flex: 1; min-width: 0; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .step.whole .call { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -395,6 +402,9 @@ button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent
 
 .watch-foot { flex: none; padding: 9px 16px calc(10px + var(--safe-bottom, 0px)); border-top: 1px solid var(--line); font: 400 var(--t-meta)/1.5 var(--mono); color: var(--ink-3); }
 .watch-foot .note { margin: 0 0 8px; font-family: var(--face); }
+.picker { display: flex; gap: 2px; }
+.picker button { width: 30px; height: 30px; display: grid; place-items: center; clip-path: var(--step); }
+.picker button[aria-pressed="true"] { background: var(--raise); }
 .stale-tag { margin-left: 8px; font: 400 var(--t-meta)/1 var(--mono); color: var(--caution-ink); }
 
 /* --- Nothing open yet ------------------------------------------------------ */

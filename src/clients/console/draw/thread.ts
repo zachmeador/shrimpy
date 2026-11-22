@@ -176,7 +176,7 @@ function emptyPane(frame: Frame, width: number, height: number): string[] {
  * The dock under what is said: what is not working, what `/status` read, who
  * is working with the shrimp walking, what is queued, the soonest wake-up with
  * how many more `/status` lists, and where the input would be in a thread only
- * read, why there is none. A session behind no thread says what it is doing.
+ * read, why there is none. A session behind no thread has only what is not working.
  */
 export class Dock implements Component {
   readonly #frame: Frame;
@@ -195,16 +195,7 @@ export class Dock implements Component {
     const one = (runs: readonly Run[], right: readonly Run[] = []): void => void lines.push(spread(paint, runs, right, mx + 1));
     for (const note of notesFor(frame, "item")) lines.push(...wrapRuns(paint, noteRuns(note), mx));
     const walking = WALK[frame.tick % WALK.length] ?? "";
-    if (item.kind === "session") {
-      const session = levels.session;
-      if (session !== undefined) {
-        if (session.stale) lines.push(paint.text(OUT_OF_DATE_MARK, role("caution")));
-        if (session.working !== undefined) one([[walking, "ink"], [` ${session.working}`, role("busy")]]);
-        if (session.idle !== undefined) one([[session.idle, "ink3"]]);
-        for (const queued of session.queued) one([[queued, "ink3"]]);
-        for (const waiting of session.waiting) one([["◷ ", "ink3"], [waiting, "ink3"]]);
-      }
-    } else if (levels.thread !== undefined) {
+    if (item.kind === "thread" && levels.thread !== undefined) {
       const thread = levels.thread;
       if (thread.status !== undefined) {
         lines.push(paint.text(thread.status.header, "ink3"));

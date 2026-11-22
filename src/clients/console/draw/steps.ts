@@ -1,11 +1,18 @@
 import { Markdown, type MarkdownTheme, truncateToWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import type { ToolStatus } from "../../../contracts/agent/index.ts";
 import { type AgentWork, type InFull, type MessageRow, OUT_OF_DATE_MARK, type Step } from "../../view/index.ts";
-import { type Paint, role, type Run, type Style, type Tone, type Wool } from "./paint.ts";
+import { type Paint, role, type Run, runsWidth, type Style, type Tone, type Wool } from "./paint.ts";
 import { hintRuns, spread } from "./rows.ts";
 import { inFullHints } from "./words.ts";
 
-/** How a tool call's status is drawn, by how it stands. */
-const TONES: Record<"good" | "bad" | "busy" | "idle", Tone> = { good: role("good"), bad: role("bad"), busy: role("busy"), idle: "ink3" };
+/** The mark before how a tool call stands, and its tone, by how it stands. */
+const MARKS: Record<ToolStatus, [mark: string, tone: Tone]> = {
+  pending: ["○", "ink3"],
+  running: ["●", role("busy")],
+  done: ["✓", role("good")],
+  error: ["✗", role("bad")],
+  interrupted: ["!", role("bad")],
+};
 
 function markdownTheme(paint: Paint): MarkdownTheme {
   const as =
@@ -120,7 +127,8 @@ export function stepLines(paint: Paint, prose: Prose, step: Step, width: number,
     }
     case "tool": {
       // A call shown whole may take many lines, so it goes under the line that says how the call stands.
-      const head: Run[] = [[step.status, TONES[step.tone]], ["  ", "ink"], [step.name, { tone: "ink", bold: true }]];
+      const [mark, tone] = MARKS[step.state];
+      const head: Run[] = [[`${mark} ${step.status}`, tone], ["  ", "ink"], [step.name, { tone: "ink", bold: true }]];
       if (!step.whole && step.call !== "") head.push([` ${step.call}`, "ink3"]);
       const lines = step.whole ? wrap(paint, paint.runs(head), width, "ink") : [oneOf(paint, head, width)];
       if (step.whole && step.call !== "") lines.push(...indent(wrap(paint, step.call, width - 2, "ink2"), 2));
@@ -151,7 +159,7 @@ export function sessionLines(paint: Paint, prose: Prose, steps: readonly Step[],
 /**
  * The work going on behind a thread, apart from what was said: a bar down its
  * side, and beside its first line the keys that show it in full. Each agent
- * that works gets its name where it needs one, in a room or beside others, and
+ * that works gets its name and what it is doing where it needs a name, in a room or beside others, and
  * where several work, only its latest step until tool calls are in full.
  */
 export function workLines(paint: Paint, prose: Prose, works: readonly AgentWork[], named: boolean, width: number, inFull: InFull): string[] {
@@ -161,9 +169,11 @@ export function workLines(paint: Paint, prose: Prose, works: readonly AgentWork[
   const keys = hintRuns(inFullHints(inFull));
   const lines = [""];
   works.forEach((each, index) => {
-    const name: Run[] = named ? [[each.name, { tone: each.look.pigment, bold: true }]] : [];
-    if (index === 0) lines.push(`${bar}${spread(paint, name, keys, width - 2)}`);
-    else if (named) lines.push(`${bar}${oneOf(paint, name, width - 2)}`);
+    const head: Run[] = named ? [[each.name, { tone: each.look.pigment, bold: true }], [` · ${each.doing}`, role("busy")]] : [];
+    // Where the agent's name, what it is doing and the keys don't fit on one line, the keys go on a line of their own.
+    const beside = index === 0 && runsWidth(head) + runsWidth(keys) + 2 <= width - 2;
+    if (index === 0) lines.push(`${bar}${spread(paint, beside ? head : [], keys, width - 2)}`);
+    if (named && !beside) lines.push(`${bar}${oneOf(paint, head, width - 2)}`);
     const steps = works.length > 1 && !inFull.toolCalls ? each.work.steps.slice(-1) : each.work.steps;
     const body = [
       ...(each.stale ? [paint.text(OUT_OF_DATE_MARK, role("caution"))] : []),

@@ -1,9 +1,9 @@
-import { imageWords, markerWords, type SessionItem } from "../../contracts/agent/index.ts";
+import { imageWords, markerWords, type SessionItem, type ToolStatus, toolStatusWords } from "../../contracts/agent/index.ts";
 import { oneLine, plain } from "../../lib/plain/index.ts";
 import type { SessionView } from "../state/index.ts";
 import { cutEnd } from "../../lib/text/index.ts";
 import { countLines, lastCharacters, lastLines, shortLine } from "./cut.ts";
-import { answerNote, hiddenCharacters, hiddenLines, hiddenSteps, type InFull, moreCharacters, SHOWN, THINKING, toolStatus } from "./words.ts";
+import { answerNote, hiddenCharacters, hiddenLines, hiddenSteps, type InFull, moreCharacters, SHOWN, THINKING } from "./words.ts";
 
 /** One thing the agent is doing or has done in the turn it is working on now, or, in a session being watched, one thing in it. */
 export type Step =
@@ -21,6 +21,8 @@ export type Step =
       kind: "thinking";
       label: string;
       text: string;
+      /** It is shown whole, as far as the limit allows; brief, it is its last lines, for one line. */
+      whole: boolean;
       /** How much of the start of the thinking is left out, in words, when it was too long to show whole. */
       earlier: string | undefined;
     }
@@ -30,6 +32,8 @@ export type Step =
       note: string | undefined;
       /** How much of the start of the answer is left out, in words, when a session being watched has more than it shows. */
       earlier: string | undefined;
+      /** It is still being written. */
+      streaming: boolean;
     }
   | {
       kind: "tool";
@@ -38,10 +42,10 @@ export type Step =
       call: string;
       /** The call and what it printed are shown whole, as far as the limit allows. */
       whole: boolean;
-      /** How the call stands, with a mark: done, running, failed. */
+      /** How the call stands. */
+      state: ToolStatus;
+      /** How the call stands, in words: done, running, failed. */
       status: string;
-      /** The tool's severity for how it is drawn. */
-      tone: "good" | "bad" | "busy" | "idle";
       /** What it printed: its last lines when brief, and all of it when whole. */
       output: string[];
       /** How much of the start of the output is left out, in words, when there was more. */
@@ -60,6 +64,12 @@ export interface Work {
   earlier: string | undefined;
 }
 
+/** How work is shown: what is in full, and how many of a tool's last lines a brief call shows. */
+export interface Shown {
+  inFull: InFull;
+  outputLines: number;
+}
+
 /** The most steps of one turn shown. A turn that uses many tools shows the latest. */
 const MAX_STEPS = 12;
 /** What is kept of what streams: the lines a person could see are far fewer, and a line can be megabytes long. */
@@ -67,7 +77,6 @@ const THINKING_LINES = 2;
 const THINKING_CHARACTERS = 2_000;
 const TEXT_LINES = 80;
 const TEXT_CHARACTERS = 20_000;
-const OUTPUT_LINES = 6;
 const OUTPUT_CHARACTERS = 8_000;
 const CALL_CHARACTERS = 300;
 /**
@@ -84,13 +93,13 @@ const FULL_CHARACTERS = 100_000;
  * with their status and output follow, and when the turn settles the reply is
  * a message in the thread and this goes away.
  */
-export function workOf(session: SessionView | undefined, inFull: InFull): Work | undefined {
+export function workOf(session: SessionView | undefined, shown: Shown): Work | undefined {
   if (session?.status.busy !== true) return undefined;
   const live = session.items.slice(session.items.findLastIndex((item) => item.type === "user") + 1);
-  const steps = live.flatMap((item) => stepsOf(item, inFull, false));
-  const shown = steps.slice(-MAX_STEPS);
-  const left = steps.length - shown.length;
-  return { steps: shown, earlier: left > 0 ? hiddenSteps(left) : undefined };
+  const steps = live.flatMap((item) => stepsOf(item, shown, false));
+  const latest = steps.slice(-MAX_STEPS);
+  const left = steps.length - latest.length;
+  return { steps: latest, earlier: left > 0 ? hiddenSteps(left) : undefined };
 }
 
 /** The most items of a session shown at once, which are its newest. */
@@ -107,9 +116,9 @@ export interface Watched {
  * what it wrote, each tool call with what it printed, and where it was reset or
  * compacted. Thinking and tool calls are brief unless asked for in full.
  */
-export function watchOf(session: SessionView, inFull: InFull): Watched {
-  const shown = session.items.slice(-MAX_ITEMS);
-  return { steps: shown.flatMap((item) => stepsOf(item, inFull, true)), earlier: session.items.length > shown.length || session.before !== null };
+export function watchOf(session: SessionView, shown: Shown): Watched {
+  const newest = session.items.slice(-MAX_ITEMS);
+  return { steps: newest.flatMap((item) => stepsOf(item, shown, true)), earlier: session.items.length > newest.length || session.before !== null };
 }
 
 /**
@@ -117,7 +126,7 @@ export function watchOf(session: SessionView, inFull: InFull): Watched {
  * shows everything in it and an answer whole, where the work of a turn leaves
  * out what was said, which the thread has, and shows the latest of an answer.
  */
-function stepsOf(item: SessionItem, inFull: InFull, transcript: boolean): Step[] {
+function stepsOf(item: SessionItem, shown: Shown, transcript: boolean): Step[] {
   switch (item.type) {
     case "user": {
       if (!transcript) return [];
@@ -129,32 +138,31 @@ function stepsOf(item: SessionItem, inFull: InFull, transcript: boolean): Step[]
       return transcript ? [{ kind: "marker", text: markerWords(item.marker) }] : [];
     case "assistant": {
       const steps: Step[] = [];
-      if (item.thinking.trim() !== "") steps.push(thinkingStep(item.thinking.trim(), inFull.thinking));
+      if (item.thinking.trim() !== "") steps.push(thinkingStep(item.thinking.trim(), shown.inFull.thinking));
       const cutOff = answerNote(item.ended?.how);
-      if (item.text.trim() !== "" || cutOff !== undefined) steps.push(textStep(item.text.trimEnd(), cutOff, transcript));
+      if (item.text.trim() !== "" || cutOff !== undefined) steps.push(textStep(item.text.trimEnd(), cutOff, transcript, item.streaming));
       return steps;
     }
     case "tool":
-      return [toolStep(item, inFull.toolCalls)];
+      return [toolStep(item, shown.inFull.toolCalls, shown.outputLines)];
   }
 }
 
-function textStep(text: string, note: string | undefined, whole: boolean): Step {
-  if (!whole) return { kind: "text", text: plain(lastLines(text, TEXT_LINES, TEXT_CHARACTERS)), note, earlier: undefined };
+function textStep(text: string, note: string | undefined, whole: boolean, streaming: boolean): Step {
+  if (!whole) return { kind: "text", text: plain(lastLines(text, TEXT_LINES, TEXT_CHARACTERS)), note, earlier: undefined, streaming };
   const kept = lastCharacters(text, FULL_CHARACTERS);
-  return { kind: "text", text: plain(kept.text), note, earlier: kept.cut > 0 ? hiddenCharacters(kept.cut) : undefined };
+  return { kind: "text", text: plain(kept.text), note, earlier: kept.cut > 0 ? hiddenCharacters(kept.cut) : undefined, streaming };
 }
 
 function thinkingStep(thinking: string, whole: boolean): Step {
   if (!whole) {
-    return { kind: "thinking", label: THINKING, text: plain(lastLines(thinking, THINKING_LINES, THINKING_CHARACTERS)), earlier: undefined };
+    return { kind: "thinking", label: THINKING, text: plain(lastLines(thinking, THINKING_LINES, THINKING_CHARACTERS)), earlier: undefined, whole };
   }
   const { text, cut } = lastCharacters(thinking, FULL_CHARACTERS);
-  return { kind: "thinking", label: THINKING, text: plain(text), earlier: cut > 0 ? hiddenCharacters(cut) : undefined };
+  return { kind: "thinking", label: THINKING, text: plain(text), earlier: cut > 0 ? hiddenCharacters(cut) : undefined, whole };
 }
 
-function toolStep(item: Extract<SessionItem, { type: "tool" }>, whole: boolean): Step {
-  const status = toolStatus(item.status);
+function toolStep(item: Extract<SessionItem, { type: "tool" }>, whole: boolean, outputLines: number): Step {
   const printed = item.output.trimEnd();
   let lines: string[];
   let earlier: string | undefined;
@@ -163,7 +171,7 @@ function toolStep(item: Extract<SessionItem, { type: "tool" }>, whole: boolean):
     lines = plain(text).split("\n");
     earlier = cut > 0 ? hiddenCharacters(cut) : undefined;
   } else {
-    lines = plain(lastLines(printed, OUTPUT_LINES, OUTPUT_CHARACTERS)).split("\n").slice(-OUTPUT_LINES);
+    lines = plain(lastLines(printed, outputLines, OUTPUT_CHARACTERS)).split("\n").slice(-outputLines);
     const total = countLines(printed);
     earlier = total > lines.length ? hiddenLines(total - lines.length) : undefined;
   }
@@ -172,8 +180,8 @@ function toolStep(item: Extract<SessionItem, { type: "tool" }>, whole: boolean):
     name: oneLine(item.name),
     call: whole ? wholeCallOf(item.name, item.args) : callOf(item.name, item.args),
     whole,
-    status: status.label,
-    tone: status.tone,
+    state: item.status,
+    status: toolStatusWords(item.status),
     output: lines.length === 1 && lines[0] === "" ? [] : lines,
     earlier,
     images: item.images.map((image) => imageWords(image.mimeType)),

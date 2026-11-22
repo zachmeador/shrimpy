@@ -1,13 +1,13 @@
-import { modelWords, wakeupNote, YOUR_DM } from "../../contracts/agent/index.ts";
+import { activityWords, modelWords, wakeupNote, YOUR_DM } from "../../contracts/agent/index.ts";
 import { type Message, namer, receiptWords, titleOf } from "../../contracts/chat/index.ts";
 import { oneLine, plain } from "../../lib/plain/index.ts";
 import { agentNameOf, agentOfList, type Model, sidesOf, type Status } from "../state/index.ts";
 import { type CommandLine, commandLines } from "./commands.ts";
-import { BRIEF, type LevelOptions, lookingAt } from "./level.ts";
+import { BRIEF, type LevelOptions, lookingAt, OUTPUT_LINES } from "./level.ts";
 import { type Look, lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
 import { whenOf } from "./time.ts";
-import { type Work, workOf } from "./work.ts";
+import { type Shown, type Work, workOf } from "./work.ts";
 import {
   agentStatusRows,
   DELETED,
@@ -66,6 +66,8 @@ export interface AgentWork {
   name: string;
   look: Look;
   work: Work;
+  /** What the agent is doing there: working, answering, running a tool. */
+  doing: string;
   /** The work shown may be out of date: the agent is not being reached. */
   stale: boolean;
 }
@@ -137,6 +139,8 @@ export interface ThreadLevel {
 export interface ThreadOptions extends LevelOptions {
   /** What is shown in full where work is shown. Everything is brief when this is left out. */
   inFull?: InFull;
+  /** How many of a tool's last lines a brief call shows. */
+  outputLines?: number;
 }
 
 /** The open thread, as plain text and facts, or none while no thread is open. */
@@ -201,7 +205,7 @@ export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel |
     working,
     workingCounted,
     from,
-    works: worksOf(model, from, options.inFull ?? BRIEF),
+    works: worksOf(model, from, { inFull: options.inFull ?? BRIEF, outputLines: options.outputLines ?? OUTPUT_LINES }),
     waiting,
     cancels: reading || soonest === undefined || waiting.length < 2 ? undefined : stopCancelsAll(waiting.length, dm ? "dm" : "room", dm ? who : soonest.who),
     queued: queuedOf(model),
@@ -220,11 +224,12 @@ export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel |
  * thread works as its last view says: the agent the thread was opened from
  * first, then by name.
  */
-function worksOf(model: Model, from: string | undefined, inFull: InFull): AgentWork[] {
+function worksOf(model: Model, from: string | undefined, shown: Shown): AgentWork[] {
   return Object.entries(model.behind)
     .flatMap(([agent, view]) => {
-      const work = workOf(view, inFull);
-      return work === undefined ? [] : [{ agent, name: oneLine(agentNameOf(model, agent)), look: lookOf(model, agent), work, stale: !view.reached }];
+      const work = workOf(view, shown);
+      if (work === undefined) return [];
+      return [{ agent, name: oneLine(agentNameOf(model, agent)), look: lookOf(model, agent), work, doing: activityWords(view.status.activity), stale: !view.reached }];
     })
     .sort((a, b) => Number(b.agent === from) - Number(a.agent === from) || a.name.localeCompare(b.name));
 }

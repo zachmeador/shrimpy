@@ -13,9 +13,8 @@ import {
   runningTriggerFields,
   type SessionActivity,
   type SessionPlace,
+  type SessionStatus,
   type SessionSummary,
-  type ToolStatus,
-  toolStatusWords,
   type TriggerDetail,
   type TriggerSummary,
   usageWords,
@@ -303,7 +302,15 @@ export const sessionTitle = (who: string, watching: string): string => `${oneLin
 export const SESSION_EMPTY = "Nothing in this session yet.";
 /** The label over what a session was shown. */
 export const SHOWN = "shown";
-export const idleLine = (agent: string): string => `${oneLine(agent)} is idle`;
+/** Where the session behind a thread is, as its agent's view names it: the place as the agent's list says it, then "main" for the main thread, or the thread's title. */
+export const behindThread = (place: string, main: boolean, title: string): string => `${place} · ${main ? "main" : oneLine(title)}`;
+export const NOT_RUNNING = "not running";
+/** Under an agent's view: what the session is doing, how many inputs wait, its model and what it has used. `busy` says it is working. */
+export function sessionFoot(status: SessionStatus, busy: boolean): string {
+  const waiting = status.queued.length > 0 ? `${String(status.queued.length)} waiting` : undefined;
+  const doing = busy ? activityWords(status.activity) : activityWords({ kind: "idle" });
+  return [doing, waiting, status.model === null ? undefined : modelWords(status.model), usageWords(status.usage)].filter((part) => part !== undefined).join(" · ");
+}
 /** What a thread itself is called, as its title says it after who it is with: `title` on one line, or that it is new while it has none. */
 export const threadCalled = (title: string | undefined): string => (title === undefined ? "new thread" : oneLine(title));
 /** `who` is what the conversation is called: an agent's name or a room's label, and `called` what `threadCalled` says. */
@@ -553,21 +560,6 @@ export const hiddenCharacters = (count: number): string =>
 /** What is left out of the end of something shown in full, when it was longer than the limit. */
 export const moreCharacters = (count: number): string =>
   `${String(count)} more ${count === 1 ? "character" : "characters"} not shown`;
-
-/** The mark before how a tool call stands, and how to draw it. */
-const TOOL_MARKS: Record<ToolStatus, { mark: string; tone: "good" | "bad" | "busy" | "idle" }> = {
-  pending: { mark: "○", tone: "idle" },
-  running: { mark: "●", tone: "busy" },
-  done: { mark: "✓", tone: "good" },
-  error: { mark: "✗", tone: "bad" },
-  interrupted: { mark: "!", tone: "bad" },
-};
-
-/** How a tool call stands, with a mark, and how to draw it. */
-export function toolStatus(status: ToolStatus): { label: string; tone: "good" | "bad" | "busy" | "idle" } {
-  const { mark, tone } = TOOL_MARKS[status];
-  return { label: `${mark} ${toolStatusWords(status)}`, tone };
-}
 
 /** A word on an answer that did not end the way an answer does. `ended` is how it ended, if it has. */
 export function answerNote(ended: AnswerEnding | undefined): string | undefined {

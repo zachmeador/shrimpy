@@ -14,6 +14,7 @@ export const CONTROLS = {
   backToConversation: "Back to the conversation",
   agentsView: "agent's view",
   closeView: "Close the agent's view",
+  whoseView: "Whose view",
   send: "Send",
   commands: "Commands",
   mode: "Switch between dusk and day",

@@ -15,6 +15,9 @@ export interface LevelOptions {
 /** What is shown in full where work is shown: nothing, unless a client asks. */
 export const BRIEF: InFull = { toolCalls: false, thinking: false };
 
+/** How many of a tool's last lines a brief call shows, unless a client asks for another number. */
+export const OUTPUT_LINES = 6;
+
 /** A row of a list the person chooses from. */
 export interface Row {
   /** What the state is told when the row is chosen: an agent's member ID, the channel ID of a room or of a channel only read, a thread's ID or the address of a session behind no thread. It is never shown. */

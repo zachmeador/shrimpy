@@ -21,9 +21,9 @@ function draw(node: Md, key: number): ComponentChild {
 }
 
 /** Markdown, drawn. `breaks` breaks a line where the text does, as a chat message does. */
-export function Prose({ text, breaks }: { text: string; breaks: boolean }) {
+export function Prose({ text, breaks, streaming = false }: { text: string; breaks: boolean; streaming?: boolean }) {
   const drawn = useMemo(() => markdown(text, { breaks }).map(draw), [text, breaks]);
-  return <div class="prose">{drawn}</div>;
+  return <div class={streaming ? "prose streaming" : "prose"}>{drawn}</div>;
 }
 
 /** Text as it was written, line breaks and all. */
