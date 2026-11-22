@@ -1,5 +1,5 @@
 import { Markdown, type MarkdownTheme, truncateToWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
-import { type AgentWork, type InFull, type MessageRow, OUT_OF_DATE, type Step } from "../../view/index.ts";
+import { type AgentWork, type InFull, type MessageRow, OUT_OF_DATE_MARK, type Step } from "../../view/index.ts";
 import type { Paint, Run, Style, Tone, Wool } from "./paint.ts";
 import { hintRuns, spread } from "./rows.ts";
 import { inFullHints } from "./words.ts";
@@ -166,7 +166,7 @@ export function workLines(paint: Paint, prose: Prose, works: readonly AgentWork[
     else if (named) lines.push(`${bar}${oneOf(paint, name, width - 2)}`);
     const steps = works.length > 1 && !inFull.toolCalls ? each.work.steps.slice(-1) : each.work.steps;
     const body = [
-      ...(each.stale ? [paint.text(`(${OUT_OF_DATE})`, "sand")] : []),
+      ...(each.stale ? [paint.text(OUT_OF_DATE_MARK, "sand")] : []),
       ...(works.length > 1 && !inFull.toolCalls ? [] : earlierLine(paint, each.work.earlier)),
       ...steps.flatMap((step) => stepLines(paint, prose, step, width - 2 - pad, inFull)),
     ];

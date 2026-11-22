@@ -320,39 +320,16 @@ test("Enter acts on the command chosen in the list, and Tab only puts it in the 
   await until(() => drawn().includes(lineOf("/stop")), "the list of commands");
   terminal.type(DOWN);
   terminal.type(ENTER);
-  assert.deepEqual(state.calls, ["send /stop"], "enter completes the chosen command and sends it");
+  assert.deepEqual(state.calls, ["write /stop"], "enter completes the chosen command and writes it");
   assert.ok(!drawn().includes(lineOf("/stop")), "and closes the list");
 
   terminal.type("/sta");
   await until(() => drawn().includes(lineOf("/status")), "the list of commands");
   terminal.type(TAB);
-  assert.deepEqual(state.calls, ["send /stop"], "tab acts on nothing");
+  assert.deepEqual(state.calls, ["write /stop"], "tab acts on nothing");
   assert.ok(shows(lines(), "/status"), "it puts the command in the editor");
   terminal.type(ENTER);
-  assert.deepEqual(state.calls, ["send /stop", "status"], "a command for the terminal is acted on and not sent");
-});
-
-test("a text that starts with a slash is never posted as a message", (t) => {
-  const { terminal, state, lines } = start(t, conversation());
-
-  terminal.type("/etc/hosts is wrong");
-  terminal.type(ENTER);
-  assert.deepEqual(sent(state), [], "nothing is posted");
-  assert.ok(shows(lines(), "/etc/hosts is wrong"), "and it is back in the editor to be corrected");
-
-  // In backticks, or after a mention, it is a message.
-  terminal.type(CTRL_C);
-  terminal.type("`/etc/hosts` is wrong");
-  terminal.type(ENTER);
-  terminal.type("@scout /stop");
-  terminal.type(ENTER);
-  assert.deepEqual(sent(state), ["send `/etc/hosts` is wrong", "send @scout /stop"]);
-
-  // A command that takes nothing is not acted on with something after it.
-  terminal.type("/status now");
-  terminal.type(ENTER);
-  assert.deepEqual(sent(state).length, 2);
-  assert.ok(!state.calls.includes("status"));
+  assert.deepEqual(state.calls, ["write /stop", "write /status"], "and enter writes it");
 });
 
 test("/status shows a block for the person alone, which goes once a message is sent or the thread is left", { timeout: 30_000 }, async (t) => {
@@ -416,23 +393,19 @@ test("/model and a space lists default and the agent's models, and choosing one 
   await until(() => !drawn().includes("local/small-model"), "the list to narrow");
   terminal.type(ENTER);
 
-  assert.deepEqual(state.calls, ["send /model local/big-model"], "it is a message, which the agent acts on");
+  assert.deepEqual(state.calls, ["write /model local/big-model"], "it is written whole");
 });
 
-test("/model alone posts nothing, and a model chosen in a thread not started yet posts the command", async (t) => {
-  const { terminal, state, drawn } = start(t, conversation());
+test("a model can be chosen in a thread not started yet", async (t) => {
+  const dm = { kind: "agent" as const, id: scout.id };
+  const unstarted = aModel({ open: { list: dm, item: { kind: "thread", place: dm, thread: undefined, side: undefined } }, listing: aListing([anAgent("scout"), aChatServer()]) });
+  const { terminal, state, drawn } = start(t, unstarted);
   state.answers.models = TWO_MODELS;
 
-  terminal.type("/model");
-  terminal.type(ENTER);
-  assert.deepEqual(state.calls, ["model"], "the terminal says which model the thread uses");
-
-  const dm = { kind: "agent" as const, id: scout.id };
-  state.show(aModel({ open: { list: dm, item: { kind: "thread", place: dm, thread: undefined, side: undefined } }, listing: aListing([anAgent("scout"), aChatServer()]) }));
   terminal.type("/model big");
   await until(() => drawn().includes("local/big-model"), "the list of models");
   terminal.type(ENTER);
-  assert.deepEqual(state.calls, ["model", "send /model local/big-model"]);
+  assert.deepEqual(state.calls, ["write /model local/big-model"]);
 });
 
 test("a model typed whole and followed at once by Enter is the model chosen", async (t) => {
@@ -444,10 +417,10 @@ test("a model typed whole and followed at once by Enter is the model chosen", as
   terminal.type("local/big-model");
   terminal.type(ENTER);
 
-  assert.deepEqual(state.calls, ["send /model local/big-model"], "the list still had default chosen, which no longer fit what was typed");
+  assert.deepEqual(state.calls, ["write /model local/big-model"], "the list still had default chosen, which no longer fit what was typed");
 });
 
-test("in a room /model is posted only with an agent named before it", async (t) => {
+test("in a room the list of commands says how /model is written there", async (t) => {
   const inRoom = aThread("th_2", { preview: "go" });
   const ops = { kind: "room" as const, id: "ch_2" };
   const room = aModel({
@@ -455,26 +428,13 @@ test("in a room /model is posted only with an agent named before it", async (t) 
     listing: aListing([anAgent("scout"), aChatServer()]),
     rooms: { ch_2: aRoom("ops", ["scout"], [inRoom]) },
   });
-  const { terminal, state, drawn, lines } = start(t, room);
+  const { terminal, drawn } = start(t, room);
   const model = lineOf("/model", room);
   assert.ok(model.includes("@scout /model provider/id") && model.includes("@all"), "its line teaches how to write it there");
 
   terminal.type("/");
   // The list cuts a line to the width it has.
   await until(() => drawn().includes(model.slice(0, 30)), "the list of commands, with /model among them");
-  terminal.type("model local/big-model");
-  terminal.type(ENTER);
-  assert.deepEqual(sent(state), [], "written first, it mentions nobody, so it is not posted");
-  assert.ok(shows(lines(), "/model local/big-model"), "and the text stays in the editor");
-
-  terminal.type(CTRL_C);
-  terminal.type("/model");
-  terminal.type(ENTER);
-  terminal.type(CTRL_C);
-  terminal.type("@scout /model local/big-model");
-  terminal.type(ENTER);
-  assert.deepEqual(sent(state), ["send @scout /model local/big-model"]);
-  assert.ok(!state.calls.includes("model"), "and /model alone is not answered there");
 });
 
 test("Esc and Left go back from a thread where the agent is working, and stop nothing", (t) => {
@@ -534,9 +494,9 @@ test("Ctrl+O shows tool calls in full and Ctrl+T the thinking, and each press ag
   }
 });
 
-test("a message that is not sent comes back to the editor, ahead of anything typed since", async (t) => {
+test("a text the state does not take comes back to the editor, ahead of anything typed since", async (t) => {
   const { terminal, state, lines } = start(t, conversation());
-  state.answers.send = false;
+  state.answers.write = false;
 
   terminal.type("will not go");
   terminal.type(ENTER);

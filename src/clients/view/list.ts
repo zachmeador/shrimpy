@@ -1,19 +1,18 @@
 import { placeLabel, threadLabel, YOUR_DM } from "../../contracts/agent/index.ts";
 import { notTalkedTo, taggedTitle } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
-import { agentNameOf, type Model, type Part, partsOf, type Place } from "../state/index.ts";
+import { agentEntries, agentNameOf, type Model, type Part, partsOf, type Place } from "../state/index.ts";
 import { type LevelOptions, lookingAt, type Row } from "./level.ts";
 import { type Look, lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
 import { whenOf } from "./time.ts";
-import { agentTitle, channelThreadsTitle, type ListFilter } from "./words.ts";
+import { type ListFilter, notRunning, PICK_LIST, PICK_THREAD } from "./words.ts";
 
 /**
  * The second level: everything the agent whose list is open takes part in,
  * newest first, or the threads of the open room or channel.
  */
 export interface ListLevel {
-  title: string;
   /** The list may be out of date: chat is not being reached, or the agent is not, and what it last said is shown. */
   stale: boolean;
   rows: Row[];
@@ -61,7 +60,6 @@ function channelList(model: Model, place: Exclude<Place, { kind: "agent" }>, opt
     look: undefined,
   }));
   return {
-    title: channelThreadsTitle(here.label),
     stale: model.chat.state === "down",
     rows,
     // A room always has its main thread, so there is no one to ask the person to start a talk with.
@@ -89,7 +87,6 @@ function agentList(model: Model, agentId: string, filter: ListFilter, options: L
   const listed = model.sessions !== undefined;
   const refused = model.refusal === undefined ? undefined : { what: "sessions" as const, words: model.refusal };
   return {
-    title: agentTitle(name, filter),
     stale: model.chat.state === "down" || (model.agent?.state === "down" && listed),
     rows,
     empty: rows.length === 0 && model.chat.state === "up" ? notTalkedTo(name) : undefined,
@@ -129,4 +126,29 @@ function partRow(part: Part, me: string | undefined, now: number): Row {
     yours: part.yours,
     look: undefined,
   };
+}
+
+/**
+ * What stands where a thread would be while none is open, and how a thread can
+ * be started there, for a client that names its key: beside threads to pick, in
+ * place of any, or not at all.
+ */
+export interface NothingOpen {
+  said: string;
+  start: "beside" | "instead" | "none";
+}
+
+/**
+ * What stands where a thread would be while no list is open, or nothing is
+ * open in the open one: what to pick, that the list's agent is not running, or
+ * that the person has not talked to it yet. Undefined while something is open.
+ */
+export function nothingOpen(model: Model): NothingOpen | undefined {
+  const { list, item } = model.open;
+  if (item !== undefined) return undefined;
+  if (list === undefined) return { said: PICK_LIST, start: "none" };
+  if (list.kind !== "agent") return { said: PICK_THREAD, start: "none" };
+  const name = agentNameOf(model, list.id);
+  if (!agentEntries(model).some((entry) => entry.id === list.id && entry.running)) return { said: notRunning(name), start: "none" };
+  return partsOf(model, list.id).some((part) => part.yours) ? { said: PICK_THREAD, start: "beside" } : { said: notTalkedTo(name), start: "instead" };
 }

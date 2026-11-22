@@ -1,13 +1,12 @@
 import { type Component, type Editor, stripTerminalSequences, type TuiMouseEvent, type TuiMouseEventResult, visibleWidth } from "@earendil-works/pi-tui";
 import { YOUR_DM } from "../../../contracts/agent/index.ts";
-import { notTalkedTo } from "../../../contracts/chat/index.ts";
 import { halves, WORDMARK } from "../../look/index.ts";
-import { moreWakeups, notRunning, OUT_OF_DATE, PICK_LIST, PICK_THREAD, READ_ONLY_TAG } from "../../view/index.ts";
+import { moreWakeupsListed, OUT_OF_DATE_MARK, READ_ONLY_TAG } from "../../view/index.ts";
 import type { Ground, Run, Tone } from "./paint.ts";
 import { hint, spread } from "./rows.ts";
 import { type Frame, listRowKey, MEASURE, notesFor, rowKey, sides, writable } from "./screen.ts";
 import { messageLines, type Prose, sessionLines, workLines, wrap } from "./steps.ts";
-import { emptyAgentList, PICK_OR_START, turnHint } from "./words.ts";
+import { PICK_OR_START, startThread, turnHint } from "./words.ts";
 
 /** The shrimp that walks while an agent works, one frame after another. */
 const WALK = ["🦐  ", " 🦐 ", "  🦐", " 🦐 "];
@@ -49,19 +48,20 @@ export class ThreadHeader implements Component {
     const on = threadGround(frame);
     this.#turn = undefined;
     if (item === undefined) return [];
-    const late: Run[] = stale(frame) ? [[` (${OUT_OF_DATE})`, "sand"]] : [];
+    const late: Run[] = stale(frame) ? [[` ${OUT_OF_DATE_MARK}`, "sand"]] : [];
     const at = sides(model);
     const turn: Run[] = item.kind === "thread" && (at.count > 0 || at.at > 0) ? hint(turnHint(at.count, at.at)) : [];
     const lines: string[] = [];
     const session = levels.session;
     if (session !== undefined) {
-      lines.push(spread(paint, [[" ", "ink"], ...named(session.title, nameOf(frame, session.agent), { tone: session.look.pigment, bold: true }), ...late], turn, width));
+      const who: Run = [session.who, { tone: session.look.pigment, bold: true }];
+      lines.push(spread(paint, [[" ", "ink"], who, [" · ", "ink3"], [session.watching, "ink"], ...late], turn, width));
     } else if (levels.thread !== undefined && item.kind === "thread") {
-      const place = item.place;
+      const { place } = item;
       const row = levels.agents.rows.find((each) => rowKey(each) === listRowKey(place));
-      const who = row?.label;
-      const style = place.kind === "agent" && row?.look !== undefined ? { tone: row.look.pigment, bold: true } : { tone: "ink" as const, bold: true };
-      lines.push(spread(paint, [[" ", "ink"], ...named(levels.thread.title, who, style), ...late], turn, width));
+      const pigment = place.kind === "agent" ? row?.look?.pigment : undefined;
+      const who: Run = [levels.thread.who, { tone: pigment ?? "ink", bold: true }];
+      lines.push(spread(paint, [[" ", "ink"], who, [" · ", "ink3"], [levels.thread.called, "ink"], ...late], turn, width));
       const sub = place.kind === "agent" ? YOUR_DM : (row?.detail ?? READ_ONLY_TAG);
       lines.push(spread(paint, [[" ", "ink"], [sub, "ink3"]], [], width));
     }
@@ -84,17 +84,6 @@ export class ThreadHeader implements Component {
 
   invalidate(): void {}
 }
-
-/** A title that starts with a name and " · ", with the name in `style`, the dot dim and the rest in ink. */
-function named(title: string, name: string | undefined, style: Run[1]): Run[] {
-  const lead = `${name ?? ""} · `;
-  if (name !== undefined && title.startsWith(lead)) return [[name, style], [" · ", "ink3"], [title.slice(lead.length), "ink"]];
-  return [[title, { tone: "ink", bold: true }]];
-}
-
-/** An agent's name as the agents and rooms have it. */
-const nameOf = (frame: Frame, agent: string): string | undefined =>
-  frame.levels.agents.rows.find((each) => each.kind === "agent" && each.id === agent)?.label;
 
 /**
  * What the thread's pane scrolls: what was said and the work going on beside
@@ -159,16 +148,13 @@ export class Conversation implements Component {
   invalidate(): void {}
 }
 
-/** Where a thread would be while none is open: the open agent's sigil, or the wordmark, pressed into the pane, and what to pick. */
+/** Where a thread would be while none is open: the open agent's sigil, or the wordmark, pressed into the pane, and what the views say stands there. */
 function emptyPane(frame: Frame, width: number, height: number): string[] {
   const { paint, levels, model } = frame;
-  const list = levels.list;
-  const agent = model.open.list?.kind === "agent" ? model.open.list.id : undefined;
-  const art = halves(agent === undefined ? WORDMARK : (list?.look?.sigil ?? []));
-  let words = PICK_LIST;
-  if (list !== undefined && agent === undefined) words = PICK_THREAD;
-  else if (list !== undefined && !frame.running.has(agent ?? "")) words = notRunning(list.name);
-  else if (list !== undefined) words = list.rows.some((each) => each.yours) ? PICK_OR_START : emptyAgentList(notTalkedTo(list.name), list.name, false);
+  const agent = model.open.list?.kind === "agent";
+  const art = halves(agent ? (levels.list?.look?.sigil ?? []) : WORDMARK);
+  const nothing = levels.nothing;
+  const words = nothing === undefined ? "" : nothing.start === "beside" ? PICK_OR_START : nothing.start === "instead" ? startThread(nothing.said) : nothing.said;
   const said = wrap(paint, words, Math.max(1, width - 4), "ink3");
   const top = Math.max(1, Math.floor((height - art.length - 2 - said.length) / 2));
   const centered = (line: string): string => `${" ".repeat(Math.max(0, Math.floor((width - visibleWidth(line)) / 2)))}${line}`;
@@ -206,7 +192,7 @@ export class Dock implements Component {
     if (item.kind === "session") {
       const session = levels.session;
       if (session !== undefined) {
-        if (session.stale) lines.push(paint.text(`(${OUT_OF_DATE})`, "sand"));
+        if (session.stale) lines.push(paint.text(OUT_OF_DATE_MARK, "sand"));
         if (session.working !== undefined) one([[walking, "ink"], [` ${session.working}`, "ochre"]]);
         if (session.idle !== undefined) one([[session.idle, "ink3"]]);
         for (const queued of session.queued) one([[queued, "ink3"]]);
@@ -222,7 +208,7 @@ export class Dock implements Component {
       if (thread.working !== undefined) one([[walking, "ink"], [` ${thread.working}`, "ochre"]]);
       for (const queued of thread.queued) one([[queued, "ink3"]]);
       const [soonest, ...more] = thread.waiting;
-      if (soonest !== undefined) one([["◷ ", "ink3"], [soonest.line, "ink3"]], more.length > 0 ? [[moreWakeups(more.length), "ink2"]] : []);
+      if (soonest !== undefined) one([["◷ ", "ink3"], [soonest.line, "ink3"]], more.length > 0 ? [[moreWakeupsListed(more.length), "ink2"]] : []);
       if (thread.readOnly !== undefined) lines.push(...wrap(paint, thread.readOnly, mx, "ink3"));
     }
     if (lines.length === 0) return [];

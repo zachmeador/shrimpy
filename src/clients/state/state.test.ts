@@ -115,6 +115,50 @@ test("saying something posts it as the person, and a new thread is made with its
   await rig.until((each) => each.dms[scout.id]?.threads.some((one) => one.preview === "a fresh topic") === true, "the thread to be listed");
 });
 
+test("a text that starts with a slash is never posted as a message, and a command for the client is acted on and posted nowhere", { timeout }, async (t) => {
+  const rig = await startRig(t);
+  const thread = await rig.thread("scout", "first");
+  await rig.until(listOpen, "the agent's list");
+  rig.state.openThread(thread.id);
+  await rig.until((model) => textsOf(model).length === 1, "the thread's view");
+  const posted = async (): Promise<string[]> => (await (await rig.person()).read(thread.id, null, 10)).map((message) => message.text);
+
+  assert.equal(await rig.state.write("/etc/hosts is wrong"), false, "a name that is no command is refused");
+  assert.equal(rig.state.model().notice?.kind, "no-command");
+  assert.equal(await rig.state.write("/status now"), false, "and so is a command for the client with something after it");
+  assert.equal(rig.state.model().notice?.kind, "takes-nothing");
+
+  assert.equal(await rig.state.write("/status"), true);
+  await rig.until((model) => model.status?.about.kind === "agent", "what /status read");
+  // The rig's agent serves only its presence, so the answer is that the model can't be read: it is answered, and not posted.
+  assert.equal(await rig.state.write("/model"), true, "/model alone is answered by the client");
+  await rig.until((model) => model.notice?.kind === "model-not-shown", "what the client says of the thread's model");
+
+  // In backticks, or after a mention, it is a message.
+  assert.equal(await rig.state.write("`/etc/hosts` is wrong"), true);
+  assert.equal(await rig.state.write("@scout /stop"), true);
+  assert.deepEqual(await posted(), ["first", "`/etc/hosts` is wrong", "@scout /stop"]);
+});
+
+test("in a room a command for nobody is posted only with an agent named before it", { timeout }, async (t) => {
+  const rig = await startRig(t);
+  const scout = await rig.member("scout");
+  const you = await rig.person();
+  const room = await you.createRoom("ops", [scout.id]);
+  const main = (await you.threads(room.id)).find((each) => each.main);
+  assert.ok(main);
+  await rig.until((model) => model.rooms[room.id] !== undefined, "the room");
+  rig.state.selectRoom(room.id);
+  rig.state.openThread(main.id);
+  await rig.until((model) => model.thread?.thread.id === main.id, "the room's thread");
+
+  assert.equal(await rig.state.write("/model local/big-model"), false, "written first, it mentions nobody");
+  assert.deepEqual(rig.state.model().notice, { kind: "name-an-agent", command: "model" });
+  assert.equal(await rig.state.write("/model"), false, "and alone it is not answered there");
+  assert.equal(await rig.state.write("@scout /model local/big-model"), true);
+  assert.deepEqual((await you.read(main.id, null, 10)).map((message) => message.text), ["@scout /model local/big-model"]);
+});
+
 test("a message that is not sent says why, and the notice goes away by itself", { timeout }, async (t) => {
   const rig = await startRig(t, { noticeMs: 60 });
   const thread = await rig.thread("scout", "first");

@@ -1,14 +1,15 @@
 import { type AutocompleteItem, type AutocompleteProvider, visibleWidth } from "@earendil-works/pi-tui";
-import { type CommandLine, MODEL_DEFAULT, type ModelLine } from "../../view/index.ts";
-
-/** What is before the cursor on the first line, when that is a slash and nothing after it but the word the cursor is at the end of. */
-const COMMAND_WORD = /^\s*(\/\S*)$/;
-
-/** The command that a model is written after. */
-const MODEL_COMMAND = "/model";
-
-/** What is before the cursor on the first line, when that is `/model`, a space, and what has been typed of the model so far. */
-const MODEL_WORD = /^\s*\/model\s+(\S*)$/i;
+import {
+  type CommandLine,
+  commandFits,
+  commandsFitting,
+  commandWord,
+  modelFits,
+  type ModelLine,
+  modelsFitting,
+  modelWord,
+  offersModels,
+} from "../../view/index.ts";
 
 /** An item that offers a model, as no item of the list of commands does. */
 interface ModelItem extends AutocompleteItem {
@@ -27,16 +28,6 @@ export interface CommandListOptions {
 const firstLineBefore = (lines: string[], cursorLine: number, cursorCol: number): string | undefined =>
   cursorLine === 0 ? (lines[0] ?? "").slice(0, cursorCol) : undefined;
 
-/**
- * Whether the model written as `value` is one that `typed` could become.
- * `default` is only written out, and a model is found by any part of its name.
- */
-const fits = (value: string, typed: string): boolean => {
-  const written = value.toLowerCase();
-  const start = typed.toLowerCase();
-  return value === MODEL_DEFAULT ? written.startsWith(start) : written.includes(start);
-};
-
 /** The models, as items of one column: the list cuts a first column at 30 characters, and a model is written longer than that. */
 function modelItems(lines: ModelLine[]): ModelItem[] {
   const widest = Math.max(...lines.map((each) => visibleWidth(each.value)));
@@ -48,16 +39,12 @@ function modelItems(lines: ModelLine[]): ModelItem[] {
 }
 
 /**
- * What the editor lists while the text starts with a slash and the cursor is
+ * The editor's list, while the text starts with a slash and the cursor is
  * still in its first word: the commands that word could become, each with what
- * it does, and nothing else. Once `/model` and a space are typed it lists
- * `default` and the models the agent can use, narrowed by what is typed after
- * them. The editor's own provider also completes paths on the machine the
- * terminal runs on, which is not where an agent lives.
- *
- * A name that is typed whole leaves nothing to choose, so the list closes and the
- * next Enter acts on it. `/model` is the exception, since a model comes after it
- * and the space has to find the list open.
+ * it does, and once `/model` and a space are typed, `default` and the models
+ * the agent can use, as the views say which fit what is typed. The editor's
+ * own provider also completes paths on the machine the terminal runs on, which
+ * is not where an agent lives.
  */
 export function commandList(options: CommandListOptions): AutocompleteProvider {
   return {
@@ -65,27 +52,18 @@ export function commandList(options: CommandListOptions): AutocompleteProvider {
       const before = firstLineBefore(lines, cursorLine, cursorCol);
       if (before === undefined) return null;
 
-      const word = COMMAND_WORD.exec(before)?.[1];
+      const word = commandWord(before);
       if (word !== undefined) {
-        const start = word.toLowerCase();
-        const matches = options.commands().filter((command) => command.name.startsWith(start));
-        const whole = matches.length === 1 && matches[0]?.name === start && start !== MODEL_COMMAND;
-        if (matches.length === 0 || whole) return null;
-        return {
-          prefix: word,
-          items: matches.map((command) => ({ value: command.name, label: command.name, description: command.line })),
-        };
+        const matches = commandsFitting(word, options.commands());
+        if (matches.length === 0) return null;
+        return { prefix: word, items: matches.map((command) => ({ value: command.name, label: command.name, description: command.line })) };
       }
 
-      const typed = MODEL_WORD.exec(before)?.[1];
-      if (typed === undefined || !options.commands().some((command) => command.name === MODEL_COMMAND)) return null;
+      const typed = modelWord(before);
+      if (typed === undefined || !offersModels(options.commands())) return null;
       const offered = await options.models();
-      if (offered === undefined) return null;
-      const start = typed.toLowerCase();
-      const begins = (each: ModelLine): boolean => each.value.toLowerCase().startsWith(start);
-      // `default` comes first, then the models the typing starts, then those it is found in.
-      const fitting = offered.filter((each) => fits(each.value, typed)).sort((a, b) => Number(begins(b)) - Number(begins(a)));
-      if (fitting.length === 0 || (fitting.length === 1 && fitting[0]?.value === typed)) return null;
+      const fitting = offered === undefined ? [] : modelsFitting(typed, offered);
+      if (fitting.length === 0) return null;
       // Enter acts on the chosen item only when the prefix starts with a slash, as the prefix of a command does.
       return { prefix: before.trimStart(), items: modelItems(fitting) };
     },
@@ -95,8 +73,8 @@ export function commandList(options: CommandListOptions): AutocompleteProvider {
       const before = firstLineBefore(lines, cursorLine, cursorCol);
       if (before === undefined) return unchanged;
       const model = isModel(item);
-      const typed = (model ? MODEL_WORD : COMMAND_WORD).exec(before)?.[1];
-      if (typed === undefined || !(model ? fits(item.value, typed) : item.value.startsWith(typed.toLowerCase()))) return unchanged;
+      const typed = model ? modelWord(before) : commandWord(before);
+      if (typed === undefined || !(model ? modelFits(item.value, typed) : commandFits(item.value, typed))) return unchanged;
       const line = lines[cursorLine] ?? "";
       const start = cursorCol - typed.length;
       return {

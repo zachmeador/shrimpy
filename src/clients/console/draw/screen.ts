@@ -6,6 +6,8 @@ import {
   type ListFilter,
   type ListLevel,
   listLevel,
+  nothingOpen,
+  type NothingOpen,
   type Row,
   sessionLevel,
   type SessionLevel,
@@ -69,6 +71,8 @@ export interface Levels {
   thread: ThreadLevel | undefined;
   /** The session on show: an agent's view of the open thread, or a session behind no thread. */
   session: SessionLevel | undefined;
+  /** What stands where a thread would be while none is open. */
+  nothing: NothingOpen | undefined;
 }
 
 export interface LevelsOptions {
@@ -85,6 +89,7 @@ export function levelsOf(model: Model, options: LevelsOptions): Levels {
     list: listLevel(model, { ...at, filter: options.filter }),
     thread: threadLevel(model, { ...at, inFull: options.inFull }),
     session: sessionLevel(model, { ...at, inFull: options.inFull }),
+    nothing: nothingOpen(model),
   };
 }
 

@@ -19,6 +19,7 @@ import { createMoves } from "./moves.ts";
 import { createSending } from "./sending.ts";
 import { createStore } from "./store.ts";
 import { worked } from "./worked.ts";
+import { writtenIn } from "./written.ts";
 
 export interface ClientStateOptions {
   /** How to dial the gateway, which the client hands it: from Node, at its own socket on this machine or at its entry. */
@@ -84,6 +85,14 @@ export interface ClientState {
    */
   look(looking: boolean): void;
 
+  /**
+   * Act on what the person wrote in the open thread: post it, as a message or
+   * a command for agents, do what a command for the client says, or tell them
+   * why it was refused, as a text that starts with a slash may be. Says whether
+   * the text was taken. One that was not is the person's to put back where it
+   * was typed.
+   */
+  write(text: string): Promise<boolean>;
   /** Say something in the open thread, or in a new one, and say whether it was sent. The person's draft is theirs to put back when it was not. */
   send(text: string): Promise<boolean>;
   /** Tell the person something that came of what they wrote, in a note that goes away by itself. Posts nothing. */
@@ -237,6 +246,29 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
       if (looking === yes) return;
       looking = yes;
       store.changed();
+    },
+    async write(text) {
+      const { item } = store.model().open;
+      const written = item?.kind === "thread" ? writtenIn(text, item.place.kind === "agent" ? "dm" : "room") : ({ do: "post" } as const);
+      switch (written.do) {
+        case "status":
+          void asking.readStatus();
+          return true;
+        case "model":
+          void asking.showModel();
+          return true;
+        case "devices":
+          asking.readDevices();
+          return true;
+        case "take-back":
+          void asking.takeBack(written.device);
+          return true;
+        case "refuse":
+          store.say(written.notice);
+          return false;
+        case "post":
+          return sending.send(text);
+      }
     },
     send: (text) => sending.send(text),
     note: (notice) => store.say(notice),

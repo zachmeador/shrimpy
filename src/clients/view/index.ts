@@ -11,9 +11,20 @@
  * to trust it. It must not know how anything is drawn, or reach the network.
  */
 export { type AgentsLevel, agentsLevel } from "./agents.ts";
-export { type CommandLine, type ModelLine, modelLines, writtenIn } from "./commands.ts";
+export {
+  type CommandLine,
+  commandFits,
+  commandsFitting,
+  commandWord,
+  modelFits,
+  type ModelLine,
+  modelLines,
+  modelsFitting,
+  modelWord,
+  offersModels,
+} from "./commands.ts";
 export { BRIEF, type LevelOptions, type Row } from "./level.ts";
-export { type ListLevel, listLevel, type ListOptions } from "./list.ts";
+export { type ListLevel, listLevel, type ListOptions, nothingOpen, type NothingOpen } from "./list.ts";
 export type { Look } from "./look.ts";
 export { sessionLevel, type SessionLevel, type SessionOptions } from "./session.ts";
 export { type AgentWork, type MessageRow, type StatusBlock, threadLevel, type ThreadLevel, type ThreadOptions, type Waiting } from "./thread.ts";
@@ -21,16 +32,17 @@ export type { Step, Work } from "./work.ts";
 export {
   farewellLine,
   FILTERS,
-  hiddenLines,
   type InFull,
   LABELS,
   type ListFilter,
   MODEL_DEFAULT,
   moreWakeups,
-  notRunning,
+  moreWakeupsListed,
   OUT_OF_DATE,
-  PICK_LIST,
-  PICK_THREAD,
+  OUT_OF_DATE_MARK,
   READ_ONLY_TAG,
+  thinkingShown,
+  toolCallsShown,
+  versionLine,
   windowTitle,
 } from "./words.ts";

@@ -16,7 +16,7 @@ import {
   VStack,
 } from "@earendil-works/pi-tui";
 import { agentNameOf, type ClientState, type Item, type Open } from "../../state/index.ts";
-import { type ListFilter, modelLines, type Row, windowTitle, writtenIn } from "../../view/index.ts";
+import { type ListFilter, modelLines, type Row, windowTitle } from "../../view/index.ts";
 import { commandList } from "./commands.ts";
 import { interrupt } from "./interrupt.ts";
 import { KEYS_WIDTH, KeysLine, KeysList } from "./keys.ts";
@@ -172,35 +172,12 @@ export function startDrawing(options: DrawingOptions): Drawing {
     }
   };
 
+  // What is written is the state's to act on, and a text it does not take goes back where it was typed.
   editor.onSubmit = (text) => {
     if (text === "") return;
-    // A text that starts with a slash is a command. One for the console is acted on here and posted nowhere, and one
-    // that is none is refused with a note and put back in the editor, so a message is never posted by mistake.
-    const { item } = state.model().open;
-    const written = item?.kind === "thread" ? writtenIn(text, item.place.kind === "agent" ? "dm" : "room") : ({ do: "post" } as const);
-    switch (written.do) {
-      case "status":
-        void state.readStatus();
-        return;
-      case "model":
-        void state.showModel();
-        return;
-      case "devices":
-        state.readDevices();
-        return;
-      case "take-back":
-        void state.takeBack(written.device);
-        return;
-      case "refuse":
-        state.note(written.notice);
-        restore(draftKey, text);
-        return;
-      case "post":
-        break;
-    }
     const key = draftKey;
-    void state.send(text).then((sent) => {
-      if (!sent) restore(key, text);
+    void state.write(text).then((taken) => {
+      if (!taken) restore(key, text);
     });
   };
 

@@ -1,7 +1,6 @@
 import { oneLine } from "../../../lib/plain/index.ts";
-import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import { dots, WORDMARK } from "../../look/index.ts";
-import { LABELS, OUT_OF_DATE, type Row } from "../../view/index.ts";
+import { LABELS, OUT_OF_DATE, type Row, versionLine } from "../../view/index.ts";
 import type { Run, Tone } from "./paint.ts";
 import { isChosen, label, lamp, type Line, rowEnd, rowLines, spread, windowed, wrapped } from "./rows.ts";
 import { type Frame, listRowKey, rowKey } from "./screen.ts";
@@ -20,7 +19,8 @@ export function drawRail(frame: Frame, width: number, height: number, notes: rea
   const { paint, levels, model } = frame;
   const { agents } = levels;
   const top: Line[] = [{ text: "" }, ...MARK.map((line) => ({ text: ` ${paint.text(line, "ink")}` }))];
-  top.push({ text: ` ${paint.runs([[`${SHRIMPY_VERSION} · `, "ink3"], [SHRIMPY_RELEASE_NAME, { tone: "ink2", italic: true }]])}` });
+  const [lead, release] = versionLine();
+  top.push({ text: ` ${paint.runs([[lead, "ink3"], [release, { tone: "ink2", italic: true }]])}` });
   const agentRows = agents.rows.filter((each) => each.kind === "agent");
   top.push({ text: tide(frame, width, agentRows) }, { text: "" });
   for (const note of notes) top.push(...wrapped(paint, note, width, "sand"));

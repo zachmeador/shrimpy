@@ -115,6 +115,19 @@ export function sidesOf(model: Pick<Model, "open" | "behind" | "listing" | "dms"
   return Object.keys(model.behind).sort((a, b) => Number(b === from) - Number(a === from) || name(a).localeCompare(name(b)));
 }
 
+/**
+ * The side of the open thread to put on show after the one on show now: the
+ * next agent in `sidesOf`, and after the last, the conversation, which is also
+ * what follows a view whose session has gone.
+ */
+export function nextSide(model: Pick<Model, "open" | "behind" | "listing" | "dms">): string | undefined {
+  const { item } = model.open;
+  if (item?.kind !== "thread") return undefined;
+  const sides = sidesOf(model);
+  const at = item.side === undefined ? -1 : sides.indexOf(item.side);
+  return item.side !== undefined && at === -1 ? undefined : sides[at + 1];
+}
+
 /** The current name of the agent with member ID `id`, from the roster or its DM, falling back to `id`. */
 export function agentNameOf(model: Pick<Model, "listing" | "dms">, id: string): string {
   const onRoster = model.listing?.members.find((member) => member.id === id);

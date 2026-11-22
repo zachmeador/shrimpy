@@ -15,6 +15,7 @@ import {
   SESSION_EMPTY,
   sessionTitle,
   wakeupLine,
+  watchingWords,
   workingLine,
 } from "./words.ts";
 
@@ -26,6 +27,10 @@ import {
  */
 export interface SessionLevel {
   title: string;
+  /** Whose session it is: the agent's name, as `title` has it first. */
+  who: string;
+  /** What is watched, as `title` has it after `who`. */
+  watching: string;
   /** Said when there are older items than the ones shown, or when there are none to show. */
   lead: string | undefined;
   /** The newest items of the session, oldest first: what it was shown, what it thought and wrote, and each tool call. */
@@ -59,21 +64,19 @@ export interface SessionOptions extends LevelOptions {
 export function sessionLevel(model: Model, options: SessionOptions): SessionLevel | undefined {
   const { item } = model.open;
   if (item?.kind === "session") {
-    const name = agentNameOf(model, item.agent);
     const summary = model.sessions?.find((each) => each.id === item.session);
-    const title = sessionTitle(name, placeWords(summary?.place ?? null, item.session, model.me?.name));
+    const watching = watchingWords(placeWords(summary?.place ?? null, item.session, model.me?.name));
     const refused = model.watchRefusal === undefined ? undefined : { what: "session" as const, words: model.watchRefusal };
-    return sessionOf(model, item.agent, item.session, model.watched, { title, turned: false, refused }, options);
+    return sessionOf(model, item.agent, item.session, model.watched, { watching, turned: false, refused }, options);
   }
   if (item?.kind === "thread" && item.side !== undefined && item.thread !== undefined) {
-    const name = agentNameOf(model, item.side);
     const here = lookingAt(model, item.place);
     const threadId = item.thread;
     const thread = (model.thread?.thread.id === threadId ? model.thread.thread : undefined) ?? here.threads.find((each) => each.id === threadId);
     const named = thread === undefined ? oneLine(threadId) : titleOf(thread);
     // The title of a DM with the agent already has the agent's name in it, and any other conversation is named.
-    const title = sessionTitle(name, item.place.kind === "agent" ? named : `${here.label} · ${named}`);
-    return sessionOf(model, item.side, threadId, model.behind[item.side], { title, turned: true, refused: undefined }, options);
+    const watching = watchingWords(item.place.kind === "agent" ? named : `${here.label} · ${named}`);
+    return sessionOf(model, item.side, threadId, model.behind[item.side], { watching, turned: true, refused: undefined }, options);
   }
   return undefined;
 }
@@ -84,7 +87,7 @@ function sessionOf(
   agentId: string,
   address: string,
   view: SessionView | undefined,
-  frame: { title: string; turned: boolean; refused: About["refused"] },
+  frame: { watching: string; turned: boolean; refused: About["refused"] },
   options: SessionOptions,
 ): SessionLevel {
   const name = agentNameOf(model, agentId);
@@ -97,8 +100,11 @@ function sessionOf(
   if (watched !== undefined && watched.earlier) lead = earlierItems(address, name);
   else if (view !== undefined && view.items.length === 0) lead = SESSION_EMPTY;
 
+  const who = oneLine(name);
   return {
-    title: frame.title,
+    title: sessionTitle(who, frame.watching),
+    who,
+    watching: frame.watching,
     lead,
     steps: watched?.steps ?? [],
     working: busy ? workingLine([name], view.status.activity, false) : undefined,

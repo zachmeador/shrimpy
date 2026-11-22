@@ -22,6 +22,7 @@ import {
   roomStatusRows,
   statusHeader,
   THREAD_EMPTY,
+  threadCalled,
   threadTitle,
   wakeupLine,
   workingLine,
@@ -32,8 +33,6 @@ export interface MessageRow {
   /** The message's ID, which is a key and is never shown. */
   id: string;
   who: string;
-  /** The message is the person's own. */
-  mine: boolean;
   /** An agent wrote it. */
   agent: boolean;
   /** How the agent that wrote it looks. */
@@ -72,13 +71,17 @@ export interface Waiting {
   /** The member ID of the agent that waits on it. */
   agent: string;
   look: Look;
-  /** When it comes, the note it brings and, where the person can write, how to cancel it. */
+  /** Who waits, when it comes and the note it brings, and, where the person can write and it is the only one, how to cancel it. */
   line: string;
 }
 
 /** The third level: the open thread. */
 export interface ThreadLevel {
   title: string;
+  /** What the conversation is called: the agent's name, or the room's or the channel's label. */
+  who: string;
+  /** What the thread itself is called, as `title` has it after `who`. */
+  called: string;
   /** Said when there are older messages than the ones shown, or when there are none to show. */
   lead: string | undefined;
   messages: MessageRow[];
@@ -149,8 +152,11 @@ export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel |
   else if (live !== undefined && live.earlier > 0) lead = earlierMessages(live.earlier, threadId);
   else if (live !== undefined && messages.length === 0) lead = THREAD_EMPTY;
 
+  const called = threadCalled(thread === undefined ? threadId : titleOf(thread));
   return {
-    title: threadTitle(who, thread === undefined ? threadId : titleOf(thread)),
+    title: threadTitle(who, called),
+    who,
+    called,
     lead,
     messages,
     working,
@@ -187,14 +193,15 @@ function worksOf(model: Model, from: string | undefined, inFull: InFull): AgentW
  * where it is shown, where `/stop` cancels it.
  */
 function waitingOf(model: Model, now: number, inThread: boolean): Waiting[] {
-  return Object.entries(model.behind)
+  const all = Object.entries(model.behind)
     .flatMap(([agent, view]) => (view.reached ? view.status.wakeups.map((wakeup) => ({ agent, wakeup })) : []))
-    .sort((a, b) => a.wakeup.due - b.wakeup.due)
-    .map(({ agent, wakeup }) => ({
-      agent,
-      look: lookOf(model, agent),
-      line: wakeupLine(agentNameOf(model, agent), wakeup, whenOf(wakeup.due, now), inThread),
-    }));
+    .sort((a, b) => a.wakeup.due - b.wakeup.due);
+  // What `/stop` does to a wake-up is said on the one there is. Of several, `/status` lists them all and says it once.
+  return all.map(({ agent, wakeup }) => ({
+    agent,
+    look: lookOf(model, agent),
+    line: wakeupLine(agentNameOf(model, agent), wakeup, whenOf(wakeup.due, now), inThread && all.length === 1),
+  }));
 }
 
 /**
@@ -223,7 +230,6 @@ function messageRow(message: Message, model: Model, names: (memberId: string) =>
   return {
     id: message.id,
     who: oneLine(message.author.name),
-    mine: message.author.id === model.me?.id,
     agent: message.author.kind === "agent",
     look: message.author.kind === "agent" ? lookOf(model, message.author.id) : undefined,
     when: whenOf(message.sentAt, now),

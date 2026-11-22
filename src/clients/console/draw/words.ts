@@ -1,4 +1,4 @@
-import type { InFull } from "../../view/index.ts";
+import { type InFull, thinkingShown, toolCallsShown } from "../../view/index.ts";
 
 /*
  * Every sentence and label the console shows that names one of its keys or a
@@ -105,15 +105,18 @@ export function turnHint(count: number, at: number): Hint {
 
 /** Beside the work an agent is doing: how tool calls and thinking are shown, and the keys that change it. */
 export const inFullHints = (inFull: InFull): Hint[] => [
-  ["ctrl+o", `tool calls: ${inFull.toolCalls ? "full" : "brief"}`],
-  ["ctrl+t", `thinking: ${inFull.thinking ? "full" : "brief"}`],
+  ["ctrl+o", toolCallsShown(inFull.toolCalls)],
+  ["ctrl+t", thinkingShown(inFull.thinking)],
 ];
 
 /** On the end of a thread scrolled away from it, to click. */
 export const LATEST = "↓ latest";
 
-/** Where a thread would be, on the list of an agent the person has talked to, while none is open. */
+/** Where a thread would be while none is open, on the list of an agent the person has threads with, which can be picked or started. */
 export const PICK_OR_START = "Pick a thread, or press Ctrl+N to start one.";
+
+/** `said`, then how to start a thread: where a thread would be, or an agent's list, while the person has not talked to the agent yet. */
+export const startThread = (said: string): string => `${said} Press Ctrl+N to start a thread.`;
 
 /**
  * What an agent's list says when it is empty: `notTalked`, the views' sentence
@@ -122,4 +125,4 @@ export const PICK_OR_START = "Pick a thread, or press Ctrl+N to start one.";
  * the agent, `agent` on one line, takes part in.
  */
 export const emptyAgentList = (notTalked: string, agent: string, more: boolean): string =>
-  `${notTalked} Press Ctrl+N to start a thread.${more ? ` Tab shows everything ${agent} takes part in.` : ""}`;
+  `${startThread(notTalked)}${more ? ` Tab shows everything ${agent} takes part in.` : ""}`;
