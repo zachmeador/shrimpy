@@ -4,7 +4,7 @@
  */
 import type { ComponentChildren } from "preact";
 import type { ListFilter, ListLevel, Row } from "../view/index.ts";
-import { FILTERS, LABELS, READ_ONLY_TAG, thenStart } from "../view/index.ts";
+import { FILTERS, LABELS, thenStart } from "../view/index.ts";
 import { Fleck, Glyph, Lamp, Sigil } from "./marks.tsx";
 import { Notes } from "./thread.tsx";
 import type { Tab } from "./address.ts";
@@ -28,7 +28,6 @@ interface ListProps {
   list: ListLevel;
   /** What the agent's row on the first level says of it, and whether it runs. */
   agent: { detail: string; working: boolean; running: boolean } | undefined;
-  readOnly: boolean;
   /** An agent's tab on show, and what its triggers and home tabs hold. */
   tab: Tab;
   tabs: { triggers: ComponentChildren; home: ComponentChildren };
@@ -62,7 +61,7 @@ export function ListView(props: ListProps) {
         <div class="titles">
           <h1>
             {list.name}
-            {props.readOnly && <span class="tag">{READ_ONLY_TAG}</span>}
+            {list.tag !== undefined && <span class="tag">{list.tag}</span>}
           </h1>
           {props.agent !== undefined && <p class={`sub${props.agent.working ? " busy" : ""}`}>{props.agent.detail}</p>}
         </div>

@@ -69,6 +69,18 @@ test("what is new to the person is counted on each thread, each agent and room, 
   assert.deepEqual(threads(room)?.map((row) => row.unread), [1]);
 });
 
+test("an agent's list says that the agent is an admin, and says nothing of it for one that is not", { timeout }, async (t) => {
+  // The first agent a roster has is an admin, and the next isn't.
+  const rig = await startRig(t, { agents: ["scout", "mechanic"] });
+  const scout = await rig.member("scout");
+  const mechanic = await rig.member("mechanic");
+  rig.state.selectAgent(scout.id);
+  await rig.until((model) => model.open.list?.id === scout.id && listLevel(model, at)?.tag !== undefined, "scout's list to say it is an admin");
+  rig.state.selectAgent(mechanic.id);
+  const ordinary = await rig.until((model) => model.open.list?.id === mechanic.id, "mechanic's list");
+  assert.equal(listLevel(ordinary, at)?.tag, undefined);
+});
+
 test("an agent's look follows its home's files while it runs, and is worked out from its member ID while it does not", { timeout: 90_000 }, async (t) => {
   const rig = await startRig(t, { agents: [] });
   const home = join(tempDir(t, "crab-home"), "crab");

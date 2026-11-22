@@ -311,6 +311,8 @@ export const newRoomThreadHint = (room: string): string => `New thread in ${room
 
 /** The word on a row of the agents and rooms for a room that the person is not in and only reads. */
 export const READ_ONLY_TAG = "read-only";
+/** The word beside the name of an agent that the roster has as an admin. */
+export const ADMIN_TAG = "admin";
 
 /**
  * What the agents and rooms say of a room the person only reads: that it is only

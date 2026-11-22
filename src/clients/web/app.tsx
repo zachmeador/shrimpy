@@ -591,7 +591,6 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
             <ListView
               list={{ ...listView, notes: listNotes }}
               agent={agentRow === undefined || listAgent === undefined ? undefined : { detail: agentRow.detail, working: agentRow.working, running: running.has(listAgent) }}
-              readOnly={list?.kind === "read-only"}
               tab={page.tab}
               tabs={{
                 triggers: <TriggerCards key={listAgent} state={state} name={listView.name} triggers={model.triggers} now={now} />,

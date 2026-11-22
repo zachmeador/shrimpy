@@ -6,7 +6,7 @@ import { type LevelOptions, lookingAt, type Row } from "./level.ts";
 import { type Look, lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
 import { whenOf } from "./time.ts";
-import { type ListFilter, notRunning, PICK_LIST, PICK_THREAD, pickOrStart, thenStart } from "./words.ts";
+import { ADMIN_TAG, type ListFilter, notRunning, PICK_LIST, PICK_THREAD, pickOrStart, READ_ONLY_TAG, thenStart } from "./words.ts";
 
 /**
  * The second level: everything the agent whose list is open takes part in,
@@ -20,6 +20,8 @@ export interface ListLevel {
   empty: string | undefined;
   /** Whose list it is, on one line: the agent's name, or the room's or the channel's label. */
   name: string;
+  /** The word that stands beside the name: that the agent is an admin, or that the room is only read. */
+  tag: string | undefined;
   /** How the agent whose list it is looks. */
   look: Look | undefined;
   /** It is an agent's list, and not a room's or a channel's. */
@@ -66,6 +68,7 @@ function channelList(model: Model, place: Exclude<Place, { kind: "agent" }>, opt
     // A room always has its main thread, so there is no one to ask the person to start a talk with.
     empty: undefined,
     name: here.label,
+    tag: place.kind === "read-only" ? READ_ONLY_TAG : undefined,
     look: undefined,
     ofAgent: false,
     settled: true,
@@ -92,6 +95,8 @@ function agentList(model: Model, agentId: string, filter: ListFilter, options: L
     rows,
     empty: rows.length === 0 && model.chat.state === "up" ? notTalkedTo(name) : undefined,
     name: oneLine(name),
+    // Who is an admin is the roster's to say.
+    tag: model.listing?.members.some((member) => member.id === agentId && member.admin) === true ? ADMIN_TAG : undefined,
     look: lookOf(model, agentId),
     ofAgent: true,
     settled: listed,
