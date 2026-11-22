@@ -1,7 +1,10 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { pagePortOfItsOwn } from "../../contracts/gateway/testing/index.ts";
 import { type ChildOutput, runChild, stopAfter, useRuntimeDir, within } from "../../lib/testing/index.ts";
 import type { Pace } from "../commands/index.ts";
 import type { LaunchOptions, RunningCommand } from "./process.ts";
@@ -81,7 +84,9 @@ export interface RunningUp extends RunningCommand {
  * Start `shrimpy up` with `args` as its own process, and return at once: with
  * the times of `pace` when it is given, which the command takes from nothing a
  * test can set. It gets the test's runtime directory, unless `options.env`
- * names another, as a second place for agents to live in does.
+ * names another, as a second place for agents to live in does. The gateway it
+ * starts opens the page's door at a port of its own, unless the test wrote the
+ * Shrimpy folder's settings itself.
  *
  * When the test ends it is stopped as a SIGTERM stops it, and killed if it does
  * not end. Whatever it was seen to run that still runs then is killed too,
@@ -90,6 +95,8 @@ export interface RunningUp extends RunningCommand {
  */
 export function launchUp(t: TestContext, args: string[], options: LaunchOptions & { pace?: Pace } = {}): RunningUp {
   useRuntimeDir(t);
+  const folder = options.env?.SHRIMPY_DIR ?? process.env.SHRIMPY_DIR;
+  if (folder !== undefined && !existsSync(join(folder, "settings.json"))) pagePortOfItsOwn(join(folder, "settings.json"));
   const program =
     options.pace === undefined
       ? { file: main, args: ["up", ...args], env: options.env }

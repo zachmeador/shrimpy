@@ -1,14 +1,17 @@
 import type { IncomingMessage, OutgoingHttpHeaders, ServerResponse } from "node:http";
 import { type HelloAnswer, PAGE_JOIN, PAGE_LINK, type PageFile, readPageJoin } from "../../contracts/gateway/index.ts";
+import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import { fromItsOwnPage, type Greeted, listen } from "../../lib/link/node.ts";
 import { cannotListen } from "../listening/index.ts";
-import type { PagePlace } from "./place.ts";
+import { readSettings } from "../settings/index.ts";
+import { type PagePlace, pagePlace } from "./place.ts";
 
-export interface PageDoorOptions {
-  readonly place: PagePlace;
+export interface PageOptions {
   /** The page: the file at "/" and every file it asks for. */
   readonly files: readonly PageFile[];
+  /** Your settings file, which says where the door listens and what it serves with, read now. Without one, the door opens where it does with nothing set. */
+  readonly settings: string | undefined;
   /** The name of the cookie a browser keeps its token in, which is the gateway's own, so that two on one machine keep theirs apart. */
   readonly cookie: string;
   /** What the gateway answers the page's hello, with the token the browser's cookie keeps, if it sent one. */
@@ -41,16 +44,26 @@ const ANSWERED: OutgoingHttpHeaders = {
 };
 
 /**
- * Open the page's door at `place`. It serves the page's files, takes an
- * invitation's code from the page at `PAGE_JOIN`, and keeps the token the
- * gateway makes for the browser in a cookie the page's scripts can't read,
- * which the browser sends only with the page's link, at `PAGE_LINK`, and only
- * over HTTPS when the door has a certificate. A code, like a link, is taken
- * only from the door's own page. An address that can't be listened on is an
- * error that says why.
+ * Open the page's door where your settings say, or on loopback at 7448. It
+ * serves the page's files, takes an invitation's code from the page at
+ * `PAGE_JOIN`, and keeps the token the gateway makes for the browser in a
+ * cookie the page's scripts can't read, which the browser sends only with the
+ * page's link, at `PAGE_LINK`, and only over HTTPS when the door has a
+ * certificate. A code, like a link, is taken only from the door's own page. A
+ * door that can't open, for settings that can't be used, a certificate that
+ * can't be read or an address another program has, is an error that says it
+ * stays shut, why, and what opens it.
  */
-export async function openPageDoor(options: PageDoorOptions): Promise<PageDoor> {
-  const { place } = options;
+export async function openPage(options: PageOptions): Promise<PageDoor> {
+  const file = options.settings;
+  let place: PagePlace;
+  try {
+    const settings = (file === undefined ? undefined : readSettings(file))?.page ?? {};
+    if (settings instanceof Error) throw settings;
+    place = pagePlace(settings, file);
+  } catch (error) {
+    throw new Error(`The page's door stays shut. ${asError(error).message}`, { cause: error });
+  }
   const secure = place.certificate !== null;
   const files = new Map(
     options.files.map(({ path, type, body }) => [path, { type, body: typeof body === "string" ? Buffer.from(body) : body }]),
@@ -89,7 +102,11 @@ export async function openPageDoor(options: PageDoorOptions): Promise<PageDoor> 
     (raw, headers) => options.greet(raw, cookieIn(headers.cookie, options.cookie)),
     { serve, ...(options.onError === undefined ? {} : { onError: options.onError }) },
   ).catch((error: unknown) => {
-    throw cannotListen(place, error);
+    throw new Error(
+      `${cannotListen(place, error).message} The page's door stays shut: set "listen" under "page" in ${file ?? "the gateway's settings"} ` +
+        "to another address, and start the gateway again.",
+      { cause: error },
+    );
   });
   const { port } = listener.place as { port: number };
   return { url: `${secure ? "https" : "http"}://${formatAddress({ host: place.name, port })}/`, close: () => listener.close() };

@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { join } from "node:path";
 import { test } from "node:test";
+import { pagePortOfItsOwn } from "../../contracts/gateway/testing/index.ts";
 import { stopAfter, tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
+import { useShrimpyDir } from "../testing/index.ts";
 import { startProgram } from "./index.ts";
 
 test("a program runs in a process group of its own, so Ctrl+C reaches only the command", { timeout: 30_000 }, async (t) => {
   useRuntimeDir(t);
+  pagePortOfItsOwn(join(useShrimpyDir(t), "settings.json"));
   const gateway = await startProgram(["gateway", "serve", "--data", tempDir(t, "gateway-data")], () => undefined);
   stopAfter(t, async () => {
     await gateway.stop();

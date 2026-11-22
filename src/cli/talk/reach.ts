@@ -1,7 +1,6 @@
 import type { Reference } from "@earendil-works/chord";
 import { Chat, type Member, ONLY_MEMBERS } from "../../contracts/chat/index.ts";
-import { contextOf, NO_CHAT_SERVER, NO_GATEWAY, type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
-import type { Client } from "../../contracts/gateway/node.ts";
+import { type Client, contextOf, NO_CHAT_SERVER, NO_GATEWAY, type Program, type RosterEntry } from "../../contracts/gateway/index.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import type { Io } from "../io/index.ts";

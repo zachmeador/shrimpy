@@ -1,7 +1,7 @@
 import type { TestContext } from "node:test";
 import type { Member } from "../../contracts/chat/index.ts";
 import { memberNamed, startTestChat } from "../../contracts/chat/testing/index.ts";
-import type { Client } from "../../contracts/gateway/node.ts";
+import type { Client } from "../../contracts/gateway/index.ts";
 import { linkTestAgent, startTestGateway, type TestAgent, type TestGateway } from "../../contracts/gateway/testing/index.ts";
 
 export interface ChatServer {

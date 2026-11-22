@@ -1,14 +1,25 @@
-import { join } from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { formatAddress } from "../../../lib/link/index.ts";
 import type { DialPlace } from "../../../lib/link/node.ts";
 import { type ChildProgram, type Restartable, startRestartable, stopAfter, tempDir, useRuntimeDir } from "../../../lib/testing/index.ts";
-import type { Address } from "../index.ts";
-import { type Client, connectClient, gatewaySocket } from "../node.ts";
+import type { Address, Client } from "../index.ts";
+import { connectClient, gatewaySocket } from "../node.ts";
 
 /** The command that runs Shrimpy, which is how a person starts a program. */
 export const SHRIMPY_ENTRY = fileURLToPath(new URL("../../../cli/main.ts", import.meta.url));
+
+/**
+ * Write the settings file `file` so that the gateway that reads it opens the
+ * page's door on loopback at a port of its own, never at the one a person's
+ * gateway has, which tests running at once would also fight over.
+ */
+export function pagePortOfItsOwn(file: string): void {
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, JSON.stringify({ page: { listen: "127.0.0.1:0" } }));
+}
 
 export interface TestGatewayOptions {
   /** Addresses for it to open the network entry on, for agents apart from it. A port of 0 picks one. */
@@ -28,7 +39,7 @@ export interface GatewayListening {
   listenKept: string | null;
   /** The fingerprint of its key, which it keeps when it starts again, as an invitation's link carries it. */
   fingerprint: string;
-  /** Where a browser opens the web client's page, which the command always has the gateway serve. */
+  /** Where a browser opens the web client's page, which the command has the gateway serve, or null when its door couldn't open. */
   page: string | null;
   pid: number;
 }
@@ -78,6 +89,7 @@ async function start(t: TestContext, options: TestGatewayOptions): Promise<TestG
   const dataDir = options.dataDir ?? tempDir(t, "gateway-data");
   // A Shrimpy folder of its own, so that settings in a real one, such as a name, never reach the test.
   const folder = join(tempDir(t, "gateway-folder"), "shrimpy");
+  pagePortOfItsOwn(join(folder, "settings.json"));
   /** What starts it, told where to listen; told nowhere, it listens where it did. */
   const serve = (listen: Address[]): ChildProgram => ({
     file: SHRIMPY_ENTRY,

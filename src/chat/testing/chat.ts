@@ -1,5 +1,5 @@
 import type { TestContext } from "node:test";
-import type { Client } from "../../contracts/gateway/node.ts";
+import type { Client } from "../../contracts/gateway/index.ts";
 import { linkTestAgent, startTestGateway, type TestAgent, type TestGateway } from "../../contracts/gateway/testing/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import { stopAfter, tempDir, useRuntimeDir } from "../../lib/testing/index.ts";

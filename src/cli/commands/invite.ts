@@ -35,7 +35,7 @@ const invite: Command = {
       "an admin too. The invitation works once, for fifteen minutes, and the gateway keeps it in memory, so one that " +
       "has not been used is gone when the gateway restarts. For a machine, the gateway has to listen on an address " +
       "it reaches, which it is told with shrimpy up --listen <host:port>. For a browser, the gateway serves the web " +
-      "client's page on 127.0.0.1 unless settings.json says where, as shrimpy gateway serve --help has it. " +
+      "client's page on 127.0.0.1:7448 unless settings.json says where, as shrimpy gateway serve --help has it. " +
       "Exits 1 if no gateway is running.",
   ].join("\n\n"),
   async run(args, io) {

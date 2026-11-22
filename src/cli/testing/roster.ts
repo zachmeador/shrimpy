@@ -1,7 +1,16 @@
 import type { TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { type Invitation, type Member, type Program, Roster, type RosterEntry, valueOf, type WayIn } from "../../contracts/gateway/index.ts";
-import { type Client, connectClient, gatewaySocket } from "../../contracts/gateway/node.ts";
+import {
+  type Client,
+  type Invitation,
+  type Member,
+  type Program,
+  Roster,
+  type RosterEntry,
+  valueOf,
+  type WayIn,
+} from "../../contracts/gateway/index.ts";
+import { connectClient, gatewaySocket } from "../../contracts/gateway/node.ts";
 import type { DialPlace } from "../../lib/link/node.ts";
 import { stopAfter } from "../../lib/testing/index.ts";
 

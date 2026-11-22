@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
-import { request as httpRequest, type IncomingMessage } from "node:http";
+import { createServer, request as httpRequest, type IncomingMessage } from "node:http";
 import { request as httpsRequest } from "node:https";
+import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
@@ -18,7 +19,7 @@ import {
   valueOf,
 } from "../contracts/gateway/index.ts";
 import { connectTestClient } from "../contracts/gateway/testing/index.ts";
-import type { PageSocket } from "../lib/link/index.ts";
+import { formatAddress, type PageSocket } from "../lib/link/index.ts";
 import { stopAfter, tempDir, until } from "../lib/testing/index.ts";
 import { newKey, selfSignedCertificate } from "../lib/tls/node.ts";
 import { type GatewayInProcessOptions, startGatewayInProcess } from "./testing/index.ts";
@@ -189,9 +190,27 @@ test("with a certificate, the door serves HTTPS, and the browser's cookie goes o
   assert.equal(linked.kind === "done" ? linked.value.you?.id : linked.words, roster.you.value?.id);
 });
 
-test("the page's door serves plain HTTP on loopback alone", { timeout }, async (t) => {
-  const settings = join(tempDir(t, "folder"), "settings.json");
-  writeFileSync(settings, JSON.stringify({ page: { listen: "192.0.2.1:7448" } }));
+test("a page's door that can't open stays shut, and the gateway starts all the same and says why", { timeout }, async (t) => {
+  const reported = t.mock.method(console, "error", () => undefined);
+  const said = (): string => reported.mock.calls.map((call) => call.arguments.join(" ")).join("\n");
+  const other = createServer();
+  await new Promise<void>((resolve) => other.listen(0, "127.0.0.1", resolve));
+  stopAfter(t, () => new Promise<void>((resolve) => other.close(() => resolve())));
+  const taken = formatAddress({ host: "127.0.0.1", port: (other.address() as AddressInfo).port });
 
-  await assert.rejects(startGatewayInProcess(t, { page: PAGE, settings }), (error: Error) => error.message.includes("192.0.2.1:7448"));
+  // Settings that can't be used, plain HTTP away from loopback, and a port another program has.
+  for (const [listen, why] of [["nowhere", "page.listen"], ["192.0.2.1:7448", "192.0.2.1:7448"], [taken, taken]] as const) {
+    const settings = join(tempDir(t, "folder"), "settings.json");
+    writeFileSync(settings, JSON.stringify({ name: "Zach", page: { listen } }));
+
+    const gateway = await startGatewayInProcess(t, { page: PAGE, settings });
+
+    assert.equal(gateway.page, undefined, listen);
+    assert.ok(said().includes(why), `it says why, for ${listen}:\n${said()}`);
+    const you = await connectTestClient(t, { path: gateway.socket });
+    const roster = await you.host.get(Roster, {}, context);
+    assert.equal(roster.you.value?.name, "Zach", "and the rest of the settings count as they did");
+    roster.release();
+    await gateway.close();
+  }
 });

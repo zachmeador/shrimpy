@@ -36,11 +36,11 @@ import { createInvitations } from "./invitations/index.ts";
 import { openKey } from "./key/index.ts";
 import { cannotListen } from "./listening/index.ts";
 import { takeDataLock, takeGatewayLock } from "./lock.ts";
-import { openPageDoor, pagePlace } from "./page/index.ts";
+import { openPage } from "./page/index.ts";
 import { createPrograms } from "./programs/index.ts";
 import { openRoster, type Roster } from "./roster/index.ts";
 import { createActions, createView, gatewayFacet } from "./served/index.ts";
-import { followSettings, readSettings } from "./settings/index.ts";
+import { followSettings } from "./settings/index.ts";
 
 export { GatewayRunningError } from "./lock.ts";
 
@@ -73,8 +73,9 @@ export interface GatewayOptions {
   /**
    * The web client's page, as a browser is served it: the file at "/" and
    * every file it asks for. Given, the gateway opens the page's door, where
-   * your settings say, and otherwise on this machine's loopback address on a
-   * port it picks.
+   * your settings say, and otherwise on this machine's loopback address at
+   * 7448. A door that can't open stays shut, and the gateway says why and
+   * goes on.
    */
   page?: readonly PageFile[];
 }
@@ -88,7 +89,7 @@ export interface RunningGateway {
   readonly listeningAsKept: string | undefined;
   /** The fingerprint of the gateway's key, which every invitation's link carries and a member checks the entry against. */
   readonly fingerprint: string;
-  /** Where a browser opens the page, which an invitation for a device carries, or undefined when the gateway serves none. */
+  /** Where a browser opens the page, which an invitation for a device carries, or undefined when the gateway serves none or its door couldn't open. */
   readonly page: string | undefined;
   close(): Promise<void>;
 }
@@ -103,9 +104,9 @@ const context = BACKGROUND_CONTEXT;
  * and named for the account the gateway runs as then, and given the name your
  * settings set, so no agent can take your name first. The gateway's key is
  * made then too, or at the first start whose data has none, and every
- * connection on the entry is TLS around it. An address that can't be listened
- * on stops the start, and so do settings for the page's door that can't be
- * used.
+ * connection on the entry is TLS around it. An address of the entry's that
+ * can't be listened on stops the start. The page's door never stops it: one
+ * that can't open stays shut, and the gateway says why.
  */
 export async function startGateway(options: GatewayOptions): Promise<RunningGateway> {
   const given = options.listen === undefined || options.listen.length === 0 ? undefined : options.listen;
@@ -126,14 +127,6 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     const kept = given === undefined ? keptListenAddresses(options.dataDir) : [];
     const wanted = given ?? (kept.length > 0 ? kept : undefined);
     const listeningAsKept = given === undefined && kept.length > 0 ? listenAddressesFile(options.dataDir) : undefined;
-    // The page's settings are read once, before anything listens: the door stays where it started.
-    const pageDoor =
-      options.page === undefined
-        ? undefined
-        : {
-            files: options.page,
-            place: pagePlace((options.settings === undefined ? undefined : readSettings(options.settings)?.page) ?? {}, options.settings),
-          };
     const invitations = createInvitations();
 
     const host = createHost<Principal, Revocation>({
@@ -205,17 +198,23 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
         );
       }
     }
-    if (pageDoor !== undefined) {
-      const door = await openPageDoor({
-        ...pageDoor,
-        // Named for the roster, since a browser sends a cookie to every port of a host, and two gateways may share one.
-        cookie: `shrimpy-${roster.id}`,
-        greet: greetPage,
-        join: letBrowserIn,
-        onError,
-      });
-      open.add(() => door.close());
-      page = door.url;
+    if (options.page !== undefined) {
+      try {
+        const door = await openPage({
+          files: options.page,
+          settings: options.settings,
+          // Named for the roster, since a browser sends a cookie to every port of a host, and two gateways may share one.
+          cookie: `shrimpy-${roster.id}`,
+          greet: greetPage,
+          join: letBrowserIn,
+          onError,
+        });
+        open.add(() => door.close());
+        page = door.url;
+      } catch (error) {
+        // The rest of the gateway goes on without the page's door.
+        onError(error);
+      }
     }
     const listening = entries.map(({ place }) => place as Address);
     // Only addresses that were listened on replace what was kept.

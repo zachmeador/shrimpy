@@ -1,6 +1,6 @@
 import { defineFacet, type Facet } from "@earendil-works/chord";
 import { type Member, type Principal, Roster, type WayIn } from "../../contracts/gateway/index.ts";
-import type { Actions } from "./actions.ts";
+import { type Actions, deviceInvitationV1 } from "./actions.ts";
 import type { GatewayView, View } from "./view.ts";
 
 /** The member `caller` is, in `view`, or null for a program that isn't one. */
@@ -18,27 +18,34 @@ function waysFor(view: GatewayView, caller: Principal): WayIn[] {
   return admin ? view.ways.filter((way) => way.kind === "token") : [];
 }
 
-/** The objects the gateway serves: `Roster`, one for each caller, following the view. */
+/**
+ * The objects the gateway serves: `Roster`, one for each caller, following the
+ * view, at its first version too, for a program of an older Shrimpy.
+ */
 export function gatewayFacet(view: View, actions: Actions): Facet<Principal> {
   return defineFacet<Principal>((host) => {
-    host.serve(Roster, (_params, caller, self) => {
-      const followed = self.follow(view.follow);
-      return {
-        variant: "all",
-        members: {
-          id: self.derive([followed], ([current]) => current.id),
-          you: self.derive([followed], ([current]) => youIn(current, caller)),
-          members: self.derive([followed], ([current]) => current.members),
-          programs: self.derive([followed], ([current]) => current.programs),
-          ways: self.derive([followed], ([current]) => waysFor(current, caller)),
-          invite: async ({ name }) => actions.invite(caller, name),
-          inviteDevice: async () => actions.inviteDevice(caller),
-          promote: async ({ member }) => actions.setAdmin(caller, member, true),
-          demote: async ({ member }) => actions.setAdmin(caller, member, false),
-          remove: async ({ member }) => actions.remove(caller, member),
-          takeBack: async ({ way }) => actions.takeBack(caller, way),
-        },
-      };
-    });
+    host.serve(
+      Roster,
+      (_params, caller, self) => {
+        const followed = self.follow(view.follow);
+        return {
+          variant: "all",
+          members: {
+            id: self.derive([followed], ([current]) => current.id),
+            you: self.derive([followed], ([current]) => youIn(current, caller)),
+            members: self.derive([followed], ([current]) => current.members),
+            programs: self.derive([followed], ([current]) => current.programs),
+            ways: self.derive([followed], ([current]) => waysFor(current, caller)),
+            invite: async ({ name }) => actions.invite(caller, name),
+            inviteDevice: async () => actions.inviteDevice(caller),
+            promote: async ({ member }) => actions.setAdmin(caller, member, true),
+            demote: async ({ member }) => actions.setAdmin(caller, member, false),
+            remove: async ({ member }) => actions.remove(caller, member),
+            takeBack: async ({ way }) => actions.takeBack(caller, way),
+          },
+        };
+      },
+      { accepts: { 1: { methods: { inviteDevice: { result: deviceInvitationV1 } } } } },
+    );
   });
 }

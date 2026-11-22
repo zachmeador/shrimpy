@@ -21,9 +21,10 @@ const serve: Command = {
     "fingerprint, which every invitation's link carries. An address that can't be listened on stops " +
     "the start, and the error says which and why. The gateway also serves the web client's page for browsers, at a " +
     "door of its own, and the JSON line has where a browser opens it as page. Without settings it listens on " +
-    "127.0.0.1, on a port it picks. settings.json sets where it listens, and the certificate and key it serves HTTPS " +
-    'with, as {"page": {"listen": "<host:port>", "certificate": "<file>", "key": "<file>"}}, read when the gateway ' +
-    "starts. Away from this machine's loopback address it needs a certificate.",
+    "127.0.0.1:7448. settings.json sets where it listens, and the certificate and key it serves HTTPS with, as " +
+    '{"page": {"listen": "<host:port>", "certificate": "<file>", "key": "<file>"}}, read when the gateway starts. ' +
+    "Away from this machine's loopback address it needs a certificate. A door that can't open stays shut, and the " +
+    "gateway starts all the same and says why, with page null in the JSON line.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({

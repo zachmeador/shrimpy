@@ -5,8 +5,13 @@ import { formatAddress, isLoopback } from "../../lib/link/index.ts";
 import type { Certificate } from "../../lib/link/node.ts";
 import type { PageSettings } from "../settings/index.ts";
 
-/** Where the page's door listens when its settings say nowhere: this machine's own loopback address, on a port it picks. */
-const LOOPBACK = { host: "127.0.0.1", port: 0 };
+/**
+ * Where the page's door listens when its settings say nowhere: this machine's
+ * own loopback address, at a port that stays the same from start to start,
+ * since an installed page, its cookie and a push subscription all hang on the
+ * page's address.
+ */
+const LOOPBACK = { host: "127.0.0.1", port: 7448 };
 
 /** Where the page's door listens and what it serves with, and the host a browser opens it at. */
 export interface PagePlace {
@@ -20,7 +25,7 @@ export interface PagePlace {
 
 /**
  * Where the page's door listens, from its settings, which came from `file`:
- * on loopback, on a port it picks, if they say nowhere. A certificate's files
+ * on loopback at 7448 if they say nowhere. A certificate's files
  * are read now. Plain HTTP is refused anywhere but loopback, which is the only
  * place a browser takes it as safe, so that a browser's token never crosses
  * the network in the clear.

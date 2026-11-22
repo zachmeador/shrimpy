@@ -18,20 +18,30 @@ export interface PageSettings {
 export interface Settings {
   /** Your name, as every member sees it. */
   readonly name?: string;
-  /** The page's door, which the gateway reads when it starts. */
-  readonly page?: PageSettings;
+  /** The page's door, which the gateway reads when it starts, or why what the file says of it can't be used, which touches nothing else. */
+  readonly page?: PageSettings | Error;
 }
 
 /** How often the file is looked at for a change. */
 const LOOK_MS = 1000;
 
-/** The settings in `file`, or undefined when there is no file. A file that can't be used is an error that says what to fix. */
+/**
+ * The settings in `file`, or undefined when there is no file. A file that
+ * can't be used is an error that says what to fix, and so is a name that
+ * can't; the page's settings that can't be used are kept as such, so that
+ * they keep only the page's door shut.
+ */
 export function readSettings(file: string): Settings | undefined {
   const root = readConfig(file);
   if (root === undefined) return undefined;
   const name = root.optionalString("name");
-  const pageObject = root.optionalObject("page");
-  const page = pageObject === undefined ? undefined : readPage(pageObject, dirname(file));
+  let page: PageSettings | Error | undefined;
+  try {
+    const object = root.optionalObject("page");
+    page = object === undefined ? undefined : readPage(object, dirname(file));
+  } catch (error) {
+    page = asError(error);
+  }
   root.done();
   return { ...(name === undefined ? {} : { name }), ...(page === undefined ? {} : { page }) };
 }

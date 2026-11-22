@@ -30,6 +30,22 @@ export interface ActionsDeps {
   readonly context: Context;
 }
 
+/** The refusal of an invitation nobody could use, from a gateway whose entry listens nowhere. */
+const NOWHERE = refused(
+  "This gateway listens on no address, so nobody could use an invitation. Start it with one, such as its tailnet address.",
+);
+
+/**
+ * An invitation for a device as version 1 of `Roster` answers it, to a caller
+ * that runs an older Shrimpy: with no page's address, and refused where only a
+ * browser could use it, since version 1 promised an address.
+ */
+export function deviceInvitationV1(answer: Answer<DeviceInvitation>): Answer<Invitation> {
+  if (answer.kind === "refused") return answer;
+  const { page: _page, ...invitation } = answer.value;
+  return invitation.addresses.length === 0 ? NOWHERE : done(invitation);
+}
+
 /** What a caller of `Roster` may do with it, each checked against the roster as it is now. */
 export interface Actions {
   invite(caller: Principal, name: string): Answer<Invitation>;
@@ -57,17 +73,13 @@ export function createActions(deps: ActionsDeps): Actions {
     return addresses.length === 0 ? undefined : addresses;
   };
 
-  const nowhere = refused(
-    "This gateway listens on no address, so nobody could use an invitation. Start it with one, such as its tailnet address.",
-  );
-
   return {
     invite(caller, name) {
       const asking = memberOf(caller);
       if (asking === undefined) return notAMember;
       if (!asking.admin) return needsAdmin("Inviting an agent", asking, admins());
       const addresses = listening();
-      if (addresses === undefined) return nowhere;
+      if (addresses === undefined) return NOWHERE;
       const target = roster.canInvite(name);
       if (target.kind === "refused") return target;
       const { code, expires } = invitations.issue(target.value.name, target.value.member);
@@ -82,7 +94,7 @@ export function createActions(deps: ActionsDeps): Actions {
       }
       const addresses = deps.addresses();
       const page = deps.page() ?? null;
-      if (addresses.length === 0 && page === null) return nowhere;
+      if (addresses.length === 0 && page === null) return NOWHERE;
       const { code, expires } = invitations.issueForDevice(caller.member);
       return done({ code, addresses, fingerprint: deps.fingerprint, expires, page });
     },

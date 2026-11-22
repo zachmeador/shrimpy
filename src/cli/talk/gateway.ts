@@ -1,4 +1,5 @@
 import {
+  type Client,
   contextOf,
   GATEWAY_NOT_RUNNING,
   type Member,
@@ -7,7 +8,7 @@ import {
   Roster,
   type RosterEntry,
 } from "../../contracts/gateway/index.ts";
-import { type Client, connectClient, gatewaySocket, HelloRefusedError, UnprovenGatewayError } from "../../contracts/gateway/node.ts";
+import { connectClient, gatewaySocket, HelloRefusedError, UnprovenGatewayError } from "../../contracts/gateway/node.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import { type DialPlace, nobodyThere } from "../../lib/link/node.ts";

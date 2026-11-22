@@ -1,4 +1,4 @@
-import { arr, bool, method, nul, num, obj, oneOf, remote, type Static, str, union } from "@earendil-works/chord";
+import { arr, bool, evolve, method, nul, num, obj, oneOf, remote, type Static, str, union } from "@earendil-works/chord";
 import { AddressSchema } from "./address.ts";
 import { answerOf } from "./answers.ts";
 import { gateway } from "./hosts.ts";
@@ -67,11 +67,8 @@ export type DeviceInvitation = Static<typeof DeviceInvitationSchema>;
 /** That the roster has no member with the ID `id`, as the gateway and chat refuse it. */
 export const noMember = (id: string): string => `There is no member ${id} on the roster.`;
 
-/**
- * The roster as the caller sees it, at `gateway()`. Its state follows the
- * roster live, so a promotion, a rename or a member arriving shows at once.
- */
-export const Roster = remote("shrimpy.gateway.roster", {
+/** `Roster` as it was first served, before an invitation for a device carried the page's address. */
+const RosterV1 = remote("shrimpy.gateway.roster", {
   version: 1,
   params: {},
   hostAddress: () => gateway(),
@@ -97,8 +94,8 @@ export const Roster = remote("shrimpy.gateway.roster", {
          * naming a person is refused.
          */
         invite: method(obj({ name: str() }), answerOf(InvitationSchema)),
-        /** An invitation for a device of yours: a machine, named for itself when it joins, or a browser. Only you. */
-        inviteDevice: method(undefined, answerOf(DeviceInvitationSchema)),
+        /** An invitation for a device of yours, named for the machine it joins from. Only you. */
+        inviteDevice: method(undefined, answerOf(InvitationSchema)),
         /** Makes an agent an admin, answering with it as it now is. Only you or an admin. */
         promote: method(obj({ member: str() }), answerOf(MemberSchema)),
         /** Makes an admin agent an ordinary agent again. Only you or an admin. */
@@ -111,3 +108,12 @@ export const Roster = remote("shrimpy.gateway.roster", {
     },
   },
 });
+
+/**
+ * The roster as the caller sees it, at `gateway()`. Its state follows the
+ * roster live, so a promotion, a rename or a member arriving shows at once.
+ */
+export const Roster = evolve(RosterV1, (edit) =>
+  /** An invitation for a device of yours: a machine, named for itself when it joins, or a browser, which opens the page's address with the code. Only you. */
+  edit.result("inviteDevice", answerOf(DeviceInvitationSchema)),
+);

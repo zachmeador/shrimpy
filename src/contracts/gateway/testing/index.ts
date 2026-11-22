@@ -1,6 +1,7 @@
 /**
  * Test support for the gateway's contract: the real gateway, started through
- * the command in a process of its own, for tests of whatever links to it; a
+ * the command in a process of its own, for tests of whatever links to it, and
+ * settings that give any gateway's page door a port of its own; a
  * client linked to a gateway; and a small agent's program linked to it, which
  * serves its presence and `Echo`, which shows whom a request reached it as, so a
  * test has agents on the roster, and that program's host alone, for a stand-in
@@ -8,4 +9,4 @@
  * not know about any program but the command that starts one.
  */
 export { Echo, linkTestAgent, type TestAgent, testAgentHost } from "./agent.ts";
-export { connectTestClient, SHRIMPY_ENTRY, startTestGateway, type TestGateway } from "./gateway.ts";
+export { connectTestClient, pagePortOfItsOwn, SHRIMPY_ENTRY, startTestGateway, type TestGateway } from "./gateway.ts";

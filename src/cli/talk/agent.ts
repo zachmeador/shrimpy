@@ -2,6 +2,7 @@ import type { Host, Reference } from "@earendil-works/chord";
 import { Agent, Session } from "../../contracts/agent/index.ts";
 import { readMembership } from "../../contracts/agent/node.ts";
 import {
+  type Client,
   contextOf,
   holding,
   type Member,
@@ -12,7 +13,6 @@ import {
   type RosterEntry,
   unlessRefused,
 } from "../../contracts/gateway/index.ts";
-import type { Client } from "../../contracts/gateway/node.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { GatewayNotRunningError, linkAs, viewOf } from "./gateway.ts";
 import { me } from "./me.ts";

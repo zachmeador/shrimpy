@@ -1,6 +1,7 @@
 import { readConfig } from "../../lib/json-config/node.ts";
 import { nobodyThere } from "../../lib/link/node.ts";
-import { type Client, type ConnectOptions, connectClient } from "../gateway/node.ts";
+import type { Client } from "../gateway/index.ts";
+import { type ConnectOptions, connectClient } from "../gateway/node.ts";
 import { type AgentEndpoint, endpointFile, HOME_AGENT } from "./endpoint.ts";
 
 /** That no agent is running at `home`, for a sentence to end or go on from. */
