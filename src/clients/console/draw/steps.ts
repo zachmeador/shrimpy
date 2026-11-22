@@ -13,7 +13,7 @@ function markdownTheme(paint: Paint): MarkdownTheme {
     (text: string): string =>
       paint.text(text, style);
   return {
-    heading: as({ tone: "coral", bold: true }),
+    heading: as({ tone: "ink", bold: true }),
     link: as(role("link")),
     linkUrl: as("ink3"),
     code: as(role("code")),
@@ -22,7 +22,7 @@ function markdownTheme(paint: Paint): MarkdownTheme {
     quote: as({ tone: "ink3", italic: true }),
     quoteBorder: as("line2"),
     hr: as("line2"),
-    listBullet: as("coral"),
+    listBullet: as("ink3"),
     bold: as({ bold: true }),
     italic: as({ italic: true }),
     strikethrough: as({ strike: true }),
