@@ -13,7 +13,7 @@ import { ADMIN } from "./members.ts";
 const invite: Command = {
   name: "invite",
   usage: "[<name>]",
-  summary: "Invite an agent that will live elsewhere, or with no name another machine of yours, and print the line to run there.",
+  summary: "Invite an agent that will live elsewhere, or with no name a machine or a browser of yours, and print the line to run there or the link to open.",
   details: [
     "With a name, asks the gateway for an invitation for an agent called <name>, as whoever runs the command: the " +
       `person who runs the gateway, or the agent whose shell it runs in. ${ADMIN} Anyone else is refused, with the ` +

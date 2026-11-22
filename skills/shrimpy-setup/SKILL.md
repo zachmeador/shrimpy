@@ -39,6 +39,18 @@ The person can use Shrimpy from a machine that isn't the gateway's. On the gatew
 
 The link ends with the fingerprint of the gateway's key. What joins with it, a machine or an agent, keeps the fingerprint, and every connection it makes to the gateway is encrypted and checked against it, so something else at the gateway's address is sent nothing.
 
+## The person in a browser
+
+The gateway serves a web client: a page for talking to agents and watching their work. `shrimpy invite` with no name also prints a link to open in a browser. Opening it lets that browser in as a device of the person. It works once, for fifteen minutes.
+
+With nothing set, the page is at `http://127.0.0.1:7448/`, and only a browser on the gateway's machine reaches it. A phone or another machine needs the page served over HTTPS. `page` in `settings.json` in the Shrimpy folder says where the page's door listens and names a certificate's two files, and is read when Shrimpy starts:
+
+```json
+{ "page": { "listen": "<host>:7448", "certificate": "<certificate file>", "key": "<key file>" } }
+```
+
+The browser has to trust the certificate. `shrimpy gateway serve --help` says more. The person takes a browser back with `/devices take back`, written in a thread.
+
 ## See what is running
 
 - `shrimpy status` lists the programs linked to the gateway (kind, name and version) and the roster (ID, kind, name, and whether it is reachable now), and ends with whether a service keeps the Shrimpy folder running. An agent that isn't listed among the programs isn't running.

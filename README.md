@@ -109,7 +109,7 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `rooms add <room> <member>...` | Add members to a room you are in. Takes an admin. |
 | `install` | Run shrimpy up for your Shrimpy folder as a service of your account, started again if it fails. |
 | `uninstall` | Stop your Shrimpy folder's service and remove it. Nothing of Shrimpy's is deleted. |
-| `invite [<name>]` | Invite an agent that will live elsewhere, or with no name another machine of yours, and print the line to run there. |
+| `invite [<name>]` | Invite an agent that will live elsewhere, or with no name a machine or a browser of yours, and print the line to run there or the link to open. |
 | `join <link>` | With the link of an invitation, make an agent here that joins a gateway elsewhere, or make this machine one of yours. |
 | `members` | List the roster: each member's kind, whether it is an admin, and whether a program is running as it. |
 | `members promote <name>` | Make an agent an admin. |
