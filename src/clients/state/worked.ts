@@ -46,10 +46,14 @@ export function worked(model: Model, held: Holdings, link: GatewayLink): Model {
   }
   const watched = item?.kind === "session" ? held.sessions().get(item.agent) : undefined;
   const workingSessions: Model["workingSessions"] = {};
+  const looks: Model["looks"] = {};
   for (const [id, each] of held.rollCall()) {
-    const working = sessionsWorking(each.shown(), each.status(linked("agent", id)).state === "up");
+    const shown = each.shown();
+    const working = sessionsWorking(shown, each.status(linked("agent", id)).state === "up");
     if (working.length > 0) workingSessions[id] = working;
+    if (shown !== undefined) looks[id] = { sigil: shown.sigil, pigment: shown.pigment };
   }
+  if (agent !== undefined && agentShown !== undefined) looks[agent.id] = { sigil: agentShown.sigil, pigment: agentShown.pigment };
   return {
     ...model,
     listing,
@@ -68,6 +72,7 @@ export function worked(model: Model, held: Holdings, link: GatewayLink): Model {
     behind,
     watched: watched === undefined ? undefined : sessionViewOf(watched, true, reached(watched)),
     workingSessions,
+    looks,
   };
 }
 

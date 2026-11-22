@@ -63,7 +63,7 @@ export interface ThreadScreen extends Chrome {
 }
 
 /** The session on show, as its agent sees it. As for a thread, the title does not say when what is shown may be out of date. */
-export interface SessionScreen extends Omit<SessionLevel, "agent" | "turned">, Chrome {
+export interface SessionScreen extends Omit<SessionLevel, "agent" | "look" | "turned">, Chrome {
   kind: "session";
 }
 

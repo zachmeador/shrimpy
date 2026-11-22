@@ -3,6 +3,7 @@ import { NO_AGENT_YET } from "../../contracts/gateway/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { agentEntries, type Model, readOnlyEntries, roomEntries } from "../state/index.ts";
 import type { LevelOptions, Row } from "./level.ts";
+import { lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
 import { agentDetail, agentsTitle, readOnlyDetail } from "./words.ts";
 
@@ -32,6 +33,7 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
     detail: entry.running ? agentDetail(entry.sessions, entry.elsewhere, model.me?.name) : "not running",
     working: entry.working,
     unread: entry.unread,
+    look: lookOf(model, entry.id),
   }));
   const rooms: Row[] = roomEntries(model).map((entry) => ({
     id: entry.id,
@@ -40,6 +42,7 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
     detail: [memberNames(entry.members).join(", "), entry.working ? "working" : undefined].filter((part) => part !== undefined && part !== "").join(" · "),
     working: entry.working,
     unread: entry.unread,
+    look: undefined,
   }));
   // The rooms the person is not in come last, apart from their own.
   const reading: Row[] = readOnlyEntries(model).map(({ channel, working, unread }) => ({
@@ -49,6 +52,7 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
     detail: readOnlyDetail(channel, working),
     working,
     unread,
+    look: undefined,
   }));
   const rows = [...agents, ...rooms, ...reading];
   return {

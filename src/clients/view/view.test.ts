@@ -1,14 +1,20 @@
 import assert from "node:assert/strict";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
+import { lookFromId, parseSigil, PIGMENTS } from "../../contracts/agent/index.ts";
 import type { Thread } from "../../contracts/chat/index.ts";
 import type { Speaking } from "../../contracts/chat/testing/index.ts";
+import { SHRIMPY_ENTRY } from "../../contracts/gateway/testing/index.ts";
+import { runChild, startChild, tempDir } from "../../lib/testing/index.ts";
 import type { Model } from "../state/index.ts";
 import { startRig } from "../state/testing/index.ts";
-import { agentsLevel, listLevel, type Row } from "./index.ts";
+import { agentsLevel, listLevel, type Look, type Row } from "./index.ts";
 
 /*
  * The views of a client's state against the real gateway and chat server, in processes of their own, with small
- * agents' programs linked to the gateway that work in chat through their links.
+ * agents' programs linked to the gateway that work in chat through their links, or a real agent's program, started
+ * as `shrimpy agent serve` starts it, where what the agent shows of itself matters.
  */
 
 const timeout = 30_000;
@@ -61,4 +67,34 @@ test("what is new to the person is counted on each thread, each agent and room, 
   rig.state.selectRoom(home.id);
   const room = await rig.until((model) => model.open.list?.id === home.id, "the room's list");
   assert.deepEqual(threads(room)?.map((row) => row.unread), [1]);
+});
+
+test("an agent's look follows its home's files while it runs, and is worked out from its member ID while it does not", { timeout: 90_000 }, async (t) => {
+  const rig = await startRig(t, { agents: [] });
+  const home = join(tempDir(t, "crab-home"), "crab");
+  // A Shrimpy folder of its own, so that a real one never reaches the agent.
+  const env = { SHRIMPY_DIR: tempDir(t, "folder") };
+  const made = await runChild({ file: SHRIMPY_ENTRY, args: ["agent", "init", home, "--name", "crab", "--model", "local/test-model"], env }).ended;
+  assert.equal(made.code, 0, made.stderr);
+  // The agent starts only with its model's provider declared. Nothing here asks the model anything.
+  const model = { id: "test-model", reasoning: true, contextWindow: 262_144, maxTokens: 65_536 };
+  const local = { baseUrl: "http://127.0.0.1:9/v1", api: "openai-completions", apiKey: "local", models: [model] };
+  writeFileSync(join(home, "state", "pi", "models.json"), JSON.stringify({ providers: { local } }));
+  const crab = await startChild(t, { file: SHRIMPY_ENTRY, args: ["agent", "serve", home], env });
+  const looked = (model: Model): Look | undefined => agentsLevel(model, at).rows.find((row) => row.kind === "agent")?.look;
+  const config = (): { pigment: string } => JSON.parse(readFileSync(join(home, "agent.json"), "utf8")) as { pigment: string };
+  const sigil = parseSigil(readFileSync(join(home, "sigil"), "utf8"));
+  assert.ok(sigil, "a new home has a sigil");
+  const { pigment } = config();
+
+  await rig.until((model) => looked(model)?.sigil.join() === sigil.join() && looked(model)?.pigment === pigment, "crab's look as its home has it");
+  const frame = ["#".repeat(12), ...Array.from({ length: 10 }, () => `#${".".repeat(10)}#`), "#".repeat(12)];
+  writeFileSync(join(home, "sigil"), `${frame.join("\n")}\n`);
+  const other = PIGMENTS.find((each) => each !== pigment);
+  writeFileSync(join(home, "agent.json"), `${JSON.stringify({ ...config(), pigment: other }, null, 2)}\n`);
+  await rig.until((model) => looked(model)?.sigil.join() === frame.join() && looked(model)?.pigment === other, "crab's look as its home has it now");
+
+  await crab.kill();
+  const fromId = lookFromId((await rig.member("crab")).id);
+  await rig.until((model) => looked(model)?.sigil.join() === fromId.sigil.join() && looked(model)?.pigment === fromId.pigment, "the look worked out from crab's member ID");
 });

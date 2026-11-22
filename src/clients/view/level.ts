@@ -1,6 +1,7 @@
 import { type Channel, channelLabel, roomLabel, type Thread } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { agentNameOf, type Model, type Place } from "../state/index.ts";
+import type { Look } from "./look.ts";
 import type { InFull } from "./words.ts";
 
 /** What every level is made with. */
@@ -25,6 +26,8 @@ export interface Row {
   working: boolean;
   /** How many messages are new to the person in what it opens. */
   unread: number;
+  /** How the agent a row of the agents and rooms opens looks. */
+  look: Look | undefined;
 }
 
 /** The channel whose list is open, or that a thread is in: the person's DM with an agent, a room, or a channel they only read. */

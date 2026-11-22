@@ -1,5 +1,6 @@
 import type {
   ModelId,
+  Pigment,
   SessionActivity,
   SessionItem,
   SessionPlace,
@@ -283,6 +284,12 @@ export interface Model {
   watched: SessionView | undefined;
   /** The sessions of the agent whose list is open, as it lists them now and in its order. Undefined until it has. */
   sessions: SessionSummary[] | undefined;
+  /**
+   * How each agent that is held shows itself, by its member ID: each agent that
+   * is running, and the agent whose list is open. Its sigil and pigment are
+   * null where it shows none.
+   */
+  looks: Record<string, { sigil: string[] | null; pigment: Pigment | null }>;
   /**
    * The sessions each running agent is working in, by the agent's member ID,
    * as it lists them now. Only an agent that is reached and is working in some

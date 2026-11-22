@@ -145,6 +145,7 @@ const startingModel = (homes: HomeLookup | undefined): Model => ({
   behind: {},
   watched: undefined,
   sessions: undefined,
+  looks: {},
   workingSessions: {},
   refusal: undefined,
   watchRefusal: undefined,

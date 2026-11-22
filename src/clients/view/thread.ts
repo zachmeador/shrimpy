@@ -3,6 +3,7 @@ import { oneLine, plain } from "../../lib/plain/index.ts";
 import { agentNameOf, agentOfList, type Model, type Status } from "../state/index.ts";
 import { type CommandLine, commandLines } from "./commands.ts";
 import { BRIEF, type LevelOptions, lookingAt } from "./level.ts";
+import { type Look, lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
 import { whenOf } from "./time.ts";
 import { type Work, workOf } from "./work.ts";
@@ -34,6 +35,8 @@ export interface MessageRow {
   mine: boolean;
   /** An agent wrote it. */
   agent: boolean;
+  /** How the agent that wrote it looks. */
+  look: Look | undefined;
   when: string;
   /** What marks it as edited, with when, or nothing if it never was. */
   edited: string | undefined;
@@ -57,6 +60,7 @@ export interface AgentWork {
   /** The agent's member ID. */
   agent: string;
   name: string;
+  look: Look;
   work: Work;
   /** The work shown may be out of date: the agent is not being reached. */
   stale: boolean;
@@ -66,6 +70,7 @@ export interface AgentWork {
 export interface Waiting {
   /** The member ID of the agent that waits on it. */
   agent: string;
+  look: Look;
   /** When it comes, the note it brings and, where the person can write, how to cancel it. */
   line: string;
 }
@@ -167,7 +172,7 @@ function worksOf(model: Model, from: string | undefined, inFull: InFull): AgentW
   return Object.entries(model.behind)
     .flatMap(([agent, view]) => {
       const work = workOf(view, inFull);
-      return work === undefined ? [] : [{ agent, name: oneLine(agentNameOf(model, agent)), work, stale: !view.reached }];
+      return work === undefined ? [] : [{ agent, name: oneLine(agentNameOf(model, agent)), look: lookOf(model, agent), work, stale: !view.reached }];
     })
     .sort((a, b) => Number(b.agent === from) - Number(a.agent === from) || a.name.localeCompare(b.name));
 }
@@ -181,7 +186,11 @@ function waitingOf(model: Model, now: number, inThread: boolean): Waiting[] {
   return Object.entries(model.behind)
     .flatMap(([agent, view]) => (view.reached ? view.status.wakeups.map((wakeup) => ({ agent, wakeup })) : []))
     .sort((a, b) => a.wakeup.due - b.wakeup.due)
-    .map(({ agent, wakeup }) => ({ agent, line: wakeupLine(agentNameOf(model, agent), wakeup, whenOf(wakeup.due, now), inThread) }));
+    .map(({ agent, wakeup }) => ({
+      agent,
+      look: lookOf(model, agent),
+      line: wakeupLine(agentNameOf(model, agent), wakeup, whenOf(wakeup.due, now), inThread),
+    }));
 }
 
 function statusBlock(status: Status): StatusBlock {
@@ -202,6 +211,7 @@ function messageRow(message: Message, model: Model, names: (memberId: string) =>
     who: oneLine(message.author.name),
     mine: message.author.id === model.me?.id,
     agent: message.author.kind === "agent",
+    look: message.author.kind === "agent" ? lookOf(model, message.author.id) : undefined,
     when: whenOf(message.sentAt, now),
     edited: message.editedAt === null || message.deleted ? undefined : editedAt(whenOf(message.editedAt, now)),
     deleted: message.deleted,

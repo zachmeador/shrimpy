@@ -3,6 +3,7 @@ import { notTalkedTo, taggedTitle } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { agentNameOf, type Model, type Part, partsOf, type Place } from "../state/index.ts";
 import { type LevelOptions, lookingAt, type Row } from "./level.ts";
+import { type Look, lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
 import { whenOf } from "./time.ts";
 import { agentTitle, channelThreadsTitle, type ListFilter } from "./words.ts";
@@ -20,6 +21,8 @@ export interface ListLevel {
   empty: string | undefined;
   /** Whose list it is, on one line: the agent's name, or the room's or the channel's label. */
   name: string;
+  /** How the agent whose list it is looks. */
+  look: Look | undefined;
   /** It is an agent's list, and not a room's or a channel's. */
   ofAgent: boolean;
   /** Everything that will be listed is in: on an agent's list, the agent has said which sessions it has. */
@@ -54,6 +57,7 @@ function channelList(model: Model, place: Exclude<Place, { kind: "agent" }>, opt
     detail: [whenOf(thread.updatedAt, options.now), thread.working.length > 0 ? "working" : undefined].filter((part) => part !== undefined).join(" · "),
     working: thread.working.length > 0,
     unread: here.unread[thread.id] ?? 0,
+    look: undefined,
   }));
   return {
     title: channelThreadsTitle(here.label),
@@ -62,6 +66,7 @@ function channelList(model: Model, place: Exclude<Place, { kind: "agent" }>, opt
     // A room always has its main thread, so there is no one to ask the person to start a talk with.
     empty: undefined,
     name: here.label,
+    look: undefined,
     ofAgent: false,
     settled: true,
     more: false,
@@ -88,6 +93,7 @@ function agentList(model: Model, agentId: string, filter: ListFilter, options: L
     rows,
     empty: rows.length === 0 && model.chat.state === "up" ? notTalkedTo(name) : undefined,
     name: oneLine(name),
+    look: lookOf(model, agentId),
     ofAgent: true,
     settled: listed,
     more: rows.length < parts.length,
@@ -105,7 +111,7 @@ function partRow(part: Part, me: string | undefined, now: number): Row {
   const where = part.yours ? YOUR_DM : part.place === null ? undefined : placeLabel(part.place, me);
   const working = part.working ? "working" : undefined;
   if (part.kind === "session") {
-    return { id: part.id, kind: "session", label: where ?? oneLine(part.id), detail: working ?? "", working: part.working, unread: 0 };
+    return { id: part.id, kind: "session", label: where ?? oneLine(part.id), detail: working ?? "", working: part.working, unread: 0, look: undefined };
   }
   // Chat names a thread. A thread only the agent has said it has is called what the agent knows of it.
   let label = oneLine(part.id);
@@ -119,5 +125,6 @@ function partRow(part: Part, me: string | undefined, now: number): Row {
     detail: [where, when, working].filter((each) => each !== undefined).join(" · "),
     working: part.working,
     unread: part.unread,
+    look: undefined,
   };
 }

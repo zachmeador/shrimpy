@@ -2,6 +2,7 @@ import { titleOf } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { agentNameOf, type Model, type SessionView } from "../state/index.ts";
 import { BRIEF, type LevelOptions, lookingAt } from "./level.ts";
+import { type Look, lookOf } from "./look.ts";
 import { type About, notesOf } from "./notes.ts";
 import { whenOf } from "./time.ts";
 import { type Step, watchOf } from "./work.ts";
@@ -41,6 +42,8 @@ export interface SessionLevel {
   stale: boolean;
   /** Whose session it is, by member ID. */
   agent: string;
+  /** How that agent looks. */
+  look: Look;
   /** It is the session behind the open thread, on show in place of its conversation, which can be put back. */
   turned: boolean;
   /** What is not working, or has just gone wrong, most pressing first. */
@@ -105,6 +108,7 @@ function sessionOf(
     waiting: away ? [] : (view?.status.wakeups ?? []).map((wakeup) => wakeupLine(name, wakeup, whenOf(wakeup.due, options.now), false)),
     stale: away,
     agent: agentId,
+    look: lookOf(model, agentId),
     turned: frame.turned,
     notes: notesOf(model, { agent: agentId, watching: true, looking: "sessions", refused: frame.refused, notice: true }, options.self),
   };

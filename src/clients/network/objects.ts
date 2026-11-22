@@ -3,6 +3,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
   Agent,
   type AgentModels,
+  type Pigment,
   Session,
   type SessionPage,
   type SessionStatus,
@@ -174,8 +175,8 @@ export function holdThread(link: GatewayLink, id: string, changed: () => void): 
   );
 }
 
-/** An agent as a client sees it. */
-export type AgentShown = { refusal: Refused | null; sessions: SessionSummary[] };
+/** An agent as a client sees it: whether it lets the person watch it, its sessions, and how it looks, which every caller sees. */
+export type AgentShown = { refusal: Refused | null; sessions: SessionSummary[]; sigil: string[] | null; pigment: Pigment | null };
 
 export interface AgentCalls {
   /** The models the agent can use now, and the one its sessions follow. */
@@ -186,8 +187,8 @@ export function holdAgent(link: GatewayLink, id: string, changed: () => void): H
   const held = link.host.hold(Agent, { agent: id }, BACKGROUND_CONTEXT);
   return followHeld(
     held,
-    (agent) => [agent.refusal, agent.sessions],
-    (agent) => ({ refusal: agent.refusal.value, sessions: agent.sessions.value }),
+    (agent) => [agent.refusal, agent.sessions, agent.sigil, agent.pigment],
+    (agent) => ({ refusal: agent.refusal.value, sessions: agent.sessions.value, sigil: agent.sigil.value, pigment: agent.pigment.value }),
     { models: (signal) => held.models(contextOf(signal)) },
     changed,
   );
