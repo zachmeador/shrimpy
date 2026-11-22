@@ -9,7 +9,7 @@ const PROGRAMS = ["agent", "chat", "gateway", "clients/console", "clients/web", 
 /** The two clients, which never import each other. */
 const CLIENTS = ["clients/console", "clients/web"];
 /** What both clients share, in the order they import each other: each imports only those before it. */
-const CLIENT_SHARED = ["clients/network", "clients/state", "clients/view"];
+const CLIENT_SHARED = ["clients/look", "clients/network", "clients/state", "clients/view"];
 /** The directories that only group modules, and so have no door: the top of src/, contracts/, lib/ and clients/. */
 const GROUPS = [".", "contracts", "lib", "clients"];
 /** The agent's modules in tiers. A module imports only from the tiers before its own, so imports point one way. */
