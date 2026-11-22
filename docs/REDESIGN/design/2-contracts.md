@@ -126,6 +126,12 @@ The contracts list three reasons. All three come when connecting, and the agent 
 | `remove({ member })` | Removes an agent, revoking `{ member }`, dropping its link, withdrawing its invitations and freeing its name. Only you or an admin; you can't be removed | Added on 2026-11-20 |
 | `takeBack({ way })` | Ends a way in at once. You take back any, and an admin an agent's | New, from [identity](3-identity.md) |
 
+`Notifications`, at `gateway()`, with no params, is where the chat server hands the gateway what to tell you on your devices, as [the conversation model](4-conversation.md) has it:
+
+| Member | What it is | Today |
+|---|---|---|
+| `notify({ from, room, line, thread, unread })` | Sends a finished notification to each device of yours that has a place to be told things, and answers once every push service has answered or given up. Only the chat server | New on 2026-11-21 |
+
 *The chat contract.* `enter` goes: the relay says who is asking, and `you` says whom chat takes the caller for. Holding a `Thread` is what attaching to it was.
 
 `Chat`, at `chat()`, with no params, is the caller as a member of chat:
@@ -166,7 +172,7 @@ The contracts list three reasons. All three come when connecting, and the agent 
 | `unread` | How many messages others wrote after the caller's read mark. Null for an agent | New on 2026-11-21 |
 | `markRead({ message })` | Moves the caller's read mark up to a message, and never back. An agent is refused | New on 2026-11-21 |
 | `read({ before, limit })` | Older messages, oldest first | `read` |
-| `post({ text, request })` | Posts a message. A request ID's first use wins | `post` |
+| `post({ text, request, quiet })` | Posts a message. A request ID's first use wins. One posted with `quiet` is told to nobody's devices | `post`, and `quiet` is new on 2026-11-21 |
 | `edit`, `delete`, `react` and `unreact` | As today, each naming its message, and each answering with the message as it now stands | The same |
 | `rename({ name })`, `archive({ archived })` | The thread as it now stands | `renameThread`, `archiveThread` |
 
@@ -204,7 +210,7 @@ The contracts list three reasons. All three come when connecting, and the agent 
 
 Server IDs go, with the paths that carried tickets and answered calls, `reachProgram`, `keepRegistered`, and an agent's second socket, the one the gateway piped to. The invitation's link, `machine.json`, a home's `state/member.json`, `SHRIMPY_AGENT_HOME` and the commands for agents stay. A home's `runtime/endpoint.json` keeps its socket's path, pid and name for `agent status` and `up`; clients on the home's socket hold objects at `agent({ id: "home" })`.
 
-*Versions.* Every type starts at version 1. Any change bumps it with Chord's `evolve`, and the program that serves the type maps each older version it still takes with `checkAccepts`. Since 2026-11-21 `Thread`, `Channel`, `Agent` and `Roster` are at version 2, each with version 1 still taken. A consumer newer than the program that serves it waits with `contract_mismatch`, so a provider updates before its consumers. An agent apart serves the agent contract to the gateway's machine and uses the chat and gateway contracts served there, so a release that changes contracts on both sides of a link between machines reaches every machine together, as a change of Pi packages does. Any other release reaches the machines one at a time, each provider before its consumers, and `shrimpy update` says which kind a release is from what it changes. `Presence` has no members, so it never needs a new version.
+*Versions.* Every type starts at version 1. Any change bumps it with Chord's `evolve`, and the program that serves the type maps each older version it still takes with `checkAccepts`. Since 2026-11-21 `Thread` is at version 3 and `Channel`, `Agent` and `Roster` are at version 2, each with its older versions still taken. A consumer newer than the program that serves it waits with `contract_mismatch`, so a provider updates before its consumers. An agent apart serves the agent contract to the gateway's machine and uses the chat and gateway contracts served there, so a release that changes contracts on both sides of a link between machines reaches every machine together, as a change of Pi packages does. Any other release reaches the machines one at a time, each provider before its consumers, and `shrimpy update` says which kind a release is from what it changes. `Presence` has no members, so it never needs a new version.
 
 *Files.* `contracts/` also holds the files the `shrimpy` command shares with a program: a home's layout, `agent.json`, its wake and trigger files and its membership, the folder's default model, what a machine of yours keeps, and the addresses the gateway keeps. They aren't Chord objects and carry no version, since each is written and read on one machine by the command and the programs installed with it.
 

@@ -25,9 +25,11 @@ src/
                     is named by and the rule a name follows, a method's answer or refusal, the hello before Chord
                     and what is said to one that can't be read or comes from another version, and the helpers for
                     a call on another program's object), Roster at gateway() and the roster as a program follows
-                    it, that the roster has no such member, what a client tells a person to start when the
-                    gateway, the chat server or an agent isn't linked, and the invitation's link and what a
-                    machine of yours keeps; through node.ts, the hello every link and join starts with, a client's
+                    it, Notifications, where the chat server hands the gateway what to tell you on your devices,
+                    that the roster has no such member, what a client tells a person to start when the
+                    gateway, the chat server or an agent isn't linked, the invitation's link and what a
+                    machine of yours keeps, and the page's door as the page sees it, with its link and where a
+                    browser is told things; through node.ts, the hello every link and join starts with, a client's
                     link to the gateway or to an agent's home socket, keeping a program or a client linked and
                     saying when its link is lost and back, and the addresses the gateway keeps between starts
   agent/            the agent program, one process per home, whose files at the top make its host, serve its
@@ -63,6 +65,8 @@ src/
                     working, what is new to you, who may do what, and a refusal as the contract's answer
     served/         Chat, Channel and Thread for each caller, and ChatPresence for the gateway, kept live
     offers/         the events after a member's place in its feed, at once
+    notifications/  what is worth telling you on your devices, and when: what has stayed unread for a few
+                    seconds, handed over finished, with nothing of the gateway, devices or push
     identity/       who members are, from the roster chat holds at the gateway
     input/          what callers may send: limits and checks
     providers/      not built yet: the provider interface and the helpers providers share
@@ -70,18 +74,24 @@ src/
   gateway/          the gateway program: the roster, and Chord's relay between everyone else, on its own socket
                     and over TLS on its entry
     roster/         you, the one person, and every agent, each with a name, whether it is an admin and its ways in,
-                    in one file
+                    and where each device of yours is told things, in one file
     hello/          who a connection is, from its hello and the door it came in by, and what the gateway answers
     programs/       the programs linked now, each link the route to its program, and the presence the gateway
                     holds at every program it knows
     served/         Roster for each caller, and what each caller may do with it
     invitations/    invitations in flight: a code that lets one agent, or one device of yours, in from apart
     listening/      why the gateway couldn't listen on an address for whoever is apart from it
-    key/            the gateway's key, made whenever its data has none, whose fingerprint an invitation carries
+    key/            the gateway's keys, each made whenever its data has none: the one whose fingerprint an
+                    invitation carries, and the one it signs notifications with
     settings/       your settings file, followed for your name, and read at the start for where the page's door is
     page/           the page's door, beside the entry: it serves the web client's page, lets a browser in once by
-                    an invitation's code, keeps its token in a cookie, and takes a link only from its own page
+                    an invitation's code, keeps its token in a cookie, takes a link only from its own page, and
+                    takes where a browser is told things
+    push/           notifications by Web Push: encrypted for each device's place and signed with the gateway's
+                    key, on Node's own crypto, and sent to that device's push service
   clients/
+    look/           the colors of dusk and day by name, what each pigment is for, the wordmark, and a bitmap as
+                    braille dots, half blocks or an SVG path
     network/        one link to the gateway, kept across losses, and the objects held through it, handed how to
                     dial, and behind its `node.ts` door, dialing from Node: apart from tests, the only client code
                     that imports Chord
@@ -120,7 +130,7 @@ src/
 | `lib/` | nothing else in `src/` |
 | `contracts/` | `lib/`; and, within `contracts/`, `gateway/` imports no other contract, `chat/` and `agent/` import `gateway/`, and `agent/` imports how a room is written from `chat/` |
 | `agent/`, `chat/`, `gateway/` | its own code, `contracts/` and `lib/`, and never another program |
-| `clients/network/`, `clients/state/`, `clients/view/` | `contracts/` and `lib/` by their main doors, and each other in that order: `state/` imports `network/`, and `view/` imports both. Never a client or `pi-tui`. Of them, only what is behind `network/`'s `node.ts` door, which dials from Node, reaches what needs Node, apart from tests and test support |
+| `clients/look/`, `clients/network/`, `clients/state/`, `clients/view/` | `contracts/` and `lib/` by their main doors, and each other in that order: each imports only those before it. Never a client or `pi-tui`. Of them, only what is behind `network/`'s `node.ts` door, which dials from Node, reaches what needs Node, apart from tests and test support |
 | `clients/console/`, `clients/web/` | its own code, `contracts/`, `lib/` and the modules both clients share, and never the other client or a program |
 | `chat/providers/<name>/` | the chat server's provider interface and `lib/` |
 | `cli/` | `contracts/` and `lib/`, plus each program's front door to start it, the agent's to preview a home and to sign in, and the web client's Node door to bundle the page it hands the gateway |
@@ -171,17 +181,17 @@ Every sentence a model or a person reads is kept in a few files, so that wording
 
 ## The clients' modules
 
-Decided on 2026-11-21, with the two mockups in front of you: "sure, track it in the docs. but i want to get building asap". The terminal and the web client are one client, drawn twice. They share what a client knows, does and says, and each keeps only its drawing and its input. The move below was built that day, with no change in behavior, and the views by level after it. `look/` and the web client are not built.
+Decided on 2026-11-21, with the two mockups in front of you: "sure, track it in the docs. but i want to get building asap". The terminal and the web client are one client, drawn twice. They share what a client knows, does and says, and each keeps only its drawing and its input. The move below was built that day, with no change in behavior, then the views by level, and `look/` on 2026-11-22. The terminal still draws as it did, and the web client is a placeholder page.
 
 Three of the terminal's four modules had no terminal in them, about 3,500 of its 4,500 lines, and moved up to be shared. Node reached them in three files. Two dialed the gateway: the link is now handed how to dial, and the console hands it the Node way, which is behind `network/`'s `node.ts` door. The third took a request's ID from `node:crypto`, and now takes it from the `crypto` that Node and a browser both have.
 
 ```text
 src/clients/
+  look/       the colors of dusk and day, the wordmark, and a sigil's twelve lines as dots, half blocks or a path
   network/    the link to the gateway, kept across losses, and the objects held through it: apart from tests,
               the only client code that imports Chord
   state/      what a client knows, what is open at each level, and what the person can do
   view/       what is shown, as plain text and facts, a level at a time, with the words
-  look/       the colors of dusk and day, and a sigil's twelve lines as dots, half blocks or pixels
   console/    the terminal: `pi-tui`, which level is in front, the keys and the sentences that name them,
               and a socket or an address to dial
   web/        the browser: the page, the pointer and the keys, a WebSocket to dial, and what a phone needs
@@ -189,10 +199,10 @@ src/clients/
 
 | Module | Its one job | Knows a terminal or a browser |
 |---|---|---|
+| `look/` | How Shrimpy looks, as data: each color of dusk and day by name, what each pigment is for, the wordmark, and a bitmap of twelve lines turned into braille dots, half blocks or an SVG path. | Never |
 | `network/` | One link to the gateway, kept across losses, and the objects held through it. It is handed how to dial, and offers dialing from Node behind its `node.ts` door. | Never |
 | `state/` | What a client knows, what is open at each level, and what the person can do. | Never |
 | `view/` | What each level shows, as data, and every sentence said of it but those that name a key or a gesture. | Never |
-| `look/` | The colors and the sigils, as data. | Never |
 | `console/` | Drawing in cells, which level is in front, the keys and the sentences that name them, and the socket or address to dial, which it hands the link with `network/`'s Node dial. | A terminal |
 | `web/` | Drawing in the page, the pointer and the keys, dialing from a browser, installing and push. | A browser |
 
@@ -200,9 +210,9 @@ src/clients/
 
 **A view is of one level,** since 2026-11-21, because both mockups show the levels side by side. The state says what is open at each level, and not which screen is in front: whose list is open, an agent's or a room's, and the thread or the session behind no thread open in it, with whose side of a thread is on show, the conversation or one agent's view of the session behind it. Opening another list closes what was open in the one before. `view/` has a view for each level, each a function of the state: agents and rooms, the open list, the open thread, and the session on show. A view carries everything a client might draw and leaves the drawing to it: every agent's work and every wake-up in a thread, what is new to the person on each thread, agent and room and in all, and how each agent looks. Each client decides how many levels it shows at once, which one is in front, and how to go back. The terminal still shows one at a time. A client says whether the person is looking, and the state moves the read mark of the thread they look at: the terminal says so while it has the thread in front.
 
-**Imports.** `network/`, `state/`, `view/` and `look/` import `contracts/` and `lib/` by their main doors, which are safe for browsers. `state/` imports `network/`, and `view/` imports both. None of the four imports `console/` or `web/`, `pi-tui` or the page, and their main doors reach no `node.ts` door. Dialing from Node is behind `network/`'s own `node.ts` door: the console hands it to the link, and their tests reach a real gateway with it. `console/` and `web/` import the four, and never each other. The helper that bundles a contract's door for a browser bundles each of their doors too.
+**Imports.** `look/`, `network/`, `state/` and `view/` import `contracts/` and `lib/` by their main doors, which are safe for browsers, and each other in that order: each imports only those before it. None of the four imports `console/` or `web/`, `pi-tui` or the page, and their main doors reach no `node.ts` door. Dialing from Node is behind `network/`'s own `node.ts` door: the console hands it to the link, and their tests reach a real gateway with it. `console/` and `web/` import the four, and never each other. The helper that bundles a contract's door for a browser bundles each of their doors too.
 
-**The web client is a thin projection.** It reads the views, calls the moves, and holds only what a page has: what is folded, where a list is scrolled, what is typed. Three choices in it are yours to strike. It is drawn with Preact in TSX, so that a component is tied to a view's type. esbuild bundles it when the gateway starts, so nothing is built by hand, and esbuild becomes a dependency where it was a development one. Its styles are the web mockup's, with the colors written from `look/`.
+**The web client is a thin projection.** It reads the views, calls the moves, and holds only what a page has: what is folded, where a list is scrolled, what is typed. Four choices in it are yours to strike. It is drawn with Preact in TSX, so that a component is tied to a view's type. esbuild bundles it when the gateway starts, so nothing is built by hand, and esbuild becomes a dependency where it was a development one. Its styles are the web mockup's, with the colors written from `look/`. An agent's Markdown is read with `marked`, which `pi-tui` already brings, and made into the page's elements, never set as HTML.
 
 **What must not change by accident.** The move changed no behavior and reworded nothing. The terminal's tests pass as they were, with their imports moved.
 

@@ -2,7 +2,7 @@
 
 Where the code falls short of the [design](README.md): promises it doesn't keep yet, and rough edges that are known. Work that hasn't started isn't listed here: each design file has its own under "Not built yet". A shortfall whose fix is designed stays here until the fix is built, and says only what falls short. What was built, and why, is in the commit messages.
 
-As of 2026-11-20. An item leaves when it is fixed or when the design changes to match the code. Before each review pause, every item is fixed, raised with the owner or left here on purpose.
+As of 2026-11-22. An item leaves when it is fixed or when the design changes to match the code. Before each review pause, every item is fixed, raised with the owner or left here on purpose.
 
 ## Where the code trails the plan
 
@@ -45,6 +45,7 @@ As of 2026-11-20. An item leaves when it is fixed or when the design changes to 
 - The message tools have no timeout, so a chat server that stays linked and never answers a call holds a turn until someone stops it.
 - Input order in a session leans on Pi's task numbering, which Pi doesn't promise.
 - Three quick reactions to one of an agent's messages can get two answers.
+- A receipt that says a message of yours failed is told to your devices even while its thread is in front of you, since a receipt moves no read mark. Only a newer message there, read within the five seconds, stops it.
 
 ### The home
 

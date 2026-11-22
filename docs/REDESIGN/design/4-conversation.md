@@ -55,6 +55,23 @@ A crash at any point leaves a task, and Pi resumes it at its checkpoint. The fee
 
 **What you have read,** decided and built on 2026-11-21: "yes, this is important". The chat server keeps one mark for you in each thread, the last message you have seen there, and it only moves forward. A client moves it while the thread is on show, and every client of yours counts what is new from the same mark, so your phone and your terminal agree. New is what others wrote after the mark. Your own messages and deleted ones never count, and with no mark everything others wrote is new. A thread you only read has a mark too, and each client decides which to count. An agent has none, since its place in its feed already says what it has taken. A mark is no event: it reaches no feed and wakes nobody, and `shrimpy read` and `shrimpy threads` move none. The marks are a table of their own in the chat store, which is at version 9 with them.
 
+**Notifications,** decided and built on 2026-11-21. You asked for push from the beginning and for "a coherent design for how notifications are handled", and approved this one: "proposal is approved". A notification is a message that is new to you and stays unread for a moment, so notifications sit on the read marks. What counts as new on a screen and what reaches your phone are the same fact, five seconds apart.
+
+| Program | Its part | Why there |
+|---|---|---|
+| The chat server | Decides what is worth telling you | It owns what was said, who it was for and what you have read |
+| The gateway | Sends it to your devices | It owns your devices and how to reach them |
+| A client | Shows it, and moves your read mark when you look | Only a client knows what is on show |
+
+- **The chat server raises a notification** when one of these has stayed unread for five seconds: a message someone else wrote in a DM of yours, a message that names you in a room you are in, or a receipt that says a message of yours failed. A message sent with `quiet` raises none, and neither does one deleted meanwhile. An agent needs no tool for any of this: it notifies you by writing to you, and `send_message` takes `quiet` for what can wait until you look.
+- **A failed receipt** has no place in a thread for a mark to reach, so it counts as read once your mark in its thread moves at all. It is told once for each thread, however many of your messages there it names.
+- **What waits is held in memory.** A chat server that stops forgets what was waiting its five seconds, and nothing catches up.
+- **What a notification carries:** who wrote, and the room if there is one; the first line of the message that says anything, cut at 120 characters; the thread to open; and how much is new to you in all, for the count on the icon. The line travels in the notification, since a phone away from your network can't fetch it.
+- **The gateway delivers it.** The chat server hands it a finished notification, over the link it holds the roster on, and the gateway never reads chat. A device of yours can hold where it is told things. For a browser that is its Web Push subscription, which it hands over at the page's door, as [the network](6-network.md) has it, and which the roster's file keeps with the device. For an app, later, it is that app's own. The gateway sends to each device that has such a place, once, and forgets a place its push service says is gone. Taking a device back takes its place with it.
+- **Web Push takes no package.** The gateway keeps one key pair to sign with, in its data at `state/push-key.pem`, beside its other key, made when its data has none. Encrypting for a device and signing for its push service are a small module on Node's own crypto, checked against the examples in both standards, RFC 8291 and RFC 8292. A push service sees when the gateway tells a device something, and nothing of what. It keeps a notification for a day for a device that is away. It is also told whom to write to about the gateway, which is the address of the page's door when that is served over HTTPS, and that is on [your list](../AUTHOR-TO-REVIEW.md).
+- **A client moves the mark.** The terminal has no push. It moves your read mark while a thread is in front, which is what stops notifications for what you are reading. The web client's part is under Not built yet below.
+- **Tried** against a push service of the tests' own, which takes only what a real one would. A real push service and a phone are untried.
+
 **Decisions**
 
 | Topic | Today | Proposed | Decision |
@@ -124,21 +141,10 @@ A session has no ID apart from its thread's. A second opinion on 2026-10-04 rais
 | A Pi edge | A write to an idle session whose inbox still holds inputs could place them and start a turn. Since the move Pi withdraws what a failed turn leaves, but not what a run leaves that Pi ended as faulted or orphaned. | The agent writes only to a busy session, so the edge is left to a session that went idle meanwhile after such a run. |
 | A room's wake policy | The policy says what wakes an agent. Hearing wakes nobody. | Hear in every room the agent works in, whatever its policy. A choice per room can come if a room proves too loud. |
 
-*Notifications,* decided on 2026-11-21 and under Now in the [order of work](../PLAN.md#order-of-work), with the web client. You asked for push from the beginning and for "a coherent design for how notifications are handled", and approved this one: "proposal is approved".
+*What is left of notifications,* under Now in the [order of work](../PLAN.md#order-of-work), with the web client.
 
-A notification is a message that is new to you and stays unread for a moment. So notifications sit on the read marks, which are built. What counts as new on a screen and what reaches your phone are the same fact, a few seconds apart.
-
-| Program | Its part | Why there |
-|---|---|---|
-| The chat server | Decides what is worth telling you | It owns what was said, who it was for and what you have read |
-| The gateway | Sends it to your devices | It owns your devices and how to reach them |
-| A client | Shows it, and moves your read mark when you look | Only a client knows what is on show |
-
-- **The chat server raises a notification** when one of these stays unread for a few seconds: a message someone else wrote in a DM of yours, a message that names you in a room you are in, or a receipt that says a message of yours failed. A message an agent sends with `quiet` raises none. An agent needs no tool for any of this: it notifies you by writing to you.
-- **The gateway delivers it.** A device of yours can hold where it is told things. For a browser that is its Web Push subscription. For an app, later, it is that app's own. The gateway keeps one key pair to sign with, sends to each device that has such a place, and forgets a place the push service says is gone. It is handed a finished notification and never reads chat. Taking a device back takes its place with it.
-- **A client shows it.** The web client's service worker shows the notification and sets the count on the app's icon. Opening the thread moves your read mark, which is what stops more notifications for it. The terminal has no push. It shows the same counts, and puts them in its tab's title.
-- **What a notification carries:** who wrote, and the room if there is one; the first line of the message, cut short; the thread to open; and how much is new to you in all, for the count on the icon. The line travels in the notification, since a phone away from your network can't fetch it. Web Push encrypts it for the device, so the push service can't read it.
-- **What it needs first:** the read marks, and a browser's way in with HTTPS, as [the network](6-network.md) has it. Push needs HTTPS, and on an iPhone it needs the page installed to the home screen. Web Push needs no package: signing and encrypting are a small module on Node's own crypto, checked against the example in its standard.
+- **The web client shows it.** Its service worker shows the notification and sets the count on the app's icon. Opening the thread moves your read mark, which is what stops more notifications for it. Push needs HTTPS, and on an iPhone it needs the page installed to the home screen.
+- **The terminal** shows the same counts, and puts them in its tab's title, as [its mockup](../../terminal-mockup.html) has it.
 - **Left for later:** telling only the devices you aren't using, which the gateway could do since it knows which clients are linked; quiet hours, and silencing one thread or one room; every message of a room, where this has only the ones that name you; notifications on a desktop from the terminal, which the plan defers; and the companion app's own push.
 
 *The conversation model: the provider interface with a fake provider,* kept as an idea, as [the plan's direction](../PLAN.md#direction) has it, under Later in the [order of work](../PLAN.md#order-of-work). What follows is kept as the idea was written. If a provider is ever written, it takes nothing from old Shrimpy's code.
@@ -153,7 +159,6 @@ A notification is a message that is new to you and stays unread for a moment. So
 - The rest of the chat server: rooms with several members and the provider interface with its shared helpers. Chat commands and wake policies in each agent.
 - A fake provider, as the provider interface's reference.
 - Request IDs on edits, deletes and reactions, and a provider editing or deleting for a person it maps.
-- `quiet` on `send_message`, where it means a person isn't notified.
 
 **Prove**
 
