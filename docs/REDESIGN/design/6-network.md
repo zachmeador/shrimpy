@@ -165,18 +165,17 @@ Open the terminal with: shrimpy
 - **`shrimpy uninstall`** stops the service and removes it. It leaves every folder and file of Shrimpy's as it is, and lingering too.
 - **`shrimpy status`** ends with a line that says whether a service is installed for the folder, and whether it is running, with or without a gateway. On a machine whose agents all belong to a gateway elsewhere it says where that gateway is, and doesn't say to start one.
 
+**You, from a browser,** decided and built on 2026-11-21, with the web client: "i think this makes sense". The gateway serves the web client's page itself, at a door of its own beside the entry, and a browser comes in as a device of yours with a token of its own, as a machine does. Nothing stands in front of the gateway: no proxy, and no Tailscale Serve. The entry is as it was, and goes on turning web pages away.
+
+- **Where the door is.** With nothing set it listens on the machine's own loopback address at port 7448, over plain HTTP, since a browser takes `localhost` as safe. The address stays the same from start to start, because an installed page, its cookie and a push subscription all hang on it. `settings.json` can give it another address under `page`, and a certificate's file and key. Off loopback it serves only over HTTPS. The settings are read when the gateway starts, so a renewed certificate needs a restart. A setting that can't be used, or a port that is taken, keeps the door shut and is said, and the gateway starts all the same.
+- **Getting in.** An invitation for a device carries the door's address, and `shrimpy invite` prints a link to open in a browser, with the code after the `#` so that it reaches no server's log. The page shows the code to the door once. The door makes the browser's token and keeps it in a cookie the page's scripts can't read, sent only with the link, for 400 days. `/devices` and taking a device back work for it as for any device.
+- **The link.** The door takes a link only from its own page, by where the request says it comes from, and knows the device by its cookie. It is a WebSocket carrying Shrimpy's hello and then Chord, as the entry's is.
+- **HTTPS** comes from certificate files the gateway is pointed at. On a tailnet `tailscale cert` makes them. On a plain LAN you make a certificate of your own and have your browser trust it, and some setups will be just that. A skill has an agent walk you through either: "agents are very good at helping users get stuff like that working".
+- **Tried** in a real browser on 2026-11-21, on the gateway's own machine: the page got in by an invitation's link, its cookie stayed out of its scripts' reach, and it held the roster over its link. A phone, a tailnet and a real certificate are untried.
+
 **Not built yet**
 
-*You, from a browser,* decided on 2026-11-21 and under Now in the [order of work](../PLAN.md#order-of-work), with the web client: "i think this makes sense". The gateway serves the web client's page itself, and a browser comes in as a device of yours with a token of its own, as a machine does. A phone is let in by opening an invitation's link. HTTPS comes from certificate files the gateway is pointed at. On a tailnet `tailscale cert` makes them. On a plain LAN you make a certificate of your own and have your browser trust it, and some setups will be just that. A skill has an agent walk you through either: "agents are very good at helping users get stuff like that working". Nothing stands in front of the gateway: no proxy, and no Tailscale Serve.
-
-Four things about how are yours to strike:
-
-- **The page has a door of its own,** a second port beside the entry. The entry's TLS is made from the gateway's key, which a browser can't check, and the entry goes on turning web pages away.
-- **On the gateway's own machine it needs no certificate,** since a browser takes `localhost` as safe.
-- **The token stays out of the page's reach,** in a cookie its scripts can't read, and the door takes a link only from its own page.
-- **An invitation is a link and a code to scan,** so a phone is let in by pointing its camera at the terminal.
-
-A desktop app that wraps the page, which [the plan](../PLAN.md#direction) stays open to, could check the gateway's key by its fingerprint as a machine does. It would then need no certificate, on a plain LAN or anywhere else. That is untried.
+*What is left of a browser's way in.* The certificate's skill, an invitation as a code to scan, and renewing a browser's cookie before its 400 days are up. A desktop app that wraps the page, which [the plan](../PLAN.md#direction) stays open to, could check the gateway's key by its fingerprint as a machine does. It would then need no certificate, on a plain LAN or anywhere else. That is untried.
 
 *What is left of an agent apart from the gateway.*
 

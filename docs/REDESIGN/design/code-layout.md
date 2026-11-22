@@ -78,7 +78,9 @@ src/
     invitations/    invitations in flight: a code that lets one agent, or one device of yours, in from apart
     listening/      why the gateway couldn't listen on an address for whoever is apart from it
     key/            the gateway's key, made whenever its data has none, whose fingerprint an invitation carries
-    settings/       your settings file, followed for your name
+    settings/       your settings file, followed for your name, and read at the start for where the page's door is
+    page/           the page's door, beside the entry: it serves the web client's page, lets a browser in once by
+                    an invitation's code, keeps its token in a cookie, and takes a link only from its own page
   clients/
     network/        one link to the gateway, kept across losses, and the objects held through it, handed how to
                     dial, and behind its `node.ts` door, dialing from Node: apart from tests, the only client code
@@ -87,7 +89,8 @@ src/
     view/           what is shown, as plain text and facts, with foreign text made harmless
     console/        terminal client
       draw/         the only code that imports `pi-tui`
-    web/            not built yet: the web client
+    web/            the web client: for now a placeholder page that links to the gateway and lists the roster,
+                    with TypeScript settings of its own, and behind its `node.ts` door, bundling itself with esbuild
   cli/              the `shrimpy` command
     talk/           linking to the gateway as whoever a command is, and the objects it holds there: apart from
                     tests, the only code in the CLI that imports Chord, with `me.ts` the one place that decides
@@ -120,7 +123,7 @@ src/
 | `clients/network/`, `clients/state/`, `clients/view/` | `contracts/` and `lib/` by their main doors, and each other in that order: `state/` imports `network/`, and `view/` imports both. Never a client or `pi-tui`. Of them, only what is behind `network/`'s `node.ts` door, which dials from Node, reaches what needs Node, apart from tests and test support |
 | `clients/console/`, `clients/web/` | its own code, `contracts/`, `lib/` and the modules both clients share, and never the other client or a program |
 | `chat/providers/<name>/` | the chat server's provider interface and `lib/` |
-| `cli/` | `contracts/` and `lib/`, plus each program's front door to start it, and the agent's to preview a home and to sign in |
+| `cli/` | `contracts/` and `lib/`, plus each program's front door to start it, the agent's to preview a home and to sign in, and the web client's Node door to bundle the page it hands the gateway |
 
 - **Programs never import each other.** They talk only through `contracts/`, as [the contracts](2-contracts.md) describe.
 - **The CLI loads a program only to start it, plus the agent's front door to preview a home and to sign in.** Confirmed on 2026-11-20: `shrimpy agent context` previews what a home would tell its agent, and `shrimpy login` runs `pi-ai`'s sign-in. Each command imports its program's front door when it runs, so no other command loads it, and the lint names the files that may.
@@ -201,7 +204,7 @@ src/clients/
 
 **What must not change by accident.** The move changed no behavior and reworded nothing. The terminal's tests pass as they were, with their imports moved.
 
-**Untried:** a Chord link from a browser through Shrimpy's hello. The gateway turns away any connection that says it is a web page, and how a browser gets in is not designed.
+**A browser's link is tried.** On 2026-11-21 a real browser linked to the gateway through Shrimpy's hello, at the page's door, as [the network](6-network.md) has it. The bundle is about 424 KB, most of it Chord's.
 
 ## The agent's modules
 
