@@ -152,9 +152,9 @@ export interface Frame {
 /** The member IDs of the agents that are running, as the gateway lists them. */
 export const runningIn = (model: Model): Set<string> => new Set(agentEntries(model).filter((entry) => entry.running).map((entry) => entry.id));
 
-/** Whether the open item is a thread the person can write in. */
+/** Whether the open item is a thread the person can write in, and chat is reached: while it is lost, the input goes, and what was typed waits. */
 export const writable = (frame: Pick<Frame, "levels" | "model">): boolean =>
-  frame.model.open.item?.kind === "thread" && frame.levels.thread?.writable === true;
+  frame.model.open.item?.kind === "thread" && frame.levels.thread?.writable === true && frame.model.chat.state !== "down";
 
 /** The views of the open thread that Tab goes through after its conversation, and which of them is on show: 0 for the conversation. */
 export function sides(model: Model): { count: number; at: number } {

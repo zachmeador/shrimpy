@@ -32,6 +32,7 @@ export type { Step, Work } from "./work.ts";
 export {
   browserLabel,
   CHECKING_BACK,
+  commandParts,
   EMPTY,
   farewellLine,
   FILTERS,
@@ -50,6 +51,7 @@ export {
   OUT_OF_DATE_MARK,
   PICK_FILE,
   READ_ONLY_TAG,
+  type SaidPart,
   sizeWords,
   SOMETHING_NEW,
   thenStart,

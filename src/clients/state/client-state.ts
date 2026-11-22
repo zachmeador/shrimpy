@@ -1,5 +1,5 @@
 import type { AgentModels, HomeEntry, HomeFile, TriggerDetail } from "../../contracts/agent/index.ts";
-import type { Answer } from "../../contracts/gateway/index.ts";
+import { type Answer, valueOf } from "../../contracts/gateway/index.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
 import { type AgentCalls, CONNECTING, type Dial, Down, keepGateway, problemOf } from "../network/index.ts";
 import { createAsking } from "./asking.ts";
@@ -86,6 +86,12 @@ export interface ClientState {
    * whenever anything in it is new to them. They are not until a client says so.
    */
   look(looking: boolean): void;
+  /**
+   * Join the room the open thread is in, which the person only reads, by adding
+   * them to it. The thread takes their input once chat says they are in it. A
+   * room that can't be joined says why in a notice.
+   */
+  joinRoom(): Promise<void>;
 
   /**
    * Act on what the person wrote in the open thread: post it, as a message or
@@ -276,6 +282,20 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
       if (looking === yes) return;
       looking = yes;
       store.changed();
+    },
+    async joinRoom() {
+      const model = store.model();
+      const { item } = model.open;
+      const room = item?.kind === "thread" && item.place.kind === "read-only" ? model.readOnly[item.place.id]?.channel : undefined;
+      if (room?.kind !== "room" || model.me === undefined) return;
+      const me = model.me.id;
+      try {
+        if (model.chat.state === "down") throw new Down(model.chat.why);
+        const answered = AbortSignal.timeout(options.sendMs ?? SEND_MS);
+        await held.onChannel(room.id, async (channel) => valueOf(await channel.calls.addMembers([me], answered)));
+      } catch (error) {
+        store.say({ kind: "not-joined", problem: problemOf(error) });
+      }
     },
     async write(text) {
       const { item } = store.model().open;

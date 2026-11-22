@@ -19,6 +19,7 @@ export const CONTROLS = {
   mode: "Switch between dusk and day",
   listShows: "What the list shows",
   hide: "hide",
+  join: "join",
   notify: "Tell this device when an agent writes",
 } as const;
 

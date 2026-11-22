@@ -3,9 +3,9 @@
  * is happening now and the input; or a session behind no thread, watched; or,
  * with nothing open, a shape pressed into the pane and what to do.
  */
-import type { ComponentChildren } from "preact";
+import { type ComponentChildren, Fragment } from "preact";
 import type { AgentWork, InFull, MessageRow, SessionLevel, ThreadLevel, Waiting } from "../view/index.ts";
-import { CHECKING_BACK, moreWakeups, OUT_OF_DATE_MARK } from "../view/index.ts";
+import { CHECKING_BACK, commandParts, moreWakeups, OUT_OF_DATE_MARK } from "../view/index.ts";
 import { Composer, type ComposerProps } from "./composer.tsx";
 import { Glyph, Relief, Sigil } from "./marks.tsx";
 import { Plain, Prose } from "./prose.tsx";
@@ -80,8 +80,20 @@ function Message({ row, cont }: { row: MessageRow; cont: boolean }) {
   );
 }
 
-/** The wake-ups waiting in a thread: the soonest on a line with a count of the rest, which open in place. */
-function Later({ waiting, open, toggle }: { waiting: Waiting[]; open: boolean; toggle: () => void }) {
+/** A sentence with each command in it set apart, as `tag`: a key to write, or a command to run. */
+function Said({ text, tag }: { text: string; tag: "kbd" | "code" }) {
+  return (
+    <>
+      {commandParts(text).map((part, at) => {
+        if (!part.command) return part.text;
+        return tag === "kbd" ? <kbd key={at}>{part.text}</kbd> : <code key={at}>{part.text}</code>;
+      })}
+    </>
+  );
+}
+
+/** The wake-ups waiting in a thread: the soonest on a line with a count of the rest, which open in place with what `/stop` does to them. */
+function Later({ waiting, cancels, open, toggle }: { waiting: Waiting[]; cancels: string | undefined; open: boolean; toggle: () => void }) {
   const [first] = waiting;
   if (first === undefined) return null;
   if (waiting.length === 1) {
@@ -113,10 +125,12 @@ function Later({ waiting, open, toggle }: { waiting: Waiting[]; open: boolean; t
       </li>
       {waiting.map((each) => (
         <li key={each.line} class={`pg-${each.look.pigment}`}>
-          <Sigil look={each.look} size="s12" />
-          <span>{each.line}</span>
+          <time>{each.when}</time>
+          <b>{each.who}</b>
+          <span>{each.note}</span>
         </li>
       ))}
+      {cancels !== undefined && <li class="how">{cancels}</li>}
     </ol>
   );
 }
@@ -138,6 +152,8 @@ interface ThreadProps {
   placeholder: string;
   back: () => void;
   turn: () => void;
+  /** Join the room the thread is in, which the person only reads. */
+  join: () => void;
   toggleFull: (which: keyof InFull) => void;
   toggleLater: () => void;
   openWork: (agent: string) => void;
@@ -146,7 +162,7 @@ interface ThreadProps {
 export function ThreadView(props: ThreadProps) {
   const { thread, dm, inFull } = props;
   const open: AgentWork | undefined = thread.works.find((each) => each.agent === props.work) ?? thread.works[0];
-  const pigment = thread.works.find((each) => each.agent === thread.from)?.look.pigment;
+  const pigment = thread.look?.pigment;
   return (
     <>
       <Head
@@ -162,6 +178,16 @@ export function ThreadView(props: ThreadProps) {
       >
         <div class={`titles${pigment === undefined ? "" : ` pg-${pigment}`}`}>
           <Title who={thread.who} rest={thread.called} stale={props.stale} />
+          {thread.sub.length > 0 && (
+            <p class="sub">
+              {thread.sub.map((part, at) => (
+                <Fragment key={part}>
+                  {at > 0 && <span class="dot">·</span>}
+                  {part}
+                </Fragment>
+              ))}
+            </p>
+          )}
         </div>
       </Head>
       <div class="body">
@@ -198,7 +224,9 @@ export function ThreadView(props: ThreadProps) {
               <span class="walk">
                 <i />
               </span>
-              <span>{thread.working}</span>
+              <span>
+                <Said text={thread.working} tag="kbd" />
+              </span>
             </p>
           )}
           {thread.queued.map((line, at) => (
@@ -206,14 +234,21 @@ export function ThreadView(props: ThreadProps) {
               <span>{line}</span>
             </p>
           ))}
-          <Later waiting={thread.waiting} open={props.later} toggle={props.toggleLater} />
+          <Later waiting={thread.waiting} cancels={thread.cancels} open={props.later} toggle={props.toggleLater} />
           {thread.writable ? (
             <Composer {...props.composer} commands={thread.commands} busy={thread.working !== undefined} placeholder={props.placeholder} />
           ) : (
             thread.readOnly !== undefined && (
               <p class="readonly stepbox">
                 <Glyph name="eye" />
-                <span>{thread.readOnly}</span>
+                <span>
+                  <Said text={thread.readOnly} tag="code" />
+                </span>
+                {thread.joinable && (
+                  <button class="btn" type="button" onClick={props.join}>
+                    {CONTROLS.join}
+                  </button>
+                )}
               </p>
             )
           )}

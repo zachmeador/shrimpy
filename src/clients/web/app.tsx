@@ -516,6 +516,7 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
         }}
         back={back}
         turn={turn}
+        join={() => void state.joinRoom()}
         toggleFull={(which) => setPage((before) => ({ ...before, inFull: { ...before.inFull, [which]: !before.inFull[which] } }))}
         toggleLater={() => setPage((before) => ({ ...before, later: !before.later }))}
         openWork={(agent) => setPage((before) => ({ ...before, work: agent }))}

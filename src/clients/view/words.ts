@@ -34,11 +34,11 @@ import {
 } from "../../contracts/chat/index.ts";
 import { howToStartAgent, NO_CHAT_SERVER, NO_GATEWAY, versionWarning } from "../../contracts/gateway/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
-import { listed, shellWord, withoutPeriod } from "../../lib/text/index.ts";
+import { listed, shellWord, upTo, withoutPeriod } from "../../lib/text/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import type { Problem, Why } from "../network/index.ts";
-import type { AgentStatus, ClientCommand, DevicesStatus, Notice, RoomStatus } from "../state/index.ts";
+import { type AgentStatus, type ClientCommand, commandNames, type DevicesStatus, type Notice, type RoomStatus } from "../state/index.ts";
 import { shortLine } from "./cut.ts";
 import { whenOf } from "./time.ts";
 
@@ -181,6 +181,8 @@ export function noticeText(notice: Notice, agentName: string, self: string): str
       return `Not sent: ${because({ kind: "chat" }, notice.problem, self)}. Your message is still in the editor.`;
     case "not-opened":
       return `Could not open the thread: ${because({ kind: "chat" }, notice.problem, self)}.`;
+    case "not-joined":
+      return `Could not join the room: ${because({ kind: "chat" }, notice.problem, self)}.`;
     case "no-command":
       return (
         `${oneLine(notice.written)} is no command here. The commands are ${listed(notice.commands.map(oneLine))}. ` +
@@ -320,8 +322,11 @@ export const ADMIN_TAG = "admin";
  * members, and whether anyone is working in it.
  */
 export function readOnlyDetail(room: Pick<Channel, "members">, working: boolean): string {
-  return [READ_ONLY_TAG, memberNames(room.members).join(", "), working ? "working" : ""].filter((part) => part !== "").join(" · ");
+  return [READ_ONLY_TAG, membersLine(room.members), working ? "working" : ""].filter((part) => part !== "").join(" · ");
 }
+
+/** The names of a channel's members, on one line, in alphabetical order. */
+export const membersLine = (members: Channel["members"]): string => memberNames(members).join(", ");
 
 /**
  * The line that stands where the input would be in a thread of a channel the
@@ -384,16 +389,44 @@ export function queuedLine(input: QueuedInput): string {
 }
 
 /**
- * Who is working, and what the session is doing. At least one name. `inThread`
- * says that the person can write in the place this is shown, where `/stop` is
- * how to stop the work, which they can't in a session they are only watching.
+ * Who is working, and what the session is doing. At least one name, and more
+ * than three are two and how many more. `inThread` says that the person can
+ * write in the place this is shown, where `/stop` is how to stop the work,
+ * which they can't in a session they are only watching. `counted` says how
+ * many agents in place of their names, for where the names don't fit.
  */
-export function workingLine(names: string[], activity: SessionActivity | undefined, inThread: boolean): string {
-  const who = listed(names.map(oneLine));
+export function workingLine(names: string[], activity: SessionActivity | undefined, inThread: boolean, counted = false): string {
+  const each = names.map(oneLine);
+  const who = counted ? `${String(names.length)} agents` : each.length > 3 ? upTo(each, 2).join(", ") : listed(each);
   const verb = names.length > 1 ? "are" : "is";
   // That it is working is said already, and it would not be shown if it were idle.
   const doing = activity === undefined || activity.kind === "idle" || activity.kind === "working" ? undefined : activityWords(activity);
   return `${who} ${verb} working${doing === undefined ? "" : ` · ${doing}`}${inThread ? ` · write /${STOP} to stop` : ""}`;
+}
+
+/** A part of a sentence: words, or a command that a person runs or writes, which a client sets apart. */
+export interface SaidPart {
+  text: string;
+  command: boolean;
+}
+
+/** Every command a person writes in a thread, with its slash. */
+const THREAD_COMMANDS = [...new Set([...commandNames("dm"), ...commandNames("room")])];
+
+/** A command in a sentence: one written in a thread, standing alone, or a `shrimpy` command after a colon, up to a comma or the sentence's end. */
+const COMMAND = new RegExp(`(?<=: )shrimpy [^,]*?(?=\\.?$|, )|(?<=^|\\s)(?:${THREAD_COMMANDS.join("|")})(?=$|[\\s.,:;])`, "g");
+
+/** A sentence in parts, each command in it set apart, so that a client can draw a command as one. */
+export function commandParts(sentence: string): SaidPart[] {
+  const parts: SaidPart[] = [];
+  let at = 0;
+  for (const found of sentence.matchAll(COMMAND)) {
+    if (found.index > at) parts.push({ text: sentence.slice(at, found.index), command: false });
+    parts.push({ text: found[0], command: true });
+    at = found.index + found[0].length;
+  }
+  if (at < sentence.length) parts.push({ text: sentence.slice(at), command: false });
+  return parts;
 }
 
 /**
@@ -426,6 +459,18 @@ const howMany = (count: number): string => (count === 0 ? "none" : String(count)
 /** That `/stop` written in a thread cancels the wake-ups waited on there, `count` of them: the one way it is said. */
 const stopCancels = (count: number): string => `/${STOP} cancels ${count === 1 ? "it" : "them"}`;
 
+/**
+ * What `/stop` does to the `count` wake-ups waited on in a thread, said once
+ * under all of them: in a DM with the agent called `agent`, with its work, and
+ * in a room, with every agent's work, and how to stop only `agent`'s.
+ */
+export function stopCancelsAll(count: number, where: "dm" | "room", agent: string): string {
+  const name = oneLine(agent);
+  return where === "dm"
+    ? `${stopCancels(count)}, with ${name}'s work here.`
+    : `${stopCancels(count)}, with every agent's work here, and @${name} /${STOP} only ${name}'s.`;
+}
+
 /** What `/status` read about an agent in its DM, one thing to a line. */
 export function agentStatusRows(status: AgentStatus): string[] {
   const name = oneLine(status.name);
@@ -449,7 +494,7 @@ export function agentStatusRows(status: AgentStatus): string[] {
   if (failure !== null) rows.push(`Last turn: ${oneLine(failureWords(failure.reason, failure.detail))}`);
   const wakeups = status.session?.wakeups ?? [];
   for (const wakeup of wakeups) rows.push(wakeupWords(wakeup, localTime(wakeup.due)));
-  if (wakeups.length > 0) rows.push(`${stopCancels(wakeups.length)}, with ${name}'s work here.`);
+  if (wakeups.length > 0) rows.push(stopCancelsAll(wakeups.length, "dm", name));
   if (status.othersWorking !== undefined) rows.push(`Other sessions working: ${howMany(status.othersWorking)}`);
   return rows;
 }
@@ -485,10 +530,7 @@ export function roomStatusRows(status: RoomStatus): string[] {
         );
   for (const { agent, wakeup } of status.wakeups) rows.push(wakeupLine(agent, wakeup, localTime(wakeup.due), false));
   const [first] = status.wakeups;
-  if (first !== undefined) {
-    const agent = oneLine(first.agent);
-    rows.push(`${stopCancels(status.wakeups.length)}, with every agent's work here, and @${agent} /${STOP} only ${agent}'s.`);
-  }
+  if (first !== undefined) rows.push(stopCancelsAll(status.wakeups.length, "room", first.agent));
   return rows;
 }
 

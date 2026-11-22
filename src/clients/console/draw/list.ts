@@ -1,7 +1,7 @@
 import { dots } from "../../look/index.ts";
 import { FILTERS, type ListFilter, type Row } from "../../view/index.ts";
 import { role, type Run } from "./paint.ts";
-import { hint, isChosen, label, type Line, rowEnd, rowLines, spread, wide, windowed, wrapped } from "./rows.ts";
+import { hint, isChosen, label, type Line, noteRuns, rowEnd, rowLines, spread, wide, windowed, wrapped } from "./rows.ts";
 import { type Frame, listParts, openedKey, placeRow, rowKey } from "./screen.ts";
 import { emptyAgentList, FILTER_KEY, NEW, NEW_THREAD } from "./words.ts";
 
@@ -55,7 +55,7 @@ export function drawList(frame: Frame, width: number, height: number, notes: rea
     lines.push({ text: "" });
   }
 
-  for (const note of notes) lines.push(...wrapped(paint, note, width, role("caution")));
+  for (const note of notes) lines.push(...wrapped(paint, noteRuns(note), width));
   if (notes.length > 0) lines.push({ text: "" });
   if (list.rows.length === 0) {
     const empty = list.empty === undefined ? undefined : list.ofAgent ? emptyAgentList(list.empty, list.name, list.more) : list.empty;

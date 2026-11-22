@@ -34,6 +34,10 @@ export function fakeState(initial: Model): FakeState {
     turnOver: () => void calls.push("turn over"),
     openSession: (address) => void calls.push(`watch ${address}`),
     look: () => undefined,
+    joinRoom() {
+      calls.push("join");
+      return Promise.resolve();
+    },
     write(text) {
       calls.push(`write ${text}`);
       return Promise.resolve(answers.write);

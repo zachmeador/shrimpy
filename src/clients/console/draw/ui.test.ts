@@ -752,7 +752,7 @@ test("the draft in the editor survives losing chat and the agent, and finding th
   terminal.type("half a thought");
 
   state.show({ ...conversation(), chat: { state: "down", why: { kind: "lost" } }, agent: { state: "down", why: { kind: "lost" } } });
-  assert.ok(shows(lines(), "half a thought"));
+  assert.ok(!shows(lines(), "half a thought"), "the input goes while chat is lost");
   state.show(conversation());
 
   assert.ok(shows(lines(), "half a thought"));
@@ -1059,12 +1059,12 @@ test("a thread of a room the person only reads takes no input, and shows what is
 });
 
 test("a room the person joins while reading it takes their input from then on", { timeout: 30_000 }, async (t) => {
-  const { rig, you, lab, terminal, seen, said } = await amongOthers(t);
+  const { rig, lab, terminal, seen, said } = await amongOthers(t);
   rig.state.selectReadOnly(lab.channel.id);
   rig.state.openThread(lab.thread.id);
   await seen("the bench is free");
 
-  await you.addMembers(lab.channel.id, [you.me.id]);
+  await rig.state.joinRoom();
   await rig.until((model) => model.open.item?.kind === "thread" && model.open.item.place.kind === "room", "the thread to become the room's");
   terminal.type("hello");
   terminal.type(ENTER);

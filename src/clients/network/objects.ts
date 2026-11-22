@@ -128,6 +128,8 @@ export type ChannelShown = { refusal: Refused | null; channel: Channel | null; t
 export interface ChannelCalls {
   /** A new thread, named or not. */
   createThread(name: string | null, signal?: AbortSignal): Promise<Answer<Thread>>;
+  /** Adds members of the roster to a room, by their member IDs, answering with the room as it now stands. */
+  addMembers(members: string[], signal?: AbortSignal): Promise<Answer<Channel>>;
 }
 
 export function holdChannel(link: GatewayLink, id: string, changed: () => void): Holding<ChannelShown, ChannelCalls> {
@@ -136,7 +138,10 @@ export function holdChannel(link: GatewayLink, id: string, changed: () => void):
     held,
     (channel) => [channel.refusal, channel.channel, channel.threads, channel.unread],
     (channel) => ({ refusal: channel.refusal.value, channel: channel.channel.value, threads: channel.threads.value, unread: channel.unread.value }),
-    { createThread: (name, signal) => held.createThread({ name }, contextOf(signal)) },
+    {
+      createThread: (name, signal) => held.createThread({ name }, contextOf(signal)),
+      addMembers: (members, signal) => held.addMembers({ members }, contextOf(signal)),
+    },
     changed,
   );
 }

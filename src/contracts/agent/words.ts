@@ -114,9 +114,11 @@ export function usageWords(usage: SessionStatus["usage"]): string {
   return `${count(usage.input)} tokens in, ${count(usage.output)} out, cost $${usage.cost.toFixed(4)}`;
 }
 
+/** The note a wake-up brings, on one line. */
+export const wakeupNote = (wakeup: WaitingWakeup): string => withoutPeriod(oneLine(wakeup.note));
+
 /** A wake-up a session waits on: when it comes, as `when` writes it, and the note it brings. */
-export const wakeupWords = (wakeup: WaitingWakeup, when: string): string =>
-  `Checks back at ${when}: ${withoutPeriod(oneLine(wakeup.note))}`;
+export const wakeupWords = (wakeup: WaitingWakeup, when: string): string => `Checks back at ${when}: ${wakeupNote(wakeup)}`;
 
 /*
  * How a trigger is said, the one way the commands and the page say it: whether

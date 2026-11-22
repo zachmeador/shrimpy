@@ -3,7 +3,7 @@ import { dots, WORDMARK } from "../../look/index.ts";
 import { placeKey } from "../../state/index.ts";
 import { LABELS, OUT_OF_DATE, type Row, versionLine } from "../../view/index.ts";
 import { role, type Run, type Tone } from "./paint.ts";
-import { isChosen, label, lamp, type Line, rowEnd, rowLines, spread, windowed, wrapped } from "./rows.ts";
+import { isChosen, label, lamp, type Line, noteRuns, rowEnd, rowLines, spread, windowed, wrapped } from "./rows.ts";
 import { type Frame, rowKey } from "./screen.ts";
 
 /** The wordmark in braille, with a row of dots above it: sixteen cells by three. */
@@ -24,7 +24,7 @@ export function drawRail(frame: Frame, width: number, height: number, notes: rea
   top.push({ text: ` ${paint.runs([[lead, "ink3"], [release, { tone: "ink2", italic: true }]])}` });
   const agentRows = agents.rows.filter((each) => each.kind === "agent");
   top.push({ text: tide(frame, width, agentRows) }, { text: "" });
-  for (const note of notes) top.push(...wrapped(paint, note, width, role("caution")));
+  for (const note of notes) top.push(...wrapped(paint, noteRuns(note), width));
   if (agents.empty !== undefined) top.push(...wrapped(paint, agents.empty, width, "ink3"));
   if (notes.length > 0 || agents.empty !== undefined) top.push({ text: "" });
 

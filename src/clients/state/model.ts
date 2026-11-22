@@ -211,6 +211,8 @@ export type AgentRead<T> = { value: T } | { problem: Problem };
 export type Notice =
   | { kind: "not-sent"; problem: Problem }
   | { kind: "not-opened"; problem: Problem }
+  /** The person could not join the room they only read. */
+  | { kind: "not-joined"; problem: Problem }
   /**
    * What was written starts with a slash and is none of the commands there are, so nothing was posted and the text
    * stays in the editor. `written` is the word it starts with, and `commands` are the ones there are, each with its slash.

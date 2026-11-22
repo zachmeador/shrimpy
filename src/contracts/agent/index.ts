@@ -60,6 +60,7 @@ export {
   triggerHeading,
   triggerState,
   usageWords,
+  wakeupNote,
   wakeupWords,
   YOUR_DM,
 } from "./words.ts";

@@ -1,6 +1,6 @@
 import { type TuiMouseEvent, type TuiMouseEventResult, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
-import type { Row } from "../../view/index.ts";
-import { cutRuns, type Ground, type Paint, role, type Run, runsWidth, type Tone } from "./paint.ts";
+import { commandParts, type Row } from "../../view/index.ts";
+import { cutRuns, type Ground, type Paint, role, type Run, runsWidth, type Style, type Tone } from "./paint.ts";
 import { type Frame, rowKey } from "./screen.ts";
 import type { Hint } from "./words.ts";
 
@@ -13,6 +13,13 @@ export const hint = ([key, does]: Hint): Run[] => [
 /** Hints on one line, a dot between each. */
 export const hintRuns = (hints: readonly Hint[]): Run[] =>
   hints.flatMap((each, index) => [...(index > 0 ? ([[" · ", "ink3"]] as Run[]) : []), ...hint(each)]);
+
+/** A sentence as runs in `tone`, with each command in it in `command`. */
+export const saidRuns = (text: string, tone: Style | Tone, command: Style | Tone): Run[] =>
+  commandParts(text).map((part) => [part.text, part.command ? command : tone]);
+
+/** A note as runs: in caution, with each command in it in bold ink. */
+export const noteRuns = (text: string): Run[] => saidRuns(text, role("caution"), { tone: "ink", bold: true });
 
 /** The lantern of a working agent: its light, which dims between two pulses. */
 export const lamp = (tick: number): Tone => (Math.floor(tick / 3) % 3 === 2 ? "ember" : role("busy", true));

@@ -1,12 +1,22 @@
-import { type Component, type Editor, stripTerminalSequences, type TuiMouseEvent, type TuiMouseEventResult, visibleWidth } from "@earendil-works/pi-tui";
-import { YOUR_DM } from "../../../contracts/agent/index.ts";
+import {
+  type Component,
+  type Editor,
+  stripTerminalSequences,
+  type TuiMouseEvent,
+  type TuiMouseEventResult,
+  visibleWidth,
+  wrapTextWithAnsi,
+} from "@earendil-works/pi-tui";
 import { halves, WORDMARK } from "../../look/index.ts";
-import { moreWakeupsListed, OUT_OF_DATE_MARK, READ_ONLY_TAG } from "../../view/index.ts";
-import { type Ground, role, type Run, type Tone } from "./paint.ts";
-import { hint, spread } from "./rows.ts";
-import { type Frame, MEASURE, notesFor, placeRow, sides, writable } from "./screen.ts";
+import { moreWakeupsListed, OUT_OF_DATE_MARK } from "../../view/index.ts";
+import { type Ground, type Paint, role, type Run, type Tone } from "./paint.ts";
+import { hint, noteRuns, saidRuns, spread } from "./rows.ts";
+import { type Frame, MEASURE, notesFor, sides, writable } from "./screen.ts";
 import { messageLines, type Prose, sessionLines, workLines, wrap } from "./steps.ts";
 import { turnHint } from "./words.ts";
+
+/** Runs wrapped to `width`. */
+const wrapRuns = (paint: Paint, runs: readonly Run[], width: number): string[] => wrapTextWithAnsi(paint.runs(runs), Math.max(1, width));
 
 /** The shrimp that walks while an agent works, one frame after another. */
 const WALK = ["🦐  ", " 🦐 ", "  🦐", " 🦐 "];
@@ -57,13 +67,10 @@ export class ThreadHeader implements Component {
       const who: Run = [session.who, { tone: session.look.pigment, bold: true }];
       lines.push(spread(paint, [[" ", "ink"], who, [" · ", "ink3"], [session.watching, "ink"], ...late], turn, width));
     } else if (levels.thread !== undefined && item.kind === "thread") {
-      const { place } = item;
-      const row = placeRow(frame, place);
-      const pigment = place.kind === "agent" ? row?.look?.pigment : undefined;
-      const who: Run = [levels.thread.who, { tone: pigment ?? "ink", bold: true }];
-      lines.push(spread(paint, [[" ", "ink"], who, [" · ", "ink3"], [levels.thread.called, "ink"], ...late], turn, width));
-      const sub = place.kind === "agent" ? YOUR_DM : (row?.detail ?? READ_ONLY_TAG);
-      lines.push(spread(paint, [[" ", "ink"], [sub, "ink3"]], [], width));
+      const thread = levels.thread;
+      const who: Run = [thread.who, { tone: thread.look?.pigment ?? "ink", bold: true }];
+      lines.push(spread(paint, [[" ", "ink"], who, [" · ", "ink3"], [thread.called, "ink"], ...late], turn, width));
+      lines.push(spread(paint, [[" ", "ink"], [thread.sub.join(" · "), "ink3"]], [], width));
     }
     if (turn.length > 0) {
       const end = width - 1;
@@ -123,7 +130,7 @@ export class Conversation implements Component {
     const session = levels.session;
     const thread = levels.thread;
     const lead = session?.lead ?? thread?.lead;
-    if (lead !== undefined) lines.push("", ...wrap(paint, lead, mx, "ink3"));
+    if (lead !== undefined) lines.push("", ...wrapRuns(paint, saidRuns(lead, "ink3", role("code")), mx));
     if (session !== undefined) {
       lines.push(...sessionLines(paint, this.#prose, session.steps, mx, inFull));
     } else if (thread !== undefined) {
@@ -186,7 +193,7 @@ export class Dock implements Component {
     const mx = measure(width);
     const lines: string[] = [];
     const one = (runs: readonly Run[], right: readonly Run[] = []): void => void lines.push(spread(paint, runs, right, mx + 1));
-    for (const note of notesFor(frame, "item")) lines.push(...wrap(paint, note, mx, role("caution")));
+    for (const note of notesFor(frame, "item")) lines.push(...wrapRuns(paint, noteRuns(note), mx));
     const walking = WALK[frame.tick % WALK.length] ?? "";
     if (item.kind === "session") {
       const session = levels.session;
@@ -204,13 +211,20 @@ export class Dock implements Component {
         for (const row of thread.status.rows) lines.push(...wrap(paint, row, mx - 2, "ink2").map((line) => `  ${line}`));
         lines.push("");
       }
-      if (thread.working !== undefined) one([[walking, "ink"], [` ${thread.working}`, role("busy")]]);
+      if (thread.working !== undefined) {
+        // Where the names of several agents don't fit, the line says how many.
+        const fits = visibleWidth(`${walking} ${thread.working}`) <= mx;
+        one([[walking, "ink"], [` ${fits ? thread.working : (thread.workingCounted ?? thread.working)}`, role("busy")]]);
+      }
       for (const queued of thread.queued) one([[queued, "ink3"]]);
       const [soonest, ...more] = thread.waiting;
       if (soonest !== undefined) one([["◷ ", "ink3"], [soonest.line, "ink3"]], more.length > 0 ? [[moreWakeupsListed(more.length), "ink2"]] : []);
-      if (thread.readOnly !== undefined) lines.push(...wrap(paint, thread.readOnly, mx, "ink3"));
+      if (thread.readOnly !== undefined) lines.push(...wrapRuns(paint, saidRuns(thread.readOnly, "ink3", role("code")), mx));
+      // While chat is lost the input goes, and a blank line stands where it was.
+      else if (thread.writable && !writable(frame)) lines.push("");
     }
-    if (lines.length === 0) return [];
+    // The input, under the dock, is set off from what is said by a blank line too.
+    if (lines.length === 0 && !writable(frame)) return [];
     const on = threadGround(frame);
     return ["", ...lines].map((line) => paint.lay(line === "" ? "" : ` ${line}`, width, on));
   }
