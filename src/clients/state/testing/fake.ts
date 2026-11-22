@@ -8,6 +8,8 @@ export interface FakeState extends ClientState {
   readonly calls: string[];
   /** What it answers. */
   readonly answers: { send: boolean; farewell: Farewell | undefined; models: AgentModels | undefined };
+  /** Whether it was last told that the person is looking. */
+  readonly looking: boolean;
   /** Change the model the way the real state would after something happened, and tell whoever listens. */
   show(model: Model): void;
 }
@@ -17,9 +19,13 @@ export function fakeState(initial: Model): FakeState {
   const listeners = createListeners<Model>(() => undefined);
   const calls: string[] = [];
   const answers: FakeState["answers"] = { send: true, farewell: undefined, models: undefined };
+  let looking = false;
   return {
     calls,
     answers,
+    get looking() {
+      return looking;
+    },
     show(next) {
       model = next;
       listeners.notify(model);
@@ -33,6 +39,9 @@ export function fakeState(initial: Model): FakeState {
     startThread: (place) => void calls.push(place === undefined ? "start" : `start in ${place.kind} ${place.id}`),
     turnOver: () => void calls.push("turn over"),
     openSession: (address) => void calls.push(`watch ${address}`),
+    look(yes) {
+      looking = yes;
+    },
     send(text) {
       calls.push(`send ${text}`);
       return Promise.resolve(answers.send);

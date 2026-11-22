@@ -503,8 +503,8 @@ test("text from other members and from tools can't reach the terminal, wherever 
       listing: aListing([anAgent("scout", `1.0${hostile}`), aChatServer(`3.0${hostile}`)], `2.0${hostile}`),
       rooms: { ch_2: aRoom(`ops${hostile}`, ["scout"], [thread]) },
       readOnly: {
-        ch_3: { channel: { id: "ch_3", kind: "dm" as const, name: "x", members: others }, threads: [thread] },
-        ch_4: { channel: { id: "ch_4", kind: "room" as const, name: `lab${hostile}`, members: others }, threads: [thread] },
+        ch_3: { channel: { id: "ch_3", kind: "dm" as const, name: "x", members: others }, threads: [thread], unread: {} },
+        ch_4: { channel: { id: "ch_4", kind: "room" as const, name: `lab${hostile}`, members: others }, threads: [thread], unread: {} },
       },
       notice: { kind: "not-sent", problem: { said: `said${hostile}` } },
     },
@@ -715,6 +715,33 @@ test("/devices lists the person's devices, and /devices take back ends a device'
 
   await within(10_000, device.closed, "the device's link to end");
   await until(() => roster.ways.value.every((way) => way.kind !== "device"), "the roster to have no device");
+});
+
+test("the thread in front is marked read as messages come, and a thread not in front is not", { timeout: 30_000 }, async (t) => {
+  const rig = await startRig(t);
+  const scout = await rig.member("scout");
+  const asScout = await rig.asAgent("scout");
+  const other = await rig.thread("scout", "something else");
+  const first = await rig.thread("scout", "first");
+  await asScout.post(first.id, "one");
+  const terminal = new FakeTerminal(100, 30);
+  const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
+  stopAfter(t, () => drawing.stop());
+  const unread = (model: Model, threadId: string): number | undefined => model.dms[scout.id]?.unread[threadId];
+  await rig.until((model) => model.open.list !== undefined && unread(model, first.id) === 1, "what scout said to be new");
+
+  // The thread is the newest on the agent's list, and so the row chosen.
+  terminal.type(ENTER);
+  await rig.until((model) => unread(model, first.id) === 0, "the thread in front to be read");
+  await asScout.post(first.id, "two");
+  await rig.until((model) => model.thread?.messages.length === 3 && model.thread.unread === 0, "what comes while it is in front to be read");
+
+  terminal.type(ESC);
+  await asScout.post(first.id, "three");
+  await rig.until((model) => model.thread?.messages.length === 4, "the thread, still open behind the list, to have what came");
+  await asScout.post(other.id, "and here");
+  await rig.until((model) => unread(model, other.id) === 1, "the thread never in front to have what came");
+  assert.equal(rig.state.model().thread?.unread, 1, "a thread not in front is not marked read");
 });
 
 /**

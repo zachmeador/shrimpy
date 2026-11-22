@@ -327,6 +327,8 @@ export function startDrawing(options: DrawingOptions): Drawing {
     else if (opened(itemOpen, item)) front = "item";
     listOpen = list !== undefined;
     itemOpen = item;
+    // The person is looking at a thread for as long as it is in front, whichever side of it is on show.
+    state.look(front === "item" && item?.kind === "thread");
     syncDraft(model.open);
     const screen = screenOf(model, front, { now: now(), inFull, filter });
     current = screen;

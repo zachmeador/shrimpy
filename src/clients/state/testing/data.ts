@@ -86,13 +86,13 @@ export function aThread(id: string, parts: Partial<Thread> = {}): Thread {
 
 export function aDm(agent: string, threads: Thread[]): ChannelThreads {
   const channel: Channel = { id: "ch_1", kind: "dm", name: agent, members: [zach, agentMember(agent)] };
-  return { channel, threads };
+  return { channel, threads, unread: {} };
 }
 
 /** A room the person is in with these agents, and the threads in it. */
 export function aRoom(name: string, agents: string[], threads: Thread[], id = "ch_2"): ChannelThreads {
   const channel: Channel = { id, kind: "room", name, members: [zach, ...agents.map(agentMember)] };
-  return { channel, threads };
+  return { channel, threads, unread: {} };
 }
 
 export function aMessage(id: string, author: Member, text: string, parts: Partial<Message> = {}): Message {
@@ -119,7 +119,7 @@ export function aReceipt(agent: string, status: Receipt["status"], detail: strin
 }
 
 export function aThreadView(thread: Thread, messages: Message[], earlier = 0, readOnly = false): ThreadView {
-  return { thread, messages, earlier, readOnly };
+  return { thread, messages, earlier, readOnly, unread: 0 };
 }
 
 /** A session with these items, from its start, a status that is idle unless `parts` says more, and its agent reached unless it says not. */

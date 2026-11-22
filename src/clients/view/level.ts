@@ -23,6 +23,8 @@ export interface Row {
   label: string;
   detail: string;
   working: boolean;
+  /** How many messages are new to the person in what it opens. */
+  unread: number;
 }
 
 /** The channel whose list is open, or that a thread is in: the person's DM with an agent, a room, or a channel they only read. */
@@ -33,13 +35,15 @@ export interface Looking {
   label: string;
   channel: Channel | undefined;
   threads: Thread[];
+  /** How many messages in each thread are new to the person, by the thread's ID. */
+  unread: Record<string, number>;
 }
 
 export function lookingAt(model: Model, place: Place): Looking {
   if (place.kind === "agent") {
     const dm = model.dms[place.id];
     const name = agentNameOf(model, place.id);
-    return { name, label: oneLine(name), channel: dm?.channel, threads: dm?.threads ?? [] };
+    return { name, label: oneLine(name), channel: dm?.channel, threads: dm?.threads ?? [], unread: dm?.unread ?? {} };
   }
   const found = place.kind === "room" ? model.rooms[place.id] : model.readOnly[place.id];
   return {
@@ -47,5 +51,6 @@ export function lookingAt(model: Model, place: Place): Looking {
     label: found === undefined ? roomLabel(place.id) : channelLabel(found.channel),
     channel: found?.channel,
     threads: found?.threads ?? [],
+    unread: found?.unread ?? {},
   };
 }

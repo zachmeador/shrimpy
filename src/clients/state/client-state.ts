@@ -76,6 +76,12 @@ export interface ClientState {
   turnOver(): void;
   /** Open a session of the agent whose list is open that is behind no thread, by its address. Nothing can be said or done in it. */
   openSession(address: string): void;
+  /**
+   * Say whether the person is looking at the open thread, as the client can
+   * tell. While they are, its read mark is moved up to its newest message
+   * whenever anything in it is new to them. They are not until a client says so.
+   */
+  look(looking: boolean): void;
 
   /** Say something in the open thread, or in a new one, and say whether it was sent. The person's draft is theirs to put back when it was not. */
   send(text: string): Promise<boolean>;
@@ -164,6 +170,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
   const sending = createSending(store, held, moves, options.sendMs ?? SEND_MS);
   const asking = createAsking(store, held, options.now ?? Date.now);
   let closed = false;
+  let looking = false;
 
   /** Hold what is open, and let go of what was held for what was open before: the agent whose list is open, the open thread, and the sessions they need. */
   function holdOpen(model: Model): void {
@@ -175,10 +182,30 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
   }
 
   /**
+   * While the person is looking at the open thread, move its read mark up to
+   * its newest message when anything in it is new to them, once for each
+   * message. One that fails is moved again when the thread next changes.
+   */
+  function markRead(): void {
+    const thread = held.thread();
+    const shown = thread?.held.shown();
+    const newest = shown?.messages.at(-1);
+    if (!looking || thread === undefined || newest === undefined || (shown?.unread ?? 0) === 0 || thread.marked === newest.id) return;
+    thread.marked = newest.id;
+    const failed = (): void => {
+      if (thread.marked === newest.id) thread.marked = undefined;
+    };
+    void thread.held.calls.markRead(newest.id).then((answer) => {
+      if (answer.kind !== "done") failed();
+    }, failed);
+  }
+
+  /**
    * What follows from the model as it now stands: a thread that can't be had
-   * says so, once each time it is opened; the person is taken to the only agent
-   * there is; each agent that is running is held for what it is working in; and
-   * the session on show whole is read back.
+   * says so, once each time it is opened; the thread the person is looking at
+   * is marked read; the person is taken to the only agent there is; each agent
+   * that is running is held for what it is working in; and the session on show
+   * whole is read back.
    */
   function followModel(): void {
     const thread = held.thread();
@@ -187,6 +214,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
       thread.told = refusal.words;
       store.say({ kind: "not-opened", problem: { said: refusal.words } });
     }
+    markRead();
     const entries = agentEntries(store.model());
     moves.land(entries);
     held.callRoll(new Set(entries.filter((entry) => entry.running).map((entry) => entry.id)));
@@ -203,6 +231,11 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
     startThread: (place) => sending.startThread(place),
     turnOver: () => moves.turnOver(),
     openSession: (address) => moves.openSession(address),
+    look(yes) {
+      if (looking === yes) return;
+      looking = yes;
+      store.changed();
+    },
     send: (text) => sending.send(text),
     note: (notice) => store.say(notice),
     readStatus: () => asking.readStatus(),

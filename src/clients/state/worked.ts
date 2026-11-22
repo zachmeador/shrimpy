@@ -90,8 +90,8 @@ function sessionsWorking(shown: AgentShown | undefined, reached: boolean): Agent
 /** The open thread as it now stands, or none while chat has not shown it or refuses it. */
 function threadViewOf(shown: ThreadShown | undefined): ThreadView | undefined {
   if (shown === undefined || shown.refusal !== null || shown.thread === null) return undefined;
-  const { thread, messages, earlier, readOnly } = shown;
-  return { thread, messages, earlier, readOnly };
+  const { thread, messages, earlier, readOnly, unread } = shown;
+  return { thread, messages, earlier, readOnly, unread: unread ?? 0 };
 }
 
 /**

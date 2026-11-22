@@ -22,11 +22,16 @@ import {
   type ThreadShown,
 } from "../network/index.ts";
 
-/** The open thread, held, and the refusal it was last said to have, so that it is said once. */
+/**
+ * The open thread, held, the refusal it was last said to have, so that it is
+ * said once, and the message its read mark was last moved up to, so that it is
+ * moved once.
+ */
 export interface OpenThread {
   readonly id: string;
   readonly held: Holding<ThreadShown, ThreadCalls>;
   told: string | undefined;
+  marked: string | undefined;
 }
 
 /**
@@ -132,7 +137,7 @@ export function createHoldings(link: GatewayLink, changed: () => void): Holdings
     useThread(id) {
       if (thread?.id === id) return;
       thread?.held.release();
-      thread = id === undefined ? undefined : { id, held: holdThread(link, id, changed), told: undefined };
+      thread = id === undefined ? undefined : { id, held: holdThread(link, id, changed), told: undefined, marked: undefined };
     },
     useSessions(address, agents) {
       for (const [agent, each] of sessions) {

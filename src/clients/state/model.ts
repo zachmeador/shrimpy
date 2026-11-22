@@ -12,12 +12,17 @@ import type { AgentCommand, Channel, Member, Message, Thread } from "../../contr
 import type { Program, RosterEntry, WayIn } from "../../contracts/gateway/index.ts";
 import type { LinkStatus, Problem } from "../network/index.ts";
 
-/** The open thread as it now stands: its newest messages, how many come before them, and whether the person only reads it. */
+/**
+ * The open thread as it now stands: its newest messages, how many come before
+ * them, whether the person only reads it, and how many of its messages are new
+ * to them.
+ */
 export interface ThreadView {
   thread: Thread;
   messages: Message[];
   earlier: number;
   readOnly: boolean;
+  unread: number;
 }
 
 /**
@@ -137,11 +142,20 @@ export function sessionsOpen(model: Pick<Model, "open" | "rooms" | "readOnly">):
   return { address: item.thread, agents };
 }
 
-/** A channel as chat lists it to the person, and its threads, newest first. */
+/**
+ * A channel as chat lists it to the person, its threads, newest first, and how
+ * many messages in each are new to the person, by the thread's ID. A thread it
+ * leaves out has none.
+ */
 export interface ChannelThreads {
   channel: Channel;
   threads: Thread[];
+  unread: Record<string, number>;
 }
+
+/** How many messages are new to the person in `channel`, in all its threads. */
+export const unreadIn = (channel: ChannelThreads | undefined): number =>
+  Object.values(channel?.unread ?? {}).reduce((sum, count) => sum + count, 0);
 
 /**
  * Whether this machine has a home for the agent called `agent`, which is what
@@ -308,6 +322,8 @@ export interface AgentEntry {
   sessions: number;
   /** The sessions it is working in that are none of the person's threads with it, as it lists them. Empty when it said none or was not asked. */
   elsewhere: SessionSummary[];
+  /** How many messages are new to the person in their DM with it. */
+  unread: number;
 }
 
 /** Whether the member `agentId` is working in `thread`, going by the marks chat keeps. */
@@ -349,6 +365,7 @@ export function agentEntries(model: Pick<Model, "listing" | "dms" | "workingSess
         working: working.size > 0,
         sessions: working.size,
         elsewhere: workingElsewhere(said, dm),
+        unread: unreadIn(dm),
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -363,16 +380,19 @@ export interface RoomEntry {
   members: Member[];
   /** Whether anyone is working in a thread of the room. */
   working: boolean;
+  /** How many messages are new to the person in it. */
+  unread: number;
 }
 
 /** The rooms the person is in, by name. */
 export function roomEntries(model: Pick<Model, "me" | "rooms">): RoomEntry[] {
   return Object.values(model.rooms)
-    .map(({ channel, threads }) => ({
-      id: channel.id,
-      name: channel.name,
-      members: channel.members.filter((member) => member.id !== model.me?.id),
-      working: threads.some((thread) => thread.working.length > 0),
+    .map((room) => ({
+      id: room.channel.id,
+      name: room.channel.name,
+      members: room.channel.members.filter((member) => member.id !== model.me?.id),
+      working: room.threads.some((thread) => thread.working.length > 0),
+      unread: unreadIn(room),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -382,6 +402,8 @@ export interface ReadOnlyEntry {
   channel: Channel;
   /** Whether anyone is working in a thread of it. */
   working: boolean;
+  /** How many messages are new to the person in it: in a thread they have not looked at, every message others wrote. */
+  unread: number;
 }
 
 /**
@@ -391,7 +413,7 @@ export interface ReadOnlyEntry {
 export function readOnlyEntries(model: Pick<Model, "readOnly">): ReadOnlyEntry[] {
   return Object.values(model.readOnly)
     .filter(({ channel }) => channel.kind === "room")
-    .map(({ channel, threads }) => ({ channel, working: threads.some((thread) => thread.working.length > 0) }))
+    .map((room) => ({ channel: room.channel, working: room.threads.some((thread) => thread.working.length > 0), unread: unreadIn(room) }))
     .sort((a, b) => a.channel.name.localeCompare(b.channel.name));
 }
 
@@ -414,6 +436,8 @@ export interface Part {
   working: boolean;
   /** When something was last said in it, in milliseconds since the epoch. Undefined for what chat does not list, such as a session behind no thread: the agent gives no time. */
   at: number | undefined;
+  /** How many messages in it are new to the person. None in what chat does not list. */
+  unread: number;
 }
 
 /** Where a thread of `channel` is, for the agent `agentId`, as the agent says a session's place. */
@@ -445,7 +469,7 @@ export function partsOf(model: Model, agentId: string): Part[] {
 
   const parts: Part[] = [];
   const have = new Set<string>();
-  const addThread = (channel: Channel, thread: Thread): void => {
+  const addThread = ({ channel, unread }: ChannelThreads, thread: Thread): void => {
     have.add(thread.id);
     const place = placeIn(channel, thread, agentId);
     parts.push({
@@ -456,21 +480,22 @@ export function partsOf(model: Model, agentId: string): Part[] {
       yours: isYours(place),
       working: workingIn(thread, agentId) || (reached && sessionBehind.get(thread.id)?.working === true),
       at: thread.updatedAt,
+      unread: unread[thread.id] ?? 0,
     });
   };
 
-  if (dm !== undefined) for (const thread of dm.threads) addThread(dm.channel, thread);
-  for (const { channel, threads } of Object.values(model.readOnly)) {
-    if (channel.kind === "dm" && channel.members.some((member) => member.id === agentId)) {
-      for (const thread of threads) addThread(channel, thread);
+  if (dm !== undefined) for (const thread of dm.threads) addThread(dm, thread);
+  for (const reading of Object.values(model.readOnly)) {
+    if (reading.channel.kind === "dm" && reading.channel.members.some((member) => member.id === agentId)) {
+      for (const thread of reading.threads) addThread(reading, thread);
     }
   }
   // What is left of the agent's sessions: a thread of a room, which chat lists, and what chat does not list.
   const rooms = [...Object.values(model.rooms), ...Object.values(model.readOnly)].filter(({ channel }) => channel.kind === "room");
-  const inRoom = (threadId: string): { channel: Channel; thread: Thread } | undefined => {
-    for (const { channel, threads } of rooms) {
-      const thread = threads.find((each) => each.id === threadId);
-      if (thread !== undefined) return { channel, thread };
+  const inRoom = (threadId: string): { room: ChannelThreads; thread: Thread } | undefined => {
+    for (const room of rooms) {
+      const thread = room.threads.find((each) => each.id === threadId);
+      if (thread !== undefined) return { room, thread };
     }
     return undefined;
   };
@@ -479,7 +504,7 @@ export function partsOf(model: Model, agentId: string): Part[] {
     if (threadId !== null && have.has(threadId)) continue;
     const found = threadId === null ? undefined : inRoom(threadId);
     if (found !== undefined) {
-      addThread(found.channel, found.thread);
+      addThread(found.room, found.thread);
       continue;
     }
     parts.push({
@@ -490,6 +515,7 @@ export function partsOf(model: Model, agentId: string): Part[] {
       yours: isYours(session.place),
       working: reached && session.working,
       at: undefined,
+      unread: 0,
     });
   }
   // The sort is stable, so what ties keeps the order it was found in.

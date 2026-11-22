@@ -117,8 +117,8 @@ export function holdChat(link: GatewayLink, changed: () => void): Holding<ChatSh
   );
 }
 
-/** A channel as a client sees it. */
-export type ChannelShown = { refusal: Refused | null; channel: Channel | null; threads: Thread[] };
+/** A channel as a client sees it, with how many messages in each of its threads are new to the person, by the thread's ID. */
+export type ChannelShown = { refusal: Refused | null; channel: Channel | null; threads: Thread[]; unread: Record<string, number> | null };
 
 export interface ChannelCalls {
   /** A new thread, named or not. */
@@ -129,40 +129,47 @@ export function holdChannel(link: GatewayLink, id: string, changed: () => void):
   const held = link.host.hold(Channel, { channel: id }, BACKGROUND_CONTEXT);
   return followHeld(
     held,
-    (channel) => [channel.refusal, channel.channel, channel.threads],
-    (channel) => ({ refusal: channel.refusal.value, channel: channel.channel.value, threads: channel.threads.value }),
+    (channel) => [channel.refusal, channel.channel, channel.threads, channel.unread],
+    (channel) => ({ refusal: channel.refusal.value, channel: channel.channel.value, threads: channel.threads.value, unread: channel.unread.value }),
     { createThread: (name, signal) => held.createThread({ name }, contextOf(signal)) },
     changed,
   );
 }
 
-/** A thread as a client sees it. */
+/** A thread as a client sees it, with how many of its messages are new to the person. */
 export type ThreadShown = {
   refusal: Refused | null;
   thread: Thread | null;
   messages: Message[];
   earlier: number;
   readOnly: boolean;
+  unread: number | null;
 };
 
 export interface ThreadCalls {
   /** Post a message. A request ID's first use wins. */
   post(text: string, request: string, signal?: AbortSignal): Promise<Answer<Message>>;
+  /** Move the person's read mark up to a message of the thread. A mark only moves forward. */
+  markRead(message: string, signal?: AbortSignal): Promise<Answer<null>>;
 }
 
 export function holdThread(link: GatewayLink, id: string, changed: () => void): Holding<ThreadShown, ThreadCalls> {
   const held = link.host.hold(Thread, { thread: id }, BACKGROUND_CONTEXT);
   return followHeld(
     held,
-    (thread) => [thread.refusal, thread.thread, thread.messages, thread.earlier, thread.readOnly],
+    (thread) => [thread.refusal, thread.thread, thread.messages, thread.earlier, thread.readOnly, thread.unread],
     (thread) => ({
       refusal: thread.refusal.value,
       thread: thread.thread.value,
       messages: thread.messages.value,
       earlier: thread.earlier.value,
       readOnly: thread.readOnly.value,
+      unread: thread.unread.value,
     }),
-    { post: (text, request, signal) => held.post({ text, request }, contextOf(signal)) },
+    {
+      post: (text, request, signal) => held.post({ text, request }, contextOf(signal)),
+      markRead: (message, signal) => held.markRead({ message }, contextOf(signal)),
+    },
     changed,
   );
 }

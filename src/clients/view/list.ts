@@ -53,6 +53,7 @@ function channelList(model: Model, place: Exclude<Place, { kind: "agent" }>, opt
     label: taggedTitle(thread),
     detail: [whenOf(thread.updatedAt, options.now), thread.working.length > 0 ? "working" : undefined].filter((part) => part !== undefined).join(" · "),
     working: thread.working.length > 0,
+    unread: here.unread[thread.id] ?? 0,
   }));
   return {
     title: channelThreadsTitle(here.label),
@@ -104,7 +105,7 @@ function partRow(part: Part, me: string | undefined, now: number): Row {
   const where = part.yours ? YOUR_DM : part.place === null ? undefined : placeLabel(part.place, me);
   const working = part.working ? "working" : undefined;
   if (part.kind === "session") {
-    return { id: part.id, kind: "session", label: where ?? oneLine(part.id), detail: working ?? "", working: part.working };
+    return { id: part.id, kind: "session", label: where ?? oneLine(part.id), detail: working ?? "", working: part.working, unread: 0 };
   }
   // Chat names a thread. A thread only the agent has said it has is called what the agent knows of it.
   let label = oneLine(part.id);
@@ -117,5 +118,6 @@ function partRow(part: Part, me: string | undefined, now: number): Row {
     label,
     detail: [where, when, working].filter((each) => each !== undefined).join(" · "),
     working: part.working,
+    unread: part.unread,
   };
 }

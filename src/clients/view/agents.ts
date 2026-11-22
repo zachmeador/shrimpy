@@ -14,6 +14,11 @@ export interface AgentsLevel {
   rows: Row[];
   /** What to say instead of an empty list, if there is something to say. */
   empty: string | undefined;
+  /**
+   * How many messages are new to the person in all: in their DMs with agents
+   * and in the rooms they are in. The rooms they only read are left out.
+   */
+  unread: number;
   /** What is not working, or has just gone wrong, most pressing first: each a line the person should read, apart from the list. */
   notes: string[];
 }
@@ -26,6 +31,7 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
     label: oneLine(entry.name),
     detail: entry.running ? agentDetail(entry.sessions, entry.elsewhere, model.me?.name) : "not running",
     working: entry.working,
+    unread: entry.unread,
   }));
   const rooms: Row[] = roomEntries(model).map((entry) => ({
     id: entry.id,
@@ -33,14 +39,16 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
     label: roomLabel(entry.name),
     detail: [memberNames(entry.members).join(", "), entry.working ? "working" : undefined].filter((part) => part !== undefined && part !== "").join(" · "),
     working: entry.working,
+    unread: entry.unread,
   }));
   // The rooms the person is not in come last, apart from their own.
-  const reading: Row[] = readOnlyEntries(model).map(({ channel, working }) => ({
+  const reading: Row[] = readOnlyEntries(model).map(({ channel, working, unread }) => ({
     id: channel.id,
     kind: "read-only",
     label: channelLabel(channel),
     detail: readOnlyDetail(channel, working),
     working,
+    unread,
   }));
   const rows = [...agents, ...rooms, ...reading];
   return {
@@ -48,6 +56,7 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
     stale: model.gateway.state === "down" && model.listing !== undefined,
     rows,
     empty: rows.length === 0 && model.gateway.state === "up" && model.listing !== undefined ? NO_AGENT_YET : undefined,
+    unread: [...agents, ...rooms].reduce((sum, row) => sum + row.unread, 0),
     notes: notesOf(model, { agent: undefined, watching: false, looking: undefined, refused: undefined, notice: false }, options.self),
   };
 }
