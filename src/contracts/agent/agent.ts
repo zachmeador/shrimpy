@@ -1,4 +1,4 @@
-import { arr, method, nul, obj, remote, str, union } from "@earendil-works/chord";
+import { arr, evolve, method, nul, obj, remote, str, union } from "@earendil-works/chord";
 import { agent, answerOf, RefusedSchema } from "../gateway/index.ts";
 import {
   AgentModelsSchema,
@@ -18,18 +18,8 @@ export const MAX_TEXT_BYTES = 1_000_000;
 /** The most bytes a file of the home has for the agent to show it as an image: 10 MB. */
 export const MAX_IMAGE_BYTES = 10_000_000;
 
-/**
- * One agent as the caller sees it, at `agent({ id: agent })`: its sessions,
- * its triggers and how it looks, kept live, what a client does with the agent
- * as a whole, and its home's files, to look at and never to change.
- *
- * `refusal` is null, or why the caller may not watch this agent, and then its
- * sessions and triggers are empty and every method answers with that refusal.
- * Its sigil and pigment show to every caller. You, the agent itself, an admin
- * and a client on the agent's home socket may watch it. It follows the live
- * roster, so a promotion shows at once.
- */
-export const Agent = remote("shrimpy.agent", {
+/** `Agent` as it was first served, before its sigil, its pigment and its home's files. */
+const AgentV1 = remote("shrimpy.agent", {
   version: 1,
   params: { agent: str() },
   hostAddress: ({ agent: id }) => agent({ id }),
@@ -47,14 +37,6 @@ export const Agent = remote("shrimpy.agent", {
          * it runs now.
          */
         triggers: arr(TriggerSummarySchema),
-        /**
-         * Its sigil: the twelve lines of the `sigil` file in its home, `#` for on
-         * and `.` for off, or null when the file is missing or isn't twelve by
-         * twelve. The agent reads it again whenever it changes.
-         */
-        sigil: union([arr(str()), nul()]),
-        /** The color its sigil is drawn in, as its `agent.json` names it, or null when it names none. */
-        pigment: union([PigmentSchema, nul()]),
       },
       methods: {
         /**
@@ -81,21 +63,44 @@ export const Agent = remote("shrimpy.agent", {
          * that can't be used is left out and named in the answer.
          */
         reload: method(undefined, answerOf(ReloadedSchema)),
-        /**
-         * The entries of a folder of the home, in order of name. `path` is where
-         * the folder is in the home, with `/` between folders, and `""` is the
-         * home itself. `state/` and `runtime/` are never listed, and a path that
-         * leads out of the home, by `..`, from `/` or through a link, is refused.
-         */
-        folder: method(obj({ path: str() }), answerOf(arr(HomeEntrySchema))),
-        /**
-         * One file of the home, at a path as `folder` takes one: as text, up to
-         * `MAX_TEXT_BYTES`, or as a PNG, JPEG, GIF or WebP image, up to
-         * `MAX_IMAGE_BYTES`. Anything else is refused with why, and so is
-         * anything in `state/` or `runtime/` and any path `folder` refuses.
-         */
-        file: method(obj({ path: str() }), answerOf(HomeFileSchema)),
       },
     },
   },
 });
+
+/**
+ * One agent as the caller sees it, at `agent({ id: agent })`: its sessions,
+ * its triggers and how it looks, kept live, what a client does with the agent
+ * as a whole, and its home's files, to look at and never to change.
+ *
+ * `refusal` is null, or why the caller may not watch this agent, and then its
+ * sessions and triggers are empty and every method answers with that refusal.
+ * Its sigil and pigment show to every caller. You, the agent itself, an admin
+ * and a client on the agent's home socket may watch it. It follows the live
+ * roster, so a promotion shows at once.
+ */
+export const Agent = evolve(AgentV1, (edit) =>
+  edit
+    /**
+     * Its sigil: the twelve lines of the `sigil` file in its home, `#` for on
+     * and `.` for off, or null when the file is missing or isn't twelve by
+     * twelve. The agent reads it again whenever it changes.
+     */
+    .addState("all", "sigil", union([arr(str()), nul()]))
+    /** The color its sigil is drawn in, as its `agent.json` names it, or null when it names none. */
+    .addState("all", "pigment", union([PigmentSchema, nul()]))
+    /**
+     * The entries of a folder of the home, in order of name. `path` is where
+     * the folder is in the home, with `/` between folders, and `""` is the
+     * home itself. `state/` and `runtime/` are never listed, and a path that
+     * leads out of the home, by `..`, from `/` or through a link, is refused.
+     */
+    .addMethod("all", "folder", obj({ path: str() }), answerOf(arr(HomeEntrySchema)))
+    /**
+     * One file of the home, at a path as `folder` takes one: as text, up to
+     * `MAX_TEXT_BYTES`, or as a PNG, JPEG, GIF or WebP image, up to
+     * `MAX_IMAGE_BYTES`. Anything else is refused with why, and so is
+     * anything in `state/` or `runtime/` and any path `folder` refuses.
+     */
+    .addMethod("all", "file", obj({ path: str() }), answerOf(HomeFileSchema)),
+);

@@ -74,52 +74,58 @@ export function agentFacet(parts: ServedParts): Facet<Principal> {
   return defineFacet<Principal>((host) => {
     host.serve(AgentPresence, () => ({ variant: "present", members: {} }));
 
-    host.serve(Agent, (_params, principal, self) => {
-      const refusal = self.follow(watching(principal));
-      const listed = self.follow(sessions.listed);
-      const standing = self.follow(triggers.listed);
-      return {
-        variant: "all",
-        members: {
-          refusal,
-          sessions: self.derive([refusal, listed], ([no, list]) => (no === null ? list : [])),
-          triggers: self.derive([refusal, standing], ([no, list]) => (no === null ? list : [])),
-          sigil: self.follow(look.sigil),
-          pigment: self.follow(look.pigment),
-          models: async (ctx) =>
-            answering(async () => {
-              await allow(principal, "watch", ctx);
-              return sessions.models();
-            }),
-          trigger: async ({ name }, ctx) =>
-            answering(async () => {
-              await allow(principal, "watch", ctx);
-              return triggers.show(name);
-            }),
-          fire: async ({ name }, ctx) =>
-            answering(async () => {
-              await allow(principal, "control", ctx);
-              if (!parts.takingInput()) refuse(STOPPING);
-              return triggers.fire(name);
-            }),
-          reload: async (ctx) =>
-            answering(async () => {
-              await allow(principal, "administer", ctx);
-              return parts.reload();
-            }),
-          folder: async ({ path }, ctx) =>
-            answering(async () => {
-              await allow(principal, "watch", ctx);
-              return folderAt(paths, path);
-            }),
-          file: async ({ path }, ctx) =>
-            answering(async () => {
-              await allow(principal, "watch", ctx);
-              return fileAt(paths, path);
-            }),
-        },
-      };
-    });
+    // Version 1 of `Agent` is from before its sigil, its pigment and its home's files. A holder of it, such as a
+    // terminal on another machine that runs an older Shrimpy, binds as it did and is shown none of them.
+    host.serve(
+      Agent,
+      (_params, principal, self) => {
+        const refusal = self.follow(watching(principal));
+        const listed = self.follow(sessions.listed);
+        const standing = self.follow(triggers.listed);
+        return {
+          variant: "all",
+          members: {
+            refusal,
+            sessions: self.derive([refusal, listed], ([no, list]) => (no === null ? list : [])),
+            triggers: self.derive([refusal, standing], ([no, list]) => (no === null ? list : [])),
+            sigil: self.follow(look.sigil),
+            pigment: self.follow(look.pigment),
+            models: async (ctx) =>
+              answering(async () => {
+                await allow(principal, "watch", ctx);
+                return sessions.models();
+              }),
+            trigger: async ({ name }, ctx) =>
+              answering(async () => {
+                await allow(principal, "watch", ctx);
+                return triggers.show(name);
+              }),
+            fire: async ({ name }, ctx) =>
+              answering(async () => {
+                await allow(principal, "control", ctx);
+                if (!parts.takingInput()) refuse(STOPPING);
+                return triggers.fire(name);
+              }),
+            reload: async (ctx) =>
+              answering(async () => {
+                await allow(principal, "administer", ctx);
+                return parts.reload();
+              }),
+            folder: async ({ path }, ctx) =>
+              answering(async () => {
+                await allow(principal, "watch", ctx);
+                return folderAt(paths, path);
+              }),
+            file: async ({ path }, ctx) =>
+              answering(async () => {
+                await allow(principal, "watch", ctx);
+                return fileAt(paths, path);
+              }),
+          },
+        };
+      },
+      { accepts: { 1: {} } },
+    );
 
     host.serve(Session, ({ session: address }, principal, self) => {
       const allowed = self.follow(watching(principal));
