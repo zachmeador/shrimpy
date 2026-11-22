@@ -28,6 +28,8 @@ export interface GatewayListening {
   listenKept: string | null;
   /** The fingerprint of its key, which it keeps when it starts again, as an invitation's link carries it. */
   fingerprint: string;
+  /** Where a browser opens the web client's page, which the command always has the gateway serve. */
+  page: string | null;
   pid: number;
 }
 

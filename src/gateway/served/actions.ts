@@ -3,6 +3,7 @@ import type { Context } from "@earendil-works/chord/context";
 import {
   type Address,
   type Answer,
+  type DeviceInvitation,
   done,
   type Invitation,
   type Member,
@@ -22,6 +23,8 @@ export interface ActionsDeps {
   readonly host: Host<Principal, Revocation>;
   /** The addresses the gateway's entry listens on now, which an invitation sends whoever uses it to. */
   addresses(): Address[];
+  /** Where a browser opens the page the gateway serves, which an invitation for a device carries, or undefined when it serves none. */
+  page(): string | undefined;
   /** The fingerprint of the gateway's key, which an invitation carries for whoever uses it to check the entry against. */
   readonly fingerprint: string;
   readonly context: Context;
@@ -30,7 +33,7 @@ export interface ActionsDeps {
 /** What a caller of `Roster` may do with it, each checked against the roster as it is now. */
 export interface Actions {
   invite(caller: Principal, name: string): Answer<Invitation>;
-  inviteDevice(caller: Principal): Answer<Invitation>;
+  inviteDevice(caller: Principal): Answer<DeviceInvitation>;
   setAdmin(caller: Principal, member: string, admin: boolean): Answer<Member>;
   remove(caller: Principal, member: string): Answer<null>;
   takeBack(caller: Principal, way: string): Answer<null>;
@@ -77,10 +80,11 @@ export function createActions(deps: ActionsDeps): Actions {
             "so no agent may ask for one, an admin included.",
         );
       }
-      const addresses = listening();
-      if (addresses === undefined) return nowhere;
+      const addresses = deps.addresses();
+      const page = deps.page() ?? null;
+      if (addresses.length === 0 && page === null) return nowhere;
       const { code, expires } = invitations.issueForDevice(caller.member);
-      return done({ code, addresses, fingerprint: deps.fingerprint, expires });
+      return done({ code, addresses, fingerprint: deps.fingerprint, expires, page });
     },
     setAdmin(caller, member, admin) {
       const asking = memberOf(caller);

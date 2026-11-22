@@ -43,6 +43,8 @@ const WayInSchema = obj({
 });
 export type WayIn = Static<typeof WayInSchema>;
 
+const INVITATION = { code: str(), addresses: arr(AddressSchema), fingerprint: str(), expires: num() };
+
 /**
  * What lets an agent or a device of yours in over the gateway's entry: a code
  * like `K7Q2-9FXD`, good once, for fifteen minutes and for what it was made
@@ -50,8 +52,17 @@ export type WayIn = Static<typeof WayInSchema>;
  * and the fingerprint of the gateway's key, which whoever joins keeps and checks
  * the entry against from then on.
  */
-const InvitationSchema = obj({ code: str(), addresses: arr(AddressSchema), fingerprint: str(), expires: num() });
+const InvitationSchema = obj(INVITATION);
 export type Invitation = Static<typeof InvitationSchema>;
+
+/**
+ * What lets a device of yours in: as an agent's invitation, and the address of
+ * the page the gateway serves, which a browser opens with the code, or null
+ * when it serves none. With a page, its addresses may be none, and then only a
+ * browser can use it.
+ */
+const DeviceInvitationSchema = obj({ ...INVITATION, page: union([str(), nul()]) });
+export type DeviceInvitation = Static<typeof DeviceInvitationSchema>;
 
 /** That the roster has no member with the ID `id`, as the gateway and chat refuse it. */
 export const noMember = (id: string): string => `There is no member ${id} on the roster.`;
@@ -86,8 +97,8 @@ export const Roster = remote("shrimpy.gateway.roster", {
          * naming a person is refused.
          */
         invite: method(obj({ name: str() }), answerOf(InvitationSchema)),
-        /** An invitation for a device of yours, named for the machine it joins from. Only you. */
-        inviteDevice: method(undefined, answerOf(InvitationSchema)),
+        /** An invitation for a device of yours: a machine, named for itself when it joins, or a browser. Only you. */
+        inviteDevice: method(undefined, answerOf(DeviceInvitationSchema)),
         /** Makes an agent an admin, answering with it as it now is. Only you or an admin. */
         promote: method(obj({ member: str() }), answerOf(MemberSchema)),
         /** Makes an admin agent an ordinary agent again. Only you or an admin. */

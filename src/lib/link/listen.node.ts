@@ -1,20 +1,42 @@
 import type { KeyObject } from "node:crypto";
-import { createServer, type IncomingMessage, type Server, type ServerResponse, STATUS_CODES } from "node:http";
+import {
+  createServer,
+  type IncomingHttpHeaders,
+  type IncomingMessage,
+  type RequestListener,
+  type Server,
+  type ServerResponse,
+  STATUS_CODES,
+} from "node:http";
 import { createServer as createTlsServer } from "node:https";
 import type { AddressInfo, Socket } from "node:net";
 import type { Duplex } from "node:stream";
+import { TLSSocket } from "node:tls";
 import type { JsonValue } from "@earendil-works/chord/json";
 import { type WebSocket, WebSocketServer } from "ws";
 import { selfSignedCertificate } from "../tls/node.ts";
-import { type Linked, linkOver, MAX_FRAME, textOf } from "./linked.node.ts";
+import type { Linked } from "./linked.ts";
+import { linkOver, MAX_FRAME, textOf } from "./linked.node.ts";
 import type { Place } from "./place.ts";
 
+/** A certificate a browser trusts, with its private key, both as PEM text. */
+export interface Certificate {
+  readonly cert: string;
+  readonly key: string;
+}
+
 /**
- * Where to listen: a Unix socket's path, which the operating system guards, or
- * a host and a port, where every connection is TLS with a certificate made
- * around the private key `key`, which the other end checks by its fingerprint.
+ * Where to listen: a Unix socket's path, which the operating system guards; a
+ * host and a port, where every connection is TLS with a certificate made
+ * around the private key `key`, which the other end checks by its fingerprint;
+ * or a host and a port for a page, where every connection is TLS with a
+ * `certificate` a browser trusts, or plain when it is null, which a browser
+ * takes as safe only on the machine's own loopback address.
  */
-export type ListenPlace = { readonly path: string } | { readonly host: string; readonly port: number; readonly key: KeyObject };
+export type ListenPlace =
+  | { readonly path: string }
+  | { readonly host: string; readonly port: number; readonly key: KeyObject }
+  | { readonly host: string; readonly port: number; readonly certificate: Certificate | null };
 
 /**
  * What a listener does with a hello: the answer to send, and what takes the
@@ -31,6 +53,15 @@ export interface ListenOptions {
   helloMs?: number;
   /** Told when `greet` or what takes a link throws, which drops the connection, and when the server fails after it listens. */
   onError?: (error: unknown) => void;
+  /**
+   * Answer a request that is not for a link, such as for a page, bounding
+   * what it reads of one itself. A listener given this serves a page, and
+   * takes a link only from that page, as `fromItsOwnPage` tells. Without it, a
+   * request that says where it comes from is a web page and is turned away,
+   * since every browser says it and nothing else does, and any request that is
+   * not for a link is answered 404.
+   */
+  serve?: RequestListener;
 }
 
 export interface Listener {
@@ -49,10 +80,24 @@ const HELLO_BYTES = 64 * 1024;
 const WAITING = 64;
 
 /**
- * Listen at `place` for WebSockets, over TLS at an address. A request that
- * carries an `Origin` is a web page, which every browser says and nothing else
- * does, and is turned away. The first frame of a connection is its hello, as
- * JSON text, and `greet` decides what to answer and whether a link follows. It
+ * Whether `request` comes from a page this listener served: it says it comes
+ * from the scheme and the host it was sent to. A browser says where every
+ * request for a link or with a body comes from, and a page elsewhere, even on
+ * the same machine, says somewhere else.
+ */
+export function fromItsOwnPage(request: IncomingMessage): boolean {
+  const { origin, host } = request.headers;
+  const scheme = request.socket instanceof TLSSocket ? "https" : "http";
+  return origin !== undefined && host !== undefined && origin.toLowerCase() === `${scheme}://${host.toLowerCase()}`;
+}
+
+/**
+ * Listen at `place` for WebSockets, over TLS at an address unless it is a
+ * page's and has no certificate. A request that carries an `Origin` is a web
+ * page, which every browser says and nothing else does, and is turned away,
+ * unless the listener serves a page and the request comes from it. The first
+ * frame of a connection is its hello, as JSON text, and `greet` decides from
+ * it and the request's headers what to answer and whether a link follows. It
  * is called once per connection and decides at once: the answer and the link
  * are made in the same turn, so two connections are never decided at the same
  * time and no frame after the hello is missed. A connection that sends
@@ -66,7 +111,7 @@ const WAITING = 64;
  */
 export async function listen(
   place: ListenPlace,
-  greet: (hello: unknown) => Greeted,
+  greet: (hello: unknown, headers: IncomingHttpHeaders) => Greeted,
   options: ListenOptions = {},
 ): Promise<Listener> {
   const helloMs = options.helloMs ?? HELLO_MS;
@@ -75,18 +120,21 @@ export async function listen(
   const waiting = new Map<Socket, NodeJS.Timeout>();
   const webSockets = new WebSocketServer({ noServer: true, maxPayload: MAX_FRAME });
   const notFound = (_request: IncomingMessage, response: ServerResponse): void => void response.writeHead(404, { "Content-Length": 0 }).end();
+  const { serve } = options;
+  const answer: RequestListener =
+    serve === undefined
+      ? notFound
+      : (request, response) => {
+          try {
+            serve(request, response);
+          } catch (error) {
+            response.destroy();
+            options.onError?.(error);
+          }
+        };
+  const tls = "path" in place ? null : "key" in place ? fromKey(place.key) : place.certificate;
   const http: Server =
-    "path" in place
-      ? createServer(notFound)
-      : createTlsServer(
-          {
-            key: place.key.export({ type: "pkcs8", format: "pem" }),
-            cert: selfSignedCertificate(place.key),
-            minVersion: "TLSv1.3",
-            handshakeTimeout: helloMs,
-          },
-          notFound,
-        );
+    tls === null ? createServer(answer) : createTlsServer({ ...tls, minVersion: "TLSv1.3", handshakeTimeout: helloMs }, answer);
   let closing: Promise<void> | undefined;
 
   const stopWaiting = (connection: Socket): void => {
@@ -132,7 +180,7 @@ export async function listen(
       }
       let greeted: Greeted;
       try {
-        greeted = greet(hello);
+        greeted = greet(hello, request.headers);
       } catch (error) {
         socket.terminate();
         options.onError?.(error);
@@ -156,12 +204,13 @@ export async function listen(
     });
   };
 
-  // A connection is counted from when it is the one its requests arrive on: at once on a socket, once TLS is done at an address.
-  http.on("path" in place ? "connection" : "secureConnection", arrived);
+  // A connection is counted from when it is the one its requests arrive on: once TLS is done where there is TLS, and at once elsewhere.
+  http.on(tls === null ? "connection" : "secureConnection", arrived);
   http.on("upgrade", (request, socket: Duplex, head: Buffer) => {
     // Node stops listening for errors on a socket once it hands it over, and a client can reset it at any point.
     socket.on("error", () => undefined);
-    if (request.headers.origin !== undefined) return refuse(socket, 403);
+    const mayLink = serve === undefined ? request.headers.origin === undefined : fromItsOwnPage(request);
+    if (!mayLink) return refuse(socket, 403);
     webSockets.handleUpgrade(request, socket, head, greetOn);
   });
   await listening(http, place, options.onError);
@@ -182,6 +231,11 @@ export async function listen(
       return closing;
     },
   };
+}
+
+/** The certificate made around the private key `key`, which whoever dials checks by the key's fingerprint, with the key. */
+function fromKey(key: KeyObject): Certificate {
+  return { cert: selfSignedCertificate(key), key: key.export({ type: "pkcs8", format: "pem" }) };
 }
 
 function listening(http: Server, place: Place, onError: ((error: unknown) => void) | undefined): Promise<void> {

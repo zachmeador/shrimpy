@@ -9,7 +9,8 @@
  * one another machine can use; and making a token. Browser code must not
  * import this file.
  */
-export { type Client, connectClient, type ConnectOptions } from "./connect.node.ts";
+export { type Client } from "./client.ts";
+export { connectClient, type ConnectOptions } from "./connect.node.ts";
 export { HelloRefusedError, sayHello, UnknownAnswerError, UnprovenGatewayError } from "./dial.node.ts";
 export { keepLinked, reportLinking } from "./keep.node.ts";
 export {

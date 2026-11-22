@@ -8,15 +8,18 @@
  * key it keeps in its data directory, whose fingerprint every invitation's
  * link carries. It keeps the addresses it listens on, so that a start with
  * none listens where the last one did, and follows your settings file for your
- * name. It never holds an agent's home, its work or a conversation, and never
- * reads what it relays. Other programs reach it through `contracts/gateway`;
- * they never import this program's modules.
+ * name. Given the web client's page, it serves it at a door of its own for
+ * browsers, where your settings say, and lets a browser in there as a device
+ * of yours. It never holds an agent's home, its work or a conversation, and
+ * never reads what it relays. Other programs reach it through
+ * `contracts/gateway`; they never import this program's modules, and it never
+ * imports the web client.
  */
 import { rmSync } from "node:fs";
 import { userInfo } from "node:os";
 import { createHost, type HostError } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { type Address, gateway, type Principal, type Revocation, revokedBy } from "../contracts/gateway/index.ts";
+import { type Address, gateway, type PageFile, type Principal, type Revocation, revokedBy } from "../contracts/gateway/index.ts";
 import {
   checkListenAddresses,
   gatewaySocket,
@@ -33,10 +36,11 @@ import { createInvitations } from "./invitations/index.ts";
 import { openKey } from "./key/index.ts";
 import { cannotListen } from "./listening/index.ts";
 import { takeDataLock, takeGatewayLock } from "./lock.ts";
+import { openPageDoor, pagePlace } from "./page/index.ts";
 import { createPrograms } from "./programs/index.ts";
 import { openRoster, type Roster } from "./roster/index.ts";
 import { createActions, createView, gatewayFacet } from "./served/index.ts";
-import { followSettings } from "./settings/index.ts";
+import { followSettings, readSettings } from "./settings/index.ts";
 
 export { GatewayRunningError } from "./lock.ts";
 
@@ -62,9 +66,17 @@ export interface GatewayOptions {
   /**
    * Your settings file, which the gateway reads when it starts and again
    * whenever it changes: your name is set there. While there is no file, your
-   * name stays as it is.
+   * name stays as it is. Where the page's door listens, and the certificate
+   * it serves with, are read from it when the gateway starts.
    */
   settings?: string;
+  /**
+   * The web client's page, as a browser is served it: the file at "/" and
+   * every file it asks for. Given, the gateway opens the page's door, where
+   * your settings say, and otherwise on this machine's loopback address on a
+   * port it picks.
+   */
+  page?: readonly PageFile[];
 }
 
 export interface RunningGateway {
@@ -76,6 +88,8 @@ export interface RunningGateway {
   readonly listeningAsKept: string | undefined;
   /** The fingerprint of the gateway's key, which every invitation's link carries and a member checks the entry against. */
   readonly fingerprint: string;
+  /** Where a browser opens the page, which an invitation for a device carries, or undefined when the gateway serves none. */
+  readonly page: string | undefined;
   close(): Promise<void>;
 }
 
@@ -90,7 +104,8 @@ const context = BACKGROUND_CONTEXT;
  * settings set, so no agent can take your name first. The gateway's key is
  * made then too, or at the first start whose data has none, and every
  * connection on the entry is TLS around it. An address that can't be listened
- * on stops the start.
+ * on stops the start, and so do settings for the page's door that can't be
+ * used.
  */
 export async function startGateway(options: GatewayOptions): Promise<RunningGateway> {
   const given = options.listen === undefined || options.listen.length === 0 ? undefined : options.listen;
@@ -111,6 +126,14 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     const kept = given === undefined ? keptListenAddresses(options.dataDir) : [];
     const wanted = given ?? (kept.length > 0 ? kept : undefined);
     const listeningAsKept = given === undefined && kept.length > 0 ? listenAddressesFile(options.dataDir) : undefined;
+    // The page's settings are read once, before anything listens: the door stays where it started.
+    const pageDoor =
+      options.page === undefined
+        ? undefined
+        : {
+            files: options.page,
+            place: pagePlace((options.settings === undefined ? undefined : readSettings(options.settings)?.page) ?? {}, options.settings),
+          };
     const invitations = createInvitations();
 
     const host = createHost<Principal, Revocation>({
@@ -138,12 +161,14 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
       ways: roster.ways(),
     }));
     const entries: Listener[] = [];
+    let page: string | undefined;
     const actions = createActions({
       roster,
       invitations,
       programs,
       host,
       addresses: () => entries.map(({ place }) => place as Address),
+      page: () => page,
       fingerprint,
       context,
     });
@@ -154,7 +179,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
       view.changed();
     });
 
-    const greet = greeter({ roster, programs, invitations, host, context });
+    const { greet, greetPage, letBrowserIn } = greeter({ roster, programs, invitations, host, context });
     const onError = (error: unknown): void => console.error("[gateway]", asError(error).message);
     // The lock is held, so a socket left at the path belongs to a gateway that is gone.
     rmSync(socket, { force: true });
@@ -180,10 +205,22 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
         );
       }
     }
+    if (pageDoor !== undefined) {
+      const door = await openPageDoor({
+        ...pageDoor,
+        // Named for the roster, since a browser sends a cookie to every port of a host, and two gateways may share one.
+        cookie: `shrimpy-${roster.id}`,
+        greet: greetPage,
+        join: letBrowserIn,
+        onError,
+      });
+      open.add(() => door.close());
+      page = door.url;
+    }
     const listening = entries.map(({ place }) => place as Address);
     // Only addresses that were listened on replace what was kept.
     if (given !== undefined) keepListenAddresses(options.dataDir, listening);
-    return { socket, listening, listeningAsKept, fingerprint, close: () => open.closeAll() };
+    return { socket, listening, listeningAsKept, fingerprint, page, close: () => open.closeAll() };
   } catch (error) {
     await open.closeAll().catch(() => undefined);
     throw error;

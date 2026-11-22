@@ -1,7 +1,8 @@
 import { parseArgs } from "node:util";
 import { checkAgentName } from "../../contracts/agent/index.ts";
 import { findMember } from "../../contracts/chat/index.ts";
-import { type Address, contextOf, type Invitation, valueOf, writeLink } from "../../contracts/gateway/index.ts";
+import { type Address, contextOf, type Invitation, valueOf, writeLink, writePageLink } from "../../contracts/gateway/index.ts";
+import { isLoopback } from "../../lib/link/index.ts";
 import { shellWord } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
 import { onRoster, withGatewayAsMe } from "../talk/index.ts";
@@ -28,11 +29,13 @@ const invite: Command = {
       "--listen <host:port>: with no address, nobody could use an invitation, and it refuses to make one. " +
       "Exits 1 if no gateway is running.",
     "With no name, asks for an invitation for another machine of yours, and prints shrimpy join <link>, once " +
-      "for each address the gateway listens on, to run on that machine. It lets that machine in as you, with " +
-      "everything you may do, so only you can ask for it: on the gateway's machine, or on a machine of yours that " +
-      "has joined. An agent is refused, an admin too. The invitation works once, for fifteen minutes, and the " +
-      "gateway keeps it in memory, so one that has not been used is gone when the gateway restarts. The gateway " +
-      "has to listen on an address that machine reaches, which it is told with shrimpy up --listen <host:port>. " +
+      "for each address the gateway listens on, to run on that machine, and a link to open in a browser, which " +
+      "lets the browser in instead. It lets that machine or browser in as you, with everything you may do, so only " +
+      "you can ask for it: on the gateway's machine, or on a machine of yours that has joined. An agent is refused, " +
+      "an admin too. The invitation works once, for fifteen minutes, and the gateway keeps it in memory, so one that " +
+      "has not been used is gone when the gateway restarts. For a machine, the gateway has to listen on an address " +
+      "it reaches, which it is told with shrimpy up --listen <host:port>. For a browser, the gateway serves the web " +
+      "client's page on 127.0.0.1 unless settings.json says where, as shrimpy gateway serve --help has it. " +
       "Exits 1 if no gateway is running.",
   ].join("\n\n"),
   async run(args, io) {
@@ -64,9 +67,6 @@ const invite: Command = {
   },
 };
 
-/** Whether `host` reaches only the machine it is used on. */
-const isLoopback = (host: string): boolean => host === "localhost" || host === "::1" || host.startsWith("127.");
-
 /**
  * What `invite` prints: what the invitation is good for, in `header`, which
  * is told whether there is one line to run or several, and for each address
@@ -93,7 +93,12 @@ function invitationLines(
   return lines;
 }
 
-/** `invite` with no name: an invitation for another machine of the person's own, and the line to run there. */
+/**
+ * `invite` with no name: an invitation for another machine of the person's
+ * own, and the line to run there, with the link a browser opens to be let in
+ * instead, when the gateway serves the page. Without an address for a machine,
+ * there is only the browser's link.
+ */
 async function inviteMachine(io: Io): Promise<number> {
   const { invitation, person } = await withGatewayAsMe((client) =>
     onRoster(client, async (roster) => ({
@@ -101,10 +106,20 @@ async function inviteMachine(io: Io): Promise<number> {
       person: roster.you.value?.name ?? "you",
     })),
   );
-  const lines = invitationLines(invitation, null, {
-    header: (run) => `The invitation works once, for fifteen minutes, and lets another machine of yours in as ${person}. Run ${run} there:`,
-    loopback: "On the gateway's machine, since only that machine reaches a loopback address:",
-  });
+  const lines =
+    invitation.addresses.length === 0
+      ? []
+      : invitationLines(invitation, null, {
+          header: (run) => `The invitation works once, for fifteen minutes, and lets another machine of yours in as ${person}. Run ${run} there:`,
+          loopback: "On the gateway's machine, since only that machine reaches a loopback address:",
+        });
+  if (invitation.page !== null) {
+    const host = new URL(invitation.page).hostname.replace(/^\[(.*)\]$/, "$1");
+    const where = isLoopback(host) ? " on the gateway's machine, since only that machine reaches a loopback address" : "";
+    if (lines.length === 0) lines.push(`The invitation works once, for fifteen minutes, and lets a browser in as ${person}. Open this in a browser${where}:`, "");
+    else lines.push("", `Or open this in a browser${where}:`);
+    lines.push(`  ${writePageLink(invitation.page, invitation.code)}`);
+  }
   for (const line of lines) io.out(line);
   return 0;
 }

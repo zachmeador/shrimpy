@@ -13,5 +13,7 @@
     "types": ["node"],
     "skipLibCheck": true
   },
-  "include": ["src"]
+  "files": ["src/clients/web/node.ts"],
+  "include": ["src"],
+  "exclude": ["src/clients/web"]
 }

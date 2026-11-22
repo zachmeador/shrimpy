@@ -3,4 +3,4 @@
  * with a data directory and a runtime directory of its own, and any option a
  * gateway takes. Only tests import this.
  */
-export { startGatewayInProcess } from "./gateway.ts";
+export { type GatewayInProcessOptions, startGatewayInProcess } from "./gateway.ts";

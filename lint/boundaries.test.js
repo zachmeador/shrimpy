@@ -39,6 +39,8 @@ tester.run("imports", importsRule, {
     allowed("cli/commands/agent.ts", "../../agent/index.ts"),
     allowed("cli/run.ts", "../clients/console/index.ts"),
     { filename: file("cli/commands/gateway.ts"), code: 'await import("../../gateway/index.ts");' },
+    // The command that starts the gateway bundles the web client's page for it, through the client's Node door.
+    { filename: file("cli/commands/gateway.ts"), code: 'await import("../../clients/web/node.ts");' },
     // provider: a chat provider sees the provider interface.
     allowed("chat/providers/telegram/poller.ts", "../index.ts"),
     // testing: tests import test support.
@@ -98,6 +100,7 @@ tester.run("imports", importsRule, {
     allowed("cli/testing/scripted-agent.ts", "@earendil-works/chord"),
     // browser: a Node door may use Node, and so may tests and test support, which are never shipped.
     allowed("contracts/agent/node.ts", "node:fs"),
+    allowed("clients/web/node.ts", "node:url"),
     allowed("lib/testing/child.ts", "node:child_process"),
     allowed("contracts/agent/browser.test.ts", "node:url"),
     // Files outside src/ are not this rule's business.
@@ -118,6 +121,7 @@ tester.run("imports", importsRule, {
     // Any other CLI file takes what it needs from contracts/ and lib/, a type included, and a file named for one program reaches no other.
     refused("cli/commands/wake.ts", "../../agent/index.ts", "cliStarts"),
     refused("cli/commands/agent.ts", "../../gateway/index.ts", "cliStarts"),
+    refused("cli/commands/up.ts", "../../clients/web/node.ts", "cliStarts"),
     {
       filename: file("cli/commands/render-triggers.ts"),
       code: 'import type { HomeAgent } from "../../agent/index.ts";',
@@ -176,6 +180,8 @@ tester.run("imports", importsRule, {
     refused("clients/state/sending.ts", "node:crypto", "browser"),
     refused("clients/network/link.ts", "../../contracts/gateway/node.ts", "browser"),
     refused("clients/state/client-state.ts", "../network/node.ts", "browser"),
+    refused("clients/web/main.tsx", "node:fs", "browser"),
+    refused("clients/web/main.tsx", "./node.ts", "browser"),
     // Every way to import is checked, not only the import declaration.
     {
       filename: file("clients/web/page.ts"),

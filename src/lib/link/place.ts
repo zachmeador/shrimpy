@@ -31,6 +31,9 @@ export function parseAddress(text: string): { host: string; port: number } | und
   return (bracketed === undefined ? HOST.test(host) : isIPv6(host)) ? { host, port: Number(port) } : undefined;
 }
 
+/** Whether `host` reaches only the machine it is used on: its own loopback address, by name or number. */
+export const isLoopback = (host: string): boolean => host === "localhost" || host === "::1" || host.startsWith("127.");
+
 /** Whether `port` is a port from `lowest` to 65535: from 1 for one to dial, and from 0 where 0 has a listener pick one. */
 export function isPort(port: number, lowest: 0 | 1): boolean {
   return Number.isInteger(port) && port >= lowest && port <= 65_535;

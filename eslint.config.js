@@ -8,11 +8,12 @@ export default tseslint.config(
     ignores: ["node_modules/**"],
   },
   {
-    files: ["src/**/*.ts"],
+    files: ["src/**/*.ts", "src/**/*.tsx"],
     extends: [...tseslint.configs.strictTypeChecked],
     languageOptions: {
       parserOptions: {
-        project: "./tsconfig.json",
+        // The web client's browser code has settings of its own, and each file is checked with the first that has it.
+        project: ["./tsconfig.json", "./src/clients/web/tsconfig.json"],
         tsconfigRootDir: import.meta.dirname,
       },
     },

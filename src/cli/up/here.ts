@@ -17,8 +17,9 @@ export async function startGatewayAndChat(io: Io, here: NonNullable<Plan["here"]
     const program = await launch(io, { text: "gateway" }, "the gateway", ["gateway", "serve", "--data", data, ...listen]);
     crew.push({ role: "gateway", what: "the gateway", program });
     io.out(`Started the gateway (pid ${program.pid}), keeping its roster in ${data}.`);
-    const { listen: listening = [], listenKept = null } = program.listening;
+    const { listen: listening = [], listenKept = null, page = null } = program.listening;
     if (listening.length > 0) io.out(listeningLine(listening, listenKept));
+    if (page !== null) io.out(`The gateway serves the web client at ${page}`);
   } else {
     warnIfVersionDiffers(io, "the gateway", found.version);
     io.out("The gateway is already running; using it as it is.");

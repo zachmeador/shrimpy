@@ -19,7 +19,11 @@ const serve: Command = {
     "addresses it listens on as listen, each with the port it got, and names the file as listenKept when this " +
     "start took them from it, and has null there when it did not. It has the fingerprint of the gateway's key as " +
     "fingerprint, which every invitation's link carries. An address that can't be listened on stops " +
-    "the start, and the error says which and why.",
+    "the start, and the error says which and why. The gateway also serves the web client's page for browsers, at a " +
+    "door of its own, and the JSON line has where a browser opens it as page. Without settings it listens on " +
+    "127.0.0.1, on a port it picks. settings.json sets where it listens, and the certificate and key it serves HTTPS " +
+    'with, as {"page": {"listen": "<host:port>", "certificate": "<file>", "key": "<file>"}}, read when the gateway ' +
+    "starts. Away from this machine's loopback address it needs a certificate.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({
@@ -39,17 +43,19 @@ const serve: Command = {
     return serveUntilStopped(
       io,
       async () => {
-        // Loaded here, so that no other command loads the gateway.
+        // Loaded here, so that no other command loads the gateway or bundles the page.
         const { startGateway } = await import("../../gateway/index.ts");
-        return startGateway({ dataDir, listen, settings: settingsPath() });
+        const { bundlePage } = await import("../../clients/web/node.ts");
+        return startGateway({ dataDir, listen, settings: settingsPath(), page: await bundlePage() });
       },
-      ({ socket, listening, listeningAsKept, fingerprint }) => ({
+      ({ socket, listening, listeningAsKept, fingerprint, page }) => ({
         event: "listening",
         dataDir,
         socket,
         listen: listening,
         listenKept: listeningAsKept ?? null,
         fingerprint,
+        page: page ?? null,
         pid: process.pid,
       }),
     );

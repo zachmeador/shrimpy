@@ -9,6 +9,8 @@ export interface Listening {
   /** The gateway's: the addresses it listens on for agents apart from it, and the file it read them from when it was given none. */
   listen?: Address[];
   listenKept?: string | null;
+  /** The gateway's: where a browser opens the web client's page. */
+  page?: string | null;
 }
 
 /** A program `up` started. */

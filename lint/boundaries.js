@@ -43,13 +43,14 @@ const CHORD_MODULES = [
  * The CLI files that may import a program's front door, each with the program
  * it loads: the commands that start a program, preview what a home would tell
  * an agent or sign the folder in, and the tests and test support that start a
- * program in their own process or preview a home. Every other CLI file takes
- * what it needs from contracts/ and lib/.
+ * program in their own process or preview a home. The command that starts the
+ * gateway bundles the web client's page for it, through the client's Node
+ * door. Every other CLI file takes what it needs from contracts/ and lib/.
  */
 const CLI_STARTS = new Map([
   ["cli/commands/agent.ts", "agent"],
   ["cli/commands/chat.ts", "chat"],
-  ["cli/commands/gateway.ts", "gateway"],
+  ["cli/commands/gateway.ts", ["gateway", "clients/web"]],
   ["cli/commands/signing-in.ts", "agent"],
   ["cli/run.ts", "clients/console"],
   ["cli/apart.test.ts", "gateway"],
@@ -57,6 +58,9 @@ const CLI_STARTS = new Map([
   ["cli/instructions.test.ts", "agent"],
   ["cli/testing/console.ts", "clients/console"],
 ]);
+/** The door the CLI loads a program by: its index.ts, and the web client's node.ts, since its index would be browser code. */
+const cliDoorOf = (program) => (program === "clients/web" ? "clients/web/node.ts" : `${program}/index.ts`);
+
 /** Chord's entry points that Pi's durable runtime is written in, which go wherever the runtime may. */
 const CHORD_WITH_DURABLE = ["@earendil-works/chord/context", "@earendil-works/chord/json", "@earendil-works/chord/delta"];
 
@@ -140,7 +144,7 @@ function isDoor(target) {
  */
 function isBrowserSafe(path) {
   if (isTest(path) || isTestSupport(path)) return false;
-  if (path.startsWith("clients/web/")) return true;
+  if (path.startsWith("clients/web/")) return !needsNode(path);
   const shared = CLIENT_SHARED.some((module) => path.startsWith(`${module}/`));
   return (path.startsWith("contracts/") || path.startsWith("lib/") || shared) && !needsNode(path);
 }
@@ -251,9 +255,9 @@ function checkRelative(from, specifier) {
     if (CLIENT_SHARED.includes(targetOwner)) return undefined;
     if (CLIENTS.includes(targetOwner)) return { messageId: "client", data: { from: owner, target } };
   }
-  // The CLI starts programs: the files CLI_STARTS names may import the front door of the program each starts.
-  if (owner === "cli" && PROGRAMS.includes(targetOwner) && target === `${targetOwner}/index.ts`) {
-    return CLI_STARTS.get(from) === targetOwner ? undefined : { messageId: "cliStarts", data: { from, target } };
+  // The CLI starts programs: the files CLI_STARTS names may import the front door of each program they start.
+  if (owner === "cli" && PROGRAMS.includes(targetOwner) && target === cliDoorOf(targetOwner)) {
+    return [CLI_STARTS.get(from)].flat().includes(targetOwner) ? undefined : { messageId: "cliStarts", data: { from, target } };
   }
   return { messageId: "program", data: { from: owner, target } };
 }

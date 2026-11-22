@@ -5,7 +5,9 @@ import { WebSocket } from "ws";
 import { asError } from "../errors/index.ts";
 import { codeOf } from "../files/index.ts";
 import { fingerprintOf } from "../tls/node.ts";
-import { type Linked, linkOver, MAX_FRAME, textOf } from "./linked.node.ts";
+import { ANSWER_MS, answerIn, closedBeforeAnswering, didNotAnswer } from "./dialing.ts";
+import type { Linked } from "./linked.ts";
+import { linkOver, MAX_FRAME, textOf } from "./linked.node.ts";
 import { describePlace, placeUrl } from "./place.ts";
 
 /**
@@ -43,8 +45,6 @@ export class OtherKeyError extends Error {
   }
 }
 
-const ANSWER_MS = 15_000;
-
 /** Whether `error`, from dialing a socket's path, means nothing listens there. */
 export function nobodyThere(error: unknown): boolean {
   const code = codeOf(error instanceof Error ? error.cause : undefined);
@@ -65,6 +65,7 @@ export function nobodyThere(error: unknown): boolean {
 export function dial(place: DialPlace, hello: JsonValue, options: DialOptions = {}): Promise<Dialed> {
   const { signal } = options;
   const where = describePlace(place);
+  const answerMs = options.answerMs ?? ANSWER_MS;
   return new Promise((resolve, reject) => {
     if (signal?.aborted === true) return reject(asError(signal.reason));
     let otherKey: OtherKeyError | undefined;
@@ -87,12 +88,9 @@ export function dial(place: DialPlace, hello: JsonValue, options: DialOptions = 
       socket.terminate();
       reject(error);
     };
-    const late = setTimeout(
-      () => fail(new Error(`${where} did not answer within ${String((options.answerMs ?? ANSWER_MS) / 1000)} seconds.`)),
-      options.answerMs ?? ANSWER_MS,
-    );
+    const late = setTimeout(() => fail(didNotAnswer(where, answerMs)), answerMs);
     const aborted = (): void => fail(asError(signal?.reason));
-    const closed = (): void => fail(otherKey ?? new Error(`${where} closed the connection before it answered.`));
+    const closed = (): void => fail(otherKey ?? closedBeforeAnswering(where));
     signal?.addEventListener("abort", aborted, { once: true });
     // An error is followed by a close; without a listener it would end the process.
     socket.on("error", (error) => fail(otherKey ?? new Error(`Could not reach ${where}: ${error.message}`, { cause: error })));
@@ -100,12 +98,11 @@ export function dial(place: DialPlace, hello: JsonValue, options: DialOptions = 
     socket.once("open", () => socket.send(JSON.stringify(hello)));
     socket.once("message", (data, isBinary) => {
       if (settled) return;
-      if (isBinary) return fail(new Error(`${where} answered with something other than a hello's answer.`));
       let answer: unknown;
       try {
-        answer = JSON.parse(textOf(data));
-      } catch {
-        return fail(new Error(`${where} answered with something other than JSON.`));
+        answer = answerIn(where, isBinary ? undefined : textOf(data));
+      } catch (error) {
+        return fail(asError(error));
       }
       finish();
       resolve({ answer, linked: linkOver(socket) });

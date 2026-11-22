@@ -53,6 +53,22 @@ export function readLink(text: string): Link {
   return { name: decoded.name, address, code: decoded.code, fingerprint };
 }
 
+/**
+ * The link that lets a browser in: the page's address, as an invitation for a
+ * device carries it, with the code after `#`, which a browser keeps to itself,
+ * so that no server's log ever has it:
+ * `https://shrimpy.example.ts.net:7448/#K7Q2-9FXD`.
+ */
+export function writePageLink(page: string, code: string): string {
+  return `${page}#${encodeURIComponent(code)}`;
+}
+
+/** The code a page's link carries, from the `#` of the address the page was opened at, or undefined when it carries none. */
+export function readPageCode(fragment: string): string | undefined {
+  const code = unescaped(fragment.replace(/^#/, ""))?.trim();
+  return code === undefined || code === "" ? undefined : code;
+}
+
 /** A piece of a link with its percent-escapes undone, or undefined when they are not valid. */
 function unescaped(piece: string): string | undefined {
   try {

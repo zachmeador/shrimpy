@@ -1,5 +1,5 @@
 import { type Backoff, keepRunning } from "../retry/index.ts";
-import type { Linked } from "./linked.node.ts";
+import type { Linked } from "./linked.ts";
 
 export interface KeepLinkOptions {
   /**

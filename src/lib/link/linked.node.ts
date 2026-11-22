@@ -1,18 +1,9 @@
 import { type Link, webSocketLink } from "@earendil-works/chord";
 import type { WebSocket } from "ws";
+import type { Linked } from "./linked.ts";
 
 /** The most one WebSocket frame may carry. Chord bounds each part of a message well below it. */
 export const MAX_FRAME = 64 * 1024 * 1024;
-
-/** A WebSocket after the hello and its answer, as a Chord link. */
-export interface Linked {
-  /** For Chord's `accept` or `connect`. Its one close listener is Chord's. */
-  readonly link: Link;
-  /** Settles once the socket has closed, whoever closed it. */
-  readonly closed: Promise<void>;
-  /** Drop the socket at once, without waiting for the other end to answer. */
-  drop(): void;
-}
 
 /**
  * `socket` as a Chord link. Made in the same turn as the answer, so no frame

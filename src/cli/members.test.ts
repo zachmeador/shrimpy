@@ -141,22 +141,15 @@ test("invite with no name prints a line for each address, whose code lets a mach
   assert.deepEqual(joined?.kind === "welcome" ? [joined.you?.kind, joined.you?.name] : joined?.words, ["person", person]);
 });
 
-test("invite with no name is refused to an agent, an admin too, and where the gateway listens nowhere", { timeout }, async (t) => {
+test("invite with no name is refused to an agent, an admin too", { timeout }, async (t) => {
   await startTestGateway(t);
   const scout = await startAgentShell(t, "scout");
-  const onTheSocket = await onTheRoster(t);
 
-  const says = await refusalOf(() => onTheSocket.inviteDevice());
-  const nowhere = await shrimpy(["invite"]);
-  assert.equal(nowhere.code, 1);
-  assert.ok(nowhere.stderr.includes(says), nowhere.stderr);
-
-  // An agent is refused before the address is looked at, and being an admin makes no difference.
+  // Being an admin makes no difference.
   for (const admin of [false, true]) {
     if (admin) assert.equal((await shrimpy(["members", "promote", "scout"])).code, 0);
     const refused = await scout.run(["invite"]);
     assert.equal(refused.code, 1, refused.stderr);
-    assert.ok(!refused.stderr.includes(says), "it is not for want of an address");
     assert.ok(refused.stderr.includes(person), "it says who may ask for one");
   }
 });

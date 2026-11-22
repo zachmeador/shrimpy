@@ -1,7 +1,9 @@
 import type { Host } from "@earendil-works/chord";
 import type { Context } from "@earendil-works/chord/context";
 import {
+  type Answer,
   type Hello,
+  type HelloAnswer,
   type Member,
   nameKey,
   notAHello,
@@ -10,19 +12,39 @@ import {
   type Reason,
   readHello,
   readVersions,
+  refused,
   type Revocation,
   samePi,
   turnAway,
   welcome,
   type Who,
 } from "../../contracts/gateway/index.ts";
+import { newToken } from "../../contracts/gateway/node.ts";
 import type { Greeted } from "../../lib/link/node.ts";
 import type { Invitations } from "../invitations/index.ts";
 import type { Programs } from "../programs/index.ts";
 import type { Roster } from "../roster/index.ts";
 
-/** The door a connection came in by: the gateway's own socket, or its entry on an address. */
+/** The door a connection came in by: the gateway's own socket, or its entry on an address. The page's door has a greeting of its own. */
 export type Door = "socket" | "entry";
+
+/** What the gateway answers, and decides, for each door. */
+export interface Greeter {
+  /** What the gateway answers a hello that came in by `door`. */
+  readonly greet: (door: Door) => (raw: unknown) => Greeted;
+  /**
+   * What the gateway answers a hello at the page's door, which only the web
+   * client says: `kept` is the token the browser keeps in its cookie for the
+   * door, if it sent one, and is who the browser is.
+   */
+  readonly greetPage: (raw: unknown, kept: string | undefined) => Greeted;
+  /**
+   * Let a browser in as a device of yours with an invitation's `code`,
+   * labelled `label`: the answer, as a hello's, and the token the gateway made
+   * for the browser when it is let in.
+   */
+  readonly letBrowserIn: (code: string, label: string) => { answer: HelloAnswer; token?: string };
+}
 
 export interface HelloDeps {
   readonly roster: Roster;
@@ -39,14 +61,26 @@ const CODE_USED = "That invitation was used already. An invitation is good once,
 
 const NOT_A_PROGRAM = "That token is a device's, and a device is you, not a program: only an agent links in as a program.";
 
+const NO_DEVICE_INVITATION =
+  "The gateway has no invitation like that for a device of yours. An invitation is good once, for fifteen minutes and for what it was made for. Check the code, or ask for a new one.";
+
+const ONLY_THE_PAGE = "The page's door takes the web client's link and nothing else. A program links in at the gateway's socket or its entry.";
+
+const BROWSER_NOT_IN =
+  "This browser isn't let in. Ask for an invitation for a device of yours with shrimpy invite, and open the link it prints in this browser.";
+
+const BROWSER_UNKNOWN =
+  "The gateway doesn't know this browser any more: it may have been taken back, or the roster was replaced. Open the link of a new invitation in it to let it in again.";
+
 /**
  * Who a connection is, from its hello and the door it came in by, and what the
  * gateway answers. A client's link is accepted, stamped with who it is; a
  * program's is taken as the route to it; a join gets its answer and its
  * connection closes. Everything is decided at once, so two hellos are never
- * decided at the same time.
+ * decided at the same time. A browser is let in by the code its page shows the
+ * page's door, and is known by its cookie from then on.
  */
-export function greeter(deps: HelloDeps): (door: Door) => (raw: unknown) => Greeted {
+export function greeter(deps: HelloDeps): Greeter {
   const { roster, programs, invitations, host, context } = deps;
 
   const away = (words: string, reason: Reason | null = null): Greeted => ({ answer: turnAway(words, reason) });
@@ -111,6 +145,15 @@ export function greeter(deps: HelloDeps): (door: Door) => (raw: unknown) => Gree
     return { answer: welcome(null, roster.id), take: (linked) => programs.takeChat(shrimpy, linked) };
   };
 
+  /** Let a device of yours in with an invitation's `code`, as the holder of `token`, labelled `label`. */
+  const letDeviceIn = (code: string, token: string, label: string): Answer<Member> => {
+    const invited = invitations.checkForDevice(code);
+    if (!invited.ok) return refused(invited.why === "used" ? CODE_USED : NO_DEVICE_INVITATION);
+    const added = roster.addDevice(invited.person, token, label);
+    if (added.kind === "done") invited.spend();
+    return added;
+  };
+
   const join = (who: Extract<Who, { kind: "join" }>, door: Door): Greeted => {
     if (door !== "entry") {
       return away("Joining is for the gateway's entry. On its own socket an agent links in with its new token, and you are you already.");
@@ -120,18 +163,8 @@ export function greeter(deps: HelloDeps): (door: Door) => (raw: unknown) => Gree
       // A device that never heard its answer shows the same token again, and is let in: its code was used for it.
       if (known?.way.kind === "device") return { answer: welcome(known.member, roster.id) };
       if (known !== undefined) return away("That token is an agent's, and a token belongs to one member.");
-      const invited = invitations.checkForDevice(who.code);
-      if (!invited.ok) {
-        return away(
-          invited.why === "used"
-            ? CODE_USED
-            : "The gateway has no invitation like that for a device of yours. An invitation is good once, for fifteen minutes and for what it was made for. Check the code, or ask for a new one.",
-        );
-      }
-      const added = roster.addDevice(invited.person, who.token, who.machine);
-      if (added.kind === "refused") return away(added.words, added.reason);
-      invited.spend();
-      return { answer: welcome(added.value, roster.id) };
+      const joined = letDeviceIn(who.code, who.token, who.machine);
+      return joined.kind === "refused" ? away(joined.words, joined.reason) : { answer: welcome(joined.value, roster.id) };
     }
     if (known?.way.kind === "device") return away(NOT_A_PROGRAM);
     // An agent that never heard its answer joins again with the same token and is the same member.
@@ -164,22 +197,48 @@ export function greeter(deps: HelloDeps): (door: Door) => (raw: unknown) => Gree
     return { answer: welcome(joined.value, roster.id) };
   };
 
-  return (door) => (raw) => {
+  /** The web client's link at the page's door, as the device whose token the browser's cookie keeps. */
+  const page = (who: Who, kept: string | undefined): Greeted => {
+    if (who.kind !== "client" || who.token !== null) return away(ONLY_THE_PAGE);
+    if (kept === undefined) return away(BROWSER_NOT_IN);
+    const found = roster.recognize(kept);
+    if (found?.way.kind !== "device") return away(BROWSER_UNKNOWN, "unknown_token");
+    const principal: Principal = { kind: "person", member: found.member.id, way: found.way };
+    return { answer: welcome(found.member, roster.id), take: (linked) => host.accept(linked.link, { principal }, context) };
+  };
+
+  /** The hello in `raw`, or what is answered to one on other Pi packages, or to one that can't be read. */
+  const read = (raw: unknown): Hello | Greeted => {
     // The Pi packages come first, so a program of another release is told what to run where, whatever else its hello says.
     const versions = readVersions(raw);
     if (versions !== undefined && !samePi(versions.pi)) return away(otherPi(versions, ANSWERING));
-    const hello: Hello | undefined = readHello(raw);
-    if (hello === undefined) return away(notAHello("this gateway"));
-    const { who } = hello;
-    switch (who.kind) {
-      case "client":
-        return client(who.token, door);
-      case "agent":
-        return agentProgram(who, hello.shrimpy, door);
-      case "chat":
-        return chatProgram(hello.shrimpy, door);
-      case "join":
-        return join(who, door);
-    }
+    return readHello(raw) ?? away(notAHello("this gateway"));
+  };
+
+  return {
+    greet: (door) => (raw) => {
+      const hello = read(raw);
+      if ("answer" in hello) return hello;
+      const { who } = hello;
+      switch (who.kind) {
+        case "client":
+          return client(who.token, door);
+        case "agent":
+          return agentProgram(who, hello.shrimpy, door);
+        case "chat":
+          return chatProgram(hello.shrimpy, door);
+        case "join":
+          return join(who, door);
+      }
+    },
+    greetPage: (raw, kept) => {
+      const hello = read(raw);
+      return "answer" in hello ? hello : page(hello.who, kept);
+    },
+    letBrowserIn: (code, label) => {
+      const token = newToken();
+      const joined = letDeviceIn(code, token, label);
+      return joined.kind === "refused" ? { answer: turnAway(joined.words, joined.reason) } : { answer: welcome(joined.value, roster.id), token };
+    },
   };
 }

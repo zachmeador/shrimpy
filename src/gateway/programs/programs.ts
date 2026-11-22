@@ -4,7 +4,7 @@ import type { NativeWatchHandle } from "@earendil-works/chord/watch";
 import { AgentPresence } from "../../contracts/agent/index.ts";
 import { ChatPresence } from "../../contracts/chat/index.ts";
 import { agent, chat, type Principal, type Program, type Revocation } from "../../contracts/gateway/index.ts";
-import type { Linked } from "../../lib/link/node.ts";
+import type { Linked } from "../../lib/link/index.ts";
 
 export interface ProgramsOptions {
   readonly host: Host<Principal, Revocation>;
