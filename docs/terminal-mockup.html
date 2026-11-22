@@ -118,7 +118,7 @@ html[data-view="live"] body { overflow: hidden; }
 
   <section class="sheet">
     <h2><span>01</span>One level at a time</h2>
-    <p class="cap">At 80 columns the client has the levels it has today: agents and rooms, then what one agent takes part in, then a thread. It takes the whole screen, and the last line is the keys.</p>
+    <p class="cap">At 80 columns the client has the levels it has today: agents and rooms, then what one agent takes part in, then a thread. The arrows move through them: → goes in, and ← comes back out. It takes the whole screen, and the last line is the keys.</p>
     <div class="fit">
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route=""></div></div>
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route="agent:lighthouse"></div></div>
@@ -132,7 +132,7 @@ html[data-view="live"] body { overflow: hidden; }
 
   <section class="sheet">
     <h2><span>02</span>Side by side</h2>
-    <p class="cap">A wider terminal shows the levels beside each other: two from 96 columns, three from 128. The keys don't change. Enter goes in, Esc goes out, and the bar marks the list the keys are in.</p>
+    <p class="cap">A wider terminal shows the levels beside each other: two from 96 columns, three from 128. The keys don't change: → goes in, ← goes out, and the bar marks the list the keys are in.</p>
     <div class="fit">
       <div class="unit"><div class="win term" data-cols="150" data-rows="40" data-mode="dusk" data-route="agent:lighthouse/thread:lh-backup"></div></div>
     </div>
@@ -152,7 +152,7 @@ html[data-view="live"] body { overflow: hidden; }
 
   <section class="sheet">
     <h2><span>04</span>Finding a key</h2>
-    <p class="cap">A key that acts on one thing is named beside that thing. The last line names the keys that move you, and Ctrl+G lists every key. A slash opens the commands, as it does now.</p>
+    <p class="cap">A key that acts on one thing is named beside that thing. The last line names the keys that move you, and Ctrl+G lists every key. In a thread ← crosses what is typed first, and goes back from its start. A slash opens the commands, as it does now.</p>
     <div class="fit">
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route="agent:lighthouse/thread:lh-backup" data-keys="1"></div></div>
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="day" data-route="agent:shrimpy/thread:sh-night" data-slash="1"></div></div>
@@ -195,9 +195,9 @@ html[data-view="live"] body { overflow: hidden; }
 
   <section class="sheet">
     <h2><span>08</span>What it is made of</h2>
-    <p class="cap">The web client's stitch is two pixels. Here it is the cell, and the dot of a braille cell: the wordmark and each sigil are their same bitmaps, drawn in dots.</p>
+    <p class="cap">The web client's stitch is two pixels. Here it is the cell, and the dot of a braille cell. A sigil is written once, as twelve lines of twelve, and each client draws it its own way.</p>
     <div class="fit">
-      <div class="unit"><div class="win made" data-cols="108" data-rows="28" data-mode="dusk"></div></div>
+      <div class="unit"><div class="win made" data-cols="108" data-rows="32" data-mode="dusk"></div></div>
     </div>
     <div class="grid2" style="margin-top:40px">
       <div class="card">
@@ -219,19 +219,23 @@ html[data-view="live"] body { overflow: hidden; }
 
   <section class="sheet">
     <h2><span>09</span>What this changes, and what it leaves open</h2>
-    <p class="cap">None of this is in the plan yet. The first card is where it differs from the terminal as it is built and as the plan has it, each one for you to take or strike.</p>
+    <p class="cap">The first card is where the mockup differs from the terminal as it is built, with what you said of each on 2026-11-21. What you decided that day is in the plan, under Not built yet in <a href="REDESIGN/design/using-it.md">using it</a>. The rest stands as drawn until you say otherwise.</p>
     <div class="grid2">
       <div class="card">
         <h3>Changed here</h3>
         <ol>
-          <li><b>The whole screen.</b> Today the client draws into the terminal's scrollback. Here it takes the alternate screen, so lists can stay on show and the input stays at the bottom. The plan has this as later, since the first spike lost the transcript on the way out. The pi-tui that Shrimpy has now, 1.0.0, says it prints the whole thread back when the client leaves. That is from its README, and not tried.</li>
+          <li><b>The whole screen.</b> Today the client draws into the terminal's scrollback. Here it takes the alternate screen, so lists can stay on show and the input stays at the bottom. The plan had this as later, and you took it: "all of the agent cli apps are moving to whole screen, as well as pi. so that's fine". pi-tui 1.5.2, the one Shrimpy is on, says it prints the whole thread back when the client leaves. That is from its README, and not tried.</li>
+          <li><b>The arrows move you.</b> Your words: "left arrow instead of esc. right arrow for enter", and in an input, left "would only leave the session if there's no text to traverse in the box". So → goes in and ← goes out. In a thread ← moves through what is typed, and goes back a level from its start. What was typed stays with the thread. Three things follow that you didn't say, and are yours to strike: the choice between everything and yours moved from ← → to Tab, Esc only closes the list of keys and the list of commands, and Enter still opens a row as → does.</li>
           <li><b>Scrolling is the client's.</b> PgUp, PgDn and the wheel scroll the pane they are in, a drag selects and copies, and Ctrl+Shift+F searches. All three are pi-tui's. The plan left scrolling keys for later because the scrollback had them.</li>
-          <li><b>The levels sit side by side</b> where there is room, and Ctrl+\ puts them back to one at a time. The web client folds its lists on the same key.</li>
-          <li><b>Where a key is named.</b> The plan's fourth rule has every key on the last line, and you called that line crowded. Here a key is named beside what it acts on, the last line has the keys that move, and Ctrl+G lists them all.</li>
-          <li><b>Tab turns the thread over and the input stays,</b> so you can write while you watch the agent's view. In a room, Tab goes through each agent's view and back to the conversation.</li>
-          <li><b>Each agent has a pigment,</b> as on the web, and a sigil where there is room for one. Today every agent is one color.</li>
+          <li><b>The levels sit side by side</b> where there is room, and Ctrl+\ puts them back to one at a time. The web mockup folds its lists on the same key.</li>
+          <li><b>Where a key is named.</b> The plan's fourth rule has every key on the last line, and you called that line crowded. Here a key is named beside what it acts on, the last line has the keys that move, and Ctrl+G lists them all. You kept Ctrl+G, and Ctrl+\ for one level at a time: "sure, those key combos can stay".</li>
+          <li><b>Tab is the other view of where you are.</b> On an agent's list it is everything or yours. In a thread it turns the thread over to the agent's view, and in a room it goes through each agent's view and back.</li>
+          <li><b>The input stays under the agent's view,</b> so you can write a message in the thread while you watch. On 2026-10-05 you had decided that view was for watching only, with no input, and you took this over it: "yep, a big improvement. love it". A command written there works as it does from the conversation, <code>/stop</code> included. A trigger's own session still has no input.</li>
+          <li><b>Each agent has a pigment and a sigil.</b> Today every agent is one color. Of the sigil you said: "i actually really like this if the sigil is defined once and rendered for cli/web". So a sigil is one bitmap of twelve by twelve, and each client draws it: pixels on the web, dots and half blocks here.</li>
+          <li><b>The ground is painted</b> where the terminal has true color, and is the terminal's own where it hasn't. You liked both and said "your call". It is one choice in the client, and easy to turn the other way.</li>
           <li><b>What is new to you is counted</b> by each agent and thread, as the web mockup has it. Seeing what arrived while the terminal was closed is on your list as later, and soon.</li>
           <li><b>The dock is a line for each kind of thing:</b> who is working, what is queued, and the soonest wake-up with a count, whichever agent's it is. <code>/status</code> lists them all, in a room too. The shrimp still walks while an agent works.</li>
+          <li><b>Where several agents work in a room,</b> each gets its name and its latest step, and Ctrl+O opens them all. Today each gets its whole brief block.</li>
           <li><b>The tab's title</b> has the shrimp, which you asked for, and with it how many agents are working and how much is new.</li>
           <li><b>The mouse works,</b> for choosing a row and for the wheel. Nothing needs it.</li>
         </ol>
@@ -248,9 +252,9 @@ html[data-view="live"] body { overflow: hidden; }
         </ul>
         <h3 style="margin-top:18px">Yours to choose</h3>
         <ul>
-          <li><b>The ground.</b> Painted, as in most frames here, or always the terminal's own, as on sheet 06.</li>
-          <li><b>The two new keys.</b> Ctrl+G for the list of keys and Ctrl+\ for the fold are my picks, and easy to change.</li>
-          <li><b>Sigils in a terminal.</b> Braille dots depend on the font, and the client can't ask a terminal which font it has. The client is whole without them.</li>
+          <li><b>Where a sigil is written.</b> A file of twelve lines in the agent's home would let an agent draw its own, and both clients would read that one file. Who draws the first ones is open too.</li>
+          <li><b>Leaving a thread with something typed.</b> ← goes back only from the start of the text, so it takes Ctrl+A or Home first. Esc could still go back from anywhere, if you want one key for it.</li>
+          <li><b>Braille in your font.</b> The dots depend on the font, and the client can't ask a terminal which font it has. The client is whole without sigils.</li>
         </ul>
       </div>
     </div>
@@ -916,19 +920,20 @@ const lamp = () => (Math.floor(tick / 3) % 3 === 2 ? 'Ochre2' : 'Ochre');
 const KEYS = [
   ['moving'],
   ['↑ ↓', 'choose'],
-  ['enter', 'open what is chosen, or send what is typed'],
-  ['esc', 'back a level'],
+  ['→', 'open what is chosen'],
+  ['←', 'back a level'],
+  ['tab', 'the other view: yours, or the agent\'s'],
   ['ctrl+n', 'a new thread'],
-  ['← →', 'on an agent\'s list: everything, or yours'],
   ['in a thread'],
-  ['/', 'commands'],
-  ['tab', 'the conversation, then each agent\'s view'],
+  ['enter', 'send what is typed'],
+  ['←', 'back, once the cursor is at the start'],
+  ['/', 'commands, and esc closes their list'],
   ['ctrl+o', 'tool calls in full, and back to brief'],
   ['ctrl+t', 'thinking in full, and back to brief'],
   ['pgup pgdn', 'scroll, as the wheel does'],
   ['the screen'],
   ['ctrl+\\', 'side by side, or one level at a time'],
-  ['ctrl+g', 'this list'],
+  ['ctrl+g', 'this list, and esc closes it'],
   ['ctrl+c', 'clear what is typed. Twice quits'],
   ['ctrl+d', 'quit when nothing is typed'],
 ];
@@ -944,7 +949,7 @@ function term(win, o) {
   const s = {
     mode: o.mode, cols: o.cols, rows: o.rows, level: 1, place: null, thread: null, cur: [0, 0, 0], filter: 'everything',
     side: Number(o.side) || 0, fold: Boolean(o.fold), keys: Boolean(o.keys), full: { tools: Boolean(o.full), thinking: Boolean(o.full) },
-    input: '', slash: null, notice: null, status: null, scroll: 0, armed: false, stale: Boolean(o.stale), down: Boolean(o.down), clock: 22, made: 0,
+    input: '', caret: 0, slash: null, notice: null, status: null, scroll: 0, armed: false, stale: Boolean(o.stale), down: Boolean(o.down), clock: 22, made: 0,
   };
   for (const part of (o.route || '').split('/').filter(Boolean)) {
     const [k, v] = part.split(':');
@@ -966,6 +971,7 @@ function term(win, o) {
   let hits = [];
   let timers = [];
   let paneAt = [];
+  const drafts = {};
   const hit = (x, y, w, h, go) => hits.push({ x, y, w, h, go });
 
   /* ---- words, as the terminal and the contracts already say them ---- */
@@ -1148,7 +1154,7 @@ function term(win, o) {
       return;
     }
     const on = { f: 'ink', bg: 'raise' };
-    g.segs(x + 1, y, [[' everything ', s.filter === 'everything' ? on : DIM], [' yours ', s.filter === 'yours' ? on : DIM], ['  ←→', DIM]], x + w - 1);
+    g.segs(x + 1, y, [[' everything ', s.filter === 'everything' ? on : DIM], [' yours ', s.filter === 'yours' ? on : DIM], ['  ', {}], ['tab', INK2]], x + w - 1);
     hit(x + 1, y, 12, 1, 'filter:everything');
     hit(x + 13, y, 7, 1, 'filter:yours');
     y += 2;
@@ -1306,13 +1312,26 @@ function term(win, o) {
     else {
       const edge = busy.length ? 'Ochre' : 'line2';
       L([], { rule: edge });
-      const typed = wrap([[s.input, INK]], mx - 1);
-      typed.forEach((ln, i) => L(i === typed.length - 1 && s.level === 3 && !s.keys ? [...ln, [' ', { bg: 'ink' }]] : ln));
+      for (const ln of inputLines(mx - 1, s.level === 3 && !s.keys)) L(ln);
       L([], { rule: edge });
       if (s.slash) s.slash.names.forEach((name, i) => L([[i === s.slash.at ? '→ ' : '  ', { f: 'coral' }], [`/${name}`.padEnd(10), i === s.slash.at ? { f: 'coral' } : INK], [COMMANDS[name][th.place.kind === 'room' ? 'room' : 'dm'], DIM]], { one: true, go: `cmd:${name}` }));
     }
     if (out.length) out.unshift({ s: [] });
     return out;
+  }
+
+  /** What is typed, a cell to a character, with the cursor on the one it is at. */
+  function inputLines(width, cursor) {
+    const typed = [...s.input];
+    if (cursor && s.caret >= typed.length) typed.push(' ');
+    const lines = [[]];
+    let x = 0;
+    typed.forEach((ch, i) => {
+      if (x + cwOf(ch) > width) { lines.push([]); x = 0; }
+      lines[lines.length - 1].push([ch, cursor && i === s.caret ? { f: 'pane', bg: 'ink' } : INK]);
+      x += cwOf(ch);
+    });
+    return lines;
   }
 
   function blit(x, y, w, ln) {
@@ -1395,11 +1414,11 @@ function term(win, o) {
     if (s.armed) { g.text(1, y, 'Press Ctrl+C again to quit.', SAND); return; }
     const th = thread();
     const keys = s.keys ? [['esc', 'close']]
-      : s.level === 3 && canWrite(th) ? [['enter', 'send'], ['/', 'commands'], ['esc', 'back']]
-      : s.level === 3 ? [['esc', 'back']]
+      : s.level === 3 && canWrite(th) ? [['enter', 'send'], ['/', 'commands'], ['←', 'back']]
+      : s.level === 3 ? [['←', 'back']]
       : s.down ? []
-      : s.level === 2 ? [...(listRows().length ? [['↑↓', 'choose'], ['enter', 'open']] : []), ['esc', 'back']]
-      : [['↑↓', 'choose'], ['enter', 'open']];
+      : s.level === 2 ? [...(listRows().length ? [['↑↓', 'choose'], ['→', 'open']] : []), ['←', 'back']]
+      : [['↑↓', 'choose'], ['→', 'open']];
     if (!s.keys) keys.push(['ctrl+g', 'keys']);
     if (s.level === 1 && !s.keys) keys.push(['ctrl+d', 'quit']);
     g.segs(1, y, keys.flatMap(([k, does], i) => [...(i ? [[' · ', DIM]] : []), [k, INK2], [` ${does}`, DIM]]), s.cols - 1);
@@ -1498,6 +1517,7 @@ function term(win, o) {
     const th = thread();
     const text = s.slash ? `/${s.slash.names[s.slash.at]}` : s.input.trim();
     s.input = '';
+    s.caret = 0;
     s.slash = null;
     if (!text || !canWrite(th)) return;
     s.notice = s.status = null;
@@ -1537,12 +1557,13 @@ function term(win, o) {
     const cut2 = action.indexOf(':');
     const [k, v] = cut2 < 0 ? [action, ''] : [action.slice(0, cut2), action.slice(cut2 + 1)];
     if (k === 'agent' || k === 'room') {
-      if (!s.place || s.place.kind !== k || s.place.id !== v) { s.thread = null; s.filter = 'everything'; s.side = 0; }
+      if (!s.place || s.place.kind !== k || s.place.id !== v) { keep(); s.thread = null; s.input = ''; s.caret = 0; s.filter = 'everything'; s.side = 0; }
       s.place = { kind: k, id: v };
       s.level = 2;
       seat();
     } else if (k === 'thread') {
-      s.thread = v; s.level = 3; s.scroll = 0; s.notice = s.status = null; s.input = ''; s.slash = null;
+      if (s.thread !== v) { keep(); s.input = drafts[v] || ''; s.caret = [...s.input].length; }
+      s.thread = v; s.level = 3; s.scroll = 0; s.notice = s.status = null; s.slash = null;
       if (db[v].unread) db[v].unread = 0;
       seat();
     } else if (k === 'filter') { s.filter = v; s.cur[2] = Math.min(s.cur[2], Math.max(0, listRows().length - 1)); s.level = 2; }
@@ -1551,14 +1572,25 @@ function term(win, o) {
     else if (k === 'cmd') { s.input = `/${v}`; s.slash = { names: [v], at: 0 }; send(); }
   }
 
+  /** What is typed in a thread stays with it while another is open. */
+  function keep() { if (s.thread) drafts[s.thread] = s.input; }
+  function out() { if (s.level > 1) { s.level -= 1; seat(); } }
+  function edit(from, count, text = '') {
+    const typed = [...s.input];
+    typed.splice(from, count, ...text);
+    s.input = typed.join('');
+    s.caret = from + [...text].length;
+    slash();
+  }
+
   function key(e) {
     const k = e.key, ctrl = e.ctrlKey;
     if (e.metaKey) return false;
     if (ctrl && k === 'g') { s.keys = !s.keys; return true; }
-    if (s.keys) { if (k === 'Escape') s.keys = false; return true; }
+    if (s.keys) { if (k === 'Escape' || k === 'ArrowLeft') s.keys = false; return true; }
     if (ctrl && k === '\\') { s.fold = !s.fold; return true; }
     if (ctrl && k === 'c') {
-      if (s.input) { s.input = ''; s.slash = null; }
+      if (s.input) { s.input = ''; s.caret = 0; s.slash = null; }
       else if (s.armed) { quit(); }
       else { s.armed = true; later(2400, () => { s.armed = false; }); }
       return true;
@@ -1568,32 +1600,36 @@ function term(win, o) {
     if (ctrl && k === 'n') { newThread(); return true; }
     if (ctrl && k === 'o') { s.full.tools = !s.full.tools; return true; }
     if (ctrl && k === 't') { s.full.thinking = !s.full.thinking; return true; }
+    if (ctrl && s.level === 3 && (k === 'a' || k === 'e')) { s.caret = k === 'a' ? 0 : [...s.input].length; return true; }
     if (ctrl) return false;
     if (k === 'PageUp' || k === 'PageDown') { s.scroll += (k === 'PageUp' ? 1 : -1) * Math.max(1, s.rows - 8); return true; }
-    if (k === 'Escape') {
-      if (s.slash) s.slash = null;
-      else if (s.level > 1) { s.level -= 1; seat(); }
-      return true;
-    }
+    if (k === 'Escape') { const open = Boolean(s.slash); s.slash = null; return open; }
     if (s.level < 3) {
       const rows = s.level === 1 ? (s.down ? [] : railRows()) : listRows();
       if (k === 'ArrowDown' || k === 'ArrowUp') s.cur[s.level] = Math.max(0, Math.min(rows.length - 1, s.cur[s.level] + (k === 'ArrowDown' ? 1 : -1)));
-      else if (k === 'Enter') { if (rows[s.cur[s.level]]) go(rows[s.cur[s.level]]); }
-      else if (s.level === 2 && s.place.kind === 'agent' && (k === 'ArrowLeft' || k === 'ArrowRight')) go(`filter:${k === 'ArrowLeft' ? 'everything' : 'yours'}`);
+      else if (k === 'ArrowRight' || k === 'Enter') { if (rows[s.cur[s.level]]) go(rows[s.cur[s.level]]); }
+      else if (k === 'ArrowLeft') out();
+      else if (k === 'Tab' && s.level === 2 && s.place.kind === 'agent' && AGENTS[s.place.id].running) go(`filter:${s.filter === 'everything' ? 'yours' : 'everything'}`);
       else return false;
       return true;
     }
     const th = thread();
     if (!th) return false;
+    const typed = [...s.input].length;
     if (k === 'Tab') {
-      if (s.slash) { s.input = `/${s.slash.names[s.slash.at]} `; s.slash = null; } else go('side');
+      if (s.slash) { s.input = `/${s.slash.names[s.slash.at]} `; s.caret = [...s.input].length; s.slash = null; } else go('side');
       return true;
     }
-    if (!canWrite(th)) return false;
+    /* Left goes back a level, but only from the start of what is typed, where there is nothing left to cross. */
+    if (k === 'ArrowLeft') { if (canWrite(th) && s.caret > 0) s.caret -= 1; else out(); return true; }
+    if (!canWrite(th)) return k === 'ArrowRight';
+    if (k === 'ArrowRight') { s.caret = Math.min(typed, s.caret + 1); return true; }
+    if (k === 'Home' || k === 'End') { s.caret = k === 'Home' ? 0 : typed; return true; }
     if (s.slash && (k === 'ArrowDown' || k === 'ArrowUp')) { s.slash.at = (s.slash.at + (k === 'ArrowDown' ? 1 : s.slash.names.length - 1)) % s.slash.names.length; return true; }
     if (k === 'Enter') { send(); return true; }
-    if (k === 'Backspace') { s.input = [...s.input].slice(0, -1).join(''); slash(); return true; }
-    if (k.length === 1 || cwOf(k) === 2 && [...k].length === 1) { s.input += k; slash(); return true; }
+    if (k === 'Backspace') { if (s.caret > 0) edit(s.caret - 1, 1); return true; }
+    if (k === 'Delete') { if (s.caret < typed) edit(s.caret, 1); return true; }
+    if ([...k].length === 1) { edit(s.caret, 0, k); return true; }
     return false;
   }
 
@@ -1627,7 +1663,7 @@ function term(win, o) {
   canvas.addEventListener('blur', () => { s.armed = false; draw(); });
 
   if (o.status && thread()) s.status = statusOf(thread());
-  if (o.slash) { s.input = '/'; slash(); }
+  if (o.slash) { s.input = '/'; s.caret = 1; slash(); }
 
   const inst = {
     s, win, canvas, draw, visible: true,
@@ -1765,11 +1801,17 @@ function made(win, o) {
     g.text(57, 10, 'lighthouse is working · running bash', BUSY);
     LOADER.forEach((f, i) => { g.text(52 + i * 7, 12, f, {}); });
     g.text(81, 12, 'its four frames', DIM);
-    head(2, 15, 'a sigil in half blocks, for an empty pane');
-    halves(BITS.lighthouse).forEach((ln, i) => g.text(2, 17 + i, ln, { f: 'press' }));
-    halves(BITS.shrimp).forEach((ln, i) => g.text(17, 17 + i, ln, { f: 'press' }));
-    halves(BITS.crab).forEach((ln, i) => g.text(32, 17 + i, ln, { f: 'press' }));
-    g.text(2, 24, 'twelve cells by six, tone on tone', DIM);
+    head(2, 15, 'a sigil is written once');
+    BITS.lighthouse.forEach((row, j) => [...row].forEach((bit, i) => g.text(2 + i, 17 + j, bit, bit === '#' ? INK : { f: 'line2' })));
+    g.text(2, 30, 'twelve lines of twelve', DIM);
+    SIGIL.lighthouse.forEach((ln, j) => g.text(18, 17 + j, ln, { f: 'Sky' }));
+    g.text(18, 21, 'the terminal,', DIM);
+    g.text(18, 22, 'by its name', DIM);
+    halves(BITS.lighthouse).forEach((ln, j) => g.text(34, 17 + j, ln, { f: 'press' }));
+    g.text(34, 24, 'the terminal,', DIM);
+    g.text(34, 25, 'in an empty pane', DIM);
+    g.text(18, 28, 'The web client draws the same', DIM);
+    g.text(18, 29, 'twelve rows as pixels.', DIM);
     head(52, 15, 'a stepped corner is half a cell');
     g.fill(52, 17, 38, 6, 'raise');
     for (const [cx, cy, ch] of [[52, 17, '▄'], [89, 17, '▄'], [52, 22, '▀'], [89, 22, '▀']]) { const c = g.at(cx, cy); c.ch = ch; c.f = 'raise'; c.bg = 'pane'; }
@@ -1777,11 +1819,11 @@ function made(win, o) {
     g.text(57, 20, 'ctrl+g', BOLD);
     g.text(70, 20, 'this list', INK2);
     g.text(52, 24, 'the box the list of keys is in', DIM);
-    g.text(2, 26, 'a line ', DIM); g.text(9, 26, '─'.repeat(14), { f: 'line2' });
-    g.text(26, 26, 'a dotted rule ', DIM); g.text(40, 26, '┈'.repeat(8), { f: 'line2' });
-    g.text(52, 26, 'the tide ', DIM);
-    for (let i = 0; i < 26; i++) { const u = (i + Math.floor(tick / 4)) % 9; if (u < 4) g.text(61 + i, 26, '─', { f: u < 2 ? 'tide2' : 'tide' }); else if (u === 5 || u === 6) g.text(61 + i, 26, '┈', { f: 'tide' }); }
-    g.text(88, 26, '▪', { f: lamp() }); g.text(90, 26, '▪', { f: 'line2' });
+    g.text(52, 26, 'a line', DIM); g.text(68, 26, '─'.repeat(22), { f: 'line2' });
+    g.text(52, 28, 'a dotted rule', DIM); g.text(68, 28, '┈'.repeat(22), { f: 'line2' });
+    g.text(52, 30, 'the tide', DIM);
+    for (let i = 0; i < 18; i++) { const u = (i + Math.floor(tick / 4)) % 9; if (u < 4) g.text(68 + i, 30, '─', { f: u < 2 ? 'tide2' : 'tide' }); else if (u === 5 || u === 6) g.text(68 + i, 30, '┈', { f: 'tide' }); }
+    g.text(87, 30, '▪', { f: lamp() }); g.text(89, 30, '▪', { f: 'line2' });
     screen.flush(g, LOOK[s.mode]);
   }
   const inst = { s, win, draw, visible: true, natural: () => o.cols * CELL_W + 2, scale(k) { screen.size(o.cols, o.rows, k); draw(); }, setMode(m) { s.mode = m; draw(); }, moving: () => true };
