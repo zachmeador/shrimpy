@@ -182,7 +182,7 @@ test("the terminal in a folder that joined as the person reaches the agent and i
   await seen("Hello from the test model.", "the thread");
   // The agent's view of that thread has what only the agent has, such as its thinking: the agent was reached too.
   // Tab turns the thread over once the agent's session behind it is held.
-  await untilScreen((screen) => screen.kind === "thread" && screen.can.turnOver, "the session behind the thread, held");
+  await untilScreen((screen) => screen.kind === "thread" && screen.turnable, "the session behind the thread, held");
   terminal.type(TAB);
   await seen("think about it", "what the agent thought");
 

@@ -1,5 +1,5 @@
 import { type Component, type TuiMouseEvent, type TuiMouseEventResult, visibleWidth } from "@earendil-works/pi-tui";
-import type { Run } from "./paint.ts";
+import { role, type Run } from "./paint.ts";
 import { hint, hintRuns, spread } from "./rows.ts";
 import type { Frame } from "./screen.ts";
 import { ALL_KEYS, CLOSE_KEYS, type Hint, KEYS_TITLE, QUIT_AGAIN } from "./words.ts";
@@ -21,7 +21,7 @@ export class KeysLine implements Component {
   render(width: number): string[] {
     const { paint } = this.#frame;
     const hints = this.#hints();
-    const runs: Run[] = hints === "quit-again" ? [[QUIT_AGAIN, "sand"]] : hintRuns(hints);
+    const runs: Run[] = hints === "quit-again" ? [[QUIT_AGAIN, role("caution")]] : hintRuns(hints);
     return [paint.lay(spread(paint, [[" ", "ink"], ...runs], [], width), width, "ground")];
   }
 

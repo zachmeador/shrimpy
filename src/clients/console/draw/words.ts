@@ -13,8 +13,8 @@ export const SELF = "this console";
 /** A key, as it is written, and what it does. */
 export type Hint = readonly [key: string, does: string];
 
-/** The keys that move you, for the last line: what each does where the keys are. */
-export interface Moves {
+/** What the keys that move you do where they are, for the last line. */
+export interface KeysHere {
   /** There is an input: Enter sends, and a slash starts a command. */
   send: boolean;
   /** There are rows to choose and open. */
@@ -32,13 +32,13 @@ export interface Moves {
  * of every key. While something is typed, the key that goes back at once is
  * Esc, since Left crosses what is typed first.
  */
-export function keyHints(moves: Moves): Hint[] {
+export function keyHints(here: KeysHere): Hint[] {
   const hints: Hint[] = [];
-  if (moves.send) hints.push(["enter", "send"], ["/", "commands"]);
-  if (moves.choose) hints.push(["↑↓", "choose"], ["→", "open"]);
-  if (moves.back) hints.push([moves.typed ? "esc" : "←", "back"]);
+  if (here.send) hints.push(["enter", "send"], ["/", "commands"]);
+  if (here.choose) hints.push(["↑↓", "choose"], ["→", "open"]);
+  if (here.back) hints.push([here.typed ? "esc" : "←", "back"]);
   hints.push(["ctrl+g", "keys"]);
-  if (moves.first) hints.push(["ctrl+d", "quit"]);
+  if (here.first) hints.push(["ctrl+d", "quit"]);
   return hints;
 }
 

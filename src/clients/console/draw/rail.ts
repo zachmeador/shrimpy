@@ -1,9 +1,10 @@
 import { oneLine } from "../../../lib/plain/index.ts";
 import { dots, WORDMARK } from "../../look/index.ts";
+import { placeKey } from "../../state/index.ts";
 import { LABELS, OUT_OF_DATE, type Row, versionLine } from "../../view/index.ts";
-import type { Run, Tone } from "./paint.ts";
+import { role, type Run, type Tone } from "./paint.ts";
 import { isChosen, label, lamp, type Line, rowEnd, rowLines, spread, windowed, wrapped } from "./rows.ts";
-import { type Frame, listRowKey, rowKey } from "./screen.ts";
+import { type Frame, rowKey } from "./screen.ts";
 
 /** The wordmark in braille, with a row of dots above it: sixteen cells by three. */
 const MARK = dots(["", ...WORDMARK]);
@@ -23,12 +24,12 @@ export function drawRail(frame: Frame, width: number, height: number, notes: rea
   top.push({ text: ` ${paint.runs([[lead, "ink3"], [release, { tone: "ink2", italic: true }]])}` });
   const agentRows = agents.rows.filter((each) => each.kind === "agent");
   top.push({ text: tide(frame, width, agentRows) }, { text: "" });
-  for (const note of notes) top.push(...wrapped(paint, note, width, "sand"));
+  for (const note of notes) top.push(...wrapped(paint, note, width, role("caution")));
   if (agents.empty !== undefined) top.push(...wrapped(paint, agents.empty, width, "ink3"));
   if (notes.length > 0 || agents.empty !== undefined) top.push({ text: "" });
 
   const focus = frame.front === "agents";
-  const openKey = model.open.list === undefined ? undefined : listRowKey(model.open.list);
+  const openKey = model.open.list === undefined ? undefined : placeKey(model.open.list);
   const rowOf = (item: Row): Line[] => {
     const running = item.kind !== "agent" || frame.running.has(item.id);
     const name: Run =
@@ -36,7 +37,7 @@ export function drawRail(frame: Frame, width: number, height: number, notes: rea
         ? [item.label, running && item.look !== undefined ? { tone: item.look.pigment, bold: true } : "ink3"]
         : [item.label, { tone: "ink", bold: true }];
     const marks = { focus, chosen: isChosen(frame.chosen.agents, item), open: openKey === rowKey(item) };
-    const detail: Run = [item.detail, item.working ? "ochre" : "ink3"];
+    const detail: Run = [item.detail, item.working ? role("busy") : "ink3"];
     return rowLines(paint, width, { name: [name], detail: [detail], detailAt: "column", end: rowEnd(frame, item), marks, key: rowKey(item), go: () => open(item) });
   };
   const listed: Line[] = [];

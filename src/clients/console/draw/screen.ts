@@ -1,8 +1,9 @@
-import { agentEntries, type Item, type Model, type Open, type Place, sidesOf } from "../../state/index.ts";
+import { agentEntries, type Item, type Model, type Open, type Place, placeKey, sidesOf } from "../../state/index.ts";
 import {
   type AgentsLevel,
   agentsLevel,
   type InFull,
+  LABELS,
   type ListFilter,
   type ListLevel,
   listLevel,
@@ -93,15 +94,27 @@ export function levelsOf(model: Model, options: LevelsOptions): Levels {
   };
 }
 
-/** The rows of a list in the order they are drawn: on an agent's list, the person's threads with it first. */
-export const listRows = (list: ListLevel): Row[] =>
-  list.ofAgent ? [...list.rows.filter((each) => each.yours), ...list.rows.filter((each) => !each.yours)] : list.rows;
+/** The parts of a list as it is drawn, each under its label: on an agent's list, the person's threads with it apart from the rest. */
+export function listParts(list: ListLevel): [label: string, rows: Row[]][] {
+  if (!list.ofAgent) return [[LABELS.threads, list.rows]];
+  return [
+    [LABELS.yours, list.rows.filter((each) => each.yours)],
+    [LABELS.elsewhere, list.rows.filter((each) => !each.yours)],
+  ];
+}
 
-/** What a row is told apart by: an ID is only unique among rows of its kind. */
+/** The rows of a list in the order they are drawn. */
+export const listRows = (list: ListLevel): Row[] => listParts(list).flatMap(([, rows]) => rows);
+
+/**
+ * What a row is told apart by: an ID is only unique among rows of its kind. A
+ * row of the agents and rooms has the key the state gives the place it opens.
+ */
 export const rowKey = (row: Pick<Row, "kind" | "id">): string => `${row.kind} ${row.id}`;
 
-/** The key of the row of the agents and rooms that opens `list`. */
-export const listRowKey = (list: Place): string => rowKey({ kind: list.kind, id: list.id });
+/** The row of the agents and rooms that opens `place`, as the views have it: its name, how it stands and how it looks. */
+export const placeRow = (frame: Pick<Frame, "levels">, place: Place): Row | undefined =>
+  frame.levels.agents.rows.find((each) => rowKey(each) === placeKey(place));
 
 /** The key of the row of the open list that `item` was opened from, if it has one: a thread not started yet has none. */
 export function openedKey(item: Item | undefined): string | undefined {
@@ -153,16 +166,10 @@ export function sides(model: Model): { count: number; at: number } {
 
 /** What the keys that depend on where they are do there. The line of keys is made from it. */
 export interface Can {
-  /** Left goes back a level. */
+  /** Left and Esc go back a level. */
   back: boolean;
   /** There is an input, and Enter sends what is typed in it. */
   send: boolean;
-  /** Ctrl+N starts a thread in the place whose list is open. */
-  newThread: boolean;
-  /** Tab chooses between everything on an agent's list and only what is with the person. */
-  filter: boolean;
-  /** Tab puts each agent's view of the session behind the open thread on show, and the conversation back. */
-  turnOver: boolean;
   /** Up, Down and Right choose and open rows. */
   choose: boolean;
 }
@@ -179,16 +186,15 @@ export type Screen = (
 export function screenOf(frame: Frame): Screen {
   const { levels, front, model } = frame;
   const count = levelsAt(frame.width(), frame.folded);
-  const startable = levels.list?.startable === true;
-  const can: Can = { back: front !== "agents", send: false, newThread: startable, filter: false, turnOver: false, choose: front !== "item" };
+  const can: Can = { back: front !== "agents", send: false, choose: front !== "item" };
   if (front === "item" && levels.session !== undefined && model.open.item?.kind === "session") {
     return { kind: "session", ...levels.session, levels: count, can };
   }
   if (front === "item" && levels.thread !== undefined) {
-    return { kind: "thread", ...levels.thread, levels: count, can: { ...can, send: writable(frame), turnOver: levels.thread.turnable } };
+    return { kind: "thread", ...levels.thread, levels: count, can: { ...can, send: writable(frame) } };
   }
   if (front === "list" && levels.list !== undefined) {
-    return { kind: "threads", ...levels.list, levels: count, can: { ...can, filter: levels.list.ofAgent, choose: levels.list.rows.length > 0 } };
+    return { kind: "threads", ...levels.list, levels: count, can: { ...can, choose: levels.list.rows.length > 0 } };
   }
   return { kind: "agents", ...levels.agents, levels: count, can: { ...can, back: false, choose: levels.agents.rows.length > 0 } };
 }

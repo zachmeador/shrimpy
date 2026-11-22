@@ -1,6 +1,6 @@
 import { type TuiMouseEvent, type TuiMouseEventResult, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import type { Row } from "../../view/index.ts";
-import { cutRuns, type Ground, type Paint, type Run, runsWidth, type Tone } from "./paint.ts";
+import { cutRuns, type Ground, type Paint, role, type Run, runsWidth, type Tone } from "./paint.ts";
 import { type Frame, rowKey } from "./screen.ts";
 import type { Hint } from "./words.ts";
 
@@ -15,7 +15,7 @@ export const hintRuns = (hints: readonly Hint[]): Run[] =>
   hints.flatMap((each, index) => [...(index > 0 ? ([[" · ", "ink3"]] as Run[]) : []), ...hint(each)]);
 
 /** The lantern of a working agent: its light, which dims between two pulses. */
-export const lamp = (tick: number): Tone => (Math.floor(tick / 3) % 3 === 2 ? "ember" : "ochre mark");
+export const lamp = (tick: number): Tone => (Math.floor(tick / 3) % 3 === 2 ? "ember" : role("busy", true));
 
 /** A line of a pane, not laid on its ground yet: the ground it is laid on when not the pane's, what a click on it does, and the key of the row it is part of. */
 export interface Line {
@@ -131,7 +131,7 @@ export const wide = (width: number): boolean => width >= ONE_LINE;
 export function rowLines(paint: Paint, width: number, parts: RowParts): Line[] {
   const { marks, key, go } = parts;
   const on: Ground | undefined = (marks.focus ? marks.chosen : marks.open) ? "raise" : undefined;
-  const bar: Run = marks.focus && marks.chosen ? ["▎", "coral mark"] : marks.focus && marks.open ? ["▎", "line2"] : [" ", "ink"];
+  const bar: Run = marks.focus && marks.chosen ? ["▎", role("fresh", true)] : marks.focus && marks.open ? ["▎", "line2"] : [" ", "ink"];
   const start: Run[] = [bar, [" ", "ink"]];
   if (wide(width) && parts.detailAt === "edge") {
     return [{ text: spread(paint, [...start, ...parts.name], [...parts.detail, ["  ", "ink"], ...parts.end], width), on, go, key }];
@@ -150,7 +150,7 @@ export function rowLines(paint: Paint, width: number, parts: RowParts): Line[] {
 /** How much is new to the person, and a lantern while someone works: what a row has against its edge. */
 export function rowEnd(frame: Frame, item: Pick<Row, "unread" | "working">): Run[] {
   const end: Run[] = [];
-  if (item.unread > 0) end.push([`${String(item.unread)} ▪ `, "coral"]);
+  if (item.unread > 0) end.push([`${String(item.unread)} ▪ `, role("fresh")]);
   end.push(item.working ? ["▪", lamp(frame.tick)] : [" ", "ink"]);
   return end;
 }

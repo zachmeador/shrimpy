@@ -8,7 +8,7 @@ import {
   truncateToWidth,
   visibleWidth,
 } from "@earendil-works/pi-tui";
-import { type Mode, type PigmentName, WOOLS } from "../../look/index.ts";
+import { type Mode, type PigmentName, ROLES, WOOLS } from "../../look/index.ts";
 
 /**
  * What the console is drawn in: one of the two wools, on a terminal that has
@@ -26,6 +26,12 @@ export type Ground = "ground" | "list" | "pane" | "well" | "raise";
  * name is its color, for a mark that has to meet a ground, as a stepped corner does.
  */
 export type Tone = "ink" | "ink2" | "ink3" | "line" | "line2" | "press" | "tide" | "tide2" | "ember" | PigmentName | `${PigmentName} mark` | Ground;
+
+/** What a pigment that means something is for, as the look names it: busy, fresh, caution, bad, good, link and code. */
+export type Role = keyof typeof ROLES;
+
+/** The tone of a role: its pigment's form for words, or with `mark` its brighter form for marks. */
+export const role = (name: Role, mark = false): Tone => (mark ? `${ROLES[name]} mark` : ROLES[name]);
 
 export interface Style {
   tone?: Tone;

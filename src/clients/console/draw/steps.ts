@@ -1,11 +1,11 @@
 import { Markdown, type MarkdownTheme, truncateToWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { type AgentWork, type InFull, type MessageRow, OUT_OF_DATE_MARK, type Step } from "../../view/index.ts";
-import type { Paint, Run, Style, Tone, Wool } from "./paint.ts";
+import { type Paint, role, type Run, type Style, type Tone, type Wool } from "./paint.ts";
 import { hintRuns, spread } from "./rows.ts";
 import { inFullHints } from "./words.ts";
 
 /** How a tool call's status is drawn, by how it stands. */
-const TONES: Record<"good" | "bad" | "busy" | "idle", Tone> = { good: "moss", bad: "red", busy: "ochre", idle: "ink3" };
+const TONES: Record<"good" | "bad" | "busy" | "idle", Tone> = { good: role("good"), bad: role("bad"), busy: role("busy"), idle: "ink3" };
 
 function markdownTheme(paint: Paint): MarkdownTheme {
   const as =
@@ -14,9 +14,9 @@ function markdownTheme(paint: Paint): MarkdownTheme {
       paint.text(text, style);
   return {
     heading: as({ tone: "coral", bold: true }),
-    link: as("sky"),
+    link: as(role("link")),
     linkUrl: as("ink3"),
-    code: as("peach"),
+    code: as(role("code")),
     codeBlock: as({ tone: "ink2", on: "well" }),
     codeBlockBorder: as("line2"),
     quote: as({ tone: "ink3", italic: true }),
@@ -61,7 +61,7 @@ export class Prose {
 
 /** Plain text wrapped to `width`, in a style. */
 export const wrap = (paint: Paint, text: string, width: number, style: Style | Tone): string[] =>
-  wrapTextWithAnsi(paint.text(text.replace(/\t/g, "   "), style), Math.max(1, width));
+  wrapTextWithAnsi(paint.text(text, style), Math.max(1, width));
 
 /** Lines moved `cells` in. */
 const indent = (lines: readonly string[], cells: number): string[] => lines.map((line) => `${" ".repeat(cells)}${line}`);
@@ -83,7 +83,7 @@ export function messageLines(paint: Paint, prose: Prose, row: MessageRow, width:
   const said = row.deleted ? wrap(paint, row.text, inner, "ink3") : row.agent ? prose.lines(paint, row.text, inner) : wrap(paint, row.text, inner, "ink");
   const lines = ["", oneOf(paint, head, width), ...indent(row.text === "" && !row.deleted ? [] : said, 2)];
   if (row.reactions !== undefined) lines.push(...indent(wrap(paint, row.reactions, inner, "ink3"), 2));
-  for (const note of row.notes) lines.push(...indent(wrap(paint, `· ${note}`, inner, "sand"), 2));
+  for (const note of row.notes) lines.push(...indent(wrap(paint, `· ${note}`, inner, role("caution")), 2));
   return lines;
 }
 
@@ -156,7 +156,7 @@ export function sessionLines(paint: Paint, prose: Prose, steps: readonly Step[],
  */
 export function workLines(paint: Paint, prose: Prose, works: readonly AgentWork[], named: boolean, width: number, inFull: InFull): string[] {
   if (works.length === 0) return [];
-  const bar = paint.text("▎ ", "ochre mark");
+  const bar = paint.text("▎ ", role("busy", true));
   const pad = named ? 2 : 0;
   const keys = hintRuns(inFullHints(inFull));
   const lines = [""];
@@ -166,7 +166,7 @@ export function workLines(paint: Paint, prose: Prose, works: readonly AgentWork[
     else if (named) lines.push(`${bar}${oneOf(paint, name, width - 2)}`);
     const steps = works.length > 1 && !inFull.toolCalls ? each.work.steps.slice(-1) : each.work.steps;
     const body = [
-      ...(each.stale ? [paint.text(OUT_OF_DATE_MARK, "sand")] : []),
+      ...(each.stale ? [paint.text(OUT_OF_DATE_MARK, role("caution"))] : []),
       ...(works.length > 1 && !inFull.toolCalls ? [] : earlierLine(paint, each.work.earlier)),
       ...steps.flatMap((step) => stepLines(paint, prose, step, width - 2 - pad, inFull)),
     ];

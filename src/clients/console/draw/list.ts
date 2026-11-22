@@ -1,8 +1,8 @@
 import { dots } from "../../look/index.ts";
-import { FILTERS, LABELS, type ListFilter, type Row } from "../../view/index.ts";
-import type { Run } from "./paint.ts";
+import { FILTERS, type ListFilter, type Row } from "../../view/index.ts";
+import { role, type Run } from "./paint.ts";
 import { hint, isChosen, label, type Line, rowEnd, rowLines, spread, wide, windowed, wrapped } from "./rows.ts";
-import { type Frame, listRowKey, openedKey, rowKey } from "./screen.ts";
+import { type Frame, listParts, openedKey, placeRow, rowKey } from "./screen.ts";
 import { emptyAgentList, FILTER_KEY, NEW, NEW_THREAD } from "./words.ts";
 
 export interface ListActions {
@@ -23,7 +23,7 @@ export function drawList(frame: Frame, width: number, height: number, notes: rea
   const list = levels.list;
   if (list === undefined || model.open.list === undefined) return [];
   const place = model.open.list;
-  const placeRow = levels.agents.rows.find((each) => rowKey(each) === listRowKey(place));
+  const row = placeRow(frame, place);
   const start: Run[] = list.startable ? hint(wide(width) ? NEW_THREAD : NEW) : [];
   const lines: Line[] = [];
 
@@ -34,7 +34,7 @@ export function drawList(frame: Frame, width: number, height: number, notes: rea
     const tone = running && pigment !== undefined ? pigment : "ink3";
     const facts: Run[][] = [
       [[list.name, { tone, bold: true }]],
-      placeRow === undefined ? [] : [[placeRow.detail, placeRow.working ? "ochre" : "ink3"]],
+      row === undefined ? [] : [[row.detail, row.working ? role("busy") : "ink3"]],
       [],
     ];
     for (let at = 0; at < 3; at += 1) {
@@ -51,11 +51,11 @@ export function drawList(frame: Frame, width: number, height: number, notes: rea
     lines.push({ text: "" });
   } else {
     lines.push({ text: spread(paint, [[" ", "ink"], [list.name, { tone: "ink", bold: true }]], start, width) });
-    if (placeRow !== undefined) lines.push({ text: spread(paint, [[" ", "ink"], [placeRow.detail, "ink3"]], [], width) });
+    if (row !== undefined) lines.push({ text: spread(paint, [[" ", "ink"], [row.detail, "ink3"]], [], width) });
     lines.push({ text: "" });
   }
 
-  for (const note of notes) lines.push(...wrapped(paint, note, width, "sand"));
+  for (const note of notes) lines.push(...wrapped(paint, note, width, role("caution")));
   if (notes.length > 0) lines.push({ text: "" });
   if (list.rows.length === 0) {
     const empty = list.empty === undefined ? undefined : list.ofAgent ? emptyAgentList(list.empty, list.name, list.more) : list.empty;
@@ -70,12 +70,7 @@ export function drawList(frame: Frame, width: number, height: number, notes: rea
     listed.push(label(paint, name, width));
     for (const each of rows) listed.push(...rowOf(frame, width, each, () => actions.open(each)));
   };
-  if (list.ofAgent) {
-    part(LABELS.yours, list.rows.filter((each) => each.yours));
-    part(LABELS.elsewhere, list.rows.filter((each) => !each.yours));
-  } else {
-    part(LABELS.threads, list.rows);
-  }
+  for (const [name, rows] of listParts(list)) part(name, rows);
   return [...lines, ...windowed(listed, Math.max(0, height - lines.length), (line) => line.key === frame.chosen.list)];
 }
 

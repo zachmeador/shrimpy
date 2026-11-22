@@ -15,13 +15,13 @@ import {
   TuiAltScreen,
   VStack,
 } from "@earendil-works/pi-tui";
-import { agentNameOf, type ClientState, type Item, type Open } from "../../state/index.ts";
+import { agentNameOf, type ClientState, type Item, type Open, placeKey } from "../../state/index.ts";
 import { type ListFilter, modelLines, type Row, windowTitle } from "../../view/index.ts";
 import { commandList } from "./commands.ts";
 import { interrupt } from "./interrupt.ts";
 import { KEYS_WIDTH, KeysLine, KeysList } from "./keys.ts";
 import { drawList } from "./list.ts";
-import { createPaint, isLight } from "./paint.ts";
+import { createPaint, isLight, role } from "./paint.ts";
 import { drawRail } from "./rail.ts";
 import { Pane } from "./rows.ts";
 import {
@@ -31,7 +31,6 @@ import {
   levelsAt,
   levelsOf,
   LIST,
-  listRowKey,
   listRows,
   notesFor,
   onShow,
@@ -136,8 +135,8 @@ export function startDrawing(options: DrawingOptions): Drawing {
   const editorTheme: EditorTheme = {
     borderColor: (text) => frame.paint.text(text, "line2"),
     selectList: {
-      selectedPrefix: (text) => frame.paint.text(text, "coral"),
-      selectedText: (text) => frame.paint.text(text, "coral"),
+      selectedPrefix: (text) => frame.paint.text(text, role("fresh")),
+      selectedText: (text) => frame.paint.text(text, role("fresh")),
       description: (text) => frame.paint.text(text, "ink3"),
       scrollInfo: (text) => frame.paint.text(text, "ink3"),
       noMatch: (text) => frame.paint.text(text, "ink3"),
@@ -349,7 +348,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
     const model = state.model();
     frame.model = model;
     const { list: openList, item } = model.open;
-    const listKey = openList === undefined ? undefined : listRowKey(openList);
+    const listKey = openList === undefined ? undefined : placeKey(openList);
     if (listKey !== listOpen) {
       if (listOpen === undefined && listKey !== undefined) frame.front = item === undefined ? "list" : "item";
       if (listKey !== undefined) frame.chosen.agents = listKey;

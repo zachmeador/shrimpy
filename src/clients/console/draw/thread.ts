@@ -2,9 +2,9 @@ import { type Component, type Editor, stripTerminalSequences, type TuiMouseEvent
 import { YOUR_DM } from "../../../contracts/agent/index.ts";
 import { halves, WORDMARK } from "../../look/index.ts";
 import { moreWakeupsListed, OUT_OF_DATE_MARK, READ_ONLY_TAG } from "../../view/index.ts";
-import type { Ground, Run, Tone } from "./paint.ts";
+import { type Ground, role, type Run, type Tone } from "./paint.ts";
 import { hint, spread } from "./rows.ts";
-import { type Frame, listRowKey, MEASURE, notesFor, rowKey, sides, writable } from "./screen.ts";
+import { type Frame, MEASURE, notesFor, placeRow, sides, writable } from "./screen.ts";
 import { messageLines, type Prose, sessionLines, workLines, wrap } from "./steps.ts";
 import { PICK_OR_START, startThread, turnHint } from "./words.ts";
 
@@ -48,7 +48,7 @@ export class ThreadHeader implements Component {
     const on = threadGround(frame);
     this.#turn = undefined;
     if (item === undefined) return [];
-    const late: Run[] = stale(frame) ? [[` ${OUT_OF_DATE_MARK}`, "sand"]] : [];
+    const late: Run[] = stale(frame) ? [[` ${OUT_OF_DATE_MARK}`, role("caution")]] : [];
     const at = sides(model);
     const turn: Run[] = item.kind === "thread" && (at.count > 0 || at.at > 0) ? hint(turnHint(at.count, at.at)) : [];
     const lines: string[] = [];
@@ -58,7 +58,7 @@ export class ThreadHeader implements Component {
       lines.push(spread(paint, [[" ", "ink"], who, [" · ", "ink3"], [session.watching, "ink"], ...late], turn, width));
     } else if (levels.thread !== undefined && item.kind === "thread") {
       const { place } = item;
-      const row = levels.agents.rows.find((each) => rowKey(each) === listRowKey(place));
+      const row = placeRow(frame, place);
       const pigment = place.kind === "agent" ? row?.look?.pigment : undefined;
       const who: Run = [levels.thread.who, { tone: pigment ?? "ink", bold: true }];
       lines.push(spread(paint, [[" ", "ink"], who, [" · ", "ink3"], [levels.thread.called, "ink"], ...late], turn, width));
@@ -187,13 +187,13 @@ export class Dock implements Component {
     const mx = measure(width);
     const lines: string[] = [];
     const one = (runs: readonly Run[], right: readonly Run[] = []): void => void lines.push(spread(paint, runs, right, mx + 1));
-    for (const note of notesFor(frame, "item")) lines.push(...wrap(paint, note, mx, "sand"));
+    for (const note of notesFor(frame, "item")) lines.push(...wrap(paint, note, mx, role("caution")));
     const walking = WALK[frame.tick % WALK.length] ?? "";
     if (item.kind === "session") {
       const session = levels.session;
       if (session !== undefined) {
-        if (session.stale) lines.push(paint.text(OUT_OF_DATE_MARK, "sand"));
-        if (session.working !== undefined) one([[walking, "ink"], [` ${session.working}`, "ochre"]]);
+        if (session.stale) lines.push(paint.text(OUT_OF_DATE_MARK, role("caution")));
+        if (session.working !== undefined) one([[walking, "ink"], [` ${session.working}`, role("busy")]]);
         if (session.idle !== undefined) one([[session.idle, "ink3"]]);
         for (const queued of session.queued) one([[queued, "ink3"]]);
         for (const waiting of session.waiting) one([["◷ ", "ink3"], [waiting, "ink3"]]);
@@ -205,7 +205,7 @@ export class Dock implements Component {
         for (const row of thread.status.rows) lines.push(...wrap(paint, row, mx - 2, "ink2").map((line) => `  ${line}`));
         lines.push("");
       }
-      if (thread.working !== undefined) one([[walking, "ink"], [` ${thread.working}`, "ochre"]]);
+      if (thread.working !== undefined) one([[walking, "ink"], [` ${thread.working}`, role("busy")]]);
       for (const queued of thread.queued) one([[queued, "ink3"]]);
       const [soonest, ...more] = thread.waiting;
       if (soonest !== undefined) one([["◷ ", "ink3"], [soonest.line, "ink3"]], more.length > 0 ? [[moreWakeupsListed(more.length), "ink2"]] : []);
@@ -238,17 +238,14 @@ export class Input implements Component {
     this.#cursor = cursor;
   }
 
-  /** How wide the editor is drawn in a pane `width` wide. */
-  #inner = (width: number): number => Math.max(1, Math.min(width, MEASURE + 2) - 2);
-
   render(width: number): string[] {
     const frame = this.#frame;
     if (!writable(frame)) return [];
     const busy = frame.levels.thread?.working !== undefined;
-    const tone: Tone = busy ? "ochre mark" : "line2";
+    const tone: Tone = busy ? role("busy", true) : "line2";
     this.#editor.borderColor = (text) => frame.paint.text(text, tone);
     const { start, end } = this.#cursor;
-    const lines = this.#editor.render(this.#inner(width));
+    const lines = this.#editor.render(measure(width));
     const shown = this.#editor.focused ? lines : lines.map((line) => line.replaceAll(start, "").replaceAll(end, ""));
     const on = threadGround(frame);
     return shown.map((line) => frame.paint.lay(` ${line}`, width, on));
@@ -256,7 +253,7 @@ export class Input implements Component {
 
   handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
     if (!writable(this.#frame)) return undefined;
-    const result = this.#editor.handleMouse({ ...event, x: event.x - 1, width: this.#inner(event.width) });
+    const result = this.#editor.handleMouse({ ...event, x: event.x - 1, width: measure(event.width) });
     if (result === undefined) return undefined;
     // The keys go to the editor by way of the thread being in front, which the drawing decides.
     this.#focus();
