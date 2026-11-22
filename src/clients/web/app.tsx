@@ -33,7 +33,7 @@ import { setCount } from "./badge.ts";
 import { askPush, onTapped, type Push, startPush } from "./push.ts";
 import { Empty, SessionView, ThreadView } from "./thread.tsx";
 import { WatchView } from "./watch.tsx";
-import { CONTROLS, FOLD, keyHints, PICK_OR_START, SELF, startThread as startWords, UNFOLD } from "./words.ts";
+import { CONTROLS, FOLD, keyHints, NEW_THREAD_KEY, SELF, UNFOLD } from "./words.ts";
 
 /** When the page next tries to reach the gateway, as the pauses it gives the link say. */
 export interface Retry {
@@ -525,12 +525,10 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
     pane = <SessionView session={{ ...session, notes: threadNotes }} back={back} retry={retryLine} />;
   } else {
     // Nothing is open in the thread's place, whatever the state still holds open behind the list in front.
-    const nothing = nothingOpen({ ...model, open: { ...model.open, item: undefined } });
-    let words = nothing?.said ?? "";
+    const nothing = nothingOpen({ ...model, open: { ...model.open, item: undefined } }, NEW_THREAD_KEY);
     // Beside a running agent's home, what stands there is a file to pick.
-    if (nothing !== undefined && nothing.start !== "none" && page.tab === "home") words = PICK_FILE;
-    else if (nothing?.start === "beside") words = PICK_OR_START;
-    else if (nothing?.start === "instead") words = startWords(nothing.said);
+    const file = nothing !== undefined && nothing.start !== "none" && page.tab === "home" && listView?.ofAgent === true;
+    const words = file ? PICK_FILE : (nothing?.said ?? "");
     pane = <Empty sigil={listView?.ofAgent === true ? listView.look?.sigil : undefined} words={words} />;
   }
 

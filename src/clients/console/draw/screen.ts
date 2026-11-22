@@ -16,7 +16,7 @@ import {
   type ThreadLevel,
 } from "../../view/index.ts";
 import type { Paint } from "./paint.ts";
-import { SELF } from "./words.ts";
+import { NEW_THREAD_KEY, SELF } from "./words.ts";
 
 /** How wide a terminal has to be for two levels side by side, and for three. */
 export const TWO = 96;
@@ -90,7 +90,7 @@ export function levelsOf(model: Model, options: LevelsOptions): Levels {
     list: listLevel(model, { ...at, filter: options.filter }),
     thread: threadLevel(model, { ...at, inFull: options.inFull }),
     session: sessionLevel(model, { ...at, inFull: options.inFull }),
-    nothing: nothingOpen(model),
+    nothing: nothingOpen(model, NEW_THREAD_KEY),
   };
 }
 

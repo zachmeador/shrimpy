@@ -46,8 +46,5 @@ export const TURN_OVER = "The agent's view · ctrl+.";
 export const FOLD = "Fold the lists away · ctrl+\\";
 export const UNFOLD = "Unfold the lists · ctrl+\\";
 
-/** Where a thread would be while none is open, on the list of an agent the person has threads with, which can be picked or started. */
-export const PICK_OR_START = "Pick a thread, or press Ctrl+N to start one.";
-
-/** `said`, then how to start a thread: where a thread would be, or an agent's list, while the person has not talked to the agent yet. */
-export const startThread = (said: string): string => `${said} Press Ctrl+N to start a thread.`;
+/** The key that starts a thread, as the views' sentences about starting one write it. */
+export const NEW_THREAD_KEY = "Ctrl+N";

@@ -276,6 +276,10 @@ export const FILTERS: Record<ListFilter, string> = { everything: "everything", y
 /** What stands where a thread would be while nothing is open: no list, or nothing in the open list. */
 export const PICK_LIST = "Pick an agent or a room.";
 export const PICK_THREAD = "Pick a thread.";
+/** The same where a thread can be started too. `key` is the client's key that starts one, as the client writes it. */
+export const pickOrStart = (key: string): string => `${withoutPeriod(PICK_THREAD)}, or press ${key} to start one.`;
+/** `said`, then how to start a thread, where there is none to pick. `key` is the client's key that starts one, as the client writes it. */
+export const thenStart = (said: string, key: string): string => `${said} Press ${key} to start a thread.`;
 /** What stands where a thread would be while nothing is open on the list of an agent that is not running. */
 export const notRunning = (agent: string): string => `${oneLine(agent)} is not running.`;
 

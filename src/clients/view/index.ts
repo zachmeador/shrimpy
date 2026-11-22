@@ -52,6 +52,7 @@ export {
   READ_ONLY_TAG,
   sizeWords,
   SOMETHING_NEW,
+  thenStart,
   thinkingShown,
   toolCallsShown,
   triggerLines,

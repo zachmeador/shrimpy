@@ -6,7 +6,7 @@ import { type Ground, role, type Run, type Tone } from "./paint.ts";
 import { hint, spread } from "./rows.ts";
 import { type Frame, MEASURE, notesFor, placeRow, sides, writable } from "./screen.ts";
 import { messageLines, type Prose, sessionLines, workLines, wrap } from "./steps.ts";
-import { PICK_OR_START, startThread, turnHint } from "./words.ts";
+import { turnHint } from "./words.ts";
 
 /** The shrimp that walks while an agent works, one frame after another. */
 const WALK = ["🦐  ", " 🦐 ", "  🦐", " 🦐 "];
@@ -154,8 +154,7 @@ function emptyPane(frame: Frame, width: number, height: number): string[] {
   const agent = model.open.list?.kind === "agent";
   const art = halves(agent ? (levels.list?.look?.sigil ?? []) : WORDMARK);
   const nothing = levels.nothing;
-  const words = nothing === undefined ? "" : nothing.start === "beside" ? PICK_OR_START : nothing.start === "instead" ? startThread(nothing.said) : nothing.said;
-  const said = wrap(paint, words, Math.max(1, width - 4), "ink3");
+  const said = wrap(paint, nothing?.said ?? "", Math.max(1, width - 4), "ink3");
   const top = Math.max(1, Math.floor((height - art.length - 2 - said.length) / 2));
   const centered = (line: string): string => `${" ".repeat(Math.max(0, Math.floor((width - visibleWidth(line)) / 2)))}${line}`;
   return [

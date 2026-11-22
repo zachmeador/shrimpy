@@ -4,11 +4,11 @@
  */
 import type { ComponentChildren } from "preact";
 import type { ListFilter, ListLevel, Row } from "../view/index.ts";
-import { FILTERS, LABELS, READ_ONLY_TAG } from "../view/index.ts";
+import { FILTERS, LABELS, READ_ONLY_TAG, thenStart } from "../view/index.ts";
 import { Fleck, Glyph, Lamp, Sigil } from "./marks.tsx";
 import { Notes } from "./thread.tsx";
 import type { Tab } from "./address.ts";
-import { CONTROLS, NEW_THREAD, startThread } from "./words.ts";
+import { CONTROLS, NEW_THREAD, NEW_THREAD_KEY } from "./words.ts";
 
 function ThreadRow({ row, current, open }: { row: Row; current: boolean; open: () => void }) {
   return (
@@ -101,7 +101,7 @@ export function ListView(props: ListProps) {
               {rows(yours)}
               {elsewhere.length > 0 && <h2 class="label">{LABELS.elsewhere}</h2>}
               {rows(elsewhere)}
-              {list.empty !== undefined && <p class="hint">{startThread(list.empty)}</p>}
+              {list.empty !== undefined && <p class="hint">{thenStart(list.empty, NEW_THREAD_KEY)}</p>}
             </>
           ) : (
             <>

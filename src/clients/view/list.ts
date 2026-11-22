@@ -6,7 +6,7 @@ import { type LevelOptions, lookingAt, type Row } from "./level.ts";
 import { type Look, lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
 import { whenOf } from "./time.ts";
-import { type ListFilter, notRunning, PICK_LIST, PICK_THREAD } from "./words.ts";
+import { type ListFilter, notRunning, PICK_LIST, PICK_THREAD, pickOrStart, thenStart } from "./words.ts";
 
 /**
  * The second level: everything the agent whose list is open takes part in,
@@ -132,9 +132,9 @@ function partRow(part: Part, me: string | undefined, now: number): Row {
 }
 
 /**
- * What stands where a thread would be while none is open, and how a thread can
- * be started there, for a client that names its key: beside threads to pick, in
- * place of any, or not at all.
+ * What stands where a thread would be while none is open, and whether a thread
+ * can be started there: beside threads to pick, in place of any, or not at
+ * all.
  */
 export interface NothingOpen {
   said: string;
@@ -144,14 +144,20 @@ export interface NothingOpen {
 /**
  * What stands where a thread would be while no list is open, or nothing is
  * open in the open one: what to pick, that the list's agent is not running, or
- * that the person has not talked to it yet. Undefined while something is open.
+ * that the person has not talked to it yet, with how to start a thread where
+ * one can be. `key` is the client's key that starts one, as the client writes
+ * it. Undefined while something is open.
  */
-export function nothingOpen(model: Model): NothingOpen | undefined {
+export function nothingOpen(model: Model, key: string): NothingOpen | undefined {
   const { list, item } = model.open;
   if (item !== undefined) return undefined;
   if (list === undefined) return { said: PICK_LIST, start: "none" };
-  if (list.kind !== "agent") return { said: PICK_THREAD, start: "none" };
+  // A room the person is in takes a new thread, and a channel they only read takes none.
+  if (list.kind === "read-only") return { said: PICK_THREAD, start: "none" };
+  if (list.kind === "room") return { said: pickOrStart(key), start: "beside" };
   const name = agentNameOf(model, list.id);
   if (!agentEntries(model).some((entry) => entry.id === list.id && entry.running)) return { said: notRunning(name), start: "none" };
-  return partsOf(model, list.id).some((part) => part.yours) ? { said: PICK_THREAD, start: "beside" } : { said: notTalkedTo(name), start: "instead" };
+  return partsOf(model, list.id).some((part) => part.yours)
+    ? { said: pickOrStart(key), start: "beside" }
+    : { said: thenStart(notTalkedTo(name), key), start: "instead" };
 }
