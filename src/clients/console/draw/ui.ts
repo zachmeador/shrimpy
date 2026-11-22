@@ -13,7 +13,7 @@ import {
   TruncatedText,
   TuiMainScreen,
 } from "@earendil-works/pi-tui";
-import { agentNameOf, type ConsoleState, type Where } from "../../state/index.ts";
+import { agentNameOf, type ClientState, type Where } from "../../state/index.ts";
 import {
   type InFull,
   type ListFilter,
@@ -41,7 +41,7 @@ import { workComponent } from "./work.ts";
 export type ConsoleTerminal = Terminal;
 
 export interface DrawingOptions {
-  state: ConsoleState;
+  state: ClientState;
   /** The person's terminal by default. */
   terminal?: ConsoleTerminal;
   /** The moment it is, for saying when things happened. */

@@ -1,9 +1,9 @@
 import type { AgentModels } from "../../../contracts/agent/index.ts";
 import { createListeners } from "../../../lib/listeners/index.ts";
-import type { ConsoleState, Farewell, Model } from "../index.ts";
+import type { ClientState, Farewell, Model } from "../index.ts";
 
 /** A state that does nothing but remember what it was asked, for tests of what draws it and what its keys do. */
-export interface FakeState extends ConsoleState {
+export interface FakeState extends ClientState {
   /** What was done to it, in order, such as "select scout", "send hello" or "note no-command". */
   readonly calls: string[];
   /** What it answers. */

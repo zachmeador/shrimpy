@@ -14,7 +14,7 @@
  * comes through the console's link, as objects it holds. It must not know how
  * any of this is shown or drawn, or what a key does.
  */
-export { type ConsoleState, createConsoleState } from "./console-state.ts";
+export { type ClientState, createClientState } from "./client-state.ts";
 export {
   agentEntries,
   agentNameOf,

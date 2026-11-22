@@ -1,6 +1,6 @@
 import { gatewaySocket } from "../../contracts/gateway/node.ts";
 import type { DialPlace } from "../../lib/link/node.ts";
-import { createConsoleState, type HomeLookup } from "../state/index.ts";
+import { createClientState, type HomeLookup } from "../state/index.ts";
 import { farewellLine, type Screen } from "../view/index.ts";
 import { dialAt } from "./dial/index.ts";
 import { type ConsoleTerminal, startDrawing } from "./draw/index.ts";
@@ -47,7 +47,7 @@ export interface ConsoleOptions {
  * one line says so and how to stop it. The result is the exit code.
  */
 export async function openConsole(options: ConsoleOptions): Promise<number> {
-  const state = await createConsoleState({
+  const state = await createClientState({
     dial: dialAt(options.place ?? { path: gatewaySocket() }),
     token: options.token ?? null,
     ...(options.noticeMs === undefined ? {} : { noticeMs: options.noticeMs }),

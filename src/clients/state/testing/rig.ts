@@ -6,7 +6,7 @@ import { linkTestAgent, startTestGateway, type TestAgent, type TestGateway } fro
 import { backoff } from "../../../lib/retry/index.ts";
 import { eventually, stopAfter, useRuntimeDir } from "../../../lib/testing/index.ts";
 import { dialAt } from "../../console/dial/index.ts";
-import { type ConsoleState, createConsoleState, type Model } from "../index.ts";
+import { type ClientState, createClientState, type Model } from "../index.ts";
 
 export interface RigOptions {
   /** The agents to link to the gateway, by name: each is on the roster and linked, and serves nothing but its presence. Scout by default. */
@@ -23,7 +23,7 @@ export interface RigOptions {
 
 /** The real gateway and chat server, small agents' programs linked to the gateway, and a console state holding what they serve. */
 export interface Rig {
-  readonly state: ConsoleState;
+  readonly state: ClientState;
   readonly chat: TestChat;
   /** The gateway, once there is one. */
   gateway(): Promise<TestGateway>;
@@ -56,7 +56,7 @@ export async function startRig(t: TestContext, options: RigOptions = {}): Promis
     await speakingAs(t, person);
   }
 
-  const state = await createConsoleState({
+  const state = await createClientState({
     dial: dialAt({ path: gatewaySocket() }),
     token: null,
     backoff: backoff({ firstMs: 1, maxMs: 8, random: () => 0 }),

@@ -126,7 +126,7 @@ tester.run("imports", importsRule, {
     refused("clients/network/link.ts", "../state/index.ts", "shared"),
     refused("clients/state/model.ts", "../view/index.ts", "shared"),
     refused("clients/state/store.ts", "../console/draw/index.ts", "shared"),
-    refused("clients/state/console-state.ts", "../console/dial/index.ts", "shared"),
+    refused("clients/state/client-state.ts", "../console/dial/index.ts", "shared"),
     refused("clients/view/screen.ts", "../web/index.ts", "shared"),
     refused("clients/console/console.ts", "../web/index.ts", "client"),
     refused("chat/providers/telegram/poller.ts", "../../store/index.ts", "provider"),

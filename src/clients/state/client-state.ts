@@ -10,7 +10,7 @@ import { createSending } from "./sending.ts";
 import { createStore } from "./store.ts";
 import { worked } from "./worked.ts";
 
-export interface ConsoleStateOptions {
+export interface ClientStateOptions {
   /** How to dial the gateway, which the client hands it: from Node, at its own socket on this machine or at its entry. */
   dial: Dial;
   /** A device's token, to be you on a machine that joined, or null to be you on the gateway's own socket. */
@@ -27,8 +27,8 @@ export interface ConsoleStateOptions {
   homes?: HomeLookup;
 }
 
-/** What the console knows and can do, without a terminal. */
-export interface ConsoleState {
+/** What a client knows and can do, without a terminal. */
+export interface ClientState {
   model(): Model;
   /** Tell `listener` after each change. Returns what stops that. */
   subscribe(listener: (model: Model) => void): () => void;
@@ -127,7 +127,7 @@ const startingModel = (homes: HomeLookup | undefined): Model => ({
   homes,
 });
 
-export async function createConsoleState(options: ConsoleStateOptions): Promise<ConsoleState> {
+export async function createClientState(options: ClientStateOptions): Promise<ClientState> {
   const link = await keepGateway({ dial: options.dial, token: options.token, ...(options.backoff === undefined ? {} : { backoff: options.backoff }) });
   const held = createHoldings(link, () => store.changed());
   const store = createStore(startingModel(options.homes), {
