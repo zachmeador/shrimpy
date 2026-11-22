@@ -52,8 +52,9 @@ const RIGHT = "\u001b[C";
 const ENTER = "\r";
 const BACKSPACE = "\u007f";
 const ESC = "\u001b";
-/** What a terminal that reports keys being let go sends when Left is. */
+/** What a terminal that reports keys being let go sends when Left is, and when Esc is. */
 const LEFT_RELEASED = "\u001b[1;1:3D";
+const ESC_RELEASED = "\u001b[27;1:3u";
 const TAB = "\t";
 const CTRL_C = "\u0003";
 const CTRL_G = "\u0007";
@@ -180,6 +181,23 @@ test("Left moves through what is typed in a thread before it goes back, and what
   assert.deepEqual(sent(state), [], "and nothing was sent");
 });
 
+test("Esc goes back from a thread whatever is typed, and what was typed is there when the thread is opened again", (t) => {
+  const { terminal, state, lines, screen } = start(t, inThread("th_1"));
+  terminal.type("half a line");
+  terminal.type(LEFT);
+  terminal.type(ESC);
+  assert.equal(screen()?.kind, "threads", "esc went back with the cursor in the middle of what was typed");
+
+  state.show(inThread("th_2"));
+  assert.ok(!lines().some((line) => line.includes("half a line")), "another thread's input is empty");
+  state.show(inThread("th_1"));
+  assert.ok(shows(lines(), "half a line"), "and the first thread's is as it was left");
+  terminal.type(ESC);
+  terminal.type(ESC);
+  assert.equal(screen()?.kind, "agents", "from a list, esc goes back to the agents and rooms");
+  assert.deepEqual(sent(state), [], "and nothing was sent");
+});
+
 test("Tab is the other view of where you are: everything or yours on an agent's list, and in a thread each agent's view in turn", (t) => {
   const rooms = { ch_2: aRoom("ops", ["scout", "mechanic"], [aThread("th_9", { preview: "the bench", channelId: "ch_2" })]) };
   const elsewhere = aSession("th_9", { place: { kind: "room", room: "ops", thread: { main: false, name: "the bench" } } });
@@ -244,7 +262,7 @@ test("the levels stand side by side as the width allows, and Ctrl+\\ puts them b
   assert.equal(screen()?.kind, "threads", "with the keys where they were");
 });
 
-test("Ctrl+G opens the list of every key, Esc closes it, and Esc does nothing else", (t) => {
+test("Ctrl+G opens the list of every key, and Esc closes it before it goes back", (t) => {
   const { terminal, state, lines, screen } = start(t, inThread("th_1"));
   const drawn = (): string => lines().join("\n");
   terminal.type("kept");
@@ -255,9 +273,10 @@ test("Ctrl+G opens the list of every key, Esc closes it, and Esc does nothing el
   assert.deepEqual(state.calls, [], "while it is open, the keys act on nothing behind it");
   terminal.type(ESC);
   assert.ok(!drawn().includes("ctrl+shift+f"), "esc closed it");
-  terminal.type(ESC);
-  assert.equal(screen()?.kind, "thread", "and esc after it does nothing");
+  assert.equal(screen()?.kind, "thread", "and only closed it");
   assert.ok(shows(lines(), "kept"));
+  terminal.type(ESC);
+  assert.equal(screen()?.kind, "threads", "the next esc goes back");
   assert.deepEqual(state.calls, []);
 });
 
@@ -286,8 +305,10 @@ test("a slash opens the list of commands, which typing narrows and Esc closes", 
   terminal.type(ESC);
   assert.ok(!drawn().includes(lineOf("/stop")), "escape closes the list");
   assert.ok(shows(lines(), "/sto"), "and leaves the text as it was");
+  assert.deepEqual(state.calls, [], "without leaving the thread");
+  assert.equal(screen()?.kind, "thread");
   terminal.type(ESC);
-  assert.equal(screen()?.kind, "thread", "the next escape does nothing");
+  assert.equal(screen()?.kind, "threads", "the next escape goes back");
   assert.deepEqual(state.calls, []);
 });
 
@@ -456,7 +477,7 @@ test("in a room /model is posted only with an agent named before it", async (t) 
   assert.ok(!state.calls.includes("model"), "and /model alone is not answered there");
 });
 
-test("Left goes back from a thread where the agent is working, and stops nothing", (t) => {
+test("Esc and Left go back from a thread where the agent is working, and stop nothing", (t) => {
   const busy = aThread("th_1", { preview: "go", working: [{ memberId: scout.id, since: now }] });
   const model = onThread("scout", busy, aThreadView(busy, []), {
     behind: { [scout.id]: workingView([userItem("go"), toolItem("bash", { args: { command: "ls" } })], { kind: "tool", name: "bash" }) },
@@ -464,10 +485,14 @@ test("Left goes back from a thread where the agent is working, and stops nothing
   const { terminal, state, drawn, screen } = start(t, model, { columns: 100 });
   assert.ok(drawn().includes("/stop"), "the line that says the agent is working says how to stop it");
 
+  terminal.type(ESC);
+  terminal.type(ESC_RELEASED);
+  assert.equal(screen()?.kind, "threads", "a press is one press, whether or not the terminal reports the key being let go");
+  terminal.type(RIGHT);
   terminal.type(LEFT);
-
   assert.equal(screen()?.kind, "threads");
-  assert.deepEqual(state.calls, [], "and nothing is stopped");
+
+  assert.deepEqual(state.calls, ["open th_1"], "and nothing is stopped");
 });
 
 test("Ctrl+O shows tool calls in full and Ctrl+T the thinking, and each press again puts it back", (t) => {

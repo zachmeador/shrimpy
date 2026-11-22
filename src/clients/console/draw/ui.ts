@@ -85,7 +85,8 @@ const COLORS_MS = 400;
  * types to the state. The levels stand side by side as the width allows, the
  * keys are in one of them, and going back is the console's own: Right and
  * Enter open what is chosen, Left goes back, through what is typed first in a
- * thread, and Tab is the other view of where the keys are. Everything is drawn
+ * thread, Esc goes back whatever is typed, and Tab is the other view of where
+ * the keys are. Everything is drawn
  * again from the state's model after each change, and the screen scrolls,
  * selects and searches as pi-tui's whole screen does.
  */
@@ -287,7 +288,8 @@ export function startDrawing(options: DrawingOptions): Drawing {
   const keysLine = new KeysLine(frame, () => {
     if (waitingForSecondPress) return "quit-again";
     if (keys !== undefined) return [CLOSE_KEYS];
-    return keyHints({ send: current.can.send, choose: current.can.choose, back: current.can.back, first: frame.front === "agents" });
+    const typed = current.can.send && editor.getText() !== "";
+    return keyHints({ send: current.can.send, choose: current.can.choose, back: current.can.back, typed, first: frame.front === "agents" });
   });
   const levelsShown = (count: 1 | 2 | 3) => (viewport: { width: number }) => levelsAt(viewport.width, frame.folded) === count;
   tui.setLayoutRoot(
@@ -440,6 +442,12 @@ export function startDrawing(options: DrawingOptions): Drawing {
     update();
   }
 
+  /** Go back a level, from what is open to its list and from a list to the agents and rooms. */
+  function back(): void {
+    if (frame.front === "item") go("list");
+    else if (frame.front === "list") go("agents");
+  }
+
   /** What a key does where the keys are in a list. */
   function onList(data: string): void {
     if (matchesKey(data, "up") || matchesKey(data, "down")) choose(matchesKey(data, "up") ? -1 : 1);
@@ -447,7 +455,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
       const { rows, chosen } = inFront();
       const row = rows.find((each) => rowKey(each) === chosen);
       if (row !== undefined) open(row);
-    } else if (matchesKey(data, "left") && frame.front === "list") go("agents");
+    } else if (matchesKey(data, "left")) back();
     else if (matchesKey(data, "tab") && frame.front === "list" && frame.levels.list?.ofAgent === true) {
       setFilter(frame.filter === "everything" ? "yours" : "everything");
     }
@@ -498,8 +506,12 @@ export function startDrawing(options: DrawingOptions): Drawing {
       update();
       return { consume: true };
     }
-    // Esc closes the list of commands, which the editor does, and does nothing else.
-    if (matchesKey(data, "escape")) return editor.isShowingAutocomplete() ? undefined : { consume: true };
+    // Esc closes the list of commands, which the editor does, and otherwise goes back a level, whatever is typed.
+    if (matchesKey(data, "escape")) {
+      if (frame.front === "item" && editor.isShowingAutocomplete()) return undefined;
+      back();
+      return { consume: true };
+    }
     if (frame.front !== "item") {
       onList(data);
       return { consume: true };
@@ -514,7 +526,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
       // Left crosses what is typed first, and goes back from its start.
       const { line, col } = editor.getCursor();
       if (writable(frame) && (line > 0 || col > 0)) return undefined;
-      go("list");
+      back();
       return { consume: true };
     }
     return undefined;

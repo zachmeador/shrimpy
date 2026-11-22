@@ -19,18 +19,24 @@ export interface Moves {
   send: boolean;
   /** There are rows to choose and open. */
   choose: boolean;
-  /** Left goes back a level. */
+  /** Left and Esc go back a level. */
   back: boolean;
+  /** Something is typed in the input, which Left crosses before it goes back. */
+  typed: boolean;
   /** The keys are in the first level, where Ctrl+D is how to leave. */
   first: boolean;
 }
 
-/** The last line: the keys that move you from where the keys are, then the list of every key. */
+/**
+ * The last line: the keys that move you from where the keys are, then the list
+ * of every key. While something is typed, the key that goes back at once is
+ * Esc, since Left crosses what is typed first.
+ */
 export function keyHints(moves: Moves): Hint[] {
   const hints: Hint[] = [];
   if (moves.send) hints.push(["enter", "send"], ["/", "commands"]);
   if (moves.choose) hints.push(["↑↓", "choose"], ["→", "open"]);
-  if (moves.back) hints.push(["←", "back"]);
+  if (moves.back) hints.push([moves.typed ? "esc" : "←", "back"]);
   hints.push(["ctrl+g", "keys"]);
   if (moves.first) hints.push(["ctrl+d", "quit"]);
   return hints;
@@ -49,7 +55,7 @@ export const ALL_KEYS: readonly (readonly [group: string, keys: readonly Hint[]]
     [
       ["↑ ↓", "choose"],
       ["→", "open what is chosen"],
-      ["←", "back a level"],
+      ["← esc", "back a level"],
       ["tab", "the other view: yours, or the agent's"],
       ["ctrl+n", "a new thread"],
     ],
@@ -58,7 +64,8 @@ export const ALL_KEYS: readonly (readonly [group: string, keys: readonly Hint[]]
     "in a thread",
     [
       ["enter", "send what is typed"],
-      ["←", "back, once the cursor is at the start"],
+      ["←", "through what is typed, then back"],
+      ["esc", "back, whatever is typed"],
       ["/", "commands, and esc closes their list"],
       ["ctrl+o", "tool calls in full, and back to brief"],
       ["ctrl+t", "thinking in full, and back to brief"],
