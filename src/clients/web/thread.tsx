@@ -68,7 +68,7 @@ function Words({ row }: { row: MessageRow }) {
 function Message({ row, cont }: { row: MessageRow; cont: boolean }) {
   return (
     <>
-      {row.firstNew && <div class="mark new">{NEW_SINCE.web}</div>}
+      {row.firstNew && <div class="mark new">{NEW_SINCE}</div>}
       <article class={`msg ${row.look === undefined ? "pg-you" : `pg-${row.look.pigment}`}${cont ? " cont" : ""}`}>
         {cont ? <span /> : <Sigil look={row.look} />}
         <div>

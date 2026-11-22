@@ -26,6 +26,7 @@ export {
   type AgentEntry,
   agentEntries,
   agentNameOf,
+  agentRuns,
   agentOfList,
   type AgentRead,
   type AgentStatus,

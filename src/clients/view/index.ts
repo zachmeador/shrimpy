@@ -57,6 +57,7 @@ export {
   moreWakeups,
   moreWakeupsListed,
   NEW_SINCE,
+  NEW_SINCE_SHORT,
   nextTry,
   notificationTitle,
   OUT_OF_DATE,

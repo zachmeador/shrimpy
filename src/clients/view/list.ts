@@ -1,7 +1,7 @@
 import { placeLabel, threadName, YOUR_DM } from "../../contracts/agent/index.ts";
-import { memberNames, notTalkedTo, threadTags, titleOf } from "../../contracts/chat/index.ts";
+import { notTalkedTo, threadTags, titleOf } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
-import { agentEntries, agentNameOf, type Model, type Part, partsOf, type Place } from "../state/index.ts";
+import { agentEntries, agentNameOf, agentRuns, type Model, type Part, partsOf, type Place } from "../state/index.ts";
 import { agentAbout } from "./agents.ts";
 import { type LevelOptions, lookingAt, type Row } from "./level.ts";
 import { type Look, lookOf } from "./look.ts";
@@ -11,13 +11,13 @@ import {
   ADMIN_TAG,
   agentFacts,
   type ListFilter,
+  membersLine,
   noTriggers,
   notRunning,
   PICK_LIST,
   PICK_THREAD,
   pickOrStart,
   READ_ONLY_TAG,
-  readOnlyDetail,
   thenStart,
 } from "./words.ts";
 
@@ -39,8 +39,7 @@ export interface ListLevel {
   tag: string | undefined;
   /**
    * The line under the name: for an agent, how it stands, as the agents and
-   * rooms say it; for a room, that the person only reads it, when they do, and
-   * every member by name, the person among them.
+   * rooms say it; for a room, every member by name, the person among them.
    */
   about: string;
   /** The agent whose list it is works somewhere, and what is shown is not out of date. */
@@ -77,9 +76,6 @@ export function listLevel(model: Model, options: ListOptions): ListLevel | undef
   return list.kind === "agent" ? agentList(model, list.id, options.filter ?? "everything", options) : channelList(model, list, options);
 }
 
-/** Whether the agent with member ID `id` is linked to the gateway, as the roster and the gateway say. */
-const runs = (model: Model, id: string): boolean => agentEntries(model).some((entry) => entry.id === id && entry.running);
-
 /** The threads of a room the person is in, or of a room they only read. */
 function channelList(model: Model, place: Exclude<Place, { kind: "agent" }>, options: LevelOptions): ListLevel {
   const here = lookingAt(model, place);
@@ -106,7 +102,7 @@ function channelList(model: Model, place: Exclude<Place, { kind: "agent" }>, opt
     label: here.label,
     name: oneLine(here.name),
     tag: reading ? READ_ONLY_TAG : undefined,
-    about: reading ? readOnlyDetail({ members }) : memberNames(members).join(", "),
+    about: membersLine(members),
     working: false,
     facts: undefined,
     look: undefined,
@@ -234,7 +230,7 @@ export function nothingOpen(model: Model, key: string): NothingOpen | undefined 
   if (list.kind === "read-only") return { said: PICK_THREAD, start: "none" };
   if (list.kind === "room") return { said: pickOrStart(key), start: "beside" };
   const name = agentNameOf(model, list.id);
-  if (!runs(model, list.id)) return { said: notRunning(name), start: "none" };
+  if (!agentRuns(model, list.id)) return { said: notRunning(name), start: "none" };
   return partsOf(model, list.id).some((part) => part.yours)
     ? { said: pickOrStart(key), start: "beside" }
     : { said: thenStart(notTalkedTo(name), key), start: "instead" };

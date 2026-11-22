@@ -1,7 +1,7 @@
 import { placeLabel, YOUR_DM } from "../../contracts/agent/index.ts";
 import { titleOf } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
-import { agentEntries, agentNameOf, type Model, type Place, type SessionView, sidesOf } from "../state/index.ts";
+import { agentNameOf, agentRuns, type Model, type Place, type SessionView, sidesOf } from "../state/index.ts";
 import { BRIEF, type LevelOptions, type Looking, lookingAt, OUTPUT_LINES } from "./level.ts";
 import { type Look, lookOf } from "./look.ts";
 import { type About, notesOf } from "./notes.ts";
@@ -110,8 +110,7 @@ function sessionOf(
 
   let foot: string | undefined;
   if (frame.turned) {
-    const running = agentEntries(model).find((entry) => entry.id === agentId)?.running === true;
-    foot = !running ? NOT_RUNNING : view === undefined ? undefined : sessionFoot(view.status, busy);
+    foot = !agentRuns(model, agentId) ? NOT_RUNNING : view === undefined ? undefined : sessionFoot(view.status, busy);
   }
 
   const who = oneLine(name);

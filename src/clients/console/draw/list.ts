@@ -50,7 +50,8 @@ export function drawList(frame: Frame, width: number, height: number, notes: rea
     }
   } else {
     lines.push({ text: spread(paint, [[" ", "ink"], [list.label, { tone: "ink", bold: true }]], start, width) });
-    lines.push({ text: spread(paint, [[" ", "ink"], [list.about, "ink3"]], [], width) });
+    const about = [list.tag, list.about].filter((part) => part !== undefined).join(" · ");
+    lines.push({ text: spread(paint, [[" ", "ink"], [about, "ink3"]], [], width) });
     lines.push({ text: "" });
   }
 

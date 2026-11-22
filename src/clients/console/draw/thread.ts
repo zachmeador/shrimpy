@@ -1,22 +1,11 @@
-import {
-  type Component,
-  type Editor,
-  stripTerminalSequences,
-  type TuiMouseEvent,
-  type TuiMouseEventResult,
-  visibleWidth,
-  wrapTextWithAnsi,
-} from "@earendil-works/pi-tui";
+import { type Component, type Editor, stripTerminalSequences, type TuiMouseEvent, type TuiMouseEventResult, visibleWidth } from "@earendil-works/pi-tui";
 import { halves, SHRIMP } from "../../look/index.ts";
 import { moreWakeupsListed, OUT_OF_DATE_MARK } from "../../view/index.ts";
-import { type Ground, type Paint, role, type Run, type Tone } from "./paint.ts";
+import { type Ground, role, type Run, type Tone } from "./paint.ts";
 import { hint, noteRuns, saidRuns, spread } from "./rows.ts";
 import { type Frame, MEASURE, notesFor, sides, writable } from "./screen.ts";
 import { messageLines, type Prose, sessionLines, workLines, wrap } from "./steps.ts";
 import { turnHint } from "./words.ts";
-
-/** Runs wrapped to `width`. */
-const wrapRuns = (paint: Paint, runs: readonly Run[], width: number): string[] => wrapTextWithAnsi(paint.runs(runs), Math.max(1, width));
 
 /** The shrimp that walks while an agent works, one frame after another. */
 const WALK = ["🦐  ", " 🦐 ", "  🦐", " 🦐 "];
@@ -130,7 +119,7 @@ export class Conversation implements Component {
     const session = levels.session;
     const thread = levels.thread;
     const lead = session?.lead ?? thread?.lead;
-    if (lead !== undefined) lines.push("", ...wrapRuns(paint, saidRuns(lead, "ink3", role("code")), mx));
+    if (lead !== undefined) lines.push("", ...wrap(paint, saidRuns(lead, "ink3", role("code")), mx));
     if (session !== undefined) {
       lines.push(...sessionLines(paint, this.#prose, session.steps, mx, inFull));
     } else if (thread !== undefined) {
@@ -194,7 +183,7 @@ export class Dock implements Component {
     const mx = measure(width);
     const lines: string[] = [];
     const one = (runs: readonly Run[], right: readonly Run[] = []): void => void lines.push(spread(paint, runs, right, mx + 1));
-    for (const note of notesFor(frame, "item")) lines.push(...wrapRuns(paint, noteRuns(note), mx));
+    for (const note of notesFor(frame, "item")) lines.push(...wrap(paint, noteRuns(note), mx));
     const walking = WALK[frame.tick % WALK.length] ?? "";
     if (item.kind === "thread" && levels.thread !== undefined) {
       const thread = levels.thread;
@@ -211,7 +200,7 @@ export class Dock implements Component {
       for (const queued of thread.queued) one([[queued, "ink3"]]);
       const [soonest, ...more] = thread.waiting;
       if (soonest !== undefined) one([["◷ ", "ink3"], [soonest.line, "ink3"]], more.length > 0 ? [[moreWakeupsListed(more.length), "ink2"]] : []);
-      if (thread.readOnly !== undefined) lines.push(...wrapRuns(paint, saidRuns(thread.readOnly, "ink3", role("code")), mx));
+      if (thread.readOnly !== undefined) lines.push(...wrap(paint, saidRuns(thread.readOnly, "ink3", role("code")), mx));
       // While chat is lost the input goes, and a blank line stands where it was.
       else if (thread.writable && !writable(frame)) lines.push("");
     }

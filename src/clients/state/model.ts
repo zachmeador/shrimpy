@@ -395,6 +395,11 @@ function workingElsewhere(sessions: SessionSummary[], dm: ChannelThreads | undef
   return sessions.filter((session) => session.working && (session.threadId === null || !yours.has(session.threadId)));
 }
 
+/** Whether the agent with member ID `id` is linked to the gateway now. */
+export function agentRuns(model: Pick<Model, "listing">, id: string): boolean {
+  return model.listing?.programs.some((program) => program.kind === "agent" && program.member === id) ?? false;
+}
+
 /**
  * The agents on the roster, by name, running or not, with whether each is
  * working, in a thread of the person's, as chat marks, or in any session, as the

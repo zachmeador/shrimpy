@@ -66,14 +66,14 @@ export interface Mention {
 }
 
 /** A text in parts: what it says, and each `@name` of an agent it mentions, where it says it. */
-export type Said = string | { mention: string; look: Look };
+export type TextPart = string | { mention: string; look: Look };
 
 /** `text` in parts, with each `@name` of `mentions` set apart as chat finds it, so that a client marks what chat counted as a mention. */
-export function withMentions(text: string, mentions: readonly Mention[]): Said[] {
+export function withMentions(text: string, mentions: readonly Mention[]): TextPart[] {
   const found = mentions
     .flatMap(({ name, look }) => mentionsOf(text, name).map((span) => ({ ...span, look })))
     .sort((a, b) => a.start - b.start || b.end - a.end);
-  const parts: Said[] = [];
+  const parts: TextPart[] = [];
   let at = 0;
   for (const { start, end, look } of found) {
     if (start < at) continue;

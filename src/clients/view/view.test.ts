@@ -176,7 +176,8 @@ test("a running agent's list names its default model and its version, and an age
   const list = (model: Model): ListLevel | undefined => listLevel(model, at);
 
   // The only agent's list is opened by itself.
-  const running = await rig.until((model) => list(model)?.facts === `local/test-model · Shrimpy ${SHRIMPY_VERSION}`, "crab's model and version");
+  const named = (facts: string | undefined): boolean => facts !== undefined && facts.includes("local/test-model") && facts.includes(SHRIMPY_VERSION);
+  const running = await rig.until((model) => named(list(model)?.facts), "crab's model and version");
   assert.deepEqual([list(running)?.off, list(running)?.startable], [false, true]);
 
   await crab.kill();

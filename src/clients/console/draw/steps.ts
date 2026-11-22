@@ -7,7 +7,7 @@ import {
   type Look,
   type Mention,
   type MessageRow,
-  NEW_SINCE,
+  NEW_SINCE_SHORT,
   OUT_OF_DATE_MARK,
   reactionsLine,
   type Step,
@@ -122,9 +122,9 @@ export class Prose {
   }
 }
 
-/** Plain text wrapped to `width`, in a style. */
-export const wrap = (paint: Paint, text: string, width: number, style: Style | Tone): string[] =>
-  wrapTextWithAnsi(paint.text(text, style), Math.max(1, width));
+/** Plain text in a style, or runs, wrapped to `width`. */
+export const wrap = (paint: Paint, text: string | readonly Run[], width: number, style: Style | Tone = "ink"): string[] =>
+  wrapTextWithAnsi(typeof text === "string" ? paint.text(text, style) : paint.runs(text), Math.max(1, width));
 
 /** Lines moved `cells` in. */
 const indent = (lines: readonly string[], cells: number): string[] => lines.map((line) => `${" ".repeat(cells)}${line}`);
@@ -137,7 +137,7 @@ function saidLines(paint: Paint, prose: Prose, row: MessageRow, width: number): 
   if (row.deleted) return wrap(paint, row.text, width, "ink3");
   if (row.command) return wrap(paint, row.text, width, role("code"));
   if (row.agent) return prose.lines(paint, row.text, width, row.mentions);
-  return wrapTextWithAnsi(paint.runs(mentionRuns(row.text, row.mentions, "ink")), Math.max(1, width));
+  return wrap(paint, mentionRuns(row.text, row.mentions, "ink"), width);
 }
 
 /**
@@ -153,7 +153,7 @@ export function messageLines(paint: Paint, prose: Prose, row: MessageRow, width:
   const head: Run[] = [[row.who, who], [`  ${row.when}`, "ink3"]];
   if (row.edited !== undefined) head.push([`  ${row.edited}`, "ink3"]);
   const inner = width - 2;
-  const mark = `┈┈┈ ${NEW_SINCE.terminal} `;
+  const mark = `┈┈┈ ${NEW_SINCE_SHORT} `;
   const fresh = row.firstNew ? ["", paint.text(`${mark}${"┈".repeat(Math.max(0, width - visibleWidth(mark)))}`, role("fresh"))] : [];
   const lines = [...fresh, "", oneOf(paint, head, width), ...indent(row.text === "" && !row.deleted ? [] : saidLines(paint, prose, row, inner), 2)];
   if (row.reactions.length > 0) lines.push(...indent(wrap(paint, reactionsLine(row.reactions), inner, "ink3"), 2));

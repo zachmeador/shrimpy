@@ -246,8 +246,10 @@ export const reactedBy = (names: string[]): string => names.join(", ");
 /** The emoji on a message and who put each there, on one line, as the terminal says them. */
 export const reactionsLine = (reactions: readonly { emoji: string; by: string }[]): string => reactions.map(({ emoji, by }) => `${emoji} ${by}`).join("  ");
 
-/** The line before the first message that was new to the person when they opened the thread: the web client's words, and the terminal's. */
-export const NEW_SINCE = { web: "while you were away", terminal: "new" } as const;
+/** What stands before the first message that was new to the person when they opened the thread, on a line of its own. */
+export const NEW_SINCE = "while you were away";
+/** The same in a word, for where it stands inside a rule. */
+export const NEW_SINCE_SHORT = "new";
 
 /** The line under Shrimpy's wordmark: its version, then the release's name, in two parts so that a client can set the name apart. */
 export const versionLine = (): [lead: string, release: string] => [`${SHRIMPY_VERSION} · `, SHRIMPY_RELEASE_NAME];
@@ -312,6 +314,7 @@ export const SESSION_EMPTY = "Nothing in this session yet.";
 export const SHOWN = "shown";
 /** Where the session behind a thread is, as its agent's view names it: the place as the agent's list says it, then "main" for the main thread, or the thread's title. */
 export const behindThread = (place: string, main: boolean, title: string): string => `${place} · ${main ? "main" : oneLine(title)}`;
+/** That an agent is not linked to the gateway, wherever it is said in a word. */
 export const NOT_RUNNING = "not running";
 /** Under an agent's view: what the session is doing, how many inputs wait, its model and what it has used. `busy` says it is working. */
 export function sessionFoot(status: SessionStatus, busy: boolean): string {
@@ -488,7 +491,7 @@ export function stopCancelsAll(count: number, where: "dm" | "room", agent: strin
 /** What `/status` read about an agent in its DM, one thing to a line. */
 export function agentStatusRows(status: AgentStatus): string[] {
   const name = oneLine(status.name);
-  const rows = [status.running ? `${name} · Shrimpy ${oneLine(status.version ?? "")} · running` : `${name} · not running`];
+  const rows = [status.running ? `${name} · Shrimpy ${oneLine(status.version ?? "")} · running` : `${name} · ${NOT_RUNNING}`];
   if (status.doing !== undefined) rows.push(`Doing now: ${activityWords(status.doing)}`);
   if (!status.reached) {
     if (status.running) rows.push(`Not connected to ${name} just now, so its inputs, model and usage are not shown.`);
@@ -540,7 +543,7 @@ export function roomStatusRows(status: RoomStatus): string[] {
       ? ["No agent is in this room."]
       : status.agents.map(
           (agent) =>
-            `${oneLine(agent.name)} · ${agent.running ? "running" : "not running"} · ${agent.working ? "working in this thread" : "not working in this thread"}`,
+            `${oneLine(agent.name)} · ${agent.running ? "running" : NOT_RUNNING} · ${agent.working ? "working in this thread" : "not working in this thread"}`,
         );
   for (const { agent, wakeup } of status.wakeups) rows.push(wakeupLine(agent, wakeup, localTime(wakeup.due), false));
   const [first] = status.wakeups;

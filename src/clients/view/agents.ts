@@ -1,11 +1,11 @@
-import { channelLabel, memberNames, roomLabel } from "../../contracts/chat/index.ts";
+import { channelLabel, roomLabel } from "../../contracts/chat/index.ts";
 import { NO_AGENT_YET } from "../../contracts/gateway/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { type AgentEntry, agentEntries, type Model, readOnlyEntries, roomEntries } from "../state/index.ts";
 import type { LevelOptions, Row } from "./level.ts";
 import { lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
-import { agentDetail, agentsTitle, readOnlyDetail } from "./words.ts";
+import { agentDetail, agentsTitle, membersLine, NOT_RUNNING, readOnlyDetail } from "./words.ts";
 
 /** The first level: the agents on the roster, running or not, the rooms the person is in, and the rooms they only read. */
 export interface AgentsLevel {
@@ -26,7 +26,7 @@ export interface AgentsLevel {
 
 /** How an agent stands, as its row and its list say it: idle or working, and where, or that it is not running. */
 export function agentAbout(entry: AgentEntry, me: string | undefined): string {
-  return entry.running ? agentDetail(entry.sessions, entry.elsewhere, me) : "not running";
+  return entry.running ? agentDetail(entry.sessions, entry.elsewhere, me) : NOT_RUNNING;
 }
 
 /** The agents and rooms, as plain text and facts. */
@@ -50,7 +50,7 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
     label: roomLabel(entry.name),
     name: oneLine(entry.name),
     tags: [],
-    detail: memberNames(entry.members).join(", "),
+    detail: membersLine(entry.members),
     working: entry.working && !stale,
     unread: entry.unread,
     yours: false,
