@@ -1,5 +1,5 @@
-import type { AgentModels } from "../../../contracts/agent/index.ts";
-import { nameKey, valueOf } from "../../../contracts/gateway/index.ts";
+import type { AgentModels } from "../../contracts/agent/index.ts";
+import { nameKey, valueOf } from "../../contracts/gateway/index.ts";
 import { type AgentCalls, type AgentShown, Down, type Holding, problemOf } from "../network/index.ts";
 import type { Holdings } from "./holdings.ts";
 import type { Notice } from "./model.ts";

@@ -1,5 +1,5 @@
 import { type Component, Spacer, Text } from "@earendil-works/pi-tui";
-import type { SessionScreen, Step } from "../screen/index.ts";
+import type { SessionScreen, Step } from "../../view/index.ts";
 import type { Theme } from "./theme.ts";
 import { stepComponent } from "./work.ts";
 

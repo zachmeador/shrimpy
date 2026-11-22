@@ -1,5 +1,5 @@
 import { SelectList } from "@earendil-works/pi-tui";
-import type { Row } from "../screen/index.ts";
+import type { Row } from "../../view/index.ts";
 import type { Theme } from "./theme.ts";
 
 export interface ListOptions {

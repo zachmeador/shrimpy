@@ -1,4 +1,4 @@
-import { createListeners } from "../../../lib/listeners/index.ts";
+import { createListeners } from "../../lib/listeners/index.ts";
 import type { Model, Notice } from "./model.ts";
 
 /** The model as it stands, changed in one way, and whoever is told of each change. */

@@ -1,4 +1,4 @@
-import { placeLabel, threadLabel, YOUR_DM } from "../../../contracts/agent/index.ts";
+import { placeLabel, threadLabel, YOUR_DM } from "../../contracts/agent/index.ts";
 import {
   type Channel,
   channelLabel,
@@ -10,9 +10,9 @@ import {
   taggedTitle,
   type Thread,
   titleOf,
-} from "../../../contracts/chat/index.ts";
-import { NO_AGENT_YET } from "../../../contracts/gateway/index.ts";
-import { oneLine, plain } from "../../../lib/plain/index.ts";
+} from "../../contracts/chat/index.ts";
+import { NO_AGENT_YET } from "../../contracts/gateway/index.ts";
+import { oneLine, plain } from "../../lib/plain/index.ts";
 import {
   agentEntries,
   agentNameOf,

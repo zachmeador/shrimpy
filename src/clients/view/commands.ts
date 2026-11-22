@@ -1,6 +1,6 @@
-import { type AgentModels, modelWords } from "../../../contracts/agent/index.ts";
-import { AGENT_COMMANDS, type AgentCommand } from "../../../contracts/chat/index.ts";
-import { oneLine } from "../../../lib/plain/index.ts";
+import { type AgentModels, modelWords } from "../../contracts/agent/index.ts";
+import { AGENT_COMMANDS, type AgentCommand } from "../../contracts/chat/index.ts";
+import { oneLine } from "../../lib/plain/index.ts";
 import type { Notice } from "../state/index.ts";
 import { defaultModelLine, MODEL_DEFAULT, TERMINAL_COMMANDS, type TerminalCommand } from "./words.ts";
 

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { valueOf } from "../../../contracts/gateway/index.ts";
+import { valueOf } from "../../contracts/gateway/index.ts";
 import { Down, problemOf } from "../network/index.ts";
 import type { Holdings } from "./holdings.ts";
 import { type AgentEntry, agentEntries, type Model, type Place } from "./model.ts";

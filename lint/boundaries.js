@@ -6,6 +6,10 @@ import { isBuiltin } from "node:module";
 import { posix } from "node:path";
 
 const PROGRAMS = ["agent", "chat", "gateway", "clients/console", "clients/web", "cli"];
+/** The two clients, which never import each other. */
+const CLIENTS = ["clients/console", "clients/web"];
+/** What both clients share, in the order they import each other: each imports only those before it. */
+const CLIENT_SHARED = ["clients/network", "clients/state", "clients/view"];
 /** The directories that only group modules, and so have no door: the top of src/, contracts/, lib/ and clients/. */
 const GROUPS = [".", "contracts", "lib", "clients"];
 /** The agent's modules in tiers. A module imports only from the tiers before its own, so imports point one way. */
@@ -32,7 +36,7 @@ const CHORD_MODULES = [
   "gateway/served/",
   "chat/served/",
   "agent/links/",
-  "clients/console/network/",
+  "clients/network/",
   "cli/talk/",
 ];
 /**
@@ -67,6 +71,7 @@ const messages = {
     "This file sits inside {{module}}/ and can't reach its files, such as {{target}}: give what both need a directory of its own, with a front door.",
   program:
     "{{from}}/ must not import {{target}}: programs share only contracts/ and lib/.",
+  client: `{{from}}/ must not import {{target}}: the clients share only ${listed([...CLIENT_SHARED, "contracts", "lib"].map((each) => `${each}/`))}.`,
   cliStarts:
     "{{from}} can't import {{target}}: the CLI imports a program's front door only to start it, preview a home or sign in, from the files CLI_STARTS names in lint/boundaries.js. Take what this file needs from contracts/ or lib/.",
   shared: "{{from}}/ may import only {{allowed}}, not {{target}}.",
@@ -232,6 +237,18 @@ function checkRelative(from, specifier) {
     };
   }
   if (targetOwner === "contracts" || targetOwner === "lib") return undefined;
+  // What both clients share imports only what comes before it in CLIENT_SHARED, and never a client.
+  const shared = CLIENT_SHARED.indexOf(owner);
+  if (shared !== -1) {
+    const before = CLIENT_SHARED.slice(0, shared);
+    if (before.includes(targetOwner)) return undefined;
+    const allowed = listed([...before, "contracts", "lib"].map((each) => `${each}/`));
+    return { messageId: "shared", data: { from: owner, allowed, target } };
+  }
+  if (CLIENTS.includes(owner)) {
+    if (CLIENT_SHARED.includes(targetOwner)) return undefined;
+    if (CLIENTS.includes(targetOwner)) return { messageId: "client", data: { from: owner, target } };
+  }
   // The CLI starts programs: the files CLI_STARTS names may import the front door of the program each starts.
   if (owner === "cli" && PROGRAMS.includes(targetOwner) && target === `${targetOwner}/index.ts`) {
     return CLI_STARTS.get(from) === targetOwner ? undefined : { messageId: "cliStarts", data: { from, target } };

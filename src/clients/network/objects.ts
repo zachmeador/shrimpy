@@ -7,8 +7,8 @@ import {
   type SessionPage,
   type SessionStatus,
   type SessionSummary,
-} from "../../../contracts/agent/index.ts";
-import { Channel, Chat, type Member, type Message, Thread } from "../../../contracts/chat/index.ts";
+} from "../../contracts/agent/index.ts";
+import { Channel, Chat, type Member, type Message, Thread } from "../../contracts/chat/index.ts";
 import {
   type Answer,
   contextOf,
@@ -18,7 +18,7 @@ import {
   Roster,
   type RosterEntry,
   type WayIn,
-} from "../../../contracts/gateway/index.ts";
+} from "../../contracts/gateway/index.ts";
 import { follow } from "./held.ts";
 import type { GatewayLink } from "./link.ts";
 import { type LinkStatus, statusOf } from "./status.ts";

@@ -1,5 +1,5 @@
-import type { ModelId, SessionActivity, SessionSummary } from "../../../contracts/agent/index.ts";
-import type { Thread } from "../../../contracts/chat/index.ts";
+import type { ModelId, SessionActivity, SessionSummary } from "../../contracts/agent/index.ts";
+import type { Thread } from "../../contracts/chat/index.ts";
 import { agentEntries, agentNameOf, type DevicesStatus, type Model, type Place, type Status, type Where, workingIn } from "./model.ts";
 
 /** The thread the person is in, as far as the console knows it: undefined for one that is not started. */

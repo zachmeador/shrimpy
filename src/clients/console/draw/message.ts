@@ -1,5 +1,5 @@
 import { type Component, Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
-import type { MessageRow } from "../screen/index.ts";
+import type { MessageRow } from "../../view/index.ts";
 import type { Theme } from "./theme.ts";
 
 /**

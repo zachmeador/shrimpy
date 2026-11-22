@@ -1,5 +1,5 @@
-import { MAX_READ, type SessionItem, type SessionPage } from "../../../contracts/agent/index.ts";
-import { valueOf } from "../../../contracts/gateway/index.ts";
+import { MAX_READ, type SessionItem, type SessionPage } from "../../contracts/agent/index.ts";
+import { valueOf } from "../../contracts/gateway/index.ts";
 import type { SessionCalls } from "../network/index.ts";
 import type { Holdings } from "./holdings.ts";
 import { watchedWhole, type Where } from "./model.ts";

@@ -16,7 +16,7 @@ import {
   usageWords,
   type WaitingWakeup,
   wakeupWords,
-} from "../../../contracts/agent/index.ts";
+} from "../../contracts/agent/index.ts";
 import {
   addToRoom,
   AGENT_COMMANDS,
@@ -27,12 +27,12 @@ import {
   memberNames,
   notTalkedTo,
   roomLabel,
-} from "../../../contracts/chat/index.ts";
-import { howToStartAgent, NO_CHAT_SERVER, NO_GATEWAY, versionWarning } from "../../../contracts/gateway/index.ts";
-import { oneLine } from "../../../lib/plain/index.ts";
-import { listed, shellWord, withoutPeriod } from "../../../lib/text/index.ts";
-import { localTime } from "../../../lib/time/index.ts";
-import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../../../lib/version/index.ts";
+} from "../../contracts/chat/index.ts";
+import { howToStartAgent, NO_CHAT_SERVER, NO_GATEWAY, versionWarning } from "../../contracts/gateway/index.ts";
+import { oneLine } from "../../lib/plain/index.ts";
+import { listed, shellWord, withoutPeriod } from "../../lib/text/index.ts";
+import { localTime } from "../../lib/time/index.ts";
+import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import type { Problem, Why } from "../network/index.ts";
 import type { AgentStatus, DevicesStatus, Notice, RoomStatus } from "../state/index.ts";
 import { shortLine } from "./cut.ts";

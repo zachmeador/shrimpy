@@ -1,6 +1,6 @@
-import type { AgentModels } from "../../../contracts/agent/index.ts";
-import type { DialPlace } from "../../../lib/link/node.ts";
-import type { Backoff } from "../../../lib/retry/index.ts";
+import type { AgentModels } from "../../contracts/agent/index.ts";
+import type { DialPlace } from "../../lib/link/node.ts";
+import type { Backoff } from "../../lib/retry/index.ts";
 import { CONNECTING, keepGateway } from "../network/index.ts";
 import { createAsking } from "./asking.ts";
 import { readBack } from "./history.ts";

@@ -1,7 +1,7 @@
-import { imageWords, markerWords, type SessionItem } from "../../../contracts/agent/index.ts";
-import { oneLine, plain } from "../../../lib/plain/index.ts";
+import { imageWords, markerWords, type SessionItem } from "../../contracts/agent/index.ts";
+import { oneLine, plain } from "../../lib/plain/index.ts";
 import type { SessionView } from "../state/index.ts";
-import { cutEnd } from "../../../lib/text/index.ts";
+import { cutEnd } from "../../lib/text/index.ts";
 import { countLines, lastCharacters, lastLines, shortLine } from "./cut.ts";
 import { answerNote, hiddenCharacters, hiddenLines, hiddenSteps, type InFull, moreCharacters, SHOWN, THINKING, toolStatus } from "./words.ts";
 

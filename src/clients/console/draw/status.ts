@@ -1,5 +1,5 @@
 import { type Component, Container, Spacer, Text } from "@earendil-works/pi-tui";
-import type { StatusBlock } from "../screen/index.ts";
+import type { StatusBlock } from "../../view/index.ts";
 import type { Theme } from "./theme.ts";
 
 /**

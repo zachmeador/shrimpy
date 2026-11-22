@@ -1,4 +1,4 @@
-import type { SessionItem } from "../../../contracts/agent/index.ts";
+import type { SessionItem } from "../../contracts/agent/index.ts";
 import {
   type AgentCalls,
   type AgentShown,

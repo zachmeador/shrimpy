@@ -1,8 +1,8 @@
-import type { SessionActivity, SessionItem, SessionStatus, SessionSummary } from "../../../../contracts/agent/index.ts";
-import { sessionStatus } from "../../../../contracts/agent/testing/index.ts";
-import type { Channel, Member, Message, Receipt, Thread } from "../../../../contracts/chat/index.ts";
-import type { Program, RosterEntry } from "../../../../contracts/gateway/index.ts";
-import { SHRIMPY_VERSION } from "../../../../lib/version/index.ts";
+import type { SessionActivity, SessionItem, SessionStatus, SessionSummary } from "../../../contracts/agent/index.ts";
+import { sessionStatus } from "../../../contracts/agent/testing/index.ts";
+import type { Channel, Member, Message, Receipt, Thread } from "../../../contracts/chat/index.ts";
+import type { Program, RosterEntry } from "../../../contracts/gateway/index.ts";
+import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import type { ChannelThreads, Model, SessionView, ThreadView } from "../index.ts";
 
 /** The person, as the roster would have them. */

@@ -1,5 +1,5 @@
 import { type AutocompleteItem, type AutocompleteProvider, visibleWidth } from "@earendil-works/pi-tui";
-import { type CommandLine, MODEL_DEFAULT, type ModelLine } from "../screen/index.ts";
+import { type CommandLine, MODEL_DEFAULT, type ModelLine } from "../../view/index.ts";
 
 /** What is before the cursor on the first line, when that is a slash and nothing after it but the word the cursor is at the end of. */
 const COMMAND_WORD = /^\s*(\/\S*)$/;

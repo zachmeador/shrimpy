@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_MESSAGE_LENGTH } from "../../../contracts/chat/index.ts";
-import { linkTestAgent, startTestGateway } from "../../../contracts/gateway/testing/index.ts";
-import { stopAfter, within } from "../../../lib/testing/index.ts";
+import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
+import { linkTestAgent, startTestGateway } from "../../contracts/gateway/testing/index.ts";
+import { stopAfter, within } from "../../lib/testing/index.ts";
 import { agentEntries, type Model } from "./index.ts";
 import { startRig } from "./testing/index.ts";
 

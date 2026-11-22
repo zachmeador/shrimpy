@@ -1,11 +1,11 @@
 import { createHost, type Host } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { Principal, Revocation } from "../../../contracts/gateway/index.ts";
-import { HelloRefusedError, keepLinked, UnprovenGatewayError } from "../../../contracts/gateway/node.ts";
-import { asError } from "../../../lib/errors/index.ts";
-import { type DialPlace, nobodyThere } from "../../../lib/link/node.ts";
-import { createListeners } from "../../../lib/listeners/index.ts";
-import type { Backoff } from "../../../lib/retry/index.ts";
+import type { Principal, Revocation } from "../../contracts/gateway/index.ts";
+import { HelloRefusedError, keepLinked, UnprovenGatewayError } from "../../contracts/gateway/node.ts";
+import { asError } from "../../lib/errors/index.ts";
+import { type DialPlace, nobodyThere } from "../../lib/link/node.ts";
+import { createListeners } from "../../lib/listeners/index.ts";
+import type { Backoff } from "../../lib/retry/index.ts";
 import { CONNECTING, type LinkStatus, UP, type Why } from "./status.ts";
 
 export interface GatewayLinkOptions {

@@ -13,6 +13,7 @@ import {
   TruncatedText,
   TuiMainScreen,
 } from "@earendil-works/pi-tui";
+import { agentNameOf, type ConsoleState, type Where } from "../../state/index.ts";
 import {
   type InFull,
   type ListFilter,
@@ -25,8 +26,7 @@ import {
   type SessionScreen,
   type ThreadScreen,
   writtenIn,
-} from "../screen/index.ts";
-import { agentNameOf, type ConsoleState, type Where } from "../state/index.ts";
+} from "../../view/index.ts";
 import { commandList } from "./commands.ts";
 import { interrupt } from "./interrupt.ts";
 import { keysComponent } from "./keys.ts";

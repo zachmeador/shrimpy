@@ -1,10 +1,10 @@
 import type { TestContext } from "node:test";
-import type { Member, Thread } from "../../../../contracts/chat/index.ts";
-import { memberNamed, type Speaking, speakingAs, startTestChat, type TestChat } from "../../../../contracts/chat/testing/index.ts";
-import { gatewaySocket } from "../../../../contracts/gateway/node.ts";
-import { linkTestAgent, startTestGateway, type TestAgent, type TestGateway } from "../../../../contracts/gateway/testing/index.ts";
-import { backoff } from "../../../../lib/retry/index.ts";
-import { eventually, stopAfter, useRuntimeDir } from "../../../../lib/testing/index.ts";
+import type { Member, Thread } from "../../../contracts/chat/index.ts";
+import { memberNamed, type Speaking, speakingAs, startTestChat, type TestChat } from "../../../contracts/chat/testing/index.ts";
+import { gatewaySocket } from "../../../contracts/gateway/node.ts";
+import { linkTestAgent, startTestGateway, type TestAgent, type TestGateway } from "../../../contracts/gateway/testing/index.ts";
+import { backoff } from "../../../lib/retry/index.ts";
+import { eventually, stopAfter, useRuntimeDir } from "../../../lib/testing/index.ts";
 import { type ConsoleState, createConsoleState, type Model } from "../index.ts";
 
 export interface RigOptions {

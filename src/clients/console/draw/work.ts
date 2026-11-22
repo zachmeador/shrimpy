@@ -1,5 +1,5 @@
 import { type Component, Container, Markdown, Text, truncateToWidth, TruncatedText } from "@earendil-works/pi-tui";
-import { hiddenLines, OUT_OF_DATE, type Step, type Work } from "../screen/index.ts";
+import { hiddenLines, OUT_OF_DATE, type Step, type Work } from "../../view/index.ts";
 import type { Theme } from "./theme.ts";
 
 /**

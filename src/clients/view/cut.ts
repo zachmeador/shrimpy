@@ -1,5 +1,5 @@
-import { oneLine } from "../../../lib/plain/index.ts";
-import { cutEnd, cutStart } from "../../../lib/text/index.ts";
+import { oneLine } from "../../lib/plain/index.ts";
+import { cutEnd, cutStart } from "../../lib/text/index.ts";
 
 /** The last `characters` characters of `text`, and how many were left out before them. */
 export function lastCharacters(text: string, characters: number): { text: string; cut: number } {

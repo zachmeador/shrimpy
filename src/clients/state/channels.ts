@@ -1,4 +1,4 @@
-import type { Channel } from "../../../contracts/chat/index.ts";
+import type { Channel } from "../../contracts/chat/index.ts";
 import type { ChannelShown } from "../network/index.ts";
 import type { AgentEntry, ChannelThreads } from "./model.ts";
 

@@ -1,6 +1,6 @@
 import type { RefState } from "@earendil-works/chord";
-import { isLost } from "../../../contracts/gateway/index.ts";
-import { asError } from "../../../lib/errors/index.ts";
+import { isLost } from "../../contracts/gateway/index.ts";
+import { asError } from "../../lib/errors/index.ts";
 
 /** Why the console has no link to a program, or to the gateway. */
 export type Why =

@@ -7,9 +7,9 @@ import type {
   SessionSummary,
   TurnFailure,
   WaitingWakeup,
-} from "../../../contracts/agent/index.ts";
-import type { AgentCommand, Channel, Member, Message, Thread } from "../../../contracts/chat/index.ts";
-import type { Program, RosterEntry, WayIn } from "../../../contracts/gateway/index.ts";
+} from "../../contracts/agent/index.ts";
+import type { AgentCommand, Channel, Member, Message, Thread } from "../../contracts/chat/index.ts";
+import type { Program, RosterEntry, WayIn } from "../../contracts/gateway/index.ts";
 import type { LinkStatus, Problem } from "../network/index.ts";
 
 /** The open thread as it now stands: its newest messages, how many come before them, and whether the person only reads it. */

@@ -10,7 +10,7 @@ import { startTestGateway } from "../../../contracts/gateway/testing/index.ts";
 import { eventually, FakeTerminal, stopAfter, until, within } from "../../../lib/testing/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME } from "../../../lib/version/index.ts";
-import type { Model, Notice, Status } from "../state/index.ts";
+import type { Model, Notice, Status } from "../../state/index.ts";
 import {
   aChatServer,
   agentMember,
@@ -32,8 +32,8 @@ import {
   startRig,
   workingView,
   zach,
-} from "../state/testing/index.ts";
-import { QUIT_AGAIN, READ_ONLY_TAG, screenOf, type ThreadScreen } from "../screen/index.ts";
+} from "../../state/testing/index.ts";
+import { QUIT_AGAIN, READ_ONLY_TAG, screenOf, type ThreadScreen } from "../../view/index.ts";
 import { type Drawing, startDrawing } from "./index.ts";
 
 /** Lines of a drawing as a person reads them: without styles, and without the spaces that pad them. */
