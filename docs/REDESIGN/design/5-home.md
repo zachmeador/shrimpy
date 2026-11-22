@@ -91,6 +91,8 @@ Compaction with Shrimpy's guidance, seeing the request a turn sent, and workspac
 
 **Not built yet**
 
+*An agent's sigil,* decided on 2026-11-21 and under Now in the [order of work](../PLAN.md#order-of-work), with the clients. Each agent has a sigil, a bitmap of twelve by twelve that each client draws its own way, and a pigment. "default should be when an agent is made we generate some fun random thing. but an agent is always free to change its sigil". So making a home gives it a sigil made at random, in a file the agent can change. Three things here are yours to strike: the file is `sigil`, twelve lines of twelve characters; the pigment is picked at random too, and kept in `agent.json`; and a home made before this shows a sigil worked out from its member ID until it has a file.
+
 *The home: compaction, the request a turn sent, and workspace context.*
 
 Under Next in the [order of work](../PLAN.md#order-of-work).

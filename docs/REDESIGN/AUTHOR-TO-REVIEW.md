@@ -4,10 +4,8 @@ What is waiting on you, and nothing else. An item is added when a question needs
 
 ## Waiting on you
 
-**The terminal's mockup: three choices.** [The mockup](../terminal-mockup.html) is from 2026-11-21, and [using it](design/using-it.md) has what you decided of it that day. Until you choose, each of these stands as drawn.
+**Notifications.** [The proposal](proposals/notifications.md) has who decides one, who sends it and what it carries.
 
-1. **Whether Esc still goes back.** Left goes back only from the start of what is typed, so leaving a thread with something typed takes Ctrl+A or Home first. Esc could go back from anywhere.
-2. **Where a sigil is written.** A file of twelve lines in the agent's home would let an agent draw its own, and both clients would read that one file.
-3. **Its place in the order of work.** The web client is under Next, and the two share a look.
+**Whether Esc still goes back in the terminal.** [Its mockup](../terminal-mockup.html) has Left go back only from the start of what is typed, so leaving a thread with something typed takes Ctrl+A or Home first. Esc could go back from anywhere.
 
 **The web client's face.** Atkinson Hyperlegible or the system's own. [The web client's mockup](../web-client-mockup.html) has a switch between them at its top.

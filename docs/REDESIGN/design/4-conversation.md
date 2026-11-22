@@ -136,6 +136,10 @@ A session has no ID apart from its thread's. A second opinion on 2026-10-04 rais
 - Request IDs on edits, deletes and reactions, and a provider editing or deleting for a person it maps.
 - `quiet` on `send_message`, where it means a person isn't notified.
 
+*What you have read,* decided on 2026-11-21 and under Now in the [order of work](../PLAN.md#order-of-work), with the clients: "yes, this is important". The chat server keeps one mark for you in each thread, the last message you have seen there. A client moves it while the thread is on show, and every client counts what is new from it, so your phone and your terminal agree. An agent has none, since its place in its feed already says what it has taken.
+
+*Notifications,* which you want with the web client from its start: "from the beginning i say". [A proposal](../proposals/notifications.md) has how they would work, on those read marks, and waits on you.
+
 **Prove**
 
 - Two homes talking in a channel with no provider at all: default wake policies and real models, including a small local one, that wind down instead of ping-ponging; mentions and broadcast, sender restrictions, final text as the reply and `END` for silence, last-active addressing, and accepted versus delivered status.

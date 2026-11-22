@@ -63,7 +63,7 @@ By hand that is one line on the gateway's machine and two where the agent will l
 6. **A dead link.** Chord pings a link that has been silent for 15 seconds and closes one that stays silent, so a program that lost its network comes back on a new link.
 7. **Chat.** The chat server stays on the gateway's machine. An agent apart reaches it by name through the gateway, as an agent beside the gateway does.
 
-**The gateway proves itself.** A member that comes in over the entry checks that the gateway is yours, and nothing crosses the network in the clear. The gateway makes a key when it first makes its data. An invitation's link carries the key's fingerprint, the member keeps it beside its token, and every connection over the entry is encrypted and checked against it, so a gateway that isn't yours learns no token. Shrimpy's own clients and agents check it this way. A browser can't check a fingerprint and needs a certificate it trusts, which is the web client's question of HTTPS in [using it](using-it.md). It matters more with the relay, since a program believes whatever its link from the gateway stamps on a request. You decided this on 2026-11-14 with the rest of [identity](3-identity.md), and it was built that day. The key is Ed25519, in the gateway's `state/key.pem`, and its fingerprint is the first 16 bytes of the SHA-256 of its public key: 22 characters at the end of the link. The entry speaks TLS 1.3, around a certificate made from the key each time, and a member checks the key the moment the handshake ends, so its hello, which carries its token, goes only to your gateway.
+**The gateway proves itself.** A member that comes in over the entry checks that the gateway is yours, and nothing crosses the network in the clear. The gateway makes a key when it first makes its data. An invitation's link carries the key's fingerprint, the member keeps it beside its token, and every connection over the entry is encrypted and checked against it, so a gateway that isn't yours learns no token. Shrimpy's own clients and agents check it this way. A browser can't check a fingerprint and needs a certificate it trusts, which is under Not built yet below. It matters more with the relay, since a program believes whatever its link from the gateway stamps on a request. You decided this on 2026-11-14 with the rest of [identity](3-identity.md), and it was built that day. The key is Ed25519, in the gateway's `state/key.pem`, and its fingerprint is the first 16 bytes of the SHA-256 of its public key: 22 characters at the end of the link. The entry speaks TLS 1.3, around a certificate made from the key each time, and a member checks the key the moment the handshake ends, so its hello, which carries its token, goes only to your gateway.
 **Tailscale.** It is never needed, and it should fit like a glove: your rule of 2026-10-06. Everything here works on any network your machines share, with an invitation as the way in, and each thing Tailscale adds is one you could do without.
 
 - **Uses.** A private, encrypted network between your machines, with addresses and names that stay put, and a policy that says which machine may reach which port. None of that needs a line of Shrimpy's code: the gateway listens on an address and an agent connects to one.
@@ -166,6 +166,17 @@ Open the terminal with: shrimpy
 - **`shrimpy status`** ends with a line that says whether a service is installed for the folder, and whether it is running, with or without a gateway. On a machine whose agents all belong to a gateway elsewhere it says where that gateway is, and doesn't say to start one.
 
 **Not built yet**
+
+*You, from a browser,* decided on 2026-11-21 and under Now in the [order of work](../PLAN.md#order-of-work), with the web client: "i think this makes sense". The gateway serves the web client's page itself, and a browser comes in as a device of yours with a token of its own, as a machine does. A phone is let in by opening an invitation's link. HTTPS comes from certificate files the gateway is pointed at. On a tailnet `tailscale cert` makes them. On a plain LAN you make a certificate of your own and have your browser trust it, and some setups will be just that. A skill has an agent walk you through either: "agents are very good at helping users get stuff like that working". Nothing stands in front of the gateway: no proxy, and no Tailscale Serve.
+
+Four things about how are yours to strike:
+
+- **The page has a door of its own,** a second port beside the entry. The entry's TLS is made from the gateway's key, which a browser can't check, and the entry goes on turning web pages away.
+- **On the gateway's own machine it needs no certificate,** since a browser takes `localhost` as safe.
+- **The token stays out of the page's reach,** in a cookie its scripts can't read, and the door takes a link only from its own page.
+- **An invitation is a link and a code to scan,** so a phone is let in by pointing its camera at the terminal.
+
+A desktop app that wraps the page, which [the plan](../PLAN.md#direction) stays open to, could check the gateway's key by its fingerprint as a machine does. It would then need no certificate, on a plain LAN or anywhere else. That is untried.
 
 *What is left of an agent apart from the gateway.*
 
