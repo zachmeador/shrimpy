@@ -47,7 +47,7 @@ Only `src/contracts/`, which carry Shrimpy's own shapes and never Pi's, and `src
 - How an input reads to the model: `agent/inputs/prompt.ts`.
 - A tool's description and answers: `words.ts` in its module.
 - Skills: `skills/<name>/SKILL.md`.
-- Everything the terminal shows: `clients/console/screen/words.ts`.
+- Everything the terminal shows: `clients/view/words.ts`.
 - Why a turn ended without an answer: `contracts/agent/failures.ts`.
 - A chat command's one line: `contracts/chat/commands.ts`.
 - A command's usage and help: its file in `cli/commands/`.

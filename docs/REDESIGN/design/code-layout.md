@@ -77,11 +77,12 @@ src/
     key/            the gateway's key, made whenever its data has none, whose fingerprint an invitation carries
     settings/       your settings file, followed for your name
   clients/
+    network/        one link to the gateway, kept across losses, and the objects held through it, handed how to
+                    dial: apart from tests, the only client code that imports Chord
+    state/          what a client knows, where the person is and what they can do
+    view/           what is shown, as plain text and facts, with foreign text made harmless
     console/        terminal client
-      network/      one link to the gateway, kept across losses, and the objects held through it: apart from
-                    tests, the only code in the console that imports Chord
-      state/        where the person is and what they can do, with no terminal in it
-      screen/       what is shown, as plain text and facts, with foreign text made harmless
+      dial/         dialing the gateway from Node, at its own socket or at its entry
       draw/         the only code that imports `pi-tui`
     web/            not built yet: the web client
   cli/              the `shrimpy` command
@@ -112,7 +113,9 @@ src/
 |---|---|
 | `lib/` | nothing else in `src/` |
 | `contracts/` | `lib/`; and, within `contracts/`, `gateway/` imports no other contract, `chat/` and `agent/` import `gateway/`, and `agent/` imports how a room is written from `chat/` |
-| `agent/`, `chat/`, `gateway/`, `clients/console/`, `clients/web/` | its own code, `contracts/` and `lib/`, and never another program |
+| `agent/`, `chat/`, `gateway/` | its own code, `contracts/` and `lib/`, and never another program |
+| `clients/network/`, `clients/state/`, `clients/view/` | `contracts/` and `lib/` by their main doors, and each other in that order: `state/` imports `network/`, and `view/` imports both. Never a client, a `node.ts` door or `pi-tui`, apart from tests and test support, which may use Node and the console's `dial/` to reach a gateway |
+| `clients/console/`, `clients/web/` | its own code, `contracts/`, `lib/` and the modules both clients share, and never the other client or a program |
 | `chat/providers/<name>/` | the chat server's provider interface and `lib/` |
 | `cli/` | `contracts/` and `lib/`, plus each program's front door to start it, and the agent's to preview a home and to sign in |
 
@@ -121,8 +124,8 @@ src/
 - **Shared plumbing stays plumbing.** Shared code may remove repetition around Pi, but it adds no concepts of its own: no registry, discovery or lifecycle. `lib/link` wraps Chord's links once for every program and client, and `lib/follow` turns a read and a watch into what a Chord object follows. The test is whether a module could be deleted and inlined into its callers in an hour with no change in behavior. If deleting it would mean redesigning the programs, it has become the service framework this plan doesn't build. Check `lib/`'s size at each review pause.
 - **Contracts carry Shrimpy's own shapes, never Pi's.** Only `agent/` imports Pi's durable runtime, and `pi-ai` with it, apart from tests. `agent/sessions/` is the one place that turns Pi's records into the session view clients see, and `agent/turns/` the one that says why a turn ended without an answer in the contract's words. A Pi upgrade can then change the agent without touching a client.
 - **Inside the agent, a file that needs Pi says so in its name.** A file imports Pi's durable runtime only if it is named `*.durable.ts` or is a module's `durable.ts` door, as `*.node.ts` marks what needs Node. Inside a module, a file that isn't marked can't import one that is, so plain code never reaches the engine. The files at the top of `agent/` wire the modules together, so they may import a marked door, and still can't import the package unless they are marked themselves.
-- **Chord stays where programs meet,** settled in the build on 2026-11-14 with the move to Pi 1.5.2, and yours to change. It keeps replacing Chord, or keeping a fork of it, as bounded as Durable is. `contracts/` imports it, since a contract is a Chord object type, and so do `lib/link` and `lib/follow`. In a program or a client, only the modules that make its host, serve its objects or hold another program's import it, and the lint names them: the files at the top of each program, the gateway's `hello/`, `programs/` and `served/`, the chat server's `served/`, the agent's `links/`, the terminal's `network/` and the CLI's `talk/`. Chord's `context`, `json` and `delta` entry points go wherever Pi's durable runtime may, since the runtime is written in their types. Tests and `testing/` modules may import any of it. A rule by folder fits here, where it didn't for Durable: code that talks to another program belongs in the module that does.
-- **Only `clients/console/draw/` imports `pi-tui`,** and only from the package root, because `pi-tui` has no exports map to stop deep imports. Nothing else in the console imports the drawing, so its state and its words are tested without a terminal.
+- **Chord stays where programs meet,** settled in the build on 2026-11-14 with the move to Pi 1.5.2, and yours to change. It keeps replacing Chord, or keeping a fork of it, as bounded as Durable is. `contracts/` imports it, since a contract is a Chord object type, and so do `lib/link` and `lib/follow`. In a program or a client, only the modules that make its host, serve its objects or hold another program's import it, and the lint names them: the files at the top of each program, the gateway's `hello/`, `programs/` and `served/`, the chat server's `served/`, the agent's `links/`, the clients' `network/` and the CLI's `talk/`. Chord's `context`, `json` and `delta` entry points go wherever Pi's durable runtime may, since the runtime is written in their types. Tests and `testing/` modules may import any of it. A rule by folder fits here, where it didn't for Durable: code that talks to another program belongs in the module that does.
+- **Only `clients/console/draw/` imports `pi-tui`,** and only from the package root, because `pi-tui` has no exports map to stop deep imports. Nothing else in the console imports the drawing, and the modules both clients share import no client, so the state and the words are tested without a terminal.
 
 ## Inside each module
 
@@ -131,7 +134,7 @@ Keep this simple:
 - Every module has one front door, `index.ts`. A file imports files in its own directory or another directory's front door, and nothing else. `contracts/`, `lib/` and `clients/` only group modules, so they have no door of their own.
 - Each front door opens with a short comment saying what the module is for and what it must not know about.
 - Tests sit next to the code they cover, as `*.test.ts`.
-- A module whose API partly needs Node offers that part through a second door, `node.ts`, with its Node files named `*.node.ts`. A module that needs Node throughout has `node.ts` as its only door. Browser-safe code can't import either: that's the web client, the contracts' main doors, and every `lib/` module's main door with everything behind it.
+- A module whose API partly needs Node offers that part through a second door, `node.ts`, with its Node files named `*.node.ts`. A module that needs Node throughout has `node.ts` as its only door. Browser-safe code can't import either: that's the web client, the modules both clients share, the contracts' main doors, and every `lib/` module's main door with everything behind it.
 - A module of the agent whose API partly needs Pi works the same way, with a second door, `durable.ts`, and its files named `*.durable.ts`. A module that is Pi throughout has `durable.ts` as its only door.
 - Test support lives in a `testing/` module that only tests import.
 - ESLint enforces the import table, the front doors, the Pi package rules and the tiers of the agent's modules from a module's first commit, through one local rule in `lint/boundaries.js` with its own tests. `npm run check` runs types, lint and tests.
@@ -146,7 +149,7 @@ Every sentence a model or a person reads is kept in a few files, so that wording
 | How an input reads to the model: a message, a wake-up, a trigger's occurrence, a question's result, breadcrumbs, and where the session is; and what `check_back` and `ask_agent` both tell the model of ending its turn and of a wait too short or too long | `agent/inputs/prompt.ts` |
 | What a tool says: its description, its arguments and its answers | `words.ts` in the tool's module: `agent/message-tools/`, `agent/wakeups/` and `agent/questions/` |
 | The skills Shrimpy ships | `skills/<name>/SKILL.md` |
-| Everything else the terminal shows | `clients/console/screen/words.ts` |
+| Everything else the terminal shows | `clients/view/words.ts` |
 | Why a turn ended without an answer, with what to do, as receipts, `/status` and `sessions read` say it | `contracts/agent/failures.ts`, since the agent and every client say it the same way |
 | How a session is said: what it is doing, where it is, its tool calls, a reset, its model, what it has used and a wake-up it waits on, as the terminal and the `sessions` commands say it; and a model as `provider/id`, wherever the agent or a client writes one | `contracts/agent/words.ts`, since every client says it the same way |
 | What to do when the gateway doesn't know a home's token, that no agent runs at a home, and that a file which must start with front matter doesn't | `contracts/agent/`: `membership.ts`, `connect.node.ts` and `frontmatter.ts`, since the agent and the commands say them the same way |
@@ -161,16 +164,16 @@ Every sentence a model or a person reads is kept in a few files, so that wording
 
 ## The clients' modules
 
-Decided on 2026-11-21, with the two mockups in front of you, and not built: "sure, track it in the docs. but i want to get building asap". The terminal and the web client are one client, drawn twice. They share what a client knows, does and says, and each keeps only its drawing and its input.
+Decided on 2026-11-21, with the two mockups in front of you: "sure, track it in the docs. but i want to get building asap". The terminal and the web client are one client, drawn twice. They share what a client knows, does and says, and each keeps only its drawing and its input. The move below was built that day, with no change in behavior. `look/`, the views by level and the web client are not built.
 
-Three of the terminal's four modules already have no terminal in them: about 3,500 of its 4,500 lines. Node reaches them in three files, two that dial the gateway and one that takes a request's ID from `node:crypto`. So the shape is mostly a move.
+Three of the terminal's four modules had no terminal in them, about 3,500 of its 4,500 lines, and moved up to be shared. Node reached them in three files. Two dialed the gateway: the link is now handed how to dial, and the console hands it the Node way from its `dial/`. The third took a request's ID from `node:crypto`, and now takes it from the `crypto` that Node and a browser both have.
 
 ```text
 src/clients/
   network/    the link to the gateway, kept across losses, and the objects held through it: apart from tests,
               the only client code that imports Chord
   state/      what a client knows, where the person is and what they can do
-  view/       what is shown, as plain text and facts, a level at a time, with the words: today's `screen/`
+  view/       what is shown, as plain text and facts, a level at a time, with the words
   look/       the colors of dusk and day, and a sigil's twelve lines as dots, half blocks or pixels
   console/    the terminal: `pi-tui`, the keys, and a socket or an address to dial
   web/        the browser: the page, the pointer and the keys, a WebSocket to dial, and what a phone needs
@@ -189,11 +192,11 @@ src/clients/
 
 **A view is of one level.** Today a screen is one of four, and the state says which one is on show. Both mockups show the levels side by side. So the state says what is open at each level, and `view/` has a view for each: agents and rooms, what one of them takes part in, a thread, and a session. Each client decides how many it shows at once. Which row the keys are on is the terminal's own.
 
-**Imports.** `network/`, `state/`, `view/` and `look/` import `contracts/` and `lib/` by their main doors, which are safe for browsers. `state/` imports `network/`, and `view/` imports both. None of the four imports `console/` or `web/`, a `node.ts` door, `pi-tui` or the page. `console/` and `web/` import the four, and never each other. The test that bundles a contract's door for a browser bundles these four too.
+**Imports.** `network/`, `state/`, `view/` and `look/` import `contracts/` and `lib/` by their main doors, which are safe for browsers. `state/` imports `network/`, and `view/` imports both. None of the four imports `console/` or `web/`, a `node.ts` door, `pi-tui` or the page, apart from their tests and test support, which may use Node and reach a real gateway through the console's `dial/`. `console/` and `web/` import the four, and never each other. The helper that bundles a contract's door for a browser bundles each of their doors too.
 
 **The web client is a thin projection.** It reads the views, calls the moves, and holds only what a page has: what is folded, where a list is scrolled, what is typed. Three choices in it are yours to strike. It is drawn with Preact in TSX, so that a component is tied to a view's type. esbuild bundles it when the gateway starts, so nothing is built by hand, and esbuild becomes a dependency where it was a development one. Its styles are the web mockup's, with the colors written from `look/`.
 
-**What must not change by accident.** The move changes no behavior and rewords nothing. The terminal's tests pass as they are, with their imports moved.
+**What must not change by accident.** The move changed no behavior and reworded nothing. The terminal's tests pass as they were, with their imports moved.
 
 **Untried:** a Chord link from a browser through Shrimpy's hello. The gateway turns away any connection that says it is a web page, and how a browser gets in is not designed.
 
