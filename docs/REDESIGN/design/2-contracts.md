@@ -150,6 +150,7 @@ The contracts list three reasons. All three come when connecting, and the agent 
 | `refusal` | Null, or why the caller can't have this channel | Each call's refusals |
 | `channel` | The channel: its kind, name and members | In `channels` |
 | `threads` | Its threads, archived ones too, the most recently updated first, each with who is working in it | `threads`, which clients polled |
+| `unread` | How many messages are new to the caller in each of its threads, by the thread's ID, from the caller's read marks. Null for an agent | New on 2026-11-21 |
 | `createThread({ name })` | A new thread | `createThread` |
 | `addMembers({ members })` | Adds members to a room. Only an admin | `addMembers` |
 
@@ -162,6 +163,8 @@ The contracts list three reasons. All three come when connecting, and the agent 
 | `messages` | Its newest messages, at most 200 | The thread view's `messages` |
 | `earlier` | How many older messages there are | The thread view's `earlier` |
 | `readOnly` | Whether the caller only reads it | Worked out from `readOnlyChannels` |
+| `unread` | How many messages others wrote after the caller's read mark. Null for an agent | New on 2026-11-21 |
+| `markRead({ message })` | Moves the caller's read mark up to a message, and never back. An agent is refused | New on 2026-11-21 |
 | `read({ before, limit })` | Older messages, oldest first | `read` |
 | `post({ text, request })` | Posts a message. A request ID's first use wins | `post` |
 | `edit`, `delete`, `react` and `unreact` | As today, each naming its message, and each answering with the message as it now stands | The same |
@@ -182,6 +185,8 @@ The contracts list three reasons. All three come when connecting, and the agent 
 | `trigger({ name })` | One trigger, with its definition and its recent occurrences | `trigger` |
 | `fire({ name })` | Fires a trigger once, now | `fire` |
 | `reload()` | Reads the home's files again, now | `reload` |
+| `sigil`, `pigment` | The agent's look: its sigil's twelve lines, or null when its home has none it can use, and its pigment | New on 2026-11-21 |
+| `folder({ path })`, `file({ path })` | A folder of the home as a list, and one file as text or as an image. Read-only, for whoever may watch the agent | New on 2026-11-21 |
 
 `Session`, at `agent({ id: agent })`, with params `{ agent, session }`, where `session` is its address at the agent: a thread's ID, or `trigger:` and a trigger's name.
 
@@ -199,7 +204,7 @@ The contracts list three reasons. All three come when connecting, and the agent 
 
 Server IDs go, with the paths that carried tickets and answered calls, `reachProgram`, `keepRegistered`, and an agent's second socket, the one the gateway piped to. The invitation's link, `machine.json`, a home's `state/member.json`, `SHRIMPY_AGENT_HOME` and the commands for agents stay. A home's `runtime/endpoint.json` keeps its socket's path, pid and name for `agent status` and `up`; clients on the home's socket hold objects at `agent({ id: "home" })`.
 
-*Versions.* Every type starts at version 1. Any change bumps it with Chord's `evolve`, and the program that serves the type maps each older version it still takes with `checkAccepts`. A consumer newer than the program that serves it waits with `contract_mismatch`, so a provider updates before its consumers. An agent apart serves the agent contract to the gateway's machine and uses the chat and gateway contracts served there, so a release that changes contracts on both sides of a link between machines reaches every machine together, as a change of Pi packages does. Any other release reaches the machines one at a time, each provider before its consumers, and `shrimpy update` says which kind a release is from what it changes. `Presence` has no members, so it never needs a new version.
+*Versions.* Every type starts at version 1. Any change bumps it with Chord's `evolve`, and the program that serves the type maps each older version it still takes with `checkAccepts`. Since 2026-11-21 `Thread`, `Channel` and `Agent` are at version 2, each with version 1 still taken. A consumer newer than the program that serves it waits with `contract_mismatch`, so a provider updates before its consumers. An agent apart serves the agent contract to the gateway's machine and uses the chat and gateway contracts served there, so a release that changes contracts on both sides of a link between machines reaches every machine together, as a change of Pi packages does. Any other release reaches the machines one at a time, each provider before its consumers, and `shrimpy update` says which kind a release is from what it changes. `Presence` has no members, so it never needs a new version.
 
 *Files.* `contracts/` also holds the files the `shrimpy` command shares with a program: a home's layout, `agent.json`, its wake and trigger files and its membership, the folder's default model, what a machine of yours keeps, and the addresses the gateway keeps. They aren't Chord objects and carry no version, since each is written and read on one machine by the command and the programs installed with it.
 

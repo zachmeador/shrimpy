@@ -53,6 +53,8 @@ A crash at any point leaves a task, and Pi resumes it at its checkpoint. The fee
 - **And one sentence on time:** the time on the newest message is the time now, and the shell's `date` is the only other clock.
 - **The same fact serves the terminal.** A session's summary in the agent's contract carries where it is, so the terminal's list of an agent's sessions can name each one, and `shrimpy sessions list` prints it as a table: the session, where it is, and whether it is working. A session that hasn't taken anything up since this was built says "unknown".
 
+**What you have read,** decided and built on 2026-11-21: "yes, this is important". The chat server keeps one mark for you in each thread, the last message you have seen there, and it only moves forward. A client moves it while the thread is on show, and every client of yours counts what is new from the same mark, so your phone and your terminal agree. New is what others wrote after the mark. Your own messages and deleted ones never count, and with no mark everything others wrote is new. A thread you only read has a mark too, and each client decides which to count. An agent has none, since its place in its feed already says what it has taken. A mark is no event: it reaches no feed and wakes nobody, and `shrimpy read` and `shrimpy threads` move none. The marks are a table of their own in the chat store, which is at version 9 with them.
+
 **Decisions**
 
 | Topic | Today | Proposed | Decision |
@@ -122,25 +124,9 @@ A session has no ID apart from its thread's. A second opinion on 2026-10-04 rais
 | A Pi edge | A write to an idle session whose inbox still holds inputs could place them and start a turn. Since the move Pi withdraws what a failed turn leaves, but not what a run leaves that Pi ended as faulted or orphaned. | The agent writes only to a busy session, so the edge is left to a session that went idle meanwhile after such a run. |
 | A room's wake policy | The policy says what wakes an agent. Hearing wakes nobody. | Hear in every room the agent works in, whatever its policy. A choice per room can come if a room proves too loud. |
 
-*The conversation model: the provider interface with a fake provider,* kept as an idea, as [the plan's direction](../PLAN.md#direction) has it, under Later in the [order of work](../PLAN.md#order-of-work). What follows is kept as the idea was written. If a provider is ever written, it takes nothing from old Shrimpy's code.
-
-**Outcome:** rooms hold several members, each agent decides what wakes it, and chat can reach an outside app through a provider interface. Two agents talk in a room without going round in circles, on a small local model, and a fake provider drives the same contract a real one will.
-
-**Why rooms and providers come before the pieces that cross machines.** Decided on 2026-10-04. Rooms and the provider interface are the part of the conversation model that two-member DMs can't test: wake policy, mentions, last-active addressing, and whether agents wind down. They are written into the chat store, the contract and every client, so they are settled before the deployment work and not with it. Rooms were built alongside triggers, since rooms are mostly the chat server, the contract and the wake policy, and triggers live inside the agent.
-
-**Build**
-
-- Source bindings and publication and delivery operations.
-- The rest of the chat server: rooms with several members and the provider interface with its shared helpers. Chat commands and wake policies in each agent.
-- A fake provider, as the provider interface's reference.
-- Request IDs on edits, deletes and reactions, and a provider editing or deleting for a person it maps.
-- `quiet` on `send_message`, where it means a person isn't notified.
-
-*What you have read,* decided on 2026-11-21 and under Now in the [order of work](../PLAN.md#order-of-work), with the clients: "yes, this is important". The chat server keeps one mark for you in each thread, the last message you have seen there. A client moves it while the thread is on show, and every client counts what is new from it, so your phone and your terminal agree. An agent has none, since its place in its feed already says what it has taken.
-
 *Notifications,* decided on 2026-11-21 and under Now in the [order of work](../PLAN.md#order-of-work), with the web client. You asked for push from the beginning and for "a coherent design for how notifications are handled", and approved this one: "proposal is approved".
 
-A notification is a message that is new to you and stays unread for a moment. So notifications sit on the read marks above. What counts as new on a screen and what reaches your phone are the same fact, a few seconds apart.
+A notification is a message that is new to you and stays unread for a moment. So notifications sit on the read marks, which are built. What counts as new on a screen and what reaches your phone are the same fact, a few seconds apart.
 
 | Program | Its part | Why there |
 |---|---|---|
@@ -154,6 +140,20 @@ A notification is a message that is new to you and stays unread for a moment. So
 - **What a notification carries:** who wrote, and the room if there is one; the first line of the message, cut short; the thread to open; and how much is new to you in all, for the count on the icon. The line travels in the notification, since a phone away from your network can't fetch it. Web Push encrypts it for the device, so the push service can't read it.
 - **What it needs first:** the read marks, and a browser's way in with HTTPS, as [the network](6-network.md) has it. Push needs HTTPS, and on an iPhone it needs the page installed to the home screen. Web Push needs no package: signing and encrypting are a small module on Node's own crypto, checked against the example in its standard.
 - **Left for later:** telling only the devices you aren't using, which the gateway could do since it knows which clients are linked; quiet hours, and silencing one thread or one room; every message of a room, where this has only the ones that name you; notifications on a desktop from the terminal, which the plan defers; and the companion app's own push.
+
+*The conversation model: the provider interface with a fake provider,* kept as an idea, as [the plan's direction](../PLAN.md#direction) has it, under Later in the [order of work](../PLAN.md#order-of-work). What follows is kept as the idea was written. If a provider is ever written, it takes nothing from old Shrimpy's code.
+
+**Outcome:** rooms hold several members, each agent decides what wakes it, and chat can reach an outside app through a provider interface. Two agents talk in a room without going round in circles, on a small local model, and a fake provider drives the same contract a real one will.
+
+**Why rooms and providers come before the pieces that cross machines.** Decided on 2026-10-04. Rooms and the provider interface are the part of the conversation model that two-member DMs can't test: wake policy, mentions, last-active addressing, and whether agents wind down. They are written into the chat store, the contract and every client, so they are settled before the deployment work and not with it. Rooms were built alongside triggers, since rooms are mostly the chat server, the contract and the wake policy, and triggers live inside the agent.
+
+**Build**
+
+- Source bindings and publication and delivery operations.
+- The rest of the chat server: rooms with several members and the provider interface with its shared helpers. Chat commands and wake policies in each agent.
+- A fake provider, as the provider interface's reference.
+- Request IDs on edits, deletes and reactions, and a provider editing or deleting for a person it maps.
+- `quiet` on `send_message`, where it means a person isn't notified.
 
 **Prove**
 

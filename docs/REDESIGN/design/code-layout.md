@@ -14,9 +14,10 @@ src/
                     for each way a turn ends without an answer, the words a session and a model are said in, and
                     linking to an agent by its home's path, with the membership a home keeps and what to do when
                     the gateway doesn't know it; a home's layout, `agent.json`, its wake and trigger files and
-                    their schedules, making a home, the folder's default model and where it keeps sign-ins
-    chat/           Chat, Channel, Thread and ChatPresence at chat(): channels, threads, messages, events and
-                    receipts, the commands a person writes for agents, finding a member, a room or a DM by name
+                    their schedules, making a home, the folder's default model and where it keeps sign-ins;
+                    an agent's sigil and pigment, with the maker of both, and a home's files as a caller sees them
+    chat/           Chat, Channel, Thread and ChatPresence at chat(): channels, threads, messages, events,
+                    receipts and your read marks, the commands a person writes for agents, finding a member, a room or a DM by name
                     and a member's name by ID, and the words chat and every client say the same way: what a
                     receipt tells a person, how a thread, a room, a channel and its members are written, and
                     what a reader is told when they can't find or join one
@@ -32,7 +33,8 @@ src/
   agent/            the agent program, one process per home, whose files at the top make its host, serve its
                     objects, read its home and wire the modules together
     home/           what the agent alone reads of its home: where it keeps its own files, its instructions,
-                    context and skills in one snapshot, its breadcrumbs, and the look for changes
+                    context and skills in one snapshot, its breadcrumbs, its sigil, its files as a caller may
+                    look through them, and the look for changes
     host/           owner lock, model runtime and provider login, registry, environment, storage, supervision,
                     and what the modules share of the engine: reading a kind of task a page at a time, ending
                     the tasks a session leaves open, what a task ends with when it is done or aborted, ending
@@ -55,9 +57,10 @@ src/
     message-tools/  send_message and read_messages
     context/        what every session is told, as prompt sections made from the home's files
   chat/             the chat server program, which links out to the gateway
-    store/          SQLite schema and transactions: the log of events and the messages they add up to
+    store/          SQLite schema and transactions: the log of events, the messages they add up to, and your
+                    read marks
     threads/        what the contract means: channels, threads, membership, messages, mentions, receipts, who is
-                    working, who may do what, and a refusal as the contract's answer
+                    working, what is new to you, who may do what, and a refusal as the contract's answer
     served/         Chat, Channel and Thread for each caller, and ChatPresence for the gateway, kept live
     offers/         the events after a member's place in its feed, at once
     identity/       who members are, from the roster chat holds at the gateway

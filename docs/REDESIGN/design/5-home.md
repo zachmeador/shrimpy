@@ -11,6 +11,7 @@ Proposed layout; final paths settle with setup and the CLI:
 ```text
 agent.json
 SOUL.md
+sigil                 the agent's sigil, twelve lines of twelve, which it may redraw
 context/
 vault/
 skills/
@@ -66,6 +67,10 @@ How Pi recovers shapes these rules:
 
 Inspection shows raw entries, effective model messages, selected tools, source revisions, omissions and budgets, and the effective model and settings. Previews are labelled as previews; a captured request is the real evidence. Hidden context in the human transcript expands without blank rows.
 
+**An agent's sigil,** decided and built on 2026-11-21. Each agent has a sigil, a bitmap of twelve by twelve that each client draws its own way, and a pigment. "default should be when an agent is made we generate some fun random thing. but an agent is always free to change its sigil". Making a home gives it both at random: the sigil in the file `sigil`, twelve lines of twelve with `#` for on and `.` for off, and the pigment in `agent.json`, one of coral, peach, moss, sky and plum. The made ones are small creatures and emblems, the same left to right. The agent follows the file as it follows its others, is told in one sentence that it may redraw it, and shows its look to whoever holds its `Agent` object. A file that isn't twelve by twelve shows no sigil and is reported as left out, like any file the agent can't use. For an agent that shows none, or isn't running, a client works a look out from its member ID, the same on every client. Three of these are yours to strike: the file's name and form, the pigment being random and kept in `agent.json`, and the look from the ID.
+
+**A home's files, to look through,** built on 2026-11-21 for the web client's home tab, which you asked to keep small: "just a markdown viewer for mvp and being able to look at images". An agent lists a folder of its home and serves one file to whoever may watch it, you or an admin: text up to 1 MB, and an image up to 10 MB. Anything else is listed and not served. `state/` and `runtime/` are neither listed nor served, and no path leaves the home, by `..` or by a link.
+
 **Decisions**
 
 | Topic | Today | Proposed | Decision |
@@ -90,8 +95,6 @@ Inspection shows raw entries, effective model messages, selected tools, source r
 Compaction with Shrimpy's guidance, seeing the request a turn sent, and workspace context from the gateway are under Not built yet below.
 
 **Not built yet**
-
-*An agent's sigil,* decided on 2026-11-21 and under Now in the [order of work](../PLAN.md#order-of-work), with the clients. Each agent has a sigil, a bitmap of twelve by twelve that each client draws its own way, and a pigment. "default should be when an agent is made we generate some fun random thing. but an agent is always free to change its sigil". So making a home gives it a sigil made at random, in a file the agent can change. Three things here are yours to strike: the file is `sigil`, twelve lines of twelve characters; the pigment is picked at random too, and kept in `agent.json`; and a home made before this shows a sigil worked out from its member ID until it has a file.
 
 *The home: compaction, the request a turn sent, and workspace context.*
 
