@@ -219,12 +219,12 @@ html[data-view="live"] body { overflow: hidden; }
 
   <section class="sheet">
     <h2><span>09</span>What this changes, and what it leaves open</h2>
-    <p class="cap">The first card is where the mockup differs from the terminal as it is built, with what you said of each on 2026-11-21. What you decided that day is in the plan, under Not built yet in <a href="REDESIGN/design/using-it.md">using it</a>. The rest stands as drawn until you say otherwise.</p>
+    <p class="cap">The terminal was built to this mockup on 2026-11-22. The first card is where the mockup differed from the terminal as it was until then, written before it was built, with what you said of each. The plan has what you decided in <a href="REDESIGN/design/using-it.md">using it</a>, and <a href="REDESIGN/STATUS.md">status</a> has where the terminal still differs from these sheets.</p>
     <div class="grid2">
       <div class="card">
         <h3>Changed here</h3>
         <ol>
-          <li><b>The whole screen.</b> Today the client draws into the terminal's scrollback. Here it takes the alternate screen, so lists can stay on show and the input stays at the bottom. The plan had this as later, and you took it: "all of the agent cli apps are moving to whole screen, as well as pi. so that's fine". pi-tui 1.5.2, the one Shrimpy is on, says it prints the whole thread back when the client leaves. That is from its README, and not tried.</li>
+          <li><b>The whole screen.</b> Today the client draws into the terminal's scrollback. Here it takes the alternate screen, so lists can stay on show and the input stays at the bottom. The plan had this as later, and you took it: "all of the agent cli apps are moving to whole screen, as well as pi. so that's fine". Leaving prints the open thread back where the terminal was.</li>
           <li><b>The arrows move you.</b> Your words: "left arrow instead of esc. right arrow for enter", and in an input, left "would only leave the session if there's no text to traverse in the box". So → goes in and ← goes out. In a thread ← moves through what is typed, and goes back a level from its start. What was typed stays with the thread. Esc still goes back, from anywhere and whatever is typed: "yep keep esc for back", 2026-11-22. With the list of keys or the list of commands open, it closes that first. Two things follow that you didn't say, and are yours to strike: the choice between everything and yours moved from ← → to Tab, and Enter still opens a row as → does.</li>
           <li><b>Scrolling is the client's.</b> PgUp, PgDn and the wheel scroll the pane they are in, a drag selects and copies, and Ctrl+Shift+F searches. All three are pi-tui's. The plan left scrolling keys for later because the scrollback had them.</li>
           <li><b>The levels sit side by side</b> where there is room, and Ctrl+\ puts them back to one at a time. The web mockup folds its lists on the same key.</li>

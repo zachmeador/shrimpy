@@ -123,8 +123,8 @@ The order follows what daily use shows is rough or missing. Two things are built
 **Now:**
 
 - Putting the move to Pi 1.5.2 on a setup in use: what Shrimpy wrote before it goes into an archive beside the Shrimpy folder, an agent elsewhere joins again with a new invitation, and your name goes in `settings.json`, as [the home](design/5-home.md) has it.
-- In the terminal, a room's thread showing each agent's work, and `/devices invite`. [Not built yet](design/using-it.md)
-- The clients, since 2026-11-21: the modules the terminal and the web client share, the terminal as its mockup has it, the web client, built for a phone first, with push notifications, and a Mac app that wraps it. The web client doesn't hold up the release. [Not built yet](design/using-it.md)
+- In the terminal, `/devices invite`. [Not built yet](design/using-it.md)
+- The clients. Built on the branch `clients` by 2026-11-22, and waiting for your review: the modules the terminal and the web client share, the terminal as its mockup has it, and the web client, built for a phone first, with push notifications. What is left is trying the web client on a phone, with a certificate and push, and a Mac app that wraps it. The web client doesn't hold up the release. [Not built yet](design/using-it.md)
 - Cleaning up for the release, which you said on 2026-10-08 is close: the skills cover what a person and an agent do with Shrimpy, the reference documentation shrinks to very little, and old Shrimpy is replaced.
 - Living with it: what you notice goes on the list in [using it](design/using-it.md), and decides what is built next.
 

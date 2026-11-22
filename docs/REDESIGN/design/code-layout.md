@@ -11,7 +11,8 @@ src/
   contracts/        the only code programs share: each contract's Chord object types and the shapes they carry,
                     and the files a home, the folder and the gateway keep that the `shrimpy` command shares
     agent/          Agent, Session and AgentPresence at agent({ id }), the shapes the agent builds, one sentence
-                    for each way a turn ends without an answer, the words a session and a model are said in, and
+                    for each way a turn ends without an answer, the words a session, a model and a trigger are
+                    said in, and
                     linking to an agent by its home's path, with the membership a home keeps and what to do when
                     the gateway doesn't know it; a home's layout, `agent.json`, its wake and trigger files and
                     their schedules, making a home, the folder's default model and where it keeps sign-ins;
@@ -84,23 +85,27 @@ src/
     key/            the gateway's keys, each made whenever its data has none: the one whose fingerprint an
                     invitation carries, and the one it signs notifications with
     settings/       your settings file, followed for your name, and read at the start for where the page's door is
-    page/           the page's door, beside the entry: it serves the web client's page, lets a browser in once by
-                    an invitation's code, keeps its token in a cookie, takes a link only from its own page, and
-                    takes where a browser is told things
+    page/           the page's door, beside the entry: it serves the web client's page, at any address the page
+                    takes, lets a browser in once by an invitation's code, keeps its token in a cookie, takes a
+                    link only from its own page, and takes where a browser is told things
     push/           notifications by Web Push: encrypted for each device's place and signed with the gateway's
                     key, on Node's own crypto, and sent to that device's push service
   clients/
     look/           the colors of dusk and day by name, what each pigment is for, the wordmark, and a bitmap as
                     braille dots, half blocks or an SVG path
     network/        one link to the gateway, kept across losses, and the objects held through it, handed how to
-                    dial, and behind its `node.ts` door, dialing from Node: apart from tests, the only client code
-                    that imports Chord
-    state/          what a client knows, what is open at each level, and what the person can do
-    view/           what is shown, as plain text and facts, a level at a time, with foreign text made harmless
+                    dial: from a page, and behind its `node.ts` door from Node. Apart from tests, the only client
+                    code that imports Chord
+    state/          what a client knows, what is open at each level, and what the person can do, with what
+                    a text written in a thread does
+    view/           what is shown, as plain text and facts, a level at a time, with foreign text made harmless,
+                    and which commands and models fit what is typed
     console/        terminal client
-      draw/         the only code that imports `pi-tui`
-    web/            the web client: for now a placeholder page that links to the gateway and lists the roster,
+      draw/         the only code that imports `pi-tui`: the whole screen, the levels side by side, the keys,
+                    and the sentences that name them
+    web/            the web client: the page in Preact, its styles, its service worker and what a phone installs,
                     with TypeScript settings of its own, and behind its `node.ts` door, bundling itself with esbuild
+                    and handing the gateway its files, the face's among them
   cli/              the `shrimpy` command
     talk/           linking to the gateway as whoever a command is, and the objects it holds there: apart from
                     tests, the only code in the CLI that imports Chord, with `me.ts` the one place that decides
@@ -115,9 +120,9 @@ src/
                     sentence or without their period, text on one line with single spaces or cut to a length, a
                     word quoted for a shell, the runtime directory, versions and test support
     link/           links for Chord: a WebSocket on a socket's path, or over TLS at an address, with the hello
-                    before Chord; listening, dialing, telling when nothing listens at a path, and keeping a link;
-                    and, safe for browsers, how an address is written and read, and what a host reports going
-                    wrong
+                    before Chord; listening, dialing and telling when nothing listens at a path; and, safe for
+                    browsers, how an address is written and read, what a host reports going wrong, dialing from a
+                    page, and keeping a link
     follow/         a value worked out from a read and a watch, as a Chord object follows it, and the type of
                     what Chord follows, for code that doesn't import Chord
     tls/            keys that prove a link's end by their fingerprint, and the certificate TLS serves them in
@@ -165,10 +170,10 @@ Every sentence a model or a person reads is kept in a few files, so that wording
 | How an input reads to the model: a message, a wake-up, a trigger's occurrence, a question's result, breadcrumbs, and where the session is; and what `check_back` and `ask_agent` both tell the model of ending its turn and of a wait too short or too long | `agent/inputs/prompt.ts` |
 | What a tool says: its description, its arguments and its answers | `words.ts` in the tool's module: `agent/message-tools/`, `agent/wakeups/` and `agent/questions/` |
 | The skills Shrimpy ships | `skills/<name>/SKILL.md` |
-| A sentence that names a client's key or gesture, such as the line of keys and how to quit | The client's own: `clients/console/draw/words.ts` for the terminal |
+| A sentence that names a client's key or gesture, such as the line of keys and how to quit, and what a page's own controls are called | The client's own: `clients/console/draw/words.ts` for the terminal, and `clients/web/words.ts` for the page. A sentence both say but for the key is the views', and takes the key as the client writes it |
 | Everything else a client shows | `clients/view/words.ts` |
 | Why a turn ended without an answer, with what to do, as receipts, `/status` and `sessions read` say it | `contracts/agent/failures.ts`, since the agent and every client say it the same way |
-| How a session is said: what it is doing, where it is, its tool calls, a reset, its model, what it has used and a wake-up it waits on, as the terminal and the `sessions` commands say it; and a model as `provider/id`, wherever the agent or a client writes one | `contracts/agent/words.ts`, since every client says it the same way |
+| How a session is said: what it is doing, where it is, its tool calls, a reset, its model, what it has used and a wake-up it waits on, as the terminal and the `sessions` commands say it; how a trigger is said, as the `triggers` commands and the web client say it; and a model as `provider/id`, wherever the agent or a client writes one | `contracts/agent/words.ts`, since every client says it the same way |
 | What to do when the gateway doesn't know a home's token, that no agent runs at a home, and that a file which must start with front matter doesn't | `contracts/agent/`: `membership.ts`, `connect.node.ts` and `frontmatter.ts`, since the agent and the commands say them the same way |
 | What a receipt tells a person, as the terminal, `read` and `run` say it; how a thread, a room, a channel and its members are written, and a room as the command that adds a member takes it; and what a reader is told when they are in no such room, can't join a DM, aren't a member, or have not talked to someone yet | `contracts/chat/words.ts`, since chat's refusals, the agent and every client say them the same way |
 | What a client tells a person to start when the gateway, the chat server or an agent isn't linked | `contracts/gateway/words.ts`, since the commands and the terminal say it the same way, each with a first sentence of its own |
@@ -181,7 +186,7 @@ Every sentence a model or a person reads is kept in a few files, so that wording
 
 ## The clients' modules
 
-Decided on 2026-11-21, with the two mockups in front of you: "sure, track it in the docs. but i want to get building asap". The terminal and the web client are one client, drawn twice. They share what a client knows, does and says, and each keeps only its drawing and its input. The move below was built that day, with no change in behavior, then the views by level, and `look/` on 2026-11-22. The terminal still draws as it did, and the web client is a placeholder page.
+Decided on 2026-11-21, with the two mockups in front of you: "sure, track it in the docs. but i want to get building asap". The terminal and the web client are one client, drawn twice. They share what a client knows, does and says, and each keeps only its drawing and its input. The move below was built that day, with no change in behavior, then the views by level, and on 2026-11-22 `look/` and both clients, each to its mockup.
 
 Three of the terminal's four modules had no terminal in them, about 3,500 of its 4,500 lines, and moved up to be shared. Node reached them in three files. Two dialed the gateway: the link is now handed how to dial, and the console hands it the Node way, which is behind `network/`'s `node.ts` door. The third took a request's ID from `node:crypto`, and now takes it from the `crypto` that Node and a browser both have.
 
@@ -201,22 +206,22 @@ src/clients/
 |---|---|---|
 | `look/` | How Shrimpy looks, as data: each color of dusk and day by name, what each pigment is for, the wordmark, and a bitmap of twelve lines turned into braille dots, half blocks or an SVG path. | Never |
 | `network/` | One link to the gateway, kept across losses, and the objects held through it. It is handed how to dial, and offers dialing from Node behind its `node.ts` door. | Never |
-| `state/` | What a client knows, what is open at each level, and what the person can do. | Never |
-| `view/` | What each level shows, as data, and every sentence said of it but those that name a key or a gesture. | Never |
+| `state/` | What a client knows, what is open at each level, and what the person can do, which takes in what a text written in a thread does: it is posted, or a command for the client is acted on, or it is refused. | Never |
+| `view/` | What each level shows, as data, every sentence said of it but those that name a key or a gesture, and which commands and models fit what is typed. | Never |
 | `console/` | Drawing in cells, which level is in front, the keys and the sentences that name them, and the socket or address to dial, which it hands the link with `network/`'s Node dial. | A terminal |
 | `web/` | Drawing in the page, the pointer and the keys, dialing from a browser, installing and push. | A browser |
 
-**What is shared is what is true and what is said.** How it is laid out and how it is touched stays with each client. The test is whether the other client would be wrong if it differed: `working · #ops` differing is a bug, and where the list sits is not. A sentence that names a key or a gesture belongs to the client that has it. Everything else a client says is in `view/`, and a sentence in either client's drawing is a mistake.
+**What is shared is what is true and what is said.** How it is laid out and how it is touched stays with each client. The test is whether the other client would be wrong if it differed: `working · #ops` differing is a bug, and where the list sits is not. A sentence that names a key or a gesture belongs to the client that has it. Everything else a client says is in `view/`, and a sentence in either client's drawing is a mistake. A rule is shared like a sentence: what a written text does, which commands fit what is typed, and what stands where a thread would be are decided once, in `state/` and `view/`, so the two clients can't answer differently.
 
-**A view is of one level,** since 2026-11-21, because both mockups show the levels side by side. The state says what is open at each level, and not which screen is in front: whose list is open, an agent's or a room's, and the thread or the session behind no thread open in it, with whose side of a thread is on show, the conversation or one agent's view of the session behind it. Opening another list closes what was open in the one before. `view/` has a view for each level, each a function of the state: agents and rooms, the open list, the open thread, and the session on show. A view carries everything a client might draw and leaves the drawing to it: every agent's work and every wake-up in a thread, what is new to the person on each thread, agent and room and in all, and how each agent looks. Each client decides how many levels it shows at once, which one is in front, and how to go back. The terminal still shows one at a time. A client says whether the person is looking, and the state moves the read mark of the thread they look at: the terminal says so while it has the thread in front.
+**A view is of one level,** since 2026-11-21, because both mockups show the levels side by side. The state says what is open at each level, and not which screen is in front: whose list is open, an agent's or a room's, and the thread or the session behind no thread open in it, with whose side of a thread is on show, the conversation or one agent's view of the session behind it. Opening another list closes what was open in the one before. `view/` has a view for each level, each a function of the state: agents and rooms, the open list, the open thread, and the session on show. A view carries everything a client might draw and leaves the drawing to it: every agent's work and every wake-up in a thread, what is new to the person on each thread, agent and room and in all, and how each agent looks. Each client decides how many levels it shows at once, which one is in front, and how to go back. The terminal shows as many as its width has room for. A client says whether the person is looking, and the state moves the read mark of the thread they look at: the terminal says so while the thread is on show.
 
 **Imports.** `look/`, `network/`, `state/` and `view/` import `contracts/` and `lib/` by their main doors, which are safe for browsers, and each other in that order: each imports only those before it. None of the four imports `console/` or `web/`, `pi-tui` or the page, and their main doors reach no `node.ts` door. Dialing from Node is behind `network/`'s own `node.ts` door: the console hands it to the link, and their tests reach a real gateway with it. `console/` and `web/` import the four, and never each other. The helper that bundles a contract's door for a browser bundles each of their doors too.
 
-**The web client is a thin projection.** It reads the views, calls the moves, and holds only what a page has: what is folded, where a list is scrolled, what is typed. Five choices in it are yours to strike. It is drawn with Preact in TSX, so that a component is tied to a view's type. esbuild bundles it when the gateway starts, so nothing is built by hand, and esbuild becomes a dependency where it was a development one. Its styles are the web mockup's, with the colors written from `look/`. An agent's Markdown is read with `marked`, which `pi-tui` already brings, and made into the page's elements, never set as HTML. Its face, Atkinson Hyperlegible, comes as font files in two packages, `@fontsource-variable/atkinson-hyperlegible-next` and `-mono`, which the page's door serves with the page.
+**The web client is a thin projection.** It reads the views, calls the moves, and holds only what a page has: what is folded, where a list is scrolled, what is typed. Six choices in it are yours to strike. It is drawn with Preact in TSX, so that a component is tied to a view's type. esbuild bundles it when the gateway starts, so nothing is built by hand, and esbuild becomes a dependency where it was a development one. Its styles are the web mockup's, with the colors written from `look/`. An agent's Markdown is read with `marked`, which `pi-tui` already brings, and made into the page's elements, never set as HTML. Its face, Atkinson Hyperlegible, comes as font files in two packages, `@fontsource-variable/atkinson-hyperlegible-next` and `-mono`, which the page's door serves with the page. Its document carries a Content-Security-Policy, as [the network](6-network.md) has it.
 
 **What must not change by accident.** The move changed no behavior and reworded nothing. The terminal's tests pass as they were, with their imports moved.
 
-**A browser's link is tried.** On 2026-11-21 a real browser linked to the gateway through Shrimpy's hello, at the page's door, as [the network](6-network.md) has it. The bundle is about 424 KB, most of it Chord's.
+**A browser's link is tried.** On 2026-11-21 a real browser linked to the gateway through Shrimpy's hello, at the page's door, as [the network](6-network.md) has it. The page's script is about 580 KB as served, most of it Chord's, with 43 KB of styles and about 140 KB of the face's files.
 
 ## The agent's modules
 
