@@ -138,7 +138,22 @@ A session has no ID apart from its thread's. A second opinion on 2026-10-04 rais
 
 *What you have read,* decided on 2026-11-21 and under Now in the [order of work](../PLAN.md#order-of-work), with the clients: "yes, this is important". The chat server keeps one mark for you in each thread, the last message you have seen there. A client moves it while the thread is on show, and every client counts what is new from it, so your phone and your terminal agree. An agent has none, since its place in its feed already says what it has taken.
 
-*Notifications,* which you want with the web client from its start: "from the beginning i say". [A proposal](../proposals/notifications.md) has how they would work, on those read marks, and waits on you.
+*Notifications,* decided on 2026-11-21 and under Now in the [order of work](../PLAN.md#order-of-work), with the web client. You asked for push from the beginning and for "a coherent design for how notifications are handled", and approved this one: "proposal is approved".
+
+A notification is a message that is new to you and stays unread for a moment. So notifications sit on the read marks above. What counts as new on a screen and what reaches your phone are the same fact, a few seconds apart.
+
+| Program | Its part | Why there |
+|---|---|---|
+| The chat server | Decides what is worth telling you | It owns what was said, who it was for and what you have read |
+| The gateway | Sends it to your devices | It owns your devices and how to reach them |
+| A client | Shows it, and moves your read mark when you look | Only a client knows what is on show |
+
+- **The chat server raises a notification** when one of these stays unread for a few seconds: a message someone else wrote in a DM of yours, a message that names you in a room you are in, or a receipt that says a message of yours failed. A message an agent sends with `quiet` raises none. An agent needs no tool for any of this: it notifies you by writing to you.
+- **The gateway delivers it.** A device of yours can hold where it is told things. For a browser that is its Web Push subscription. For an app, later, it is that app's own. The gateway keeps one key pair to sign with, sends to each device that has such a place, and forgets a place the push service says is gone. It is handed a finished notification and never reads chat. Taking a device back takes its place with it.
+- **A client shows it.** The web client's service worker shows the notification and sets the count on the app's icon. Opening the thread moves your read mark, which is what stops more notifications for it. The terminal has no push. It shows the same counts, and puts them in its tab's title.
+- **What a notification carries:** who wrote, and the room if there is one; the first line of the message, cut short; the thread to open; and how much is new to you in all, for the count on the icon. The line travels in the notification, since a phone away from your network can't fetch it. Web Push encrypts it for the device, so the push service can't read it.
+- **What it needs first:** the read marks, and a browser's way in with HTTPS, as [the network](6-network.md) has it. Push needs HTTPS, and on an iPhone it needs the page installed to the home screen. Web Push needs no package: signing and encrypting are a small module on Node's own crypto, checked against the example in its standard.
+- **Left for later:** telling only the devices you aren't using, which the gateway could do since it knows which clients are linked; quiet hours, and silencing one thread or one room; every message of a room, where this has only the ones that name you; notifications on a desktop from the terminal, which the plan defers; and the companion app's own push.
 
 **Prove**
 
