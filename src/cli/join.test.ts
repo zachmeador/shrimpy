@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import { readMembership } from "../contracts/agent/node.ts";
+import { loadHome, readMembership } from "../contracts/agent/node.ts";
 import { writeLink } from "../contracts/gateway/index.ts";
 import { commandLines, onTheRoster, shrimpy, useShrimpyDir } from "./testing/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
@@ -39,7 +39,8 @@ test("join makes the home for the agent the link names, joins with it, and says 
 
   assert.equal(joined.code, 0, joined.stderr);
   const home = join(folder, "agents", "crab");
-  assert.deepEqual(JSON.parse(readFileSync(join(home, "agent.json"), "utf8")), { name: "crab" }, "a home that names no model");
+  const made = loadHome(home);
+  assert.deepEqual([made.name, made.model], ["crab", undefined], "a home that names no model");
   const crab = (await person.members()).find((member) => member.name === "crab");
   assert.equal(crab?.kind, "agent");
   assert.deepEqual(readMembership(home)?.gateway, { ...address, fingerprint: gateway.listening.fingerprint });

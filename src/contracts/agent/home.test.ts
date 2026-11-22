@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { ConfigError } from "../../lib/json-config/index.ts";
 import { tempDir } from "../../lib/testing/index.ts";
-import { parseModelChoice } from "./index.ts";
+import { parseModelChoice, parseSigil, PIGMENTS } from "./index.ts";
 import { homePaths, initHome, loadHome } from "./node.ts";
 
 const model = { provider: "local", id: "qwen3.8-27b" };
@@ -13,11 +13,20 @@ function tempHome(t: TestContext): string {
   return join(tempDir(t, "home"), "scout");
 }
 
-test("init creates every file and folder, and the home loads", (t) => {
+/** What a home's agent.json says, with its pigment apart, since that is picked at random. */
+function configOf(file: string): { config: unknown; pigment: unknown } {
+  const { pigment, ...config } = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+  return { config, pigment };
+}
+
+test("init creates every file and folder, with a sigil and a pigment made at random, and the home loads", (t) => {
   const home = tempHome(t);
   const { paths } = initHome(home, { name: "scout", model });
 
-  assert.deepEqual(JSON.parse(readFileSync(paths.config, "utf8")), { name: "scout", model });
+  const { config, pigment } = configOf(paths.config);
+  assert.deepEqual(config, { name: "scout", model });
+  assert.ok(PIGMENTS.some((each) => each === pigment), `${String(pigment)} is a pigment`);
+  assert.ok(parseSigil(readFileSync(paths.sigil, "utf8")) !== undefined, "and the sigil is twelve by twelve");
   assert.deepEqual(JSON.parse(readFileSync(paths.models, "utf8")), { providers: {} });
   assert.deepEqual(JSON.parse(readFileSync(paths.auth, "utf8")), {});
   assert.notEqual(readFileSync(paths.soul, "utf8").trim(), "", "and a starter SOUL.md");
@@ -28,6 +37,7 @@ test("init creates every file and folder, and the home loads", (t) => {
   const loaded = loadHome(home);
   assert.equal(loaded.name, "scout");
   assert.deepEqual(loaded.model, model);
+  assert.equal(loaded.pigment, pigment);
   assert.deepEqual(loaded.paths, paths);
 });
 
@@ -69,7 +79,7 @@ test("an agent can be made with no model, and asking again never changes the age
   const home = tempHome(t);
   const { paths } = initHome(home, { name: "scout" });
 
-  assert.deepEqual(JSON.parse(readFileSync(paths.config, "utf8")), { name: "scout" });
+  assert.deepEqual(configOf(paths.config).config, { name: "scout" });
   assert.equal(loadHome(home).model, undefined);
   assert.deepEqual(initHome(home, { name: "scout" }).created, []);
   // A model that is asked for is a difference from an agent that names none.
@@ -94,6 +104,9 @@ test("agent.json is checked, and a bad value is refused with the file and the ke
 
   writeFileSync(paths.config, JSON.stringify({ name: "scout", model: { provider: "local" } }));
   assert.throws(() => loadHome(home), refusedFor("model.id"));
+
+  writeFileSync(paths.config, JSON.stringify({ name: "scout", pigment: "teal" }));
+  assert.throws(() => loadHome(home), refusedFor("pigment"));
 });
 
 test("a model is written provider/id, and the ID may contain slashes", () => {

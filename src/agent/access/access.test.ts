@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { Session } from "../../contracts/agent/index.ts";
+import { makeSigil, Session } from "../../contracts/agent/index.ts";
 import { connectHome, readEndpoint, readMembership } from "../../contracts/agent/node.ts";
 import { hello, readAnswer, Roster } from "../../contracts/gateway/index.ts";
 import { newToken } from "../../contracts/gateway/node.ts";
@@ -59,6 +61,12 @@ test("through the gateway another agent may watch and control the sessions only 
   await assert.rejects(rexAgent.triggers(), isRefusal);
   await assert.rejects(rexAgent.models(), isRefusal);
   await assert.rejects(rexAgent.reload(), isRefusal);
+  await assert.rejects(rexAgent.folder(""), isRefusal);
+  await assert.rejects(rexAgent.file("sigil"), isRefusal);
+  // How the agent looks shows to rex all the same.
+  writeFileSync(join(rig.home, "sigil"), `${makeSigil(Math.random).join("\n")}\n`);
+  await (await rig.connect()).reload();
+  await until(() => rexAgent.look().sigil !== null, "rex to see the agent's sigil");
 
   // Promoted, rex may at once, on the session it already holds: its steer reaches scout as rex, and is answered.
   valueOf(await roster.promote({ member: rex.you.id }, context));
@@ -67,6 +75,7 @@ test("through the gateway another agent may watch and control the sessions only 
   const steered = valueOf(await asRex.steer({ text: "say hello as rex", request: "rex-2" }, context));
   assert.equal(valueOf(await asRex.wait({ submission: steered.submission }, context)).status, "answered");
   await readSteerAndStop(rexAgent, rig);
+  assert.equal((await rexAgent.file("sigil")).kind, "text", "and look at the home's files");
 
   // Demoted, it may not again, at once.
   valueOf(await roster.demote({ member: rex.you.id }, context));

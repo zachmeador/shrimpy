@@ -4,8 +4,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, w
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { type AgentModels, parseModelChoice } from "../contracts/agent/index.ts";
-import { initHome, readMembership, saveMembership } from "../contracts/agent/node.ts";
+import { type AgentModels, parseModelChoice, parseSigil, PIGMENTS } from "../contracts/agent/index.ts";
+import { initHome, loadHome, readMembership, saveMembership } from "../contracts/agent/node.ts";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
 import { type Program, Roster, type RosterEntry } from "../contracts/gateway/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
@@ -269,6 +269,44 @@ test("a home whose agent.json can't be seen is not read until it can be", { time
   await eventually(async () => (await connection.triggers()).length, (count) => count === 0, { what: "the home to be read again" });
   await eventually(toldNow, (text) => !text.includes("The disk is on fire."), { what: "the note to be gone from what the model is shown" });
   assert.equal(said().length, 1, "and nothing more was said");
+});
+
+/** The lighthouse of the web client's mockup. */
+const LIGHTHOUSE = [
+  ".....##.....",
+  "....####....",
+  "##..#..#..##",
+  "....####....",
+  "##.######.##",
+  "....####....",
+  "....#..#....",
+  "....####....",
+  "...######...",
+  "...#....#...",
+  "...######...",
+  ".##########.",
+];
+
+test("a new home's sigil and pigment show on its agent, and an edit of either shows within a few seconds", { timeout }, async (t) => {
+  const paths = newHome(t);
+  await startAt(t, paths.root, { lookEveryMs: LOOK });
+  const connection = await connectAgent(t, paths.root);
+  const made = loadHome(paths.root).pigment;
+  assert.ok(made !== undefined);
+  assert.deepEqual(connection.look(), { sigil: parseSigil(readFileSync(paths.sigil, "utf8")), pigment: made });
+
+  writeFileSync(paths.sigil, `${LIGHTHOUSE.join("\n")}\n`);
+  await eventually(() => connection.look().sigil, (sigil) => sigil?.join("\n") === LIGHTHOUSE.join("\n"), { what: "the redrawn sigil to show" });
+
+  // A drawing that isn't twelve by twelve shows no sigil, and the agent is told why.
+  writeFileSync(paths.sigil, "#.#\n.#.\n#.#\n");
+  await eventually(() => connection.look().sigil, (sigil) => sigil === null, { what: "the sigil to go" });
+  assert.ok((await connection.reload()).leftOut.some(({ file }) => file === "sigil"), "it is left out, with why");
+
+  const other = PIGMENTS.find((pigment) => pigment !== made) ?? made;
+  const config = JSON.parse(readFileSync(paths.config, "utf8")) as object;
+  writeFileSync(paths.config, JSON.stringify({ ...config, pigment: other }));
+  await eventually(() => connection.look().pigment, (pigment) => pigment === other, { what: "the new pigment to show" });
 });
 
 test("a model agent.json names while the agent runs is followed from the next request", { timeout }, async (t) => {

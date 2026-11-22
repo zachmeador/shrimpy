@@ -23,6 +23,7 @@ import { type Following, follow, homeReader, LOOK_EVERY_MS } from "./following.t
 import { homePaths, lookAtHome, readBreadcrumbs, writeBreadcrumb } from "./home/index.ts";
 import { buildModels, type HostOptions, type ModelReload, openHost } from "./host/durable.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
+import { keepLook } from "./look.ts";
 import { messageTools } from "./message-tools/durable.ts";
 import { askTools, createQuestions } from "./questions/durable.ts";
 import { openRecords, type SessionDefaults } from "./records/durable.ts";
@@ -163,6 +164,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       triggers.extension,
     );
     const wakes = createWakes();
+    const look = keepLook(report);
     const keeping = follow({
       everyMs: options.lookEveryMs ?? LOOK_EVERY_MS,
       look: () => lookAtHome(paths, options.modelFiles),
@@ -173,6 +175,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
         triggers,
         wakes,
         sessions,
+        look,
         ...(options.reloadModels === undefined ? {} : { reloadModels: options.reloadModels }),
         report,
       }),
@@ -187,7 +190,15 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     // The agent's objects are served on the home's socket at once, and through the gateway once it links there. They
     // take new work until the agent begins to stop.
     let takingInput = true;
-    const facet = agentFacet({ sessions, triggers, reload: () => keeping.reload(), roster, takingInput: () => takingInput });
+    const facet = agentFacet({
+      sessions,
+      triggers,
+      look,
+      paths,
+      reload: () => keeping.reload(),
+      roster,
+      takingInput: () => takingInput,
+    });
     const server = await startServer({
       home: options.home,
       name: options.name,

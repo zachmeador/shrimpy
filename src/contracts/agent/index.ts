@@ -1,7 +1,8 @@
 /**
  * The agent's contract: what any client may ask of a running agent, as Chord
  * objects at `agent({ id })`. `Agent` is the agent as a whole, with its
- * sessions and its triggers; `Session` is one session, a window over its
+ * sessions, its triggers, how it looks and its home's files to look at;
+ * `Session` is one session, a window over its
  * history and control over its work; `AgentPresence` is the agent being there,
  * which the gateway holds. Every reference is live, so a client follows by
  * holding, and nothing polls. A client reaches an agent by its member ID
@@ -16,10 +17,13 @@
  * a command in its shell both say. It also has the parts of a home's files that
  * the agent and the `shrimpy` command share and that open no file: the rule for an agent's name, how a model is
  * written, what wakes the agent in a room, how a trigger's schedule and a delay
- * are written, and the front matter a home's Markdown files start with.
+ * are written, and the front matter a home's Markdown files start with. And it
+ * makes an agent's sigil and picks its pigment from the random numbers it is
+ * handed, which `shrimpy agent init` does for a new home and a client does from
+ * a member's ID for an agent whose home says nothing of them.
  * This door is safe for browsers; `node.ts` adds the parts that need Node.
  */
-export { Agent } from "./agent.ts";
+export { Agent, MAX_IMAGE_BYTES, MAX_TEXT_BYTES } from "./agent.ts";
 export { checkAgentName, parseModelChoice, sameModel } from "./agent-config.ts";
 export { AGENT_RUNTIME_DIR, type AgentEndpoint, endpointFile, HOME_AGENT } from "./endpoint.ts";
 export { failureWords } from "./failures.ts";
@@ -28,6 +32,7 @@ export { AGENT_HOME_VARIABLE, type JoiningMembership, type Membership, membershi
 export { AgentPresence } from "./presence.ts";
 export { delayMs, delayText, describeSchedule, normalizeDelay, sameSchedule } from "./schedule.ts";
 export { MAX_READ, Session } from "./session.ts";
+export { lookFromId, makeSigil, parseSigil, pickPigment, type Pigment, PIGMENTS } from "./sigil.ts";
 export {
   DEFAULT_WAKE_POLICY,
   isWakePolicy,
@@ -54,6 +59,8 @@ export {
   type AgentModels,
   type AnswerEnding,
   type Check,
+  type HomeEntry,
+  type HomeFile,
   type ModelId,
   type Occurrence,
   type QueuedInput,

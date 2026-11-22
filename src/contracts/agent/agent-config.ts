@@ -1,11 +1,14 @@
 import { type ConfigObject, parseConfig } from "../../lib/json-config/index.ts";
 import type { ModelId } from "./shapes.ts";
+import { type Pigment, PIGMENTS } from "./sigil.ts";
 
 /** What `agent.json` holds. */
 export interface AgentConfig {
   readonly name: string;
   /** The model a new session starts with. Without one, the agent starts with the folder's default model. */
   readonly model?: ModelId;
+  /** The color the agent's sigil is drawn in. Without one, a client works it out from the agent's member ID. */
+  readonly pigment?: Pigment;
 }
 
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -26,8 +29,9 @@ export function parseAgentConfig(text: string, file: string): AgentConfig {
   if (!NAME.test(name)) throw root.problem("name", NAME_RULE);
   const model = root.optionalObject("model");
   const choice = model === undefined ? undefined : readModelChoice(model);
+  const pigment = root.optionalChoice("pigment", PIGMENTS);
   root.done();
-  return choice === undefined ? { name } : { name, model: choice };
+  return { name, ...(choice === undefined ? {} : { model: choice }), ...(pigment === undefined ? {} : { pigment }) };
 }
 
 /** A model as `agent.json` and the folder's `default-model.json` write it: the provider and the ID. */

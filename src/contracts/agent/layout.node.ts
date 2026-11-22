@@ -9,6 +9,8 @@ export interface HomePaths {
   readonly config: string;
   /** The agent's own instructions. */
   readonly soul: string;
+  /** The agent's sigil: twelve lines of twelve characters, `#` for on and `.` for off. */
+  readonly sigil: string;
   readonly context: string;
   readonly vault: string;
   readonly skills: string;
@@ -66,6 +68,7 @@ export function homePaths(home: string): HomePaths {
     root,
     config: join(root, "agent.json"),
     soul: join(root, "SOUL.md"),
+    sigil: join(root, "sigil"),
     context: join(root, "context"),
     vault: join(root, "vault"),
     skills: join(root, "skills"),

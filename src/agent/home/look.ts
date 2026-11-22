@@ -10,8 +10,8 @@ import { walkContext } from "./walk.ts";
 /**
  * A look at the files that reading the home reads: `SOUL.md`, the Markdown files
  * of `context/`, the skills of the home and those that ship with Shrimpy, the
- * Markdown files of `triggers/`, the wake file, `agent.json`, and `outside`, the
- * other files the agent reads, such as its model files. It gives their names,
+ * Markdown files of `triggers/`, the wake file, `agent.json`, `sigil`, and
+ * `outside`, the other files the agent reads, such as its model files. It gives their names,
  * sizes, modes and the times they were changed, and never opens one, so it is
  * cheap enough to repeat every few seconds. The mode is there because a file
  * that is made unreadable, or readable again, changes neither its size nor its
@@ -24,7 +24,7 @@ import { walkContext } from "./walk.ts";
 export async function lookAtHome(paths: HomePaths, outside: readonly string[] = []): Promise<string> {
   const found = new Map<string, string>();
   await Promise.all([
-    ...[paths.soul, paths.wake, paths.config, ...outside].map(async (file) => void found.set(file, await lookAtFile(file))),
+    ...[paths.soul, paths.wake, paths.config, paths.sigil, ...outside].map(async (file) => void found.set(file, await lookAtFile(file))),
     lookAtContext(paths.context, found),
     lookAtSkills(paths.skills, found),
     lookAtSkills(INCLUDED_SKILLS, found),

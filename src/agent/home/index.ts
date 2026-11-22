@@ -9,11 +9,15 @@
  * a trigger leave. It also looks at the files an agent reads, by their names,
  * sizes, modes and times and never their contents, so the agent can tell when to
  * read them again, and says what to do with storage that another version of
- * Shrimpy wrote. It must not know about the engine, the model runtime or how the
- * agent is reached.
+ * Shrimpy wrote. It reads the agent's sigil, and lists the home's folders and
+ * reads its files for whoever may look at them, never leaving the home and never
+ * showing `state/` or `runtime/`. It must not know about the engine, the model
+ * runtime or how the agent is reached.
  */
 export { readBreadcrumbs, removeBreadcrumb, writeBreadcrumb } from "./breadcrumbs.ts";
+export { fileAt, folderAt } from "./browse.ts";
 export { cutText, leftOutSentence, shownIn } from "./files.ts";
-export { homePaths, storageOfAnotherVersion } from "./layout.ts";
+export { type HomePaths, homePaths, storageOfAnotherVersion } from "./layout.ts";
 export { lookAtHome } from "./look.ts";
+export { readSigil } from "./sigil.ts";
 export { carryOver, type HomeSnapshot, readHomeSnapshot } from "./snapshot.ts";

@@ -10,6 +10,7 @@ import {
 } from "./agent-config.ts";
 import { type HomePaths, homePaths } from "./layout.node.ts";
 import type { ModelId } from "./shapes.ts";
+import { formatSigil, makeSigil, pickPigment } from "./sigil.ts";
 import { modelWords } from "./words.ts";
 
 export interface InitOptions {
@@ -38,14 +39,19 @@ const STARTING_SOUL = `${[
 ].join("\n\n")}\n`;
 
 /**
- * Create the files and folders of an agent home. Anything that already exists
- * is left as it is, so running it again only fills in what is missing. An
- * existing `agent.json` must say the same thing as the options: with no model
- * in them, whatever model it names is no difference.
+ * Create the files and folders of an agent home, with a sigil made at random
+ * and a pigment picked at random. Anything that already exists is left as it
+ * is, so running it again only fills in what is missing. An existing
+ * `agent.json` must say the same thing as the options: with no model in them,
+ * whatever model it names is no difference, and its pigment is never one.
  */
 export function initHome(home: string, options: InitOptions): InitResult {
   const paths = homePaths(home);
-  const config: AgentConfig = { name: options.name, ...(options.model === undefined ? {} : { model: options.model }) };
+  const config: AgentConfig = {
+    name: options.name,
+    ...(options.model === undefined ? {} : { model: options.model }),
+    pigment: pickPigment(Math.random),
+  };
   checkAgentName(config.name);
   // Parsing first means init never writes an agent.json that cannot load.
   const text = formatAgentConfig(config);
@@ -67,6 +73,7 @@ export function initHome(home: string, options: InitOptions): InitResult {
   mkdirSync(paths.root, { recursive: true });
   file(paths.config, text);
   file(paths.soul, STARTING_SOUL);
+  file(paths.sigil, formatSigil(makeSigil(Math.random)));
   folder(paths.context);
   folder(paths.vault);
   folder(paths.skills);

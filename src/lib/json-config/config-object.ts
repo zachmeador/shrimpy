@@ -80,6 +80,12 @@ export class ConfigObject {
     return value as T;
   }
 
+  /** A string that must be one of `choices`, when the file has one. */
+  optionalChoice<T extends string>(key: string, choices: readonly T[]): T | undefined {
+    this.#known.add(key);
+    return this.#has(key) ? this.choice(key, choices) : undefined;
+  }
+
   /** An array of strings that must each be one of `choices`. */
   optionalChoices<T extends string>(key: string, choices: readonly T[]): T[] | undefined {
     const items = this.#take(key);

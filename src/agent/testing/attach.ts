@@ -5,7 +5,10 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
   Agent,
   type AgentModels,
+  type HomeEntry,
+  type HomeFile,
   type Occurrence,
+  type Pigment,
   type Reloaded,
   Session,
   type SessionItem,
@@ -59,6 +62,12 @@ export interface AgentConnection {
   trigger(name: string): Promise<TriggerDetail>;
   fire(name: string): Promise<Occurrence>;
   reload(): Promise<Reloaded>;
+  /** How the agent looks now, which every caller sees. */
+  look(): { sigil: string[] | null; pigment: Pigment | null };
+  /** The entries of a folder of the agent's home. */
+  folder(path: string): Promise<HomeEntry[]>;
+  /** A file of the agent's home. */
+  file(path: string): Promise<HomeFile>;
   close(): Promise<void>;
 }
 
@@ -130,6 +139,9 @@ export async function holdAgent(host: Host<Principal, Revocation>, agent: string
     trigger: async (trigger) => valueOf(await held.trigger({ name: trigger }, context)),
     fire: async (trigger) => valueOf(await held.fire({ name: trigger }, context)),
     reload: async () => valueOf(await held.reload(context)),
+    look: () => ({ sigil: held.sigil.value, pigment: held.pigment.value }),
+    folder: async (path) => valueOf(await held.folder({ path }, context)),
+    file: async (path) => valueOf(await held.file({ path }, context)),
     async close() {
       held.release();
       await close();

@@ -1,4 +1,26 @@
 import { arr, bool, int, lit, nul, num, obj, oneOf, type Static, str, union } from "@earendil-works/chord";
+import { PIGMENTS } from "./sigil.ts";
+
+/** A color an agent's sigil is drawn in. */
+export const PigmentSchema = oneOf(...PIGMENTS);
+
+/** An entry of a folder of an agent's home. */
+export const HomeEntrySchema = obj({
+  /** Its name in the folder. */
+  name: str(),
+  /** A folder, a file, or anything else, such as a link that leads out of the home, which is listed and never opened. */
+  kind: oneOf("folder", "file", "other"),
+  /** A file's size in bytes, or null for anything else. */
+  size: union([int(), nul()]),
+});
+export type HomeEntry = Static<typeof HomeEntrySchema>;
+
+/** A file of an agent's home: its text, or an image, by its media type and its bytes in base64. */
+export const HomeFileSchema = union([
+  obj({ kind: lit("text"), text: str() }),
+  obj({ kind: lit("image"), mediaType: oneOf("image/png", "image/jpeg", "image/gif", "image/webp"), data: str() }),
+]);
+export type HomeFile = Static<typeof HomeFileSchema>;
 
 /** A model by the provider that serves it and the ID that provider knows it by. */
 const ModelIdSchema = obj({ provider: str(), id: str() });

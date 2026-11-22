@@ -5,6 +5,8 @@ import { type Answer, done, type LiveRoster, type Principal, type Refused, refus
 import { follow } from "../lib/follow/index.ts";
 import { isRefusal, refuse } from "../lib/refusal/index.ts";
 import { type Caller, callerOf, check, type Permission, refusalFor } from "./access/index.ts";
+import { fileAt, folderAt, type HomePaths } from "./home/index.ts";
+import type { KeptLook } from "./look.ts";
 import { noSessionYet, type Sessions, shownOf } from "./sessions/durable.ts";
 import type { Triggers } from "./triggers/durable.ts";
 
@@ -12,6 +14,10 @@ import type { Triggers } from "./triggers/durable.ts";
 export interface ServedParts {
   sessions: Sessions;
   triggers: Triggers;
+  /** How the agent looks, as its home last said it. */
+  look: Pick<KeptLook, "sigil" | "pigment">;
+  /** Where the home's files are, which a caller who may watch the agent can look at. */
+  paths: HomePaths;
   /** Read the home's instructions, context files, skills, triggers, wake file and model again. */
   reload(): Promise<Reloaded>;
   /** The roster as the agent holds it, which says who a member is and whether it is an admin. */
@@ -37,15 +43,16 @@ async function answering<T>(work: () => Promise<T>): Promise<Answer<T>> {
 /**
  * The objects an agent serves at `agent({ id })` (or `agent({ id: HOME_AGENT })`
  * on the home's own socket): `Agent` and a `Session` for each one a caller
- * holds, one of each for each caller, kept live from the engine and the roster,
- * so nothing polls; `AgentPresence`, which the gateway holds; and each method,
- * answered with what it did or a refusal. Who the caller is comes from the
- * stamp on the request: the gateway's, on the agent's link from it, or `home`,
- * on the home's own socket. A member's name and whether it is an admin come
- * from the roster as it is now, so a promotion counts at once.
+ * holds, one of each for each caller, kept live from the engine, the home's
+ * files and the roster, so nothing polls; `AgentPresence`, which the gateway
+ * holds; and each method, answered with what it did or a refusal. Who the
+ * caller is comes from the stamp on the request: the gateway's, on the agent's
+ * link from it, or `home`, on the home's own socket. A member's name and whether
+ * it is an admin come from the roster as it is now, so a promotion counts at
+ * once.
  */
 export function agentFacet(parts: ServedParts): Facet<Principal> {
-  const { sessions, triggers, roster } = parts;
+  const { sessions, triggers, look, paths, roster } = parts;
 
   /** The caller as the roster has it now, once it is known for an agent, whose admin and self it decides. */
   const callerNow = async (principal: Principal, signal: AbortSignal | undefined): Promise<Caller> => {
@@ -77,6 +84,8 @@ export function agentFacet(parts: ServedParts): Facet<Principal> {
           refusal,
           sessions: self.derive([refusal, listed], ([no, list]) => (no === null ? list : [])),
           triggers: self.derive([refusal, standing], ([no, list]) => (no === null ? list : [])),
+          sigil: self.follow(look.sigil),
+          pigment: self.follow(look.pigment),
           models: async (ctx) =>
             answering(async () => {
               await allow(principal, "watch", ctx);
@@ -97,6 +106,16 @@ export function agentFacet(parts: ServedParts): Facet<Principal> {
             answering(async () => {
               await allow(principal, "administer", ctx);
               return parts.reload();
+            }),
+          folder: async ({ path }, ctx) =>
+            answering(async () => {
+              await allow(principal, "watch", ctx);
+              return folderAt(paths, path);
+            }),
+          file: async ({ path }, ctx) =>
+            answering(async () => {
+              await allow(principal, "watch", ctx);
+              return fileAt(paths, path);
             }),
         },
       };

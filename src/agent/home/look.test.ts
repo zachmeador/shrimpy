@@ -21,7 +21,7 @@ test("a look changes when a file the home is read from changes, and not for any 
   const inHome = (name: string): string => join(paths.root, name);
   const look = (): Promise<string> => lookAtHome(paths, [outside]);
 
-  const read = ["agent.json", "SOUL.md", "wake.json", "context/user.md", "context/people/alex.md", "skills/review/SKILL.md", "triggers/nightly.md"];
+  const read = ["agent.json", "SOUL.md", "wake.json", "sigil", "context/user.md", "context/people/alex.md", "skills/review/SKILL.md", "triggers/nightly.md"];
   for (const name of read) write(inHome(name), "one");
   write(outside, "one");
   // A link is followed to the file it names.
