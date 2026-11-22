@@ -33,15 +33,15 @@ import {
   workingView,
   zach,
 } from "../../state/testing/index.ts";
-import { READ_ONLY_TAG } from "../../view/index.ts";
-import { type Drawing, startDrawing } from "./index.ts";
-import { type Screen, screenOf, type ThreadScreen } from "./screen.ts";
-import { QUIT_AGAIN } from "./words.ts";
+import { READ_ONLY_TAG, threadLevel } from "../../view/index.ts";
+import { type Drawing, type Screen, startDrawing } from "./index.ts";
+import { QUIT_AGAIN, SELF } from "./words.ts";
 
-/** Lines of a drawing as a person reads them: without styles, and without the spaces that pad them. */
+/** Lines of the screen as a person reads them: without styles, and without the spaces that pad them. */
 const visible = (lines: string[]): string[] => lines.map((line) => stripTerminalSequences(line).trimEnd());
 
 const scout = agentMember("scout");
+const mechanic = agentMember("mechanic");
 const at = (hour: number, minute: number): number => new Date(2026, 9, 3, hour, minute).getTime();
 const now = at(15, 0);
 
@@ -52,21 +52,27 @@ const RIGHT = "\u001b[C";
 const ENTER = "\r";
 const BACKSPACE = "\u007f";
 const ESC = "\u001b";
-/** What a terminal that reports keys being let go sends when Esc is. */
-const ESC_RELEASED = "\u001b[27;1:3u";
+/** What a terminal that reports keys being let go sends when Left is. */
+const LEFT_RELEASED = "\u001b[1;1:3D";
 const TAB = "\t";
 const CTRL_C = "\u0003";
+const CTRL_G = "\u0007";
 const CTRL_N = "\u000e";
 const CTRL_O = "\u000f";
 const CTRL_T = "\u0014";
+const CTRL_BACKSLASH = "\u001c";
+/** A press and a release of the mouse's first button at a cell, a column and a row from 0, as a terminal reports them. */
+const click = (column: number, row: number): string[] => [`\u001b[<0;${String(column + 1)};${String(row + 1)}M`, `\u001b[<0;${String(column + 1)};${String(row + 1)}m`];
 
 interface Started {
   state: FakeState;
   terminal: FakeTerminal;
   drawing: Drawing;
-  /** What the person sees now, at a width. */
-  lines: (width?: number) => string[];
-  /** The screen drawn last. */
+  /** What the person sees now. */
+  lines: () => string[];
+  /** All of it as one string. */
+  drawn: () => string;
+  /** The level in front as it was drawn last. */
   screen: () => Screen | undefined;
 }
 
@@ -76,11 +82,15 @@ function start(t: TestContext, model: Model, size: { columns?: number; rows?: nu
   let drawn: Screen | undefined;
   const drawing = startDrawing({ state, terminal, now: () => now, quitWindowMs: 60_000, onDraw: (screen) => void (drawn = screen) });
   stopAfter(t, () => drawing.stop());
-  return { state, terminal, drawing, lines: (width = terminal.columns) => visible(drawing.render(width)), screen: () => drawn };
+  const lines = (): string[] => visible(drawing.render());
+  return { state, terminal, drawing, lines, drawn: () => lines().join("\n"), screen: () => drawn };
 }
 
 /** What was posted, of everything the drawing asked of the state. */
 const sent = (state: FakeState): string[] => state.calls.filter((call) => call.startsWith("send "));
+
+/** Whether a line of the level furthest right holds `text` and nothing else. */
+const shows = (lines: string[], text: string): boolean => lines.some((line) => line.split("│").at(-1)?.trim() === text);
 
 const open = aThread("th_1", { preview: "Check the disk usage", updatedAt: at(14, 5) });
 const conversation = (): Model =>
@@ -94,18 +104,174 @@ const conversation = (): Model =>
     ]),
   );
 
-/** What a command in a DM's thread does, as the screen says it. */
-function lineOf(name: string): string {
-  const screen = screenOf(conversation(), "item", { now });
-  assert.equal(screen.kind, "thread");
-  const found = (screen as ThreadScreen).commands.find((command) => command.name === name);
+/** What a command in a thread does, as the views say it there. */
+function lineOf(name: string, model: Model = conversation()): string {
+  const found = threadLevel(model, { now, self: SELF })?.commands.find((command) => command.name === name);
   assert.ok(found, `${name} is a command`);
   return found.line;
 }
 
-test("a slash opens the list of commands, which typing narrows and Esc closes", async (t) => {
-  const { terminal, state, lines, screen } = start(t, conversation());
+/** Scout's list, with the person's two threads with it, the newer first, and nothing open in it. */
+const second = aThread("th_2", { preview: "Rotate the logs", updatedAt: at(14, 30) });
+const scoutsList = (parts: Partial<Model> = {}): Model =>
+  aModel({
+    open: { list: { kind: "agent", id: scout.id }, item: undefined },
+    listing: aListing([anAgent("scout"), aChatServer()]),
+    agent: { state: "up" },
+    dms: { [scout.id]: aDm("scout", [second, open]) },
+    ...parts,
+  });
+/** That list with a thread open in it. */
+const inThread = (threadId: string, parts: Partial<Model> = {}): Model => {
+  const dm = { kind: "agent" as const, id: scout.id };
+  return scoutsList({ open: { list: dm, item: { kind: "thread", place: dm, thread: threadId, side: undefined } }, ...parts });
+};
+
+test("Right and Enter open what is chosen, a level at a time, and Left goes back", (t) => {
+  const first = aModel({ listing: aListing([anAgent("scout"), aChatServer()]), dms: { [scout.id]: aDm("scout", [second, open]) } });
+  const { terminal, state, screen } = start(t, first);
+  assert.equal(screen()?.kind, "agents");
+
+  terminal.type(RIGHT);
+  assert.deepEqual(state.calls, [`select ${scout.id}`], "right opens the agent chosen");
+  state.show(scoutsList());
+  assert.equal(screen()?.kind, "threads");
+  terminal.type(DOWN);
+  terminal.type(ENTER);
+  assert.deepEqual(state.calls.at(-1), "open th_1", "enter opens a row as right does, here the second");
+  state.show(inThread("th_1"));
+  assert.equal(screen()?.kind, "thread");
+
+  terminal.type(LEFT);
+  terminal.type(LEFT_RELEASED);
+  assert.equal(screen()?.kind, "threads", "left goes back a level, once for one press");
+  terminal.type(LEFT);
+  assert.equal(screen()?.kind, "agents");
+  terminal.type(LEFT);
+  assert.equal(screen()?.kind, "agents", "and goes no further than the first");
+  terminal.type(RIGHT);
+  assert.equal(screen()?.kind, "threads", "the list opened is the one that was open, with what was open in it");
+  terminal.type(RIGHT);
+  assert.equal(state.calls.at(-1), "open th_1", "and the row chosen is the one that was open");
+});
+
+test("Left moves through what is typed in a thread before it goes back, and what was typed stays with its thread", (t) => {
+  const { terminal, state, lines, screen } = start(t, inThread("th_1"));
+  terminal.type("hi");
+  terminal.type(LEFT);
+  terminal.type(LEFT);
+  assert.equal(screen()?.kind, "thread", "left crossed what was typed");
+  terminal.type("oh ");
+  assert.ok(shows(lines(), "oh hi"), "up to its start");
+  for (const _ of "oh ") terminal.type(LEFT);
+  assert.equal(screen()?.kind, "thread");
+  terminal.type(LEFT);
+  assert.equal(screen()?.kind, "threads", "from its start, left goes back");
+
+  // Another thread has its own input, and coming back to this one finds what was typed in it.
+  state.show(inThread("th_2"));
+  assert.equal(screen()?.kind, "thread");
+  assert.ok(!lines().some((line) => line.includes("oh hi")), "the other thread's input is empty");
+  terminal.type("for the other");
+  state.show(inThread("th_1"));
+  assert.ok(shows(lines(), "oh hi"), "the first thread's draft is back");
+  state.show(inThread("th_2"));
+  assert.ok(shows(lines(), "for the other"));
+  assert.deepEqual(sent(state), [], "and nothing was sent");
+});
+
+test("Tab is the other view of where you are: everything or yours on an agent's list, and in a thread each agent's view in turn", (t) => {
+  const rooms = { ch_2: aRoom("ops", ["scout", "mechanic"], [aThread("th_9", { preview: "the bench", channelId: "ch_2" })]) };
+  const elsewhere = aSession("th_9", { place: { kind: "room", room: "ops", thread: { main: false, name: "the bench" } } });
+  const { terminal, state, lines, screen } = start(t, scoutsList({ rooms, sessions: [elsewhere] }), { columns: 100 });
   const drawn = (): string => lines().join("\n");
+  assert.ok(drawn().includes("the bench"), "everything the agent takes part in");
+  terminal.type(TAB);
+  assert.ok(!drawn().includes("the bench") && drawn().includes("Rotate the logs"), "only the person's threads with it");
+  terminal.type(TAB);
+  assert.ok(drawn().includes("the bench"), "and everything again");
+
+  // In a thread of the room, Tab puts each agent's view of the session behind it on show in turn, and the conversation back.
+  const room = { kind: "room" as const, id: "ch_2" };
+  const behind = { [scout.id]: sessionView({ items: [userItem("scout was shown this")] }), [mechanic.id]: sessionView({ items: [userItem("mechanic was shown this")] }) };
+  const listing = aListing([anAgent("scout"), anAgent("mechanic"), aChatServer()]);
+  const side = (agent: string | undefined): Model =>
+    aModel({ listing, rooms, behind, agent: { state: "up" }, open: { list: room, item: { kind: "thread", place: room, thread: "th_9", side: agent } } });
+  state.show(side(undefined));
+  assert.equal(screen()?.kind, "thread");
+  assert.ok(drawn().includes("tab agents' views"), drawn());
+  terminal.type(TAB);
+  assert.equal(state.calls.at(-1), "turn over");
+  state.show(side(mechanic.id));
+  assert.ok(drawn().includes("mechanic was shown this") && drawn().includes("tab next view · 1 of 2"), drawn());
+  terminal.type(TAB);
+  state.show(side(scout.id));
+  assert.ok(drawn().includes("scout was shown this") && drawn().includes("tab conversation"), drawn());
+  assert.ok(lines().some((line) => line.includes("─") && !line.includes("scout")), "the input stays under the agent's view");
+  terminal.type("a word");
+  assert.ok(shows(lines(), "a word"));
+  terminal.type(TAB);
+  state.show(side(undefined));
+  assert.ok(drawn().includes("tab agents' views"));
+  assert.deepEqual(state.calls.filter((call) => call === "turn over").length, 3);
+});
+
+test("the levels stand side by side as the width allows, and Ctrl+\\ puts them back to one at a time and back", (t) => {
+  const model = inThread("th_1", { thread: aThreadView(open, [aMessage("msg_1", scout, "the disk is fine", { sentAt: at(14, 6) })]) });
+  const { terminal, lines, screen } = start(t, model);
+  const onShow = (): { agents: boolean; list: boolean; thread: boolean } => {
+    const drawn = lines().join("\n");
+    return { agents: drawn.includes("agents ┈"), list: drawn.includes("Rotate the logs"), thread: drawn.includes("the disk is fine") };
+  };
+  const sized = (columns: number): void => {
+    terminal.columns = columns;
+    lines();
+  };
+
+  assert.deepEqual(onShow(), { agents: false, list: false, thread: true }, "one at a time under 96 columns");
+  assert.equal(screen()?.levels, 1);
+  sized(96);
+  assert.deepEqual(onShow(), { agents: false, list: true, thread: true }, "two from 96");
+  sized(128);
+  assert.deepEqual(onShow(), { agents: true, list: true, thread: true }, "three from 128");
+
+  terminal.type(CTRL_BACKSLASH);
+  assert.deepEqual(onShow(), { agents: false, list: false, thread: true }, "Ctrl+\\ puts them back to one at a time");
+  terminal.type(LEFT);
+  assert.deepEqual(onShow(), { agents: false, list: true, thread: false }, "the level the keys are in");
+  terminal.type(CTRL_BACKSLASH);
+  assert.deepEqual(onShow(), { agents: true, list: true, thread: true }, "and back");
+  assert.equal(screen()?.kind, "threads", "with the keys where they were");
+});
+
+test("Ctrl+G opens the list of every key, Esc closes it, and Esc does nothing else", (t) => {
+  const { terminal, state, lines, screen } = start(t, inThread("th_1"));
+  const drawn = (): string => lines().join("\n");
+  terminal.type("kept");
+  terminal.type(CTRL_G);
+  assert.ok(drawn().includes("ctrl+shift+f") && drawn().includes("esc close"), drawn());
+  terminal.type("x");
+  terminal.type(ENTER);
+  assert.deepEqual(state.calls, [], "while it is open, the keys act on nothing behind it");
+  terminal.type(ESC);
+  assert.ok(!drawn().includes("ctrl+shift+f"), "esc closed it");
+  terminal.type(ESC);
+  assert.equal(screen()?.kind, "thread", "and esc after it does nothing");
+  assert.ok(shows(lines(), "kept"));
+  assert.deepEqual(state.calls, []);
+});
+
+test("a click chooses a row, and opens it", (t) => {
+  const first = aModel({ listing: aListing([anAgent("mechanic"), anAgent("scout"), aChatServer()]) });
+  const { terminal, state, lines } = start(t, first);
+  const row = lines().findIndex((line) => line.trim().startsWith("scout"));
+  assert.ok(row > 0);
+  for (const each of click(4, row)) terminal.type(each);
+  assert.deepEqual(state.calls, [`select ${scout.id}`]);
+});
+
+test("a slash opens the list of commands, which typing narrows and Esc closes", async (t) => {
+  const { terminal, state, drawn, lines, screen } = start(t, conversation());
 
   terminal.type("/");
   await until(() => drawn().includes(lineOf("/stop")) && drawn().includes(lineOf("/status")), "the list of both kinds of command");
@@ -119,18 +285,15 @@ test("a slash opens the list of commands, which typing narrows and Esc closes", 
 
   terminal.type(ESC);
   assert.ok(!drawn().includes(lineOf("/stop")), "escape closes the list");
-  assert.match(drawn(), /\n \/sto\n/, "and leaves the text as it was");
-  assert.deepEqual(state.calls, [], "without leaving the thread");
-  assert.equal(screen()?.kind, "thread");
+  assert.ok(shows(lines(), "/sto"), "and leaves the text as it was");
   terminal.type(ESC);
-  assert.equal(screen()?.kind, "threads", "the next escape goes back");
+  assert.equal(screen()?.kind, "thread", "the next escape does nothing");
   assert.deepEqual(state.calls, []);
 });
 
 test("Enter acts on the command chosen in the list, and Tab only puts it in the editor", async (t) => {
   // A session behind the thread, which Tab would turn over to if the list did not have it.
-  const { terminal, state, lines } = start(t, { ...conversation(), behind: { [scout.id]: sessionView() } });
-  const drawn = (): string => lines().join("\n");
+  const { terminal, state, drawn, lines } = start(t, { ...conversation(), behind: { [scout.id]: sessionView() } });
 
   terminal.type("/st");
   await until(() => drawn().includes(lineOf("/stop")), "the list of commands");
@@ -143,19 +306,18 @@ test("Enter acts on the command chosen in the list, and Tab only puts it in the 
   await until(() => drawn().includes(lineOf("/status")), "the list of commands");
   terminal.type(TAB);
   assert.deepEqual(state.calls, ["send /stop"], "tab acts on nothing");
-  assert.match(drawn(), /\n \/status\n/, "it puts the command in the editor");
+  assert.ok(shows(lines(), "/status"), "it puts the command in the editor");
   terminal.type(ENTER);
   assert.deepEqual(state.calls, ["send /stop", "status"], "a command for the terminal is acted on and not sent");
 });
 
-test("a text that starts with a slash is never posted as a message", async (t) => {
+test("a text that starts with a slash is never posted as a message", (t) => {
   const { terminal, state, lines } = start(t, conversation());
-  const drawn = (): string => lines().join("\n");
 
   terminal.type("/etc/hosts is wrong");
   terminal.type(ENTER);
   assert.deepEqual(sent(state), [], "nothing is posted");
-  assert.match(drawn(), /\n \/etc\/hosts is wrong\n/, "and it is back in the editor to be corrected");
+  assert.ok(shows(lines(), "/etc/hosts is wrong"), "and it is back in the editor to be corrected");
 
   // In backticks, or after a mention, it is a message.
   terminal.type(CTRL_C);
@@ -178,13 +340,13 @@ test("/status shows a block for the person alone, which goes once a message is s
   const terminal = new FakeTerminal(100, 30);
   const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
   stopAfter(t, () => drawing.stop());
-  const drawn = (): string => visible(drawing.render(100)).join("\n");
+  const drawn = (): string => visible(drawing.render()).join("\n");
   const seen = (text: string): Promise<void> => until(() => drawn().includes(text), `the screen to show ${text}`);
   const posted = async (): Promise<string[]> => (await (await rig.person()).read(thread.id, null, 10)).map((message) => message.text);
-  /** The header of the block `/status` shows, as the screen words it. */
+  /** The header of the block `/status` shows, as the views word it. */
   const header = async (): Promise<string> => {
     const model = await rig.until((each) => each.status !== undefined, "the reading");
-    const block = (screenOf(model, "item", { now }) as ThreadScreen).status;
+    const block = threadLevel(model, { now, self: SELF })?.status;
     assert.ok(block);
     return block.header;
   };
@@ -207,11 +369,11 @@ test("/status shows a block for the person alone, which goes once a message is s
   terminal.type("/status");
   terminal.type(ENTER);
   await seen(await header());
-  terminal.type(ESC);
+  terminal.type(LEFT);
   // The thread is the newest of the agent's list, and so the row chosen.
-  terminal.type(ENTER);
+  rig.state.openThread(thread.id);
   await seen("hello");
-  assert.ok(!drawn().includes(shown), "the reading is gone once the thread has been left");
+  assert.ok(!drawn().includes(shown), "the reading is gone once the thread has been opened again");
 });
 
 const SMALL = { provider: "local", id: "small-model" };
@@ -219,9 +381,8 @@ const BIG = { provider: "local", id: "big-model" };
 const TWO_MODELS = { models: [{ ...BIG, name: "Big Model" }, { ...SMALL, name: "Small Model" }], default: SMALL };
 
 test("/model and a space lists default and the agent's models, and choosing one posts the command", async (t) => {
-  const { terminal, state, lines } = start(t, conversation(), { columns: 100 });
+  const { terminal, state, drawn } = start(t, conversation());
   state.answers.models = TWO_MODELS;
-  const drawn = (): string => lines().join("\n");
 
   terminal.type("/model");
   await until(() => drawn().includes(lineOf("/model")), "the command's line");
@@ -238,9 +399,8 @@ test("/model and a space lists default and the agent's models, and choosing one 
 });
 
 test("/model alone posts nothing, and a model chosen in a thread not started yet posts the command", async (t) => {
-  const { terminal, state, lines } = start(t, conversation(), { columns: 100 });
+  const { terminal, state, drawn } = start(t, conversation());
   state.answers.models = TWO_MODELS;
-  const drawn = (): string => lines().join("\n");
 
   terminal.type("/model");
   terminal.type(ENTER);
@@ -255,9 +415,8 @@ test("/model alone posts nothing, and a model chosen in a thread not started yet
 });
 
 test("a model typed whole and followed at once by Enter is the model chosen", async (t) => {
-  const { terminal, state, lines } = start(t, conversation());
+  const { terminal, state, drawn } = start(t, conversation());
   state.answers.models = TWO_MODELS;
-  const drawn = (): string => lines().join("\n");
 
   terminal.type("/model ");
   await until(() => drawn().includes("local/small-model"), "the list of models");
@@ -275,20 +434,17 @@ test("in a room /model is posted only with an agent named before it", async (t) 
     listing: aListing([anAgent("scout"), aChatServer()]),
     rooms: { ch_2: aRoom("ops", ["scout"], [inRoom]) },
   });
-  const { terminal, state, lines } = start(t, room, { columns: 140 });
-  const drawn = (): string => lines().join("\n");
-  const here = screenOf(room, "item", { now });
-  assert.equal(here.kind, "thread");
-  const model = (here as ThreadScreen).commands.find((command) => command.name === "/model");
-  assert.ok(model, "/model is a command in a room");
-  assert.ok(model.line.includes("@scout /model provider/id") && model.line.includes("@all"), "and its line teaches how to write it there");
+  const { terminal, state, drawn, lines } = start(t, room);
+  const model = lineOf("/model", room);
+  assert.ok(model.includes("@scout /model provider/id") && model.includes("@all"), "its line teaches how to write it there");
 
   terminal.type("/");
-  await until(() => drawn().includes(model.line), "the list of commands, with /model among them");
+  // The list cuts a line to the width it has.
+  await until(() => drawn().includes(model.slice(0, 30)), "the list of commands, with /model among them");
   terminal.type("model local/big-model");
   terminal.type(ENTER);
   assert.deepEqual(sent(state), [], "written first, it mentions nobody, so it is not posted");
-  assert.match(drawn(), /\n \/model local\/big-model\n/, "and the text stays in the editor");
+  assert.ok(shows(lines(), "/model local/big-model"), "and the text stays in the editor");
 
   terminal.type(CTRL_C);
   terminal.type("/model");
@@ -300,18 +456,17 @@ test("in a room /model is posted only with an agent named before it", async (t) 
   assert.ok(!state.calls.includes("model"), "and /model alone is not answered there");
 });
 
-test("Esc goes back from a thread where the agent is working, and stops nothing", (t) => {
+test("Left goes back from a thread where the agent is working, and stops nothing", (t) => {
   const busy = aThread("th_1", { preview: "go", working: [{ memberId: scout.id, since: now }] });
   const model = onThread("scout", busy, aThreadView(busy, []), {
     behind: { [scout.id]: workingView([userItem("go"), toolItem("bash", { args: { command: "ls" } })], { kind: "tool", name: "bash" }) },
   });
-  const { terminal, state, lines, screen } = start(t, model, { columns: 100 });
-  assert.ok(lines().join("\n").includes("/stop"), "the line that says the agent is working says how to stop it");
+  const { terminal, state, drawn, screen } = start(t, model, { columns: 100 });
+  assert.ok(drawn().includes("/stop"), "the line that says the agent is working says how to stop it");
 
-  terminal.type(ESC);
-  terminal.type(ESC_RELEASED);
+  terminal.type(LEFT);
 
-  assert.equal(screen()?.kind, "threads", "a press is one press, whether or not the terminal reports the key being let go");
+  assert.equal(screen()?.kind, "threads");
   assert.deepEqual(state.calls, [], "and nothing is stopped");
 });
 
@@ -333,8 +488,7 @@ test("Ctrl+O shows tool calls in full and Ctrl+T the thinking, and each press ag
   };
 
   for (const [shown, model] of Object.entries(where)) {
-    const { terminal, lines } = start(t, model);
-    const drawn = (): string => lines().join("\n");
+    const { terminal, drawn } = start(t, model, { rows: 60 });
 
     assert.doesNotMatch(drawn(), /thought 1\b|line 1\b|timeout/, `${shown}: brief to begin with`);
     assert.match(drawn(), /thought 6\b/);
@@ -361,11 +515,11 @@ test("a message that is not sent comes back to the editor, ahead of anything typ
 
   terminal.type("will not go");
   terminal.type(ENTER);
-  await until(() => /\n will not go\n/.test(lines().join("\n")), "the message to come back to the editor");
+  await until(() => shows(lines(), "will not go"), "the message to come back to the editor");
 
   terminal.type("!");
   terminal.type(ENTER);
-  await until(() => /\n will not go!\n/.test(lines().join("\n")), "the message to come back again, with what was typed since");
+  await until(() => shows(lines(), "will not go!"), "the message to come back again, with what was typed since");
 });
 
 test("Ctrl+C clears what is typed, and only a second press quits", async (t) => {
@@ -377,7 +531,7 @@ test("Ctrl+C clears what is typed, and only a second press quits", async (t) => 
 
   terminal.type("some text");
   terminal.type(CTRL_C);
-  await until(() => lines().at(-1) === QUIT_AGAIN, "the line that says another press quits");
+  await until(() => lines().at(-1)?.trim() === QUIT_AGAIN, "the line that says another press quits");
 
   assert.doesNotMatch(lines().join("\n"), /some text/);
   assert.equal(left, false, "the first press did not quit");
@@ -387,12 +541,12 @@ test("Ctrl+C clears what is typed, and only a second press quits", async (t) => 
   assert.equal(left, true);
 });
 
-test("leaving a thread whose agent is working stops its spinner, so a list does not redraw for nothing", async (t) => {
-  // The test moves the clock, so that the spinner, and the drawing it asks for, run when the test says and not before.
+test("a screen where nothing works is not drawn again for nothing, and one where an agent works keeps moving", async (t) => {
+  // The test moves the clock, so that what moves, and the drawing it asks for, run when the test says and not before.
   t.mock.timers.enable({ apis: ["setInterval", "setTimeout"] });
-  const busy = onThread("scout", aThread("th_1", { preview: "go", working: [{ memberId: scout.id, since: now }] }), undefined);
-  const { state, terminal } = start(t, busy);
   stopAfter(t, () => t.mock.timers.reset());
+  const quiet = scoutsList();
+  const { state, terminal } = start(t, quiet);
   /** Run what waits for the next turn of the event loop, which is where a request to draw goes first. */
   const turn = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
   /** Let `ms` pass, and then draw what was asked for meanwhile, which waits a few milliseconds of its own. */
@@ -403,26 +557,20 @@ test("leaving a thread whose agent is working stops its spinner, so a list does 
     t.mock.timers.tick(50);
     await turn();
   };
-  // Long enough for whatever the terminal waits for when it starts, and many turns of the spinner.
+  const frames = (): number => terminal.written.filter((each) => each.includes("\u001b[?2026h")).length;
   await pass(10_000);
-  assert.ok(terminal.output().includes("/stop"), "the working line is drawn");
+  const before = frames();
+  await pass(2_000);
+  assert.equal(frames(), before, "nothing is drawn again while nothing changes");
 
-  const list = aModel({
-    open: { list: { kind: "agent", id: scout.id }, item: undefined },
-    listing: aListing([anAgent("scout"), aChatServer()]),
-    dms: { [scout.id]: aDm("scout", [aThread("th_a", { preview: "Check the disk usage", updatedAt: at(14, 5), working: [{ memberId: scout.id, since: now }] })]) },
-  });
-  state.show(list);
+  state.show(scoutsList({ dms: { [scout.id]: aDm("scout", [aThread("th_1", { preview: "go", working: [{ memberId: scout.id, since: now }] })]) } }));
   await pass(100);
-  assert.ok(terminal.output().includes("Check the disk usage"), "the threads are drawn");
-  const drawn = terminal.hides;
-  // A spinner that still ran would draw again every 80 milliseconds of this.
-  await pass(1_000);
-
-  assert.equal(terminal.hides, drawn, "nothing is drawn again while nothing changes");
+  const working = frames();
+  for (let step = 0; step < 10; step += 1) await pass(200);
+  assert.ok(frames() >= working + 10, "while an agent works, its lantern moves");
 });
 
-test("nothing drawn is wider than the terminal, however narrow, whatever the characters", (t) => {
+test("nothing drawn is wider than the terminal, however narrow or wide, whatever the characters", (t) => {
   const model = onThread(
     "scout",
     aThread("th_1", { preview: "日本語のとても長い題名です 🦐🦐🦐", working: [{ memberId: scout.id, since: now }] }),
@@ -443,8 +591,9 @@ test("nothing drawn is wider than the terminal, however narrow, whatever the cha
   );
   const { drawing, state, terminal } = start(t, model);
   const fits = (): void => {
-    for (const width of [12, 20, 33, 80, 120]) {
-      for (const line of drawing.render(width)) assert.ok(visibleWidth(line) <= width, `${String(visibleWidth(line))} > ${String(width)}: ${line}`);
+    for (const width of [12, 20, 33, 80, 100, 150, 220]) {
+      terminal.columns = width;
+      for (const line of drawing.render()) assert.ok(visibleWidth(line) <= width, `${String(visibleWidth(line))} > ${String(width)}: ${line}`);
     }
   };
   fits();
@@ -452,17 +601,17 @@ test("nothing drawn is wider than the terminal, however narrow, whatever the cha
   const place = { kind: "room" as const, room: "日本語のとても長い部屋", thread: { main: false, name: "averyveryveryverylongthreadnamewithoutanyspacesatall".repeat(2) } };
   const sessions = [aSession("th_2", { place, working: true })];
   const agent = { kind: "agent" as const, id: scout.id };
-  for (const filter of [LEFT, RIGHT]) {
-    state.show({ ...model, open: { list: agent, item: undefined }, sessions });
-    terminal.type(filter);
-    fits();
-  }
+  state.show({ ...model, open: { list: agent, item: undefined }, sessions });
+  fits();
+  terminal.type(TAB);
+  fits();
   state.show({ ...model, open: { list: agent, item: { kind: "session", agent: scout.id, session: "th_2" } }, watched: model.behind[scout.id], sessions });
   fits();
   state.show({ ...model, open: { list: agent, item: { kind: "thread", place: agent, thread: "th_1", side: scout.id } }, sessions });
   fits();
   terminal.type(CTRL_O);
   terminal.type(CTRL_T);
+  terminal.type(CTRL_G);
   fits();
 });
 
@@ -532,7 +681,10 @@ test("text from other members and from tools can't reach the terminal, wherever 
         othersWorking: 1,
       },
     },
-    room: { at: now, about: { kind: "room", agents: [{ name: `lurker${hostile}`, running: true, working: true }], wakeups: [] } },
+    room: {
+      at: now,
+      about: { kind: "room", agents: [{ name: `lurker${hostile}`, running: true, working: true }], wakeups: [{ agent: `lurker${hostile}`, wakeup: { due: now, note: `later${hostile}` } }] },
+    },
   };
   const notices: Notice[] = [
     { kind: "no-command", written: `/path${hostile}`, commands: [`/stop${hostile}`] },
@@ -542,12 +694,13 @@ test("text from other members and from tools can't reach the terminal, wherever 
   ];
   const dm = { kind: "agent" as const, id: scout.id };
   const room = { kind: "room" as const, id: "ch_2" };
-  const { terminal, drawing, state } = start(t, model);
+  // Wide enough that every level is on show at once.
+  const { terminal, drawing, state } = start(t, model, { columns: 150, rows: 50 });
 
-  const drawn = [...drawing.render(80)];
+  const drawn = [...drawing.render()];
   const show = (next: Model): void => {
     state.show(next);
-    drawn.push(...drawing.render(80));
+    drawn.push(...drawing.render());
   };
   const inThread = (place: Place, side?: string): Model["open"] => ({
     list: place.kind === "room" ? place : dm,
@@ -572,16 +725,16 @@ test("text from other members and from tools can't reach the terminal, wherever 
   show({ ...model, notice: undefined });
   state.answers.models = { models: [{ ...used, name: `Gemma${hostile}` }], default: used };
   terminal.type("/model ");
-  await until(() => visible(drawing.render(80)).join("\n").includes("Gemma"), "the list of models");
-  drawn.push(...drawing.render(80));
+  await until(() => visible(drawing.render()).join("\n").includes("Gemma"), "the list of models");
+  drawn.push(...drawing.render());
   show({ ...model, open: { list: undefined, item: undefined } });
   await until(() => terminal.output().includes(SHRIMPY_RELEASE_NAME), "the terminal to be written");
 
-  // Styles are the console's own, and so are pi-tui's markers of where the cursor is. Once those are taken out, nothing but text is left.
-  const own = new RegExp("\\u001b\\[[0-9;:]*m|\\u001b_pi:[^\\u0007]*\\u0007", "g");
+  // Styles are the console's own, and so are pi-tui's markers of where the cursor is and the ends of its links. Once those are taken out, nothing but text is left.
+  const own = new RegExp("\\u001b\\[[0-9;:]*m|\\u001b_pi:[^\\u0007]*\\u0007|\\u001b\\]8;;\\u0007", "g");
   const text = drawn.join("\n").replace(own, "");
   assert.doesNotMatch(text, new RegExp("[\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]"));
-  for (const wanted of ["Evil", "text", "detail", "reply", "\u{1F44D}", "answer", "thinking", "output", "note", "said", "shown", "queued", "mechanic", "thread", "refused", "ops", "lab", "lurker", "path", "Gemma"]) {
+  for (const wanted of ["Evil", "text", "detail", "reply", "\u{1F44D}", "answer", "thinking", "output", "note", "said", "shown", "queued", "mechanic", "thread", "refused", "ops", "lab", "lurker", "later", "path", "Gemma"]) {
     assert.ok(text.includes(wanted), wanted);
   }
   // A tool's arguments show as JSON, where the payload's words are harmless text. Its sequences must never arrive as sequences.
@@ -595,12 +748,13 @@ test("a link in a message shows where it goes instead of hiding it", (t) => {
   setCapabilityOverrides({ hyperlinks: true });
   const thread = aThread("th_1", { preview: "x" });
   const model = onThread("scout", thread, aThreadView(thread, [aMessage("msg_1", scout, "see [the bank](https://evil.example/login)")]));
-  const { drawing } = start(t, model);
+  const { drawing, terminal } = start(t, model, { columns: 120 });
 
-  const text = drawing.render(120).join("\n");
+  const text = drawing.render().join("\n");
 
-  assert.doesNotMatch(text, /\u001b\]8;/);
-  assert.match(visible(drawing.render(120)).join("\n"), /the bank \(https:\/\/evil\.example\/login\)/);
+  assert.doesNotMatch(text, /\u001b\]8;;[^\u0007]/);
+  assert.doesNotMatch(terminal.output(), /\u001b\]8;;[^\u0007]/);
+  assert.match(visible(drawing.render()).join("\n"), /the bank \(https:\/\/evil\.example\/login\)/);
 });
 
 test("the draft in the editor survives losing chat and the agent, and finding them again", (t) => {
@@ -608,10 +762,10 @@ test("the draft in the editor survives losing chat and the agent, and finding th
   terminal.type("half a thought");
 
   state.show({ ...conversation(), chat: { state: "down", why: { kind: "lost" } }, agent: { state: "down", why: { kind: "lost" } } });
-  assert.match(lines().join("\n"), /\n half a thought\n/);
+  assert.ok(shows(lines(), "half a thought"));
   state.show(conversation());
 
-  assert.match(lines().join("\n"), /\n half a thought\n/);
+  assert.ok(shows(lines(), "half a thought"));
 });
 
 test("a receipt adds nothing under a message the agent answered or kept silent about", (t) => {
@@ -630,13 +784,15 @@ test("a receipt adds nothing under a message the agent answered or kept silent a
 
 test("a thread or a watched session that starts after its first item says how to read the rest", (t) => {
   const thread = aThread("th_1", { preview: "x" });
-  const { state, lines } = start(t, onThread("scout", thread, aThreadView(thread, [aMessage("msg_1", zach, "x")], 37)), { columns: 140 });
-  assert.ok(lines().join("\n").includes("shrimpy read th_1"), lines().join("\n"));
+  const { state, drawn } = start(t, onThread("scout", thread, aThreadView(thread, [aMessage("msg_1", zach, "x")], 37)));
+  // One level is on show, so the lines of the thread are all there is, and a sentence wrapped over two is read as one.
+  const said = (): string => drawn().replace(/\s+/g, " ");
+  assert.ok(said().includes("shrimpy read th_1"), drawn());
 
   state.show(onSession("scout", aSession("trigger:nightly"), sessionView({ items: [userItem("the newest", 140)], before: 139 })));
-  assert.ok(lines().join("\n").includes("shrimpy sessions read trigger:nightly --agent scout"), lines().join("\n"));
+  assert.ok(said().includes("shrimpy sessions read trigger:nightly --agent scout"), drawn());
   state.show(onSession("scout", aSession("trigger:nightly"), sessionView({ items: [userItem("the first", 1)] })));
-  assert.ok(!lines().join("\n").includes("shrimpy sessions read"), "one that starts at the session's start has nothing more to read");
+  assert.ok(!said().includes("shrimpy sessions read"), "one that starts at the session's start has nothing more to read");
 });
 
 test("an image a session was shown, or a tool gave back, is named by its media type", (t) => {
@@ -646,10 +802,9 @@ test("an image a session was shown, or a tool gave back, is named by its media t
       toolItem("read", { status: "done", output: "shot.jpg", images: [{ mimeType: "image/jpeg" }], entry: 2 }),
     ],
   });
-  const { lines } = start(t, onSession("scout", aSession("th_1"), view), { columns: 100 });
+  const { drawn } = start(t, onSession("scout", aSession("th_1"), view), { columns: 100 });
 
-  const drawn = lines().join("\n");
-  assert.ok(drawn.includes("image/png") && drawn.includes("image/jpeg"), drawn);
+  assert.ok(drawn().includes("image/png") && drawn().includes("image/jpeg"), drawn());
 });
 
 test("a trigger's own session is on the agent's list, which opens on it while it works, and takes no input", (t) => {
@@ -662,8 +817,7 @@ test("a trigger's own session is on the agent's list, which opens on it while it
     dms: { [scout.id]: aDm("scout", [disk]) },
     sessions: [nightly],
   });
-  const { terminal, state, lines, screen } = start(t, list, { columns: 100 });
-  const drawn = (): string => lines().join("\n");
+  const { terminal, state, drawn, screen } = start(t, list, { columns: 100 });
   assert.ok(drawn().includes("check the disk") && drawn().includes("nightly"), "the trigger's session is a row beside the person's thread");
 
   terminal.type(ENTER);
@@ -674,8 +828,8 @@ test("a trigger's own session is on the agent's list, which opens on it while it
   terminal.type(ENTER);
   assert.doesNotMatch(drawn(), /hello/, "there is no editor to type in");
   assert.doesNotMatch(drawn(), /\/stop/, "and so no way to stop the work is offered");
-  terminal.type(ESC);
-  assert.equal(screen()?.kind, "threads", "escape went back");
+  terminal.type(LEFT);
+  assert.equal(screen()?.kind, "threads", "left went back");
   assert.deepEqual(state.calls, ["watch trigger:nightly"], "and nothing was sent");
   state.show(list);
   terminal.type(ENTER);
@@ -703,7 +857,7 @@ test("/devices lists the person's devices, and /devices take back ends a device'
   const terminal = new FakeTerminal(100, 30);
   const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
   stopAfter(t, () => drawing.stop());
-  const drawn = (): string => visible(drawing.render(100)).join("\n");
+  const drawn = (): string => visible(drawing.render()).join("\n");
   await rig.until((model) => model.open.list !== undefined, "the agent's list");
   rig.state.startThread();
 
@@ -717,13 +871,14 @@ test("/devices lists the person's devices, and /devices take back ends a device'
   await until(() => roster.ways.value.every((way) => way.kind !== "device"), "the roster to have no device");
 });
 
-test("the thread in front is marked read as messages come, and a thread not in front is not", { timeout: 30_000 }, async (t) => {
+test("a thread on show is marked read as messages come, and one that is not on show is not", { timeout: 30_000 }, async (t) => {
   const rig = await startRig(t);
   const scout = await rig.member("scout");
   const asScout = await rig.asAgent("scout");
   const other = await rig.thread("scout", "something else");
   const first = await rig.thread("scout", "first");
   await asScout.post(first.id, "one");
+  // Two levels side by side: the thread stays on show while the keys are in the list.
   const terminal = new FakeTerminal(100, 30);
   const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
   stopAfter(t, () => drawing.stop());
@@ -732,16 +887,19 @@ test("the thread in front is marked read as messages come, and a thread not in f
 
   // The thread is the newest on the agent's list, and so the row chosen.
   terminal.type(ENTER);
-  await rig.until((model) => unread(model, first.id) === 0, "the thread in front to be read");
+  await rig.until((model) => unread(model, first.id) === 0, "the thread on show to be read");
+  terminal.type(LEFT);
   await asScout.post(first.id, "two");
-  await rig.until((model) => model.thread?.messages.length === 3 && model.thread.unread === 0, "what comes while it is in front to be read");
+  await rig.until((model) => model.thread?.messages.length === 3 && model.thread.unread === 0, "what comes while it is on show beside the list to be read");
 
-  terminal.type(ESC);
+  // One level at a time: with the keys in the list, the thread is not on show.
+  terminal.columns = 80;
+  drawing.render();
   await asScout.post(first.id, "three");
   await rig.until((model) => model.thread?.messages.length === 4, "the thread, still open behind the list, to have what came");
   await asScout.post(other.id, "and here");
-  await rig.until((model) => unread(model, other.id) === 1, "the thread never in front to have what came");
-  assert.equal(rig.state.model().thread?.unread, 1, "a thread not in front is not marked read");
+  await rig.until((model) => unread(model, other.id) === 1, "the thread never on show to have what came");
+  assert.equal(rig.state.model().thread?.unread, 1, "a thread not on show is not marked read");
 });
 
 /**
@@ -772,11 +930,12 @@ async function amongOthers(t: TestContext) {
   await asMechanic.post(dm.thread.id, "thanks, I checked it");
   await asMechanic.post(lab.thread.id, "the bench is free");
   await rig.until((model) => Object.keys(model.readOnly).length === 2, "the console to have read the channels the person is not in");
-  const terminal = new FakeTerminal(100, 30);
+  // One level at a time, so that each level is the one on show.
+  const terminal = new FakeTerminal(90, 30);
   let shown: Screen | undefined;
   const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000, onDraw: (screen) => void (shown = screen) });
   stopAfter(t, () => drawing.stop());
-  const lines = (): string[] => visible(drawing.render(100));
+  const lines = (): string[] => visible(drawing.render());
   const drawn = (): string => lines().join("\n");
   const screen = (): Screen | undefined => shown;
   const seen = (text: string): Promise<void> => until(() => drawn().includes(text), `the screen to show ${text}`);
@@ -790,14 +949,14 @@ const agentListOpen =
   (model: Model): boolean =>
     model.open.list?.kind === "agent" && (id === undefined || model.open.list.id === id);
 
-test("the first screen marks a room the person only reads, and an agent's screen lists its DMs with other agents", { timeout: 30_000 }, async (t) => {
+test("the first screen marks a room the person only reads, and an agent's list has its DMs with other agents", { timeout: 30_000 }, async (t) => {
   const { rig, scout: scoutMember, mechanic: mechanicMember, home, lab, terminal, lines, screen, seen, said } = await amongOthers(t);
   await seen("#lab");
   const rowOf = (text: string): string => lines().find((line) => line.includes(text)) ?? "";
   const onlyRead = lines().filter((line) => line.includes(READ_ONLY_TAG));
 
   assert.equal(onlyRead.length, 1, "the room they are not in says so, and no row but it does: the DM between the agents is not on the screen");
-  assert.ok(onlyRead[0]?.includes("#lab"));
+  assert.ok(onlyRead[0]?.includes("read-only"));
   const idle = rowOf("#lab");
   const working = await rig.asAgent("mechanic");
   await working.setWorking(lab.thread.id, true);
@@ -805,32 +964,32 @@ test("the first screen marks a room the person only reads, and an agent's screen
   await working.setWorking(lab.thread.id, false);
 
   terminal.type(DOWN);
-  terminal.type(ENTER);
+  terminal.type(RIGHT);
   await rig.until(agentListOpen(), "scout's list");
   await seen("the backup finished");
   assert.ok(rowOf("check the disk") !== "" && !rowOf("check the disk").includes("mechanic"), "its thread with the person");
   assert.ok(rowOf("the backup finished").includes("mechanic"), "its DM with mechanic, which says who it is with");
 
-  terminal.type(RIGHT);
-  await until(() => rowOf("the backup finished") === "", "the screen to narrow to the person's threads");
+  terminal.type(TAB);
+  await until(() => rowOf("the backup finished") === "", "the list to narrow to the person's threads");
   assert.ok(rowOf("check the disk") !== "");
-  terminal.type(LEFT);
+  terminal.type(TAB);
   await seen("the backup finished");
 
-  // A thread of a room the person is in takes what they type, from here as from the room, and escape comes back here.
+  // A thread of a room the person is in takes what they type, from here as from the room, and Left comes back here.
   rig.state.openThread(home.thread.id);
   await rig.until((model) => model.thread?.thread.id === home.thread.id, "the room's thread");
   terminal.type("is it fixed?");
   terminal.type(ENTER);
   await eventually(() => said(home.thread.id), (texts) => texts.includes("is it fixed?"), { what: "what was typed to be posted in the room" });
-  terminal.type(ESC);
+  terminal.type(LEFT);
   assert.equal(screen()?.kind, "threads");
   assert.deepEqual(rig.state.model().open.list, { kind: "agent", id: scoutMember.id });
 
-  // The other agent in that DM has it on its screen too.
-  terminal.type(ESC);
+  // The other agent in that DM has it on its list too.
+  terminal.type(LEFT);
   terminal.type(UP);
-  terminal.type(ENTER);
+  terminal.type(RIGHT);
   await rig.until(agentListOpen(mechanicMember.id), "mechanic's list");
   await seen("the backup finished");
   assert.ok(rowOf("the backup finished").includes("scout"));
@@ -839,7 +998,7 @@ test("the first screen marks a room the person only reads, and an agent's screen
 test("a thread of a DM between two agents shows what both said, and takes no input", { timeout: 30_000 }, async (t) => {
   const { rig, mine, dm, terminal, drawn, screen, seen, said } = await amongOthers(t);
   terminal.type(DOWN);
-  terminal.type(ENTER);
+  terminal.type(RIGHT);
   await rig.until(agentListOpen(), "scout's list");
   await seen("the backup finished");
 
@@ -847,24 +1006,22 @@ test("a thread of a DM between two agents shows what both said, and takes no inp
   await rig.until((model) => model.thread?.messages.length === 2, "the DM's thread");
 
   assert.ok(drawn().includes("the backup finished") && drawn().includes("thanks, I checked it"), "what both said");
-  const opened = screenOf(rig.state.model(), "item", { now });
-  assert.equal(opened.kind, "thread");
-  const why = (opened as ThreadScreen).readOnly;
-  assert.ok(why !== undefined && drawn().includes(why), "the line that says why nothing can be written is where the input would be");
+  const why = threadLevel(rig.state.model(), { now, self: SELF })?.readOnly;
+  assert.ok(why !== undefined && drawn().includes(why.slice(0, 40)), "the line that says why nothing can be written is where the input would be");
   terminal.type("hello");
   terminal.type(ENTER);
   terminal.type(CTRL_N);
   assert.doesNotMatch(drawn(), /hello|\/stop|rooms add/, "what is typed goes nowhere, and no way to stop the work or to join is offered");
-  terminal.type(ESC);
-  assert.equal(screen()?.kind, "threads", "escape goes back");
+  terminal.type(LEFT);
+  assert.equal(screen()?.kind, "threads", "left goes back");
   assert.deepEqual(await said(dm.thread.id), ["the backup finished", "thanks, I checked it"], "nothing typed was sent");
 
-  // Where the agent has no session behind the thread, Tab does nothing.
+  // Where no agent has a session behind the thread, Tab does nothing.
   rig.state.openThread(mine.id);
   await rig.until((model) => model.thread?.thread.id === mine.id, "the person's own thread");
-  const open = rig.state.model().open;
+  const opened = rig.state.model().open;
   terminal.type(TAB);
-  assert.deepEqual(rig.state.model().open, open);
+  assert.deepEqual(rig.state.model().open, opened);
 });
 
 test("a thread of a room the person only reads takes no input, and shows what is said as it comes", { timeout: 30_000 }, async (t) => {
@@ -874,7 +1031,7 @@ test("a thread of a room the person only reads takes no input, and shows what is
   rig.state.selectReadOnly(lab.channel.id);
   rig.state.openThread(lab.thread.id);
   await seen("the bench is free");
-  assert.ok(drawn().includes(`shrimpy rooms add "#lab" ${you.me.name}`), "a room says how to join it");
+  assert.ok(drawn().replace(/\s+/g, " ").includes(`shrimpy rooms add "#lab" ${you.me.name}`), "a room says how to join it");
   terminal.type("hello");
   terminal.type(ENTER);
   terminal.type(CTRL_N);
@@ -889,17 +1046,17 @@ test("a thread of a room the person only reads takes no input, and shows what is
   assert.deepEqual(await said(lab.thread.id), ["the bench is free", "one more thing"], "nothing typed was sent");
   assert.equal(await threadsIn(lab.channel.id), 1, "and no thread was started");
 
-  terminal.type(ESC);
-  assert.equal(screen()?.kind, "threads", "escape goes back as everywhere");
+  terminal.type(LEFT);
+  assert.equal(screen()?.kind, "threads", "left goes back as everywhere");
   await asScout.setWorking(lab.thread.id, true);
   // The room's main thread is its only one, and so the row chosen.
-  terminal.type(ENTER);
+  terminal.type(RIGHT);
   await rig.until((model) => model.thread?.thread.id === lab.thread.id && model.thread.thread.working.length > 0, "the work to show");
   assert.doesNotMatch(drawn(), /\/stop/, "no way to stop the work is offered, which the person can't write");
   terminal.type("hello");
   terminal.type(ENTER);
-  terminal.type(ESC);
-  assert.equal(screen()?.kind, "threads", "escape goes back");
+  terminal.type(LEFT);
+  assert.equal(screen()?.kind, "threads", "left goes back");
   assert.deepEqual(await said(lab.thread.id), ["the bench is free", "one more thing"], "nothing typed here was sent either");
 });
 

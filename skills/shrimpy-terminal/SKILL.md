@@ -9,17 +9,19 @@ The person talks to you from a terminal that bare `shrimpy` opens. You never see
 
 ## Moving around
 
-The screens are levels: agents and rooms, then the threads of one, then one thread. Enter goes in and Esc goes back, on every screen, and Esc never stops anything. The line at the bottom of each screen names every key that works there.
+The terminal takes the whole screen. It has three levels: agents and rooms, then what one of them takes part in, then one thread. A wide terminal shows two or three of them side by side, and Ctrl+\ puts them back to one at a time. Up and Down choose, Right or Enter goes in, and Left goes back. In a thread, Left first moves through what is typed, and goes back from its start. Nothing the keys do stops an agent. The last line names the keys that move, and Ctrl+G lists every key.
 
-- An agent's screen is one list of everything it takes part in, newest first: the person's threads with it, its DMs with other agents, the threads of rooms it has a session in, and its triggers' own sessions. Each row says who or where it is with, when it was last active (a trigger's session has no time), and whether the agent is working there. Right narrows the list to the person's threads with it, and Left shows everything again.
-- Enter on a thread shows what both sides said, with the agent's work beside it. Tab turns the thread over to the session as the agent sees it, with what it was shown, its thinking and its tool calls, and Tab again turns it back. Esc from either side goes back to the list. Enter on a trigger's session shows that view, with nothing to type.
-- Ctrl+N starts a new thread, from the list of threads or from inside one.
+- An agent's list is everything it takes part in, newest first: the person's threads with it, then everything else, such as its DMs with other agents, the threads of rooms it has a session in and its triggers' own sessions. Each row says who or where it is with, when it was last active (a trigger's session has no time), and whether the agent is working there. Tab narrows the list to the person's threads with it, and Tab again shows everything.
+- A thread shows what everyone said, with the work of each agent in it beside it. Tab puts each agent's view of the session behind it on show in turn, with what it was shown, its thinking and its tool calls, and then the conversation again. The input stays under every view. A trigger's own session shows that view, with nothing to type.
+- What is typed in a thread stays with it while another is open.
+- Ctrl+N starts a new thread with the agent or in the room whose list is open.
 - Ctrl+O shows tool calls in full, and Ctrl+T shows thinking in full. Each press again puts it back.
-- Ctrl+C clears what is typed, and pressed twice it quits. Ctrl+D quits when nothing is typed. Quitting stops no agent.
+- PgUp, PgDn and the mouse wheel scroll, a drag selects and copies, and Ctrl+Shift+F searches the thread.
+- Ctrl+C clears what is typed, and pressed twice it quits. Ctrl+D quits when nothing is typed. Quitting stops no agent, and prints the open thread back in the terminal.
 
 ## What the person only reads
 
-The person can read threads they are not part of, and nothing can be typed there: an agent's DMs with other agents, which are on that agent's screen, and the rooms of agents they are not in, which the first screen lists after their own, marked read-only. A line where the input would be says why. To write in a room they join it, with `shrimpy rooms add "#name" <their name>`. A DM has two members and takes no more.
+The person can read threads they are not part of, and nothing can be typed there: an agent's DMs with other agents, which are on that agent's list, and the rooms of agents they are not in, which the agents and rooms list after their own, marked read-only. A line where the input would be says why. To write in a room they join it, with `shrimpy rooms add "#name" <their name>`. A DM has two members and takes no more.
 
 ## Commands in a thread
 
@@ -30,7 +32,7 @@ Typing `/` in a thread lists the commands, each with a line on what it does. Arr
 - `/devices` lists their devices: the other machines of theirs that joined. `/devices take back <device>` takes one back, by its name or its ID, and its link ends at once. Only they can do this, so hand them the command.
 - `/model` and a space lists the models the agent can use. Choosing one has that thread run on it from the next message, and the agent says so in the thread. It can be the first thing in a new thread. `/model default` goes back. In a room they name the agent first, as in `@scout /model provider/id`.
 
-Beside a thread, the terminal says when you will check back there, and that `/stop` cancels it.
+Under a thread, the terminal says when the soonest of your wake-ups there comes, and `/status` lists every one and says that `/stop` cancels them.
 
 A text that starts with a slash is always a command there. To send a message that starts with one, they write it in backticks.
 

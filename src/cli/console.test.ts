@@ -33,7 +33,8 @@ const CTRL_C = "\u0003";
 const CTRL_N = "\u000e";
 const DOWN = "\u001b[B";
 const ENTER = "\r";
-const ESC = "\u001b";
+const LEFT = "\u001b[D";
+const CTRL_HOME = "\u001b[1;5H";
 const TAB = "\t";
 
 /** Open the console the way a bare `shrimpy` at a terminal does, on a terminal of our own. It is left when the test ends. */
@@ -80,7 +81,7 @@ async function consoleWithScout(t: TestContext) {
   const up = launchUp(t, [home, "--data", tempDir(t, "console-data")]);
   await up.until(untilLinked("chat", "chat"));
   await up.until(untilLinked("agent", "scout"));
-  // Wide enough that a line of the conversation is never wrapped.
+  // Wide enough that every level is on show at once.
   const terminal = new FakeTerminal(200, 40);
   const { exited, untilScreen } = openOn(t, terminal);
   await untilScreen(agentsScreen, "scout's screen");
@@ -258,6 +259,9 @@ test("the agent's view of a long turn shows its start, read back from where the 
   await seen(terminal, "Counted to thirty.", "the agent's answer", 60_000);
   const before = terminal.text().length;
   terminal.type(TAB);
+  await seenAfter(terminal, before, "Counted to thirty.", "the agent's view, at its end");
+  // The whole screen shows the end of what is on show, and the top of it is a key away.
+  terminal.type(CTRL_HOME);
 
   await seenAfter(terminal, before, "step-01", "the turn's first call, from before the window");
   await leave(terminal, exited);
@@ -273,8 +277,10 @@ test("why a turn failed reads the same in its receipt and /status, and a wake-up
   const [refused] = await eventually(() => messagesOf(thread), (messages) => messages[0]?.receipts[0]?.status === "failed", {
     what: "the failed receipt",
   });
-  const why = refused?.receipts[0]?.detail;
-  assert.ok(why);
+  const detail = refused?.receipts[0]?.detail;
+  assert.ok(detail);
+  // A thread keeps to a measure that reads well, so a long sentence wraps, and its start is on one line.
+  const why = detail.slice(0, 40);
   await seen(terminal, why, "why the turn failed, under the message");
   let before = terminal.text().length;
   terminal.type("/status");
@@ -305,7 +311,7 @@ test("the list of agents shows where an agent works when that is none of the per
   await seen(terminal, "nightly", "the trigger's session on scout's screen");
 
   const before = terminal.text().length;
-  terminal.type(ESC);
+  terminal.type(LEFT);
   await seenAfter(terminal, before, "nightly", "scout's row on the list of agents");
   const stopped = await shrimpy(["sessions", "stop", "trigger:nightly", "--agent", home]);
   assert.equal(stopped.code, 0, stopped.stderr);

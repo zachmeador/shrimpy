@@ -1,50 +1,112 @@
 import type { InFull } from "../../view/index.ts";
 
 /*
- * Every sentence the console says that names one of its keys, in one place.
- * Everything else it says comes from the views the clients share.
+ * Every sentence and label the console shows that names one of its keys or a
+ * gesture, in one place. A key is a pair: the key as it is written, and what it
+ * does, which the drawing styles apart. Everything else the console says comes
+ * from the views the clients share.
  */
 
 /** What the console calls itself in a sentence the views say, such as that a program runs another version of Shrimpy. */
 export const SELF = "this console";
 
-/** What the keys that depend on the screen do on it. The line of keys is made from this, so it names what they do. */
-export interface Can {
-  /** Esc goes back a level. It does nothing on the agents and rooms. */
-  back: boolean;
-  /** There is an input, and Enter sends what is typed in it. */
+/** A key, as it is written, and what it does. */
+export type Hint = readonly [key: string, does: string];
+
+/** The keys that move you, for the last line: what each does where the keys are. */
+export interface Moves {
+  /** There is an input: Enter sends, and a slash starts a command. */
   send: boolean;
-  /** Ctrl+N starts a thread. */
-  newThread: boolean;
-  /** Left and Right choose between everything on an agent's list and only what is with the person. */
-  filter: boolean;
-  /** Tab puts the agent's view of the session behind a thread on show in place of the conversation, and the conversation back. */
-  turnOver: boolean;
-  /** Ctrl+O and Ctrl+T switch tool calls and thinking between brief and in full: work is shown here. */
-  work: boolean;
+  /** There are rows to choose and open. */
+  choose: boolean;
+  /** Left goes back a level. */
+  back: boolean;
+  /** The keys are in the first level, where Ctrl+D is how to leave. */
+  first: boolean;
 }
 
-/**
- * What the line of keys at the bottom of a screen says: every key that does
- * something there, each with what it does. Where Tab goes depends on which side
- * of a thread is on show: its conversation, or its session as the agent sees it.
- */
-export function keyHints(screen: "agents" | "threads" | "thread" | "session", can: Can, inFull: InFull): string[] {
-  const hints: string[] = [];
-  if (screen === "thread" && can.send) hints.push("enter send");
-  else if (screen === "agents" || screen === "threads") hints.push("↑↓ choose", "enter open");
-  if (can.filter) hints.push("←→ everything or yours");
-  if (can.newThread) hints.push("ctrl+n new thread");
-  if (can.turnOver) hints.push(screen === "session" ? "tab conversation" : "tab agent's view");
-  if (can.back) hints.push("esc back");
-  if (can.work) {
-    hints.push(`ctrl+o tool calls: ${inFull.toolCalls ? "full" : "brief"}`, `ctrl+t thinking: ${inFull.thinking ? "full" : "brief"}`);
-  }
-  hints.push("ctrl+d quit", can.send ? "ctrl+c clear, then quit" : "ctrl+c twice to quit");
+/** The last line: the keys that move you from where the keys are, then the list of every key. */
+export function keyHints(moves: Moves): Hint[] {
+  const hints: Hint[] = [];
+  if (moves.send) hints.push(["enter", "send"], ["/", "commands"]);
+  if (moves.choose) hints.push(["↑↓", "choose"], ["→", "open"]);
+  if (moves.back) hints.push(["←", "back"]);
+  hints.push(["ctrl+g", "keys"]);
+  if (moves.first) hints.push(["ctrl+d", "quit"]);
   return hints;
 }
 
+/** The last line while the list of keys is open. */
+export const CLOSE_KEYS: Hint = ["esc", "close"];
+
+/** The title of the list of keys. */
+export const KEYS_TITLE = "keys";
+
+/** The list of every key, in groups: a group's name, then its keys. */
+export const ALL_KEYS: readonly (readonly [group: string, keys: readonly Hint[]])[] = [
+  [
+    "moving",
+    [
+      ["↑ ↓", "choose"],
+      ["→", "open what is chosen"],
+      ["←", "back a level"],
+      ["tab", "the other view: yours, or the agent's"],
+      ["ctrl+n", "a new thread"],
+    ],
+  ],
+  [
+    "in a thread",
+    [
+      ["enter", "send what is typed"],
+      ["←", "back, once the cursor is at the start"],
+      ["/", "commands, and esc closes their list"],
+      ["ctrl+o", "tool calls in full, and back to brief"],
+      ["ctrl+t", "thinking in full, and back to brief"],
+      ["pgup pgdn", "scroll, as the wheel does"],
+      ["ctrl+shift+f", "search the thread, and esc closes it"],
+    ],
+  ],
+  [
+    "the screen",
+    [
+      ["ctrl+\\", "side by side, or one level at a time"],
+      ["ctrl+g", "this list, and esc closes it"],
+      ["ctrl+c", "clear what is typed. Twice quits"],
+      ["ctrl+d", "quit when nothing is typed"],
+    ],
+  ],
+];
+
 export const QUIT_AGAIN = "Press Ctrl+C again to quit.";
+
+/** Beside a list a thread can be started from, wide and narrow. */
+export const NEW_THREAD: Hint = ["ctrl+n", "new thread"];
+export const NEW: Hint = ["ctrl+n", "new"];
+
+/** Beside the two views of an agent's list. */
+export const FILTER_KEY = "tab";
+
+/**
+ * Beside a thread with agents' views of the session behind it: where Tab goes
+ * from the view on show, which is `at` of `count`, 0 being the conversation.
+ */
+export function turnHint(count: number, at: number): Hint {
+  if (at === 0) return ["tab", count > 1 ? "agents' views" : "agent's view"];
+  if (at < count) return ["tab", `next view · ${String(at)} of ${String(count)}`];
+  return ["tab", "conversation"];
+}
+
+/** Beside the work an agent is doing: how tool calls and thinking are shown, and the keys that change it. */
+export const inFullHints = (inFull: InFull): Hint[] => [
+  ["ctrl+o", `tool calls: ${inFull.toolCalls ? "full" : "brief"}`],
+  ["ctrl+t", `thinking: ${inFull.thinking ? "full" : "brief"}`],
+];
+
+/** On the end of a thread scrolled away from it, to click. */
+export const LATEST = "↓ latest";
+
+/** Where a thread would be, on the list of an agent the person has talked to, while none is open. */
+export const PICK_OR_START = "Pick a thread, or press Ctrl+N to start one.";
 
 /**
  * What an agent's list says when it is empty: `notTalked`, the views' sentence
@@ -53,4 +115,4 @@ export const QUIT_AGAIN = "Press Ctrl+C again to quit.";
  * the agent, `agent` on one line, takes part in.
  */
 export const emptyAgentList = (notTalked: string, agent: string, more: boolean): string =>
-  `${notTalked} Press Ctrl+N to start a thread.${more ? ` Left shows everything ${agent} takes part in.` : ""}`;
+  `${notTalked} Press Ctrl+N to start a thread.${more ? ` Tab shows everything ${agent} takes part in.` : ""}`;

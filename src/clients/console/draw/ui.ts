@@ -1,31 +1,51 @@
 import {
   type Component,
-  Container,
   Editor,
+  type EditorTheme,
+  getTerminalColorMode,
+  HStack,
   isKeyRelease,
-  Loader,
   matchesKey,
+  type OverlayHandle,
   ProcessTerminal,
+  renderFakeCursor,
+  ScrollView,
   setCapabilityOverrides,
-  Spacer,
-  Text,
   type Terminal,
-  TruncatedText,
-  TuiMainScreen,
+  TuiAltScreen,
+  VStack,
 } from "@earendil-works/pi-tui";
 import { agentNameOf, type ClientState, type Item, type Open } from "../../state/index.ts";
-import { type InFull, type ListFilter, type MessageRow, modelLines, OUT_OF_DATE, writtenIn } from "../../view/index.ts";
+import { type ListFilter, modelLines, type Row, windowTitle, writtenIn } from "../../view/index.ts";
 import { commandList } from "./commands.ts";
 import { interrupt } from "./interrupt.ts";
-import { keysComponent } from "./keys.ts";
-import { listOf, rowKey } from "./list.ts";
-import { messageComponent } from "./message.ts";
-import { type Front, type Screen, screenOf, type SessionScreen, type ThreadScreen } from "./screen.ts";
-import { sessionComponents } from "./session.ts";
-import { statusComponent } from "./status.ts";
-import { createTheme } from "./theme.ts";
-import { workComponent } from "./work.ts";
-import { QUIT_AGAIN } from "./words.ts";
+import { KEYS_WIDTH, KeysLine, KeysList } from "./keys.ts";
+import { drawList } from "./list.ts";
+import { createPaint, isLight } from "./paint.ts";
+import { drawRail } from "./rail.ts";
+import { Pane } from "./rows.ts";
+import {
+  draftKeyOf,
+  type Frame,
+  type Level,
+  levelsAt,
+  levelsOf,
+  LIST,
+  listRowKey,
+  listRows,
+  notesFor,
+  onShow,
+  openedKey,
+  RAIL,
+  rowKey,
+  runningIn,
+  type Screen,
+  screenOf,
+  writable,
+} from "./screen.ts";
+import { Prose } from "./steps.ts";
+import { Conversation, Dock, Input, ThreadHeader } from "./thread.ts";
+import { CLOSE_KEYS, keyHints, LATEST } from "./words.ts";
 
 /** The terminal the console is drawn on. */
 export type ConsoleTerminal = Terminal;
@@ -38,8 +58,10 @@ export interface DrawingOptions {
   now?: () => number;
   /** How long after Ctrl+C another press still quits. 2 seconds by default. */
   quitWindowMs?: number;
-  /** Told each screen as it is drawn, for a test that waits until one is. */
+  /** Told the level in front each time the screen is drawn again, for a test that waits until one is. */
   onDraw?: (screen: Screen) => void;
+  /** The name of this machine, which the foot of the agents and rooms says beside the person's. */
+  machine?: string;
 }
 
 export interface Drawing {
@@ -47,21 +69,25 @@ export interface Drawing {
   readonly left: Promise<void>;
   /** Leave as if the person had asked to. */
   leave(): void;
-  /** The lines the console is showing at this width. */
-  render(width: number): string[];
-  /** Give the terminal back. */
+  /** The screen as the terminal shows it now, a line to a row. */
+  render(): string[];
+  /** Give the terminal back, with the open thread printed back on it. */
   stop(): Promise<void>;
 }
 
+/** How often what moves moves: the shrimp walks, the lanterns pulse and the tide runs. */
+const TICK_MS = 180;
+/** How long the terminal is given to say what its background is. */
+const COLORS_MS = 400;
+
 /**
- * Draw the console on a terminal, one level at a time, and carry what the
- * person types to the state: keys choose and open, send, and go back a level,
- * which is the console's own, narrow an agent's list to what is with the person
- * and widen it again, turn a thread over to the session behind it, switch tool
- * calls and thinking between brief and in full, and everything else they type
- * goes to the editor, which lists the commands of a thread while what is typed
- * starts with a slash, and the models of an agent after `/model `. The screen is
- * drawn again from the state's model after each change.
+ * Draw the console on the terminal's whole screen and carry what the person
+ * types to the state. The levels stand side by side as the width allows, the
+ * keys are in one of them, and going back is the console's own: Right and
+ * Enter open what is chosen, Left goes back, through what is typed first in a
+ * thread, and Tab is the other view of where the keys are. Everything is drawn
+ * again from the state's model after each change, and the screen scrolls,
+ * selects and searches as pi-tui's whole screen does.
  */
 export function startDrawing(options: DrawingOptions): Drawing {
   // A link in a message would show its text and hide where it goes. With this the address is printed with it.
@@ -69,12 +95,28 @@ export function startDrawing(options: DrawingOptions): Drawing {
 
   const { state } = options;
   const now = options.now ?? Date.now;
-  const theme = createTheme();
   const terminal = options.terminal ?? new ProcessTerminal();
-  const tui = new TuiMainScreen(terminal);
-  const page = new Container();
-  tui.addChild(page);
-  const editor = new Editor(tui, theme.editor, { paddingX: 1 });
+  const trueColor = getTerminalColorMode() === "truecolor";
+  const inFull = { toolCalls: false, thinking: false };
+  const frame: Frame = {
+    // Where the terminal has true color its ground is dusk until it says its background is light.
+    paint: createPaint(trueColor ? "dusk" : "own"),
+    tick: 0,
+    height: () => Math.max(1, tui.terminal.rows - 1),
+    width: () => Math.max(1, tui.terminal.columns),
+    folded: false,
+    front: "agents",
+    model: state.model(),
+    levels: levelsOf(state.model(), { now: now(), inFull, filter: "everything" }),
+    filter: "everything",
+    inFull,
+    chosen: { agents: undefined, list: undefined },
+    running: new Set(),
+    machine: options.machine,
+  };
+  const tui = new TuiAltScreen(terminal, false, undefined, {
+    scrollToEndIndicator: () => frame.paint.text(` ${LATEST} `, { tone: "ink", on: "raise" }),
+  });
 
   let leave: () => void = () => undefined;
   const left = new Promise<void>((resolve) => {
@@ -90,23 +132,23 @@ export function startDrawing(options: DrawingOptions): Drawing {
     },
   });
 
-  // Which level is in front. The state opens what the person chose, and going back is the console's alone.
-  let front: Front = "agents";
-  // What was open when the screen was last drawn, so that what the state opens, as it opens the only agent's list, is put in front.
-  let listOpen = false;
-  let itemOpen: Item | undefined;
+  const editorTheme: EditorTheme = {
+    borderColor: (text) => frame.paint.text(text, "line2"),
+    selectList: {
+      selectedPrefix: (text) => frame.paint.text(text, "coral"),
+      selectedText: (text) => frame.paint.text(text, "coral"),
+      description: (text) => frame.paint.text(text, "ink3"),
+      scrollInfo: (text) => frame.paint.text(text, "ink3"),
+      noMatch: (text) => frame.paint.text(text, "ink3"),
+    },
+  };
+  const editor = new Editor(tui, editorTheme, { paddingX: 1 });
 
-  // What was typed for each thread that is not in front, so that leaving a thread doesn't lose or misplace it.
+  // What was typed in each thread that is not open, so that opening another thread doesn't lose or misplace it.
   const drafts = new Map<string, string>();
   let draftKey: string | undefined;
-  const keyOf = (open: Open): string | undefined => {
-    const { item } = open;
-    return front === "item" && item?.kind === "thread" && item.place.kind !== "read-only"
-      ? `${JSON.stringify(item.place)}\n${item.thread ?? "new"}`
-      : undefined;
-  };
   const syncDraft = (open: Open): void => {
-    const key = keyOf(open);
+    const key = draftKeyOf(open);
     if (key === draftKey) return;
     if (draftKey !== undefined) {
       const typed = editor.getText();
@@ -161,38 +203,12 @@ export function startDrawing(options: DrawingOptions): Drawing {
     });
   };
 
-  let loader: Loader | undefined;
-  const working = (message: string | undefined): Component | undefined => {
-    if (message === undefined) {
-      loader?.stop();
-      loader = undefined;
-      return undefined;
-    }
-    if (loader === undefined) loader = new Loader(tui, theme.spinner, theme.dim, message, theme.working);
-    else loader.setMessage(message);
-    return loader;
-  };
-
-  const messages = new Map<string, { key: string; component: Component }>();
-  const messageView = (row: MessageRow): Component => {
-    const key = JSON.stringify(row);
-    const kept = messages.get(row.id);
-    if (kept?.key === key) return kept.component;
-    const component = messageComponent(row, theme);
-    messages.set(row.id, { key, component });
-    return component;
-  };
-
-  // What the person asked to see in full, wherever work is shown. It outlasts the screen it was asked on.
-  const inFull: InFull = { toolCalls: false, thinking: false };
-  // What an agent's list shows, which the person sets once and which stays as set for every agent while the console is open.
-  let filter: ListFilter = "everything";
-  // The screen as it was last drawn, which says what the keys do on it.
-  let current: Screen = screenOf(state.model(), front, { now: now(), inFull, filter });
+  // The screen as it was last drawn, which says what the keys do in front.
+  let current: Screen = screenOf(frame);
   // While what is typed in a thread starts with a slash, the editor lists the commands that can be written there, and the models of the agent after `/model `.
   editor.setAutocompleteProvider(
     commandList({
-      commands: () => (current.kind === "thread" ? current.commands : []),
+      commands: () => frame.levels.thread?.commands ?? [],
       async models() {
         const model = state.model();
         const { item } = model.open;
@@ -203,216 +219,302 @@ export function startDrawing(options: DrawingOptions): Drawing {
     }),
   );
 
-  let chosen: string | undefined;
-  // The kind of the screen drawn before this one, and whether an agent's screen was opened and has not been drawn whole yet.
-  let before: Screen["kind"] | undefined;
-  let landing = false;
-  let focus: Component | null | undefined;
-  const rows = (): number => tui.terminal.rows;
-
-  /**
-   * An agent's screen that is opened starts on the row where the agent is
-   * working, if there is one, wherever it stands in the list. It waits until the
-   * agent has said which sessions it has, so that a session behind no thread is
-   * found too, and gives up if the person has chosen a row first. Coming back to
-   * the list from a thread or a session is not opening it: the choice stays
-   * where the person left it.
-   */
-  function landOnWork(screen: Screen): void {
-    const agentList = screen.kind === "threads" && screen.ofAgent;
-    if (agentList && before !== "threads" && before !== "thread" && before !== "session") landing = true;
-    else if (!agentList) landing = false;
-    before = screen.kind;
-    if (!landing || screen.kind !== "threads" || !screen.settled || screen.rows.length === 0) return;
-    landing = false;
-    const busy = screen.rows.find((row) => row.working);
-    if (busy !== undefined) chosen = rowKey(busy);
-  }
-
-  /** What the screen holds between its title and its notes, and what the keys go to. */
-  function body(screen: Screen): { parts: Component[]; focus: Component | null } {
-    switch (screen.kind) {
-      // A channel the person only reads has no editor either, and what is typed goes nowhere.
-      case "thread":
-        return { parts: threadParts(screen), focus: screen.can.send ? editor : null };
-      // A session is watched and not talked in, so there is no editor, and what is typed goes nowhere.
-      case "session":
-        return { parts: sessionParts(screen), focus: null };
-      case "agents":
-      case "threads": {
-        // Nothing is being worked on in a list, so its spinner has no business running.
-        working(undefined);
-        const parts: Component[] = [];
-        let list: Component | null = null;
-        if (screen.rows.length === 0) {
-          if (screen.empty !== undefined) parts.push(new Text(theme.dim(screen.empty), 0, 0));
-        } else {
-          list = listOf({
-            rows: screen.rows,
-            chosen,
-            room: rows() - 8,
-            theme,
-            open: (row) => {
-              if (row.kind === "agent") state.selectAgent(row.id);
-              else if (row.kind === "room") state.selectRoom(row.id);
-              else if (row.kind === "read-only") state.selectReadOnly(row.id);
-              else if (row.kind === "session") state.openSession(row.id);
-              else state.openThread(row.id);
-              go(row.kind === "thread" || row.kind === "session" ? "item" : "list");
-            },
-            moved: (id) => {
-              chosen = id;
-              landing = false;
-            },
-          });
-          parts.push(list);
-        }
-        return { parts, focus: list };
-      }
-    }
-  }
-
-  /** What the session holds, then what it is doing now, or that it is not, or that this may be out of date, and what waits for it. */
-  function sessionParts(screen: SessionScreen): Component[] {
-    const parts = sessionComponents(screen, theme);
-    const line = working(screen.working);
-    const status: Component[] = [];
-    if (screen.idle !== undefined) status.push(new Text(theme.dim(screen.idle), 0, 0));
-    if (screen.stale) status.push(new Text(theme.warn(`(${OUT_OF_DATE})`), 0, 0));
-    for (const queued of screen.queued) status.push(new Text(theme.dim(queued), 0, 0));
-    for (const waiting of screen.waiting) status.push(new Text(theme.dim(waiting), 0, 0));
-    // The spinner has a blank line of its own above it.
-    if (line !== undefined) parts.push(line);
-    else if (status.length > 0 && screen.steps.length > 0) parts.push(new Spacer(1));
-    parts.push(...status);
-    return parts;
-  }
-
-  function threadParts(screen: ThreadScreen): Component[] {
-    const parts: Component[] = [];
-    if (screen.lead !== undefined) parts.push(new Text(theme.dim(screen.lead), 0, 1));
-    const seen = new Set<string>();
-    for (const row of screen.messages) {
-      seen.add(row.id);
-      parts.push(messageView(row));
-    }
-    for (const id of messages.keys()) if (!seen.has(id)) messages.delete(id);
-    if (screen.work !== undefined) {
-      parts.push(new Spacer(1));
-      // What the person asked to see in full is not cut to half the screen.
-      const whole = inFull.toolCalls || inFull.thinking;
-      parts.push(workComponent(screen.work, screen.workStale, theme, () => (whole ? Number.POSITIVE_INFINITY : Math.max(6, Math.floor(rows() / 2)))));
-    }
-    const line = working(screen.working);
-    if (line !== undefined) parts.push(line);
-    if (screen.waiting.length > 0) {
-      if (line === undefined) parts.push(new Spacer(1));
-      for (const waiting of screen.waiting) parts.push(new Text(theme.dim(waiting), 0, 0));
-    }
-    if (screen.status !== undefined) parts.push(statusComponent(screen.status, theme));
-    editor.borderColor = screen.working === undefined ? theme.editor.borderColor : theme.editorBusy;
-    return parts;
-  }
-
   /** Put `level` in front, and draw it. */
-  function go(level: Front): void {
-    front = level;
+  function go(level: Level): void {
+    frame.front = level;
     update();
   }
+  const focusItem = (): void => {
+    if (frame.model.open.item !== undefined) go("item");
+  };
+
+  /** Open what a row is: an agent's list or a room's, or a thread or a session in the open list. */
+  function open(row: Row): void {
+    if (row.kind === "agent" || row.kind === "room" || row.kind === "read-only") {
+      frame.chosen.agents = rowKey(row);
+      if (row.kind === "agent") state.selectAgent(row.id);
+      else if (row.kind === "room") state.selectRoom(row.id);
+      else state.selectReadOnly(row.id);
+      go("list");
+      return;
+    }
+    frame.chosen.list = rowKey(row);
+    landing = false;
+    if (row.kind === "session") state.openSession(row.id);
+    else state.openThread(row.id);
+    go("item");
+  }
+
+  const setFilter = (filter: ListFilter): void => {
+    frame.filter = filter;
+    go("list");
+  };
+
+  const prose = new Prose();
+  const rail = new Pane(frame, "ground", (width, height) => drawRail(frame, width, height, notesFor(frame, "agents"), open), () => go("agents"));
+  const list = new Pane(
+    frame,
+    "list",
+    (width, height) => drawList(frame, width, height, notesFor(frame, "list"), { open, filter: setFilter }),
+    () => {
+      if (frame.model.open.list !== undefined) go("list");
+    },
+  );
+  const header = new ThreadHeader(frame, () => state.turnOver(), focusItem);
+  const dock = new Dock(frame);
+  const cursor = renderFakeCursor("\u0000");
+  const [cursorStart = "", cursorEnd = ""] = cursor.split("\u0000");
+  const input = new Input(frame, editor, focusItem, { start: cursorStart, end: cursorEnd });
+  const conversation = new Conversation(frame, prose, (width) => header.render(width).length + dock.render(width).length + input.render(width).length);
+  const scroll = new ScrollView(conversation, { follow: "end", primary: true });
+  const thread = new VStack([{ component: header }, { component: scroll, basis: 0, grow: 1, minSize: 1 }, { component: dock }, { component: input }]);
+  const divider = (): Component => ({
+    render: () => Array.from({ length: frame.height() }, () => frame.paint.lay(frame.paint.text("│", "line"), 1, "ground")),
+    invalidate() {},
+  });
+  // A width that changes can put another level on show, which changes whether the person is looking at the thread.
+  let drawnWidth = 0;
+  const watchWidth: Component = {
+    render(width) {
+      if (width !== drawnWidth) {
+        drawnWidth = width;
+        queueMicrotask(update);
+      }
+      return [];
+    },
+    invalidate() {},
+  };
+  const keysLine = new KeysLine(frame, () => {
+    if (waitingForSecondPress) return "quit-again";
+    if (keys !== undefined) return [CLOSE_KEYS];
+    return keyHints({ send: current.can.send, choose: current.can.choose, back: current.can.back, first: frame.front === "agents" });
+  });
+  const levelsShown = (count: 1 | 2 | 3) => (viewport: { width: number }) => levelsAt(viewport.width, frame.folded) === count;
+  tui.setLayoutRoot(
+    new VStack([
+      { component: watchWidth, basis: 0, shrink: 0 },
+      {
+        component: new HStack([
+          { component: rail, basis: 0, grow: 1, visible: () => frame.front === "agents" },
+          { component: list, basis: 0, grow: 1, visible: () => frame.front === "list" },
+          { component: thread, basis: 0, grow: 1, visible: () => frame.front === "item" },
+        ]),
+        basis: 0,
+        grow: 1,
+        visible: levelsShown(1),
+      },
+      {
+        component: new HStack([
+          { component: rail, basis: LIST, shrink: 0, visible: () => frame.front === "agents" },
+          { component: list, basis: LIST, shrink: 0, visible: () => frame.front !== "agents" },
+          { component: divider(), basis: 1, shrink: 0 },
+          { component: thread, basis: 0, grow: 1 },
+        ]),
+        basis: 0,
+        grow: 1,
+        visible: levelsShown(2),
+      },
+      {
+        component: new HStack([
+          { component: rail, basis: RAIL, shrink: 0 },
+          { component: divider(), basis: 1, shrink: 0 },
+          { component: list, basis: LIST, shrink: 0 },
+          { component: divider(), basis: 1, shrink: 0 },
+          { component: thread, basis: 0, grow: 1 },
+        ]),
+        basis: 0,
+        grow: 1,
+        visible: levelsShown(3),
+      },
+      { component: keysLine, basis: 1, shrink: 0 },
+    ]),
+  );
+
+  // The list of every key, while it is open.
+  let keys: OverlayHandle | undefined;
+  const keysList = new KeysList(frame, () => closeKeys());
+  const openKeys = (): void => {
+    keys = tui.showOverlay(keysList, { width: Math.min(KEYS_WIDTH, Math.max(1, frame.width() - 4)), anchor: "center", nonCapturing: true });
+    update();
+  };
+  const closeKeys = (): void => {
+    keys?.hide();
+    keys = undefined;
+    update();
+  };
+
+  // What moves, moves only while something works, so that a screen at rest is not drawn again for nothing.
+  let ticker: ReturnType<typeof setInterval> | undefined;
+  const animate = (moving: boolean): void => {
+    if (moving && ticker === undefined) {
+      ticker = setInterval(() => {
+        frame.tick += 1;
+        tui.requestRender();
+      }, TICK_MS);
+    } else if (!moving && ticker !== undefined) {
+      clearInterval(ticker);
+      ticker = undefined;
+    }
+  };
+
+  // What was open when the screen was last drawn, so that what the state opens, as it opens the only agent's list, is put in front.
+  let listOpen: string | undefined;
+  let itemOpen: Item | undefined;
+  // An agent's list that is opened starts on the row where the agent is working, once it has said which sessions it has.
+  let landing = false;
+  let focused: Component | null | undefined;
+  let title: string | undefined;
+  let shown: string | undefined;
 
   function update(): void {
     const model = state.model();
-    const { list, item } = model.open;
-    if (!listOpen && list !== undefined) front = item === undefined ? "list" : "item";
-    else if (opened(itemOpen, item)) front = "item";
-    listOpen = list !== undefined;
-    itemOpen = item;
-    // The person is looking at a thread for as long as it is in front, whichever side of it is on show.
-    state.look(front === "item" && item?.kind === "thread");
-    syncDraft(model.open);
-    const screen = screenOf(model, front, { now: now(), inFull, filter });
-    current = screen;
-    landOnWork(screen);
-    const { parts, focus: next } = body(screen);
-
-    page.clear();
-    // A conversation or a session scrolls its title away, and changing a line that far up repaints the whole screen, so only a list is marked.
-    const scrolls = screen.kind === "thread" || screen.kind === "session";
-    const stale = !scrolls && screen.stale ? `  ${theme.warn(`(${OUT_OF_DATE})`)}` : "";
-    page.addChild(new TruncatedText(theme.title(screen.title) + stale, 0, 0));
-    if (!scrolls) page.addChild(new Spacer(1));
-    for (const part of parts) page.addChild(part);
-    // The notes sit by what the person is doing, at the bottom, where a long conversation has not pushed them out of sight.
-    if (screen.notes.length > 0 && (scrolls || parts.length > 0)) page.addChild(new Spacer(1));
-    for (const note of screen.notes) page.addChild(new Text(theme.warn(note), 0, 0));
-    if (screen.kind === "thread") {
-      if (screen.can.send) page.addChild(editor);
-      else if (screen.readOnly !== undefined) {
-        // Where the input would be, a channel the person only reads says why there is none.
-        page.addChild(new Spacer(1));
-        page.addChild(new Text(theme.dim(screen.readOnly), 0, 0));
-      }
+    frame.model = model;
+    const { list: openList, item } = model.open;
+    const listKey = openList === undefined ? undefined : listRowKey(openList);
+    if (listKey !== listOpen) {
+      if (listOpen === undefined && listKey !== undefined) frame.front = item === undefined ? "list" : "item";
+      if (listKey !== undefined) frame.chosen.agents = listKey;
+      frame.chosen.list = undefined;
+      landing = openList?.kind === "agent";
     }
-    page.addChild(waitingForSecondPress ? new Text(theme.warn(QUIT_AGAIN), 0, 0) : keysComponent(screen.keys, theme));
+    if (opened(itemOpen, item)) frame.front = "item";
+    listOpen = listKey;
+    itemOpen = item;
+    if (openList === undefined) frame.front = "agents";
+    else if (item === undefined && frame.front === "item") frame.front = "list";
 
-    if (focus !== next) {
-      focus = next;
+    frame.running = runningIn(model);
+    frame.levels = levelsOf(model, { now: now(), inFull, filter: frame.filter });
+    const { agents, list: listLevel, thread: threadLevel, session } = frame.levels;
+    frame.chosen.agents = kept(agents.rows, frame.chosen.agents);
+    const rows = listLevel === undefined ? [] : listRows(listLevel);
+    frame.chosen.list ??= openedKey(item);
+    if (landing && listLevel?.settled === true && rows.length > 0) {
+      landing = false;
+      const busy = rows.find((each) => each.working);
+      if (busy !== undefined) frame.chosen.list = rowKey(busy);
+    }
+    frame.chosen.list = kept(rows, frame.chosen.list);
+
+    // The person is looking at a thread while it is on show, whichever view of it is.
+    state.look(item?.kind === "thread" && onShow(frame.width(), frame.folded, frame.front).includes("item"));
+    // Another thread, or another view of one, opens at its end, where what is new is.
+    const showing = item === undefined ? undefined : JSON.stringify(item);
+    if (showing !== shown) {
+      shown = showing;
+      scroll.scrollToEnd();
+    }
+    syncDraft(model.open);
+    const next = frame.front === "item" && writable(frame) && keys === undefined ? editor : null;
+    if (focused !== next) {
+      focused = next;
       tui.setFocus(next);
     }
+    const working = agents.rows.filter((each) => each.kind === "agent" && each.working).length;
+    animate(working > 0 || threadLevel?.working !== undefined || session?.working !== undefined);
+    const named = windowTitle(working, agents.unread);
+    if (named !== title) {
+      title = named;
+      terminal.setTitle(named);
+    }
+    current = screenOf(frame);
     tui.requestRender();
-    options.onDraw?.(screen);
+    options.onDraw?.(current);
+  }
+
+  /** The rows of the list the keys are in, as they are drawn, and which of them is chosen. */
+  function inFront(): { rows: Row[]; chosen: string | undefined } {
+    if (frame.front === "agents") return { rows: frame.levels.agents.rows, chosen: frame.chosen.agents };
+    return { rows: frame.levels.list === undefined ? [] : listRows(frame.levels.list), chosen: frame.chosen.list };
+  }
+
+  /** Move the chosen row of the list the keys are in by `by`. */
+  function choose(by: number): void {
+    const { rows, chosen } = inFront();
+    const at = Math.max(0, rows.findIndex((each) => rowKey(each) === chosen));
+    const next = rows[Math.max(0, Math.min(rows.length - 1, at + by))];
+    if (next === undefined) return;
+    if (frame.front === "agents") frame.chosen.agents = rowKey(next);
+    else frame.chosen.list = rowKey(next);
+    landing = false;
+    update();
+  }
+
+  /** What a key does where the keys are in a list. */
+  function onList(data: string): void {
+    if (matchesKey(data, "up") || matchesKey(data, "down")) choose(matchesKey(data, "up") ? -1 : 1);
+    else if (matchesKey(data, "right") || matchesKey(data, "enter")) {
+      const { rows, chosen } = inFront();
+      const row = rows.find((each) => rowKey(each) === chosen);
+      if (row !== undefined) open(row);
+    } else if (matchesKey(data, "left") && frame.front === "list") go("agents");
+    else if (matchesKey(data, "tab") && frame.front === "list" && frame.levels.list?.ofAgent === true) {
+      setFilter(frame.filter === "everything" ? "yours" : "everything");
+    }
   }
 
   tui.addInputListener((data) => {
     // A terminal that reports keys being let go sends one more event for each press, and a key is pressed once.
     if (isKeyRelease(data)) return undefined;
+    // The other overlay is pi-tui's search of the thread, whose keys are its own until Esc closes it.
+    if (keys === undefined && tui.hasOverlay()) return undefined;
+    if (keys !== undefined) {
+      if (matchesKey(data, "escape") || matchesKey(data, "ctrl+g") || matchesKey(data, "left")) closeKeys();
+      return { consume: true };
+    }
     if (matchesKey(data, "ctrl+c")) {
       // What is typed is only there to clear where there is an input to see it in.
-      const pressed = quitting.press(current.can.send && editor.getText() !== "");
+      const pressed = quitting.press(writable(frame) && editor.getText() !== "");
       if (pressed === "cleared") editor.setText("");
       if (pressed === "quit") leave();
       update();
       return { consume: true };
     }
     quitting.other();
-    const { can } = current;
-    if (matchesKey(data, "ctrl+d") && (current.kind !== "thread" || editor.getText() === "")) {
-      leave();
+    if (matchesKey(data, "ctrl+g")) {
+      openKeys();
       return { consume: true };
     }
-    if (matchesKey(data, "escape") && can.back) {
-      // Esc closes the list of commands when it is open, which the editor does. The next Esc goes back.
-      if (editor.isShowingAutocomplete()) return undefined;
-      go(current.kind === "thread" || current.kind === "session" ? "list" : "agents");
+    if (matchesKey(data, "ctrl+d")) {
+      if (editor.getText() === "") leave();
+      // With something typed, Ctrl+D is the editor's, where the keys are in it.
+      return editor.getText() !== "" && frame.front === "item" ? undefined : { consume: true };
+    }
+    if (matchesKey(data, "ctrl+\\")) {
+      frame.folded = !frame.folded;
+      update();
       return { consume: true };
     }
-    if (matchesKey(data, "ctrl+n") && can.newThread) {
-      // In a thread, a new thread is started where that one is; on a list, with its agent or in its room.
-      const { item } = state.model().open;
-      state.startThread(current.kind === "thread" && item?.kind === "thread" ? item.place : undefined);
-      go("item");
+    if (matchesKey(data, "ctrl+n")) {
+      if (frame.levels.list?.startable === true) {
+        state.startThread();
+        go("item");
+      }
       return { consume: true };
     }
-    if (matchesKey(data, "tab") && can.turnOver) {
+    if (matchesKey(data, "ctrl+o") || matchesKey(data, "ctrl+t")) {
+      if (matchesKey(data, "ctrl+o")) inFull.toolCalls = !inFull.toolCalls;
+      else inFull.thinking = !inFull.thinking;
+      update();
+      return { consume: true };
+    }
+    // Esc closes the list of commands, which the editor does, and does nothing else.
+    if (matchesKey(data, "escape")) return editor.isShowingAutocomplete() ? undefined : { consume: true };
+    if (frame.front !== "item") {
+      onList(data);
+      return { consume: true };
+    }
+    if (matchesKey(data, "tab")) {
       // While the editor lists commands, Tab is the editor's: it puts the chosen command in the input.
       if (editor.isShowingAutocomplete()) return undefined;
       state.turnOver();
       return { consume: true };
     }
-    // Right narrows an agent's list to what is with the person, and Left widens it again.
-    if ((matchesKey(data, "left") || matchesKey(data, "right")) && can.filter) {
-      filter = matchesKey(data, "right") ? "yours" : "everything";
-      update();
-      return { consume: true };
-    }
-    if (matchesKey(data, "ctrl+o") && can.work) {
-      inFull.toolCalls = !inFull.toolCalls;
-      update();
-      return { consume: true };
-    }
-    if (matchesKey(data, "ctrl+t") && can.work) {
-      inFull.thinking = !inFull.thinking;
-      update();
+    if (matchesKey(data, "left")) {
+      // Left crosses what is typed first, and goes back from its start.
+      const { line, col } = editor.getCursor();
+      if (writable(frame) && (line > 0 || col > 0)) return undefined;
+      go("list");
       return { consume: true };
     }
     return undefined;
@@ -421,23 +523,49 @@ export function startDrawing(options: DrawingOptions): Drawing {
   const unsubscribe = state.subscribe(update);
   update();
   tui.start();
+  if (trueColor) {
+    void tui.queryTerminalColors({ timeoutMs: COLORS_MS }).then((colors) => {
+      const wool = colors.background !== undefined && isLight(colors.background) ? "day" : "dusk";
+      if (wool === frame.paint.wool) return;
+      frame.paint = createPaint(wool);
+      tui.invalidate();
+      tui.requestRender(true);
+    });
+  }
 
   let stopped = false;
   return {
     left,
     leave: () => leave(),
-    render: (width) => tui.render(width),
+    render() {
+      tui.renderNow();
+      return tui.getScreenLines();
+    },
     async stop() {
       if (stopped) return;
       stopped = true;
       unsubscribe();
-      loader?.stop();
+      animate(false);
       quitting.close();
+      keys?.hide();
+      // Leaving prints the open thread back where the console was, as what was said, with no ground under it.
+      tui.setLayoutRoot({
+        render: (width) => {
+          const shown = frame.model.open.item === undefined ? [] : conversation.said(width);
+          const named = frame.levels.session?.title ?? frame.levels.thread?.title;
+          return named === undefined ? shown : [frame.paint.runs([[` ${named}`, { tone: "ink", bold: true }]]), ...shown];
+        },
+        invalidate() {},
+      });
       tui.stop();
       await terminal.drainInput(250, 25);
     },
   };
 }
+
+/** `chosen` if it is still one of `rows`, and else the first of them. */
+const kept = (rows: readonly Row[], chosen: string | undefined): string | undefined =>
+  rows.some((each) => rowKey(each) === chosen) ? chosen : rows[0] === undefined ? undefined : rowKey(rows[0]);
 
 /**
  * Whether `now` is something other than `before` that was opened in the list:
@@ -450,3 +578,4 @@ function opened(before: Item | undefined, now: Item | undefined): boolean {
   if (before?.kind === "session" && now.kind === "session") return before.session !== now.session;
   return true;
 }
+

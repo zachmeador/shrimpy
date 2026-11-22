@@ -1,3 +1,4 @@
+import { hostname } from "node:os";
 import { gatewaySocket } from "../../contracts/gateway/node.ts";
 import type { DialPlace } from "../../lib/link/node.ts";
 import { dialAt } from "../network/node.ts";
@@ -24,7 +25,7 @@ export interface ConsoleOptions {
   token?: string | null;
   /** The terminal to draw on. The person's by default. */
   terminal?: ConsoleTerminal;
-  /** Told each screen as it is drawn: what it shows and what its keys do, for a test that waits until one is. */
+  /** Told the level in front each time the screen is drawn: what it shows and what its keys do, for a test that waits until one is. */
   onDraw?: (screen: Screen) => void;
   /** How long a notice stays, in milliseconds. */
   noticeMs?: number;
@@ -61,6 +62,7 @@ export async function openConsole(options: ConsoleOptions): Promise<number> {
       now: options.now,
       quitWindowMs: options.quitWindowMs,
       onDraw: options.onDraw,
+      machine: hostname(),
     });
     const stopListening = options.io.onStop(() => drawing.leave());
     try {
