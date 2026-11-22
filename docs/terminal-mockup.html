@@ -1159,7 +1159,7 @@ function term(win, o) {
     y += 2;
     const mine = lists[a];
     if (!mine.yours.length && (s.filter === 'yours' || !mine.elsewhere.length)) {
-      note(x, y, w, [[`You have not talked to ${A.name} yet. Press Ctrl+N to start a thread.${mine.elsewhere.length ? ` Left shows everything ${A.name} takes part in.` : ''}`, DIM]]);
+      note(x, y, w, [[`You have not talked to ${A.name} yet. Press Ctrl+N to start a thread.${mine.elsewhere.length ? ` Tab shows everything ${A.name} takes part in.` : ''}`, DIM]]);
       return;
     }
     if (mine.yours.length) {

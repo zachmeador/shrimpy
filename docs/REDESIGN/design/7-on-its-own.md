@@ -103,7 +103,7 @@ Helpers are under Not built yet below.
 
 **Not built yet**
 
-*A trigger's line in its thread:* a trigger that names a thread shows a small line there when it fires, which takes a change to the chat contract.
+*A trigger's line in its thread:* a trigger that names a thread shows a small line there when it fires, which takes a change to the chat contract. Both clients' mockups draw it.
 
 *What an agent does without being asked: helpers.*
 

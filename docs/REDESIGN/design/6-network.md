@@ -178,7 +178,7 @@ Open the terminal with: shrimpy
 
 **Not built yet**
 
-*What is left of a browser's way in.* The certificate's skill, an invitation as a code to scan, and renewing a browser's cookie before its 400 days are up. A desktop app that wraps the page, which [the plan](../PLAN.md#direction) stays open to, could check the gateway's key by its fingerprint as a machine does. It would then need no certificate, on a plain LAN or anywhere else. That is untried.
+*What is left of a browser's way in.* The certificate's skill, an invitation as a code to scan, and renewing a browser's cookie before its 400 days are up. A page that isn't let in has no field that takes a code. An app on a phone's home screen keeps storage of its own, so unless the phone copies the browser's cookie when the page is installed, which is untried, the installed app has no way in. A desktop app that wraps the page, which [the plan](../PLAN.md#direction) stays open to, could check the gateway's key by its fingerprint as a machine does. It would then need no certificate, on a plain LAN or anywhere else. That is untried.
 
 *What is left of an agent apart from the gateway.*
 
