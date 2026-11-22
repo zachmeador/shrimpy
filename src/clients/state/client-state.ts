@@ -242,19 +242,26 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
   /**
    * While the person is looking at the open thread, move its read mark up to
    * its newest message when anything in it is new to them, once for each
-   * message. One that fails is moved again when the thread next changes. The
-   * first time it is moved, the first message that was new is kept, so that
-   * what was new stays told apart after it is read.
+   * message. One that fails is moved again when the thread next changes. When
+   * the person comes to the thread, on opening it or on looking again, the
+   * first message that is new to them is kept, so that what came while they
+   * were away stays told apart after it is read. What comes while they look is
+   * not new in that way.
    */
   function markRead(): void {
     const thread = held.thread();
     const shown = thread?.held.shown();
-    const newest = shown?.messages.at(-1);
-    if (!looking || thread === undefined || newest === undefined || (shown?.unread ?? 0) === 0 || thread.marked === newest.id) return;
-    if (thread.firstNew === undefined) {
-      thread.firstNew = firstNewOf(shown?.messages ?? [], shown?.unread ?? 0, store.model().me?.id);
-      store.changed();
+    // Chat has not said yet what is new in the thread.
+    if (!looking || thread === undefined || shown === undefined || shown.unread === null) return;
+    if (!thread.met) {
+      thread.met = true;
+      if (shown.unread > 0) {
+        thread.firstNew = firstNewOf(shown.messages, shown.unread, store.model().me?.id);
+        store.changed();
+      }
     }
+    const newest = shown.messages.at(-1);
+    if (newest === undefined || shown.unread === 0 || thread.marked === newest.id) return;
     thread.marked = newest.id;
     const failed = (): void => {
       if (thread.marked === newest.id) thread.marked = undefined;
@@ -316,6 +323,9 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
     look(yes) {
       if (looking === yes) return;
       looking = yes;
+      // What comes while the person looks away is new to them when they look again.
+      const thread = held.thread();
+      if (!yes && thread !== undefined) thread.met = false;
       store.changed();
     },
     async joinRoom() {

@@ -25,14 +25,16 @@ import {
 /**
  * The open thread, held, the refusal it was last said to have, so that it is
  * said once, and the message its read mark was last moved up to, so that it is
- * moved once; and the first message that was new to the person when its read
- * mark was first moved, kept while it stays open.
+ * moved once; whether the person has come to it since it was opened or since
+ * they last looked away; and the first message that was new to them when they
+ * came to it, kept while it stays open.
  */
 export interface OpenThread {
   readonly id: string;
   readonly held: Holding<ThreadShown, ThreadCalls>;
   told: string | undefined;
   marked: string | undefined;
+  met: boolean;
   firstNew: string | undefined;
 }
 
@@ -144,7 +146,7 @@ export function createHoldings(link: GatewayLink, changed: () => void): Holdings
     useThread(id) {
       if (thread?.id === id) return;
       thread?.held.release();
-      thread = id === undefined ? undefined : { id, held: holdThread(link, id, changed), told: undefined, marked: undefined, firstNew: undefined };
+      thread = id === undefined ? undefined : { id, held: holdThread(link, id, changed), told: undefined, marked: undefined, met: false, firstNew: undefined };
     },
     useSessions(address, agents) {
       for (const [agent, each] of sessions) {

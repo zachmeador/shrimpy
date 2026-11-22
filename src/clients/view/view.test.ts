@@ -105,6 +105,28 @@ test("the first message that was new when the person looked at the thread stays 
   assert.deepEqual(firstNew(later), [false, true, false, false]);
 });
 
+test("a reply that comes while the person looks at the thread is not told apart as new, and one that comes while they look away is", { timeout }, async (t) => {
+  const rig = await startRig(t);
+  const scout = await rig.member("scout");
+  const asScout = await rig.asAgent("scout");
+  const thread = await rig.thread("scout", "check the disk");
+  await rig.until((model) => model.open.list?.id === scout.id, "scout's list");
+
+  rig.state.openThread(thread.id);
+  rig.state.look(true);
+  await rig.until((model) => model.thread?.messages.length === 1, "the thread");
+  await asScout.post(thread.id, "43% used");
+  const watched = await rig.until((model) => model.thread?.messages.length === 2 && model.thread.unread === 0, "the reply, read as it came");
+  assert.deepEqual(firstNew(watched), [false, false]);
+
+  rig.state.look(false);
+  await asScout.post(thread.id, "the rest is photos");
+  await rig.until((model) => model.thread?.messages.length === 3 && model.thread.unread === 1, "a reply the person has not looked at");
+  rig.state.look(true);
+  const back = await rig.until((model) => model.thread?.messages.length === 3 && model.thread.unread === 0, "the reply, read on looking again");
+  assert.deepEqual(firstNew(back), [false, false, true]);
+});
+
 test("a message shows each emoji with who put it there, a failed receipt apart, the agents it names and whether it is a command", { timeout }, async (t) => {
   const rig = await startRig(t);
   const scout = await rig.member("scout");
