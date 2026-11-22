@@ -59,16 +59,18 @@ const ANSWERED: OutgoingHttpHeaders = {
 
 /**
  * Open the page's door where your settings say, or on loopback at 7448. It
- * serves the page's files, takes an invitation's code from the page at
- * `PAGE_JOIN`, and keeps the token the gateway makes for the browser in a
- * cookie the page's scripts can't read, which the browser sends only with the
- * page's link, at `PAGE_LINK` and below it, and only over HTTPS when the door
- * has a certificate. At `PAGE_PUSH` it tells anyone the key to subscribe to
- * push with, and takes where a browser of yours is told things, knowing it by
- * its cookie. A code, a place, like a link, is taken only from the door's own
- * page. A door that can't open, for settings that can't be used, a certificate
- * that can't be read or an address another program has, is an error that says
- * it stays shut, why, and what opens it.
+ * serves the page's files, and the page itself at any other address a browser
+ * opens, since the page's address follows what is open on it. It takes an
+ * invitation's code from the page at `PAGE_JOIN`, and keeps the token the
+ * gateway makes for the browser in a cookie the page's scripts can't read,
+ * which the browser sends only with the page's link, at `PAGE_LINK` and below
+ * it, and only over HTTPS when the door has a certificate. At `PAGE_PUSH` it
+ * tells anyone the key to subscribe to push with, and takes where a browser of
+ * yours is told things, knowing it by its cookie. A code, a place, like a
+ * link, is taken only from the door's own page. A door that can't open, for
+ * settings that can't be used, a certificate that can't be read or an address
+ * another program has, is an error that says it stays shut, why, and what
+ * opens it.
  */
 export async function openPage(options: PageOptions): Promise<PageDoor> {
   const file = options.settings;
@@ -122,7 +124,10 @@ export async function openPage(options: PageOptions): Promise<PageDoor> {
     const path = new URL(request.url ?? "/", "http://page").pathname;
     if (path === PAGE_JOIN) return handled(join(request, response), response);
     if (path === PAGE_PUSH) return handled(push(request, response), response);
-    const file = files.get(path);
+    // The page's address follows what is open on it, so a browser that opens one of its addresses is given the page. The
+    // link and the join are the door's own, and no address of the page.
+    const own = [PAGE_LINK, PAGE_JOIN].some((door) => path === door || path.startsWith(`${door}/`));
+    const file = files.get(path) ?? (navigating(request) && !own ? files.get("/") : undefined);
     if (file === undefined || (request.method !== "GET" && request.method !== "HEAD")) return answer(response, 404);
     response.writeHead(200, { ...ANSWERED, "Content-Type": file.type, "Content-Length": file.body.byteLength });
     response.end(request.method === "HEAD" ? undefined : file.body);
@@ -171,6 +176,11 @@ function bodyOf(request: IncomingMessage, most: number): Promise<string | undefi
     request.once("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
     request.once("error", reject);
   });
+}
+
+/** Whether a browser asks for `request` to show it as a page, as it does when it opens an address, rather than for a file a page uses. */
+function navigating(request: IncomingMessage): boolean {
+  return request.headers.accept?.includes("text/html") === true;
 }
 
 function parsed(text: string): unknown {

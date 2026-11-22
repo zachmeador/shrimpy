@@ -5,5 +5,5 @@
  * draws and as the path a page fills. It must not know a terminal or a page.
  * Safe for browsers.
  */
-export { dots, halves, path, WORDMARK } from "./bitmap.ts";
+export { dots, halves, on, path, widthOf, WORDMARK } from "./bitmap.ts";
 export { type Mode, type PigmentName, ROLES, type Wool, WOOLS } from "./colors.ts";

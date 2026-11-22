@@ -4,16 +4,17 @@
  * session in it, with whose side of a thread is on show; which agents run and
  * what each is working in and how each shows itself, the rooms the person is in
  * and the channels they only read, their threads and how many messages in each
- * are new to the person, an agent's sessions, everything an agent takes part
- * in, the open thread and the session behind it of each agent in it, the
- * session on show whole, read back from where its window starts, what is
+ * are new to the person, an agent's sessions and triggers, everything an agent
+ * takes part in, the open thread and the session behind it of each agent in it,
+ * the session on show whole, read back from where its window starts, what is
  * linked, the person's devices, and the things a person does: open an agent's
  * list, a room's or a channel's they only read, a thread or a session, start a
  * thread, say something, read the status of a thread, list their devices and
  * take one back, ask for the models an agent can use and read the model of a
- * thread's session, act on what the person writes, which a text that starts
- * with a slash decides, tell the person something about what they wrote, put each
- * agent's view of a thread on show in turn and the conversation back, leave. A client says whether the
+ * thread's session, look through an agent's home and its triggers, act on what
+ * the person writes, which a text that starts with a slash decides, tell the
+ * person something about what they wrote, put each agent's view of a thread on
+ * show in turn and the conversation back, leave. A client says whether the
  * person is looking, and the thread they look at is marked read. Which level is
  * in front, and going back, are each client's own. It makes no room and adds no
  * member: that is for the commands. Everything it learns comes through the
@@ -25,6 +26,7 @@ export {
   agentEntries,
   agentNameOf,
   agentOfList,
+  type AgentRead,
   type AgentStatus,
   type ChannelThreads,
   type DevicesStatus,
@@ -38,6 +40,7 @@ export {
   partsOf,
   type Place,
   placeKey,
+  placeOfThread,
   readOnlyEntries,
   roomEntries,
   type RoomStatus,

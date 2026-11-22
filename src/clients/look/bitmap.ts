@@ -1,9 +1,12 @@
 /**
  * A bitmap is rows of `#` for on and anything else for off, as a sigil's twelve
- * lines are. A row may be shorter than the widest one.
+ * lines are. A row may be shorter than the widest one. Whether the pixel at
+ * `x` across and `y` down is on: one outside the bitmap is off.
  */
-const on = (rows: readonly string[], x: number, y: number): boolean => rows[y]?.[x] === "#";
-const widthOf = (rows: readonly string[]): number => Math.max(0, ...rows.map((row) => row.length));
+export const on = (rows: readonly string[], x: number, y: number): boolean => rows[y]?.[x] === "#";
+
+/** How many pixels across a bitmap is: as wide as its widest row. */
+export const widthOf = (rows: readonly string[]): number => Math.max(0, ...rows.map((row) => row.length));
 
 /** Where each dot of a braille cell is, two across and four down, with the bit Unicode gives it. */
 const DOTS = [

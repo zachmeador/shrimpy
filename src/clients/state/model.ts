@@ -6,6 +6,7 @@ import type {
   SessionPlace,
   SessionStatus,
   SessionSummary,
+  TriggerSummary,
   TurnFailure,
   WaitingWakeup,
 } from "../../contracts/agent/index.ts";
@@ -137,6 +138,21 @@ export function agentNameOf(model: Pick<Model, "listing" | "dms">, id: string): 
 }
 
 /**
+ * The channel chat says the thread `thread` is in: the person's DM with an
+ * agent, by the agent's member ID, a room they are in, or a channel they only
+ * read. Undefined while chat lists it in none of them.
+ */
+export function placeOfThread(model: Pick<Model, "dms" | "rooms" | "readOnly">, thread: string): Place | undefined {
+  const has = ({ threads }: ChannelThreads): boolean => threads.some((each) => each.id === thread);
+  const dm = Object.entries(model.dms).find(([, each]) => has(each));
+  if (dm !== undefined) return { kind: "agent", id: dm[0] };
+  const room = Object.values(model.rooms).find(has);
+  if (room !== undefined) return { kind: "room", id: room.channel.id };
+  const reading = Object.values(model.readOnly).find(has);
+  return reading === undefined ? undefined : { kind: "read-only", id: reading.channel.id };
+}
+
+/**
  * The channel a thread opened from the list `list` is in. From an agent's list
  * it is whichever channel chat says it is in: the person's DM with the agent, a
  * room they are in, or a channel they only read, such as the agent's DM with
@@ -144,12 +160,8 @@ export function agentNameOf(model: Pick<Model, "listing" | "dms">, id: string): 
  */
 export function placeOf(model: Pick<Model, "dms" | "rooms" | "readOnly">, list: Place, thread: string): Place {
   if (list.kind !== "agent") return list;
-  const has = (threads: Thread[]): boolean => threads.some((each) => each.id === thread);
-  if (has(model.dms[list.id]?.threads ?? [])) return list;
-  const room = Object.values(model.rooms).find((each) => has(each.threads));
-  if (room !== undefined) return { kind: "room", id: room.channel.id };
-  const reading = Object.values(model.readOnly).find((each) => has(each.threads));
-  return reading === undefined ? list : { kind: "read-only", id: reading.channel.id };
+  const found = placeOfThread(model, thread);
+  return found === undefined || found.kind === "agent" ? list : found;
 }
 
 /**
@@ -191,6 +203,9 @@ export const unreadIn = (channel: ChannelThreads | undefined): number =>
  * never looks for a home itself.
  */
 export type HomeLookup = (agent: string) => { found: boolean; where: string };
+
+/** What was read of an agent, such as a file of its home or one of its triggers: its value, or why it could not be read. */
+export type AgentRead<T> = { value: T } | { problem: Problem };
 
 /** Something that happened a moment ago that the person should know, which goes away by itself. */
 export type Notice =
@@ -312,6 +327,8 @@ export interface Model {
   watched: SessionView | undefined;
   /** The sessions of the agent whose list is open, as it lists them now and in its order. Undefined until it has. */
   sessions: SessionSummary[] | undefined;
+  /** The triggers of the agent whose list is open, in order of name, as it runs them now. Undefined until it has said. */
+  triggers: TriggerSummary[] | undefined;
   /**
    * How each agent that is held shows itself, by its member ID: each agent that
    * is running, and the agent whose list is open. Its sigil and pigment are

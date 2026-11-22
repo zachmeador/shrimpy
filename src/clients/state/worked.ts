@@ -66,6 +66,7 @@ export function worked(model: Model, held: Holdings, link: GatewayLink): Model {
     readOnly,
     agent: agent === undefined ? undefined : agent.held.status(linked("agent", agent.id)),
     sessions: agentShown === undefined || agentShown.refusal !== null ? undefined : agentShown.sessions,
+    triggers: agentShown === undefined || agentShown.refusal !== null ? undefined : agentShown.triggers,
     refusal: agentShown?.refusal?.words,
     watchRefusal: watched?.held.shown()?.refusal?.words,
     thread: threadViewOf(held.thread()?.held.shown()),

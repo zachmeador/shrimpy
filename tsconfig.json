@@ -13,7 +13,7 @@
     "types": ["node"],
     "skipLibCheck": true
   },
-  "files": ["src/clients/web/node.ts"],
+  "files": ["src/clients/web/node.ts", "src/clients/web/node.test.ts", "src/clients/web/markdown.test.ts"],
   "include": ["src"],
   "exclude": ["src/clients/web"]
 }

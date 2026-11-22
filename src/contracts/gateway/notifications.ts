@@ -1,4 +1,5 @@
 import { int, method, nul, obj, remote, type Static, str, union } from "@earendil-works/chord";
+import { compile } from "@earendil-works/pi-schema";
 import { answerOf } from "./answers.ts";
 import { gateway } from "./hosts.ts";
 
@@ -21,6 +22,13 @@ export const NotificationSchema = obj({
   unread: int(),
 });
 export type Notification = Static<typeof NotificationSchema>;
+
+const checkNotification = compile(NotificationSchema).check;
+
+/** A `Notification` from `value`, which a push carried as JSON, or undefined when it isn't one. */
+export function readNotification(value: unknown): Notification | undefined {
+  return checkNotification(value) ? (value as Notification) : undefined;
+}
 
 /**
  * Where the chat server hands the gateway something to tell you, at

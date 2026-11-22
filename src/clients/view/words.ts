@@ -3,16 +3,21 @@ import {
   type AnswerEnding,
   endingWords,
   failureWords,
+  lastWords,
   type ModelId,
   modelWords,
+  notRunWords,
   placeLabel,
   placeWords as placeWithThread,
   type QueuedInput,
+  runningTriggerFields,
   type SessionActivity,
   type SessionPlace,
   type SessionSummary,
   type ToolStatus,
   toolStatusWords,
+  type TriggerDetail,
+  type TriggerSummary,
   usageWords,
   type WaitingWakeup,
   wakeupWords,
@@ -35,6 +40,7 @@ import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../../lib/version/index.t
 import type { Problem, Why } from "../network/index.ts";
 import type { AgentStatus, ClientCommand, DevicesStatus, Notice, RoomStatus } from "../state/index.ts";
 import { shortLine } from "./cut.ts";
+import { whenOf } from "./time.ts";
 
 /*
  * Every sentence a client says, in one place, but for what it says of a
@@ -250,9 +256,18 @@ export type ListFilter = "everything" | "yours";
 /**
  * The labels over the parts of a list: the agents and the rooms, a room's
  * threads, and on an agent's list its threads with the person apart from the
- * rest.
+ * rest; and the names of an agent's triggers and its home, where a client shows
+ * them.
  */
-export const LABELS = { agents: "agents", rooms: "rooms", threads: "threads", yours: "your threads", elsewhere: "elsewhere" } as const;
+export const LABELS = {
+  agents: "agents",
+  rooms: "rooms",
+  threads: "threads",
+  yours: "your threads",
+  elsewhere: "elsewhere",
+  triggers: "triggers",
+  home: "home",
+} as const;
 
 /** What each of the two views of an agent's list is called where both are offered. */
 export const FILTERS: Record<ListFilter, string> = { everything: "everything", yours: "yours" };
@@ -517,3 +532,69 @@ export interface InFull {
   toolCalls: boolean;
   thinking: boolean;
 }
+
+/*
+ * What a page says besides what both clients say: when it tries the gateway
+ * again, what its input says before anything is typed, the wake-ups waiting in
+ * a thread when all of them are shown, an agent's home and triggers, how a
+ * browser is labelled among your devices, and what a notification is titled.
+ */
+
+/** When the page tries to reach the gateway again, under the note that says it can't. */
+export const nextTry = (seconds: number): string => `next try in ${String(seconds)}s`;
+
+/** What the input says before anything is typed. `who` is what the conversation is called. */
+export const writeTo = (who: string): string => `Write to ${oneLine(who)}`;
+
+/** Over the wake-ups waiting in a thread, when all of them are shown. */
+export const CHECKING_BACK = "checking back here";
+
+/** What stands where a file would be while no file of an agent's home is open. */
+export const PICK_FILE = "Pick a file.";
+
+/** What a folder or a file of an agent's home that has nothing in it shows. */
+export const EMPTY = "(empty)";
+
+/** A file's size as a person reads it. */
+export function sizeWords(bytes: number): string {
+  if (bytes < 1000) return `${String(bytes)} B`;
+  if (bytes < 1_000_000) return `${(bytes / 1000).toFixed(1)} kB`;
+  return `${(bytes / 1_000_000).toFixed(1)} MB`;
+}
+
+/** Why a folder or a file of an agent's home could not be read. `self` is what the client calls itself. */
+export const homeNote = (agent: string, problem: Problem, self: string): string =>
+  `Could not read the home of ${oneLine(agent)}: ${because({ kind: "agent", name: agent }, problem, self)}.`;
+
+export const noTriggers = (agent: string): string => `${oneLine(agent)} has no triggers. Ask it to make one.`;
+
+/** Why what defines a trigger could not be read. `self` is what the client calls itself. */
+export const triggerNote = (agent: string, problem: Problem, self: string): string =>
+  `Could not read the trigger from ${oneLine(agent)}: ${because({ kind: "agent", name: agent }, problem, self)}.`;
+
+/** What defines a trigger of a running agent, a line each, to go under its heading, with each time as the views say a time. */
+export const triggerLines = (trigger: TriggerDetail, now: number): string[] => runningTriggerFields(trigger, (time) => whenOf(time, now));
+
+/** How a trigger's last occurrence went, under what defines it, or that it has made none. */
+export const lastOccurrence = (trigger: Pick<TriggerSummary, "last" | "lastCheck">, now: number): string =>
+  trigger.last === null ? notRunWords(trigger) : `last ${lastWords(trigger.last, whenOf(trigger.last.firedAt, now))}`;
+
+/** The platforms a browser's user agent names, the more particular first, since an iPhone's names a Mac and Android's names Linux. */
+const PLATFORMS = ["iPhone", "iPad", "Android", "Mac", "Windows", "Linux"];
+
+/** How a browser is labelled among your devices, from its user agent. */
+export function browserLabel(userAgent: string): string {
+  const platform = PLATFORMS.find((name) => userAgent.includes(name));
+  return platform === undefined ? "a browser" : `a browser on ${platform}`;
+}
+
+/** That the door's answer to an invitation's code couldn't be read, with the status it came with. */
+export const unreadableJoin = (status: number): string =>
+  `The gateway answered the invitation's code with something this page can't read (HTTP ${String(status)}). Reload the page, or ask for a new invitation.`;
+
+/** What a notification says when what was pushed can't be read: only that there is something new. */
+export const SOMETHING_NEW = "Something new in Shrimpy";
+
+/** What a notification is titled: who wrote, and the room, for a message in one. */
+export const notificationTitle = (from: string, room: string | null): string =>
+  room === null ? oneLine(from) : `${oneLine(from)} in ${roomLabel(room)}`;

@@ -5,17 +5,21 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
+import { createHost, type Host } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { WebSocket as NodeWebSocket } from "ws";
 import {
-  type Answer,
-  type Client,
-  connectFromPage,
   type HelloAnswer,
+  HelloRefusedError,
+  helloFromPage,
+  type Member,
   PAGE_JOIN,
+  PAGE_LINK,
   PAGE_PUSH,
   pageLinkUrl,
+  type Principal,
   readAnswer,
+  type Revocation,
   Roster,
   valueOf,
 } from "../contracts/gateway/index.ts";
@@ -27,8 +31,9 @@ import { type GatewayInProcessOptions, startGatewayInProcess } from "./testing/i
 
 /*
  * A browser at the page's door, as a browser does it: the page's requests say they come from the page, the code goes
- * in a POST, the token comes back in a cookie, and the link is a WebSocket that carries the cookie. The page's own
- * code links: `connectFromPage`, handed a WebSocket made as a browser makes one.
+ * in a POST, the token comes back in a cookie, and the link is a WebSocket that carries the cookie. It links as the
+ * page does: the hello from the page, `helloFromPage`, handed a WebSocket made as a browser makes one, then a host with
+ * the gateway as its parent.
  */
 
 const timeout = 30_000;
@@ -78,11 +83,31 @@ const asBrowser =
   (url: string): PageSocket =>
     new WebSocket(url, { headers: { ...(origin === undefined ? {} : { origin }), ...(cookie === undefined ? {} : { cookie }) } });
 
-/** The page's link to the door, made by the page's own code, closed when the test ends if it linked. */
-async function linkFromPage(t: TestContext, page: string, socket: (url: string) => PageSocket): Promise<Answer<Client>> {
-  const linked = await connectFromPage({ url: pageLinkUrl(new URL(page)), socket });
-  if (linked.kind === "done") stopAfter(t, () => linked.value.close());
-  return linked;
+/** A page linked to the door: who the gateway takes it for, its host, and what settles once its link has closed. */
+interface PageLinked {
+  you: Member | null;
+  host: Host<Principal, Revocation>;
+  closed: Promise<void>;
+}
+
+/** The page's link to the door, made as the page makes it: its refusal when the gateway turns it away, and else closed when the test ends. */
+async function linkFromPage(t: TestContext, page: string, socket: (url: string) => PageSocket): Promise<PageLinked | HelloRefusedError> {
+  let welcomed;
+  try {
+    welcomed = await helloFromPage(pageLinkUrl(new URL(page)), { kind: "client", token: null }, { socket });
+  } catch (error) {
+    if (error instanceof HelloRefusedError) return error;
+    throw error;
+  }
+  const { welcome, linked } = welcomed;
+  const host = createHost<Principal, Revocation>({ onError: () => undefined });
+  await host.load([], context);
+  host.connect(linked.link, { principal: { kind: "gateway" } }, context);
+  stopAfter(t, async () => {
+    linked.drop();
+    await host.close(context);
+  });
+  return { you: welcome.you, host, closed: linked.closed };
 }
 
 test("a browser is let in once by an invitation's code, and not twice", { timeout }, async (t) => {
@@ -110,9 +135,9 @@ test("the page's link from the page, with the browser's cookie, is you, and hold
 
   const linked = await linkFromPage(t, page, asBrowser(originOf(page), cookie));
 
-  assert.ok(linked.kind === "done", linked.kind === "refused" ? linked.words : "");
-  assert.equal(linked.value.you?.id, roster.you.value?.id);
-  const held = await linked.value.host.get(Roster, {}, context);
+  assert.ok(!(linked instanceof HelloRefusedError), linked instanceof HelloRefusedError ? linked.message : "");
+  assert.equal(linked.you?.id, roster.you.value?.id);
+  const held = await linked.host.get(Roster, {}, context);
   stopAfter(t, () => held.release());
   assert.deepEqual(
     held.members.value.map((member) => member.name),
@@ -134,7 +159,8 @@ test("the door refuses a link or a code from another page, a link from no page, 
   assert.equal((await showCode(page, code)).status, 200, "and stays good for the door's own page");
 
   const anonymous = await linkFromPage(t, page, asBrowser(originOf(page), undefined));
-  assert.equal(anonymous.kind, "refused", "a browser with no cookie is no one");
+  assert.ok(anonymous instanceof HelloRefusedError, "a browser with no cookie is no one");
+  assert.equal((await fetch(new URL(`${PAGE_LINK}/elsewhere`, page), { headers: { accept: "text/html" } })).status, 404, "and nothing under the link is the page");
 });
 
 test("the door tells any page the key to subscribe with, and takes where a browser is told things from its own page, for a browser of yours", { timeout }, async (t) => {
@@ -160,16 +186,16 @@ test("a browser taken back loses its link and can't link again", { timeout }, as
   const { page, roster } = await withPage(t);
   const cookie = await letIn(page, roster);
   const linked = await linkFromPage(t, page, asBrowser(originOf(page), cookie));
-  assert.ok(linked.kind === "done");
+  assert.ok(!(linked instanceof HelloRefusedError));
   await until(() => roster.ways.value.some((way) => way.kind === "device"), "you to see the browser's way in");
   const way = roster.ways.value.find((each) => each.kind === "device");
   assert.ok(way !== undefined);
 
   valueOf(await roster.takeBack({ way: way.id }, context));
 
-  await linked.value.closed;
+  await linked.closed;
   const again = await linkFromPage(t, page, asBrowser(originOf(page), cookie));
-  assert.equal(again.kind === "refused" ? again.reason : again.kind, "unknown_token");
+  assert.equal(again instanceof HelloRefusedError ? again.reason : "linked", "unknown_token");
 });
 
 test("with a certificate, the door serves HTTPS, and the browser's cookie goes over HTTPS alone", { timeout }, async (t) => {
@@ -190,7 +216,7 @@ test("with a certificate, the door serves HTTPS, and the browser's cookie goes o
   // Node's own WebSocket checks the certificate, and nothing here trusts this one.
   const socket = (url: string): PageSocket => new NodeWebSocket(url, { origin: originOf(page), headers: { cookie }, rejectUnauthorized: false });
   const linked = await linkFromPage(t, page, socket);
-  assert.equal(linked.kind === "done" ? linked.value.you?.id : linked.words, roster.you.value?.id);
+  assert.equal(linked instanceof HelloRefusedError ? linked.message : linked.you?.id, roster.you.value?.id);
 });
 
 test("a page's door that can't open stays shut, and the gateway starts all the same and says why", { timeout }, async (t) => {

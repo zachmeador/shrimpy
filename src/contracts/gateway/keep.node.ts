@@ -1,10 +1,10 @@
 import type { Host } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { describePlace } from "../../lib/link/index.ts";
-import { type DialPlace, keepLink } from "../../lib/link/node.ts";
+import { describePlace, keepLink } from "../../lib/link/index.ts";
+import type { DialPlace } from "../../lib/link/node.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
-import { HelloRefusedError, sayHello, UnknownAnswerError, UnprovenGatewayError } from "./dial.node.ts";
-import type { Welcome, Who } from "./hello.ts";
+import { sayHello, UnprovenGatewayError } from "./dial.node.ts";
+import { HelloRefusedError, UnknownAnswerError, type Welcome, type Who } from "./hello.ts";
 import type { Principal, Revocation } from "./principals.ts";
 
 export interface KeepLinkedOptions {

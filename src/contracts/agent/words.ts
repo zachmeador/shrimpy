@@ -1,15 +1,21 @@
-import { oneLine } from "../../lib/plain/index.ts";
+import { oneLine, plain } from "../../lib/plain/index.ts";
 import { withoutPeriod } from "../../lib/text/index.ts";
 import { roomLabel } from "../chat/index.ts";
+import { describeSchedule } from "./schedule.ts";
 import type {
   AnswerEnding,
+  Check,
   ModelId,
+  Occurrence,
   SessionActivity,
   SessionItem,
   SessionPlace,
   SessionStatus,
   ThreadPlace,
   ToolStatus,
+  TriggerDetail,
+  TriggerSchedule,
+  TriggerSummary,
   WaitingWakeup,
 } from "./shapes.ts";
 
@@ -111,3 +117,102 @@ export function usageWords(usage: SessionStatus["usage"]): string {
 /** A wake-up a session waits on: when it comes, as `when` writes it, and the note it brings. */
 export const wakeupWords = (wakeup: WaitingWakeup, when: string): string =>
   `Checks back at ${when}: ${withoutPeriod(oneLine(wakeup.note))}`;
+
+/*
+ * How a trigger is said, the one way the commands and the page say it: whether
+ * it is on, what defines it, how its checks have gone and how its last
+ * occurrence went. Each frames these lines its own way and says a time its own
+ * way, and what came from the agent is made harmless here.
+ */
+
+/** Whether a trigger is on: "on" or "off". */
+export const triggerState = (on: boolean): string => (on ? "on" : "off");
+
+/** A trigger's name and whether it is on, the line over what defines it. */
+export const triggerHeading = (trigger: { name: string; on: boolean }): string => `${oneLine(trigger.name)}: ${triggerState(trigger.on)}`;
+
+/** What a trigger's file says, which a running agent and the file alone both know. */
+export interface TriggerDefined {
+  name: string;
+  on: boolean;
+  schedule: TriggerSchedule;
+  thread: string | null;
+  /** The address of the session of its own, when the agent says it. */
+  session: string | null;
+  overlap: "skip" | "allow";
+  check: Check | null;
+  prompt: string;
+}
+
+/** What a trigger's file says, a line each, to go under its heading. */
+export const triggerFields = (trigger: TriggerDefined): string[] => fields(trigger);
+
+/**
+ * What a running agent says of one of its triggers, a line each, to go under
+ * its heading: what its file says, and after its schedule when it runs next
+ * and how its checks have gone, each time as `at` says it.
+ */
+export function runningTriggerFields(trigger: TriggerDetail, at: (time: number) => string): string[] {
+  const next = trigger.next === null ? "never: it is off" : at(trigger.next);
+  return fields(trigger, next, trigger.check === null ? undefined : checkedWords(trigger.lastCheck, at));
+}
+
+/** That a trigger has made no occurrence yet: it has not run, or its check has found no news. */
+export const notRunWords = (trigger: Pick<TriggerSummary, "lastCheck">): string =>
+  trigger.lastCheck === null ? "It has not run yet." : "It has made no occurrence yet.";
+
+/** How an occurrence ended, or that it is still going, then when it fired, as `firedAt` writes it. */
+export const lastWords = (occurrence: Pick<Occurrence, "ended">, firedAt: string): string => `${occurrence.ended ?? "running"} ${firedAt}`;
+
+/** What defines a trigger as lines, with a line for when it runs next if `next` says, and for how its checks have gone if `checked` says. */
+function fields(trigger: TriggerDefined, next?: string, checked?: string): string[] {
+  const goesTo =
+    trigger.check?.then === "note"
+      ? "nobody: it only leaves a breadcrumb"
+      : trigger.thread === null
+        ? `a session of its own${trigger.session === null ? "" : `, ${oneLine(trigger.session)}`}. What the agent writes last there is posted nowhere.`
+        : `thread ${oneLine(trigger.thread)}. What the agent writes last is posted there.`;
+  const overlap =
+    trigger.overlap === "skip"
+      ? "skip: an occurrence that is due while the last is still going is skipped"
+      : "allow: an occurrence that is due while the last is still going waits behind it";
+  const prompt = plain(trigger.prompt);
+  return [
+    `schedule  ${describeSchedule(trigger.schedule)}`,
+    ...(next === undefined ? [] : [`next      ${next}`]),
+    ...(checked === undefined ? [] : [`checked   ${checked}`]),
+    `goes to   ${goesTo}`,
+    `overlap   ${overlap}`,
+    ...(trigger.check === null ? [] : checkLines(oneLine(trigger.name), trigger.check)),
+    ...(prompt === "" ? ["prompt    none"] : ["prompt", ...prompt.split("\n").map((line) => `  ${line}`)]),
+  ];
+}
+
+/** What a trigger's check says: the command, what counts as news, what news does, and how long the command may run. */
+function checkLines(name: string, { command, when, then, timeout }: Check): string[] {
+  const news = {
+    changed: "changed: news is output that differs from the last occurrence's, and the first occurrence's always does",
+    output: "output: news is any output at all",
+    always: "always: every occurrence is news",
+  }[when];
+  const does = {
+    wake: "wake: the agent is woken with the prompt and, apart from it, the output, which it reads as data",
+    note: `note: the output is written to breadcrumbs/${name}.md, below the prompt if there is one, and nobody is woken`,
+  }[then];
+  return [`check     ${oneLine(command)}`, `when      ${news}`, `then      ${does}`, `timeout   ${oneLine(timeout)}`];
+}
+
+/** How a trigger's checks have gone, on one line: when it last checked, and when it was quiet, how many checks before it were too. */
+function checkedWords(last: TriggerSummary["lastCheck"], at: (time: number) => string): string {
+  if (last === null) return "not yet";
+  const before = last.quiet - 1;
+  const quiet =
+    last.quiet === 0
+      ? ""
+      : before === 0
+        ? ": quiet"
+        : before === 1
+          ? ": quiet, as was the check before it"
+          : `: quiet, as were the ${String(before)} checks before it`;
+  return `${at(last.at)}${quiet}`;
+}

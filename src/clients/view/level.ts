@@ -22,6 +22,8 @@ export interface Row {
   /** What choosing it opens: a thread is opened as the conversation it is, and a session as the agent's view of it. */
   kind: "agent" | "room" | "read-only" | "thread" | "session";
   label: string;
+  /** What the label names, on its own: a room's name without the mark its label starts with, and for any other row its label. */
+  name: string;
   detail: string;
   working: boolean;
   /** How many messages are new to the person in what it opens. */

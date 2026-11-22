@@ -1,8 +1,8 @@
 import { hostname } from "node:os";
 import type { Membership } from "../../contracts/agent/index.ts";
 import { loadHome, readMembership, saveMembership } from "../../contracts/agent/node.ts";
-import { type Entry, nameKey, readLink } from "../../contracts/gateway/index.ts";
-import { HelloRefusedError, newToken, UnprovenGatewayError } from "../../contracts/gateway/node.ts";
+import { type Entry, HelloRefusedError, nameKey, readLink } from "../../contracts/gateway/index.ts";
+import { newToken, UnprovenGatewayError } from "../../contracts/gateway/node.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import { type Joined, JoinFailedError, joinGateway } from "./join.ts";
 

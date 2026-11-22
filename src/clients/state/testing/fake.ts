@@ -57,6 +57,18 @@ export function fakeState(initial: Model): FakeState {
       calls.push("model");
       return Promise.resolve();
     },
+    folder(path) {
+      calls.push(`folder ${path}`);
+      return Promise.resolve({ value: [] });
+    },
+    file(path) {
+      calls.push(`file ${path}`);
+      return Promise.resolve({ value: { kind: "text", text: "" } });
+    },
+    trigger(name) {
+      calls.push(`trigger ${name}`);
+      return Promise.resolve({ problem: { down: { kind: "not-linked" } } });
+    },
     farewell: () => answers.farewell,
     close() {
       listeners.clear();

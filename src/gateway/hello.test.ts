@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { hello, readAnswer, Roster } from "../contracts/gateway/index.ts";
-import { HelloRefusedError, newToken } from "../contracts/gateway/node.ts";
+import { hello, HelloRefusedError, readAnswer, Roster } from "../contracts/gateway/index.ts";
+import { newToken } from "../contracts/gateway/node.ts";
 import { dial, type DialPlace } from "../lib/link/node.ts";
 import { until } from "../lib/testing/index.ts";
 import { PI_PACKAGES } from "../lib/version/index.ts";

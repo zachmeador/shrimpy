@@ -1,5 +1,6 @@
 import { lit, map, nul, obj, str, union } from "@earendil-works/chord";
 import { compile } from "@earendil-works/pi-schema";
+import type { Linked } from "../../lib/link/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { PI_PACKAGES, SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { type Reason, ReasonSchema, type Refused } from "./answers.ts";
@@ -104,6 +105,48 @@ export function readVersions(value: unknown): Versions | undefined {
   const entries = Object.entries(pi);
   if (!entries.every(([, version]) => typeof version === "string")) return undefined;
   return { shrimpy, pi: Object.fromEntries(entries) as PiPackages };
+}
+
+/** The other end turned the hello away: the gateway, or an agent on its home's socket, which takes the same hello. Its message is their words. */
+export class HelloRefusedError extends Error {
+  readonly reason: Reason | null;
+
+  constructor(words: string, reason: Reason | null) {
+    super(words);
+    this.name = "HelloRefusedError";
+    this.reason = reason;
+  }
+}
+
+/**
+ * The other end answered the hello with something this code can't read, as one
+ * of another release may. Its message says what each side runs, when it said.
+ */
+export class UnknownAnswerError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnknownAnswerError";
+  }
+}
+
+/** The welcome, and the link that follows it. */
+export interface Welcomed {
+  readonly welcome: Welcome;
+  readonly linked: Linked;
+}
+
+/**
+ * The welcome in `raw`, the answer to a hello that came before `linked`: a
+ * refusal is a `HelloRefusedError`, and an answer this code can't read is an
+ * `UnknownAnswerError`, and either way the link is dropped. `answering` is who
+ * answered, as the words name it when its answer can't be read.
+ */
+export function welcomeIn(raw: unknown, linked: Linked, answering?: string): Welcomed {
+  const answer = readAnswer(raw);
+  if (answer?.kind === "welcome") return { welcome: answer, linked };
+  linked.drop();
+  if (answer === undefined) throw new UnknownAnswerError(unreadableAnswer(raw, answering));
+  throw new HelloRefusedError(answer.words, answer.reason);
 }
 
 /**

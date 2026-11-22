@@ -3,11 +3,15 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
   Agent,
   type AgentModels,
+  type HomeEntry,
+  type HomeFile,
   type Pigment,
   Session,
   type SessionPage,
   type SessionStatus,
   type SessionSummary,
+  type TriggerDetail,
+  type TriggerSummary,
 } from "../../contracts/agent/index.ts";
 import { Channel, Chat, type Member, type Message, Thread } from "../../contracts/chat/index.ts";
 import {
@@ -175,21 +179,47 @@ export function holdThread(link: GatewayLink, id: string, changed: () => void): 
   );
 }
 
-/** An agent as a client sees it: whether it lets the person watch it, its sessions, and how it looks, which every caller sees. */
-export type AgentShown = { refusal: Refused | null; sessions: SessionSummary[]; sigil: string[] | null; pigment: Pigment | null };
+/**
+ * An agent as a client sees it: whether it lets the person watch it, its
+ * sessions and its triggers, and how it looks, which every caller sees.
+ */
+export type AgentShown = {
+  refusal: Refused | null;
+  sessions: SessionSummary[];
+  triggers: TriggerSummary[];
+  sigil: string[] | null;
+  pigment: Pigment | null;
+};
 
 export interface AgentCalls {
   /** The models the agent can use now, and the one its sessions follow. */
   models(signal?: AbortSignal): Promise<Answer<AgentModels>>;
+  /** The entries of a folder of its home, by the folder's path there, "" for the home itself. */
+  folder(path: string, signal?: AbortSignal): Promise<Answer<HomeEntry[]>>;
+  /** A file of its home, by its path there, as text or an image. */
+  file(path: string, signal?: AbortSignal): Promise<Answer<HomeFile>>;
+  /** One of its triggers, by name, with what defines it and its latest occurrences. */
+  trigger(name: string, signal?: AbortSignal): Promise<Answer<TriggerDetail>>;
 }
 
 export function holdAgent(link: GatewayLink, id: string, changed: () => void): Holding<AgentShown, AgentCalls> {
   const held = link.host.hold(Agent, { agent: id }, BACKGROUND_CONTEXT);
   return followHeld(
     held,
-    (agent) => [agent.refusal, agent.sessions, agent.sigil, agent.pigment],
-    (agent) => ({ refusal: agent.refusal.value, sessions: agent.sessions.value, sigil: agent.sigil.value, pigment: agent.pigment.value }),
-    { models: (signal) => held.models(contextOf(signal)) },
+    (agent) => [agent.refusal, agent.sessions, agent.triggers, agent.sigil, agent.pigment],
+    (agent) => ({
+      refusal: agent.refusal.value,
+      sessions: agent.sessions.value,
+      triggers: agent.triggers.value,
+      sigil: agent.sigil.value,
+      pigment: agent.pigment.value,
+    }),
+    {
+      models: (signal) => held.models(contextOf(signal)),
+      folder: (path, signal) => held.folder({ path }, contextOf(signal)),
+      file: (path, signal) => held.file({ path }, contextOf(signal)),
+      trigger: (name, signal) => held.trigger({ name }, contextOf(signal)),
+    },
     changed,
   );
 }

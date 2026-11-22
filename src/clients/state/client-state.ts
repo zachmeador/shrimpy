@@ -1,6 +1,7 @@
-import type { AgentModels } from "../../contracts/agent/index.ts";
+import type { AgentModels, HomeEntry, HomeFile, TriggerDetail } from "../../contracts/agent/index.ts";
+import type { Answer } from "../../contracts/gateway/index.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
-import { CONNECTING, type Dial, keepGateway } from "../network/index.ts";
+import { type AgentCalls, CONNECTING, type Dial, Down, keepGateway, problemOf } from "../network/index.ts";
 import { createAsking } from "./asking.ts";
 import { readBack } from "./history.ts";
 import { createHoldings } from "./holdings.ts";
@@ -9,6 +10,7 @@ import {
   agentOfList,
   type Farewell,
   farewellOf,
+  type AgentRead,
   type HomeLookup,
   type Model,
   type Notice,
@@ -130,6 +132,16 @@ export interface ClientState {
    * the agent acts on. Posts nothing.
    */
   showModel(): Promise<void>;
+  /**
+   * The entries of a folder of the home of the agent whose list is open, by
+   * the folder's path there, "" for the home itself, or why they could not be
+   * read. Nothing in the home is changed.
+   */
+  folder(path: string): Promise<AgentRead<HomeEntry[]>>;
+  /** A file of the home of the agent whose list is open, by its path there, as text or an image, or why it could not be read. */
+  file(path: string): Promise<AgentRead<HomeFile>>;
+  /** One trigger of the agent whose list is open, by name, with what defines it, or why it could not be read. */
+  trigger(name: string): Promise<AgentRead<TriggerDetail>>;
 
   /** The work that goes on if the client is left now, if there is any. */
   farewell(): Farewell | undefined;
@@ -139,6 +151,8 @@ export interface ClientState {
 
 const NOTICE_MS = 6000;
 const SEND_MS = 20_000;
+/** How long the agent whose list is open is waited for to show a folder or a file of its home, or a trigger. */
+const ASKING_MS = 10_000;
 
 /** The model before anything is known: nothing open, linking to the gateway and chat. */
 const startingModel = (homes: HomeLookup | undefined): Model => ({
@@ -155,6 +169,7 @@ const startingModel = (homes: HomeLookup | undefined): Model => ({
   behind: {},
   watched: undefined,
   sessions: undefined,
+  triggers: undefined,
   looks: {},
   workingSessions: {},
   refusal: undefined,
@@ -209,6 +224,21 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
     void thread.held.calls.markRead(newest.id).then((answer) => {
       if (answer.kind !== "done") failed();
     }, failed);
+  }
+
+  /** Ask the agent whose list is open for something: what it shows, or why it could not. */
+  async function askAgent<T>(ask: (calls: AgentCalls, signal: AbortSignal) => Promise<Answer<T>>): Promise<AgentRead<T>> {
+    const agent = held.agent();
+    const status = store.model().agent;
+    try {
+      if (agent === undefined || status === undefined) throw new Down({ kind: "not-linked" });
+      // An agent that is still being reached is waited for, and one that can't be is not asked.
+      if (status.state === "down" && status.why.kind !== "connecting") throw new Down(status.why);
+      const answer = await ask(agent.held.calls, AbortSignal.timeout(ASKING_MS));
+      return answer.kind === "done" ? { value: answer.value } : { problem: { said: answer.words } };
+    } catch (error) {
+      return { problem: problemOf(error) };
+    }
   }
 
   /**
@@ -277,6 +307,9 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
     takeBack: (written) => asking.takeBack(written),
     models: () => asking.models(),
     showModel: () => asking.showModel(),
+    folder: (path) => askAgent((calls, signal) => calls.folder(path, signal)),
+    file: (path) => askAgent((calls, signal) => calls.file(path, signal)),
+    trigger: (name) => askAgent((calls, signal) => calls.trigger(name, signal)),
     farewell: () => farewellOf(store.model()),
     async close() {
       if (closed) return;

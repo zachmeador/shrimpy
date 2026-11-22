@@ -12,8 +12,9 @@
  * any program's internals. The one sentence for each reason a turn ends without
  * an answer is here too, so that the agent's receipts and every client say it
  * the same way, and so are the words for what a session is doing, where it is
- * and how what is in it stands, which every client says the same way, and
- * what to do when the gateway doesn't know a home's token, which the agent and
+ * and how what is in it stands, which every client says the same way, the
+ * words for a trigger, which the `triggers` command and a page say the same
+ * way, and what to do when the gateway doesn't know a home's token, which the agent and
  * a command in its shell both say. It also has the parts of a home's files that
  * the agent and the `shrimpy` command share and that open no file: the rule for an agent's name, how a model is
  * written, what wakes the agent in a room, how a trigger's schedule and a delay
@@ -45,12 +46,19 @@ export {
   activityWords,
   endingWords,
   imageWords,
+  lastWords,
   markerWords,
   modelWords,
+  notRunWords,
   placeLabel,
   placeWords,
+  runningTriggerFields,
   threadLabel,
   toolStatusWords,
+  type TriggerDefined,
+  triggerFields,
+  triggerHeading,
+  triggerState,
   usageWords,
   wakeupWords,
   YOUR_DM,

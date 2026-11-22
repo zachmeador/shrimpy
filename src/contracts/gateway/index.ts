@@ -29,6 +29,7 @@ export {
   type Hello,
   type HelloAnswer,
   hello,
+  HelloRefusedError,
   notAHello,
   otherPi,
   readAnswer,
@@ -36,9 +37,11 @@ export {
   readVersions,
   samePi,
   turnAway,
+  UnknownAnswerError,
   versionWarning,
   type Welcome,
   welcome,
+  type Welcomed,
   type Who,
 } from "./hello.ts";
 export { agent, chat, gateway } from "./hosts.ts";
@@ -46,14 +49,14 @@ export { type Link, readLink, readPageCode, writeLink, writePageLink } from "./l
 export { createLiveRoster, type LiveRoster, type RosterNow } from "./live-roster.ts";
 export { type Machine, MACHINE_FILE, machineFile } from "./machine.ts";
 export { fitName, MAX_NAME, NAME_RULE, nameKey } from "./names.ts";
-export { type Notification, Notifications } from "./notifications.ts";
+export { type Notification, Notifications, readNotification } from "./notifications.ts";
 export {
-  connectFromPage,
+  helloFromPage,
   PAGE_JOIN,
   PAGE_LINK,
   PAGE_PUSH,
-  type PageConnectOptions,
   type PageFile,
+  type PageHelloOptions,
   type PageJoin,
   type PagePush,
   type PagePushKey,

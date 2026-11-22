@@ -1,9 +1,7 @@
-import { type HostError, nul, num, obj, opt, str, union } from "@earendil-works/chord";
+import { nul, num, obj, opt, str, union } from "@earendil-works/chord";
 import { compile } from "@earendil-works/pi-schema";
 import { dialFromPage, type PageSocket } from "../../lib/link/index.ts";
-import { type Answer, done, refused } from "./answers.ts";
-import { type Client, clientOver } from "./client.ts";
-import { hello, readAnswer, unreadableAnswer } from "./hello.ts";
+import { hello, type Welcomed, welcomeIn, type Who } from "./hello.ts";
 
 /**
  * A file of the web client's page, as the gateway serves it at the page's
@@ -90,34 +88,21 @@ export function pageLinkUrl(page: { readonly protocol: string; readonly host: st
   return `${page.protocol === "https:" ? "wss:" : "ws:"}//${page.host}${PAGE_LINK}`;
 }
 
-export interface PageConnectOptions {
-  /** The page's link, as `pageLinkUrl` writes it. */
-  readonly url: string;
-  /** Abort to give up while the hello waits for its answer. */
+export interface PageHelloOptions {
+  /** Abort to give up while the connection opens or the hello waits for its answer. */
   readonly signal?: AbortSignal;
-  /** Told of what fails in the client's host in the background. */
-  readonly onError?: (error: HostError) => void;
   /** Make the WebSocket: the browser's own, unless this is given. */
   readonly socket?: (url: string) => PageSocket;
 }
 
 /**
- * Link a page to the gateway once, at the page's door: the hello, then Chord
- * with the gateway as the client's parent. The hello shows no token: the door
- * knows the browser by the cookie it keeps for the link, which the browser
- * sends by itself. A hello turned away is the gateway's refusal, in its words.
- * An answer this code can't read, and a link that can't be made, throw.
+ * Say the hello from a page at the page's link, `url`, as `who`, and read the
+ * answer as every hello's is read: a refusal is a `HelloRefusedError`, an
+ * answer this code can't read is an `UnknownAnswerError`, and either way the
+ * link is dropped. The hello shows no token: the door knows the browser by the
+ * cookie it keeps for the link, which the browser sends by itself.
  */
-export async function connectFromPage(options: PageConnectOptions): Promise<Answer<Client>> {
-  const { answer: raw, linked } = await dialFromPage(options.url, hello({ kind: "client", token: null }), {
-    ...(options.signal === undefined ? {} : { signal: options.signal }),
-    ...(options.socket === undefined ? {} : { socket: options.socket }),
-  });
-  const answer = readAnswer(raw);
-  if (answer?.kind === "welcome") {
-    return done(await clientOver(answer, linked, { parent: "gateway", ...(options.onError === undefined ? {} : { onError: options.onError }) }));
-  }
-  linked.drop();
-  if (answer === undefined) throw new Error(unreadableAnswer(raw));
-  return refused(answer.words, answer.reason);
+export async function helloFromPage(url: string, who: Who, options: PageHelloOptions = {}): Promise<Welcomed> {
+  const { answer, linked } = await dialFromPage(url, hello(who), options);
+  return welcomeIn(answer, linked);
 }

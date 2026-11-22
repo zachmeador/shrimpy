@@ -1,25 +1,53 @@
 /*
- * Every sentence the placeholder page shows, and how it labels the browser
- * among your devices.
+ * Every sentence the page says that names one of its keys or gestures, and the
+ * names of its own controls, in one place. Everything else it says comes from
+ * the views the clients share.
  */
 
-export const LINKING = "Linking to the gateway…";
+/** What the page calls itself in a sentence the views say, such as that a program runs another version of Shrimpy. */
+export const SELF = "this page";
 
-export const READING = "Reading the roster…";
+/** What the page's own buttons and switches are called. */
+export const CONTROLS = {
+  back: "Back",
+  backToAgents: "Back to agents and rooms",
+  backToConversation: "Back to the conversation",
+  agentsView: "agent's view",
+  closeView: "Close the agent's view",
+  send: "Send",
+  commands: "Commands",
+  mode: "Switch between dusk and day",
+  listShows: "What the list shows",
+  hide: "hide",
+  notify: "Tell this device when an agent writes",
+} as const;
 
-export const ON_THE_ROSTER = "On the roster:";
-
-export const LOST = "The link to the gateway was lost. Reload the page to link again.";
-
-/** That the door's answer to the code couldn't be read, with the status it came with. */
-export const unreadableJoin = (status: number): string =>
-  `The gateway answered the invitation's code with something this page can't read (HTTP ${String(status)}). Reload the page, or ask for a new invitation.`;
-
-/** The platforms a browser's user agent names, the more particular first, since an iPhone's names a Mac and Android's names Linux. */
-const PLATFORMS = ["iPhone", "iPad", "Android", "Mac", "Windows", "Linux"];
-
-/** How a browser is labelled among your devices, from its user agent. */
-export function browserLabel(userAgent: string): string {
-  const platform = PLATFORMS.find((name) => userAgent.includes(name));
-  return platform === undefined ? "a browser" : `a browser on ${platform}`;
+/** What the keys under the input do here. The line of keys is made from this, so it names only what they do. */
+interface Can {
+  /** Ctrl+N starts a thread. */
+  newThread: boolean;
+  /** Ctrl+. puts the next agent's view of the thread beside it, or over it, and after the last takes it away. */
+  turnOver: boolean;
 }
+
+/** The line of keys under the input at a desk: each key that does something here, with what it does. */
+export function keyHints(can: Can): { key: string; does: string }[] {
+  return [
+    { key: "enter", does: "send" },
+    { key: "/", does: "commands" },
+    ...(can.newThread ? [{ key: "ctrl+n", does: "new thread" }] : []),
+    ...(can.turnOver ? [{ key: "ctrl+.", does: CONTROLS.agentsView }] : []),
+    { key: "esc", does: "back" },
+  ];
+}
+
+export const NEW_THREAD = "New thread · ctrl+n";
+export const TURN_OVER = "The agent's view · ctrl+.";
+export const FOLD = "Fold the lists away · ctrl+\\";
+export const UNFOLD = "Unfold the lists · ctrl+\\";
+
+/** Where a thread would be while none is open, on the list of an agent the person has threads with, which can be picked or started. */
+export const PICK_OR_START = "Pick a thread, or press Ctrl+N to start one.";
+
+/** `said`, then how to start a thread: where a thread would be, or an agent's list, while the person has not talked to the agent yet. */
+export const startThread = (said: string): string => `${said} Press Ctrl+N to start a thread.`;

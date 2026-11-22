@@ -1,4 +1,5 @@
-import { HelloRefusedError, keepLinked, UnprovenGatewayError } from "../../contracts/gateway/node.ts";
+import { HelloRefusedError } from "../../contracts/gateway/index.ts";
+import { keepLinked, UnprovenGatewayError } from "../../contracts/gateway/node.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { type DialPlace, nobodyThere } from "../../lib/link/node.ts";
 import type { Dial } from "./link.ts";

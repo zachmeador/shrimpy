@@ -1,5 +1,5 @@
-import { type Entry, type Member, type Welcome, type Who } from "../../contracts/gateway/index.ts";
-import { HelloRefusedError, sayHello, UnknownAnswerError, UnprovenGatewayError } from "../../contracts/gateway/node.ts";
+import { type Entry, HelloRefusedError, type Member, UnknownAnswerError, type Welcome, type Who } from "../../contracts/gateway/index.ts";
+import { sayHello, UnprovenGatewayError } from "../../contracts/gateway/node.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 

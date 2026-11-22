@@ -1,29 +1,6 @@
-import { formatAddress, type Linked } from "../../lib/link/index.ts";
+import { formatAddress } from "../../lib/link/index.ts";
 import { dial, type Dialed, type DialPlace, OtherKeyError } from "../../lib/link/node.ts";
-import type { Reason } from "./answers.ts";
-import { type Hello, hello, readAnswer, unreadableAnswer, type Welcome, type Who } from "./hello.ts";
-
-/** The other end turned the hello away: the gateway, or an agent on its home's socket, which takes the same hello. Its message is their words. */
-export class HelloRefusedError extends Error {
-  readonly reason: Reason | null;
-
-  constructor(words: string, reason: Reason | null) {
-    super(words);
-    this.name = "HelloRefusedError";
-    this.reason = reason;
-  }
-}
-
-/**
- * The other end answered the hello with something this code can't read, as one
- * of another release may. Its message says what each side runs, when it said.
- */
-export class UnknownAnswerError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "UnknownAnswerError";
-  }
-}
+import { type Hello, hello, type Welcomed, welcomeIn, type Who } from "./hello.ts";
 
 /**
  * The gateway's entry did not prove it is yours: the key there has another
@@ -35,12 +12,6 @@ export class UnprovenGatewayError extends Error {
     super(message, options);
     this.name = "UnprovenGatewayError";
   }
-}
-
-/** The welcome, and the link that follows it. */
-export interface Welcomed {
-  readonly welcome: Welcome;
-  readonly linked: Linked;
 }
 
 export interface SayHelloOptions {
@@ -61,12 +32,8 @@ export interface SayHelloOptions {
  * it does when nothing listens there, is passed on as it is.
  */
 export async function sayHello(place: DialPlace, who: Who, options: SayHelloOptions = {}): Promise<Welcomed> {
-  const { answer: raw, linked } = await dialProven(place, hello(who), options.signal);
-  const answer = readAnswer(raw);
-  if (answer?.kind === "welcome") return { welcome: answer, linked };
-  linked.drop();
-  if (answer === undefined) throw new UnknownAnswerError(unreadableAnswer(raw, options.answering));
-  throw new HelloRefusedError(answer.words, answer.reason);
+  const { answer, linked } = await dialProven(place, hello(who), options.signal);
+  return welcomeIn(answer, linked, options.answering);
 }
 
 /** Send `said` to the gateway at `place`: on its own socket as it is, and at its entry only once its key proves it. */
