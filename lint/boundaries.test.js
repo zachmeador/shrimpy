@@ -75,6 +75,9 @@ tester.run("imports", importsRule, {
     allowed("clients/view/words.ts", "../state/index.ts"),
     allowed("clients/console/console.ts", "../state/index.ts"),
     allowed("clients/web/page.ts", "../view/index.ts"),
+    // Their tests and test support reach a real gateway from Node, with the console's dialing.
+    allowed("clients/state/testing/rig.ts", "../../console/dial/index.ts"),
+    allowed("clients/state/testing/rig.ts", "../../../contracts/gateway/node.ts"),
     // chord: Chord stays where programs meet, its context, json and delta go where the engine may, and tests and test support use any of it.
     allowed("contracts/chat/thread.ts", "@earendil-works/chord"),
     allowed("lib/follow/index.ts", "@earendil-works/chord"),
@@ -123,6 +126,7 @@ tester.run("imports", importsRule, {
     refused("clients/network/link.ts", "../state/index.ts", "shared"),
     refused("clients/state/model.ts", "../view/index.ts", "shared"),
     refused("clients/state/store.ts", "../console/draw/index.ts", "shared"),
+    refused("clients/state/console-state.ts", "../console/dial/index.ts", "shared"),
     refused("clients/view/screen.ts", "../web/index.ts", "shared"),
     refused("clients/console/console.ts", "../web/index.ts", "client"),
     refused("chat/providers/telegram/poller.ts", "../../store/index.ts", "provider"),
@@ -168,6 +172,8 @@ tester.run("imports", importsRule, {
     // Code that must run in a browser reaches Node neither directly nor through a door that says it needs Node.
     refused("contracts/agent/connect.ts", "node:fs", "browser"),
     refused("contracts/agent/index.ts", "./node.ts", "browser"),
+    refused("clients/state/sending.ts", "node:crypto", "browser"),
+    refused("clients/network/link.ts", "../../contracts/gateway/node.ts", "browser"),
     // Every way to import is checked, not only the import declaration.
     {
       filename: file("clients/web/page.ts"),

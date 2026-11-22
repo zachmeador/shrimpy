@@ -5,6 +5,7 @@ import { gatewaySocket } from "../../../contracts/gateway/node.ts";
 import { linkTestAgent, startTestGateway, type TestAgent, type TestGateway } from "../../../contracts/gateway/testing/index.ts";
 import { backoff } from "../../../lib/retry/index.ts";
 import { eventually, stopAfter, useRuntimeDir } from "../../../lib/testing/index.ts";
+import { dialAt } from "../../console/dial/index.ts";
 import { type ConsoleState, createConsoleState, type Model } from "../index.ts";
 
 export interface RigOptions {
@@ -56,7 +57,7 @@ export async function startRig(t: TestContext, options: RigOptions = {}): Promis
   }
 
   const state = await createConsoleState({
-    place: { path: gatewaySocket() },
+    dial: dialAt({ path: gatewaySocket() }),
     token: null,
     backoff: backoff({ firstMs: 1, maxMs: 8, random: () => 0 }),
     ...(options.noticeMs === undefined ? {} : { noticeMs: options.noticeMs }),

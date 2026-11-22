@@ -1,16 +1,36 @@
 import { createHost, type Host } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { Principal, Revocation } from "../../contracts/gateway/index.ts";
-import { HelloRefusedError, keepLinked, UnprovenGatewayError } from "../../contracts/gateway/node.ts";
-import { asError } from "../../lib/errors/index.ts";
-import { type DialPlace, nobodyThere } from "../../lib/link/node.ts";
+import type { Principal, Revocation, Welcome, Who } from "../../contracts/gateway/index.ts";
 import { createListeners } from "../../lib/listeners/index.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
 import { CONNECTING, type LinkStatus, UP, type Why } from "./status.ts";
 
+/**
+ * Keep a client's host linked to the gateway: dial and say the hello, connect
+ * the host to each link the gateway lets in, and dial again after a drop or a
+ * refusal, after a pause that grows while hellos fail. Resolves once `signal`
+ * aborts and the link is gone. Each client hands the link its own, since the
+ * terminal dials from Node.
+ */
+export type Dial = (options: DialOptions) => Promise<void>;
+
+export interface DialOptions {
+  /** The client's host, which serves nothing and holds what it is given. */
+  readonly host: Host<Principal, Revocation>;
+  /** Who the client says it is, asked afresh for each hello. */
+  who(): Extract<Who, { kind: "client" }>;
+  /** Abort to stop: the link is dropped at once, whatever the network is doing. */
+  readonly signal: AbortSignal;
+  readonly backoff?: Backoff;
+  /** Told each time the gateway lets the client in, with what settles once that link has closed. */
+  onWelcome(answer: Welcome, closed: Promise<void>): void;
+  /** Told why a hello failed, or why the gateway couldn't be reached. */
+  readonly onError: (why: Why) => void;
+}
+
 export interface GatewayLinkOptions {
-  /** The gateway's own socket, or its entry, with the fingerprint of its key. */
-  readonly place: DialPlace;
+  /** How to dial the gateway, which the client hands it. */
+  readonly dial: Dial;
   /** A device's token, or null to be you on the gateway's own socket. */
   readonly token: string | null;
   /** The pauses between attempts to link. Tests shorten them. */
@@ -31,7 +51,7 @@ export interface GatewayLink {
 }
 
 /**
- * Keep the console linked to the gateway at `place`, with one host throughout,
+ * Keep the console linked to the gateway with `dial`, with one host throughout,
  * so whatever it holds goes loading while the link is down and comes back with
  * it, and say where the link stands as it changes.
  */
@@ -49,16 +69,9 @@ export async function keepGateway(options: GatewayLinkOptions): Promise<GatewayL
     status = next;
     changes.notify(undefined);
   };
-  const why = (error: unknown): Why => {
-    if (error instanceof HelloRefusedError) return { kind: "refused", words: error.message };
-    if (error instanceof UnprovenGatewayError) return { kind: "unproven", words: error.message };
-    if ("path" in options.place && nobodyThere(error)) return { kind: "not-running" };
-    return { kind: "unreachable", message: asError(error).message };
-  };
 
-  const linking = keepLinked({
+  const linking = options.dial({
     host,
-    place: options.place,
     who: () => ({ kind: "client", token: options.token }),
     signal: stopping.signal,
     ...(options.backoff === undefined ? {} : { backoff: options.backoff }),
@@ -69,10 +82,10 @@ export async function keepGateway(options: GatewayLinkOptions): Promise<GatewayL
         if (!stopping.signal.aborted) set({ state: "down", why: { kind: "lost" } });
       });
     },
-    onError(error) {
+    onError(why) {
       // A link that tries again keeps saying it was lost, rather than that it cannot be reached yet.
-      if (status.state === "down" && status.why.kind === "lost" && why(error).kind === "unreachable") return;
-      set({ state: "down", why: why(error) });
+      if (status.state === "down" && status.why.kind === "lost" && why.kind === "unreachable") return;
+      set({ state: "down", why });
     },
   });
 

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { valueOf } from "../../contracts/gateway/index.ts";
 import { Down, problemOf } from "../network/index.ts";
 import type { Holdings } from "./holdings.ts";
@@ -79,7 +78,7 @@ export function createSending(store: Store, held: Holdings, moves: Moves, sendMs
         const { chat } = store.model();
         if (chat.state === "down") throw new Down(chat.why);
         const threadId = await threadIn(where.place, where.thread, answered);
-        const requestId = pending?.threadId === threadId && pending.text === text ? pending.requestId : randomUUID();
+        const requestId = pending?.threadId === threadId && pending.text === text ? pending.requestId : crypto.randomUUID();
         pending = { threadId, text, requestId };
         await held.onThread(threadId, async (thread) => valueOf(await thread.calls.post(text, requestId, answered)));
         pending = undefined;

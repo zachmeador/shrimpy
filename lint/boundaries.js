@@ -10,6 +10,8 @@ const PROGRAMS = ["agent", "chat", "gateway", "clients/console", "clients/web", 
 const CLIENTS = ["clients/console", "clients/web"];
 /** What both clients share, in the order they import each other: each imports only those before it. */
 const CLIENT_SHARED = ["clients/network", "clients/state", "clients/view"];
+/** The console's dialing from Node, which the tests of what both clients share use to reach a real gateway. */
+const CONSOLE_DIAL = "clients/console/dial/";
 /** The directories that only group modules, and so have no door: the top of src/, contracts/, lib/ and clients/. */
 const GROUPS = [".", "contracts", "lib", "clients"];
 /** The agent's modules in tiers. A module imports only from the tiers before its own, so imports point one way. */
@@ -132,14 +134,15 @@ function isDoor(target) {
 }
 
 /**
- * Code that must also run in a browser: the web client, and the contracts and
- * lib/ modules apart from the files that say they need Node. In lib/ that makes
- * a module's index.ts door and everything behind it browser-safe. Tests and
- * test support are never shipped, so they may use Node anywhere.
+ * Code that must also run in a browser: the web client, what both clients
+ * share, and the contracts and lib/ modules apart from the files that say they
+ * need Node. In lib/ that makes a module's index.ts door and everything behind
+ * it browser-safe. Tests and test support are never shipped, so they may use
+ * Node anywhere.
  */
 function isBrowserSafe(path) {
   if (isTest(path) || isTestSupport(path)) return false;
-  if (path.startsWith("clients/web/")) return true;
+  if (path.startsWith("clients/web/") || CLIENT_SHARED.some((module) => path.startsWith(`${module}/`))) return true;
   return (path.startsWith("contracts/") || path.startsWith("lib/")) && !needsNode(path);
 }
 
@@ -237,11 +240,12 @@ function checkRelative(from, specifier) {
     };
   }
   if (targetOwner === "contracts" || targetOwner === "lib") return undefined;
-  // What both clients share imports only what comes before it in CLIENT_SHARED, and never a client.
+  // What both clients share imports only what comes before it in CLIENT_SHARED, and never a client, though its tests dial from Node as the console does.
   const shared = CLIENT_SHARED.indexOf(owner);
   if (shared !== -1) {
     const before = CLIENT_SHARED.slice(0, shared);
     if (before.includes(targetOwner)) return undefined;
+    if ((isTest(from) || isTestSupport(from)) && target.startsWith(CONSOLE_DIAL)) return undefined;
     const allowed = listed([...before, "contracts", "lib"].map((each) => `${each}/`));
     return { messageId: "shared", data: { from: owner, allowed, target } };
   }

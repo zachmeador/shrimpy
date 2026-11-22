@@ -1,7 +1,6 @@
 import type { AgentModels } from "../../contracts/agent/index.ts";
-import type { DialPlace } from "../../lib/link/node.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
-import { CONNECTING, keepGateway } from "../network/index.ts";
+import { CONNECTING, type Dial, keepGateway } from "../network/index.ts";
 import { createAsking } from "./asking.ts";
 import { readBack } from "./history.ts";
 import { createHoldings } from "./holdings.ts";
@@ -12,8 +11,8 @@ import { createStore } from "./store.ts";
 import { worked } from "./worked.ts";
 
 export interface ConsoleStateOptions {
-  /** Where the gateway is: its own socket on this machine, or its entry, with the fingerprint of its key. */
-  place: DialPlace;
+  /** How to dial the gateway, which the client hands it: from Node, at its own socket on this machine or at its entry. */
+  dial: Dial;
   /** A device's token, to be you on a machine that joined, or null to be you on the gateway's own socket. */
   token: string | null;
   /** How long a notice stays. 6 seconds by default. */
@@ -129,7 +128,7 @@ const startingModel = (homes: HomeLookup | undefined): Model => ({
 });
 
 export async function createConsoleState(options: ConsoleStateOptions): Promise<ConsoleState> {
-  const link = await keepGateway({ place: options.place, token: options.token, ...(options.backoff === undefined ? {} : { backoff: options.backoff }) });
+  const link = await keepGateway({ dial: options.dial, token: options.token, ...(options.backoff === undefined ? {} : { backoff: options.backoff }) });
   const held = createHoldings(link, () => store.changed());
   const store = createStore(startingModel(options.homes), {
     noticeMs: options.noticeMs ?? NOTICE_MS,
