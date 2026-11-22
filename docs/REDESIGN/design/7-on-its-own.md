@@ -21,7 +21,7 @@ It covers waking itself later, standing triggers, breadcrumbs, asking another ag
 - The question has to stand alone: the other agent sees nothing of the thread it was asked from.
 - In a room none of this is needed: an agent that mentions another is woken by the answer in the same session.
 - The spike on the branch `spike/ask-and-resume` showed the plumbing holds through kills and chat outages, with scripted models.
-**Mechanics of asking,** settled by the coordinator on 2026-10-06, built that day, and yours to change. Two things the spike found awkward have gone since: a receipt is an event in the feed now, so no second connection to chat is needed, and one task follows any input, so an answer is taken up like any other input, with its reply, its working mark and its stop.
+**Mechanics of asking,** settled and built on 2026-10-06, and yours to change. Two things the spike found awkward have gone since: a receipt is an event in the feed now, so no second connection to chat is needed, and one task follows any input, so an answer is taken up like any other input, with its reply, its working mark and its stop.
 
 1. `ask_agent({to, text, within?})`. The name says who can be asked, and matches `send_message` and `read_messages`: a bare `ask` invites a model to reach for it when it wants to ask a person something, which is only a reply. `to` is `@name`, and the name has to be an agent's. `within` is how long to wait, such as `5m` or `2h`: 30 minutes if left out, from one minute to a day. The tool answers at once that the question is asked and that the answer will come here as a new input.
 2. Each question gets a thread of its own in the agent's DM with the other agent, named for how the question starts, and is posted there. The other agent takes it up as it takes up any DM message, in a session of its own for that thread. You asked whether a question made a new thread, and it turned out it should: see 4. The first version of this mechanic posted in the DM's main thread.
@@ -58,7 +58,7 @@ It covers waking itself later, standing triggers, breadcrumbs, asking another ag
 
 Settled on 2026-10-04 with the trigger design: the folder is `breadcrumbs/`, and a trigger whose check says `then: note` owns the write, to `breadcrumbs/<trigger>.md`, since a command that died can't write its own failure. Anything else may still write a file there.
 
-**Mechanics of checks and breadcrumbs,** settled by the coordinator on 2026-10-05, built that day, and yours to change.
+**Mechanics of checks and breadcrumbs,** settled and built on 2026-10-05, and yours to change.
 
 *A check.*
 

@@ -52,7 +52,7 @@ Five messages from you show the difference. Scout and bob are agents.
 | `@scout hello` | The room | scout | scout |
 | `@all hello` | The room | scout, bob | scout, bob |
 
-In a DM the first two rows look the same, so the fact is lost there. Your rule that a person's mention joins the turn an agent is running needs to know whether a DM message mentions the agent, and the event can't say, so the agent reads the text again with a function the chat server and the agent share through the contract. `addressed` came in with the first contract on 2026-10-03, when only DMs existed and the two jobs looked the same. The plan had said only that the chat server owns "addressing and mentions" and that agents decide what wakes them. A builder filled the gap, and nobody raised it.
+In a DM the first two rows look the same, so the fact is lost there. Your rule that a person's mention joins the turn an agent is running needs to know whether a DM message mentions the agent, and the event can't say, so the agent reads the text again with a function the chat server and the agent share through the contract. `addressed` came in with the first contract on 2026-10-03, when only DMs existed and the two jobs looked the same. The plan had said only that the chat server owns "addressing and mentions" and that agents decide what wakes them. The build filled the gap, and nobody raised it.
 
 Leaving it had four costs. An agent's rule for DMs was written in the chat server, though agents decide what wakes them. Stored messages held the decision as the rule of their day worked it out. Two programs shared a rule for reading text. And each new reader had to work the fact out again.
 
@@ -62,7 +62,7 @@ Leaving it had four costs. An agent's rule for DMs was written in the chat serve
 
 **The contracts as Chord objects**
 
-The design for the move to the latest Pi, written by a builder on 2026-11-14 and settled by the coordinator the same day, under "decision 1 i trust your judgement on". The choices listed below are yours to strike. It builds on what was decided that day: the gateway is Chord's relay, every program links out to it, and clients hold live objects.
+The design for the move to the latest Pi, written and settled in the build on 2026-11-14, under "decision 1 i trust your judgement on". The choices listed below are yours to strike. It builds on what was decided that day: the gateway is Chord's relay, every program links out to it, and clients hold live objects.
 
 *Hosts.* Chord calls every participant a host, and routes each request by the address of the host that serves it. Three kinds of host have addresses:
 

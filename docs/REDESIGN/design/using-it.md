@@ -50,7 +50,7 @@ What old Shrimpy had that isn't back is listed under Not built yet below, as you
 
 A name with no flag stays where it says something else. In `run <agent> "<text>"` and `threads <member>` it is who you are talking to. In `agent init <agent>`, `agent serve <agent>` and `up [<agent>...]` it is which agent to make or start, and nothing is running yet whose shell the command could be in.
 
-One addition is the coordinator's, and is yours to strike: in your own terminal, when the Shrimpy folder has exactly one agent, a command with no `--agent` acts on that one. The terminal client already takes you to the only agent in the same way. With two or more it says which agents there are and asks for the flag. A command that such a command prints for you to run next always names the agent.
+One addition was made in the build, and is yours to strike: in your own terminal, when the Shrimpy folder has exactly one agent, a command with no `--agent` acts on that one. The terminal client already takes you to the only agent in the same way. With two or more it says which agents there are and asks for the flag. A command that such a command prints for you to run next always names the agent.
 
 **The terminal's keys,** confirmed on 2026-10-05, after a look at the terminal as a whole that you asked for because its keys weren't intuitive, and built that day. The terminal had two keys for going back, Esc on a list and Ctrl+T in a thread, two for a new thread, `n` and Ctrl+N, and Esc meant back on a list and stop in a thread. Four rules now decide a key:
 
@@ -71,7 +71,7 @@ One addition is the coordinator's, and is yours to strike: in your own terminal,
 | Ctrl+O | Tool calls in full, and back to brief, wherever work is shown |
 | Ctrl+T | Thinking in full, and back to brief |
 
-Ctrl+O for tool output and Ctrl+T for thinking are Pi's keys, and Claude Code has Ctrl+O for the same. Codex opens its whole transcript with Ctrl+T. Two things the coordinator left for later: a screen that lists every key, which waits until there are more keys than fit on the line, and scrolling keys, since what scrolls off stays in the terminal's own scrollback.
+Ctrl+O for tool output and Ctrl+T for thinking are Pi's keys, and Claude Code has Ctrl+O for the same. Codex opens its whole transcript with Ctrl+T. Two things were left for later: a screen that lists every key, which waits until there are more keys than fit on the line, and scrolling keys, since what scrolls off stays in the terminal's own scrollback.
 
 On 2026-11-21 you moved the terminal to the arrow keys, with [its mockup](../../terminal-mockup.html) in front of you: Right goes in and Left goes out. That isn't built, so the rules and the table above are how the terminal works today. What changes is under Not built yet below.
 
