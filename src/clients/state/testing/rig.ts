@@ -5,7 +5,7 @@ import { gatewaySocket } from "../../../contracts/gateway/node.ts";
 import { linkTestAgent, startTestGateway, type TestAgent, type TestGateway } from "../../../contracts/gateway/testing/index.ts";
 import { backoff } from "../../../lib/retry/index.ts";
 import { eventually, stopAfter, useRuntimeDir } from "../../../lib/testing/index.ts";
-import { dialAt } from "../../console/dial/index.ts";
+import { dialAt } from "../../network/node.ts";
 import { type ClientState, createClientState, type Model } from "../index.ts";
 
 export interface RigOptions {

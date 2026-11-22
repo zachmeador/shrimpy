@@ -124,6 +124,6 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 
 - A file imports files in its own directory, or another directory's front door: its `index.ts` or its `node.ts`. A directory's files stay closed to the directories inside it, so what both need gets a directory of its own. Every front door opens with a short comment saying what the module is for and what it must not know.
 - A module whose API partly needs Node offers that part through `node.ts`, and a file behind that door that needs Node is named `*.node.ts`. A module that is Node-only throughout has `node.ts` as its only door.
-- Browser-safe code can't import Node or a `node.ts` door. That is the web client, the modules both clients share, and everything in `contracts/` and `lib/` apart from the files that need Node. Tests and `testing/` modules are never shipped and are exempt.
+- Browser-safe code can't import Node or a `node.ts` door. That is the web client, and everything in `contracts/`, `lib/` and the modules both clients share apart from the files that need Node. Tests and `testing/` modules are never shipped and are exempt.
 - Tests sit beside the code as `*.test.ts`. Test support lives in a `testing/` module that only tests import.
 - Only `agent/` imports Pi's durable runtime, and inside it only a file named `*.durable.ts` or a module's `durable.ts` door. Between the agent's modules, imports point one way. Only `clients/console/draw/` imports `pi-tui`.

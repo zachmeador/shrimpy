@@ -1,13 +1,8 @@
-/**
- * Dialing the gateway from Node, which the terminal hands the link: at the
- * gateway's own socket on this machine, or at its entry, which its key must
- * prove, and why linking failed, as the link's status says it. It must not
- * know what the client holds or shows.
- */
-import { HelloRefusedError, keepLinked, UnprovenGatewayError } from "../../../contracts/gateway/node.ts";
-import { asError } from "../../../lib/errors/index.ts";
-import { type DialPlace, nobodyThere } from "../../../lib/link/node.ts";
-import type { Dial, Why } from "../../network/index.ts";
+import { HelloRefusedError, keepLinked, UnprovenGatewayError } from "../../contracts/gateway/node.ts";
+import { asError } from "../../lib/errors/index.ts";
+import { type DialPlace, nobodyThere } from "../../lib/link/node.ts";
+import type { Dial } from "./link.ts";
+import type { Why } from "./status.ts";
 
 /** How a client keeps linked to the gateway at `place`, from Node: its own socket, or its entry with the fingerprint of its key. */
 export function dialAt(place: DialPlace): Dial {

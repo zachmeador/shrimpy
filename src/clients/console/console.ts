@@ -1,8 +1,8 @@
 import { gatewaySocket } from "../../contracts/gateway/node.ts";
 import type { DialPlace } from "../../lib/link/node.ts";
+import { dialAt } from "../network/node.ts";
 import { createClientState, type HomeLookup } from "../state/index.ts";
 import { farewellLine, type Screen } from "../view/index.ts";
-import { dialAt } from "./dial/index.ts";
 import { type ConsoleTerminal, startDrawing } from "./draw/index.ts";
 
 /** Where the console says what it has to say once it is left, and hears that it is asked to stop. */

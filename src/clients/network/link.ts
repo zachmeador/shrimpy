@@ -9,8 +9,8 @@ import { CONNECTING, type LinkStatus, UP, type Why } from "./status.ts";
  * Keep a client's host linked to the gateway: dial and say the hello, connect
  * the host to each link the gateway lets in, and dial again after a drop or a
  * refusal, after a pause that grows while hellos fail. Resolves once `signal`
- * aborts and the link is gone. Each client hands the link its own, since the
- * terminal dials from Node.
+ * aborts and the link is gone. The client hands the link one: the terminal
+ * hands it `dialAt`, from `node.ts`.
  */
 export type Dial = (options: DialOptions) => Promise<void>;
 

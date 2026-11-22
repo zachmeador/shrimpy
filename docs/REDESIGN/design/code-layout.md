@@ -78,11 +78,11 @@ src/
     settings/       your settings file, followed for your name
   clients/
     network/        one link to the gateway, kept across losses, and the objects held through it, handed how to
-                    dial: apart from tests, the only client code that imports Chord
+                    dial, and behind its `node.ts` door, dialing from Node: apart from tests, the only client code
+                    that imports Chord
     state/          what a client knows, where the person is and what they can do
     view/           what is shown, as plain text and facts, with foreign text made harmless
     console/        terminal client
-      dial/         dialing the gateway from Node, at its own socket or at its entry
       draw/         the only code that imports `pi-tui`
     web/            not built yet: the web client
   cli/              the `shrimpy` command
@@ -114,7 +114,7 @@ src/
 | `lib/` | nothing else in `src/` |
 | `contracts/` | `lib/`; and, within `contracts/`, `gateway/` imports no other contract, `chat/` and `agent/` import `gateway/`, and `agent/` imports how a room is written from `chat/` |
 | `agent/`, `chat/`, `gateway/` | its own code, `contracts/` and `lib/`, and never another program |
-| `clients/network/`, `clients/state/`, `clients/view/` | `contracts/` and `lib/` by their main doors, and each other in that order: `state/` imports `network/`, and `view/` imports both. Never a client, a `node.ts` door or `pi-tui`, apart from tests and test support, which may use Node and the console's `dial/` to reach a gateway |
+| `clients/network/`, `clients/state/`, `clients/view/` | `contracts/` and `lib/` by their main doors, and each other in that order: `state/` imports `network/`, and `view/` imports both. Never a client or `pi-tui`. Of them, only what is behind `network/`'s `node.ts` door, which dials from Node, reaches what needs Node, apart from tests and test support |
 | `clients/console/`, `clients/web/` | its own code, `contracts/`, `lib/` and the modules both clients share, and never the other client or a program |
 | `chat/providers/<name>/` | the chat server's provider interface and `lib/` |
 | `cli/` | `contracts/` and `lib/`, plus each program's front door to start it, and the agent's to preview a home and to sign in |
@@ -134,7 +134,7 @@ Keep this simple:
 - Every module has one front door, `index.ts`. A file imports files in its own directory or another directory's front door, and nothing else. `contracts/`, `lib/` and `clients/` only group modules, so they have no door of their own.
 - Each front door opens with a short comment saying what the module is for and what it must not know about.
 - Tests sit next to the code they cover, as `*.test.ts`.
-- A module whose API partly needs Node offers that part through a second door, `node.ts`, with its Node files named `*.node.ts`. A module that needs Node throughout has `node.ts` as its only door. Browser-safe code can't import either: that's the web client, the modules both clients share, the contracts' main doors, and every `lib/` module's main door with everything behind it.
+- A module whose API partly needs Node offers that part through a second door, `node.ts`, with its Node files named `*.node.ts`. A module that needs Node throughout has `node.ts` as its only door. Browser-safe code can't import either: that's the web client, the contracts' main doors, and the main door of every `lib/` module and of each module both clients share, with everything behind it.
 - A module of the agent whose API partly needs Pi works the same way, with a second door, `durable.ts`, and its files named `*.durable.ts`. A module that is Pi throughout has `durable.ts` as its only door.
 - Test support lives in a `testing/` module that only tests import.
 - ESLint enforces the import table, the front doors, the Pi package rules and the tiers of the agent's modules from a module's first commit, through one local rule in `lint/boundaries.js` with its own tests. `npm run check` runs types, lint and tests.
@@ -166,7 +166,7 @@ Every sentence a model or a person reads is kept in a few files, so that wording
 
 Decided on 2026-11-21, with the two mockups in front of you: "sure, track it in the docs. but i want to get building asap". The terminal and the web client are one client, drawn twice. They share what a client knows, does and says, and each keeps only its drawing and its input. The move below was built that day, with no change in behavior. `look/`, the views by level and the web client are not built.
 
-Three of the terminal's four modules had no terminal in them, about 3,500 of its 4,500 lines, and moved up to be shared. Node reached them in three files. Two dialed the gateway: the link is now handed how to dial, and the console hands it the Node way from its `dial/`. The third took a request's ID from `node:crypto`, and now takes it from the `crypto` that Node and a browser both have.
+Three of the terminal's four modules had no terminal in them, about 3,500 of its 4,500 lines, and moved up to be shared. Node reached them in three files. Two dialed the gateway: the link is now handed how to dial, and the console hands it the Node way, which is behind `network/`'s `node.ts` door. The third took a request's ID from `node:crypto`, and now takes it from the `crypto` that Node and a browser both have.
 
 ```text
 src/clients/
@@ -181,18 +181,18 @@ src/clients/
 
 | Module | Its one job | Knows a terminal or a browser |
 |---|---|---|
-| `network/` | One link to the gateway, kept across losses, and the objects held through it. It is handed how to dial. | Never |
+| `network/` | One link to the gateway, kept across losses, and the objects held through it. It is handed how to dial, and offers dialing from Node behind its `node.ts` door. | Never |
 | `state/` | What a client knows, where the person is and what they can do. | Never |
 | `view/` | What each level shows, as data, and every sentence said of it. | Never |
 | `look/` | The colors and the sigils, as data. | Never |
-| `console/` | Drawing in cells, the keys, and dialing from Node. | A terminal |
+| `console/` | Drawing in cells, the keys, and the socket or address to dial, which it hands the link with `network/`'s Node dial. | A terminal |
 | `web/` | Drawing in the page, the pointer and the keys, dialing from a browser, installing and push. | A browser |
 
 **What is shared is what is true and what is said.** How it is laid out and how it is touched stays with each client. The test is whether the other client would be wrong if it differed: `working · #ops` differing is a bug, and where the list sits is not. A sentence that names a key or a gesture belongs to the client that has it. Everything else a client says is in `view/`, and a sentence in either client's drawing is a mistake.
 
 **A view is of one level.** Today a screen is one of four, and the state says which one is on show. Both mockups show the levels side by side. So the state says what is open at each level, and `view/` has a view for each: agents and rooms, what one of them takes part in, a thread, and a session. Each client decides how many it shows at once. Which row the keys are on is the terminal's own.
 
-**Imports.** `network/`, `state/`, `view/` and `look/` import `contracts/` and `lib/` by their main doors, which are safe for browsers. `state/` imports `network/`, and `view/` imports both. None of the four imports `console/` or `web/`, a `node.ts` door, `pi-tui` or the page, apart from their tests and test support, which may use Node and reach a real gateway through the console's `dial/`. `console/` and `web/` import the four, and never each other. The helper that bundles a contract's door for a browser bundles each of their doors too.
+**Imports.** `network/`, `state/`, `view/` and `look/` import `contracts/` and `lib/` by their main doors, which are safe for browsers. `state/` imports `network/`, and `view/` imports both. None of the four imports `console/` or `web/`, `pi-tui` or the page, and their main doors reach no `node.ts` door. Dialing from Node is behind `network/`'s own `node.ts` door: the console hands it to the link, and their tests reach a real gateway with it. `console/` and `web/` import the four, and never each other. The helper that bundles a contract's door for a browser bundles each of their doors too.
 
 **The web client is a thin projection.** It reads the views, calls the moves, and holds only what a page has: what is folded, where a list is scrolled, what is typed. Three choices in it are yours to strike. It is drawn with Preact in TSX, so that a component is tied to a view's type. esbuild bundles it when the gateway starts, so nothing is built by hand, and esbuild becomes a dependency where it was a development one. Its styles are the web mockup's, with the colors written from `look/`.
 
