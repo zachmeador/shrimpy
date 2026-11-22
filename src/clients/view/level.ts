@@ -26,6 +26,8 @@ export interface Row {
   working: boolean;
   /** How many messages are new to the person in what it opens. */
   unread: number;
+  /** On an agent's list, it is in the person's DM with the agent, and so one of their threads with it. */
+  yours: boolean;
   /** How the agent a row of the agents and rooms opens looks. */
   look: Look | undefined;
 }

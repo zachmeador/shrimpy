@@ -33,6 +33,7 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
     detail: entry.running ? agentDetail(entry.sessions, entry.elsewhere, model.me?.name) : "not running",
     working: entry.working,
     unread: entry.unread,
+    yours: false,
     look: lookOf(model, entry.id),
   }));
   const rooms: Row[] = roomEntries(model).map((entry) => ({
@@ -42,6 +43,7 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
     detail: [memberNames(entry.members).join(", "), entry.working ? "working" : undefined].filter((part) => part !== undefined && part !== "").join(" · "),
     working: entry.working,
     unread: entry.unread,
+    yours: false,
     look: undefined,
   }));
   // The rooms the person is not in come last, apart from their own.
@@ -52,6 +54,7 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
     detail: readOnlyDetail(channel, working),
     working,
     unread,
+    yours: false,
     look: undefined,
   }));
   const rows = [...agents, ...rooms, ...reading];

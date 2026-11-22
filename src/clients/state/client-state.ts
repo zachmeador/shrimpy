@@ -68,10 +68,11 @@ export interface ClientState {
    */
   startThread(place?: Place): void;
   /**
-   * In a thread opened from an agent's list, put that agent's view of the
-   * session behind it on show in place of the conversation, and back. The same
-   * thread is open either way: both go on being followed. It does nothing where
-   * the agent has no session behind the thread.
+   * In a thread, put the next agent's view of the session behind it on show in
+   * place of the conversation, in the order `sidesOf` gives, and after the last
+   * the conversation again. The same thread is open either way: all of it goes
+   * on being followed. It does nothing where no agent has a session behind the
+   * thread.
    */
   turnOver(): void;
   /** Open a session of the agent whose list is open that is behind no thread, by its address. Nothing can be said or done in it. */

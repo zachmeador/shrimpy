@@ -11,8 +11,8 @@
  * list, a room's or a channel's they only read, a thread or a session, start a
  * thread, say something, read the status of a thread, list their devices and
  * take one back, ask for the models an agent can use and read the model of a
- * thread's session, tell the person something about what they wrote, put an
- * agent's view of a thread on show and back, leave. A client says whether the
+ * thread's session, tell the person something about what they wrote, put each
+ * agent's view of a thread on show in turn and the conversation back, leave. A client says whether the
  * person is looking, and the thread they look at is marked read. Which level is
  * in front, and going back, are each client's own. It makes no room and adds no
  * member: that is for the commands. Everything it learns comes through the
@@ -40,6 +40,7 @@ export {
   roomEntries,
   type RoomStatus,
   type SessionView,
+  sidesOf,
   type Status,
   type ThreadView,
 } from "./model.ts";

@@ -1,6 +1,6 @@
 import { type Message, namer, receiptWords, titleOf } from "../../contracts/chat/index.ts";
 import { oneLine, plain } from "../../lib/plain/index.ts";
-import { agentNameOf, agentOfList, type Model, type Status } from "../state/index.ts";
+import { agentNameOf, agentOfList, type Model, sidesOf, type Status } from "../state/index.ts";
 import { type CommandLine, commandLines } from "./commands.ts";
 import { BRIEF, type LevelOptions, lookingAt } from "./level.ts";
 import { type Look, lookOf } from "./look.ts";
@@ -16,6 +16,7 @@ import {
   type InFull,
   newRoomThreadHint,
   newThreadHint,
+  queuedLine,
   reactionsLine,
   readOnlyLine,
   roomStatusRows,
@@ -89,6 +90,8 @@ export interface ThreadLevel {
   works: AgentWork[];
   /** Every wake-up an agent in the thread waits on there, the soonest first, while the agent is reached. */
   waiting: Waiting[];
+  /** The input the sessions behind the thread have accepted and not picked up yet, a line each, while their agents are reached. */
+  queued: string[];
   /** Every command the person can write here, in order of name, each with what it does here. None in a channel they only read. */
   commands: CommandLine[];
   /** Said where the input would be when the person only reads the channel: that they do, and why they can't write there. */
@@ -97,7 +100,7 @@ export interface ThreadLevel {
   status: StatusBlock | undefined;
   /** The person can write here: in their DM with an agent, or in a room they are in. */
   writable: boolean;
-  /** The agent the thread was opened from has a session behind it, whose view of it can be on show in place of the conversation. */
+  /** An agent in the thread has a session behind it, whose view of it can be on show in place of the conversation. */
   turnable: boolean;
   /** What is not working, or has just gone wrong, most pressing first. */
   notes: string[];
@@ -154,11 +157,12 @@ export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel |
     from,
     works: worksOf(model, from, options.inFull ?? BRIEF),
     waiting: waitingOf(model, now, !reading),
+    queued: queuedOf(model),
     commands: reading ? [] : commandLines(dm ? "dm" : "room"),
     readOnly: reading && here.channel !== undefined ? readOnlyLine(here.channel, model.me?.name) : undefined,
     status: model.status === undefined ? undefined : statusBlock(model.status),
     writable: !reading,
-    turnable: from !== undefined && threadId !== undefined && model.behind[from] !== undefined,
+    turnable: sidesOf(model).length > 0,
     notes: notesOf(model, { agent: from, watching: false, looking: "work", refused: undefined, notice: true }, options.self),
   };
 }
@@ -191,6 +195,16 @@ function waitingOf(model: Model, now: number, inThread: boolean): Waiting[] {
       look: lookOf(model, agent),
       line: wakeupLine(agentNameOf(model, agent), wakeup, whenOf(wakeup.due, now), inThread),
     }));
+}
+
+/**
+ * The input the sessions behind the open thread have accepted and not picked
+ * up yet, of each agent that is reached. The same message waiting in several
+ * agents' sessions is one line.
+ */
+function queuedOf(model: Model): string[] {
+  const lines = Object.values(model.behind).flatMap((view) => (view.reached ? view.status.queued.map(queuedLine) : []));
+  return [...new Set(lines)];
 }
 
 function statusBlock(status: Status): StatusBlock {

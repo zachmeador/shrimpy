@@ -31,7 +31,7 @@ export function notesOf(model: Model, about: About, self: string): string[] {
   const agentId = about.agent;
   const agent = agentId === undefined ? undefined : agentNameOf(model, agentId);
   const gatewayDown = model.gateway.state === "down";
-  if (model.gateway.state === "down") warn(gatewayNote(model.gateway.why));
+  if (model.gateway.state === "down") warn(gatewayNote(model.gateway.why, self));
   // The gateway being gone is why nothing is linked: that is not worth saying twice.
   if (!about.watching && model.chat.state === "down" && !(gatewayDown && model.chat.why.kind === "not-linked")) warn(chatNote(model.chat.why));
   if (about.looking !== undefined && agent !== undefined && model.agent?.state === "down" && !(gatewayDown && model.agent.why.kind === "not-linked")) {
@@ -46,6 +46,6 @@ export function notesOf(model: Model, about: About, self: string): string[] {
   const running = agentId === undefined ? undefined : linked.findLast((program) => program.kind === "agent" && program.member === agentId);
   warn(running === undefined ? undefined : versionNote(`the agent ${oneLine(agent ?? "")}`, running.shrimpy, self));
 
-  if (about.notice && model.notice !== undefined) warn(noticeText(model.notice, oneLine(agent ?? "")));
+  if (about.notice && model.notice !== undefined) warn(noticeText(model.notice, oneLine(agent ?? ""), self));
   return notes;
 }

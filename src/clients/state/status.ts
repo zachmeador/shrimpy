@@ -31,16 +31,22 @@ export function statusOf(
   const entries = agentEntries(model);
 
   if (place.kind === "room") {
-    const members = model.rooms[place.id]?.channel.members ?? [];
+    const members = (model.rooms[place.id]?.channel.members ?? []).filter((member) => member.kind === "agent");
     const agents = members
-      .filter((member) => member.kind === "agent")
       .map((member) => ({
         name: member.name,
         running: entries.find((entry) => entry.id === member.id)?.running ?? false,
         working: thread !== undefined && workingIn(thread, member.id),
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
-    return { at, about: { kind: "room", agents } };
+    // A session seen before its agent went away says nothing about now.
+    const wakeups = members
+      .flatMap((member) => {
+        const view = model.behind[member.id];
+        return view?.reached === true ? view.status.wakeups.map((wakeup) => ({ agent: member.name, wakeup })) : [];
+      })
+      .sort((a, b) => a.wakeup.due - b.wakeup.due);
+    return { at, about: { kind: "room", agents, wakeups } };
   }
 
   const { id } = place;

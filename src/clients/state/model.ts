@@ -101,6 +101,20 @@ export function wholeSession(open: Open): { agent: string; address: string } | u
   return undefined;
 }
 
+/**
+ * The agents whose view of the session behind the open thread can be on show
+ * in place of its conversation, by member ID, in the order they are put on
+ * show: the agent whose list the thread was opened from first, then the others
+ * by name. An agent has a view of it once it has a session there.
+ */
+export function sidesOf(model: Pick<Model, "open" | "behind" | "listing" | "dms">): string[] {
+  const { item } = model.open;
+  if (item?.kind !== "thread" || item.thread === undefined) return [];
+  const from = agentOfList(model.open);
+  const name = (id: string): string => agentNameOf(model, id);
+  return Object.keys(model.behind).sort((a, b) => Number(b === from) - Number(a === from) || name(a).localeCompare(name(b)));
+}
+
 /** The current name of the agent with member ID `id`, from the roster or its DM, falling back to `id`. */
 export function agentNameOf(model: Pick<Model, "listing" | "dms">, id: string): string {
   const onRoster = model.listing?.members.find((member) => member.id === id);
@@ -228,10 +242,11 @@ export interface AgentStatus {
   othersWorking: number | undefined;
 }
 
-/** The agents of a room, as `/status` found them. */
+/** The agents of a room, as `/status` found them, and every wake-up they wait on in the thread, the soonest first. */
 export interface RoomStatus {
   kind: "room";
   agents: { name: string; running: boolean; working: boolean }[];
+  wakeups: { agent: string; wakeup: WaitingWakeup }[];
 }
 
 /** The person's devices, as `/devices` found them: each one's label, or null when it has none, and its ID. */

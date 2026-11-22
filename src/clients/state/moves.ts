@@ -1,5 +1,5 @@
 import type { Holdings } from "./holdings.ts";
-import { type AgentEntry, agentOfList, type Item, type Place, placeKey, placeOf, readOnlyEntries } from "./model.ts";
+import { type AgentEntry, agentOfList, type Item, type Place, placeKey, placeOf, readOnlyEntries, sidesOf } from "./model.ts";
 import type { Store } from "./store.ts";
 
 /**
@@ -69,11 +69,13 @@ export function createMoves(store: Store, held: Holdings): Moves {
       const model = store.model();
       const { open } = model;
       const { item } = open;
-      const agent = agentOfList(open);
-      if (item?.kind !== "thread" || item.thread === undefined || agent === undefined) return;
-      // A thread with no session behind it has nothing to turn over to; one that is turned over can always be turned back.
-      if (item.side === undefined && model.behind[agent] === undefined) return;
-      store.set({ open: { ...open, item: { ...item, side: item.side === undefined ? agent : undefined } }, notice: undefined });
+      if (item?.kind !== "thread" || item.thread === undefined) return;
+      // From the conversation to each agent's view in turn, and from the last back to the conversation, as from a view whose session has gone.
+      const sides = sidesOf(model);
+      const at = item.side === undefined ? -1 : sides.indexOf(item.side);
+      const side = item.side !== undefined && at === -1 ? undefined : sides[at + 1];
+      if (side === item.side) return;
+      store.set({ open: { ...open, item: { ...item, side } }, notice: undefined });
     },
     openSession(address) {
       const agent = agentOfList(store.model().open);

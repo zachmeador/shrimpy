@@ -532,7 +532,7 @@ test("text from other members and from tools can't reach the terminal, wherever 
         othersWorking: 1,
       },
     },
-    room: { at: now, about: { kind: "room", agents: [{ name: `lurker${hostile}`, running: true, working: true }] } },
+    room: { at: now, about: { kind: "room", agents: [{ name: `lurker${hostile}`, running: true, working: true }], wakeups: [] } },
   };
   const notices: Notice[] = [
     { kind: "no-command", written: `/path${hostile}`, commands: [`/stop${hostile}`] },
