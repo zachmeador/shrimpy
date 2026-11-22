@@ -43,14 +43,14 @@ export function createAsking(store: Store, held: Holdings, clock: () => number):
   return {
     async readStatus() {
       const model = store.model();
-      const { where } = model;
-      if (where.screen !== "thread") return;
+      const { item } = model.open;
+      if (item?.kind !== "thread") return;
       const current = store.readingStatus();
       const selected = held.agent();
-      const asking = where.place.kind === "agent" && selected !== undefined && model.agent?.state === "up" ? selected : undefined;
+      const asking = item.place.kind === "agent" && selected !== undefined && model.agent?.state === "up" ? selected : undefined;
       // The agent is asked which model is its default, when the thread's is not that one. It may not answer.
-      const own = model.session?.status.ownModel === true;
-      const models = own && asking !== undefined ? await modelsOf(asking.id, asking.held) : undefined;
+      const own = asking !== undefined && model.behind[asking.id]?.status.ownModel === true;
+      const models = own ? await modelsOf(asking.id, asking.held) : undefined;
       const now = store.model();
       const sessions = asking === undefined ? undefined : now.sessions;
       if (current()) store.set({ status: statusOf(now, sessions, clock(), models?.default) });
@@ -58,7 +58,7 @@ export function createAsking(store: Store, held: Holdings, clock: () => number):
 
     readDevices() {
       const model = store.model();
-      if (model.where.screen !== "thread") return;
+      if (model.open.item?.kind !== "thread") return;
       store.readingStatus();
       store.set({ status: { at: clock(), about: { kind: "devices", devices: devicesOf(model) } } });
     },
@@ -96,23 +96,23 @@ export function createAsking(store: Store, held: Holdings, clock: () => number):
 
     async models() {
       const model = store.model();
-      const { where } = model;
+      const { item } = model.open;
       const asking = held.agent();
-      if (where.screen !== "thread" || where.place.kind !== "agent" || asking === undefined || model.agent?.state !== "up") return undefined;
+      if (item?.kind !== "thread" || item.place.kind !== "agent" || asking === undefined || model.agent?.state !== "up") return undefined;
       return modelsOf(asking.id, asking.held);
     },
 
     async showModel() {
       const model = store.model();
-      const { where } = model;
+      const { item } = model.open;
       const asking = held.agent();
-      // A room's thread has no one agent whose model this could be, even when it was opened from an agent's screen.
-      if (where.screen !== "thread" || where.place.kind !== "agent" || asking === undefined) return;
-      const { thread: threadId } = where;
-      // Where the person is changes while the agent is asked. What the agent said is for the thread it was asked in.
+      // A room's thread has no one agent whose model this could be, even when it was opened from an agent's list.
+      if (item?.kind !== "thread" || item.place.kind !== "agent" || asking === undefined) return;
+      const { thread: threadId } = item;
+      // What is open changes while the agent is asked. What the agent said is for the thread it was asked in.
       const stillHere = (): boolean => {
-        const now = store.model().where;
-        return held.agent() === asking && now.screen === "thread" && now.thread === threadId;
+        const now = store.model().open.item;
+        return held.agent() === asking && now?.kind === "thread" && now.thread === threadId;
       };
       const tell = (notice: Notice): void => {
         if (stillHere()) store.say(notice);
@@ -120,7 +120,7 @@ export function createAsking(store: Store, held: Holdings, clock: () => number):
 
       const status = model.agent;
       if (status?.state === "down") return tell({ kind: "model-not-shown", problem: { down: status.why } });
-      const view = threadId === undefined ? undefined : model.session;
+      const view = threadId === undefined ? undefined : model.behind[asking.id];
       if (view === undefined) return tell({ kind: "model-unstarted", defaultModel: (await modelsOf(asking.id, asking.held))?.default });
       const { model: used, ownModel } = view.status;
       // The default is worth asking for when the thread's model is not it.

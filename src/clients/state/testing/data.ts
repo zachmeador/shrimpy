@@ -23,11 +23,11 @@ export function agentMember(name: string): Member {
   return found;
 }
 
-/** A model with nothing wrong and nothing on it: the agents screen, every link up, no agents. */
+/** A model with nothing wrong and nothing on it: nothing open, every link up, no agents. */
 export function aModel(parts: Partial<Model> = {}): Model {
   return {
     me: zach,
-    where: { screen: "agents" },
+    open: { list: undefined, item: undefined },
     gateway: { state: "up" },
     listing: { programs: [], members: [{ ...zach, admin: true, reachable: false }], ways: [], version: SHRIMPY_VERSION },
     chat: { state: "up" },
@@ -36,10 +36,12 @@ export function aModel(parts: Partial<Model> = {}): Model {
     rooms: {},
     readOnly: {},
     thread: undefined,
-    session: undefined,
+    behind: {},
+    watched: undefined,
     sessions: undefined,
     workingSessions: {},
     refusal: undefined,
+    watchRefusal: undefined,
     notice: undefined,
     status: undefined,
     homes: undefined,
@@ -120,12 +122,14 @@ export function aThreadView(thread: Thread, messages: Message[], earlier = 0, re
   return { thread, messages, earlier, readOnly };
 }
 
-/** A session on show with these items, from its start, and a status that is idle unless `parts` says more. */
-export function sessionView(parts: { items?: SessionItem[]; before?: number | null; status?: Partial<SessionStatus> } = {}): SessionView {
-  return { items: parts.items ?? [], before: parts.before ?? null, status: sessionStatus(parts.status) };
+/** A session with these items, from its start, a status that is idle unless `parts` says more, and its agent reached unless it says not. */
+export function sessionView(
+  parts: { items?: SessionItem[]; before?: number | null; status?: Partial<SessionStatus>; reached?: boolean } = {},
+): SessionView {
+  return { items: parts.items ?? [], before: parts.before ?? null, status: sessionStatus(parts.status), reached: parts.reached ?? true };
 }
 
-/** A session on show that is at work on these items, doing `activity`. */
+/** A session that is at work on these items, doing `activity`. */
 export function workingView(items: SessionItem[], activity: SessionActivity = { kind: "working" }): SessionView {
   return sessionView({ items, status: { activity, busy: true } });
 }
@@ -143,7 +147,7 @@ export function aSession(id: string, parts: Partial<SessionSummary> = {}): Sessi
   };
 }
 
-/** A model on a session of an agent's being watched, with the sessions that agent lists and whatever else `parts` adds. */
+/** A model with a session of an agent's behind no thread open in its list, with the sessions that agent lists and whatever else `parts` adds. */
 export function onSession(
   agent: string,
   session: SessionSummary,
@@ -151,8 +155,9 @@ export function onSession(
   parts: Partial<Model> = {},
 ): Model {
   const member = agentMember(agent);
+  const list = { kind: "agent" as const, id: member.id };
   return aModel({
-    where: { screen: "session", agent: member.id, session: session.id },
+    open: { list, item: { kind: "session", agent: member.id, session: session.id } },
     listing: {
       programs: [anAgent(agent), aChatServer()],
       members: [{ ...zach, admin: true, reachable: false }, aRosterAgent(agent)],
@@ -161,16 +166,17 @@ export function onSession(
     },
     agent: { state: "up" },
     sessions: [session],
-    session: view,
+    watched: view,
     ...parts,
   });
 }
 
-/** A model on a thread of an agent's, with whatever else `parts` adds. */
+/** A model with a thread of an agent's DM open in its list, with whatever else `parts` adds. */
 export function onThread(agent: string, thread: Thread, view: ThreadView | undefined, parts: Partial<Model> = {}): Model {
   const member = agentMember(agent);
+  const place = { kind: "agent" as const, id: member.id };
   return aModel({
-    where: { screen: "thread", place: { kind: "agent", id: member.id }, thread: thread.id },
+    open: { list: place, item: { kind: "thread", place, thread: thread.id, side: undefined } },
     listing: {
       programs: [anAgent(agent), aChatServer()],
       members: [{ ...zach, admin: true, reachable: false }, aRosterAgent(agent)],

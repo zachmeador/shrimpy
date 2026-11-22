@@ -1,20 +1,17 @@
 import { valueOf } from "../../contracts/gateway/index.ts";
 import { Down, problemOf } from "../network/index.ts";
 import type { Holdings } from "./holdings.ts";
-import { type AgentEntry, agentEntries, type Model, type Place } from "./model.ts";
+import { type AgentEntry, agentEntries, type Model, type Place, placeKey } from "./model.ts";
 import type { Moves } from "./moves.ts";
 import type { Store } from "./store.ts";
 
 /** Starting a thread, and saying something in the open thread or in a new one. */
 export interface Sending {
-  /** Start a thread with the selected agent or in the selected room. It comes to be with its first message. */
-  startThread(): void;
+  /** Start a thread in `place`, or with the agent or in the room whose list is open. It comes to be with its first message. */
+  startThread(place: Place | undefined): void;
   /** Say something in the open thread, or in a new one, and say whether it was sent. The person's draft is theirs to put back when it was not. */
   send(text: string): Promise<boolean>;
 }
-
-/** A place as a string, for telling one from another. */
-const placeKey = (place: Place): string => `${place.kind} ${place.id}`;
 
 /** The agent on the roster with member ID `id`. */
 function rosterAgent(model: Model, id: string): AgentEntry {
@@ -33,7 +30,7 @@ export function createSending(store: Store, held: Holdings, moves: Moves, sendMs
   let started: { place: string; threadId: string } | undefined;
   // The message being sent, so that sending the same again after a failure is the same message.
   let pending: { threadId: string; text: string; requestId: string } | undefined;
-  // Which new thread is on screen, so that a first message that arrives late does not open it over something else.
+  // Which new thread is open, so that a first message that arrives late does not open it over something else.
   let newThreads = 0;
 
   /**
@@ -62,32 +59,33 @@ export function createSending(store: Store, held: Holdings, moves: Moves, sendMs
   }
 
   return {
-    startThread() {
+    startThread(place) {
       newThreads += 1;
       started = undefined;
-      moves.open(undefined);
+      moves.start(place);
     },
     async send(text) {
-      const { where } = store.model();
+      const { item } = store.model().open;
+      if (item?.kind !== "thread") return false;
+      const { place } = item;
       // The chat server refuses a write in a channel the person only reads, so nothing is asked of it.
-      if (where.screen !== "thread" || where.place.kind === "read-only") return false;
+      if (place.kind === "read-only") return false;
       const newThread = newThreads;
       // A chat server that has stopped answering must not leave the message in limbo. Sending it again is safe either way.
       const answered = AbortSignal.timeout(sendMs);
       try {
         const { chat } = store.model();
         if (chat.state === "down") throw new Down(chat.why);
-        const threadId = await threadIn(where.place, where.thread, answered);
+        const threadId = await threadIn(place, item.thread, answered);
         const requestId = pending?.threadId === threadId && pending.text === text ? pending.requestId : crypto.randomUUID();
         pending = { threadId, text, requestId };
         await held.onThread(threadId, async (thread) => valueOf(await thread.calls.post(text, requestId, answered)));
         pending = undefined;
         // A message that is sent ends what `/status` read.
         store.endStatus();
-        if (where.thread === undefined) {
+        if (item.thread === undefined) {
           started = undefined;
-          const now = store.model().where;
-          if (now.screen === "thread" && now.thread === undefined && newThreads === newThread) moves.open(threadId);
+          if (newThreads === newThread) moves.started(threadId);
         }
         return true;
       } catch (error) {

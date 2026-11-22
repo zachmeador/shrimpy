@@ -2,7 +2,7 @@ import { type AgentModels, modelWords } from "../../contracts/agent/index.ts";
 import { AGENT_COMMANDS, type AgentCommand } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import type { Notice } from "../state/index.ts";
-import { defaultModelLine, MODEL_DEFAULT, TERMINAL_COMMANDS, type TerminalCommand } from "./words.ts";
+import { CLIENT_COMMANDS, type ClientCommand, defaultModelLine, MODEL_DEFAULT } from "./words.ts";
 
 /** A command the person can write in a thread, with its slash, and what it does where they are. */
 export interface CommandLine {
@@ -16,10 +16,10 @@ export interface CommandLine {
  * name is in both. The one thing a client does with a command for agents is
  * answer `/model` alone, which `writtenIn` says.
  */
-const _inOneKind: [Extract<AgentCommand, TerminalCommand>] extends [never] ? true : never = true;
+const _inOneKind: [Extract<AgentCommand, ClientCommand>] extends [never] ? true : never = true;
 
 /** What every command does, by name: in a DM, and in a room if it is a command there. */
-const LINES: Record<string, { dm: string; room?: string }> = { ...AGENT_COMMANDS, ...TERMINAL_COMMANDS };
+const LINES: Record<string, { dm: string; room?: string }> = { ...AGENT_COMMANDS, ...CLIENT_COMMANDS };
 
 /**
  * Every command that can be written in a thread of a DM with an agent, or of a
@@ -37,7 +37,7 @@ export function commandLines(where: "dm" | "room"): CommandLine[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-const isTerminalCommand = (name: string): name is TerminalCommand => Object.hasOwn(TERMINAL_COMMANDS, name);
+const isClientCommand = (name: string): name is ClientCommand => Object.hasOwn(CLIENT_COMMANDS, name);
 const isAgentCommand = (name: string): name is AgentCommand => Object.hasOwn(AGENT_COMMANDS, name);
 
 /** What a client does with a text written in a thread. */
@@ -83,7 +83,7 @@ export function writtenIn(text: string, where: "dm" | "room"): Written {
   if (found === null) return { do: "post" };
   const name = (found[1] ?? "").toLowerCase();
   const rest = (found[2] ?? "").trim();
-  if (isTerminalCommand(name)) return terminalCommand(name, rest);
+  if (isClientCommand(name)) return clientCommand(name, rest);
   if (isAgentCommand(name)) {
     if (where === "room" && AGENT_COMMANDS[name].withoutMention === "nobody") return { do: "refuse", notice: { kind: "name-an-agent", command: name } };
     return name === "model" && where === "dm" && rest === "" ? { do: "model" } : { do: "post" };
@@ -93,7 +93,7 @@ export function writtenIn(text: string, where: "dm" | "room"): Written {
 }
 
 /** What a client does with one of its own commands, written with `rest` after it. Each has a case of its own. */
-function terminalCommand(name: TerminalCommand, rest: string): Written {
+function clientCommand(name: ClientCommand, rest: string): Written {
   switch (name) {
     case "devices": {
       if (rest === "") return { do: "devices" };

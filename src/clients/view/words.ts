@@ -25,7 +25,6 @@ import {
   channelLabel,
   DM_TAKES_NO_MORE,
   memberNames,
-  notTalkedTo,
   roomLabel,
 } from "../../contracts/chat/index.ts";
 import { howToStartAgent, NO_CHAT_SERVER, NO_GATEWAY, versionWarning } from "../../contracts/gateway/index.ts";
@@ -105,7 +104,7 @@ export function chatNote(why: Why): string | undefined {
 }
 
 /**
- * What to tell about the agent that is selected, if it is not as it should be.
+ * What to tell about the agent whose list is open, if it is not as it should be.
  * `looking` is what is on show: the work in a thread, or the agent's sessions.
  * `home` says whether this machine has a home for the agent, when the client
  * was told: an agent that has none lives somewhere else, and is started there.
@@ -140,8 +139,8 @@ export function refusalNote(looking: "sessions" | "session", agent: string, said
   return looking === "sessions" ? `Could not list the sessions of ${oneLine(agent)}: ${reason}.` : `Could not watch the session: ${reason}.`;
 }
 
-/** A program runs another version of Shrimpy than the client does. */
-export const versionNote = (what: string, version: string): string | undefined => versionWarning(what, version, "this console");
+/** A program runs another version of Shrimpy than the client does. `self` is what the client calls itself. */
+export const versionNote = (what: string, version: string, self: string): string | undefined => versionWarning(what, version, self);
 
 /** Why something could not be done, as the end of a sentence. */
 function because(program: Program, problem: Problem): string {
@@ -239,10 +238,10 @@ export function reactionsLine(reactions: { emoji: string; by: string[] }[]): str
 
 export const agentsTitle = (): string => `shrimpy · ${SHRIMPY_VERSION} · ${SHRIMPY_RELEASE_NAME}`;
 
-/** What the list on an agent's screen shows: everything the agent takes part in, or only what is with the person. */
+/** What an agent's list shows: everything the agent takes part in, or only what is with the person. */
 export type ListFilter = "everything" | "yours";
 
-/** The title of an agent's screen, which says which of the two the list shows. */
+/** The title of an agent's list, which says which of the two it shows. */
 export const agentTitle = (agent: string, filter: ListFilter): string =>
   `${oneLine(agent)} · ${filter === "everything" ? "everything" : "your threads"}`;
 /** `channel` is what the channel is called, as the chat contract's `channelLabel` says. */
@@ -256,17 +255,14 @@ export const idleLine = (agent: string): string => `${oneLine(agent)} is idle`;
 /** `who` is what the conversation is called: an agent's name or a room's label. */
 export const threadTitle = (who: string, title: string | undefined): string =>
   `${oneLine(who)} · ${title === undefined ? "new thread" : oneLine(title)}`;
-/** What an agent's screen says when its list is empty. `more` is whether there is anything else on the other side of the filter. */
-export const threadsEmpty = (agent: string, more: boolean): string =>
-  `${notTalkedTo(agent)} Press Ctrl+N to start a thread.${more ? ` Left shows everything ${oneLine(agent)} takes part in.` : ""}`;
 export const newThreadHint = (agent: string): string => `New thread with ${oneLine(agent)}. Type below to start it.`;
 export const newRoomThreadHint = (room: string): string => `New thread in ${roomLabel(room)}. Type below to start it.`;
 
-/** The word on a row of the first screen for a room that the person is not in and only reads. */
+/** The word on a row of the agents and rooms for a room that the person is not in and only reads. */
 export const READ_ONLY_TAG = "read-only";
 
 /**
- * What the first screen says of a room the person only reads: that it is only
+ * What the agents and rooms say of a room the person only reads: that it is only
  * read, which comes first so that a narrow screen does not cut it, then its
  * members, and whether anyone is working in it.
  */
@@ -354,7 +350,7 @@ export function workingLine(names: string[], activity: SessionActivity | undefin
  * says where it works and posts nothing. The list of commands shows them with
  * the commands for agents.
  */
-export const TERMINAL_COMMANDS = {
+export const CLIENT_COMMANDS = {
   devices: { dm: DEVICES, room: DEVICES },
   status: {
     dm: "Show what the agent is doing, its model, tokens and cost.",
@@ -363,7 +359,7 @@ export const TERMINAL_COMMANDS = {
 } as const satisfies Record<string, { dm: string; room?: string }>;
 
 /** The name of a command for the client, without its slash. */
-export type TerminalCommand = keyof typeof TERMINAL_COMMANDS;
+export type ClientCommand = keyof typeof CLIENT_COMMANDS;
 
 /** The line beside `default` in the list that `/model ` opens: whose model it stands for, and which one that is. */
 export const defaultModelLine = (agent: string, model: ModelId): string => `${oneLine(agent)}'s model: ${modelWords(model)}`;
@@ -474,40 +470,3 @@ export interface InFull {
   toolCalls: boolean;
   thinking: boolean;
 }
-
-/** What the keys that depend on the screen do on it. The line of keys is made from this, so it names what they do. */
-export interface Can {
-  /** Esc goes back a level. It does nothing on the first screen. */
-  back: boolean;
-  /** There is an input, and Enter sends what is typed in it. */
-  send: boolean;
-  /** Ctrl+N starts a thread. */
-  newThread: boolean;
-  /** Left and Right choose between everything on an agent's screen and only what is with the person. */
-  filter: boolean;
-  /** Tab turns a thread over to the session behind it as the agent sees it, and a session that was so turned back to the thread. */
-  turnOver: boolean;
-  /** Ctrl+O and Ctrl+T switch tool calls and thinking between brief and in full: work is shown here. */
-  work: boolean;
-}
-
-/**
- * What the line of keys at the bottom of a screen says: every key that does
- * something there, each with what it does. Where Tab goes depends on which side
- * of a thread is on show: its conversation, or its session as the agent sees it.
- */
-export function keyHints(screen: "agents" | "threads" | "thread" | "session", can: Can, inFull: InFull): string[] {
-  const hints: string[] = [];
-  if (screen === "thread" && can.send) hints.push("enter send");
-  else if (screen === "agents" || screen === "threads") hints.push("↑↓ choose", "enter open");
-  if (can.filter) hints.push("←→ everything or yours");
-  if (can.newThread) hints.push("ctrl+n new thread");
-  if (can.turnOver) hints.push(screen === "session" ? "tab conversation" : "tab agent's view");
-  if (can.back) hints.push("esc back");
-  if (can.work) {
-    hints.push(`ctrl+o tool calls: ${inFull.toolCalls ? "full" : "brief"}`, `ctrl+t thinking: ${inFull.thinking ? "full" : "brief"}`);
-  }
-  hints.push("ctrl+d quit", can.send ? "ctrl+c clear, then quit" : "ctrl+c twice to quit");
-  return hints;
-}
-export const QUIT_AGAIN = "Press Ctrl+C again to quit.";

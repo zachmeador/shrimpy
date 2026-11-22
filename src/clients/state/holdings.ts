@@ -29,8 +29,12 @@ export interface OpenThread {
   told: string | undefined;
 }
 
-/** The session on show, held, and what was read of it before its window. */
-export interface SessionOnShow {
+/**
+ * A session held, of the agent with member ID `agent`: one behind the open
+ * thread, or the open session behind no thread; and what was read of it before
+ * its window.
+ */
+export interface HeldSession {
   readonly agent: string;
   readonly address: string;
   readonly held: Holding<SessionShown, SessionCalls>;
@@ -52,12 +56,13 @@ export interface Holdings {
   readonly chat: Holding<ChatShown, ChatCalls>;
   /** The channel `id`, held for its threads while chat lists it to the person. */
   channel(id: string): Holding<ChannelShown, ChannelCalls> | undefined;
-  /** The agent whose screen, or whose thread or session, is on show. */
+  /** The agent whose list is open. */
   agent(): HeldAgent | undefined;
-  /** Each running agent, by its member ID, held for what it is working in while the list of agents is on show. */
+  /** Each running agent, by its member ID, held for what it is working in. */
   rollCall(): ReadonlyMap<string, Holding<AgentShown, AgentCalls>>;
   thread(): OpenThread | undefined;
-  session(): SessionOnShow | undefined;
+  /** The sessions held, all at one address, by the member ID of each one's agent. */
+  sessions(): ReadonlyMap<string, HeldSession>;
   /** Hold the channels chat lists to the person, and let go of those it no longer lists. */
   followChannels(): void;
   /** Hold each agent in `ids` for what it is working in, and let go of every other. */
@@ -66,8 +71,8 @@ export interface Holdings {
   useAgent(id: string | undefined): void;
   /** Hold the thread `id`, and let go of any other, or of every one with none. */
   useThread(id: string | undefined): void;
-  /** Hold the session at `address` of the agent with member ID `agent`, and let go of any other, or of every one with none. */
-  useSession(agent: string | undefined, address: string | undefined): void;
+  /** Hold the session at `address` of each agent in `agents`, by member ID, and let go of every other, or of every one with no address. */
+  useSessions(address: string | undefined, agents: ReadonlySet<string>): void;
   /** Run `work` on the channel `id`: as it is held, or held for as long as `work` runs. */
   onChannel<T>(id: string, work: (channel: Holding<ChannelShown, ChannelCalls>) => Promise<T>): Promise<T>;
   /** Run `work` on the thread `id`: the open thread's hold when it is that one, or a hold for as long as `work` runs. */
@@ -101,9 +106,9 @@ export function createHoldings(link: GatewayLink, changed: () => void): Holdings
   const chat = holdChat(link, changed);
   const channels = new Map<string, Holding<ChannelShown, ChannelCalls>>();
   const rollCall = new Map<string, Holding<AgentShown, AgentCalls>>();
+  const sessions = new Map<string, HeldSession>();
   let selected: HeldAgent | undefined;
   let thread: OpenThread | undefined;
-  let session: SessionOnShow | undefined;
   return {
     roster,
     chat,
@@ -111,7 +116,7 @@ export function createHoldings(link: GatewayLink, changed: () => void): Holdings
     agent: () => selected,
     rollCall: () => rollCall,
     thread: () => thread,
-    session: () => session,
+    sessions: () => sessions,
     followChannels() {
       const shown = chat.shown();
       if (shown === undefined) return;
@@ -129,13 +134,16 @@ export function createHoldings(link: GatewayLink, changed: () => void): Holdings
       thread?.held.release();
       thread = id === undefined ? undefined : { id, held: holdThread(link, id, changed), told: undefined };
     },
-    useSession(agent, address) {
-      if (session?.agent === agent && session?.address === address) return;
-      session?.held.release();
-      session =
-        agent === undefined || address === undefined
-          ? undefined
-          : { agent, address, held: holdSession(link, agent, address, changed), older: undefined, reading: undefined };
+    useSessions(address, agents) {
+      for (const [agent, each] of sessions) {
+        if (each.address === address && agents.has(agent)) continue;
+        each.held.release();
+        sessions.delete(agent);
+      }
+      if (address === undefined) return;
+      for (const agent of agents) {
+        if (!sessions.has(agent)) sessions.set(agent, { agent, address, held: holdSession(link, agent, address, changed), older: undefined, reading: undefined });
+      }
     },
     onChannel(id, work) {
       const held = channels.get(id);
@@ -147,9 +155,9 @@ export function createHoldings(link: GatewayLink, changed: () => void): Holdings
     release() {
       for (const held of rollCall.values()) held.release();
       for (const held of channels.values()) held.release();
+      for (const each of sessions.values()) each.held.release();
       selected?.held.release();
       thread?.held.release();
-      session?.held.release();
       chat.release();
       roster.release();
     },

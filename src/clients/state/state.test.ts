@@ -16,13 +16,16 @@ const timeout = 30_000;
 
 const textsOf = (model: Model): string[] => model.thread?.messages.map((message) => message.text) ?? [];
 
-test("with one agent it goes straight to that agent's threads", { timeout }, async (t) => {
+/** An agent's list or a room's is open: the person chose one, or was taken to the only agent. */
+const listOpen = (model: Model): boolean => model.open.list !== undefined;
+
+test("with one agent it goes straight to that agent's list", { timeout }, async (t) => {
   const rig = await startRig(t);
   const scout = await rig.member("scout");
 
-  const model = await rig.until((each) => each.where.screen === "threads", "the only agent's threads");
+  const model = await rig.until(listOpen, "the only agent's list");
 
-  assert.deepEqual(model.where, { screen: "threads", place: { kind: "agent", id: scout.id } });
+  assert.deepEqual(model.open, { list: { kind: "agent", id: scout.id }, item: undefined });
   assert.deepEqual(model.gateway, { state: "up" });
 });
 
@@ -32,7 +35,7 @@ test("with several agents it lists each, whether it runs and whether it is worki
   await rig.dm("mechanic");
 
   const listed = await rig.until((model) => agentEntries(model).length === 2, "both agents to be listed");
-  assert.deepEqual(listed.where, { screen: "agents" }, "with a choice, the person makes it");
+  assert.deepEqual(listed.open, { list: undefined, item: undefined }, "with a choice, the person makes it");
   assert.deepEqual(
     agentEntries(listed).map((entry) => [entry.name, entry.running, entry.working]),
     [
@@ -56,7 +59,7 @@ test("with several agents it lists each, whether it runs and whether it is worki
 
 test("an agent the person has not talked to has no threads, and viewing it makes none", { timeout }, async (t) => {
   const rig = await startRig(t);
-  await rig.until((model) => model.where.screen === "threads" && model.chat.state === "up", "the agent's threads");
+  await rig.until((model) => listOpen(model) && model.chat.state === "up", "the agent's list");
 
   // The person's channels come after a round trip to chat, by which a DM that viewing made would be there.
   assert.deepEqual(await (await rig.person()).channels(), []);
@@ -67,7 +70,7 @@ test("an open thread follows what is said in it, here and elsewhere", { timeout 
   const rig = await startRig(t);
   const scout = await rig.member("scout");
   const thread = await rig.thread("scout", "first");
-  await rig.until((model) => model.where.screen === "threads", "the threads");
+  await rig.until(listOpen, "the agent's list");
 
   rig.state.openThread(thread.id);
 
@@ -75,12 +78,13 @@ test("an open thread follows what is said in it, here and elsewhere", { timeout 
   await (await rig.asAgent("scout")).post(thread.id, "second");
   await rig.until((model) => textsOf(model).length === 2, "the agent's reply");
   assert.deepEqual(textsOf(rig.state.model()), ["first", "second"]);
-  assert.deepEqual(rig.state.model().where, { screen: "thread", place: { kind: "agent", id: scout.id }, thread: thread.id });
+  const dm = { kind: "agent", id: scout.id } as const;
+  assert.deepEqual(rig.state.model().open, { list: dm, item: { kind: "thread", place: dm, thread: thread.id, side: undefined } });
 });
 
 test("a thread that cannot be opened says so, in chat's words", { timeout }, async (t) => {
   const rig = await startRig(t);
-  await rig.until((model) => model.where.screen === "threads", "the threads");
+  await rig.until(listOpen, "the agent's list");
 
   rig.state.openThread("th_nothing");
 
@@ -92,7 +96,7 @@ test("saying something posts it as the person, and a new thread is made with its
   const rig = await startRig(t);
   const scout = await rig.member("scout");
   const thread = await rig.thread("scout", "first");
-  await rig.until((model) => model.where.screen === "threads", "the threads");
+  await rig.until(listOpen, "the agent's list");
   rig.state.openThread(thread.id);
   await rig.until((model) => textsOf(model).length === 1, "the thread's view");
 
@@ -101,12 +105,12 @@ test("saying something posts it as the person, and a new thread is made with its
   const [, posted] = await (await rig.person()).read(thread.id, null, 10);
   assert.deepEqual([posted?.author.id, posted?.text], [(await rig.person()).me.id, "and this"]);
 
-  rig.state.back();
   rig.state.startThread();
-  assert.deepEqual(rig.state.model().where, { screen: "thread", place: { kind: "agent", id: scout.id }, thread: undefined });
+  const dm = { kind: "agent", id: scout.id } as const;
+  assert.deepEqual(rig.state.model().open, { list: dm, item: { kind: "thread", place: dm, thread: undefined, side: undefined } });
   assert.equal(await rig.state.send("a fresh topic"), true);
-  const started = await rig.until((each) => each.where.screen === "thread" && each.where.thread !== undefined, "the new thread to open");
-  assert.notEqual(started.where.screen === "thread" && started.where.thread, thread.id);
+  const started = await rig.until((each) => each.open.item?.kind === "thread" && each.open.item.thread !== undefined, "the new thread to open");
+  assert.ok(started.open.item?.kind === "thread" && started.open.item.thread !== thread.id);
   await rig.until((each) => textsOf(each).join() === "a fresh topic", "the first message in the view");
   await rig.until((each) => each.dms[scout.id]?.threads.some((one) => one.preview === "a fresh topic") === true, "the thread to be listed");
 });
@@ -114,7 +118,7 @@ test("saying something posts it as the person, and a new thread is made with its
 test("a message that is not sent says why, and the notice goes away by itself", { timeout }, async (t) => {
   const rig = await startRig(t, { noticeMs: 60 });
   const thread = await rig.thread("scout", "first");
-  await rig.until((model) => model.where.screen === "threads", "the threads");
+  await rig.until(listOpen, "the agent's list");
   rig.state.openThread(thread.id);
   await rig.until((model) => textsOf(model).length === 1, "the thread's view");
 
@@ -130,7 +134,7 @@ test("a message that is not sent says why, and the notice goes away by itself", 
 test("a message to a chat server that stopped answering is not left in limbo, nor posted twice", { timeout }, async (t) => {
   const rig = await startRig(t, { sendMs: 300 });
   const thread = await rig.thread("scout", "first");
-  await rig.until((model) => model.where.screen === "threads" && model.chat.state === "up", "the chat server");
+  await rig.until((model) => listOpen(model) && model.chat.state === "up", "the chat server");
   rig.state.openThread(thread.id);
   await rig.until((model) => textsOf(model).length === 1, "the thread's view");
   rig.chat.freeze();
@@ -148,7 +152,7 @@ test("a message to a chat server that stopped answering is not left in limbo, no
 
 test("leaving does not wait for a chat server that has stopped answering", { timeout }, async (t) => {
   const rig = await startRig(t);
-  await rig.until((model) => model.where.screen === "threads" && model.chat.state === "up", "the chat server");
+  await rig.until((model) => listOpen(model) && model.chat.state === "up", "the chat server");
 
   rig.chat.freeze();
   stopAfter(t, () => rig.chat.thaw());
@@ -160,7 +164,7 @@ test("leaving does not wait for a chat server that has stopped answering", { tim
 test("while chat is away nothing is sent, and once it is back the thread is followed again", { timeout }, async (t) => {
   const rig = await startRig(t);
   const thread = await rig.thread("scout", "first");
-  await rig.until((model) => model.where.screen === "threads", "the threads");
+  await rig.until(listOpen, "the agent's list");
   rig.state.openThread(thread.id);
   await rig.until((model) => textsOf(model).length === 1, "the thread's view");
 
@@ -178,26 +182,26 @@ test("while chat is away nothing is sent, and once it is back the thread is foll
   assert.equal(await rig.state.send("and now"), true);
 });
 
-test("going back leaves the thread, then the agent, and lets go of what was followed", { timeout }, async (t) => {
-  const rig = await startRig(t);
+test("opening another agent's list closes the thread and lets go of what was followed", { timeout }, async (t) => {
+  const rig = await startRig(t, { agents: ["scout", "mechanic"] });
   const scout = await rig.member("scout");
+  const mechanic = await rig.member("mechanic");
   const thread = await rig.thread("scout", "go");
-  await rig.until((model) => model.where.screen === "threads", "the threads");
+  await rig.until((model) => agentEntries(model).length === 2, "both agents to be listed");
+  rig.state.selectAgent(scout.id);
   rig.state.openThread(thread.id);
   await rig.until((model) => textsOf(model).length === 1, "the thread's view");
 
-  rig.state.back();
-  assert.deepEqual(rig.state.model().where, { screen: "threads", place: { kind: "agent", id: scout.id } });
+  rig.state.selectAgent(scout.id);
+  assert.equal(rig.state.model().open.item?.kind, "thread", "opening the list that is open keeps the thread open");
+  rig.state.selectAgent(mechanic.id);
+  assert.deepEqual(rig.state.model().open, { list: { kind: "agent", id: mechanic.id }, item: undefined });
   assert.equal(rig.state.model().thread, undefined);
   const before = rig.state.model().dms[scout.id]?.threads.find((each) => each.id === thread.id)?.updatedAt ?? 0;
   await (await rig.asAgent("scout")).post(thread.id, "unheard");
-  // The agent's list hears of the message, after which the thread would have too, were it still followed.
-  await rig.until((model) => (model.dms[scout.id]?.threads.find((each) => each.id === thread.id)?.updatedAt ?? 0) > before, "the list to hear of the message");
+  // The person's DMs hear of the message, after which the thread would have too, were it still followed.
+  await rig.until((model) => (model.dms[scout.id]?.threads.find((each) => each.id === thread.id)?.updatedAt ?? 0) > before, "the DM to hear of the message");
   assert.equal(rig.state.model().thread, undefined, "the thread is no longer followed");
-
-  rig.state.back();
-  assert.deepEqual(rig.state.model().where, { screen: "agents" });
-  assert.equal(rig.state.model().agent, undefined);
 });
 
 test("leaving names the agent still working and its thread, and nothing when it is idle", { timeout }, async (t) => {
@@ -205,7 +209,7 @@ test("leaving names the agent still working and its thread, and nothing when it 
   const scout = await rig.member("scout");
   const busy = await rig.thread("scout", "go");
   const other = await rig.thread("scout", "something else");
-  await rig.until((model) => model.where.screen === "threads", "the threads");
+  await rig.until(listOpen, "the agent's list");
   rig.state.openThread(other.id);
   await rig.until((model) => textsOf(model).length === 1, "the thread's view");
 
@@ -225,11 +229,11 @@ test("with no gateway running it says so, and picks everything up once the progr
 
   const model = await rig.until((each) => each.gateway.state === "down" && each.gateway.why.kind === "not-running", "the gateway to be missing");
 
-  assert.deepEqual(model.where, { screen: "agents" });
+  assert.deepEqual(model.open, { list: undefined, item: undefined });
   assert.deepEqual(agentEntries(model), []);
   await startTestGateway(t);
   await linkTestAgent(t, "scout");
   await rig.until((each) => each.gateway.state === "up", "the gateway");
   await rig.until((each) => each.chat.state === "up", "the chat server to link and be reached");
-  await rig.until((each) => each.where.screen === "threads", "the agent to be listed and gone to");
+  await rig.until(listOpen, "the agent to be listed and its list opened");
 });

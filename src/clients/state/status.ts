@@ -1,13 +1,13 @@
 import type { ModelId, SessionActivity, SessionSummary } from "../../contracts/agent/index.ts";
 import type { Thread } from "../../contracts/chat/index.ts";
-import { agentEntries, agentNameOf, type DevicesStatus, type Model, type Place, type Status, type Where, workingIn } from "./model.ts";
+import { agentEntries, agentNameOf, type DevicesStatus, type Model, type Place, type Status, workingIn } from "./model.ts";
 
 /** The thread the person is in, as far as the client knows it: undefined for one that is not started. */
-function threadOf(model: Model, where: Extract<Where, { screen: "thread" }>, place: Exclude<Place, { kind: "read-only" }>): Thread | undefined {
-  if (where.thread === undefined) return undefined;
-  if (model.thread?.thread.id === where.thread) return model.thread.thread;
+function threadOf(model: Model, threadId: string | undefined, place: Exclude<Place, { kind: "read-only" }>): Thread | undefined {
+  if (threadId === undefined) return undefined;
+  if (model.thread?.thread.id === threadId) return model.thread.thread;
   const threads = place.kind === "agent" ? model.dms[place.id]?.threads : model.rooms[place.id]?.threads;
-  return threads?.find((each) => each.id === where.thread);
+  return threads?.find((each) => each.id === threadId);
 }
 
 /**
@@ -23,10 +23,11 @@ export function statusOf(
   at: number,
   defaultModel?: ModelId,
 ): Status | undefined {
-  const { where } = model;
-  if (where.screen !== "thread" || where.place.kind === "read-only") return undefined;
-  const { place } = where;
-  const thread = threadOf(model, where, place);
+  const { item } = model.open;
+  if (item?.kind !== "thread") return undefined;
+  const { place } = item;
+  if (place.kind === "read-only") return undefined;
+  const thread = threadOf(model, item.thread, place);
   const entries = agentEntries(model);
 
   if (place.kind === "room") {
@@ -47,7 +48,7 @@ export function statusOf(
   const name = agentNameOf(model, id);
   const reached = model.agent?.state === "up";
   // A session seen before the agent went away says nothing about now.
-  const view = reached ? model.session : undefined;
+  const view = reached ? model.behind[id] : undefined;
   const sessionBusy = view?.status.busy === true;
   const marked = thread !== undefined && entry !== undefined && workingIn(thread, entry.id);
   const idle: SessionActivity = { kind: "idle" };
@@ -72,7 +73,7 @@ export function statusOf(
               failure: view.status.failure,
               wakeups: view.status.wakeups,
             },
-      othersWorking: sessions?.filter((each) => each.working && each.id !== where.thread).length,
+      othersWorking: sessions?.filter((each) => each.working && each.id !== item.thread).length,
     },
   };
 }

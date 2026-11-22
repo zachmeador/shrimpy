@@ -8,8 +8,9 @@ export interface Store {
   subscribe(listener: (model: Model) => void): () => void;
   /**
    * Change the model, work in what the held objects show and what follows from
-   * it, and tell whoever listens, once. Going anywhere else ends what `/status`
-   * read, which is for the thread it was read in.
+   * it, and tell whoever listens, once. Opening anything, the thread that is
+   * open included, ends what `/status` read, which is for the thread it was read
+   * in as the person found it.
    */
   set(patch: Partial<Model>): void;
   /** Work in what the held objects show, once for all the changes of one turn of the event loop. */
@@ -71,7 +72,7 @@ export function createStore(initial: Model, options: StoreOptions): Store {
     subscribe: (listener) => listeners.add(listener),
     set(patch) {
       if (closed) return;
-      const moved = patch.where !== undefined;
+      const moved = patch.open !== undefined;
       if (moved) statusReads += 1;
       model = { ...model, ...(moved ? { status: undefined } : {}), ...patch };
       refresh();

@@ -1,77 +1,83 @@
 import type { Holdings } from "./holdings.ts";
-import { type AgentEntry, agentOfThread, listedIn, openedThread, type Place, readOnlyEntries } from "./model.ts";
+import { type AgentEntry, agentOfList, type Item, type Place, placeKey, placeOf, readOnlyEntries } from "./model.ts";
 import type { Store } from "./store.ts";
 
-/** Where the person goes: an agent's screen or a room's, a thread or a session, and back. */
+/**
+ * What the person opens: an agent's list or a room's, a thread or a session in
+ * it, a new thread, and which side of a thread is on show. Each says what is
+ * open, and what is held follows from that.
+ */
 export interface Moves {
   selectAgent(id: string): void;
-  selectChannel(place: Extract<Place, { id: string }>): void;
-  /** Open one of the threads on show, or start one there when `threadId` is undefined. */
-  open(threadId: string | undefined): void;
+  selectChannel(place: Extract<Place, { kind: "room" | "read-only" }>): void;
+  /** Open one of the threads of the open list. */
+  open(threadId: string): void;
+  /** Start a thread in `place`, or in the open list's own place when none is given. It comes to be with its first message. */
+  start(place: Place | undefined): void;
+  /** The new thread that is open came to be, as `threadId`, with its first message. */
+  started(threadId: string): void;
   turnOver(): void;
   openSession(address: string): void;
-  back(): void;
-  /** With one agent and no room to choose from, take the person to the agent, once chat has said which channels they have. */
+  /** With one agent and no room to choose from, open the agent's list, once chat has said which channels the person has. */
   land(entries: AgentEntry[]): void;
-  /** Whether the person has been taken to the only agent there is, or has found their own way. */
-  landed(): boolean;
 }
 
 export function createMoves(store: Store, held: Holdings): Moves {
   let landed = false;
+
+  /** Open `item` in the list that is open. */
+  const openItem = (item: Item): void => {
+    const { list } = store.model().open;
+    if (list === undefined) return;
+    landed = true;
+    store.set({ open: { list, item }, notice: undefined });
+  };
+
+  /** Open `list`, which closes what was open in another. The list that is open stays as it is, with what is open in it. */
+  const openList = (list: Place): void => {
+    landed = true;
+    const { open } = store.model();
+    if (open.list !== undefined && placeKey(open.list) === placeKey(list)) return;
+    store.set({ open: { list, item: undefined }, notice: undefined });
+  };
+
   const moves: Moves = {
-    selectAgent(id) {
-      landed = true;
-      held.useAgent(id);
-      held.useThread(undefined);
-      held.useSession(undefined, undefined);
-      store.set({ where: { screen: "threads", place: { kind: "agent", id } }, thread: undefined, session: undefined, refusal: undefined, notice: undefined });
-    },
-    selectChannel(place) {
-      landed = true;
-      held.useAgent(undefined);
-      held.useThread(undefined);
-      held.useSession(undefined, undefined);
-      store.set({ where: { screen: "threads", place }, thread: undefined, session: undefined, notice: undefined });
-    },
+    selectAgent: (id) => openList({ kind: "agent", id }),
+    selectChannel: (place) => openList(place),
     open(threadId) {
       const model = store.model();
-      const { where } = model;
-      if (where.screen !== "threads" && where.screen !== "thread") return;
+      const { list } = model.open;
+      if (list === undefined) return;
+      // A thread that can't be had says so again when it is opened again.
+      const thread = held.thread();
+      if (thread?.id === threadId) thread.told = undefined;
+      openItem({ kind: "thread", place: placeOf(model, list, threadId), thread: threadId, side: undefined });
+    },
+    start(given) {
+      const place = given ?? store.model().open.list;
       // A channel the person only reads takes no new thread.
-      if (threadId === undefined && where.place.kind === "read-only") return;
-      landed = true;
-      const next = openedThread(model, where, threadId);
-      held.useThread(threadId);
-      const agent = next.screen === "thread" ? agentOfThread(next) : undefined;
-      held.useSession(threadId === undefined ? undefined : agent, threadId);
-      store.set({ where: next, thread: undefined, session: undefined, notice: undefined });
+      if (place === undefined || place.kind === "read-only") return;
+      openItem({ kind: "thread", place, thread: undefined, side: undefined });
+    },
+    started(threadId) {
+      const { open } = store.model();
+      const { item } = open;
+      if (item?.kind !== "thread" || item.thread !== undefined) return;
+      store.set({ open: { ...open, item: { ...item, thread: threadId } }, notice: undefined });
     },
     turnOver() {
       const model = store.model();
-      const { where } = model;
-      if (where.screen !== "thread" || where.thread === undefined || agentOfThread(where) === undefined) return;
+      const { open } = model;
+      const { item } = open;
+      const agent = agentOfList(open);
+      if (item?.kind !== "thread" || item.thread === undefined || agent === undefined) return;
       // A thread with no session behind it has nothing to turn over to; one that is turned over can always be turned back.
-      if (where.turned !== true && model.session === undefined) return;
-      store.set({ where: { ...where, turned: where.turned !== true }, notice: undefined });
+      if (item.side === undefined && model.behind[agent] === undefined) return;
+      store.set({ open: { ...open, item: { ...item, side: item.side === undefined ? agent : undefined } }, notice: undefined });
     },
     openSession(address) {
-      const { where } = store.model();
-      if (where.screen !== "threads" || where.place.kind !== "agent") return;
-      held.useThread(undefined);
-      held.useSession(where.place.id, address);
-      store.set({ where: { screen: "session", agent: where.place.id, session: address }, session: undefined, notice: undefined, refusal: undefined });
-    },
-    back() {
-      const { where } = store.model();
-      if (where.screen === "thread" || where.screen === "session") {
-        held.useThread(undefined);
-        held.useSession(undefined, undefined);
-        store.set({ where: { screen: "threads", place: listedIn(where) }, thread: undefined, session: undefined, notice: undefined, refusal: undefined });
-      } else if (where.screen === "threads") {
-        held.useAgent(undefined);
-        store.set({ where: { screen: "agents" }, agent: undefined, sessions: undefined, notice: undefined, refusal: undefined });
-      }
+      const agent = agentOfList(store.model().open);
+      if (agent !== undefined) openItem({ kind: "session", agent, session: address });
     },
     land(entries) {
       if (landed || held.chat.shown() === undefined || entries.length === 0) return;
@@ -79,9 +85,8 @@ export function createMoves(store: Store, held: Holdings): Moves {
       const model = store.model();
       const [only] = entries;
       const channelsToChoose = Object.keys(model.rooms).length + readOnlyEntries(model).length;
-      if (only !== undefined && entries.length === 1 && channelsToChoose === 0 && model.where.screen === "agents") moves.selectAgent(only.id);
+      if (only !== undefined && entries.length === 1 && channelsToChoose === 0 && model.open.list === undefined) moves.selectAgent(only.id);
     },
-    landed: () => landed,
   };
   return moves;
 }

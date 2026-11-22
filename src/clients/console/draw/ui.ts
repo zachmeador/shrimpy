@@ -13,29 +13,19 @@ import {
   TruncatedText,
   TuiMainScreen,
 } from "@earendil-works/pi-tui";
-import { agentNameOf, type ClientState, type Where } from "../../state/index.ts";
-import {
-  type InFull,
-  type ListFilter,
-  type MessageRow,
-  modelLines,
-  OUT_OF_DATE,
-  QUIT_AGAIN,
-  type Screen,
-  screenOf,
-  type SessionScreen,
-  type ThreadScreen,
-  writtenIn,
-} from "../../view/index.ts";
+import { agentNameOf, type ClientState, type Item, type Open } from "../../state/index.ts";
+import { type InFull, type ListFilter, type MessageRow, modelLines, OUT_OF_DATE, writtenIn } from "../../view/index.ts";
 import { commandList } from "./commands.ts";
 import { interrupt } from "./interrupt.ts";
 import { keysComponent } from "./keys.ts";
 import { listOf, rowKey } from "./list.ts";
 import { messageComponent } from "./message.ts";
+import { type Front, type Screen, screenOf, type SessionScreen, type ThreadScreen } from "./screen.ts";
 import { sessionComponents } from "./session.ts";
 import { statusComponent } from "./status.ts";
 import { createTheme } from "./theme.ts";
 import { workComponent } from "./work.ts";
+import { QUIT_AGAIN } from "./words.ts";
 
 /** The terminal the console is drawn on. */
 export type ConsoleTerminal = Terminal;
@@ -64,13 +54,14 @@ export interface Drawing {
 }
 
 /**
- * Draw the console on a terminal and carry what the person types to the state:
- * keys choose, open, send and go back, narrow an agent's list to what is with
- * the person and widen it again, turn a thread over to the session behind it,
- * switch tool calls and thinking between brief and in full, and everything else
- * they type goes to the editor, which lists the commands of a thread while what
- * is typed starts with a slash, and the models of an agent after `/model `. The
- * screen is drawn again from the state's model after each change.
+ * Draw the console on a terminal, one level at a time, and carry what the
+ * person types to the state: keys choose and open, send, and go back a level,
+ * which is the console's own, narrow an agent's list to what is with the person
+ * and widen it again, turn a thread over to the session behind it, switch tool
+ * calls and thinking between brief and in full, and everything else they type
+ * goes to the editor, which lists the commands of a thread while what is typed
+ * starts with a slash, and the models of an agent after `/model `. The screen is
+ * drawn again from the state's model after each change.
  */
 export function startDrawing(options: DrawingOptions): Drawing {
   // A link in a message would show its text and hide where it goes. With this the address is printed with it.
@@ -99,13 +90,23 @@ export function startDrawing(options: DrawingOptions): Drawing {
     },
   });
 
-  // What was typed for each thread that is not open, so that leaving a thread doesn't lose or misplace it.
+  // Which level is in front. The state opens what the person chose, and going back is the console's alone.
+  let front: Front = "agents";
+  // What was open when the screen was last drawn, so that what the state opens, as it opens the only agent's list, is put in front.
+  let listOpen = false;
+  let itemOpen: Item | undefined;
+
+  // What was typed for each thread that is not in front, so that leaving a thread doesn't lose or misplace it.
   const drafts = new Map<string, string>();
   let draftKey: string | undefined;
-  const keyOf = (where: Where): string | undefined =>
-    where.screen === "thread" && where.place.kind !== "read-only" ? `${JSON.stringify(where.place)}\n${where.thread ?? "new"}` : undefined;
-  const syncDraft = (where: Where): void => {
-    const key = keyOf(where);
+  const keyOf = (open: Open): string | undefined => {
+    const { item } = open;
+    return front === "item" && item?.kind === "thread" && item.place.kind !== "read-only"
+      ? `${JSON.stringify(item.place)}\n${item.thread ?? "new"}`
+      : undefined;
+  };
+  const syncDraft = (open: Open): void => {
+    const key = keyOf(open);
     if (key === draftKey) return;
     if (draftKey !== undefined) {
       const typed = editor.getText();
@@ -130,10 +131,10 @@ export function startDrawing(options: DrawingOptions): Drawing {
 
   editor.onSubmit = (text) => {
     if (text === "") return;
-    // A text that starts with a slash is a command. One for the terminal is acted on here and posted nowhere, and one
+    // A text that starts with a slash is a command. One for the console is acted on here and posted nowhere, and one
     // that is none is refused with a note and put back in the editor, so a message is never posted by mistake.
-    const { where } = state.model();
-    const written = where.screen === "thread" ? writtenIn(text, where.place.kind === "agent" ? "dm" : "room") : ({ do: "post" } as const);
+    const { item } = state.model().open;
+    const written = item?.kind === "thread" ? writtenIn(text, item.place.kind === "agent" ? "dm" : "room") : ({ do: "post" } as const);
     switch (written.do) {
       case "status":
         void state.readStatus();
@@ -187,17 +188,17 @@ export function startDrawing(options: DrawingOptions): Drawing {
   // What an agent's list shows, which the person sets once and which stays as set for every agent while the console is open.
   let filter: ListFilter = "everything";
   // The screen as it was last drawn, which says what the keys do on it.
-  let current: Screen = screenOf(state.model(), { now: now(), inFull, filter });
+  let current: Screen = screenOf(state.model(), front, { now: now(), inFull, filter });
   // While what is typed in a thread starts with a slash, the editor lists the commands that can be written there, and the models of the agent after `/model `.
   editor.setAutocompleteProvider(
     commandList({
       commands: () => (current.kind === "thread" ? current.commands : []),
       async models() {
         const model = state.model();
-        const { where } = model;
-        if (where.screen !== "thread" || where.place.kind !== "agent") return undefined;
+        const { item } = model.open;
+        if (item?.kind !== "thread" || item.place.kind !== "agent") return undefined;
         const models = await state.models();
-        return models === undefined ? undefined : modelLines(models, agentNameOf(model, where.place.id));
+        return models === undefined ? undefined : modelLines(models, agentNameOf(model, item.place.id));
       },
     }),
   );
@@ -257,6 +258,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
               else if (row.kind === "read-only") state.selectReadOnly(row.id);
               else if (row.kind === "session") state.openSession(row.id);
               else state.openThread(row.id);
+              go(row.kind === "thread" || row.kind === "session" ? "item" : "list");
             },
             moved: (id) => {
               chosen = id;
@@ -312,10 +314,21 @@ export function startDrawing(options: DrawingOptions): Drawing {
     return parts;
   }
 
+  /** Put `level` in front, and draw it. */
+  function go(level: Front): void {
+    front = level;
+    update();
+  }
+
   function update(): void {
     const model = state.model();
-    syncDraft(model.where);
-    const screen = screenOf(model, { now: now(), inFull, filter });
+    const { list, item } = model.open;
+    if (!listOpen && list !== undefined) front = item === undefined ? "list" : "item";
+    else if (opened(itemOpen, item)) front = "item";
+    listOpen = list !== undefined;
+    itemOpen = item;
+    syncDraft(model.open);
+    const screen = screenOf(model, front, { now: now(), inFull, filter });
     current = screen;
     landOnWork(screen);
     const { parts, focus: next } = body(screen);
@@ -368,11 +381,14 @@ export function startDrawing(options: DrawingOptions): Drawing {
     if (matchesKey(data, "escape") && can.back) {
       // Esc closes the list of commands when it is open, which the editor does. The next Esc goes back.
       if (editor.isShowingAutocomplete()) return undefined;
-      state.back();
+      go(current.kind === "thread" || current.kind === "session" ? "list" : "agents");
       return { consume: true };
     }
     if (matchesKey(data, "ctrl+n") && can.newThread) {
-      state.startThread();
+      // In a thread, a new thread is started where that one is; on a list, with its agent or in its room.
+      const { item } = state.model().open;
+      state.startThread(current.kind === "thread" && item?.kind === "thread" ? item.place : undefined);
+      go("item");
       return { consume: true };
     }
     if (matchesKey(data, "tab") && can.turnOver) {
@@ -419,4 +435,16 @@ export function startDrawing(options: DrawingOptions): Drawing {
       await terminal.drainInput(250, 25);
     },
   };
+}
+
+/**
+ * Whether `now` is something other than `before` that was opened in the list:
+ * a thread or a session told apart by its ID. A new thread that comes to be
+ * with its first message is the one that was open.
+ */
+function opened(before: Item | undefined, now: Item | undefined): boolean {
+  if (now === undefined) return false;
+  if (before?.kind === "thread" && now.kind === "thread") return before.thread !== undefined && before.thread !== now.thread;
+  if (before?.kind === "session" && now.kind === "session") return before.session !== now.session;
+  return true;
 }

@@ -21,79 +21,78 @@ export interface ThreadView {
 }
 
 /**
- * The session on show, as the agent sees it: its newest items, oldest first,
- * read back from where its window starts to as many as are shown, and the entry
+ * A session as the agent sees it: its newest items, oldest first, and the entry
  * just before the oldest of them, or null when they start at the session's
- * start; and what it is doing.
+ * start; what it is doing; and whether the agent is reached now, since what a
+ * session showed before its agent went away says nothing of now. The session on
+ * show in place of a conversation, or behind no thread, is read back from where
+ * its window starts to as many items as are shown.
  */
 export interface SessionView {
   items: SessionItem[];
   before: number | null;
   status: SessionStatus;
+  reached: boolean;
 }
 
 /**
- * Whose threads the person looks at, and which channel a thread is in: their DM
- * with an agent, by the agent's member ID, a room they are in, by its channel's
- * ID, or a channel they are not in and only read, by its channel's ID. An
- * agent's screen lists every thread the agent takes part in, so a thread opened
- * from it is in whichever of these it is.
+ * Whose list is open, and which channel a thread is in: the person's DM with
+ * an agent, by the agent's member ID, a room they are in, by its channel's ID,
+ * or a channel they are not in and only read, by its channel's ID. An agent's
+ * list holds every thread the agent takes part in, so a thread opened from it
+ * is in whichever of these it is.
  */
 export type Place = { kind: "agent"; id: string } | { kind: "room"; id: string } | { kind: "read-only"; id: string };
 
-/**
- * Where in a client the person is. An agent's screen is one list of
- * everything the agent takes part in, and a room's is the room's threads.
- */
-export type Where =
-  | { screen: "agents" }
-  | { screen: "threads"; place: Place }
+/** What is open in a list: a thread, or a session behind no thread. */
+export type Item =
   /**
-   * `thread` is undefined for a thread that is not started yet: it comes to be
-   * with its first message. `place` is the channel the thread is in. `agent` is
-   * the member ID of the agent whose screen the thread was opened from, said
-   * only when `place` does not say it: that agent's work is shown beside the
-   * thread, and Esc goes back to its screen. `turned` shows the session behind
-   * the thread as that agent sees it, in place of the conversation.
+   * A thread. `thread` is undefined for a thread that is not started yet: it
+   * comes to be with its first message. `place` is the channel it is in.
+   * `side` is the member ID of the agent whose view of the session behind the
+   * thread is on show in place of the conversation, or undefined while the
+   * conversation is.
    */
-  | { screen: "thread"; place: Place; thread: string | undefined; agent?: string; turned?: boolean }
-  /** One session of that agent (by member ID) that is behind no thread, watched, by its address at the agent. Nothing is said or done in it. */
-  | { screen: "session"; agent: string; session: string };
+  | { kind: "thread"; place: Place; thread: string | undefined; side: string | undefined }
+  /** A session of the agent, by member ID, that is behind no thread, by its address at the agent. Nothing is said or done in it. */
+  | { kind: "session"; agent: string; session: string };
 
-type ThreadWhere = Extract<Where, { screen: "thread" }>;
+/**
+ * What is open at each level: whose list, and what in it. An agent's list is
+ * everything the agent takes part in, and a room's is the room's threads.
+ * Opening another list closes what was open in the one before. Which of them
+ * is in front is each client's own.
+ */
+export interface Open {
+  /** Whose list is open: none until the person opens one, or is taken to the only agent there is. */
+  list: Place | undefined;
+  /** What is open in that list. */
+  item: Item | undefined;
+}
 
-/** The member ID of the agent whose screen a thread was opened from, whose work is shown beside it. A room's own threads have none. */
-export function agentOfThread(where: ThreadWhere): string | undefined {
-  return where.place.kind === "agent" ? where.place.id : where.agent;
+/** A place as a string, for telling one from another. */
+export const placeKey = (place: Place): string => `${place.kind} ${place.id}`;
+
+/**
+ * The member ID of the agent whose list is open, if an agent's is. A thread
+ * opened from it has that agent's work beside it, and a session behind no
+ * thread is that agent's.
+ */
+export function agentOfList(open: Open): string | undefined {
+  return open.list?.kind === "agent" ? open.list.id : undefined;
 }
 
 /**
- * The list that a thread or a session goes back to: the screen of the agent it
- * was opened from, or else the threads of the channel it is in.
+ * The session on show whole, which is read back from where its window starts:
+ * the open session behind no thread, or the one behind the open thread that is
+ * on show in place of its conversation. By its agent's member ID and its
+ * address at the agent.
  */
-export function listedIn(where: Extract<Where, { screen: "thread" | "session" }>): Place {
-  if (where.screen === "session") return { kind: "agent", id: where.agent };
-  const agent = agentOfThread(where);
-  return agent === undefined ? where.place : { kind: "agent", id: agent };
-}
-
-/** Whether the session on show is watched whole, which reads it back from where its window starts: one behind no thread, or a thread turned over. */
-export function watchedWhole(where: Where): boolean {
-  return where.screen === "session" || (where.screen === "thread" && where.turned === true);
-}
-
-/** The member ID of the agent whose screen, or whose thread or session, is on show, if the person is looking at an agent's. */
-function agentLookedAt(where: Where): string | undefined {
-  switch (where.screen) {
-    case "agents":
-      return undefined;
-    case "threads":
-      return where.place.kind === "agent" ? where.place.id : undefined;
-    case "thread":
-      return agentOfThread(where);
-    case "session":
-      return where.agent;
-  }
+export function wholeSession(open: Open): { agent: string; address: string } | undefined {
+  const { item } = open;
+  if (item?.kind === "session") return { agent: item.agent, address: item.session };
+  if (item?.kind === "thread" && item.side !== undefined && item.thread !== undefined) return { agent: item.side, address: item.thread };
+  return undefined;
 }
 
 /** The current name of the agent with member ID `id`, from the roster or its DM, falling back to `id`. */
@@ -105,28 +104,37 @@ export function agentNameOf(model: Pick<Model, "listing" | "dms">, id: string): 
 }
 
 /**
- * The thread screen for opening `thread` from the screen `from`, or for starting
- * a new one there when it is undefined. From an agent's screen a thread is in
- * whichever channel chat says it is in: the person's DM with the agent, a room
- * they are in, or a channel they only read, such as the agent's DM with another
- * agent. From a room's list, or from inside a thread, it is where that is.
+ * The channel a thread opened from the list `list` is in. From an agent's list
+ * it is whichever channel chat says it is in: the person's DM with the agent, a
+ * room they are in, or a channel they only read, such as the agent's DM with
+ * another agent. From a room's list, or a channel's, it is that one.
  */
-export function openedThread(
-  model: Pick<Model, "dms" | "rooms" | "readOnly">,
-  from: Extract<Where, { screen: "threads" | "thread" }>,
-  thread: string | undefined,
-): Where {
-  const at = (place: Place, openedBy: string | undefined): Where =>
-    openedBy === undefined || place.kind === "agent" ? { screen: "thread", place, thread } : { screen: "thread", place, thread, agent: openedBy };
-  if (from.screen === "thread") return at(from.place, agentOfThread(from));
-  const { place } = from;
-  if (place.kind !== "agent" || thread === undefined) return at(place, undefined);
+export function placeOf(model: Pick<Model, "dms" | "rooms" | "readOnly">, list: Place, thread: string): Place {
+  if (list.kind !== "agent") return list;
   const has = (threads: Thread[]): boolean => threads.some((each) => each.id === thread);
-  if (has(model.dms[place.id]?.threads ?? [])) return at(place, undefined);
+  if (has(model.dms[list.id]?.threads ?? [])) return list;
   const room = Object.values(model.rooms).find((each) => has(each.threads));
-  if (room !== undefined) return at({ kind: "room", id: room.channel.id }, place.id);
+  if (room !== undefined) return { kind: "room", id: room.channel.id };
   const reading = Object.values(model.readOnly).find((each) => has(each.threads));
-  return reading === undefined ? at(place, undefined) : at({ kind: "read-only", id: reading.channel.id }, place.id);
+  return reading === undefined ? list : { kind: "read-only", id: reading.channel.id };
+}
+
+/**
+ * The sessions what is open needs held, at one address: for a thread, the
+ * session behind it of each agent in its channel and of the agent whose list it
+ * was opened from; for a session behind no thread, that session. None for a
+ * thread that is not started yet.
+ */
+export function sessionsOpen(model: Pick<Model, "open" | "rooms" | "readOnly">): { address: string; agents: Set<string> } | undefined {
+  const { item } = model.open;
+  if (item?.kind === "session") return { address: item.session, agents: new Set([item.agent]) };
+  if (item?.kind !== "thread" || item.thread === undefined) return undefined;
+  const { place } = item;
+  const channel = place.kind === "room" ? model.rooms[place.id]?.channel : place.kind === "read-only" ? model.readOnly[place.id]?.channel : undefined;
+  const agents = new Set(place.kind === "agent" ? [place.id] : (channel?.members ?? []).filter((member) => member.kind === "agent").map((member) => member.id));
+  const from = agentOfList(model.open);
+  if (from !== undefined) agents.add(from);
+  return { address: item.thread, agents };
 }
 
 /** A channel as chat lists it to the person, and its threads, newest first. */
@@ -231,7 +239,7 @@ export interface Status {
 export interface Model {
   /** You, as the chat server says the gateway knows you. Unknown until the client has been let in to chat. */
   me: Member | undefined;
-  where: Where;
+  open: Open;
   /** The gateway, which says what is linked and who is on the roster. */
   gateway: LinkStatus;
   /**
@@ -241,7 +249,7 @@ export interface Model {
   listing: { programs: Program[]; members: RosterEntry[]; ways: WayIn[]; version: string } | undefined;
   /** The chat server, where threads live. */
   chat: LinkStatus;
-  /** The agent that is selected, once one is. */
+  /** The agent whose list is open, once one is. */
   agent: LinkStatus | undefined;
   /** The person's DM with each agent that they have talked to, by the agent's member ID. */
   dms: Record<string, ChannelThreads>;
@@ -251,22 +259,33 @@ export interface Model {
   readOnly: Record<string, ChannelThreads>;
   /** The live view of the open thread. */
   thread: ThreadView | undefined;
-  /** The live view of the session on show: the one behind the open thread, once the agent has one, or the one being watched. */
-  session: SessionView | undefined;
-  /** The sessions of the agent that is selected, as it lists them now and in its order. Undefined until it has. */
+  /**
+   * The live view of the session behind the open thread of each agent in its
+   * channel, and of the agent whose list it was opened from, by the agent's
+   * member ID, once the agent has one there.
+   */
+  behind: Record<string, SessionView>;
+  /** The live view of the open session behind no thread. */
+  watched: SessionView | undefined;
+  /** The sessions of the agent whose list is open, as it lists them now and in its order. Undefined until it has. */
   sessions: SessionSummary[] | undefined;
   /**
    * The sessions each running agent is working in, by the agent's member ID,
-   * as it lists them now while the list of agents is on show. Only an agent
-   * that is reached and is working in some session has an entry here.
+   * as it lists them now. Only an agent that is reached and is working in some
+   * session has an entry here.
    */
   workingSessions: Record<string, SessionSummary[]>;
   /**
-   * What the agent said when it would not list its sessions or let the one being
-   * watched be watched: its words, which stay until it says yes or the person
-   * goes elsewhere.
+   * What the agent whose list is open said when it would not list its
+   * sessions: its words, which stay until it says yes or another list is open.
    */
   refusal: string | undefined;
+  /**
+   * What the agent said when it would not let the open session behind no
+   * thread be watched: its words, which stay until it says yes or something
+   * else is open.
+   */
+  watchRefusal: string | undefined;
   notice: Notice | undefined;
   /** What the person last asked of `/status` in the thread they are in. */
   status: Status | undefined;
@@ -367,7 +386,7 @@ export interface ReadOnlyEntry {
 
 /**
  * The rooms the person only reads, in alphabetical order of their names. A DM
- * between two agents is not here: it is on the screen of each of them.
+ * between two agents is not here: it is on the list of each of them.
  */
 export function readOnlyEntries(model: Pick<Model, "readOnly">): ReadOnlyEntry[] {
   return Object.values(model.readOnly)
@@ -377,7 +396,7 @@ export function readOnlyEntries(model: Pick<Model, "readOnly">): ReadOnlyEntry[]
 }
 
 /**
- * One thing an agent takes part in, as its screen lists it: a thread, or a
+ * One thing an agent takes part in, as its list has it: a thread, or a
  * session behind no thread, which is a trigger's own.
  */
 export interface Part {
@@ -485,25 +504,26 @@ export interface Farewell {
 
 /**
  * The work that goes on if the client is left now, if there is any. Of the
- * agent whose thread is on screen, that thread comes first; then, for each
+ * agent whose list is open, the thread open in it comes first; then, for each
  * agent, the newest of the person's threads that it is working in.
  */
 export function farewellOf(model: Model): Farewell | undefined {
-  const { where } = model;
+  const { item } = model.open;
   const entries = agentEntries(model);
-  // A thread of a room has no one agent to name, unless it was opened from an agent's screen.
-  const shown = agentLookedAt(where);
+  // A thread of a room has no one agent to name, unless it was opened from an agent's list.
+  const shown = agentOfList(model.open);
   const ids = [...(shown === undefined ? [] : [shown]), ...entries.map((entry) => entry.id)];
   for (const id of new Set(ids)) {
     const entry = entries.find((each) => each.id === id);
     if (entry === undefined) continue;
     // A session that was working when the agent went away is not working now, whatever its last view says.
-    const sessionWorking = model.session?.status.busy === true && model.agent?.state === "up";
-    const onScreen =
-      where.screen === "thread" && shown === id && where.thread !== undefined
-        ? { thread: where.thread, working: sessionWorking || (model.thread !== undefined && workingIn(model.thread.thread, id)) }
+    const behind = model.behind[id];
+    const sessionWorking = behind?.status.busy === true && behind.reached;
+    const onShow =
+      item?.kind === "thread" && shown === id && item.thread !== undefined
+        ? { thread: item.thread, working: sessionWorking || (model.thread !== undefined && workingIn(model.thread.thread, id)) }
         : undefined;
-    if (onScreen?.working === true) return { agent: entry.name, thread: onScreen.thread };
+    if (onShow?.working === true) return { agent: entry.name, thread: onShow.thread };
     const working = model.dms[id]?.threads.find((each) => workingIn(each, id));
     if (working !== undefined) return { agent: entry.name, thread: working.id };
   }

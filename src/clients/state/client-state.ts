@@ -4,7 +4,17 @@ import { CONNECTING, type Dial, keepGateway } from "../network/index.ts";
 import { createAsking } from "./asking.ts";
 import { readBack } from "./history.ts";
 import { createHoldings } from "./holdings.ts";
-import { agentEntries, type Farewell, farewellOf, type HomeLookup, type Model, type Notice } from "./model.ts";
+import {
+  agentEntries,
+  agentOfList,
+  type Farewell,
+  farewellOf,
+  type HomeLookup,
+  type Model,
+  type Notice,
+  type Place,
+  sessionsOpen,
+} from "./model.ts";
 import { createMoves } from "./moves.ts";
 import { createSending } from "./sending.ts";
 import { createStore } from "./store.ts";
@@ -27,37 +37,45 @@ export interface ClientStateOptions {
   homes?: HomeLookup;
 }
 
-/** What a client knows and can do, without a terminal. */
+/** What a client knows and can do, without a terminal or a page. */
 export interface ClientState {
   model(): Model;
   /** Tell `listener` after each change. Returns what stops that. */
   subscribe(listener: (model: Model) => void): () => void;
 
-  /** Show everything an agent takes part in, by its member ID. */
+  /**
+   * Open the list of everything an agent takes part in, by its member ID.
+   * Opening another list closes what was open in the one before, and the list
+   * that is open stays as it is, with what is open in it.
+   */
   selectAgent(id: string): void;
-  /** Show the threads of a room the person is in, by its channel's ID. */
+  /** Open the list of a room the person is in, by its channel's ID, as `selectAgent` opens an agent's. */
   selectRoom(roomId: string): void;
-  /** Show the threads of a channel the person is not in and only reads, by its channel's ID. */
+  /** Open the list of a channel the person is not in and only reads, by its channel's ID, as `selectAgent` opens an agent's. */
   selectReadOnly(channelId: string): void;
   /**
-   * Open one of the threads on show, to talk and, from an agent's screen, to
-   * watch that agent's work beside it. A thread of a channel the person is not
-   * in is only read.
+   * Open one of the threads of the open list, to talk and, from an agent's
+   * list, to watch that agent's work beside it, or open it afresh: the
+   * conversation is on show again, and what `/status` read goes. A thread of a
+   * channel the person is not in is only read.
    */
   openThread(threadId: string): void;
-  /** Start a thread with the selected agent or in the selected room. It comes to be with its first message. A channel the person only reads takes none. */
-  startThread(): void;
   /**
-   * In a thread opened from an agent's screen, turn it over to the session behind
-   * it as that agent sees it, and back. The same thread is on show either way: both
-   * go on being followed. It does nothing where the agent has no session behind
-   * the thread.
+   * Start a thread in `place`, the person's DM with an agent or a room they are
+   * in, or with the agent or in the room whose list is open when none is given.
+   * It comes to be with its first message. A channel the person only reads
+   * takes none.
+   */
+  startThread(place?: Place): void;
+  /**
+   * In a thread opened from an agent's list, put that agent's view of the
+   * session behind it on show in place of the conversation, and back. The same
+   * thread is open either way: both go on being followed. It does nothing where
+   * the agent has no session behind the thread.
    */
   turnOver(): void;
-  /** Watch a session of the selected agent that is behind no thread, by its address. Nothing can be said or done in it. */
+  /** Open a session of the agent whose list is open that is behind no thread, by its address. Nothing can be said or done in it. */
   openSession(address: string): void;
-  /** Go up one level: from a thread or a session to the list it was opened from, and from that to the agents and rooms. */
-  back(): void;
 
   /** Say something in the open thread, or in a new one, and say whether it was sent. The person's draft is theirs to put back when it was not. */
   send(text: string): Promise<boolean>;
@@ -106,10 +124,10 @@ export interface ClientState {
 const NOTICE_MS = 6000;
 const SEND_MS = 20_000;
 
-/** The model before anything is known: on the first screen, linking to the gateway and chat. */
+/** The model before anything is known: nothing open, linking to the gateway and chat. */
 const startingModel = (homes: HomeLookup | undefined): Model => ({
   me: undefined,
-  where: { screen: "agents" },
+  open: { list: undefined, item: undefined },
   gateway: CONNECTING,
   listing: undefined,
   chat: CONNECTING,
@@ -118,10 +136,12 @@ const startingModel = (homes: HomeLookup | undefined): Model => ({
   rooms: {},
   readOnly: {},
   thread: undefined,
-  session: undefined,
+  behind: {},
+  watched: undefined,
   sessions: undefined,
   workingSessions: {},
   refusal: undefined,
+  watchRefusal: undefined,
   notice: undefined,
   status: undefined,
   homes,
@@ -134,6 +154,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
     noticeMs: options.noticeMs ?? NOTICE_MS,
     worked(model) {
       held.followChannels();
+      holdOpen(model);
       return worked(model, held, link);
     },
     follow: () => followModel(),
@@ -144,26 +165,32 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
   const asking = createAsking(store, held, options.now ?? Date.now);
   let closed = false;
 
+  /** Hold what is open, and let go of what was held for what was open before: the agent whose list is open, the open thread, and the sessions they need. */
+  function holdOpen(model: Model): void {
+    const { item } = model.open;
+    held.useAgent(agentOfList(model.open));
+    held.useThread(item?.kind === "thread" ? item.thread : undefined);
+    const sessions = sessionsOpen(model);
+    held.useSessions(sessions?.address, sessions?.agents ?? new Set());
+  }
+
   /**
    * What follows from the model as it now stands: a thread that can't be had
-   * says so, once; the person is taken to the only agent there is; while the
-   * list of agents is on show, each agent that is running is held for what it
-   * is working in, once the person has been taken to the only agent or has
-   * found their own way, so that a client that opens on that agent does not
-   * hold every agent first; and a session watched whole is read back.
+   * says so, once each time it is opened; the person is taken to the only agent
+   * there is; each agent that is running is held for what it is working in; and
+   * the session on show whole is read back.
    */
   function followModel(): void {
-    const open = held.thread();
-    const refusal = open?.held.shown()?.refusal;
-    if (open !== undefined && refusal !== null && refusal !== undefined && open.told !== refusal.words) {
-      open.told = refusal.words;
+    const thread = held.thread();
+    const refusal = thread?.held.shown()?.refusal;
+    if (thread !== undefined && refusal !== null && refusal !== undefined && thread.told !== refusal.words) {
+      thread.told = refusal.words;
       store.say({ kind: "not-opened", problem: { said: refusal.words } });
     }
     const entries = agentEntries(store.model());
     moves.land(entries);
-    const listed = store.model().where.screen === "agents" && moves.landed();
-    held.callRoll(new Set(listed ? entries.filter((entry) => entry.running).map((entry) => entry.id) : []));
-    readBack(held, store.model().where, () => store.changed());
+    held.callRoll(new Set(entries.filter((entry) => entry.running).map((entry) => entry.id)));
+    readBack(held, store.model().open, () => store.changed());
   }
 
   return {
@@ -173,10 +200,9 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
     selectRoom: (id) => moves.selectChannel({ kind: "room", id }),
     selectReadOnly: (id) => moves.selectChannel({ kind: "read-only", id }),
     openThread: (threadId) => moves.open(threadId),
-    startThread: () => sending.startThread(),
+    startThread: (place) => sending.startThread(place),
     turnOver: () => moves.turnOver(),
     openSession: (address) => moves.openSession(address),
-    back: () => moves.back(),
     send: (text) => sending.send(text),
     note: (notice) => store.say(notice),
     readStatus: () => asking.readStatus(),

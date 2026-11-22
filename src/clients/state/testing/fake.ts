@@ -30,10 +30,9 @@ export function fakeState(initial: Model): FakeState {
     selectRoom: (id) => void calls.push(`room ${id}`),
     selectReadOnly: (id) => void calls.push(`read-only ${id}`),
     openThread: (threadId) => void calls.push(`open ${threadId}`),
-    startThread: () => void calls.push("start"),
+    startThread: (place) => void calls.push(place === undefined ? "start" : `start in ${place.kind} ${place.id}`),
     turnOver: () => void calls.push("turn over"),
     openSession: (address) => void calls.push(`watch ${address}`),
-    back: () => void calls.push("back"),
     send(text) {
       calls.push(`send ${text}`);
       return Promise.resolve(answers.send);
