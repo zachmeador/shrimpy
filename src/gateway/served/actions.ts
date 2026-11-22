@@ -8,18 +8,21 @@ import {
   type Invitation,
   type Member,
   needsAdmin,
+  type Notification,
   type Principal,
   refused,
   type Revocation,
 } from "../../contracts/gateway/index.ts";
 import type { Invitations } from "../invitations/index.ts";
 import type { Programs } from "../programs/index.ts";
+import type { Push } from "../push/index.ts";
 import type { Roster } from "../roster/index.ts";
 
 export interface ActionsDeps {
   readonly roster: Roster;
   readonly invitations: Invitations;
   readonly programs: Programs;
+  readonly push: Push;
   readonly host: Host<Principal, Revocation>;
   /** The addresses the gateway's entry listens on now, which an invitation sends whoever uses it to. */
   addresses(): Address[];
@@ -46,13 +49,14 @@ export function deviceInvitationV1(answer: Answer<DeviceInvitation>): Answer<Inv
   return invitation.addresses.length === 0 ? NOWHERE : done(invitation);
 }
 
-/** What a caller of `Roster` may do with it, each checked against the roster as it is now. */
+/** What a caller of `Roster` may do with it, each checked against the roster as it is now, and what the chat server may hand over to tell you. */
 export interface Actions {
   invite(caller: Principal, name: string): Answer<Invitation>;
   inviteDevice(caller: Principal): Answer<DeviceInvitation>;
   setAdmin(caller: Principal, member: string, admin: boolean): Answer<Member>;
   remove(caller: Principal, member: string): Answer<null>;
   takeBack(caller: Principal, way: string): Answer<null>;
+  notify(caller: Principal, notification: Notification): Promise<Answer<null>>;
 }
 
 export function createActions(deps: ActionsDeps): Actions {
@@ -130,6 +134,11 @@ export function createActions(deps: ActionsDeps): Actions {
       host.revoke({ way: id }, deps.context);
       // Chord leaves a route link open, so the agent's own link is closed here.
       if (way.kind === "token") programs.dropAgent(way.member);
+      return done(null);
+    },
+    async notify(caller, notification) {
+      if (caller.kind !== "chat") return refused("Only the chat server hands the gateway something to tell you.");
+      await deps.push.notify(notification);
       return done(null);
     },
   };

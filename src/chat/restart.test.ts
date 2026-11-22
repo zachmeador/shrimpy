@@ -38,7 +38,7 @@ test("a second chat server is refused, and holds wait while chat is away and bin
 test("while the gateway is away the chat server says so once, and once again when it is back", { timeout }, async (t) => {
   const said = t.mock.method(console, "error", () => undefined);
   const pauses = countedBackoff();
-  const chat = await startChatInProcess(t, pauses);
+  const chat = await startChatInProcess(t, { pauses });
   const you = await chat.person();
   const held = you.host.hold(Chat, {}, context);
   await until(() => held.state.value.kind === "live", "chat to be reached through the gateway");

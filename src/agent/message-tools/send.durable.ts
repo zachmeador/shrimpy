@@ -1,4 +1,4 @@
-import { obj, opt, str } from "@earendil-works/pi-schema";
+import { bool, obj, opt, str } from "@earendil-works/pi-schema";
 import { defineTool } from "@earendil-works/pi-durable";
 import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
 import { inParts } from "../chat/index.ts";
@@ -11,8 +11,9 @@ import * as words from "./words.ts";
 /**
  * `send_message`: post a message now, without ending the turn. With nothing
  * said about where, it goes to the thread the turn came from; `to` names a DM
- * or a room the agent is in, or one of its threads. The turn's final text is
- * still its reply, so this is never the way to answer.
+ * or a room the agent is in, or one of its threads. With `quiet`, it is told
+ * to nobody's devices. The turn's final text is still its reply, so this is
+ * never the way to answer.
  */
 export function sendMessage(options: MessageToolsOptions) {
   const limit = options.messageLimit ?? MAX_MESSAGE_LENGTH;
@@ -22,10 +23,11 @@ export function sendMessage(options: MessageToolsOptions) {
     parameters: obj({
       text: str({ description: words.SEND_TEXT }),
       to: opt(str({ description: words.SEND_TO })),
+      quiet: opt(bool({ description: words.SEND_QUIET })),
     }),
     // Messages sent in one round reach the thread in the order they were called.
     executionMode: "sequential",
-    async execute({ text, to }, api, context) {
+    async execute({ text, to, quiet }, api, context) {
       const live = options.chat();
       if (live === undefined) return failure(words.SEND_UNREACHABLE);
       const parts = inParts(text, limit);
@@ -52,7 +54,7 @@ export function sendMessage(options: MessageToolsOptions) {
           // A connection already lost means this part was never sent, which is not the same as not knowing.
           signal.throwIfAborted();
           asking = true;
-          await live.chat.post(place.threadId, part, toolRequestId("send", options.recordsId, api, index), signal);
+          await live.chat.post(place.threadId, part, toolRequestId("send", options.recordsId, api, index), signal, quiet === true);
           asking = false;
           confirmed += 1;
         }

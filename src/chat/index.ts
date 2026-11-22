@@ -4,20 +4,33 @@
  * contract's objects at `chat()`. It links out to the gateway, which relays
  * every request for chat over that link, stamped with who asks, and it holds
  * the gateway's roster over the same link to know who members are and who is
- * an admin. Other programs reach chat only through `contracts/chat`; they never
- * import this program's modules. It must not know what a member does with an
- * event, or anything about an agent's sessions.
+ * an admin. What stays unread for you for a few seconds, it hands the gateway
+ * over the same link, finished, to send to your devices. Other programs reach
+ * chat only through `contracts/chat`; they never import this program's
+ * modules. It must not know what a member does with an event, anything about
+ * an agent's sessions, or how a notification reaches a device.
  */
 import { createHost, type HostError } from "@earendil-works/chord";
 import { nodeCompression } from "@earendil-works/chord/compression";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { chat, type Principal, type Revocation, revokedBy } from "../contracts/gateway/index.ts";
+import {
+  chat,
+  contextOf,
+  holding,
+  type Notification,
+  Notifications,
+  type Principal,
+  type Revocation,
+  revokedBy,
+  valueOf,
+} from "../contracts/gateway/index.ts";
 import { gatewaySocket, keepLinked, reportLinking } from "../contracts/gateway/node.ts";
 import { opening } from "../lib/closing/index.ts";
 import { hostFailure } from "../lib/link/index.ts";
 import type { Backoff } from "../lib/retry/index.ts";
 import { createIdentity } from "./identity/index.ts";
 import { takeChatLock } from "./lock.ts";
+import { createNotifier, NOTIFY_AFTER_MS } from "./notifications/index.ts";
 import { chatFacet } from "./served/index.ts";
 import { openStore } from "./store/index.ts";
 import { createWorkingMarks, renameMembers } from "./threads/index.ts";
@@ -29,7 +42,12 @@ export interface ChatOptions {
   dataDir: string;
   /** The pauses between attempts to link to the gateway. Tests shorten them. */
   backoff?: Backoff;
+  /** How long something waits unread before you are told of it on your devices: five seconds, unless a test shortens it. */
+  notifyAfterMs?: number;
 }
+
+/** How long a notification waits for the gateway to take it, which is after every push service has answered. */
+const HAND_OVER_MS = 60_000;
 
 export interface RunningChat {
   close(): Promise<void>;
@@ -73,7 +91,13 @@ export async function startChat(options: ChatOptions): Promise<RunningChat> {
       onError: report,
     });
     open.add(() => host.close(context));
-    await host.load([{ name: "@shrimpy/chat", facet: chatFacet({ store, working, identity, now: () => Date.now() }) }], context);
+    const handOver = async (notification: Notification): Promise<void> => {
+      const within = contextOf(AbortSignal.timeout(HAND_OVER_MS));
+      await holding(host.get(Notifications, {}, within), async (held) => valueOf(await held.notify(notification, within)));
+    };
+    const notifier = createNotifier({ store, identity, handOver, afterMs: options.notifyAfterMs ?? NOTIFY_AFTER_MS, onError });
+    open.add(() => notifier.close());
+    await host.load([{ name: "@shrimpy/chat", facet: chatFacet({ store, working, identity, notifier, now: () => Date.now() }) }], context);
     identity.follow(host, context);
     open.add(() => identity.close());
     // The store keeps the names the roster has, so channels and messages name members as they are called now.

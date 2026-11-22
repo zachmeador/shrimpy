@@ -25,6 +25,10 @@ export interface MarkOperations {
   unreadIn(memberId: string, threadId: string): number;
   /** How many messages are new to a member in each thread of a channel, by thread ID. */
   unreadInChannel(memberId: string, channelId: string): Record<string, number>;
+  /** How many messages are new to a member in all the threads of the channels it belongs to. */
+  unreadInAll(memberId: string): number;
+  /** The position of the last message a member has seen in a thread, or 0 while it has no mark there. */
+  markIn(memberId: string, threadId: string): number;
 }
 
 export function markOperations(sql: Sql, report: ReportChange): MarkOperations {
@@ -50,6 +54,23 @@ export function markOperations(sql: Sql, report: ReportChange): MarkOperations {
         unread: number;
       }[];
       return Object.fromEntries(rows.map((row) => [row.thread_id, row.unread]));
+    },
+    unreadInAll(memberId) {
+      const row = sql.one(
+        `SELECT coalesce(sum(unread), 0) AS unread FROM (
+           ${UNREAD} WHERE t.channel_id IN (SELECT channel_id FROM memberships WHERE member_id = ?) GROUP BY t.id
+         )`,
+        memberId,
+        memberId,
+        memberId,
+      ) as { unread: number };
+      return row.unread;
+    },
+    markIn(memberId, threadId) {
+      const row = sql.one("SELECT message_seq FROM read_marks WHERE member_id = ? AND thread_id = ?", memberId, threadId) as
+        | { message_seq: number }
+        | undefined;
+      return row?.message_seq ?? 0;
     },
   };
 }

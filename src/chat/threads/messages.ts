@@ -26,21 +26,21 @@ const digestOf = (threadId: string, text: string): string =>
  * Post to a thread. A retry with the same request ID from the same member gets
  * the first message back, as it stands now. A request ID reused for a different
  * message is not a retry, and posting it again would hide the mistake, so it is
- * refused.
+ * refused. A new message that isn't `quiet` may be worth telling you.
  */
-export function post(deps: ChatDeps, caller: Member, threadId: string, text: unknown, requestId: unknown): Message {
+export function post(deps: ChatDeps, caller: Member, threadId: string, text: unknown, requestId: unknown, quiet = false): Message {
   const id = threadId;
   const body = messageText(text);
   const request = identifier(requestId, "request");
   const digest = digestOf(id, body);
-  return deps.store.transaction((tx) => {
+  const posted = deps.store.transaction((tx) => {
     const earlier = tx.postedBy(caller.id, request);
     if (earlier !== undefined) {
       if (earlier.digest !== digest) refuse(`Request ${request} already posted a different message.`);
-      return earlier.message;
+      return { message: earlier.message, retry: true };
     }
     const { channel } = visibleThread(tx, caller, id);
-    return tx.appendMessage({
+    const message = tx.appendMessage({
       threadId: id,
       authorId: caller.id,
       text: body,
@@ -50,7 +50,10 @@ export function post(deps: ChatDeps, caller: Member, threadId: string, text: unk
       preview: previewOf(body),
       digest,
     });
+    return { message, retry: false };
   });
+  if (!posted.retry && !quiet) deps.notifier.posted(posted.message);
+  return posted.message;
 }
 
 /** Messages of a thread in a channel the caller reads, whether or not it is in it. */

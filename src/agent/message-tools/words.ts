@@ -17,6 +17,9 @@ export const SEND_TO =
   "Where to post it: @name for your DM with that person or agent, which is started if you have none; #room for a " +
   "room you are in; or #room/thread for one of its threads, by the thread's name or its ID. " +
   "Leave it out to post to this thread.";
+export const SEND_QUIET =
+  "true to post it without a notification on anyone's devices. It is still there to read. Use it for what can wait, " +
+  "such as routine progress.";
 
 export const READ_DESCRIPTION =
   "Read the newest messages of a thread, oldest first, as they stand now: edited ones say so, deleted ones " +

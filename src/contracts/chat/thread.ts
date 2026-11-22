@@ -1,4 +1,4 @@
-import { arr, bool, evolve, int, method, nul, num, obj, remote, type Static, str, union } from "@earendil-works/chord";
+import { arr, bool, evolve, int, method, nul, num, obj, opt, remote, type Static, str, union } from "@earendil-works/chord";
 import { answerOf, chat, RefusedSchema } from "../gateway/index.ts";
 import { MessageSchema, WorkingSchema } from "./shapes.ts";
 
@@ -87,23 +87,8 @@ const ThreadV1 = remote("shrimpy.chat.thread", {
   },
 });
 
-/**
- * One thread as the caller sees it, at `chat()`: its newest messages, kept
- * live, older ones a page at a time, how many are new to you, and what a member
- * does in it. Holding it is what attaching to a thread was.
- *
- * `refusal` is null, or why the caller can't have this thread, and then the
- * rest of its state is empty and every method answers with that refusal. An
- * agent has only the threads of its own channels, and to an agent a thread that
- * doesn't exist and one in a channel it isn't in look the same. You read every
- * thread, and in a channel you aren't in, `readOnly` is true and every write is
- * refused.
- *
- * Chat keeps a read mark for you in each thread: the last message you have seen
- * there, which a client moves while the thread is on show. Every client of
- * yours counts from the same mark.
- */
-export const Thread = evolve(ThreadV1, (edit) =>
+/** `Thread` as it was served with read marks, before a message could be sent quietly. */
+const ThreadV2 = evolve(ThreadV1, (edit) =>
   edit
     /**
      * How many messages others wrote here after your read mark, or in the
@@ -118,4 +103,33 @@ export const Thread = evolve(ThreadV1, (edit) =>
      * changes nothing. Only you keep read marks, and an agent is refused.
      */
     .addMethod("all", "markRead", obj({ message: str() }), answerOf(nul())),
+);
+
+/**
+ * One thread as the caller sees it, at `chat()`: its newest messages, kept
+ * live, older ones a page at a time, how many are new to you, and what a member
+ * does in it. Holding it is what attaching to a thread was.
+ *
+ * `refusal` is null, or why the caller can't have this thread, and then the
+ * rest of its state is empty and every method answers with that refusal. An
+ * agent has only the threads of its own channels, and to an agent a thread that
+ * doesn't exist and one in a channel it isn't in look the same. You read every
+ * thread, and in a channel you aren't in, `readOnly` is true and every write is
+ * refused.
+ *
+ * Chat keeps a read mark for you in each thread: the last message you have seen
+ * there, which a client moves while the thread is on show. Every client of
+ * yours counts from the same mark. A message that stays new to you for a few
+ * seconds can be told to you on your devices.
+ */
+export const Thread = evolve(ThreadV2, (edit) =>
+  /**
+   * Posts a message of at most `MAX_MESSAGE_LENGTH` characters. A request ID's
+   * first use wins: a retry from the same member answers with the first
+   * message as it now stands, even if it was edited or deleted since, and the
+   * same ID with another thread or text is refused. The message records the
+   * members its text mentions. A message sent with `quiet` is never told to
+   * you on your devices.
+   */
+  edit.args("post", obj({ text: str(), request: str(), quiet: opt(bool()) })),
 );

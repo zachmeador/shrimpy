@@ -15,6 +15,7 @@ import {
 } from "../../contracts/gateway/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { listed } from "../../lib/text/index.ts";
+import type { WebPushPlace } from "../push/index.ts";
 import { type DeviceRecord, type MemberRecord, readRoster, rosterFile, writeRoster } from "./file.ts";
 
 const TOKEN_RULE = "A token is 32 to 200 letters, digits, hyphens or underscores, such as 32 random bytes in base64url.";
@@ -75,8 +76,18 @@ export interface Roster {
   setAdmin(id: string, admin: boolean): Answer<Member>;
   /** Every way in a token opens, oldest member first. */
   ways(): WayIn[];
-  /** Forget the token of the way `id`, so it opens nothing from now on. Says which way it was, or undefined for none. */
+  /**
+   * Forget the token of the way `id`, so it opens nothing from now on, and for
+   * a device, where it is told things. Says which way it was, or undefined for
+   * none.
+   */
   takeBack(id: string): WayIn | undefined;
+  /** Keep where the device of yours that shows `token` is told things, in place of where it was. False when no device of yours shows it. */
+  keepWebPush(token: string, place: WebPushPlace): boolean;
+  /** Where each device of yours that has such a place is told things, by its way in. */
+  webPushPlaces(): { way: string; place: WebPushPlace }[];
+  /** Forget where the device of the way `id` is told things, if it is still `endpoint`. */
+  forgetWebPush(id: string, endpoint: string): void;
   /** Hear of every change, after it is written. */
   onChange(listener: () => void): () => void;
 }
@@ -162,8 +173,10 @@ export function openRoster(dataDir: string, firstName: string): Roster {
     if (taken !== undefined) throw new Error(taken.words);
     save([...records, { id: mintMemberId(), kind: "person", name: firstName, recognizedBy: {} }]);
   }
-  // Nothing takes you off the roster.
-  const you = (): Member => publicly(records.find((record) => record.kind === "person")!);
+  /** Your record. Nothing takes you off the roster. */
+  const yours = (): Extract<MemberRecord, { kind: "person" }> =>
+    records.find((record): record is Extract<MemberRecord, { kind: "person" }> => record.kind === "person")!;
+  const you = (): Member => publicly(yours());
 
   const recognize = (token: string): Recognized | undefined => {
     const hash = hashOf(token);
@@ -189,6 +202,18 @@ export function openRoster(dataDir: string, firstName: string): Roster {
     const renamed = { ...current, name: label };
     replace(renamed);
     return done(publicly(renamed));
+  };
+
+  /** Change the device of yours whose way is `id`, keeping the change unless `change` gives the device back as it was. False when there is none. */
+  const changeDevice = (id: string, change: (device: DeviceRecord) => DeviceRecord): boolean => {
+    const person = yours();
+    const devices = person.recognizedBy.machines ?? [];
+    const device = devices.find((each) => wayId(each.tokenHash) === id);
+    if (device === undefined) return false;
+    const changed = change(device);
+    if (changed === device) return true;
+    replace({ ...person, recognizedBy: { ...person.recognizedBy, machines: devices.map((each) => (each === device ? changed : each)) } });
+    return true;
   };
 
   const ways = (): WayIn[] =>
@@ -302,6 +327,26 @@ export function openRoster(dataDir: string, firstName: string): Roster {
         replace({ ...current, recognizedBy: { ...by, machines } });
       }
       return way;
+    },
+    keepWebPush(token, place) {
+      const found = recognize(token);
+      if (found?.way.kind !== "device") return false;
+      return changeDevice(found.way.id, (device) => {
+        const kept = device.webPush;
+        const same = kept?.endpoint === place.endpoint && kept.p256dh === place.p256dh && kept.auth === place.auth;
+        return same ? device : { ...device, webPush: place };
+      });
+    },
+    webPushPlaces: () =>
+      (yours().recognizedBy.machines ?? []).flatMap((device) =>
+        device.webPush === undefined ? [] : [{ way: wayId(device.tokenHash), place: device.webPush }],
+      ),
+    forgetWebPush(id, endpoint) {
+      changeDevice(id, (device) => {
+        if (device.webPush?.endpoint !== endpoint) return device;
+        const { webPush: _forgotten, ...rest } = device;
+        return rest;
+      });
     },
     onChange(listener) {
       listeners.add(listener);

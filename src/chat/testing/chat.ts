@@ -16,19 +16,29 @@ export interface ChatInProcess {
   agent(name: string): Promise<TestAgent>;
 }
 
+export interface ChatInProcessOptions {
+  /** The pauses before it links to the gateway again: a few milliseconds, unless a test counts them. */
+  pauses?: Backoff;
+  /** How long something waits unread before you are told of it: as long as it is for a person, unless a test shortens it. */
+  notifyAfterMs?: number;
+}
+
 /**
  * A chat server in this process, with a data directory and a runtime directory
  * of its own, linked to the real gateway, which runs as a process of its own.
- * Both stop, with what linked to them, when the test ends. Its pauses before it
- * links to the gateway again are a few milliseconds, or `pauses` when a test
- * counts them. Tests of what talks to chat start the real one, as a process of
- * its own, with the contract's test support.
+ * Both stop, with what linked to them, when the test ends. Tests of what talks
+ * to chat start the real one, as a process of its own, with the contract's
+ * test support.
  */
-export async function startChatInProcess(t: TestContext, pauses: Backoff = backoff({ firstMs: 5, maxMs: 50 })): Promise<ChatInProcess> {
+export async function startChatInProcess(t: TestContext, options: ChatInProcessOptions = {}): Promise<ChatInProcess> {
   useRuntimeDir(t);
   const gateway = await startTestGateway(t);
   const dataDir = tempDir(t, "chat-data");
-  const chat = await startChat({ dataDir, backoff: pauses });
+  const chat = await startChat({
+    dataDir,
+    backoff: options.pauses ?? backoff({ firstMs: 5, maxMs: 50 }),
+    ...(options.notifyAfterMs === undefined ? {} : { notifyAfterMs: options.notifyAfterMs }),
+  });
   stopAfter(t, () => chat.close());
   return {
     chat,

@@ -43,10 +43,10 @@ export interface ReceiptOperations {
   /**
    * Leave `memberId`'s receipt on an event, in place of the one it left
    * before, and write the event that records it. Leaving the receipt it
-   * already has changes nothing, writes no event and tells nobody. The event
-   * must not be a receipt's own.
+   * already has changes nothing, writes no event and tells nobody. Says
+   * whether it wrote one. The event must not be a receipt's own.
    */
-  leaveReceipt(event: ChatEvent, memberId: string, receipt: NewReceipt, at: number): void;
+  leaveReceipt(event: ChatEvent, memberId: string, receipt: NewReceipt, at: number): boolean;
 }
 
 export function receiptOperations(sql: Sql, report: ReportChange): ReceiptOperations {
@@ -67,7 +67,7 @@ export function receiptOperations(sql: Sql, report: ReportChange): ReceiptOperat
         receipt.reply?.seq ?? null,
         receipt.detail,
       );
-      if (changed === 0) return;
+      if (changed === 0) return false;
       // A receipt that names a reply can make that reply the line an agent said about a command, which names no thread.
       if (receipt.reply !== null) refreshPreview(sql, event.message.threadId);
       const named = sql.one("SELECT message_seq FROM events WHERE seq = ?", event.seq) as { message_seq: number };
@@ -83,6 +83,7 @@ export function receiptOperations(sql: Sql, report: ReportChange): ReceiptOperat
         detail: receipt.detail,
       });
       report({ kind: "event", channelId: event.message.channelId, threadId: event.message.threadId });
+      return true;
     },
   };
 }

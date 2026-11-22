@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { ChordError } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { Roster } from "../../contracts/gateway/index.ts";
+import { startTestPushService } from "../../contracts/gateway/testing/index.ts";
 import { until } from "../../lib/testing/index.ts";
 
 import { startToolRig } from "./testing/index.ts";
@@ -105,6 +108,26 @@ test("a session behind a DM posts in a room it is in, in its main thread or anot
   assert.match(refused.text, /not in a room called #Closed\. The rooms you are in: #Ops\./);
   assert.ok(read.text.includes("To the thread."), "the thread can be read the same way");
   assert.deepEqual(saidByScout(rig, await rig.said()), [], "none of it went to the DM the session is behind");
+});
+
+test("a message sent quietly is told to none of the person's devices, and one sent plainly is", { timeout: 30_000 }, async (t) => {
+  const rig = await startToolRig(t);
+  const person = await rig.chat.person();
+  const roster = await person.host.get(Roster, {}, BACKGROUND_CONTEXT);
+  const page = rig.chat.gateway.listening.page;
+  assert.ok(page !== null, "the gateway serves the page");
+  const push = await startTestPushService(t);
+  const phone = await push.subscribe(page, valueOf(await roster.inviteDevice(BACKGROUND_CONTEXT)).code, "phone");
+
+  const quiet = await rig.call("send_message", { text: "Still reading the logs.", quiet: true }, { callId: "quiet" });
+  const plain = await rig.call("send_message", { text: "The disk is full." }, { callId: "plain" });
+
+  assert.deepEqual([quiet.isError, plain.isError], [false, false]);
+  assert.deepEqual(saidByScout(rig, await rig.said()), ["Still reading the logs.", "The disk is full."], "both are posted");
+  const [told] = await phone.untilNotified(1);
+  assert.equal(told?.line, "The disk is full.", "the quiet one, sent first, is told to nobody");
+  await delay(1_000);
+  assert.equal(phone.notifications().length, 1);
 });
 
 test("a call that is stopped while it waits for chat is stopped, not reported as chat being unreachable", { timeout }, async (t) => {

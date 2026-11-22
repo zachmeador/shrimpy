@@ -1,5 +1,15 @@
 import type { IncomingMessage, OutgoingHttpHeaders, ServerResponse } from "node:http";
-import { type HelloAnswer, PAGE_JOIN, PAGE_LINK, type PageFile, readPageJoin } from "../../contracts/gateway/index.ts";
+import {
+  type HelloAnswer,
+  PAGE_JOIN,
+  PAGE_LINK,
+  PAGE_PUSH,
+  type PageFile,
+  type PagePush,
+  type PagePushKey,
+  readPageJoin,
+  readPagePush,
+} from "../../contracts/gateway/index.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import { fromItsOwnPage, type Greeted, listen } from "../../lib/link/node.ts";
@@ -18,6 +28,10 @@ export interface PageOptions {
   readonly greet: (raw: unknown, kept: string | undefined) => Greeted;
   /** Let a browser in with an invitation's code: the answer, and the browser's new token when it is let in. */
   readonly join: (code: string, label: string) => { answer: HelloAnswer; token?: string };
+  /** The key a browser subscribes to push with: the public half of the one the gateway signs notifications with, in base64url. */
+  readonly pushKey: string;
+  /** Keep where the browser whose cookie keeps `kept` is told things. False when it is no device of yours. */
+  readonly keepPush: (kept: string, push: PagePush) => boolean;
   /** Told when answering a request fails, which drops it. */
   readonly onError?: (error: unknown) => void;
 }
@@ -29,8 +43,8 @@ export interface PageDoor {
   close(): Promise<void>;
 }
 
-/** The most a page sends to be let in. A code and a label are well under it. */
-const JOIN_BYTES = 4096;
+/** The most a page sends in one request. A code and a label, or a push subscription, are well under it. */
+const BODY_BYTES = 4096;
 
 /** How long a browser keeps its token: 400 days, the longest a browser keeps a cookie. */
 const KEPT_SECONDS = 400 * 24 * 60 * 60;
@@ -48,11 +62,13 @@ const ANSWERED: OutgoingHttpHeaders = {
  * serves the page's files, takes an invitation's code from the page at
  * `PAGE_JOIN`, and keeps the token the gateway makes for the browser in a
  * cookie the page's scripts can't read, which the browser sends only with the
- * page's link, at `PAGE_LINK`, and only over HTTPS when the door has a
- * certificate. A code, like a link, is taken only from the door's own page. A
- * door that can't open, for settings that can't be used, a certificate that
- * can't be read or an address another program has, is an error that says it
- * stays shut, why, and what opens it.
+ * page's link, at `PAGE_LINK` and below it, and only over HTTPS when the door
+ * has a certificate. At `PAGE_PUSH` it tells anyone the key to subscribe to
+ * push with, and takes where a browser of yours is told things, knowing it by
+ * its cookie. A code, a place, like a link, is taken only from the door's own
+ * page. A door that can't open, for settings that can't be used, a certificate
+ * that can't be read or an address another program has, is an error that says
+ * it stays shut, why, and what opens it.
  */
 export async function openPage(options: PageOptions): Promise<PageDoor> {
   const file = options.settings;
@@ -74,7 +90,7 @@ export async function openPage(options: PageOptions): Promise<PageDoor> {
   const join = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     if (request.method !== "POST") return answer(response, 405, { Allow: "POST" });
     if (!fromItsOwnPage(request)) return answer(response, 403);
-    const body = await bodyOf(request, JOIN_BYTES);
+    const body = await bodyOf(request, BODY_BYTES);
     if (body === undefined) return answer(response, 413, { Connection: "close" });
     const shown = readPageJoin(parsed(body));
     if (shown === undefined) return answer(response, 400);
@@ -82,15 +98,30 @@ export async function openPage(options: PageOptions): Promise<PageDoor> {
     answer(response, token === undefined ? 403 : 200, token === undefined ? {} : { "Set-Cookie": cookie(token) }, said);
   };
 
+  const push = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    if (request.method === "GET") return answer(response, 200, {}, { key: options.pushKey });
+    if (request.method !== "POST") return answer(response, 405, { Allow: "GET, POST" });
+    if (!fromItsOwnPage(request)) return answer(response, 403);
+    const body = await bodyOf(request, BODY_BYTES);
+    if (body === undefined) return answer(response, 413, { Connection: "close" });
+    const place = readPagePush(parsed(body));
+    if (place === undefined) return answer(response, 400);
+    const kept = cookieIn(request.headers.cookie, options.cookie);
+    answer(response, kept !== undefined && options.keepPush(kept, place) ? 204 : 403);
+  };
+
+  /** Answer with `respond`, dropping the request if it fails. */
+  const handled = (respond: Promise<void>, response: ServerResponse): void => {
+    respond.catch((error: unknown) => {
+      response.destroy();
+      options.onError?.(error);
+    });
+  };
+
   const serve = (request: IncomingMessage, response: ServerResponse): void => {
     const path = new URL(request.url ?? "/", "http://page").pathname;
-    if (path === PAGE_JOIN) {
-      join(request, response).catch((error: unknown) => {
-        response.destroy();
-        options.onError?.(error);
-      });
-      return;
-    }
+    if (path === PAGE_JOIN) return handled(join(request, response), response);
+    if (path === PAGE_PUSH) return handled(push(request, response), response);
     const file = files.get(path);
     if (file === undefined || (request.method !== "GET" && request.method !== "HEAD")) return answer(response, 404);
     response.writeHead(200, { ...ANSWERED, "Content-Type": file.type, "Content-Length": file.body.byteLength });
@@ -112,14 +143,14 @@ export async function openPage(options: PageOptions): Promise<PageDoor> {
   return { url: `${secure ? "https" : "http"}://${formatAddress({ host: place.name, port })}/`, close: () => listener.close() };
 }
 
-/** Answer `status`, with `body` as JSON when there is one. */
-function answer(response: ServerResponse, status: number, headers: OutgoingHttpHeaders = {}, body?: HelloAnswer): void {
+/** Answer `status`, with `body` as JSON when there is one. A 204 has no body, and says no length. */
+function answer(response: ServerResponse, status: number, headers: OutgoingHttpHeaders = {}, body?: HelloAnswer | PagePushKey): void {
   const text = body === undefined ? "" : JSON.stringify(body);
   response.writeHead(status, {
     ...ANSWERED,
     ...headers,
     ...(body === undefined ? {} : { "Content-Type": "application/json; charset=utf-8" }),
-    "Content-Length": Buffer.byteLength(text),
+    ...(status === 204 ? {} : { "Content-Length": Buffer.byteLength(text) }),
   });
   response.end(text);
 }

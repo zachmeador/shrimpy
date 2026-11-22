@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
+import { createECDH, randomBytes } from "node:crypto";
 import { writeFileSync } from "node:fs";
-import { createServer, request as httpRequest, type IncomingMessage } from "node:http";
-import { request as httpsRequest } from "node:https";
+import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
@@ -13,12 +13,13 @@ import {
   connectFromPage,
   type HelloAnswer,
   PAGE_JOIN,
+  PAGE_PUSH,
   pageLinkUrl,
   readAnswer,
   Roster,
   valueOf,
 } from "../contracts/gateway/index.ts";
-import { connectTestClient } from "../contracts/gateway/testing/index.ts";
+import { askPage, connectTestClient, type PageAsking } from "../contracts/gateway/testing/index.ts";
 import { formatAddress, type PageSocket } from "../lib/link/index.ts";
 import { stopAfter, tempDir, until } from "../lib/testing/index.ts";
 import { newKey, selfSignedCertificate } from "../lib/tls/node.ts";
@@ -52,32 +53,15 @@ async function withPage(t: TestContext, options: GatewayInProcessOptions = {}) {
 const originOf = (page: string): string => new URL(page).origin;
 
 /** Show the door an invitation's `code` as the page does, from `origin`: the status, the answer, and the cookie it sets. */
-function showCode(page: string, code: string, origin = originOf(page)) {
-  const url = new URL(PAGE_JOIN, page);
-  const body = JSON.stringify({ code, label: LABEL });
-  const headers = { origin, "content-type": "application/json", "content-length": Buffer.byteLength(body) };
-  return new Promise<{ status: number | undefined; answer: HelloAnswer | undefined; cookie: string | undefined }>((resolve, reject) => {
-    const answered = (response: IncomingMessage): void => {
-      let text = "";
-      response.setEncoding("utf8");
-      response.on("data", (chunk: string) => (text += chunk));
-      response.on("end", () => {
-        let answer: HelloAnswer | undefined;
-        try {
-          answer = readAnswer(JSON.parse(text));
-        } catch {
-          answer = undefined;
-        }
-        resolve({ status: response.statusCode, answer, cookie: response.headers["set-cookie"]?.[0] });
-      });
-    };
-    const sent =
-      url.protocol === "https:"
-        ? httpsRequest(url, { method: "POST", headers, rejectUnauthorized: false }, answered)
-        : httpRequest(url, { method: "POST", headers }, answered);
-    sent.on("error", reject);
-    sent.end(body);
-  });
+async function showCode(page: string, code: string, origin = originOf(page)) {
+  const { status, text, setCookie } = await askPage(page, PAGE_JOIN, "POST", { body: { code, label: LABEL }, origin });
+  let answer: HelloAnswer | undefined;
+  try {
+    answer = readAnswer(JSON.parse(text));
+  } catch {
+    answer = undefined;
+  }
+  return { status, answer, cookie: setCookie };
 }
 
 /** Let a browser in with a new invitation, as you ask for one: the cookie it keeps, as it sends it back. */
@@ -151,6 +135,25 @@ test("the door refuses a link or a code from another page, a link from no page, 
 
   const anonymous = await linkFromPage(t, page, asBrowser(originOf(page), undefined));
   assert.equal(anonymous.kind, "refused", "a browser with no cookie is no one");
+});
+
+test("the door tells any page the key to subscribe with, and takes where a browser is told things from its own page, for a browser of yours", { timeout }, async (t) => {
+  const { page, roster } = await withPage(t);
+  const cookie = await letIn(page, roster);
+  const browser = createECDH("prime256v1");
+  browser.generateKeys();
+  const keys = { p256dh: browser.getPublicKey().toString("base64url"), auth: randomBytes(16).toString("base64url") };
+  const subscription = { endpoint: "https://push.example.net/push/JzLQ3raZ", expirationTime: null, keys };
+
+  const told = await askPage(page, PAGE_PUSH, "GET", { origin: "http://127.0.0.1:1" });
+
+  assert.equal(told.status, 200);
+  assert.match((JSON.parse(told.text) as { key: string }).key, /^B[A-Za-z0-9_-]{86}$/, "a P-256 key, uncompressed, in base64url");
+  const post = (asking: PageAsking) => askPage(page, PAGE_PUSH, "POST", { body: subscription, ...asking });
+  assert.equal((await post({ cookie, origin: "http://127.0.0.1:1" })).status, 403, "another page can't say where you are told things");
+  assert.equal((await post({})).status, 403, "and neither can a browser that isn't yours");
+  assert.equal((await post({ cookie, body: { ...subscription, keys: { ...keys, p256dh: "not a key" } } })).status, 400);
+  assert.equal((await post({ cookie })).status, 204);
 });
 
 test("a browser taken back loses its link and can't link again", { timeout }, async (t) => {

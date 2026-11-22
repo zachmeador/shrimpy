@@ -1,4 +1,4 @@
-import type { Member } from "../../contracts/chat/index.ts";
+import type { ChatEvent, Member } from "../../contracts/chat/index.ts";
 import { identifiers, MAX_PAGE, receipt as checkReceipt } from "../input/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { visibleEvent } from "./access.ts";
@@ -11,22 +11,26 @@ import type { ChatDeps } from "./deps.ts";
  * caller wrote in the same thread as the message each event names. If any event
  * is refused, none gets the receipt. The store writes the event that records
  * each receipt that is new or different, and none for one that changes nothing.
+ * A failed receipt that was written may be worth telling you.
  */
 export function leaveReceipt(deps: ChatDeps, caller: Member, eventIds: unknown, given: unknown): null {
   if (caller.kind !== "agent") refuse("Only an agent can leave a receipt.");
   const ids = identifiers(eventIds, "events", MAX_PAGE);
   const left = checkReceipt(given, "receipt");
-  deps.store.transaction((tx) => {
+  const written = deps.store.transaction((tx) => {
     const at = deps.now();
     const reply = left.reply === null ? null : (tx.message(left.reply) ?? null);
+    const named: ChatEvent[] = [];
     for (const id of ids) {
       const event = visibleEvent(tx, caller, id);
       if (event.kind === "receipted") refuse(`${id} is a receipt, and a receipt can't be left on one.`);
       if (left.reply !== null && (reply?.author.id !== caller.id || reply.threadId !== event.message.threadId)) {
         refuse(`${left.reply} is not a message you wrote in the same thread as ${id}.`);
       }
-      tx.leaveReceipt(event, caller.id, { status: left.status, reply, detail: left.detail }, at);
+      if (tx.leaveReceipt(event, caller.id, { status: left.status, reply, detail: left.detail }, at)) named.push(event);
     }
+    return named;
   });
+  if (left.status === "failed" && written.length > 0) deps.notifier.failed(caller, written, left.detail ?? "");
   return null;
 }

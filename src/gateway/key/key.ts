@@ -1,4 +1,4 @@
-import { createPrivateKey, type KeyObject } from "node:crypto";
+import { createPrivateKey, generateKeyPairSync, type KeyObject } from "node:crypto";
 import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { asError } from "../../lib/errors/index.ts";
@@ -8,6 +8,9 @@ import { fingerprintOf, newKey } from "../../lib/tls/node.ts";
 
 /** Where the gateway keeps its key, inside its data directory. */
 const keyFile = (dataDir: string): string => join(dataDir, "state", "key.pem");
+
+/** Where the gateway keeps the key it signs notifications with, beside its other key. */
+const pushKeyFile = (dataDir: string): string => join(dataDir, "state", "push-key.pem");
 
 /** The gateway's key, with what an invitation's link carries of it. */
 export interface GatewayKey {
@@ -25,33 +28,63 @@ export interface GatewayKey {
  */
 export function openKey(dataDir: string): GatewayKey {
   const file = keyFile(dataDir);
-  let pem: string;
-  try {
-    pem = readFileSync(file, "utf8");
-  } catch (error) {
-    if (codeOf(error) !== "ENOENT") throw cannotUse(file, asError(error).message, error);
-    const key = newKey();
-    save(file, key);
-    return { key, fingerprint: fingerprintOf(key) };
-  }
-  let key: KeyObject;
-  try {
-    key = createPrivateKey(pem);
-  } catch (error) {
-    throw cannotUse(file, "it holds no private key", error);
+  const key = readKey(file, "the gateway's key", "every member that joined from apart checks the gateway by it, and would refuse a new one");
+  if (key === undefined) {
+    const made = newKey();
+    save(file, made);
+    return { key: made, fingerprint: fingerprintOf(made) };
   }
   if (key.asymmetricKeyType !== "ed25519") {
-    throw cannotUse(file, `it holds a key of the type ${String(key.asymmetricKeyType)}, and the gateway's is Ed25519`);
+    throw cannotUse(
+      file,
+      "the gateway's key",
+      `it holds a key of the type ${String(key.asymmetricKeyType)}, and the gateway's is Ed25519`,
+      "every member that joined from apart checks the gateway by it, and would refuse a new one",
+    );
   }
   return { key, fingerprint: fingerprintOf(key) };
 }
 
-function cannotUse(file: string, why: string, cause?: unknown): Error {
-  return new Error(
-    `${file} can't be used as the gateway's key: ${why}. Put back the key the gateway made: every member that joined ` +
-      "from apart checks the gateway by it, and would refuse a new one.",
-    { cause },
-  );
+/**
+ * The key the gateway of `dataDir` signs its notifications with, for the push
+ * services of your devices: a P-256 key, made and kept first when the
+ * directory has none. A file that is there and can't be used stops the
+ * gateway, since every device was set up to be told things with that key, and
+ * would hear nothing signed with a new one.
+ */
+export function openPushKey(dataDir: string): KeyObject {
+  const file = pushKeyFile(dataDir);
+  const why = "every device of yours that is told things was set up with it, and would hear nothing signed with a new one";
+  const key = readKey(file, "the key the gateway signs notifications with", why);
+  if (key === undefined) {
+    const { privateKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+    save(file, privateKey);
+    return privateKey;
+  }
+  if (key.asymmetricKeyType !== "ec" || key.asymmetricKeyDetails?.namedCurve !== "prime256v1") {
+    throw cannotUse(file, "the key the gateway signs notifications with", "it holds a key that isn't on P-256", why);
+  }
+  return key;
+}
+
+/** The private key in `file`, or undefined when there is no file. One that can't be read or holds no private key stops the gateway. */
+function readKey(file: string, what: string, why: string): KeyObject | undefined {
+  let pem: string;
+  try {
+    pem = readFileSync(file, "utf8");
+  } catch (error) {
+    if (codeOf(error) === "ENOENT") return undefined;
+    throw cannotUse(file, what, asError(error).message, why, error);
+  }
+  try {
+    return createPrivateKey(pem);
+  } catch (error) {
+    throw cannotUse(file, what, "it holds no private key", why, error);
+  }
+}
+
+function cannotUse(file: string, what: string, problem: string, why: string, cause?: unknown): Error {
+  return new Error(`${file} can't be used as ${what}: ${problem}. Put back the key the gateway made: ${why}.`, { cause });
 }
 
 /** Keep `key` in `file`, saved whole, since half a key would stop the gateway, and readable only by the gateway's account. */

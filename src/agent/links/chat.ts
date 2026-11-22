@@ -47,8 +47,8 @@ export interface ChatCalls {
   threads(channel: string, signal: AbortSignal): Promise<readonly Thread[]>;
   /** A new thread in a channel. */
   createThread(channel: string, name: string | null, signal: AbortSignal): Promise<Thread>;
-  /** Post a message. A request ID's first use wins. */
-  post(thread: string, text: string, request: string, signal: AbortSignal): Promise<Message>;
+  /** Post a message, quietly when `quiet` says so, which tells it to nobody's devices. A request ID's first use wins. */
+  post(thread: string, text: string, request: string, signal: AbortSignal, quiet?: boolean): Promise<Message>;
   /** Up to `limit` messages older than the position `before`, or the newest when it is null, oldest first. */
   read(thread: string, before: number | null, limit: number, signal: AbortSignal): Promise<Message[]>;
 }
@@ -155,7 +155,8 @@ function callsOver(host: Host<Principal, Revocation>, chat: Held<typeof Chat>, m
       }),
     createThread: (id, name, signal) =>
       channel(id, signal, async (held, context) => valueOf(await held.createThread({ name }, context))),
-    post: (id, text, request, signal) => thread(id, signal, async (held, context) => valueOf(await held.post({ text, request }, context))),
+    post: (id, text, request, signal, quiet = false) =>
+      thread(id, signal, async (held, context) => valueOf(await held.post({ text, request, quiet }, context))),
     read: (id, before, limit, signal) =>
       thread(id, signal, async (held, context) => valueOf(await held.read({ before, limit }, context))),
   };

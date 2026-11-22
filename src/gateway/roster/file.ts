@@ -3,15 +3,18 @@ import { dirname, join } from "node:path";
 import { saveFile } from "../../lib/files/node.ts";
 import type { ConfigObject } from "../../lib/json-config/index.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
+import type { WebPushPlace } from "../push/index.ts";
 
 /**
  * A device of yours, which keeps a token and shows it to be you, with its
- * label: the name of the machine it joined from. Only a hash of the token is
- * kept.
+ * label: the name of the machine it joined from, or what a browser called
+ * itself. Only a hash of the token is kept. A browser that asked to be told
+ * things keeps where it is told them.
  */
 export interface DeviceRecord {
   tokenHash: string;
   label: string;
+  webPush?: WebPushPlace;
 }
 
 /**
@@ -80,8 +83,12 @@ function parseMember(entry: ConfigObject): MemberRecord {
 function parseDevice(entry: ConfigObject): DeviceRecord {
   const tokenHash = entry.string("tokenHash");
   const label = entry.string("label");
+  const place = entry.optionalObject("webPush");
   entry.done();
-  return { tokenHash, label };
+  if (place === undefined) return { tokenHash, label };
+  const webPush = { endpoint: place.string("endpoint"), p256dh: place.string("p256dh"), auth: place.string("auth") };
+  place.done();
+  return { tokenHash, label, webPush };
 }
 
 /** Write the roster whole, so that nobody reads half of it and a power cut leaves the old one or the new, readable only by its owner. */
