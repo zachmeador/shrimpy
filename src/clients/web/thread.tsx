@@ -5,7 +5,7 @@
  */
 import { type ComponentChildren, Fragment } from "preact";
 import type { AgentWork, InFull, MessageRow, SessionLevel, ThreadLevel, Waiting } from "../view/index.ts";
-import { CHECKING_BACK, commandParts, moreWakeups, OUT_OF_DATE_MARK } from "../view/index.ts";
+import { CHECKING_BACK, commandParts, moreWakeups, NEW_SINCE, OUT_OF_DATE_MARK } from "../view/index.ts";
 import { Composer, type ComposerProps } from "./composer.tsx";
 import { Glyph, Relief, Sigil } from "./marks.tsx";
 import { Plain, Prose } from "./prose.tsx";
@@ -51,32 +51,54 @@ export function Title({ who, rest, stale, path }: { who: string; rest: string; s
   );
 }
 
+/** What a message says: that it was deleted, a command as it was written, an agent's Markdown, or a person's words as typed. */
+function Words({ row }: { row: MessageRow }) {
+  if (row.deleted) return <p class="deleted">{row.text}</p>;
+  if (row.command) {
+    return (
+      <div class="prose plain">
+        <p class="cmd">{row.text}</p>
+      </div>
+    );
+  }
+  return row.agent ? <Prose text={row.text} breaks mentions={row.mentions} /> : <Plain text={row.text} mentions={row.mentions} />;
+}
+
+/** A message, after a line of its own where it is the first that was new. */
 function Message({ row, cont }: { row: MessageRow; cont: boolean }) {
   return (
-    <article class={`msg ${row.look === undefined ? "pg-you" : `pg-${row.look.pigment}`}${cont ? " cont" : ""}`}>
-      {cont ? <span /> : <Sigil look={row.look} />}
-      <div>
-        {!cont && (
-          <header>
-            <b class="who">{row.who}</b>
-            <time>{row.when}</time>
-            {row.edited !== undefined && <span class="edited">{row.edited}</span>}
-          </header>
-        )}
-        {row.deleted ? <p class="deleted">{row.text}</p> : row.agent ? <Prose text={row.text} breaks /> : <Plain text={row.text} />}
-        {row.reactions !== undefined && (
-          <div class="reactions">
-            <span class="react">{row.reactions}</span>
-          </div>
-        )}
-        {row.notes.map((note) => (
-          <p key={note} class="receipt">
-            <Glyph name="bang" />
-            {note}
-          </p>
-        ))}
-      </div>
-    </article>
+    <>
+      {row.firstNew && <div class="mark new">{NEW_SINCE.web}</div>}
+      <article class={`msg ${row.look === undefined ? "pg-you" : `pg-${row.look.pigment}`}${cont ? " cont" : ""}`}>
+        {cont ? <span /> : <Sigil look={row.look} />}
+        <div>
+          {!cont && (
+            <header>
+              <b class="who">{row.who}</b>
+              <time>{row.when}</time>
+              {row.edited !== undefined && <span class="edited">{row.edited}</span>}
+            </header>
+          )}
+          <Words row={row} />
+          {row.reactions.length > 0 && (
+            <div class="reactions">
+              {row.reactions.map(({ emoji, by }) => (
+                <span key={emoji} class="react">
+                  {emoji}
+                  <span>{by}</span>
+                </span>
+              ))}
+            </div>
+          )}
+          {row.receipts.map(({ words, failed }) => (
+            <p key={words} class={failed ? "receipt bad" : "receipt"}>
+              <Glyph name={failed ? "fail" : "bang"} />
+              {words}
+            </p>
+          ))}
+        </div>
+      </article>
+    </>
   );
 }
 
@@ -196,7 +218,7 @@ export function ThreadView(props: ThreadProps) {
             {thread.lead !== undefined && <p class="earlier">{thread.lead}</p>}
             {thread.messages.map((row, at) => {
               const before = thread.messages[at - 1];
-              return <Message key={row.id} row={row} cont={before !== undefined && before.who === row.who && before.when === row.when && !before.deleted} />;
+              return <Message key={row.id} row={row} cont={before !== undefined && before.who === row.who && before.when === row.when && !before.deleted && !row.firstNew} />;
             })}
             {thread.works.map((each) =>
               each === open ? (

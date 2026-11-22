@@ -25,6 +25,8 @@ export interface ThreadView {
   earlier: number;
   readOnly: boolean;
   unread: number;
+  /** The ID of the first message that was new to the person when they first looked at the thread since it was opened, if any was. */
+  firstNew: string | undefined;
 }
 
 /**

@@ -1,4 +1,5 @@
 import type { AgentModels, HomeEntry, HomeFile, TriggerDetail } from "../../contracts/agent/index.ts";
+import type { Message } from "../../contracts/chat/index.ts";
 import { type Answer, valueOf } from "../../contracts/gateway/index.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
 import { type AgentCalls, CONNECTING, type Dial, Down, keepGateway, problemOf } from "../network/index.ts";
@@ -192,6 +193,24 @@ const startingModel = (homes: HomeLookup | undefined): Model => ({
   homes,
 });
 
+/**
+ * The ID of the first of `messages` that is new to the person, the member
+ * `me`, when `unread` are: chat counts what others wrote after the read mark,
+ * leaving out deleted messages, so it is the `unread`th of those from the end,
+ * or the earliest of them on show when fewer are.
+ */
+function firstNewOf(messages: readonly Message[], unread: number, me: string | undefined): string | undefined {
+  let first: string | undefined;
+  let counted = 0;
+  for (let at = messages.length - 1; at >= 0 && counted < unread; at--) {
+    const message = messages[at];
+    if (message === undefined || message.deleted || message.author.id === me) continue;
+    first = message.id;
+    counted += 1;
+  }
+  return first;
+}
+
 export async function createClientState(options: ClientStateOptions): Promise<ClientState> {
   const link = await keepGateway({ dial: options.dial, token: options.token, ...(options.backoff === undefined ? {} : { backoff: options.backoff }) });
   const held = createHoldings(link, () => store.changed());
@@ -223,13 +242,19 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
   /**
    * While the person is looking at the open thread, move its read mark up to
    * its newest message when anything in it is new to them, once for each
-   * message. One that fails is moved again when the thread next changes.
+   * message. One that fails is moved again when the thread next changes. The
+   * first time it is moved, the first message that was new is kept, so that
+   * what was new stays told apart after it is read.
    */
   function markRead(): void {
     const thread = held.thread();
     const shown = thread?.held.shown();
     const newest = shown?.messages.at(-1);
     if (!looking || thread === undefined || newest === undefined || (shown?.unread ?? 0) === 0 || thread.marked === newest.id) return;
+    if (thread.firstNew === undefined) {
+      thread.firstNew = firstNewOf(shown?.messages ?? [], shown?.unread ?? 0, store.model().me?.id);
+      store.changed();
+    }
     thread.marked = newest.id;
     const failed = (): void => {
       if (thread.marked === newest.id) thread.marked = undefined;

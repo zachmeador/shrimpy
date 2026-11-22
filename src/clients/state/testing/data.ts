@@ -122,7 +122,7 @@ export function aReceipt(agent: string, status: Receipt["status"], detail: strin
 }
 
 export function aThreadView(thread: Thread, messages: Message[], earlier = 0, readOnly = false): ThreadView {
-  return { thread, messages, earlier, readOnly, unread: 0 };
+  return { thread, messages, earlier, readOnly, unread: 0, firstNew: undefined };
 }
 
 /** A session with these items, from its start, a status that is idle unless `parts` says more, and its agent reached unless it says not. */

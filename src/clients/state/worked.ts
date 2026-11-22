@@ -1,6 +1,6 @@
-import type { AgentShown, GatewayLink, ThreadShown } from "../network/index.ts";
+import type { AgentShown, GatewayLink } from "../network/index.ts";
 import { channelsOf } from "./channels.ts";
-import type { HeldSession, Holdings } from "./holdings.ts";
+import type { HeldSession, Holdings, OpenThread } from "./holdings.ts";
 import {
   agentEntries,
   type ChannelThreads,
@@ -70,7 +70,7 @@ export function worked(model: Model, held: Holdings, link: GatewayLink): Model {
     defaultModel: agent?.defaultModel,
     refusal: agentShown?.refusal?.words,
     watchRefusal: watched?.held.shown()?.refusal?.words,
-    thread: threadViewOf(held.thread()?.held.shown()),
+    thread: threadViewOf(held.thread()),
     behind,
     watched: watched === undefined ? undefined : sessionViewOf(watched, true, reached(watched)),
     workingSessions,
@@ -95,10 +95,11 @@ function sessionsWorking(shown: AgentShown | undefined, reached: boolean): Agent
 }
 
 /** The open thread as it now stands, or none while chat has not shown it or refuses it. */
-function threadViewOf(shown: ThreadShown | undefined): ThreadView | undefined {
-  if (shown === undefined || shown.refusal !== null || shown.thread === null) return undefined;
+function threadViewOf(open: OpenThread | undefined): ThreadView | undefined {
+  const shown = open?.held.shown();
+  if (open === undefined || shown === undefined || shown.refusal !== null || shown.thread === null) return undefined;
   const { thread, messages, earlier, readOnly, unread } = shown;
-  return { thread, messages, earlier, readOnly, unread: unread ?? 0 };
+  return { thread, messages, earlier, readOnly, unread: unread ?? 0, firstNew: open.firstNew };
 }
 
 /**

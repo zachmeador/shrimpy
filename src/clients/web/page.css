@@ -36,9 +36,9 @@
   --step: polygon(0 2px, 2px 2px, 2px 0, calc(100% - 2px) 0, calc(100% - 2px) 2px, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 2px), 0 calc(100% - 2px));
 }
 
-/* Each wool, and the look's color that reads as a shadow on it. */
-[data-mode="dusk"] { color-scheme: dark; --shade: var(--well); }
-[data-mode="day"] { color-scheme: light; --shade: var(--ink-3); }
+/* Each wool, the look's color that reads as a shadow on it, and the light on a pressed edge. */
+[data-mode="dusk"] { color-scheme: dark; --shade: var(--well); --relief-hi: rgba(255, 255, 255, 0.05); }
+[data-mode="day"] { color-scheme: light; --shade: var(--ink-3); --relief-hi: rgba(255, 255, 255, 0.75); }
 .pg-you { --who: var(--ink-2); --who-ink: var(--ink); }
 
 html, body, #shrimpy { height: 100%; margin: 0; }
@@ -97,6 +97,7 @@ body { background: var(--pane); color: var(--ink); font: 400 var(--t-ui)/1.45 va
 
 /* A shape pressed into the pane, tone on tone. */
 .relief { display: block; fill: var(--press); }
+.relief .hi { fill: var(--relief-hi); }
 .relief .shallow { fill: color-mix(in srgb, var(--press) 45%, var(--pane)); }
 
 @keyframes flow-v { to { -webkit-mask-position: 0 32px; mask-position: 0 32px; } }
@@ -301,12 +302,20 @@ button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent
 .prose table { margin: 0.4em 0 0.6em; border-collapse: collapse; font-size: var(--t-small); }
 .prose :is(th, td) { padding: 3px 10px 4px 0; text-align: left; border-bottom: 1px solid var(--line); }
 .prose th { font-weight: 600; }
+.prose .cmd { font: 400 0.9em/1.6 var(--mono); }
 .deleted { color: var(--ink-3); font-style: italic; }
+.mention { font-weight: 600; color: var(--who-ink, var(--ink)); }
 .streaming > :last-child::after { content: ""; display: inline-block; width: 7px; height: 1em; margin-left: 2px; vertical-align: -2px; background: var(--ink-2); animation: caret 0.9s steps(1) infinite; }
 
 .reactions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .react { display: inline-flex; align-items: center; gap: 6px; padding: 1px 8px 2px 6px; font-size: var(--t-code); color: var(--ink-2); background: var(--raise); clip-path: var(--step); }
 .receipt { display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: var(--t-small); color: var(--caution-ink); }
+.receipt.bad { color: var(--bad-ink); }
+
+.mark { display: flex; align-items: center; gap: 10px; margin: 14px 0 6px; font: 400 var(--t-meta)/1 var(--mono); color: var(--ink-3); }
+.mark::before, .mark::after { content: ""; flex: 1; height: 2px; background: var(--line-2); -webkit-mask: var(--d-50) 0 0 / 4px 4px; mask: var(--d-50) 0 0 / 4px 4px; }
+.mark.new { color: var(--coral-ink); }
+.mark.new::before, .mark.new::after { background: var(--coral); }
 .earlier { padding-bottom: 8px; font-size: var(--t-small); color: var(--ink-3); }
 
 /* An agent's work in progress: a bar down its left side that moves while it runs. */

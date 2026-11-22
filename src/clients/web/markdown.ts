@@ -6,9 +6,11 @@
  * address, and an image is a link to it, so nothing is fetched by itself.
  */
 import { lexer, type Token, type Tokens } from "marked";
+import { type Mention, withMentions } from "../view/index.ts";
 
-/** The elements Markdown is drawn with. */
+/** The elements Markdown is drawn with, and a span for each `@name` of an agent it mentions. */
 type MdTag =
+  | "span"
   | "p"
   | "h1"
   | "h2"
@@ -35,11 +37,12 @@ type MdTag =
   | "th"
   | "td";
 
-/** One element, with a link's address, or where a numbered list starts. */
+/** One element, with a link's address, where a numbered list starts, or the pigment of the agent a mention names. */
 interface MdElement {
   tag: MdTag;
   href?: string;
   start?: number;
+  pigment?: string;
   children: Md[];
 }
 
@@ -48,6 +51,8 @@ export type Md = string | MdElement;
 interface MarkdownOptions {
   /** A line break in a paragraph breaks the line, as it does in a chat message. In a file it is a space. */
   breaks: boolean;
+  /** The agents a message mentions, each marked where its text says `@name`. */
+  mentions?: readonly Mention[];
 }
 
 /** `text`, Markdown, as elements. */
@@ -83,10 +88,16 @@ function decoded(text: string): string {
   });
 }
 
-/** Text, with each line break a break where `options` says so. */
+/** Text, with each line break a break where `options` says so, and each mention of an agent marked. */
 function lines(text: string, options: MarkdownOptions): Md[] {
-  if (!options.breaks || !text.includes("\n")) return [text];
-  return text.split("\n").flatMap((line, at) => (at === 0 ? [line] : [el("br", []), line]));
+  const parts = !options.breaks || !text.includes("\n") ? [text] : text.split("\n").flatMap((line, at) => (at === 0 ? [line] : [el("br", []), line]));
+  const { mentions } = options;
+  if (mentions === undefined || mentions.length === 0) return parts;
+  return parts.flatMap((part) =>
+    typeof part === "string"
+      ? withMentions(part, mentions).map((said) => (typeof said === "string" ? said : el("span", [said.mention], { pigment: said.look.pigment })))
+      : [part],
+  );
 }
 
 function blocks(tokens: readonly Token[], options: MarkdownOptions): Md[] {

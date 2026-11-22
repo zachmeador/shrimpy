@@ -240,11 +240,14 @@ export const DELETED = "This message was deleted.";
 /** What marks a message that was edited, with when. */
 export const editedAt = (when: string): string => `edited ${when}`;
 
-/** The emoji on a message and who put each there, on one line, or nothing when there are none. */
-export function reactionsLine(reactions: { emoji: string; by: string[] }[]): string | undefined {
-  if (reactions.length === 0) return undefined;
-  return reactions.map(({ emoji, by }) => `${oneLine(emoji)} ${by.join(", ")}`).join("  ");
-}
+/** Who put one emoji on a message, by name, in the order they did. */
+export const reactedBy = (names: string[]): string => names.join(", ");
+
+/** The emoji on a message and who put each there, on one line, as the terminal says them. */
+export const reactionsLine = (reactions: readonly { emoji: string; by: string }[]): string => reactions.map(({ emoji, by }) => `${emoji} ${by}`).join("  ");
+
+/** The line before the first message that was new to the person when they opened the thread: the web client's words, and the terminal's. */
+export const NEW_SINCE = { web: "while you were away", terminal: "new" } as const;
 
 /** The line under Shrimpy's wordmark: its version, then the release's name, in two parts so that a client can set the name apart. */
 export const versionLine = (): [lead: string, release: string] => [`${SHRIMPY_VERSION} · `, SHRIMPY_RELEASE_NAME];

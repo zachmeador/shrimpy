@@ -1,5 +1,5 @@
 import { activityWords, modelWords, wakeupNote, YOUR_DM } from "../../contracts/agent/index.ts";
-import { type Message, namer, receiptWords, titleOf } from "../../contracts/chat/index.ts";
+import { agentCommandIn, type Member, type Message, mentionsOf, namer, receiptWords, titleOf } from "../../contracts/chat/index.ts";
 import { oneLine, plain } from "../../lib/plain/index.ts";
 import { agentNameOf, agentOfList, type Model, sidesOf, type Status } from "../state/index.ts";
 import { type CommandLine, commandLines } from "./commands.ts";
@@ -19,7 +19,7 @@ import {
   newRoomThreadHint,
   newThreadHint,
   queuedLine,
-  reactionsLine,
+  reactedBy,
   READ_ONLY_TAG,
   readOnlyLine,
   roomStatusRows,
@@ -47,10 +47,42 @@ export interface MessageRow {
   /** It was deleted, and `text` says so. */
   deleted: boolean;
   text: string;
-  /** The emoji on it and who put them there, or nothing when there are none. */
-  reactions: string | undefined;
-  /** What the agents did with it, where that is worth saying: failed, stopped, skipped. */
-  notes: string[];
+  /** The text is a command for agents, such as `/model` or `@scout /stop`. */
+  command: boolean;
+  /** Each agent the text names as `@name`, which is marked in its pigment where the text says it. */
+  mentions: Mention[];
+  /** Each emoji on it, in the order each first appeared, with who put it there. */
+  reactions: { emoji: string; by: string }[];
+  /** What the agents did with it, where that is worth saying, and whether it failed: failed, stopped, skipped. */
+  receipts: { words: string; failed: boolean }[];
+  /** It is the first message that was new to the person when they first looked at the thread since it was opened. */
+  firstNew: boolean;
+}
+
+/** An agent a message names as `@name`: what it is called and how it looks. */
+export interface Mention {
+  name: string;
+  look: Look;
+}
+
+/** A text in parts: what it says, and each `@name` of an agent it mentions, where it says it. */
+export type Said = string | { mention: string; look: Look };
+
+/** `text` in parts, with each `@name` of `mentions` set apart as chat finds it, so that a client marks what chat counted as a mention. */
+export function withMentions(text: string, mentions: readonly Mention[]): Said[] {
+  const found = mentions
+    .flatMap(({ name, look }) => mentionsOf(text, name).map((span) => ({ ...span, look })))
+    .sort((a, b) => a.start - b.start || b.end - a.end);
+  const parts: Said[] = [];
+  let at = 0;
+  for (const { start, end, look } of found) {
+    if (start < at) continue;
+    if (start > at) parts.push(text.slice(at, start));
+    parts.push({ mention: text.slice(start, end), look });
+    at = end;
+  }
+  if (at < text.length) parts.push(text.slice(at));
+  return parts;
 }
 
 /** What `/status` read, as lines: the first says it is for the person alone and when it was read. */
@@ -165,7 +197,8 @@ export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel |
   const reading = place.kind === "read-only";
   const who = here.label;
 
-  const messages = (live?.messages ?? []).map((message) => messageRow(message, model, names, now));
+  const members = here.channel?.members ?? [];
+  const messages = (live?.messages ?? []).map((message) => messageRow(message, { model, names, members, firstNew: live?.firstNew }, now));
   // A session that was working when the agent went away is not working now, whatever its last view says.
   const busy = (agent: string): boolean => model.behind[agent]?.status.busy === true && model.behind[agent].reached;
   const nameOf = (agent: string): string => (known(agent) === agent ? oneLine(agentNameOf(model, agent)) : names(agent));
@@ -273,7 +306,16 @@ function statusBlock(status: Status): StatusBlock {
   }
 }
 
-function messageRow(message: Message, model: Model, names: (memberId: string) => string, now: number): MessageRow {
+/** What a message row is made with besides the message: the model, members' names, the channel's members and the first message that was new. */
+interface RowContext {
+  model: Model;
+  names: (memberId: string) => string;
+  members: readonly Member[];
+  firstNew: string | undefined;
+}
+
+function messageRow(message: Message, { model, names, members, firstNew }: RowContext, now: number): MessageRow {
+  const text = message.deleted ? DELETED : plain(message.text).trimEnd();
   return {
     id: message.id,
     who: oneLine(message.author.name),
@@ -282,8 +324,18 @@ function messageRow(message: Message, model: Model, names: (memberId: string) =>
     when: whenOf(message.sentAt, now),
     edited: message.editedAt === null || message.deleted ? undefined : editedAt(whenOf(message.editedAt, now)),
     deleted: message.deleted,
-    text: message.deleted ? DELETED : plain(message.text).trimEnd(),
-    reactions: reactionsLine(message.reactions.map((reaction) => ({ emoji: reaction.emoji, by: reaction.memberIds.map(names) }))),
-    notes: message.receipts.flatMap((receipt) => receiptWords(receipt, names(receipt.memberId)) ?? []),
+    text,
+    command: !message.deleted && agentCommandIn(text) !== undefined,
+    mentions: message.deleted
+      ? []
+      : members
+          .filter((member) => member.kind === "agent" && message.mentions.includes(member.id))
+          .map((member) => ({ name: oneLine(member.name), look: lookOf(model, member.id) })),
+    reactions: message.reactions.map((reaction) => ({ emoji: oneLine(reaction.emoji), by: reactedBy(reaction.memberIds.map(names)) })),
+    receipts: message.receipts.flatMap((receipt) => {
+      const words = receiptWords(receipt, names(receipt.memberId));
+      return words === undefined ? [] : [{ words, failed: receipt.status === "failed" }];
+    }),
+    firstNew: message.id === firstNew,
   };
 }

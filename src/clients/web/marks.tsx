@@ -87,7 +87,7 @@ function tiles(depths: number[][], deep: boolean, gap: number): string {
   return d;
 }
 
-/** A shape pressed into a pane, tone on tone: an agent's sigil, or the wordmark set into a knitted field. */
+/** A shape pressed into a pane, tone on tone, each tile with a light edge a pixel below it: an agent's sigil, or the wordmark set into a knitted field. */
 export function Relief({ sigil }: { sigil: readonly string[] | undefined }) {
   const depths = sigil === undefined ? woven(WORDMARK, 3) : sigil.map((row, y) => Array.from({ length: row.length }, (_, x) => (on(sigil, x, y) ? 1 : 0)));
   const cell = sigil === undefined ? 6 : 10;
@@ -96,6 +96,7 @@ export function Relief({ sigil }: { sigil: readonly string[] | undefined }) {
   const gap = 1 / cell;
   return (
     <svg class="relief" width={w * cell} height={h * cell} viewBox={`0 0 ${String(w)} ${String(h)}`} shape-rendering="crispEdges" aria-hidden="true">
+      <path class="hi" d={tiles(depths, true, gap) + tiles(depths, false, gap)} transform={`translate(0 ${String(gap)})`} />
       <path d={tiles(depths, true, gap)} />
       <path class="shallow" d={tiles(depths, false, gap)} />
     </svg>

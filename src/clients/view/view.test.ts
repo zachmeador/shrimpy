@@ -11,7 +11,7 @@ import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { CONNECTING } from "../network/index.ts";
 import type { Model } from "../state/index.ts";
 import { aChatServer, aDm, agentMember, aListing, aModel, anAgent, aThread, type Rig, startRig } from "../state/testing/index.ts";
-import { agentsLevel, listLevel, type ListLevel, type Look, type Row } from "./index.ts";
+import { agentsLevel, listLevel, type ListLevel, type Look, type Row, threadLevel, withMentions } from "./index.ts";
 
 /*
  * The views of a client's state against the real gateway and chat server, in processes of their own, with small
@@ -81,6 +81,58 @@ test("an agent's list says that the agent is an admin, and says nothing of it fo
   rig.state.selectAgent(mechanic.id);
   const ordinary = await rig.until((model) => model.open.list?.id === mechanic.id, "mechanic's list");
   assert.equal(listLevel(ordinary, at)?.tag, undefined);
+});
+
+/** Which messages of the open thread are marked as the first that was new. */
+const firstNew = (model: Model): boolean[] => threadLevel(model, at)?.messages.map((row) => row.firstNew) ?? [];
+
+test("the first message that was new when the person looked at the thread stays marked once it is read, and nothing after it is", { timeout }, async (t) => {
+  const rig = await startRig(t);
+  const scout = await rig.member("scout");
+  const asScout = await rig.asAgent("scout");
+  const thread = await rig.thread("scout", "check the disk");
+  await asScout.post(thread.id, "43% used");
+  await asScout.post(thread.id, "the rest is photos");
+  await rig.until((model) => model.open.list?.id === scout.id, "scout's list");
+
+  rig.state.openThread(thread.id);
+  rig.state.look(true);
+  const read = await rig.until((model) => model.thread?.messages.length === 3 && model.thread.unread === 0, "the thread, read");
+  assert.deepEqual(firstNew(read), [false, true, false]);
+
+  await asScout.post(thread.id, "and the logs are quiet");
+  const later = await rig.until((model) => model.thread?.messages.length === 4 && model.thread.unread === 0, "the next reply, read");
+  assert.deepEqual(firstNew(later), [false, true, false, false]);
+});
+
+test("a message shows each emoji with who put it there, a failed receipt apart, the agents it names and whether it is a command", { timeout }, async (t) => {
+  const rig = await startRig(t);
+  const scout = await rig.member("scout");
+  const you = await rig.person();
+  const asScout = await rig.asAgent("scout");
+  const thread = await rig.thread("scout", "@scout is the disk full?");
+  const [asked] = await you.read(thread.id, null, 10);
+  assert.ok(asked);
+  await you.react(thread.id, asked.id, "👍");
+  await asScout.react(thread.id, asked.id, "👀");
+  await asScout.leaveReceipt([asked.event], { status: "failed", reply: null, detail: "The model failed." });
+  await you.post(thread.id, "/stop");
+  await rig.until((model) => model.open.list?.id === scout.id, "scout's list");
+
+  rig.state.openThread(thread.id);
+  const shown = await rig.until((model) => model.thread?.messages.length === 2 && model.thread.messages[0]?.receipts.length === 1, "the thread");
+  const [first, stop] = threadLevel(shown, at)?.messages ?? [];
+  assert.ok(first && stop);
+  assert.deepEqual(
+    first.reactions.map((each) => each.emoji),
+    ["👍", "👀"],
+  );
+  assert.deepEqual(
+    first.receipts.map((each) => each.failed),
+    [true],
+  );
+  assert.equal(withMentions(first.text, first.mentions).filter((part) => typeof part !== "string").length, 1, "the agent named is marked where it is named");
+  assert.deepEqual([first.command, stop.command], [false, true]);
 });
 
 /** A real agent called crab, made with `agent init` and started as `shrimpy agent serve` starts it, with the model local/test-model. */
