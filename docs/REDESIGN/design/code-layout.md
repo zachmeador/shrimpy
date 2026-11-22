@@ -159,6 +159,44 @@ Every sentence a model or a person reads is kept in a few files, so that wording
 
 `shrimpy agent context` prints what an agent would be told, put together from its home as it is now. A test holds every `shrimpy` command line in these words to the commands the CLI has.
 
+## The clients' modules
+
+Decided on 2026-11-21, with the two mockups in front of you, and not built: "sure, track it in the docs. but i want to get building asap". The terminal and the web client are one client, drawn twice. They share what a client knows, does and says, and each keeps only its drawing and its input.
+
+Three of the terminal's four modules already have no terminal in them: about 3,500 of its 4,500 lines. Node reaches them in three files, two that dial the gateway and one that takes a request's ID from `node:crypto`. So the shape is mostly a move.
+
+```text
+src/clients/
+  network/    the link to the gateway, kept across losses, and the objects held through it: apart from tests,
+              the only client code that imports Chord
+  state/      what a client knows, where the person is and what they can do
+  view/       what is shown, as plain text and facts, a level at a time, with the words: today's `screen/`
+  look/       the colors of dusk and day, and a sigil's twelve lines as dots, half blocks or pixels
+  console/    the terminal: `pi-tui`, the keys, and a socket or an address to dial
+  web/        the browser: the page, the pointer and the keys, a WebSocket to dial, and what a phone needs
+```
+
+| Module | Its one job | Knows a terminal or a browser |
+|---|---|---|
+| `network/` | One link to the gateway, kept across losses, and the objects held through it. It is handed how to dial. | Never |
+| `state/` | What a client knows, where the person is and what they can do. | Never |
+| `view/` | What each level shows, as data, and every sentence said of it. | Never |
+| `look/` | The colors and the sigils, as data. | Never |
+| `console/` | Drawing in cells, the keys, and dialing from Node. | A terminal |
+| `web/` | Drawing in the page, the pointer and the keys, dialing from a browser, installing and push. | A browser |
+
+**What is shared is what is true and what is said.** How it is laid out and how it is touched stays with each client. The test is whether the other client would be wrong if it differed: `working · #ops` differing is a bug, and where the list sits is not. A sentence that names a key or a gesture belongs to the client that has it. Everything else a client says is in `view/`, and a sentence in either client's drawing is a mistake.
+
+**A view is of one level.** Today a screen is one of four, and the state says which one is on show. Both mockups show the levels side by side. So the state says what is open at each level, and `view/` has a view for each: agents and rooms, what one of them takes part in, a thread, and a session. Each client decides how many it shows at once. Which row the keys are on is the terminal's own.
+
+**Imports.** `network/`, `state/`, `view/` and `look/` import `contracts/` and `lib/` by their main doors, which are safe for browsers. `state/` imports `network/`, and `view/` imports both. None of the four imports `console/` or `web/`, a `node.ts` door, `pi-tui` or the page. `console/` and `web/` import the four, and never each other. The test that bundles a contract's door for a browser bundles these four too.
+
+**The web client is a thin projection.** It reads the views, calls the moves, and holds only what a page has: what is folded, where a list is scrolled, what is typed. Three choices in it are yours to strike. It is drawn with Preact in TSX, so that a component is tied to a view's type. esbuild bundles it when the gateway starts, so nothing is built by hand, and esbuild becomes a dependency where it was a development one. Its styles are the web mockup's, with the colors written from `look/`.
+
+**What must not change by accident.** The move changes no behavior and rewords nothing. The terminal's tests pass as they are, with their imports moved.
+
+**Untried:** a Chord link from a browser through Shrimpy's hello. The gateway turns away any connection that says it is a web page, and how a browser gets in is not designed.
+
 ## The agent's modules
 
 Approved on 2026-10-05 and built that day. Each module has one job.
