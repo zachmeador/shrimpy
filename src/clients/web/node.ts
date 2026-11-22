@@ -11,9 +11,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { build, type BuildOptions, stop } from "esbuild";
 import type { PageFile } from "../../contracts/gateway/index.ts";
-import { WOOLS } from "../look/index.ts";
+import { SHRIMP, WOOLS } from "../look/index.ts";
 import { FONTS, ICONS, MANIFEST, SCRIPT, STYLES, WORKER } from "./files.ts";
-import { SHRIMP } from "./glyphs.ts";
 import { icon } from "./icon.node.ts";
 import { BACKDROP, lookCss } from "./styles.ts";
 

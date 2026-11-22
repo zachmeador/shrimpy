@@ -7,7 +7,7 @@ import {
   visibleWidth,
   wrapTextWithAnsi,
 } from "@earendil-works/pi-tui";
-import { halves, WORDMARK } from "../../look/index.ts";
+import { halves, SHRIMP } from "../../look/index.ts";
 import { moreWakeupsListed, OUT_OF_DATE_MARK } from "../../view/index.ts";
 import { type Ground, type Paint, role, type Run, type Tone } from "./paint.ts";
 import { hint, noteRuns, saidRuns, spread } from "./rows.ts";
@@ -155,11 +155,11 @@ export class Conversation implements Component {
   invalidate(): void {}
 }
 
-/** Where a thread would be while none is open: the open agent's sigil, or the wordmark, pressed into the pane, and what the views say stands there. */
+/** Where a thread would be while none is open: the open agent's sigil, or the shrimp, pressed into the pane, and what the views say stands there. */
 function emptyPane(frame: Frame, width: number, height: number): string[] {
   const { paint, levels, model } = frame;
   const agent = model.open.list?.kind === "agent";
-  const art = halves(agent ? (levels.list?.look?.sigil ?? []) : WORDMARK);
+  const art = halves(agent ? (levels.list?.look?.sigil ?? []) : SHRIMP);
   const nothing = levels.nothing;
   const said = wrap(paint, nothing?.said ?? "", Math.max(1, width - 4), "ink3");
   const top = Math.max(1, Math.floor((height - art.length - 2 - said.length) / 2));
@@ -167,6 +167,7 @@ function emptyPane(frame: Frame, width: number, height: number): string[] {
   return [
     ...Array.from({ length: top }, () => ""),
     ...art.map((line) => centered(paint.text(line, "press"))),
+    "",
     "",
     ...said.map(centered),
   ];

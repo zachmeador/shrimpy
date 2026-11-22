@@ -182,6 +182,7 @@ const startingModel = (homes: HomeLookup | undefined): Model => ({
   watched: undefined,
   sessions: undefined,
   triggers: undefined,
+  defaultModel: undefined,
   looks: {},
   workingSessions: {},
   refusal: undefined,
@@ -256,7 +257,8 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
   /**
    * What follows from the model as it now stands: a thread that can't be had
    * says so, once each time it is opened; the thread the person is looking at
-   * is marked read; the person is taken to the only agent there is; each agent
+   * is marked read; the agent whose list is open is asked which model it
+   * follows by default; the person is taken to the only agent there is; each agent
    * that is running is held for what it is working in; and the session on show
    * whole is read back.
    */
@@ -268,6 +270,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
       store.say({ kind: "not-opened", problem: { said: refusal.words } });
     }
     markRead();
+    asking.learnDefault();
     const entries = agentEntries(store.model());
     moves.land(entries);
     held.callRoll(new Set(entries.filter((entry) => entry.running).map((entry) => entry.id)));

@@ -331,6 +331,8 @@ export interface Model {
   sessions: SessionSummary[] | undefined;
   /** The triggers of the agent whose list is open, in order of name, as it runs them now. Undefined until it has said. */
   triggers: TriggerSummary[] | undefined;
+  /** The model the agent whose list is open follows by default, once it has said while reached. */
+  defaultModel: ModelId | undefined;
   /**
    * How each agent that is held shows itself, by its member ID: each agent that
    * is running, and the agent whose list is open. Its sigil and pigment are

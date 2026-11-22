@@ -1,12 +1,25 @@
-import { placeLabel, threadLabel, YOUR_DM } from "../../contracts/agent/index.ts";
-import { notTalkedTo, taggedTitle } from "../../contracts/chat/index.ts";
+import { placeLabel, threadName, YOUR_DM } from "../../contracts/agent/index.ts";
+import { memberNames, notTalkedTo, threadTags, titleOf } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { agentEntries, agentNameOf, type Model, type Part, partsOf, type Place } from "../state/index.ts";
+import { agentAbout } from "./agents.ts";
 import { type LevelOptions, lookingAt, type Row } from "./level.ts";
 import { type Look, lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
 import { whenOf } from "./time.ts";
-import { ADMIN_TAG, type ListFilter, notRunning, PICK_LIST, PICK_THREAD, pickOrStart, READ_ONLY_TAG, thenStart } from "./words.ts";
+import {
+  ADMIN_TAG,
+  agentFacts,
+  type ListFilter,
+  noTriggers,
+  notRunning,
+  PICK_LIST,
+  PICK_THREAD,
+  pickOrStart,
+  READ_ONLY_TAG,
+  readOnlyDetail,
+  thenStart,
+} from "./words.ts";
 
 /**
  * The second level: everything the agent whose list is open takes part in,
@@ -16,22 +29,38 @@ export interface ListLevel {
   /** The list may be out of date: chat is not being reached, or the agent is not, and what it last said is shown. */
   stale: boolean;
   rows: Row[];
-  /** What to say instead of an empty list, if there is something to say. */
+  /** What to say where the person's threads with the agent would be, while they have none. */
   empty: string | undefined;
   /** Whose list it is, on one line: the agent's name, or the room's or the channel's label. */
+  label: string;
+  /** What the label names, on its own: a room's name without the mark its label starts with, and an agent's name. */
   name: string;
   /** The word that stands beside the name: that the agent is an admin, or that the room is only read. */
   tag: string | undefined;
+  /**
+   * The line under the name: for an agent, how it stands, as the agents and
+   * rooms say it; for a room, that the person only reads it, when they do, and
+   * every member by name, the person among them.
+   */
+  about: string;
+  /** The agent whose list it is works somewhere, and what is shown is not out of date. */
+  working: boolean;
+  /** The line under that, of an agent that is running: the model it follows by default and the version of Shrimpy it runs. */
+  facts: string | undefined;
   /** How the agent whose list it is looks. */
   look: Look | undefined;
   /** It is an agent's list, and not a room's or a channel's. */
   ofAgent: boolean;
+  /** It is the list of an agent that is not running, which takes no thread and has no home to read. */
+  off: boolean;
   /** Everything that will be listed is in: on an agent's list, the agent has said which sessions it has. */
   settled: boolean;
   /** The filter leaves rows out: an agent's list of only what is with the person has more. */
   more: boolean;
-  /** A thread can be started from it: it is an agent's, or a room's the person is in. */
+  /** A thread can be started from it: it is a running agent's, or a room's the person is in. */
   startable: boolean;
+  /** What an agent's triggers show while it has none. */
+  noTriggers: string;
   /** What is not working, or has just gone wrong, most pressing first. */
   notes: string[];
 }
@@ -48,33 +77,46 @@ export function listLevel(model: Model, options: ListOptions): ListLevel | undef
   return list.kind === "agent" ? agentList(model, list.id, options.filter ?? "everything", options) : channelList(model, list, options);
 }
 
+/** Whether the agent with member ID `id` is linked to the gateway, as the roster and the gateway say. */
+const runs = (model: Model, id: string): boolean => agentEntries(model).some((entry) => entry.id === id && entry.running);
+
 /** The threads of a room the person is in, or of a room they only read. */
 function channelList(model: Model, place: Exclude<Place, { kind: "agent" }>, options: LevelOptions): ListLevel {
   const here = lookingAt(model, place);
+  const stale = model.chat.state === "down";
+  const reading = place.kind === "read-only";
   const rows: Row[] = here.threads.map((thread) => ({
     id: thread.id,
     kind: "thread",
-    label: taggedTitle(thread),
-    name: taggedTitle(thread),
-    detail: [whenOf(thread.updatedAt, options.now), thread.working.length > 0 ? "working" : undefined].filter((part) => part !== undefined).join(" · "),
-    working: thread.working.length > 0,
+    label: titleOf(thread),
+    name: titleOf(thread),
+    tags: threadTags(thread),
+    detail: [whenOf(thread.updatedAt, options.now), reading ? READ_ONLY_TAG : undefined].filter((part) => part !== undefined).join(" · "),
+    working: thread.working.length > 0 && !stale,
     unread: here.unread[thread.id] ?? 0,
     yours: false,
     look: undefined,
   }));
+  const members = here.channel?.members ?? [];
   return {
-    stale: model.chat.state === "down",
+    stale,
     rows,
     // A room always has its main thread, so there is no one to ask the person to start a talk with.
     empty: undefined,
-    name: here.label,
-    tag: place.kind === "read-only" ? READ_ONLY_TAG : undefined,
+    label: here.label,
+    name: oneLine(here.name),
+    tag: reading ? READ_ONLY_TAG : undefined,
+    about: reading ? readOnlyDetail({ members }) : memberNames(members).join(", "),
+    working: false,
+    facts: undefined,
     look: undefined,
     ofAgent: false,
+    off: false,
     settled: true,
     more: false,
     // A channel the person only reads takes no new thread.
-    startable: place.kind !== "read-only",
+    startable: !reading,
+    noTriggers: "",
     notes: notesOf(model, { agent: undefined, watching: false, looking: undefined, refused: undefined, notice: false }, options.self),
   };
 }
@@ -82,54 +124,85 @@ function channelList(model: Model, place: Exclude<Place, { kind: "agent" }>, opt
 /**
  * An agent's list: everything the agent takes part in, or only what is with the
  * person. What the agent says of its sessions is a part of the list, so it is
- * as stale as the agent is out of reach.
+ * as stale as the agent is out of reach, and no one is said to work in what is
+ * stale.
  */
 function agentList(model: Model, agentId: string, filter: ListFilter, options: LevelOptions): ListLevel {
   const name = agentNameOf(model, agentId);
   const parts = partsOf(model, agentId);
-  const rows = parts.filter((part) => filter === "everything" || part.yours).map((part) => partRow(part, model.me?.name, options.now));
   const listed = model.sessions !== undefined;
+  const stale = model.chat.state === "down" || (model.agent?.state === "down" && listed);
+  const rows = parts.filter((part) => filter === "everything" || part.yours).map((part) => partRow(part, model.me?.name, options.now, stale, readOnly(model, part)));
   const refused = model.refusal === undefined ? undefined : { what: "sessions" as const, words: model.refusal };
+  const entry = agentEntries(model).find((each) => each.id === agentId);
+  const running = entry?.running === true;
+  // Who is an admin is the roster's to say.
+  const members = model.listing?.members ?? [];
+  const admins = members.filter((member) => member.kind === "agent" && member.admin && member.id !== agentId).map((member) => member.name);
   return {
-    stale: model.chat.state === "down" || (model.agent?.state === "down" && listed),
+    stale,
     rows,
-    empty: rows.length === 0 && model.chat.state === "up" ? notTalkedTo(name) : undefined,
+    empty: !parts.some((part) => part.yours) && model.chat.state === "up" ? notTalkedTo(name) : undefined,
+    label: oneLine(name),
     name: oneLine(name),
-    // Who is an admin is the roster's to say.
-    tag: model.listing?.members.some((member) => member.id === agentId && member.admin) === true ? ADMIN_TAG : undefined,
+    tag: members.some((member) => member.id === agentId && member.admin) ? ADMIN_TAG : undefined,
+    about: entry === undefined ? "" : agentAbout(entry, model.me?.name),
+    working: entry?.working === true && !stale,
+    facts: running ? agentFacts(model.defaultModel, entry.version) : undefined,
     look: lookOf(model, agentId),
     ofAgent: true,
+    off: !running,
     settled: listed,
     more: rows.length < parts.length,
-    startable: true,
+    startable: running,
+    noTriggers: noTriggers(name, admins.sort((a, b) => a.localeCompare(b))),
     notes: notesOf(model, { agent: agentId, watching: false, looking: "sessions", refused, notice: false }, options.self),
   };
 }
 
 /**
- * The row for something an agent takes part in: what it is called, then where it
- * is, when it was last active and whether the agent is working there. A
- * session behind no thread is called for where it is, and has no time.
+ * Whether the person only reads what an agent takes part in: a thread of a
+ * channel they are not in, as chat lists it, or a DM with another agent, as
+ * the agent said. A trigger's own session has no one in it to be left out.
  */
-function partRow(part: Part, me: string | undefined, now: number): Row {
+function readOnly(model: Model, part: Part): boolean {
+  if (part.thread !== undefined) return model.readOnly[part.thread.channelId] !== undefined;
+  return part.place?.kind === "dm" && part.place.with.kind === "agent";
+}
+
+/**
+ * The row for something an agent takes part in: what it is called, with the
+ * words that mark it, then where it is, when it was last active, and that the
+ * person only reads it when they are not in it. A session behind no thread is
+ * called for where it is, and has no time.
+ */
+function partRow(part: Part, me: string | undefined, now: number, stale: boolean, reading: boolean): Row {
   const where = part.yours ? YOUR_DM : part.place === null ? undefined : placeLabel(part.place, me);
-  const working = part.working ? "working" : undefined;
+  const working = part.working && !stale;
   if (part.kind === "session") {
     const label = where ?? oneLine(part.id);
-    return { id: part.id, kind: "session", label, name: label, detail: working ?? "", working: part.working, unread: 0, yours: part.yours, look: undefined };
+    return { id: part.id, kind: "session", label, name: label, tags: [], detail: "", working, unread: 0, yours: part.yours, look: undefined };
   }
   // Chat names a thread. A thread only the agent has said it has is called what the agent knows of it.
   let label = oneLine(part.id);
-  if (part.thread !== undefined) label = taggedTitle(part.thread);
-  else if (part.place !== null && part.place.kind !== "trigger") label = threadLabel(part.place.thread, part.id);
+  let tags: string[] = [];
+  if (part.thread !== undefined) {
+    label = titleOf(part.thread);
+    tags = threadTags(part.thread);
+  } else if (part.place !== null && part.place.kind !== "trigger") {
+    const named = threadName(part.place.thread, part.id);
+    label = named.label;
+    tags = named.named ? threadTags({ main: part.place.thread.main, archived: false }) : [];
+  }
   const when = part.at === undefined ? undefined : whenOf(part.at, now);
   return {
     id: part.id,
     kind: "thread",
     label,
     name: label,
-    detail: [where, when, working].filter((each) => each !== undefined).join(" · "),
-    working: part.working,
+    tags,
+    detail: [where, when, reading ? READ_ONLY_TAG : undefined].filter((each) => each !== undefined).join(" · "),
+    working,
     unread: part.unread,
     yours: part.yours,
     look: undefined,
@@ -161,7 +234,7 @@ export function nothingOpen(model: Model, key: string): NothingOpen | undefined 
   if (list.kind === "read-only") return { said: PICK_THREAD, start: "none" };
   if (list.kind === "room") return { said: pickOrStart(key), start: "beside" };
   const name = agentNameOf(model, list.id);
-  if (!agentEntries(model).some((entry) => entry.id === list.id && entry.running)) return { said: notRunning(name), start: "none" };
+  if (!runs(model, list.id)) return { said: notRunning(name), start: "none" };
   return partsOf(model, list.id).some((part) => part.yours)
     ? { said: pickOrStart(key), start: "beside" }
     : { said: thenStart(notTalkedTo(name), key), start: "instead" };

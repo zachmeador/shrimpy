@@ -1,7 +1,7 @@
 import { channelLabel, memberNames, roomLabel } from "../../contracts/chat/index.ts";
 import { NO_AGENT_YET } from "../../contracts/gateway/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
-import { agentEntries, type Model, readOnlyEntries, roomEntries } from "../state/index.ts";
+import { type AgentEntry, agentEntries, type Model, readOnlyEntries, roomEntries } from "../state/index.ts";
 import type { LevelOptions, Row } from "./level.ts";
 import { lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
@@ -10,7 +10,7 @@ import { agentDetail, agentsTitle, readOnlyDetail } from "./words.ts";
 /** The first level: the agents on the roster, running or not, the rooms the person is in, and the rooms they only read. */
 export interface AgentsLevel {
   title: string;
-  /** The list may be out of date: the gateway is not being reached. */
+  /** The list may be out of date: the gateway is not being reached. No one is said to work while it is. */
   stale: boolean;
   rows: Row[];
   /** What to say instead of an empty list, if there is something to say. */
@@ -24,15 +24,22 @@ export interface AgentsLevel {
   notes: string[];
 }
 
+/** How an agent stands, as its row and its list say it: idle or working, and where, or that it is not running. */
+export function agentAbout(entry: AgentEntry, me: string | undefined): string {
+  return entry.running ? agentDetail(entry.sessions, entry.elsewhere, me) : "not running";
+}
+
 /** The agents and rooms, as plain text and facts. */
 export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
+  const stale = model.gateway.state === "down" && model.listing !== undefined;
   const agents: Row[] = agentEntries(model).map((entry) => ({
     id: entry.id,
     kind: "agent",
     label: oneLine(entry.name),
     name: oneLine(entry.name),
-    detail: entry.running ? agentDetail(entry.sessions, entry.elsewhere, model.me?.name) : "not running",
-    working: entry.working,
+    tags: [],
+    detail: agentAbout(entry, model.me?.name),
+    working: entry.working && !stale,
     unread: entry.unread,
     yours: false,
     look: lookOf(model, entry.id),
@@ -42,8 +49,9 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
     kind: "room",
     label: roomLabel(entry.name),
     name: oneLine(entry.name),
-    detail: [memberNames(entry.members).join(", "), entry.working ? "working" : undefined].filter((part) => part !== undefined && part !== "").join(" · "),
-    working: entry.working,
+    tags: [],
+    detail: memberNames(entry.members).join(", "),
+    working: entry.working && !stale,
     unread: entry.unread,
     yours: false,
     look: undefined,
@@ -54,8 +62,9 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
     kind: "read-only",
     label: channelLabel(channel),
     name: oneLine(channel.name),
-    detail: readOnlyDetail(channel, working),
-    working,
+    tags: [],
+    detail: readOnlyDetail(channel),
+    working: working && !stale,
     unread,
     yours: false,
     look: undefined,
@@ -63,7 +72,7 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
   const rows = [...agents, ...rooms, ...reading];
   return {
     title: agentsTitle(),
-    stale: model.gateway.state === "down" && model.listing !== undefined,
+    stale,
     rows,
     empty: rows.length === 0 && model.gateway.state === "up" && model.listing !== undefined ? NO_AGENT_YET : undefined,
     unread: [...agents, ...rooms].reduce((sum, row) => sum + row.unread, 0),

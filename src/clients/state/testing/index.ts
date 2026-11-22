@@ -26,4 +26,4 @@ export {
   zach,
 } from "./data.ts";
 export { type FakeState, fakeState } from "./fake.ts";
-export { startRig } from "./rig.ts";
+export { type Rig, startRig } from "./rig.ts";

@@ -352,7 +352,6 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
   const session = front && item?.kind === "session" ? sessionLevel(model, { ...at, inFull: { toolCalls: true, thinking: true } }) : undefined;
   const running = useMemo(() => runningOf(model), [model]);
   const listAgent = list?.kind === "agent" ? list.id : undefined;
-  const agentRow = agents.rows.find((row) => row.kind === "agent" && row.id === listAgent);
   const retryLine = stale && nextAt !== undefined && nextAt > now ? nextTry(Math.ceil((nextAt - now) / 1000)) : undefined;
 
   const turnable = thread?.turnable === true;
@@ -495,7 +494,7 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
 
   let pane;
   if (file !== undefined && listView !== undefined) {
-    pane = <FileView key={`${listAgent ?? ""}\n${file}`} state={state} name={listView.name} path={file} back={back} />;
+    pane = <FileView key={`${listAgent ?? ""}\n${file}`} state={state} name={listView.name} look={listView.look} path={file} back={back} />;
   } else if (front && item?.kind === "thread" && thread !== undefined) {
     const draftKey = `${JSON.stringify(item.place)}\n${item.thread ?? "new"}`;
     pane = (
@@ -594,10 +593,9 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
           {listView !== undefined && (
             <ListView
               list={{ ...listView, notes: listNotes }}
-              agent={agentRow === undefined || listAgent === undefined ? undefined : { detail: agentRow.detail, working: agentRow.working, running: running.has(listAgent) }}
               tab={page.tab}
               tabs={{
-                triggers: <TriggerCards key={listAgent} state={state} name={listView.name} triggers={model.triggers} now={now} />,
+                triggers: <TriggerCards key={listAgent} state={state} name={listView.name} triggers={model.triggers} none={listView.noTriggers} now={now} />,
                 home: <HomeTree key={listAgent} state={state} name={listView.name} current={file} choose={openFile} />,
               }}
               filter={page.filter}

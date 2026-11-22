@@ -40,6 +40,7 @@ export function aModel(parts: Partial<Model> = {}): Model {
     watched: undefined,
     sessions: undefined,
     triggers: undefined,
+    defaultModel: undefined,
     looks: {},
     workingSessions: {},
     refusal: undefined,

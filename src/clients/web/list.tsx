@@ -4,7 +4,7 @@
  */
 import type { ComponentChildren } from "preact";
 import type { ListFilter, ListLevel, Row } from "../view/index.ts";
-import { FILTERS, LABELS, thenStart } from "../view/index.ts";
+import { FILTERS, homeNotRunning, LABELS, thenStart } from "../view/index.ts";
 import { Fleck, Glyph, Lamp, Sigil } from "./marks.tsx";
 import { Notes } from "./thread.tsx";
 import type { Tab } from "./address.ts";
@@ -13,8 +13,15 @@ import { CONTROLS, NEW_THREAD, NEW_THREAD_KEY } from "./words.ts";
 function ThreadRow({ row, current, open }: { row: Row; current: boolean; open: () => void }) {
   return (
     <button class={`trow${row.unread > 0 ? " unread" : ""}`} type="button" aria-current={current} onClick={open}>
-      <span class="t-title">{row.label}</span>
-      <span class={`t-sub${row.working ? " busy" : ""}`}>{row.detail}</span>
+      <span class="t-title">
+        <span>{row.label}</span>
+        {row.tags.map((tag) => (
+          <span key={tag} class="tag">
+            {tag}
+          </span>
+        ))}
+      </span>
+      <span class="t-sub">{row.detail}</span>
       <span class="t-end">
         {row.unread > 0 && <span class="count">{row.unread}</span>}
         {row.unread > 0 && <Fleck />}
@@ -26,8 +33,6 @@ function ThreadRow({ row, current, open }: { row: Row; current: boolean; open: (
 
 interface ListProps {
   list: ListLevel;
-  /** What the agent's row on the first level says of it, and whether it runs. */
-  agent: { detail: string; working: boolean; running: boolean } | undefined;
   /** An agent's tab on show, and what its triggers and home tabs hold. */
   tab: Tab;
   tabs: { triggers: ComponentChildren; home: ComponentChildren };
@@ -51,19 +56,50 @@ export function ListView(props: ListProps) {
     each.map((row) => <ThreadRow key={row.id} row={row} current={row.id === props.current} open={() => props.open(row)} />);
   const yours = list.rows.filter((row) => row.yours);
   const elsewhere = list.rows.filter((row) => !row.yours);
+  const pigment = list.look === undefined ? "" : ` pg-${list.look.pigment}`;
+  let body: ComponentChildren;
+  if (list.ofAgent && props.tab === "home" && list.off) body = <p class="note stepbox">{homeNotRunning(list.name)}</p>;
+  else if (list.ofAgent && props.tab !== "threads") body = props.tabs[props.tab];
+  else if (list.ofAgent) {
+    body = (
+      <>
+        <div class="filterbar">
+          <div class="seg stepbox" role="group" aria-label={CONTROLS.listShows}>
+            {SHOWS.map((each) => (
+              <button key={each} type="button" aria-pressed={props.filter === each} onClick={() => props.setFilter(each)}>
+                {FILTERS[each]}
+              </button>
+            ))}
+          </div>
+        </div>
+        {yours.length > 0 && <h2 class="label">{LABELS.yours}</h2>}
+        {rows(yours)}
+        {list.empty !== undefined && <p class="hint">{list.startable ? thenStart(list.empty, NEW_THREAD_KEY) : list.empty}</p>}
+        {elsewhere.length > 0 && <h2 class="label">{LABELS.elsewhere}</h2>}
+        {rows(elsewhere)}
+      </>
+    );
+  } else {
+    body = (
+      <>
+        <h2 class="label">{LABELS.threads}</h2>
+        {rows(list.rows)}
+      </>
+    );
+  }
   return (
     <>
-      <header class={`head${list.look === undefined ? "" : ` pg-${list.look.pigment}`}`}>
+      <header class={`head${pigment}`}>
         <button class="ib only-narrow" type="button" aria-label={CONTROLS.backToAgents} onClick={props.back}>
           <Glyph name="back" />
         </button>
-        {list.look !== undefined && <Sigil look={list.look} size="s36" off={props.agent?.running === false} />}
+        {list.ofAgent ? <Sigil look={list.look} size="s36" off={list.off} /> : <span class="hash big">#</span>}
         <div class="titles">
           <h1>
             {list.name}
             {list.tag !== undefined && <span class="tag">{list.tag}</span>}
           </h1>
-          {props.agent !== undefined && <p class={`sub${props.agent.working ? " busy" : ""}`}>{props.agent.detail}</p>}
+          <p class={`sub${list.working ? " busy" : ""}`}>{list.about}</p>
         </div>
         {list.startable && (
           <button class="ib" type="button" title={NEW_THREAD} aria-label={NEW_THREAD} onClick={props.start}>
@@ -71,8 +107,9 @@ export function ListView(props: ListProps) {
           </button>
         )}
       </header>
+      {list.facts !== undefined && <p class="facts">{list.facts}</p>}
       {list.ofAgent && (
-        <nav class={`tabs${list.look === undefined ? "" : ` pg-${list.look.pigment}`}`} role="tablist">
+        <nav class={`tabs${pigment}`} role="tablist">
           {TABS.map((each) => (
             <button key={each} type="button" role="tab" aria-selected={props.tab === each} onClick={() => props.setTab(each)}>
               {LABELS[each]}
@@ -83,32 +120,7 @@ export function ListView(props: ListProps) {
       <div class="body">
         <div class="scroll">
           <Notes notes={list.notes} retry={props.retry} />
-          {list.ofAgent && props.tab !== "threads" ? (
-            props.tabs[props.tab]
-          ) : list.ofAgent ? (
-            <>
-              <div class="filterbar">
-                <div class="seg stepbox" role="group" aria-label={CONTROLS.listShows}>
-                  {SHOWS.map((each) => (
-                    <button key={each} type="button" aria-pressed={props.filter === each} onClick={() => props.setFilter(each)}>
-                      {FILTERS[each]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {yours.length > 0 && <h2 class="label">{LABELS.yours}</h2>}
-              {rows(yours)}
-              {elsewhere.length > 0 && <h2 class="label">{LABELS.elsewhere}</h2>}
-              {rows(elsewhere)}
-              {list.empty !== undefined && <p class="hint">{thenStart(list.empty, NEW_THREAD_KEY)}</p>}
-            </>
-          ) : (
-            <>
-              <h2 class="label">{LABELS.threads}</h2>
-              {rows(list.rows)}
-              {list.rows.length === 0 && list.empty !== undefined && <p class="hint">{list.empty}</p>}
-            </>
-          )}
+          {body}
         </div>
       </div>
     </>

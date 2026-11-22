@@ -65,9 +65,15 @@ export function placeLabel(place: SessionPlace, you?: string): string {
 
 /** A thread of a session's place: by its name, marked when it is the main one, or "main", or by its address when it has no name. */
 export function threadLabel(thread: ThreadPlace, address: string): string {
+  const name = threadName(thread, address);
+  return thread.main && name.named ? `${name.label} [main]` : name.label;
+}
+
+/** A thread of a session's place by its name, or "main", or by its address when it has no name; and whether it has a name. */
+export function threadName(thread: ThreadPlace, address: string): { label: string; named: boolean } {
   const name = thread.name === null ? "" : oneLine(thread.name);
-  if (name !== "") return thread.main ? `${name} [main]` : name;
-  return thread.main ? "main" : `thread ${oneLine(address)}`;
+  if (name !== "") return { label: name, named: true };
+  return { label: thread.main ? "main" : `thread ${oneLine(address)}`, named: false };
 }
 
 /** Where a session is, with which thread of it: "DM with mechanic · main", "#ops · deploys" or "trigger nightly". */

@@ -20,6 +20,8 @@ export interface Asking {
   takeBack(written: string): Promise<void>;
   models(): Promise<AgentModels | undefined>;
   showModel(): Promise<void>;
+  /** Ask the agent whose list is open which model it follows by default, once each time it is reached, for its list to say. */
+  learnDefault(): void;
 }
 
 export function createAsking(store: Store, held: Holdings, clock: () => number): Asking {
@@ -126,6 +128,23 @@ export function createAsking(store: Store, held: Holdings, clock: () => number):
       // The default is worth asking for when the thread's model is not it.
       const defaultModel = ownModel ? (await modelsOf(asking.id, asking.held))?.default : undefined;
       tell({ kind: "model-is", model: used, own: ownModel, defaultModel });
+    },
+
+    learnDefault() {
+      const agent = held.agent();
+      if (agent === undefined) return;
+      // An agent that comes back may have been started with another default.
+      if (store.model().agent?.state !== "up") {
+        agent.asked = false;
+        return;
+      }
+      if (agent.asked) return;
+      agent.asked = true;
+      void modelsOf(agent.id, agent.held).then((models) => {
+        if (models === undefined) return;
+        agent.defaultModel = models.default;
+        store.changed();
+      });
     },
   };
 }

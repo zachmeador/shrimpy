@@ -1,15 +1,17 @@
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { test } from "node:test";
+import { type TestContext, test } from "node:test";
 import { lookFromId, parseSigil, PIGMENTS } from "../../contracts/agent/index.ts";
 import type { Thread } from "../../contracts/chat/index.ts";
 import type { Speaking } from "../../contracts/chat/testing/index.ts";
 import { SHRIMPY_ENTRY } from "../../contracts/gateway/testing/index.ts";
-import { runChild, startChild, tempDir } from "../../lib/testing/index.ts";
+import { type Child, runChild, startChild, tempDir } from "../../lib/testing/index.ts";
+import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
+import { CONNECTING } from "../network/index.ts";
 import type { Model } from "../state/index.ts";
-import { startRig } from "../state/testing/index.ts";
-import { agentsLevel, listLevel, type Look, type Row } from "./index.ts";
+import { aChatServer, aDm, agentMember, aListing, aModel, anAgent, aThread, type Rig, startRig } from "../state/testing/index.ts";
+import { agentsLevel, listLevel, type ListLevel, type Look, type Row } from "./index.ts";
 
 /*
  * The views of a client's state against the real gateway and chat server, in processes of their own, with small
@@ -81,7 +83,8 @@ test("an agent's list says that the agent is an admin, and says nothing of it fo
   assert.equal(listLevel(ordinary, at)?.tag, undefined);
 });
 
-test("an agent's look follows its home's files while it runs, and is worked out from its member ID while it does not", { timeout: 90_000 }, async (t) => {
+/** A real agent called crab, made with `agent init` and started as `shrimpy agent serve` starts it, with the model local/test-model. */
+async function startCrab(t: TestContext): Promise<{ rig: Rig; home: string; crab: Child<unknown> }> {
   const rig = await startRig(t, { agents: [] });
   const home = join(tempDir(t, "crab-home"), "crab");
   // A Shrimpy folder of its own, so that a real one never reaches the agent.
@@ -93,6 +96,11 @@ test("an agent's look follows its home's files while it runs, and is worked out 
   const local = { baseUrl: "http://127.0.0.1:9/v1", api: "openai-completions", apiKey: "local", models: [model] };
   writeFileSync(join(home, "state", "pi", "models.json"), JSON.stringify({ providers: { local } }));
   const crab = await startChild(t, { file: SHRIMPY_ENTRY, args: ["agent", "serve", home], env });
+  return { rig, home, crab };
+}
+
+test("an agent's look follows its home's files while it runs, and is worked out from its member ID while it does not", { timeout: 90_000 }, async (t) => {
+  const { rig, home, crab } = await startCrab(t);
   const looked = (model: Model): Look | undefined => agentsLevel(model, at).rows.find((row) => row.kind === "agent")?.look;
   const config = (): { pigment: string } => JSON.parse(readFileSync(join(home, "agent.json"), "utf8")) as { pigment: string };
   const sigil = parseSigil(readFileSync(join(home, "sigil"), "utf8"));
@@ -109,4 +117,29 @@ test("an agent's look follows its home's files while it runs, and is worked out 
   await crab.kill();
   const fromId = lookFromId((await rig.member("crab")).id);
   await rig.until((model) => looked(model)?.sigil.join() === fromId.sigil.join() && looked(model)?.pigment === fromId.pigment, "the look worked out from crab's member ID");
+});
+
+test("a running agent's list names its default model and its version, and an agent that stops takes no thread", { timeout: 90_000 }, async (t) => {
+  const { rig, crab } = await startCrab(t);
+  const list = (model: Model): ListLevel | undefined => listLevel(model, at);
+
+  // The only agent's list is opened by itself.
+  const running = await rig.until((model) => list(model)?.facts === `local/test-model · Shrimpy ${SHRIMPY_VERSION}`, "crab's model and version");
+  assert.deepEqual([list(running)?.off, list(running)?.startable], [false, true]);
+
+  await crab.kill();
+  const stopped = await rig.until((model) => list(model)?.off === true, "crab to be said not to run");
+  assert.deepEqual([list(stopped)?.facts, list(stopped)?.startable], [undefined, false]);
+});
+
+test("no one is said to work while the gateway is out of reach, whatever chat last marked", () => {
+  const scout = agentMember("scout");
+  const busy = aThread("th_1", { working: [{ memberId: scout.id, since: 0 }] });
+  const model = aModel({ listing: aListing([anAgent("scout"), aChatServer()]), dms: { [scout.id]: aDm("scout", [busy]) } });
+  assert.equal(agentsLevel(model, at).rows.find((row) => row.id === scout.id)?.working, true);
+
+  const lost = { ...model, gateway: CONNECTING, chat: CONNECTING };
+  assert.equal(agentsLevel(lost, at).rows.find((row) => row.id === scout.id)?.working, false);
+  const opened = listLevel({ ...lost, open: { list: { kind: "agent", id: scout.id }, item: undefined } }, at);
+  assert.deepEqual([opened?.working, opened?.rows.map((row) => row.working)], [false, [false]]);
 });

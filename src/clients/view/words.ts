@@ -283,6 +283,11 @@ export const pickOrStart = (key: string): string => `${withoutPeriod(PICK_THREAD
 export const thenStart = (said: string, key: string): string => `${said} Press ${key} to start a thread.`;
 /** What stands where a thread would be while nothing is open on the list of an agent that is not running. */
 export const notRunning = (agent: string): string => `${oneLine(agent)} is not running.`;
+/** The line under a running agent's name on its list: the model it follows by default, when it has said, and the version of Shrimpy it runs. */
+export const agentFacts = (model: ModelId | undefined, version: string | undefined): string =>
+  [model === undefined ? undefined : modelWords(model), version === undefined ? undefined : `Shrimpy ${oneLine(version)}`]
+    .filter((part) => part !== undefined)
+    .join(" · ");
 
 /** That more wake-ups wait than the one shown. */
 export const moreWakeups = (count: number): string => `${String(count)} more`;
@@ -324,12 +329,11 @@ export const READ_ONLY_TAG = "read-only";
 export const ADMIN_TAG = "admin";
 
 /**
- * What the agents and rooms say of a room the person only reads: that it is only
- * read, which comes first so that a narrow screen does not cut it, then its
- * members, and whether anyone is working in it.
+ * What is said of a room the person only reads: that it is only read, which
+ * comes first so that a narrow screen does not cut it, then its members.
  */
-export function readOnlyDetail(room: Pick<Channel, "members">, working: boolean): string {
-  return [READ_ONLY_TAG, membersLine(room.members), working ? "working" : ""].filter((part) => part !== "").join(" · ");
+export function readOnlyDetail(room: Pick<Channel, "members">): string {
+  return [READ_ONLY_TAG, membersLine(room.members)].filter((part) => part !== "").join(" · ");
 }
 
 /** The names of a channel's members, on one line, in alphabetical order. */
@@ -606,7 +610,15 @@ export function sizeWords(bytes: number): string {
 export const homeNote = (agent: string, problem: Problem, self: string): string =>
   `Could not read the home of ${oneLine(agent)}: ${because({ kind: "agent", name: agent }, problem, self)}.`;
 
-export const noTriggers = (agent: string): string => `${oneLine(agent)} has no triggers. Ask it to make one.`;
+/** That an agent has no triggers, and whom to ask for one: the agent, and the admin agents but it, by name. */
+export const noTriggers = (agent: string, admins: string[]): string =>
+  `${oneLine(agent)} has no triggers. Ask it to make one${admins.length === 0 ? "" : `, or ask ${listed(admins.map(oneLine), "or")}`}.`;
+
+/** The line over the tree of an agent's home, which names the folder the tree starts at. */
+export const homeRoot = (agent: string): string => `agents/${oneLine(agent)}/`;
+
+/** What an agent's home shows while the agent is not running. */
+export const homeNotRunning = (agent: string): string => `${oneLine(agent)} is not running, so its home can't be read.`;
 
 /** Why what defines a trigger could not be read. `self` is what the client calls itself. */
 export const triggerNote = (agent: string, problem: Problem, self: string): string =>

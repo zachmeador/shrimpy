@@ -23,6 +23,7 @@
  */
 export { type ClientState, createClientState } from "./client-state.ts";
 export {
+  type AgentEntry,
   agentEntries,
   agentNameOf,
   agentOfList,

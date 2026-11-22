@@ -8,7 +8,8 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { type HomeEntry, type HomeFile, type TriggerDetail, triggerHeading, type TriggerSummary } from "../../contracts/agent/index.ts";
 import type { AgentRead, ClientState } from "../state/index.ts";
-import { EMPTY, homeNote, lastOccurrence, noTriggers, sizeWords, triggerLines, triggerNote } from "../view/index.ts";
+import type { Look } from "../view/index.ts";
+import { EMPTY, homeNote, homeRoot, lastOccurrence, sizeWords, triggerLines, triggerNote } from "../view/index.ts";
 import { Glyph } from "./marks.tsx";
 import { Prose } from "./prose.tsx";
 import { Head, Title } from "./thread.tsx";
@@ -90,11 +91,25 @@ export function HomeTree({ state, name, current, choose }: HomeTreeProps) {
     });
   };
 
-  return <div class="tree">{entries("", 0)}</div>;
+  return (
+    <div class="tree">
+      <p class="root">{homeRoot(name)}</p>
+      {entries("", 0)}
+    </div>
+  );
+}
+
+interface FileViewProps {
+  state: ClientState;
+  /** The agent's name, and how it looks. */
+  name: string;
+  look: Look | undefined;
+  path: string;
+  back: () => void;
 }
 
 /** A file of the agent's home, in the thread's place, with its size as its folder lists it. */
-export function FileView({ state, name, path, back }: { state: ClientState; name: string; path: string; back: () => void }) {
+export function FileView({ state, name, look, path, back }: FileViewProps) {
   const [read, setRead] = useState<AgentRead<HomeFile> | undefined>(undefined);
   const [size, setSize] = useState<number | null>(null);
   useEffect(() => {
@@ -124,7 +139,7 @@ export function FileView({ state, name, path, back }: { state: ClientState; name
   return (
     <>
       <Head back={back}>
-        <div class="titles">
+        <div class={`titles${look === undefined ? "" : ` pg-${look.pigment}`}`}>
           <Title who={name} rest={path} stale={false} path />
           {size !== null && <p class="sub">{sizeWords(size)}</p>}
         </div>
@@ -138,8 +153,17 @@ export function FileView({ state, name, path, back }: { state: ClientState; name
   );
 }
 
+interface TriggerCardsProps {
+  state: ClientState;
+  name: string;
+  triggers: TriggerSummary[] | undefined;
+  /** What stands in their place while the agent has none. */
+  none: string;
+  now: number;
+}
+
 /** The agent's triggers, each as `shrimpy triggers` says it: whether it is on, what defines it, when it runs next and how it last went. */
-export function TriggerCards({ state, name, triggers, now }: { state: ClientState; name: string; triggers: TriggerSummary[] | undefined; now: number }) {
+export function TriggerCards({ state, name, triggers, none, now }: TriggerCardsProps) {
   const [details, setDetails] = useState(() => new Map<string, AgentRead<TriggerDetail>>());
   const names = (triggers ?? []).map((trigger) => trigger.name).join("\n");
   useEffect(() => {
@@ -149,7 +173,7 @@ export function TriggerCards({ state, name, triggers, now }: { state: ClientStat
   }, [names]);
 
   if (triggers === undefined) return null;
-  if (triggers.length === 0) return <p class="hint">{noTriggers(name)}</p>;
+  if (triggers.length === 0) return <p class="hint">{none}</p>;
   return (
     <>
       {triggers.map((trigger) => {

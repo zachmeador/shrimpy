@@ -60,9 +60,14 @@ export function titleOf(thread: Thread): string {
   return oneLine(thread.name ?? thread.preview ?? NO_MESSAGES);
 }
 
+/** The words that mark a thread: that it is the main thread, and that it is archived. */
+export function threadTags(thread: Pick<Thread, "main" | "archived">): string[] {
+  return [thread.main ? "main" : undefined, thread.archived ? "archived" : undefined].filter((tag) => tag !== undefined);
+}
+
 /** What a thread is called, marked when it is the main thread or archived: "deploys [main, archived]". */
 export function taggedTitle(thread: Thread): string {
-  const tags = [thread.main ? "main" : undefined, thread.archived ? "archived" : undefined].filter((tag) => tag !== undefined);
+  const tags = threadTags(thread);
   return tags.length === 0 ? titleOf(thread) : `${titleOf(thread)} [${tags.join(", ")}]`;
 }
 

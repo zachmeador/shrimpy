@@ -432,7 +432,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
       const row = rows.find((each) => rowKey(each) === chosen);
       if (row !== undefined) open(row);
     } else if (matchesKey(data, "left")) back();
-    else if (matchesKey(data, "tab") && frame.front === "list" && frame.levels.list?.ofAgent === true) {
+    else if (matchesKey(data, "tab") && frame.front === "list" && frame.levels.list?.ofAgent === true && !frame.levels.list.off) {
       setFilter(frame.filter === "everything" ? "yours" : "everything");
     }
   }

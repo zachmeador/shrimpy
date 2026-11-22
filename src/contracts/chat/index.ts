@@ -57,5 +57,6 @@ export {
   roomLabel,
   roomWord,
   taggedTitle,
+  threadTags,
   titleOf,
 } from "./words.ts";

@@ -2,8 +2,9 @@
  * The page's own bitmaps, `#` for on: the marks beside a step or a receipt,
  * the glyphs on its buttons, the person's disc, and the two frames of the
  * shrimp that walks while an agent works. An agent's sigil comes from the
- * agent, and the wordmark from the look both clients share.
+ * agent, and the shrimp and the wordmark from the look both clients share.
  */
+import { SHRIMP } from "../look/index.ts";
 
 export const GLYPHS = {
   /* marks, 5 × 5 */
@@ -42,22 +43,6 @@ export const GLYPHS = {
 } as const satisfies Record<string, readonly string[]>;
 
 export type GlyphName = keyof typeof GLYPHS;
-
-/** The shrimp, 12 × 12: the page's icon, and the first step of its walk. */
-export const SHRIMP: readonly string[] = [
-  "............",
-  "........#...",
-  "...####..#..",
-  "..#######..#",
-  ".###...####.",
-  ".##.....####",
-  "###.....##.#",
-  "##.....#.##.",
-  ".##....#.#..",
-  ".###........",
-  ".##.#.......",
-  "............",
-];
 
 /** The shrimp in its two steps, side by side, 24 × 12: a walk is the one and then the other. */
 export const WALKER: readonly string[] = (() => {

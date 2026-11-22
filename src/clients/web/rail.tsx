@@ -59,7 +59,7 @@ export function Rail(props: RailProps) {
   return (
     <>
       <Tide
-        lanterns={agentRows.map((each) => ({ row: each, lit: each.working && !agents.stale, running: props.running.has(each.id) }))}
+        lanterns={agentRows.map((each) => ({ row: each, lit: each.working, running: props.running.has(each.id) }))}
         mode={props.mode}
         choose={props.choose}
       >

@@ -213,6 +213,7 @@ body { background: var(--pane); color: var(--ink); font: 400 var(--t-ui)/1.45 va
 .titles h1 .rest { font-weight: 500; }
 .titles h1 .rest.path { font-family: var(--mono); font-size: 13.5px; }
 .dot { padding: 0 0.4em; color: var(--ink-3); font-weight: 400; }
+.facts { padding: 0 14px 10px; font: 400 var(--t-meta)/1.4 var(--mono); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .tabs { flex: none; display: flex; gap: 18px; padding: 0 14px; border-bottom: 1px solid var(--line); }
 .tabs button { position: relative; padding: 6px 0 9px; font-size: var(--t-small); color: var(--ink-3); }
@@ -226,10 +227,11 @@ body { background: var(--pane); color: var(--ink); font: 400 var(--t-ui)/1.45 va
 .seg button[aria-pressed="true"] { background: var(--raise); color: var(--ink); clip-path: var(--step); }
 
 .trow { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-content: center; width: 100%; min-height: calc(var(--row) + 4px); padding: 6px 14px; line-height: 1.3; }
-.t-title { min-width: 0; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-title { display: flex; align-items: baseline; min-width: 0; font-weight: 500; }
+.t-title > span:first-child { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-title .tag { flex: none; }
 .trow.unread .t-title { font-weight: 700; }
 .t-sub { grid-column: 1; font-size: var(--t-small); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.t-sub.busy { color: var(--busy-ink); }
 .t-end { grid-column: 2; grid-row: 1 / span 2; align-self: center; display: flex; align-items: center; gap: 9px; padding-right: 2px; }
 .hint { padding: 12px 14px; font-size: var(--t-small); color: var(--ink-3); }
 
@@ -241,6 +243,7 @@ body { background: var(--pane); color: var(--ink); font: 400 var(--t-ui)/1.45 va
 .file pre > span { display: block; padding-left: 10ch; text-indent: -10ch; }
 .file .last { margin-top: 6px; font-size: var(--t-small); color: var(--ink-3); }
 .tree { padding: 8px 0 12px; font: 400 var(--t-code)/1.4 var(--mono); }
+.tree .root { padding: 4px 14px 6px; color: var(--ink-3); }
 .tree .note { font-family: var(--face); }
 .frow { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 28px; margin: 0; padding: 3px 14px 3px calc(14px + var(--depth) * 16px); color: var(--ink-2); }
 button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent); }
@@ -454,8 +457,9 @@ button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent
   .trow { padding: 8px 18px; }
   .me { padding-left: 18px; padding-right: 14px; }
   .head { padding-left: 10px; padding-right: 10px; }
-  .tabs, .filterbar, .hint { padding-left: 18px; padding-right: 18px; }
+  .facts, .tabs, .filterbar, .hint { padding-left: 18px; padding-right: 18px; }
   .file { margin-left: 18px; margin-right: 18px; }
+  .tree .root { padding-left: 18px; }
   .frow { min-height: 40px; padding-left: calc(18px + var(--depth) * 16px); }
   .tree .none { padding-left: calc(36px + var(--depth) * 16px); }
   .work-row { width: 100%; margin-left: 0; }

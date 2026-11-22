@@ -1,4 +1,4 @@
-import type { SessionItem } from "../../contracts/agent/index.ts";
+import type { ModelId, SessionItem } from "../../contracts/agent/index.ts";
 import {
   type AgentCalls,
   type AgentShown,
@@ -49,10 +49,15 @@ export interface HeldSession {
   reading: number | undefined;
 }
 
-/** An agent held through the link, by its member ID. */
+/**
+ * An agent held through the link, by its member ID, the model it said it
+ * follows by default, and whether it has been asked since it was last reached.
+ */
 export interface HeldAgent {
   readonly id: string;
   readonly held: Holding<AgentShown, AgentCalls>;
+  defaultModel: ModelId | undefined;
+  asked: boolean;
 }
 
 /** Everything a client holds through its link, each followed until it is let go of. */
@@ -132,7 +137,7 @@ export function createHoldings(link: GatewayLink, changed: () => void): Holdings
     useAgent(id) {
       if (selected?.id === id) return;
       selected?.held.release();
-      selected = id === undefined ? undefined : { id, held: holdAgent(link, id, changed) };
+      selected = id === undefined ? undefined : { id, held: holdAgent(link, id, changed), defaultModel: undefined, asked: false };
     },
     useThread(id) {
       if (thread?.id === id) return;

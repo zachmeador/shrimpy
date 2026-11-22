@@ -75,6 +75,22 @@ const LETTERS: Record<string, readonly string[]> = {
   y: ["....", "....", "#..#", "#..#", "#..#", "#..#", ".###", "...#", "###."],
 };
 
+/** The shrimp, 12 × 12: pressed where nothing is open, the page's icon, and the first step of the walk while an agent works. */
+export const SHRIMP: readonly string[] = [
+  "............",
+  "........#...",
+  "...####..#..",
+  "..#######..#",
+  ".###...####.",
+  ".##.....####",
+  "###.....##.#",
+  "##.....#.##.",
+  ".##....#.#..",
+  ".###........",
+  ".##.#.......",
+  "............",
+];
+
 /** "shrimpy" as a bitmap, its letters a column apart. */
 export const WORDMARK: readonly string[] = Array.from({ length: 9 }, (_, y) =>
   ["s", "h", "r", "i", "m", "p", "y"].map((letter) => LETTERS[letter]?.[y] ?? "").join("."),
