@@ -38,12 +38,12 @@ import type { AgentStatus, DevicesStatus, Notice, RoomStatus } from "../state/in
 import { shortLine } from "./cut.ts";
 
 /*
- * Every sentence the console says, in one place, but for what it says of a
+ * Every sentence a client says, in one place, but for what it says of a
  * session, a receipt, what a thread or a channel is called, what to start and a
  * program of another version, which it takes from the contracts as the commands
  * do, and frames here. They are plain and short, in the voice of the commands:
- * what happened, and what to do next. Where the commands already say it, the
- * console says it the same way. A name, an ID or a message that came from
+ * what happened, and what to do next. Where the commands already say it, a
+ * client says it the same way. A name, an ID or a message that came from
  * another program is put on one line and made harmless here, whoever calls,
  * so no sentence can carry anything else.
  */
@@ -107,7 +107,7 @@ export function chatNote(why: Why): string | undefined {
 /**
  * What to tell about the agent that is selected, if it is not as it should be.
  * `looking` is what is on show: the work in a thread, or the agent's sessions.
- * `home` says whether this machine has a home for the agent, when the console
+ * `home` says whether this machine has a home for the agent, when the client
  * was told: an agent that has none lives somewhere else, and is started there.
  */
 export function agentNote(
@@ -140,7 +140,7 @@ export function refusalNote(looking: "sessions" | "session", agent: string, said
   return looking === "sessions" ? `Could not list the sessions of ${oneLine(agent)}: ${reason}.` : `Could not watch the session: ${reason}.`;
 }
 
-/** A program runs another version of Shrimpy than the console does. */
+/** A program runs another version of Shrimpy than the client does. */
 export const versionNote = (what: string, version: string): string | undefined => versionWarning(what, version, "this console");
 
 /** Why something could not be done, as the end of a sentence. */
@@ -215,7 +215,7 @@ function modelIs(agent: string, notice: Extract<Notice, { kind: "model-is" }>): 
   return `This thread uses ${used}, a model chosen for this thread.${home} Write /${MODEL} ${MODEL_DEFAULT} to follow ${agent}'s model again, or ${choose} to choose another.`;
 }
 
-/** The line printed when the console is left while an agent is still working. */
+/** The line printed when a client is left while an agent is still working. */
 export function farewellLine(agentName: string, threadId: string): string {
   const agent = oneLine(agentName);
   const thread = oneLine(threadId);
@@ -267,7 +267,7 @@ export const READ_ONLY_TAG = "read-only";
 
 /**
  * What the first screen says of a room the person only reads: that it is only
- * read, which comes first so that a narrow terminal does not cut it, then its
+ * read, which comes first so that a narrow screen does not cut it, then its
  * members, and whether anyone is working in it.
  */
 export function readOnlyDetail(room: Pick<Channel, "members">, working: boolean): string {
@@ -348,9 +348,9 @@ export function workingLine(names: string[], activity: SessionActivity | undefin
 }
 
 /**
- * The commands the terminal acts on itself, which are never posted: what each
+ * The commands a client acts on itself, which are never posted: what each
  * does in a DM with an agent and in a room, in one line. A command with no line
- * for a room is not listed there, and when it is written there the terminal
+ * for a room is not listed there, and when it is written there the client
  * says where it works and posts nothing. The list of commands shows them with
  * the commands for agents.
  */
@@ -362,7 +362,7 @@ export const TERMINAL_COMMANDS = {
   },
 } as const satisfies Record<string, { dm: string; room?: string }>;
 
-/** The name of a command for the terminal, without its slash. */
+/** The name of a command for the client, without its slash. */
 export type TerminalCommand = keyof typeof TERMINAL_COMMANDS;
 
 /** The line beside `default` in the list that `/model ` opens: whose model it stands for, and which one that is. */

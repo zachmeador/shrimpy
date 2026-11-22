@@ -37,9 +37,9 @@ export interface GatewayLinkOptions {
   readonly backoff?: Backoff;
 }
 
-/** The console's link to the gateway, kept across losses, through which it holds every object it shows. */
+/** A client's link to the gateway, kept across losses, through which it holds every object it shows. */
 export interface GatewayLink {
-  /** The console's host, which serves nothing and holds what it is given. What it holds is held again on each new link. */
+  /** The client's host, which serves nothing and holds what it is given. What it holds is held again on each new link. */
   readonly host: Host<Principal, Revocation>;
   status(): LinkStatus;
   /** The Shrimpy version the gateway runs, as it last said. */
@@ -51,7 +51,7 @@ export interface GatewayLink {
 }
 
 /**
- * Keep the console linked to the gateway with `dial`, with one host throughout,
+ * Keep a client linked to the gateway with `dial`, with one host throughout,
  * so whatever it holds goes loading while the link is down and comes back with
  * it, and say where the link stands as it changes.
  */

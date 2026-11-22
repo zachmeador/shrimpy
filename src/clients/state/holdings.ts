@@ -46,7 +46,7 @@ export interface HeldAgent {
   readonly held: Holding<AgentShown, AgentCalls>;
 }
 
-/** Everything the console holds through its link, each followed until it is let go of. */
+/** Everything a client holds through its link, each followed until it is let go of. */
 export interface Holdings {
   readonly roster: Holding<RosterShown, RosterCalls>;
   readonly chat: Holding<ChatShown, ChatCalls>;
@@ -95,7 +95,7 @@ async function borrowing<V, C, T>(held: Holding<V, C>, work: (held: Holding<V, C
   }
 }
 
-/** Hold the roster and chat through `link`, and the rest as the console asks. `changed` is told of each change of what is held. */
+/** Hold the roster and chat through `link`, and the rest as the client asks. `changed` is told of each change of what is held. */
 export function createHoldings(link: GatewayLink, changed: () => void): Holdings {
   const roster = holdRoster(link, changed);
   const chat = holdChat(link, changed);

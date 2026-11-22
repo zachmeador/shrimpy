@@ -212,7 +212,7 @@ export interface ScreenOptions {
 
 const BRIEF: InFull = { toolCalls: false, thinking: false };
 
-/** Everything the console shows for the model, as plain text and facts. Nothing in it can act on a terminal. */
+/** Everything a client shows for the model, as plain text and facts. Nothing in it can act on a terminal. */
 export function screenOf(model: Model, options: ScreenOptions): Screen {
   const { where } = model;
   const inFull = options.inFull ?? BRIEF;

@@ -2,7 +2,7 @@ import type { ModelId, SessionActivity, SessionSummary } from "../../contracts/a
 import type { Thread } from "../../contracts/chat/index.ts";
 import { agentEntries, agentNameOf, type DevicesStatus, type Model, type Place, type Status, type Where, workingIn } from "./model.ts";
 
-/** The thread the person is in, as far as the console knows it: undefined for one that is not started. */
+/** The thread the person is in, as far as the client knows it: undefined for one that is not started. */
 function threadOf(model: Model, where: Extract<Where, { screen: "thread" }>, place: Exclude<Place, { kind: "read-only" }>): Thread | undefined {
   if (where.thread === undefined) return undefined;
   if (model.thread?.thread.id === where.thread) return model.thread.thread;

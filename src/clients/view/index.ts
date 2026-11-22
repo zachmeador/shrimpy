@@ -1,5 +1,5 @@
 /**
- * What the console shows, as plain text and facts: for the state it is given,
+ * What a client shows, as plain text and facts: for the state it is given,
  * the agents, threads, conversation or watched session on screen,
  * what is not working, what the keys do, what can be written after a slash and
  * what comes of it, and every sentence. Everything that

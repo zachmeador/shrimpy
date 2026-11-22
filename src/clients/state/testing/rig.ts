@@ -21,7 +21,7 @@ export interface RigOptions {
   now?: () => number;
 }
 
-/** The real gateway and chat server, small agents' programs linked to the gateway, and a console state holding what they serve. */
+/** The real gateway and chat server, small agents' programs linked to the gateway, and a client's state holding what they serve. */
 export interface Rig {
   readonly state: ClientState;
   readonly chat: TestChat;
@@ -31,7 +31,7 @@ export interface Rig {
   readonly agents: Record<string, TestAgent>;
   /** The state's model when `done` accepts it, from now or as it changes. */
   until(done: (model: Model) => boolean, what: string): Promise<Model>;
-  /** You, as a member of chat, linked to the gateway apart from the console. */
+  /** You, as a member of chat, linked to the gateway apart from the client. */
   person(): Promise<Speaking>;
   /** An agent, as a member of chat, through its program's link, which keeps the marks it sets. */
   asAgent(agent: string): Promise<Speaking>;
@@ -43,7 +43,7 @@ export interface Rig {
   thread(agent: string, firstMessage: string): Promise<Thread>;
 }
 
-/** Everything is running before the state starts, so a test sees the console meeting what is already there. */
+/** Everything is running before the state starts, so a test sees the client meeting what is already there. */
 export async function startRig(t: TestContext, options: RigOptions = {}): Promise<Rig> {
   useRuntimeDir(t);
   const chat = await startTestChat(t);
@@ -51,7 +51,7 @@ export async function startRig(t: TestContext, options: RigOptions = {}): Promis
   if (options.noGateway !== true) {
     await startTestGateway(t);
     for (const name of options.agents ?? ["scout"]) agents[name] = await linkTestAgent(t, name);
-    // The console meets a chat server that is linked already.
+    // The client meets a chat server that is linked already.
     const person = await (await startTestGateway(t)).connect();
     await speakingAs(t, person);
   }

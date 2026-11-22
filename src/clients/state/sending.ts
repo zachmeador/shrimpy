@@ -38,7 +38,7 @@ export function createSending(store: Store, held: Holdings, moves: Moves, sendMs
 
   /**
    * The ID of the channel a new thread goes in: the person's DM with the agent,
-   * which is made if they have none, or the room, which the console never makes.
+   * which is made if they have none, or the room, which a client never makes.
    */
   async function channelOf(place: Exclude<Place, { kind: "read-only" }>, signal: AbortSignal): Promise<string> {
     const model = store.model();

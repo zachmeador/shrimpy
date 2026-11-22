@@ -3,9 +3,8 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const two = (value: number): string => String(value).padStart(2, "0");
 
 /**
- * A moment as a person at a terminal reads it, in their own time: the time of
- * day for today, the month and day for this year, and the whole date for
- * anything older.
+ * A moment as a person reads it, in their own time: the time of day for today,
+ * the month and day for this year, and the whole date for anything older.
  */
 export function whenOf(milliseconds: number, now: number): string {
   const time = new Date(milliseconds);

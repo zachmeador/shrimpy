@@ -7,7 +7,7 @@ import { agentEntries, type Model } from "./index.ts";
 import { startRig } from "./testing/index.ts";
 
 /*
- * The console's state against the real gateway and chat server, in processes of their own, with small agents' programs
+ * A client's state against the real gateway and chat server, in processes of their own, with small agents' programs
  * linked to the gateway that serve nothing but their presence and work in chat through their links. What an agent's
  * sessions show is in the tests that open the console from the command line, on agents that run a model.
  */

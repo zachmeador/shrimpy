@@ -2,15 +2,15 @@ import type { RefState } from "@earendil-works/chord";
 import { isLost } from "../../contracts/gateway/index.ts";
 import { asError } from "../../lib/errors/index.ts";
 
-/** Why the console has no link to a program, or to the gateway. */
+/** Why a client has no link to a program, or to the gateway. */
 export type Why =
   /** It has not tried yet, or is trying. */
   | { kind: "connecting" }
   /** Nothing is listening where the gateway should be. */
   | { kind: "not-running" }
-  /** The gateway turned the console away, with its words. */
+  /** The gateway turned the client away, with its words. */
   | { kind: "refused"; words: string }
-  /** The gateway's entry didn't prove it is yours, so the console sent it nothing, with the words of why. */
+  /** The gateway's entry didn't prove it is yours, so the client sent it nothing, with the words of why. */
   | { kind: "unproven"; words: string }
   /** The gateway lists no such program as linked. */
   | { kind: "not-linked" }
@@ -47,7 +47,7 @@ export function problemOf(error: unknown): Problem {
 }
 
 /**
- * Where a link to a program stands, from the state of an object the console
+ * Where a link to a program stands, from the state of an object a client
  * holds there: up while it is live; not linked when the gateway lists no such
  * program, which `linked` says; lost when it was live before and is not now;
  * and otherwise still being reached, or failing with the words of why.

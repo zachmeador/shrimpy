@@ -42,7 +42,7 @@ export interface SessionView {
 export type Place = { kind: "agent"; id: string } | { kind: "room"; id: string } | { kind: "read-only"; id: string };
 
 /**
- * Where in the console the person is. An agent's screen is one list of
+ * Where in a client the person is. An agent's screen is one list of
  * everything the agent takes part in, and a room's is the room's threads.
  */
 export type Where =
@@ -137,7 +137,7 @@ export interface ChannelThreads {
 
 /**
  * Whether this machine has a home for the agent called `agent`, which is what
- * would start it here, and where it looked. The console is handed this and
+ * would start it here, and where it looked. A client is handed this and
  * never looks for a home itself.
  */
 export type HomeLookup = (agent: string) => { found: boolean; where: string };
@@ -178,7 +178,7 @@ export interface AgentStatus {
   running: boolean;
   /** The version of Shrimpy it runs, when it is running. */
   version: string | undefined;
-  /** Whether the agent was in touch with the console, which what follows from its session needs. */
+  /** Whether the agent was in touch with the client, which what follows from its session needs. */
   reached: boolean;
   /** What it was doing in the thread. Undefined for a thread that is not started. */
   doing: SessionActivity | undefined;
@@ -229,7 +229,7 @@ export interface Status {
 }
 
 export interface Model {
-  /** You, as the chat server says the gateway knows you. Unknown until the console has been let in to chat. */
+  /** You, as the chat server says the gateway knows you. Unknown until the client has been let in to chat. */
   me: Member | undefined;
   where: Where;
   /** The gateway, which says what is linked and who is on the roster. */
@@ -270,7 +270,7 @@ export interface Model {
   notice: Notice | undefined;
   /** What the person last asked of `/status` in the thread they are in. */
   status: Status | undefined;
-  /** What this machine has homes for, when the console was told. It never changes. */
+  /** What this machine has homes for, when the client was told. It never changes. */
   homes: HomeLookup | undefined;
 }
 
@@ -477,14 +477,14 @@ export function partsOf(model: Model, agentId: string): Part[] {
   return parts.sort((a, b) => (a.at === undefined || b.at === undefined ? Number(a.at === undefined) - Number(b.at === undefined) : b.at - a.at));
 }
 
-/** Work that goes on after the console is left: the agent that is working, and the thread it is working in. */
+/** Work that goes on after the client is left: the agent that is working, and the thread it is working in. */
 export interface Farewell {
   agent: string;
   thread: string;
 }
 
 /**
- * The work that goes on if the console is left now, if there is any. Of the
+ * The work that goes on if the client is left now, if there is any. Of the
  * agent whose thread is on screen, that thread comes first; then, for each
  * agent, the newest of the person's threads that it is working in.
  */

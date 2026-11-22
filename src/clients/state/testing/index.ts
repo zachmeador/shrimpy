@@ -1,8 +1,8 @@
 /**
- * Test support for the console's state: models written down by hand, and a
+ * Test support for a client's state: models written down by hand, and a
  * state that only remembers what it was asked, for tests of what is shown and
  * what keys do; and the real gateway and chat server, with small agents'
- * programs linked to the gateway and a console state holding what they serve,
+ * programs linked to the gateway and a client's state holding what they serve,
  * for tests of what is done. Only tests and test fixtures import this, and it
  * must not know how anything is drawn.
  */

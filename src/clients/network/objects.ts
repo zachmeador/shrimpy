@@ -23,7 +23,7 @@ import { follow } from "./held.ts";
 import type { GatewayLink } from "./link.ts";
 import { type LinkStatus, statusOf } from "./status.ts";
 
-/** One object the console holds through its link, followed until it is let go. */
+/** One object a client holds through its link, followed until it is let go. */
 export interface Holding<V, Calls> {
   /** What it shows now, or undefined while it has never had values. */
   shown(): V | undefined;
@@ -79,7 +79,7 @@ function followHeld<R extends Reference, V, Calls>(
   };
 }
 
-/** The roster as the console sees it. */
+/** The roster as a client sees it. */
 export type RosterShown = { you: RosterMember | null; members: RosterEntry[]; programs: Program[]; ways: WayIn[] };
 
 export interface RosterCalls {
@@ -98,7 +98,7 @@ export function holdRoster(link: GatewayLink, changed: () => void): Holding<Rost
   );
 }
 
-/** The console as a member of chat. */
+/** A client as a member of chat. */
 export type ChatShown = { you: Member | null; channels: Channel[]; readOnlyChannels: Channel[] };
 
 export interface ChatCalls {
@@ -117,7 +117,7 @@ export function holdChat(link: GatewayLink, changed: () => void): Holding<ChatSh
   );
 }
 
-/** A channel as the console sees it. */
+/** A channel as a client sees it. */
 export type ChannelShown = { refusal: Refused | null; channel: Channel | null; threads: Thread[] };
 
 export interface ChannelCalls {
@@ -136,7 +136,7 @@ export function holdChannel(link: GatewayLink, id: string, changed: () => void):
   );
 }
 
-/** A thread as the console sees it. */
+/** A thread as a client sees it. */
 export type ThreadShown = {
   refusal: Refused | null;
   thread: Thread | null;
@@ -167,7 +167,7 @@ export function holdThread(link: GatewayLink, id: string, changed: () => void): 
   );
 }
 
-/** An agent as the console sees it. */
+/** An agent as a client sees it. */
 export type AgentShown = { refusal: Refused | null; sessions: SessionSummary[] };
 
 export interface AgentCalls {
@@ -186,7 +186,7 @@ export function holdAgent(link: GatewayLink, id: string, changed: () => void): H
   );
 }
 
-/** A session as the console sees it: its window over the newest of its history, and what it is doing. */
+/** A session as a client sees it: its window over the newest of its history, and what it is doing. */
 export type SessionShown = { refusal: Refused | null; window: SessionPage; status: SessionStatus | null };
 
 export interface SessionCalls {

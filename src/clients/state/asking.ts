@@ -13,7 +13,7 @@ const MODELS_WAIT_MS = 3000;
 /** How long taking back a device waits for the gateway. */
 const TAKE_BACK_MS = 10_000;
 
-/** What the person asks in a thread that the console answers itself: `/status`, `/devices` and taking a device back, and the models of the thread's agent. */
+/** What the person asks in a thread that the client answers itself: `/status`, `/devices` and taking a device back, and the models of the thread's agent. */
 export interface Asking {
   readStatus(): Promise<void>;
   readDevices(): void;

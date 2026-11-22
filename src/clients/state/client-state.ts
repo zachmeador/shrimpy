@@ -97,7 +97,7 @@ export interface ClientState {
    */
   showModel(): Promise<void>;
 
-  /** The work that goes on if the console is left now, if there is any. */
+  /** The work that goes on if the client is left now, if there is any. */
   farewell(): Farewell | undefined;
   /** Let go of every object held and of the link. The work in agents goes on. */
   close(): Promise<void>;
@@ -149,7 +149,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
    * says so, once; the person is taken to the only agent there is; while the
    * list of agents is on show, each agent that is running is held for what it
    * is working in, once the person has been taken to the only agent or has
-   * found their own way, so that a console that opens on that agent does not
+   * found their own way, so that a client that opens on that agent does not
    * hold every agent first; and a session watched whole is read back.
    */
   function followModel(): void {

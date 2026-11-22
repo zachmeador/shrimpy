@@ -1,11 +1,11 @@
 /**
- * How the console reaches the programs it talks to: one link to the gateway,
+ * How a client reaches the programs it talks to: one link to the gateway,
  * kept across losses, through which it holds the roster, chat's channels and
  * threads, and each agent's sessions, as Chord objects that stay live and come
  * back by themselves after a loss; following what it holds; and where a link
  * stands, as data. It must not know what is on screen, how anything is drawn,
- * or what a program says beyond its contract. It is the one part of the
- * console that imports Chord: the rest sees what each object shows and the
+ * or what a program says beyond its contract. It is the one part of a
+ * client that imports Chord: the rest sees what each object shows and the
  * calls it takes, as plain values. The link is handed how to dial. This door
  * is safe for browsers; `node.ts` adds dialing from Node.
  */
