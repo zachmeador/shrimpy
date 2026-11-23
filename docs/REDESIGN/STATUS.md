@@ -123,7 +123,7 @@ As of 2026-11-22. An item leaves when it is fixed or when the design changes to 
 - `run` prints only the first part of an answer posted in parts, and can't follow a message once 200 newer ones are in its thread.
 - A `/stop` with nothing to stop looks ignored, and `@typo /stop` stops every agent in the room.
 - Untried terminals: iTerm2, Terminal.app and Linux terminals. The terminal was driven in `tmux` on 2026-11-22, at 150, 100 and 80 columns.
-- The web client has run in one Chromium browser on the gateway's machine. Untried: a phone, Safari, Firefox, installing it, and push from end to end, since that browser refuses service workers. Its Content-Security-Policy has run nowhere else, and whether Safari lets the page's link through it is not known.
+- The web client has run in one Chromium browser on the gateway's machine and, since 2026-11-22, installed on your iPhone, over a tailnet with a certificate that `tailscale cert` made. It has rough edges there that aren't listed yet. Untried: Firefox, Safari on a desktop, and push from end to end: that Chromium browser refuses service workers, and whether a notification has reached the phone is not known. Its Content-Security-Policy has run in those two places only.
 - In the web client the address of an agent's view names no agent, so reloading it in a room shows whichever agent's session is known first. Esc there goes back to the conversation, where the terminal's goes back to the list. Where a thread can be started it names Ctrl+N on a phone too. A trigger's card holds everything `shrimpy triggers` says of it, which is long at the list's width.
 - The page's door serves every file of the page to be fetched afresh, so each load of the web client takes about 800 KB.
 
