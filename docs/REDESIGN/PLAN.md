@@ -227,6 +227,7 @@ Fable was asked about this shape on 2026-10-04 and argued against it. An agent t
 - Whether input steered into a session by `shrimpy sessions steer` should say who sent it.
 - `react`, an `edit` option and `quiet` on `send_message`, as the design names them.
 - Watching one job to its end. `check_back` waits for a time, and a trigger's check goes on until the trigger is removed, so an agent that starts a long job adds a trigger for it and removes it after.
+- Agents tidying their own threads. You get no menu to rename or archive a thread you only read, such as a DM between two agents: "agents can manage their own junk", 2026-11-23. No tool lets an agent rename or archive a thread yet, and each `ask_agent` question opens a thread of its own. Your recommendation for recurring work, by one agent or between two, is to reuse the same thread, as a recommendation and not a hard rule. Today an agent can't name a DM's thread to reuse it, as the item above says.
 
 ### A member that is neither a person nor an agent
 
