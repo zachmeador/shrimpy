@@ -114,7 +114,7 @@ const ThreadV2 = evolve(ThreadV1, (edit) =>
     .addMethod("all", "markRead", obj({ message: str() }), answerOf(nul())),
 );
 
-/** `Thread` as it was served with quiet posts, before a thread had a revision. */
+/** `Thread` as it was served with quiet posts, before a thread had a revision and a change to a message a request ID. */
 const ThreadV3 = evolve(ThreadV2, (edit) =>
   /**
    * Posts a message of at most `MAX_MESSAGE_LENGTH` characters. A request ID's
@@ -144,14 +144,34 @@ const ThreadV3 = evolve(ThreadV2, (edit) =>
  * yours counts from the same mark. A message that stays new to you for a few
  * seconds can be told to you on your devices.
  *
- * A rename or an archive names the thread's revision it was decided on, and
- * is refused once the thread has moved on from it, so that a stale retry can't
- * undo a later decision.
+ * Each change to a message carries a request ID, as a post does, and its
+ * first use wins: a retry from the same member answers with the message as it
+ * now stands and changes nothing, so a replayed old change can't undo a newer
+ * one, and the same ID asking for anything else is refused. A rename or an
+ * archive names the thread's revision it was decided on, and is refused once
+ * the thread has moved on from it, so that a stale retry can't undo a later
+ * decision.
  */
 export const Thread = evolve(ThreadV3, (edit) =>
   edit
     /** The thread, with its revision and who is working in it. */
     .state("all", "thread", union([ThreadSchema, nul()]))
+    /**
+     * Changes what one of the caller's messages in this thread says, and which
+     * members it mentions. A deleted message can't be edited. Editing to the
+     * text it has changes nothing and adds no event.
+     */
+    .args("edit", obj({ message: str(), text: str(), request: str() }))
+    /**
+     * Deletes one of the caller's messages in this thread. It keeps its place
+     * and loses its text, its reactions and the text its earlier events
+     * carried. Deleting it again changes nothing.
+     */
+    .args("delete", obj({ message: str(), request: str() }))
+    /** Puts one emoji on a message in this thread. The same emoji twice is one reaction. A deleted message takes none. */
+    .args("react", obj({ message: str(), emoji: str(), request: str() }))
+    /** Takes the caller's emoji off a message in this thread. Taking one that isn't there changes nothing. */
+    .args("unreact", obj({ message: str(), emoji: str(), request: str() }))
     /** Names the thread, answering with it as it now stands. Naming it what it is called already changes nothing. */
     .method("rename", obj({ name: str(), revision: int() }), answerOf(ThreadSchema))
     /**

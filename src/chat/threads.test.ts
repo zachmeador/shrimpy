@@ -26,7 +26,7 @@ test("a client holding a Thread sees a post arrive, and a request ID's first use
   assert.equal(first.author.name, "scout");
 
   // A retry answers with the first message as it stands, and posts nothing.
-  valueOf(await talking.edit({ message: first.id, text: "The disk is at 91%." }, context));
+  valueOf(await talking.edit({ message: first.id, text: "The disk is at 91%.", request: "scout-2" }, context));
   const retried = valueOf(await talking.post({ text: "The disk is nearly full.", request: "scout-1" }, context));
   assert.equal(retried.id, first.id);
   assert.equal(retried.text, "The disk is at 91%.");
@@ -59,4 +59,27 @@ test("a rename or an archive names the revision it was decided on, so a stale re
 
   await until(() => yours.thread.value?.revision === archived.revision, "the thread to show the archive");
   assert.deepEqual([yours.thread.value?.name, yours.thread.value?.archived], ["Logs", true]);
+});
+
+test("a replayed edit or reaction answers with the message as it stands, and undoes nothing newer", { timeout }, async (t) => {
+  const chat = await startChatInProcess(t);
+  const you = await chat.person();
+  const scout = await chat.agent("scout");
+  const dm = valueOf(await (await you.host.get(Chat, {}, context)).openDm({ member: scout.you.id }, context));
+  const [main] = (await you.host.get(Channel, { channel: dm.id }, context)).threads.value;
+  assert.ok(main);
+  const yours = await you.host.get(Thread, { thread: main.id }, context);
+  const scouts = await scout.host.get(Thread, { thread: main.id }, context);
+  const said = valueOf(await scouts.post({ text: "The disk is nearly full.", request: "scout-1" }, context));
+
+  valueOf(await scouts.edit({ message: said.id, text: "The disk is at 91%.", request: "scout-2" }, context));
+  valueOf(await scouts.edit({ message: said.id, text: "The disk is at 95%.", request: "scout-3" }, context));
+  valueOf(await yours.react({ message: said.id, emoji: "👀", request: "you-1" }, context));
+  valueOf(await yours.unreact({ message: said.id, emoji: "👀", request: "you-2" }, context));
+
+  const replayed = valueOf(await scouts.edit({ message: said.id, text: "The disk is at 91%.", request: "scout-2" }, context));
+  const reacted = valueOf(await yours.react({ message: said.id, emoji: "👀", request: "you-1" }, context));
+  assert.deepEqual([replayed.text, reacted.text, reacted.reactions], ["The disk is at 95%.", "The disk is at 95%.", []]);
+  refusalOf(await scouts.edit({ message: said.id, text: "Something else.", request: "scout-2" }, context));
+  refusalOf(await yours.unreact({ message: said.id, emoji: "👀", request: "you-1" }, context));
 });

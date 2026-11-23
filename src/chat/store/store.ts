@@ -8,6 +8,7 @@ import { type MemberOperations, memberOperations } from "./members.ts";
 import { type MessageOperations, messageOperations } from "./messages.ts";
 import { type ReactionOperations, reactionOperations } from "./reactions.ts";
 import { type ReceiptOperations, receiptOperations } from "./receipts.ts";
+import { type RequestOperations, requestOperations } from "./requests.ts";
 import { createSql, type Sql } from "./sql.ts";
 import { type ThreadOperations, threadOperations } from "./threads.ts";
 
@@ -15,6 +16,7 @@ export type Transaction = MemberOperations &
   ChannelOperations &
   ThreadOperations &
   MessageOperations &
+  RequestOperations &
   ReactionOperations &
   EventOperations &
   ReceiptOperations &
@@ -93,6 +95,7 @@ function createTransaction(sql: Sql, report: (change: Change) => void): Transact
     ...channelOperations(sql, report),
     ...threadOperations(sql, report),
     ...messageOperations(sql, report),
+    ...requestOperations(sql),
     ...reactionOperations(sql, report),
     ...eventOperations(sql),
     ...receiptOperations(sql, report),

@@ -27,9 +27,7 @@ function post(tx: Transaction, threadId: string, author: Member, text: string, s
     text,
     sentAt,
     mentions: [],
-    requestId: `request-${text}`,
     preview: text,
-    digest: text,
   });
 }
 

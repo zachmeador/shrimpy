@@ -19,7 +19,6 @@ As of 2026-11-23. An item leaves when it is fixed or when the design changes to 
 
 ### The contracts between them
 
-- Edits, deletes and reactions carry no request ID, so a provider replaying an old edit after a newer one would undo it.
 - Only the author edits or deletes, checked against the caller, so a provider acting for a person it maps has no way to.
 - The chat server's log of events never shrinks, and nothing shows a message's earlier versions.
 - A message waiting behind a turn that Pi's restart limit ended is withdrawn by the stop the agent makes then, so its skipped receipt has no reason. The terminal, `read` and `run` then say that its work was stopped, as if someone had stopped it, and `run` exits 130. Pi records both withdrawals the same way.

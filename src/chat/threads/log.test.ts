@@ -48,10 +48,10 @@ test("the log is what happened to messages, in order, and a delete takes the tex
 
   // Each is done once, and again as a retry would be: the second answers the same and writes nothing.
   const steps: [string, () => Message][] = [
-    ["edit", () => editMessage(deps, zach, main.id, said.id, "The secret plan, version 2.")],
-    ["react", () => react(deps, shrimpy, main.id, said.id, THUMBS_UP)],
-    ["unreact", () => unreact(deps, shrimpy, main.id, said.id, THUMBS_UP)],
-    ["delete", () => deleteMessage(deps, zach, main.id, said.id)],
+    ["edit", () => editMessage(deps, zach, main.id, said.id, "The secret plan, version 2.", "zach-3")],
+    ["react", () => react(deps, shrimpy, main.id, said.id, THUMBS_UP, "shrimpy-1")],
+    ["unreact", () => unreact(deps, shrimpy, main.id, said.id, THUMBS_UP, "shrimpy-2")],
+    ["delete", () => deleteMessage(deps, zach, main.id, said.id, "zach-4")],
   ];
   for (const [what, step] of steps) {
     const first = step();
@@ -72,7 +72,7 @@ test("the log is what happened to messages, in order, and a delete takes the tex
   assert.deepEqual(logOf(deps, shrimpy), ["posted", "posted: Something else.", "edited", `reacted: ${THUMBS_UP}`, `unreacted: ${THUMBS_UP}`, "deleted"]);
   assert.equal(JSON.stringify(logged(deps, shrimpy)).includes("secret"), false, "nothing offered still holds the text");
   assert.equal(view.thread?.preview, "Something else.", "the preview is of the first message that is still there");
-  assert.equal(answer(() => editMessage(deps, zach, main.id, said.id, "Back again.")).kind, "refused");
+  assert.equal(answer(() => editMessage(deps, zach, main.id, said.id, "Back again.", "zach-5")).kind, "refused");
 });
 
 test("a receipt is an event that replaces the one before, left on several events all or none", (t) => {
@@ -130,5 +130,5 @@ test("a message mentions the members its text names, or everyone but its author 
   assert.deepEqual(say(main.id, "@all hello"), ["Shrimpy"]);
 
   const message = post(deps, zach, inRoom.id, "@scout first", "zach-edit");
-  assert.deepEqual(editMessage(deps, zach, inRoom.id, message.id, "@maya instead").mentions, [maya.id], "an edit works it out again");
+  assert.deepEqual(editMessage(deps, zach, inRoom.id, message.id, "@maya instead", "zach-edit-2").mentions, [maya.id], "an edit works it out again");
 });

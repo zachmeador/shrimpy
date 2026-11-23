@@ -28,6 +28,12 @@ export const SCHEMA_VERSION = 10;
  * is offered a channel's events after its `since_seq`: the position of the
  * newest event when it joined, so that nothing from before comes with it.
  *
+ * `requests` keeps each request a member made of a message, by the member's
+ * own ID for it: a post, an edit, a delete, a reaction or one taken back. It
+ * names the message the request posted or changed, and keeps a digest of what
+ * the request said, so that a retry can be told from another request that
+ * reuses the ID.
+ *
  * `read_marks` keeps a member's read mark in a thread: the position of the last
  * message it has seen there. A mark only moves forward. It is no event, so
  * nothing in the log or the feed tells of it.
@@ -143,12 +149,12 @@ CREATE TABLE receipts (
   CHECK (detail IS NULL OR status IN ('failed', 'skipped', 'answered'))
 ) STRICT, WITHOUT ROWID;
 
-CREATE TABLE posts (
-  author_id TEXT NOT NULL REFERENCES members (id),
+CREATE TABLE requests (
+  member_id TEXT NOT NULL REFERENCES members (id),
   request_id TEXT NOT NULL,
-  message_seq INTEGER NOT NULL UNIQUE REFERENCES messages (seq),
+  message_seq INTEGER NOT NULL REFERENCES messages (seq),
   digest TEXT NOT NULL,
-  PRIMARY KEY (author_id, request_id)
+  PRIMARY KEY (member_id, request_id)
 ) STRICT, WITHOUT ROWID;
 
 CREATE TABLE read_marks (

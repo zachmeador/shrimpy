@@ -76,10 +76,6 @@ export interface NewMessage {
   mentions: string[];
   /** The start of the text, for places that show only that. */
   preview: string;
-  /** The author's own ID for this post. A second post with the same one is a retry. */
-  requestId: string;
-  /** What the request said, so that a retry can be told from a different request that reuses its ID. */
-  digest: string;
 }
 
 /** What an edit changes about a message. */
@@ -96,9 +92,7 @@ export interface MessageEdit {
  * change in the same transaction, and writes none when nothing would change.
  */
 export interface MessageOperations {
-  /** The message that `authorId` posted under `requestId`, if there is one, with the digest it was posted with. */
-  postedBy(authorId: string, requestId: string): { message: Message; digest: string } | undefined;
-  /** Add a message to a thread, with its post event and the record that makes its post a retry-safe one. */
+  /** Add a message to a thread, with its post event. */
   appendMessage(message: NewMessage): Message;
   message(id: string): Message | undefined;
   /** Up to `limit` messages of a thread older than `before`, or the newest when it is null; oldest first. */
@@ -116,12 +110,6 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
   const select = (where: string, ...params: (string | number | null)[]): Message[] =>
     (sql.all(`${SELECT} ${where}`, ...params) as MessageRow[]).map(toMessage);
   return {
-    postedBy(authorId, requestId) {
-      const row = sql.one("SELECT message_seq, digest FROM posts WHERE author_id = ? AND request_id = ?", authorId, requestId) as
-        | { message_seq: number; digest: string }
-        | undefined;
-      return row === undefined ? undefined : { message: loadMessage(sql, row.message_seq), digest: row.digest };
-    },
     appendMessage(post) {
       const thread = sql.one("SELECT channel_id FROM threads WHERE id = ?", post.threadId) as
         | { channel_id: string }
@@ -147,13 +135,6 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         post.preview,
         post.sentAt,
         JSON.stringify(post.mentions),
-      );
-      sql.run(
-        "INSERT INTO posts (author_id, request_id, message_seq, digest) VALUES (?, ?, ?, ?)",
-        post.authorId,
-        post.requestId,
-        posted.seq,
-        post.digest,
       );
       // A clock that steps back must not make a thread look older than it was.
       sql.run(

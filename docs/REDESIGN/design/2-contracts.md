@@ -173,7 +173,7 @@ The contracts list three reasons. All three come when connecting, and the agent 
 | `markRead({ message })` | Moves the caller's read mark up to a message, and never back. An agent is refused | New on 2026-11-21 |
 | `read({ before, limit })` | Older messages, oldest first | `read` |
 | `post({ text, request, quiet })` | Posts a message. A request ID's first use wins. One posted with `quiet` is told to nobody's devices | `post`, and `quiet` is new on 2026-11-21 |
-| `edit`, `delete`, `react` and `unreact` | As today, each naming its message, and each answering with the message as it now stands | The same |
+| `edit`, `delete`, `react` and `unreact` | As today, each naming its message, and each answering with the message as it now stands. Each carries a request ID, whose first use wins, as a post's does | The same, and the request ID is new on 2026-11-23 |
 | `rename({ name, revision })`, `archive({ archived, revision })` | The thread as it now stands. Each names the thread's revision it was decided on, and is refused once the thread has moved on | `renameThread`, `archiveThread`, and `revision` is new on 2026-11-23 |
 
 `Presence`, at `chat()`, has no params and no members. The gateway holds it, as below.
@@ -302,4 +302,3 @@ So every link is a WebSocket, on one machine as well. Every link is untrusted, s
 - The terminal doesn't read the field. `shrimpy read --json` prints every message whole, so its output has the new name.
 - **The store's ID.** The chat store gets an ID when it is made, and the chat contract answers it with `store`. An agent keeps, with its place in the feed, the ID of the store that place is for, and asks for the ID each time it connects. A place kept for another store, or for none, is dropped: the agent reads the new store from its start and says so. A place past the end of the same store means the store went back to an earlier state, as when restored from a backup, and the agent reads it from the start too. So replacing the chat store needs nothing done to an agent's records.
 
-**Left for the provider interface:** request IDs on edits, deletes and reactions. They are on the [status list](../STATUS.md#the-contracts-between-them), and their shape gets decided there.

@@ -59,12 +59,13 @@ function threadV1(thread: Thread) {
 
 /**
  * What the versions of `Thread` from before revisions are given. A rename or
- * an archive from one names no revision, so a stale retry can't be told from
- * a later decision, and it is refused.
+ * an archive from one names no revision, and a change to a message no request
+ * ID, so a stale retry can't be told from a later decision, and each is
+ * refused.
  */
 const BEFORE_REVISIONS = {
   state: { all: { thread: (thread: Thread | null) => (thread === null ? null : threadV1(thread)) } },
-  methods: { rename: "refuse", archive: "refuse" },
+  methods: { edit: "refuse", delete: "refuse", react: "refuse", unreact: "refuse", rename: "refuse", archive: "refuse" },
 } as const;
 
 /** What the versions of `Channel` from before revisions are given. */
@@ -158,72 +159,77 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
 
     host.serve(ChatPresence, () => ({ variant: "present", members: {} }));
 
-    host.serve(Chat, (_params, principal, self) => {
-      // Positions only grow, so each reading of the head starts where the last one ended.
-      let since = 0;
-      const state = self.follow(
-        followed(
-          deps,
-          () => {
-            const view = chatView(deps, whoIs(deps, principal), since);
-            since = view.head;
-            return view;
-          },
-          (change) => change.kind === "event" || change.kind === "channel",
-          () => false,
-        ),
-      );
-
-      // A working mark lasts while the hold that made it does: one per host that holds this object, by its incarnation.
-      const owner = crypto.randomUUID();
-      const holders = new Map<string, string>();
-      const holderFor = (incarnation: string): string => {
-        const known = holders.get(incarnation);
-        if (known !== undefined) return known;
-        const made = `${owner} ${incarnation}`;
-        holders.set(incarnation, made);
-        return made;
-      };
-      self.on(holds, async ({ value }) => {
-        const present = new Set(
-          value.flatMap((hold) => (hold.principal !== undefined && samePrincipal(hold.principal, principal) ? [hold.incarnation] : [])),
+    host.serve(
+      Chat,
+      (_params, principal, self) => {
+        // Positions only grow, so each reading of the head starts where the last one ended.
+        let since = 0;
+        const state = self.follow(
+          followed(
+            deps,
+            () => {
+              const view = chatView(deps, whoIs(deps, principal), since);
+              since = view.head;
+              return view;
+            },
+            (change) => change.kind === "event" || change.kind === "channel",
+            () => false,
+          ),
         );
-        for (const [incarnation, holder] of holders) {
-          if (present.has(incarnation)) continue;
-          holders.delete(incarnation);
-          deps.working.end(holder);
-        }
-      });
-      self.open(
-        async () => holders,
-        (open) => {
-          for (const holder of open.values()) deps.working.end(holder);
-          open.clear();
-        },
-      );
 
-      const caller = (): Member => callerOf(principal);
-      return {
-        variant: "all",
-        members: {
-          you: self.derive([state], ([view]) => view.you),
-          channels: self.derive([state], ([view]) => view.channels),
-          readOnlyChannels: self.derive([state], ([view]) => view.readOnlyChannels),
-          head: self.derive([state], ([view]) => view.head),
-          store: constant(deps.store.id),
-          events: async ({ after, limit }) => answer(() => events(deps.store, caller(), after, limit)),
-          leaveReceipt: async ({ events: ids, receipt }) => answer(() => leaveReceipt(deps, caller(), ids, receipt)),
-          setWorking: async ({ thread, working }, ctx) =>
-            answer(() => setWorking(deps, holderFor(ctx.incarnation), caller(), thread, working)),
-          openDm: async ({ member }) => answer(() => openDm(deps, caller(), member)),
-          createRoom: async ({ name, members }) => answer(() => createRoom(deps, caller(), name, members)),
-        },
-      };
-    }, { accepts: { 1: { methods: { events: { result: answeredAs((events: ChatEvent[]) => events.map(eventV1)) } } } } });
+        // A working mark lasts while the hold that made it does: one per host that holds this object, by its incarnation.
+        const owner = crypto.randomUUID();
+        const holders = new Map<string, string>();
+        const holderFor = (incarnation: string): string => {
+          const known = holders.get(incarnation);
+          if (known !== undefined) return known;
+          const made = `${owner} ${incarnation}`;
+          holders.set(incarnation, made);
+          return made;
+        };
+        self.on(holds, async ({ value }) => {
+          const present = new Set(
+            value.flatMap((hold) => (hold.principal !== undefined && samePrincipal(hold.principal, principal) ? [hold.incarnation] : [])),
+          );
+          for (const [incarnation, holder] of holders) {
+            if (present.has(incarnation)) continue;
+            holders.delete(incarnation);
+            deps.working.end(holder);
+          }
+        });
+        self.open(
+          async () => holders,
+          (open) => {
+            for (const holder of open.values()) deps.working.end(holder);
+            open.clear();
+          },
+        );
+
+        const caller = (): Member => callerOf(principal);
+        return {
+          variant: "all",
+          members: {
+            you: self.derive([state], ([view]) => view.you),
+            channels: self.derive([state], ([view]) => view.channels),
+            readOnlyChannels: self.derive([state], ([view]) => view.readOnlyChannels),
+            head: self.derive([state], ([view]) => view.head),
+            store: constant(deps.store.id),
+            events: async ({ after, limit }) => answer(() => events(deps.store, caller(), after, limit)),
+            leaveReceipt: async ({ events: ids, receipt }) => answer(() => leaveReceipt(deps, caller(), ids, receipt)),
+            setWorking: async ({ thread, working }, ctx) =>
+              answer(() => setWorking(deps, holderFor(ctx.incarnation), caller(), thread, working)),
+            openDm: async ({ member }) => answer(() => openDm(deps, caller(), member)),
+            createRoom: async ({ name, members }) => answer(() => createRoom(deps, caller(), name, members)),
+          },
+        };
+      },
+      { accepts: { 1: { methods: { events: { result: answeredAs((events: ChatEvent[]) => events.map(eventV1)) } } } } },
+    );
 
     // Version 1 of `Channel` and `Thread` is from before read marks. A holder of it, such as an agent on another
     // machine that runs an older Shrimpy, binds as it did and is shown no counts. Versions 1 and 2 of `Thread` post
-    // nothing quietly. Versions 1 to 3 of `Thread`, and 1 and 2 of `Channel`, are from before revisions.
+    // nothing quietly. Versions 1 to 3 of `Thread` are from before revisions and request IDs on changes to messages,
+    // and versions 1 and 2 of `Channel` from before revisions.
     host.serve(
       Channel,
       ({ channel: channelId }, principal, self) => {
@@ -278,10 +284,10 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
             unread: self.derive([state], ([view]) => view.unread),
             read: async ({ before, limit }) => answer(() => readMessages(deps, caller(), threadId, before, limit)),
             post: async ({ text, request, quiet }) => answer(() => post(deps, caller(), threadId, text, request, quiet === true)),
-            edit: async ({ message, text }) => answer(() => editMessage(deps, caller(), threadId, message, text)),
-            delete: async ({ message }) => answer(() => deleteMessage(deps, caller(), threadId, message)),
-            react: async ({ message, emoji }) => answer(() => react(deps, caller(), threadId, message, emoji)),
-            unreact: async ({ message, emoji }) => answer(() => unreact(deps, caller(), threadId, message, emoji)),
+            edit: async ({ message, text, request }) => answer(() => editMessage(deps, caller(), threadId, message, text, request)),
+            delete: async ({ message, request }) => answer(() => deleteMessage(deps, caller(), threadId, message, request)),
+            react: async ({ message, emoji, request }) => answer(() => react(deps, caller(), threadId, message, emoji, request)),
+            unreact: async ({ message, emoji, request }) => answer(() => unreact(deps, caller(), threadId, message, emoji, request)),
             rename: async ({ name, revision }) => answer(() => renameThread(deps, caller(), threadId, name, revision)),
             archive: async ({ archived, revision }) => answer(() => archiveThread(deps, caller(), threadId, archived, revision)),
             markRead: async ({ message }) => answer(() => markRead(deps, caller(), threadId, message)),

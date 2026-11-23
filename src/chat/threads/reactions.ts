@@ -3,27 +3,37 @@ import { emoji as checkEmoji, identifier } from "../input/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { visibleMessage } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
+import { once, requestOf } from "./requests.ts";
 
 /**
- * Put an emoji on a message, as any member of its channel. A message that
- * was deleted takes none, and one the caller already put there stays as it is.
+ * Put an emoji on a message, as any member of its channel, once for each
+ * request ID. A message that was deleted takes none, and one the caller
+ * already put there stays as it is.
  */
-export function react(deps: ChatDeps, caller: Member, threadId: string, messageId: unknown, emoji: unknown): Message {
+export function react(deps: ChatDeps, caller: Member, threadId: string, messageId: unknown, emoji: unknown, requestId: unknown): Message {
   const id = identifier(messageId, "message");
   const reaction = checkEmoji(emoji, "emoji");
-  return deps.store.transaction((tx) => {
-    const { message } = visibleMessage(tx, caller, threadId, id);
-    if (message.deleted) refuse("That message was deleted, so it takes no reactions.");
-    return tx.addReaction(message, caller.id, reaction, deps.now());
-  });
+  const request = requestOf(requestId, "react", threadId, id, reaction);
+  return deps.store.transaction(
+    (tx) =>
+      once(tx, caller, request, () => {
+        const { message } = visibleMessage(tx, caller, threadId, id);
+        if (message.deleted) refuse("That message was deleted, so it takes no reactions.");
+        return tx.addReaction(message, caller.id, reaction, deps.now());
+      }).message,
+  );
 }
 
-/** Take back the caller's emoji. Taking back one that is not there changes nothing. */
-export function unreact(deps: ChatDeps, caller: Member, threadId: string, messageId: unknown, emoji: unknown): Message {
+/** Take back the caller's emoji, once for each request ID. Taking back one that is not there changes nothing. */
+export function unreact(deps: ChatDeps, caller: Member, threadId: string, messageId: unknown, emoji: unknown, requestId: unknown): Message {
   const id = identifier(messageId, "message");
   const reaction = checkEmoji(emoji, "emoji");
-  return deps.store.transaction((tx) => {
-    const { message } = visibleMessage(tx, caller, threadId, id);
-    return tx.removeReaction(message, caller.id, reaction, deps.now());
-  });
+  const request = requestOf(requestId, "unreact", threadId, id, reaction);
+  return deps.store.transaction(
+    (tx) =>
+      once(tx, caller, request, () => {
+        const { message } = visibleMessage(tx, caller, threadId, id);
+        return tx.removeReaction(message, caller.id, reaction, deps.now());
+      }).message,
+  );
 }

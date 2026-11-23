@@ -107,10 +107,11 @@ export async function talkTo(t: TestContext, agentName: string): Promise<Talk> {
       return onChannel(await connection(), dm.id, async (held) => valueOf(await held.createThread({ name: name ?? null }, context)));
     },
     say: (text, threadId = thread.id) => inThread(threadId, (held) => held.post({ text, request: randomUUID() }, context)),
-    edit: (message, text) => inThread(message.threadId, (held) => held.edit({ message: message.id, text }, context)),
-    remove: (message) => inThread(message.threadId, (held) => held.delete({ message: message.id }, context)),
-    react: (message, emoji) => inThread(message.threadId, (held) => held.react({ message: message.id, emoji }, context)),
-    unreact: (message, emoji) => inThread(message.threadId, (held) => held.unreact({ message: message.id, emoji }, context)),
+    edit: (message, text) => inThread(message.threadId, (held) => held.edit({ message: message.id, text, request: randomUUID() }, context)),
+    remove: (message) => inThread(message.threadId, (held) => held.delete({ message: message.id, request: randomUUID() }, context)),
+    react: (message, emoji) => inThread(message.threadId, (held) => held.react({ message: message.id, emoji, request: randomUUID() }, context)),
+    unreact: (message, emoji) =>
+      inThread(message.threadId, (held) => held.unreact({ message: message.id, emoji, request: randomUUID() }, context)),
     said,
     async replies(threadId) {
       return (await said(threadId)).filter((message) => message.author.id === partner.id);

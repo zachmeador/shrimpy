@@ -1,11 +1,10 @@
-import { createHash } from "node:crypto";
 import type { Member, Message } from "../../contracts/chat/index.ts";
-import { fitAnswer, identifier, MAX_PAGE, messageText, whole } from "../input/index.ts";
-import { refuse } from "../../lib/refusal/index.ts";
+import { fitAnswer, MAX_PAGE, messageText, whole } from "../input/index.ts";
 import { cutEnd, singleSpaced } from "../../lib/text/index.ts";
 import { readableThread, visibleThread } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
 import { mentionedMembers } from "./mentions.ts";
+import { once, requestOf } from "./requests.ts";
 
 const PREVIEW_LENGTH = 80;
 
@@ -15,43 +14,26 @@ export function previewOf(text: string): string {
 }
 
 /**
- * What a post request said, as a digest. A message can be edited or deleted
- * after it is posted, so a retry is told from a different request that reuses
- * the ID by what the request said, not by what the message says now.
- */
-const digestOf = (threadId: string, text: string): string =>
-  createHash("sha256").update(threadId).update("\0").update(text).digest("hex");
-
-/**
- * Post to a thread. A retry with the same request ID from the same member gets
- * the first message back, as it stands now. A request ID reused for a different
- * message is not a retry, and posting it again would hide the mistake, so it is
- * refused. A new message that isn't `quiet` may be worth telling you.
+ * Post to a thread, once for each request ID, as `once` says. A new message
+ * that isn't `quiet` may be worth telling you.
  */
 export function post(deps: ChatDeps, caller: Member, threadId: string, text: unknown, requestId: unknown, quiet = false): Message {
   const id = threadId;
   const body = messageText(text);
-  const request = identifier(requestId, "request");
-  const digest = digestOf(id, body);
-  const posted = deps.store.transaction((tx) => {
-    const earlier = tx.postedBy(caller.id, request);
-    if (earlier !== undefined) {
-      if (earlier.digest !== digest) refuse(`Request ${request} already posted a different message.`);
-      return { message: earlier.message, retry: true };
-    }
-    const { channel } = visibleThread(tx, caller, id);
-    const message = tx.appendMessage({
-      threadId: id,
-      authorId: caller.id,
-      text: body,
-      sentAt: deps.now(),
-      mentions: mentionedMembers(channel, caller, body),
-      requestId: request,
-      preview: previewOf(body),
-      digest,
-    });
-    return { message, retry: false };
-  });
+  const request = requestOf(requestId, id, body);
+  const posted = deps.store.transaction((tx) =>
+    once(tx, caller, request, () => {
+      const { channel } = visibleThread(tx, caller, id);
+      return tx.appendMessage({
+        threadId: id,
+        authorId: caller.id,
+        text: body,
+        sentAt: deps.now(),
+        mentions: mentionedMembers(channel, caller, body),
+        preview: previewOf(body),
+      });
+    }),
+  );
   if (!posted.retry && !quiet) deps.notifier.posted(posted.message);
   return posted.message;
 }

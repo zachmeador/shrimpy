@@ -65,7 +65,7 @@ test("a post in the feed keeps the members it mentioned after an edit takes them
   assert.ok(main);
   const thread = await you.host.get(Thread, { thread: main.id }, context);
   const asked = valueOf(await thread.post({ text: "@scout, can you look?", request: "you-1" }, context));
-  const edited = valueOf(await thread.edit({ message: asked.id, text: "@maya, can you look instead?" }, context));
+  const edited = valueOf(await thread.edit({ message: asked.id, text: "@maya, can you look instead?", request: "you-2" }, context));
   assert.deepEqual(edited.mentions, [maya.you.id]);
 
   const scouts = await scout.host.get(Chat, {}, context);

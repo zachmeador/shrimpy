@@ -20,7 +20,7 @@ The chat server is a service of its own, with its own store, so the gateway does
 
 Every incoming operation carries an authenticated source, a stable event or request ID, immutable payload and attachment references, and a target home. Its session comes from the thread it belongs to, or an explicit session ID for steering and control, never from a model call.
 
-A request ID names one request, and its first use wins. Pi returns the first submission when an ID is reused, even with different content. The chat server keeps a digest of the first request, since the message itself can be edited or deleted later, so it returns that message for a true retry and refuses an ID reused for a different thread or text. Edits, deletes and reactions carry no request ID, which [status](../STATUS.md) has: a repeat that would change nothing writes nothing. Shrimpy keeps no receipt of its own to compare content. A session never changes its thread and a reset stays inside its session, so a retry always lands in the same place. Pi's submission stays the only execution and settlement record.
+A request ID names one request, and its first use wins. Pi returns the first submission when an ID is reused, even with different content. The chat server keeps a digest of the first request, since the message itself can be edited or deleted later, so it returns that message for a true retry and refuses an ID reused for a different thread or text. Edits, deletes and reactions carry a request ID under the same rule, so replaying an old one answers with the message as it now stands and can't undo a newer change. Shrimpy keeps no receipt of its own to compare content. A session never changes its thread and a reset stays inside its session, so a retry always lands in the same place. Pi's submission stays the only execution and settlement record.
 
 An event is taken up in one commit and followed by one task:
 
@@ -53,7 +53,7 @@ A crash at any point leaves a task, and Pi resumes it at its checkpoint. The fee
 - **And one sentence on time:** the time on the newest message is the time now, and the shell's `date` is the only other clock.
 - **The same fact serves the terminal.** A session's summary in the agent's contract carries where it is, so the terminal's list of an agent's sessions can name each one, and `shrimpy sessions list` prints it as a table: the session, where it is, and whether it is working. A session that hasn't taken anything up since this was built says "unknown".
 
-**What you have read,** decided and built on 2026-11-21: "yes, this is important". The chat server keeps one mark for you in each thread, the last message you have seen there, and it only moves forward. A client moves it while the thread is on show, and every client of yours counts what is new from the same mark, so your phone and your terminal agree. New is what others wrote after the mark. Your own messages and deleted ones never count, and with no mark everything others wrote is new. A thread you only read has a mark too, and each client decides which to count. An agent has none, since its place in its feed already says what it has taken. A mark is no event: it reaches no feed and wakes nobody, and `shrimpy read` and `shrimpy threads` move none. The marks are a table of their own in the chat store, which is at version 9 with them.
+**What you have read,** decided and built on 2026-11-21: "yes, this is important". The chat server keeps one mark for you in each thread, the last message you have seen there, and it only moves forward. A client moves it while the thread is on show, and every client of yours counts what is new from the same mark, so your phone and your terminal agree. New is what others wrote after the mark. Your own messages and deleted ones never count, and with no mark everything others wrote is new. A thread you only read has a mark too, and each client decides which to count. An agent has none, since its place in its feed already says what it has taken. A mark is no event: it reaches no feed and wakes nobody, and `shrimpy read` and `shrimpy threads` move none. The marks are a table of their own in the chat store, which went to version 9 with them.
 
 **Notifications,** decided and built on 2026-11-21. You asked for push from the beginning and for "a coherent design for how notifications are handled", and approved this one: "proposal is approved". A notification is a message that is new to you and stays unread for a moment, so notifications sit on the read marks. What counts as new on a screen and what reaches your phone are the same fact, five seconds apart.
 
@@ -155,7 +155,7 @@ A session has no ID apart from its thread's. A second opinion on 2026-10-04 rais
 - Source bindings and publication and delivery operations.
 - The rest of the chat server: rooms with several members and the provider interface with its shared helpers. Chat commands and wake policies in each agent.
 - A fake provider, as the provider interface's reference.
-- Request IDs on edits, deletes and reactions, and a provider editing or deleting for a person it maps.
+- A provider editing or deleting for a person it maps.
 
 **Prove**
 

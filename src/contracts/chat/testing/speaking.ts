@@ -31,10 +31,10 @@ export interface Speaking {
   openDm(member: string): Promise<Channel>;
   createRoom(name: string, members: string[]): Promise<Channel>;
   addMembers(channel: string, members: string[]): Promise<Channel>;
-  edit(thread: string, message: string, text: string): Promise<Message>;
-  delete(thread: string, message: string): Promise<Message>;
-  react(thread: string, message: string, emoji: string): Promise<Message>;
-  unreact(thread: string, message: string, emoji: string): Promise<Message>;
+  edit(thread: string, message: string, text: string, request?: string): Promise<Message>;
+  delete(thread: string, message: string, request?: string): Promise<Message>;
+  react(thread: string, message: string, emoji: string, request?: string): Promise<Message>;
+  unreact(thread: string, message: string, emoji: string, request?: string): Promise<Message>;
   /** Archive a thread, or bring it back, at the revision it is at. */
   archive(thread: string, archived: boolean): Promise<Thread>;
   events(after: number, limit: number): Promise<ChatEvent[]>;
@@ -104,10 +104,10 @@ export async function speakingAs(t: TestContext, holder: Holder): Promise<Speaki
     openDm: async (member) => valueOf(await chat.openDm({ member }, context)),
     createRoom: async (name, members) => valueOf(await chat.createRoom({ name, members }, context)),
     addMembers: (channel, members) => onChannel(holder, channel, async (held) => valueOf(await held.addMembers({ members }, context))),
-    edit: (thread, message, text) => inThread(thread, (held) => held.edit({ message, text }, context)),
-    delete: (thread, message) => inThread(thread, (held) => held.delete({ message }, context)),
-    react: (thread, message, emoji) => inThread(thread, (held) => held.react({ message, emoji }, context)),
-    unreact: (thread, message, emoji) => inThread(thread, (held) => held.unreact({ message, emoji }, context)),
+    edit: (thread, message, text, request = randomUUID()) => inThread(thread, (held) => held.edit({ message, text, request }, context)),
+    delete: (thread, message, request = randomUUID()) => inThread(thread, (held) => held.delete({ message, request }, context)),
+    react: (thread, message, emoji, request = randomUUID()) => inThread(thread, (held) => held.react({ message, emoji, request }, context)),
+    unreact: (thread, message, emoji, request = randomUUID()) => inThread(thread, (held) => held.unreact({ message, emoji, request }, context)),
     archive: (thread, archived) =>
       onThread(holder, thread, async (held) => valueOf(await held.archive({ archived, revision: held.thread.value?.revision ?? 0 }, context))),
     events: async (after, limit) => valueOf(await chat.events({ after, limit }, context)),
