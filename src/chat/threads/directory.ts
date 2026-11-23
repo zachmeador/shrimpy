@@ -109,16 +109,16 @@ export function createThread(deps: ChatDeps, caller: Member, channelId: string, 
 }
 
 /**
- * A thread the caller may change, as long as it is still at the revision the
- * caller decided on: one that has moved on is refused, so that a stale retry
- * can't undo a later rename or archive.
+ * Refuse a change the caller decided on the thread's revision `revision` once
+ * the thread has moved on from it, so that a stale retry can't undo a later
+ * rename or archive. A thread that already is what the caller asks, by `holds`,
+ * is let through, so a retry whose first answer was lost is answered with it.
  */
-function unchangedSince(tx: Transaction, caller: Member, threadId: string, revision: number): ThreadRecord {
+function unchangedSince(tx: Transaction, caller: Member, threadId: string, revision: number, holds: (thread: ThreadRecord) => boolean): void {
   const { thread } = visibleThread(tx, caller, threadId);
-  if (thread.revision !== revision) {
+  if (thread.revision !== revision && !holds(thread)) {
     refuse(`The thread has changed since revision ${String(revision)}, and is at revision ${String(thread.revision)}. Look at it again first.`);
   }
-  return thread;
 }
 
 /** Name a thread, as decided on its revision `revision`. Naming it what it is called already changes nothing. */
@@ -126,7 +126,7 @@ export function renameThread(deps: ChatDeps, caller: Member, threadId: string, n
   const title = label(name, "The thread's name");
   const seen = whole(revision, "revision", 0);
   return deps.store.transaction((tx) => {
-    unchangedSince(tx, caller, threadId, seen);
+    unchangedSince(tx, caller, threadId, seen, (thread) => thread.name === title);
     return withWorking(tx.renameThread(threadId, title), deps.working);
   });
 }
@@ -140,7 +140,7 @@ export function archiveThread(deps: ChatDeps, caller: Member, threadId: string, 
   const hidden = flag(archived, "archived");
   const seen = whole(revision, "revision", 0);
   return deps.store.transaction((tx) => {
-    unchangedSince(tx, caller, threadId, seen);
+    unchangedSince(tx, caller, threadId, seen, (thread) => thread.archived === hidden);
     return withWorking(tx.archiveThread(threadId, hidden), deps.working);
   });
 }

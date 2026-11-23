@@ -135,7 +135,8 @@ const ThreadV2 = evolve(ThreadV1, (edit) =>
  * one, and the same ID asking for anything else is refused. A rename or an
  * archive names the thread's revision it was decided on, and is refused once
  * the thread has moved on from it, so that a stale retry can't undo a later
- * decision.
+ * decision. A thread that already is what it asks is answered as it stands,
+ * whatever revision it names, so a retry whose answer was lost goes through.
  */
 export const Thread = evolve(ThreadV2, (edit) =>
   edit

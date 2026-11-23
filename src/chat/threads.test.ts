@@ -52,6 +52,8 @@ test("a rename or an archive names the revision it was decided on, so a stale re
 
   const named = valueOf(await yours.rename({ name: "Disk", revision: side.revision }, context));
   const renamed = valueOf(await scouts.rename({ name: "Logs", revision: named.revision }, context));
+  // Scout's rename again, as a retry after its answer was lost would send it: the thread already says it.
+  assert.equal(valueOf(await scouts.rename({ name: "Logs", revision: named.revision }, context)).revision, renamed.revision);
   // Your first rename again, as a retry after its answer was lost would send it.
   refusalOf(await yours.rename({ name: "Disk", revision: side.revision }, context));
   refusalOf(await yours.archive({ archived: true, revision: named.revision }, context));

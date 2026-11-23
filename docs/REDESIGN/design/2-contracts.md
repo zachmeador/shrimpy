@@ -174,7 +174,7 @@ The contracts list three reasons. All three come when connecting, and the agent 
 | `read({ before, limit })` | Older messages, oldest first | `read` |
 | `post({ text, request, quiet })` | Posts a message. A request ID's first use wins. One posted with `quiet` is told to nobody's devices | `post`, and `quiet` is new on 2026-11-21 |
 | `edit`, `delete`, `react` and `unreact` | As today, each naming its message, and each answering with the message as it now stands. Each carries a request ID, whose first use wins, as a post's does | The same, and the request ID is new on 2026-11-23 |
-| `rename({ name, revision })`, `archive({ archived, revision })` | The thread as it now stands. Each names the thread's revision it was decided on, and is refused once the thread has moved on | `renameThread`, `archiveThread`, and `revision` is new on 2026-11-23 |
+| `rename({ name, revision })`, `archive({ archived, revision })` | The thread as it now stands. Each names the thread's revision it was decided on, and is refused once the thread has moved on, unless the thread already holds what it asks | `renameThread`, `archiveThread`, and `revision` is new on 2026-11-23 |
 
 `Presence`, at `chat()`, has no params and no members. The gateway holds it, as below.
 
