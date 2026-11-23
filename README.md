@@ -1,83 +1,91 @@
-# 🦐 Shrimpy
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dusk.svg">
+    <img alt="🦐 Shrimpy" src="docs/assets/banner-day.svg" width="800">
+  </picture>
+</h1>
 
-This is Shrimpy, rebuilt on Pi's durable runtime. Old Shrimpy is in [`shrimpy-old/`](shrimpy-old/README.md) for reference until the release deletes it: nothing there is built, tested or edited.
+Shrimpy is a system for running your own agents, on your own machines.
 
-- [`AGENTS.md`](AGENTS.md) has the rules for working here.
-- [The redesign docs](docs/REDESIGN/README.md) own the design: how each piece works, what is built and what isn't.
-- `shrimpy <command> --help` says what a command does.
+Each agent has a home: a folder of plain files on the machine it lives on. It stays running there, with a shell, skills, and jobs it does on a schedule. A gateway joins your agents into one network, across as many machines as you have. They work with each other and with you in DMs and rooms, and you reach all of them from a terminal or your phone.
 
-## Check your work
+You don't need to learn its commands. When you want another agent, or one on a new machine, you ask an agent you already have.
+
+## Install
+
+Ask your coding agent, whichever you use:
+
+> Install Shrimpy from https://github.com/zachmeador/shrimpy
+
+Or run the installer yourself:
 
 ```bash
-npm install --ignore-scripts
+curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | bash
 ```
+
+Then `shrimpy` opens the terminal client. There is a web client too, which installs on your phone.
+
+<details>
+<summary>For the agent doing the install</summary>
+
+Shrimpy needs Node 22.19 or later and git, on macOS or Linux, and runs from a checkout.
+
+1. Clone this repository somewhere that will stay. Not `~/shrimpy`: that folder is where Shrimpy keeps what gets set up.
+2. In the checkout, run `npm install --ignore-scripts`.
+3. Link `bin/shrimpy.js` into a directory on the PATH, as `shrimpy`.
+4. Follow [the setup skill](skills/shrimpy-setup/SKILL.md) from there. Signing in to a model provider needs the person, so hand them that command.
+
+</details>
+
+## An agent is a folder
+
+```text
+~/shrimpy/agents/scout/
+  SOUL.md        who it is
+  context/       notes it sees in every conversation
+  skills/        what it knows how to do, in Markdown
+  vault/         longer notes it reads when it needs them
+  triggers/      jobs on a schedule
+  sigil          its face, twelve lines of twelve
+  agent.json     its name, model and color
+  state/         its sessions and its token
+```
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/sigils-dusk.svg">
+    <img alt="Ten sigils: small creatures and emblems, each twelve pixels square" src="docs/assets/sigils-day.svg" width="800">
+  </picture>
+</p>
+
+Edit a file and the agent picks it up a few seconds later. You can open any session of any agent and watch it work, including two agents talking to each other.
+
+## How it's built
+
+- `src/` has a folder for each program: the agent, the chat server and the gateway, plus the clients and the CLI. The three programs never import each other. They talk through the contracts in `src/contracts/`, and a lint fails the check when a file reaches past another module's `index.ts`.
+- What you edit is Markdown and JSON. Sessions and messages are in SQLite, through Node's built-in `node:sqlite`, so there is no database server to run.
+- Each agent runs on [Pi](https://github.com/earendil-works/pi), an open-source agent harness. Pi saves an agent's work as it goes, so an agent that is stopped or crashes picks up where it was. Its packages are pinned to one release.
+- Every program connects out to the gateway and keeps that link open. Nothing has to listen where an agent lives, which is what lets one run on another machine, in a container or under its own account.
+- A scheduled job can run a command first and call the model only when the output has changed.
+- There are twelve runtime dependencies and no build step. Node runs the TypeScript directly.
+- An agent has a real shell and runs as whoever started it. Shrimpy doesn't sandbox it. To wall one off, run it under its own account, in a container or on another machine.
+
+## Working on Shrimpy
 
 ```bash
 npm run check
 ```
 
-`check` runs the type check, lint and every test. Tests run straight from TypeScript with `node --test`, so there is no build step.
+That runs the type check, the lint and every test. One test talks to a real model, and is skipped unless `SHRIMPY_TEST_MODEL_URL` and `SHRIMPY_TEST_MODEL_ID` name a server. Give every run its own `SHRIMPY_DIR` and `SHRIMPY_RUNTIME_DIR`, so it never touches a setup in use.
 
-One test uses a real model, and is skipped unless you point it at a server. `SHRIMPY_TEST_MODEL_URL` is the server's OpenAI-compatible base URL, ending in `/v1`, and `SHRIMPY_TEST_MODEL_ID` is its model ID. The server needs no key.
-
-```bash
-SHRIMPY_TEST_MODEL_URL=http://localhost:8090/v1 SHRIMPY_TEST_MODEL_ID=my-model npm test
-```
-
-## Run it
-
-`npm run shrimpy -- <command>` runs the command line from source. For a `shrimpy` command that works from any directory, link `bin/shrimpy.js` into a directory on your PATH.
-
-What you set up lives in one folder, `~/shrimpy`, or the folder the environment variable `SHRIMPY_DIR` names. While you work on Shrimpy, give every run a `SHRIMPY_DIR` and a `SHRIMPY_RUNTIME_DIR` of its own, so that nothing touches a setup in use.
-
-```text
-~/shrimpy/
-  agents/<name>/    one home for each agent
-  providers/        sign-ins, keys, model servers and a default model that every agent here shares
-  gateway/          the gateway's data: the roster of who is on the network
-  chat/             the chat server's data
-```
-
-Make an agent. `agent init` says what to do next.
-
-```bash
-npm run shrimpy -- agent init scout --model local/qwen3.8-27b
-```
-
-The model is `provider/id`. A server of your own is declared in the home's `state/pi/models.json`, with the flags that server needs. A key for one of Pi's built-in providers goes in `state/pi/auth.json`.
-
-```json
-{
-  "providers": {
-    "local": {
-      "baseUrl": "http://localhost:8090/v1",
-      "api": "openai-completions",
-      "apiKey": "local",
-      "compat": { "supportsDeveloperRole": false, "supportsStore": false, "supportsReasoningEffort": false },
-      "models": [{ "id": "qwen3.8-27b", "reasoning": true, "contextWindow": 262144, "maxTokens": 65536 }]
-    }
-  }
-}
-```
-
-Start the gateway, the chat server and every agent in the folder. It runs in the foreground until Ctrl+C.
-
-```bash
-npm run shrimpy -- up
-```
-
-From another terminal, talk to an agent, or open the terminal client with no command at all.
-
-```bash
-npm run shrimpy -- run scout "what is in my inbox?"
-npm run shrimpy -- threads scout
-npm run shrimpy -- read th_4k9x2m7q0b3d
-npm run shrimpy
-```
+[How Shrimpy is built](docs/how-it-is-built.md) is the page to read before the code, [`AGENTS.md`](AGENTS.md) has the rules for working here, and [the design](docs/REDESIGN/README.md) has a file for each piece. Shrimpy is [MIT licensed](LICENSE).
 
 ## Commands
 
-The table is written by `npm run readme` from the commands the CLI has, and a test fails when it is behind. `shrimpy <command> --help` says more about each.
+These are for agents and scripts. `shrimpy <command> --help` says more about each.
+
+<details>
+<summary>The whole list</summary>
 
 <!-- commands:start -->
 | Command | What it does |
@@ -118,12 +126,11 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `chat serve <data-dir>` | Run the chat server in the foreground until it is told to stop, linked to the gateway. shrimpy up starts it for you. |
 <!-- commands:end -->
 
-## The shape
+</details>
 
-`src/` is organized by program: `agent/`, `chat/`, `gateway/`, `clients/` and `cli/`. Programs never import each other. They share only `contracts/`, which carry Shrimpy's own shapes, and `lib/`. [The code's layout](docs/REDESIGN/design/code-layout.md) owns these rules and has the rest, and `lint/boundaries.js` enforces them, so a violation fails `npm run check`.
-
-- A file imports files in its own directory, or another directory's front door: its `index.ts` or its `node.ts`. A directory's files stay closed to the directories inside it, so what both need gets a directory of its own. Every front door opens with a short comment saying what the module is for and what it must not know.
-- A module whose API partly needs Node offers that part through `node.ts`, and a file behind that door that needs Node is named `*.node.ts`. A module that is Node-only throughout has `node.ts` as its only door.
-- Browser-safe code can't import Node or a `node.ts` door. That is the web client, and everything in `contracts/`, `lib/` and the modules both clients share, apart from the files that need Node. Tests and `testing/` modules are never shipped and are exempt.
-- Tests sit beside the code as `*.test.ts`. Test support lives in a `testing/` module that only tests import.
-- Only `agent/` imports Pi's durable runtime, and inside it only a file named `*.durable.ts` or a module's `durable.ts` door. Between the agent's modules, imports point one way. Only `clients/console/draw/` imports `pi-tui`.
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/tide-dusk.svg">
+    <img alt="The shrimp walking along the tide" src="docs/assets/tide-day.svg" width="800">
+  </picture>
+</p>
