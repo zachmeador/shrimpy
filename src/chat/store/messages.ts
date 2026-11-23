@@ -108,7 +108,11 @@ export interface MessageEdit {
  * change in the same transaction, and writes none when nothing would change.
  */
 export interface MessageOperations {
-  /** Add a message to a thread, with its post event, or a trigger's line, with its `fired` event. */
+  /**
+   * Add a message to a thread, with its post event, or a trigger's line, with
+   * its `fired` event. An archived thread is brought back by either, which
+   * takes it to its next revision.
+   */
   appendMessage(message: NewMessage): Message;
   message(id: string): Message | undefined;
   /** Up to `limit` messages of a thread older than `before`, or the newest when it is null; oldest first. */
@@ -161,10 +165,11 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
           output,
         );
       }
-      // A clock that steps back must not make a thread look older than it was.
+      // A clock that steps back must not make a thread look older than it was. An archived thread comes back.
       sql.run(
         `UPDATE threads
-         SET message_count = message_count + 1, last_seq = ?, updated_at = max(updated_at, ?)
+         SET message_count = message_count + 1, last_seq = ?, updated_at = max(updated_at, ?),
+             revision = revision + archived, archived = 0
          WHERE id = ?`,
         posted.seq,
         post.sentAt,

@@ -85,7 +85,8 @@ const ThreadV1 = remote("shrimpy.chat.thread", {
         /**
          * Archives the thread, which hides it from lists and leaves it readable,
          * or brings it back, answering with it as it now stands. Asking for
-         * what it is already changes nothing.
+         * what it is already changes nothing. A new message in an archived
+         * thread, or a trigger's line, brings it back too.
          */
         archive: method(obj({ archived: bool(), revision: int() }), answerOf(ThreadSchema)),
       },

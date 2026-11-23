@@ -22,8 +22,9 @@ export const SCHEMA_VERSION = 10;
  * `reactions` keeps the emoji that stand. A failed receipt always has a
  * detail, a skipped or answered one may, and no other has one.
  *
- * A thread's `revision` counts the renames and archives that changed it, so
- * that a rename or an archive can name the revision it was decided on.
+ * A thread's `revision` counts the renames and archives that changed it, and
+ * the messages that brought it back from the archive, so that a rename or an
+ * archive can name the revision it was decided on.
  *
  * A DM is found by its `direct_key`, the two members' IDs in order, and a room
  * by its `room_key`, its name in lower case, which no other room has. A member

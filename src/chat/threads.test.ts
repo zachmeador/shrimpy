@@ -59,6 +59,11 @@ test("a rename or an archive names the revision it was decided on, so a stale re
 
   await until(() => yours.thread.value?.revision === archived.revision, "the thread to show the archive");
   assert.deepEqual([yours.thread.value?.name, yours.thread.value?.archived], ["Logs", true]);
+
+  // A new message brings it back, which a stale archive can't undo either.
+  valueOf(await scouts.post({ text: "The disk is full again.", request: "scout-1" }, context));
+  await until(() => yours.thread.value?.archived === false, "the message to bring the thread back");
+  refusalOf(await yours.archive({ archived: true, revision: archived.revision }, context));
 });
 
 test("a replayed edit or reaction answers with the message as it stands, and undoes nothing newer", { timeout }, async (t) => {

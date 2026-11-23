@@ -133,7 +133,8 @@ export function renameThread(deps: ChatDeps, caller: Member, threadId: string, n
 
 /**
  * Archive a thread or bring it back, as decided on its revision `revision`.
- * Archiving hides a thread from lists; it stays readable and can take messages.
+ * Archiving hides a thread from lists; it stays readable, and a new message in
+ * it brings it back.
  */
 export function archiveThread(deps: ChatDeps, caller: Member, threadId: string, archived: unknown, revision: unknown): Thread {
   const hidden = flag(archived, "archived");
