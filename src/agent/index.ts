@@ -14,12 +14,13 @@
 import type { AgentEndpoint, Reloaded } from "../contracts/agent/index.ts";
 import { loadHome, readMembership, readTriggers } from "../contracts/agent/node.ts";
 import { createLiveRoster } from "../contracts/gateway/index.ts";
+import { followFiles, type FollowingFiles } from "../lib/files/node.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { createAdmissions } from "./chat/durable.ts";
 import { channelOfThread, createDelivery, createWakes } from "./chat/index.ts";
 import { homeContext } from "./context/durable.ts";
 import { type ContextPreview, previewContext } from "./context/index.ts";
-import { type Following, follow, homeReader, LOOK_EVERY_MS } from "./following.ts";
+import { homeReader, LOOK_EVERY_MS } from "./following.ts";
 import { homePaths, lookAtHome, readBreadcrumbs, writeBreadcrumb } from "./home/index.ts";
 import { buildModels, type HostOptions, type ModelReload, openHost } from "./host/durable.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
@@ -114,7 +115,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
   const context = await homeContext({ name: options.name, home: options.home });
   const report = reporter(options);
   const host = await openHost(options);
-  let following: Following<Reloaded> | undefined;
+  let following: FollowingFiles<Reloaded> | undefined;
   try {
     // What the agent posts under names of its own making carries what its records are called, which only the opened
     // storage can say, so what posts is made now, and installed before anything runs.
@@ -160,7 +161,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     );
     const wakes = createWakes();
     const look = keepLook(report);
-    const keeping = follow({
+    const keeping = followFiles({
       everyMs: options.lookEveryMs ?? LOOK_EVERY_MS,
       look: () => lookAtHome(paths, options.modelFiles),
       read: homeReader({

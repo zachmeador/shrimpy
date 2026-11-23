@@ -1,18 +1,10 @@
 import { relative, sep } from "node:path";
-import { codeOf, compare, type LeftOut, why, whyUnseen } from "../../lib/files/index.ts";
-import { readText } from "../../lib/files/node.ts";
+import { compare, type LeftOut, type MarkdownFile, stillHeld, takesIn } from "../../lib/files/index.ts";
+import { readMarkdown, readText } from "../../lib/files/node.ts";
 import { shownIn } from "./files.ts";
 import { INCLUDED_SKILLS } from "./included.ts";
 import type { HomePaths } from "./layout.ts";
 import { mergeSkills, readSkills, type SkillTrail } from "./skills.ts";
-import { walkContext } from "./walk.ts";
-
-/** A Markdown file from the home's `context/` folder. */
-export interface ContextFile {
-  /** Where it is inside the home, with `/` between folders. */
-  readonly path: string;
-  readonly text: string;
-}
 
 /**
  * What the home's files tell the agent, read once. Reading it again is a
@@ -21,8 +13,8 @@ export interface ContextFile {
 export interface HomeSnapshot {
   /** The text of `SOUL.md`, when it has any. */
   readonly soul: string | undefined;
-  /** The Markdown files of `context/` and the folders under it, in order of path. */
-  readonly files: readonly ContextFile[];
+  /** The Markdown files of `context/` and the folders under it, by where each is in the home, in order of path. */
+  readonly files: readonly MarkdownFile[];
   /** The skills the agent is shown, in order of name: the home's, and those that ship with Shrimpy. */
   readonly skills: readonly SkillTrail[];
   /** What could not be read or used. Everything else was read anyway. */
@@ -44,25 +36,15 @@ export async function readHomeSnapshot(paths: HomePaths): Promise<HomeSnapshot> 
   const soul = await readText(paths.soul);
   if (soul.kind === "unreadable") leftOut.push({ file: inHome(paths.soul), reason: soul.reason });
 
-  const files: ContextFile[] = [];
-  for await (const entry of walkContext(paths.context)) {
-    if (entry.kind === "unread") {
-      if (codeOf(entry.error) !== "ENOENT") leftOut.push({ file: inHome(entry.path), reason: why(entry.error) });
-    } else if (entry.kind === "unseen") {
-      leftOut.push({ file: inHome(entry.path), reason: whyUnseen(entry.error) });
-    } else if (entry.info.isFile()) {
-      const read = await readText(entry.path);
-      if (read.kind === "unreadable") leftOut.push({ file: inHome(entry.path), reason: read.reason });
-      else if (read.kind === "text" && read.text.trim() !== "") files.push({ path: inHome(entry.path), text: read.text });
-    }
-  }
+  const context = await readMarkdown(paths.context, inHome);
+  leftOut.push(...context.leftOut);
 
   const own = await readSkills(paths.skills, inHome, leftOut);
   // Where the files of a skill that ships with Shrimpy are, if any is wrong, is told in full: they are not in the home.
   const included = await readSkills(INCLUDED_SKILLS, (path) => path, leftOut);
   return {
     soul: soul.kind === "text" && soul.text.trim() !== "" ? soul.text : undefined,
-    files: files.sort((a, b) => compare(a.path, b.path)),
+    files: context.files,
     skills: mergeSkills(own, included),
     leftOut,
   };
@@ -83,12 +65,10 @@ const KEPT = "so what was last read of it is kept";
  * unusable stays as it was when it was last read.
  */
 export function carryOver(previous: HomeSnapshot, read: HomeSnapshot, paths: HomePaths): HomeSnapshot {
-  const covers = (left: string, held: string): boolean => held === left || held.startsWith(`${left}/`);
-  const heldBack = (held: string): boolean => read.leftOut.some(({ file }) => covers(file, held));
+  const heldBack = (held: string): boolean => read.leftOut.some(({ file }) => takesIn(file, held));
 
   const soul = read.soul === undefined && previous.soul !== undefined && heldBack("SOUL.md") ? previous.soul : undefined;
-  const have = new Set(read.files.map(({ path }) => path));
-  const files = previous.files.filter(({ path }) => !have.has(path) && heldBack(path));
+  const files = stillHeld(previous.files, read.files, read.leftOut);
   // A skill is left out under the path its reading shows: inside the home, or in full for one that ships with Shrimpy.
   const isOwn = (skill: SkillTrail): boolean => skill.file.startsWith(`${paths.skills}${sep}`);
   const shown = (skill: SkillTrail): string => (isOwn(skill) ? shownIn(paths.root, skill.file) : skill.file);
@@ -98,8 +78,8 @@ export function carryOver(previous: HomeSnapshot, read: HomeSnapshot, paths: Hom
 
   const kept = (left: string): boolean =>
     (soul !== undefined && left === "SOUL.md") ||
-    files.some(({ path }) => covers(left, path)) ||
-    skills.some((skill) => covers(left, shown(skill)));
+    files.some(({ path }) => takesIn(left, path)) ||
+    skills.some((skill) => takesIn(left, shown(skill)));
   const all = [...read.skills, ...skills];
   return {
     soul: soul ?? read.soul,

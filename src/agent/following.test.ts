@@ -3,8 +3,9 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync }
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+import { followFiles } from "../lib/files/node.ts";
 import { eventually, stopAfter, tempDir } from "../lib/testing/index.ts";
-import { follow, LEFT_OUT_BREADCRUMB } from "./following.ts";
+import { LEFT_OUT_BREADCRUMB } from "./following.ts";
 import { homePaths, lookAtHome } from "./home/index.ts";
 import { startAgentRig, talking, writeTrigger } from "./testing/index.ts";
 
@@ -24,7 +25,7 @@ test("a file that changes while the agent reads its home is read again before th
   mkdirSync(paths.root, { recursive: true });
   writeFileSync(paths.soul, "Be brief.\n");
   let reads = 0;
-  const following = follow({
+  const following = followFiles({
     everyMs: 60_000,
     look: () => lookAtHome(paths),
     async read() {

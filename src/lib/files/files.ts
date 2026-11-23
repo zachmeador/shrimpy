@@ -8,6 +8,31 @@ export interface LeftOut {
   readonly reason: string;
 }
 
+/** A Markdown file as a reader read it. */
+export interface MarkdownFile {
+  /** Where it is, as its reader names it, with `/` between folders. */
+  readonly path: string;
+  readonly text: string;
+}
+
+/** Whether the left-out `file` takes in `path`: it is that file, or a folder that holds it. */
+export const takesIn = (file: string, path: string): boolean => path === file || path.startsWith(`${file}/`);
+
+/**
+ * The files of `previous` that `read` doesn't have and `leftOut` takes in, by
+ * where `shown` says each is: what a reader goes on with when it can't read a
+ * file it read before. A file that is gone isn't left out, and so isn't kept.
+ */
+export function stillHeld(
+  previous: readonly MarkdownFile[],
+  read: readonly MarkdownFile[],
+  leftOut: readonly LeftOut[],
+  shown: (path: string) => string = (path) => path,
+): MarkdownFile[] {
+  const have = new Set(read.map(({ path }) => path));
+  return previous.filter(({ path }) => !have.has(path) && leftOut.some(({ file }) => takesIn(file, shown(path))));
+}
+
 /** Plain order of the characters, which does not change with the machine's language. */
 export const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
