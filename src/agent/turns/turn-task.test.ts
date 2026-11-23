@@ -33,7 +33,7 @@ function recordingDelivery(fail: (outcome: TurnOutcome) => Error | undefined = (
       const failure = fail(outcome);
       if (failure !== undefined) return Promise.reject(failure);
       told.push({ id: idOf(outstanding), outcome, earlier: isChat(outstanding) ? outstanding.earlier.map((event) => event.id) : [] });
-      return Promise.resolve();
+      return Promise.resolve("told");
     },
   };
   return { delivery, told };

@@ -4,5 +4,5 @@
  * the next attempt. It knows nothing about what is being retried. Safe for
  * browsers.
  */
-export { type Backoff, backoff } from "./backoff.ts";
+export { type Backoff, backoff, pauseAfter } from "./backoff.ts";
 export { keepRunning, pause } from "./keep-running.ts";

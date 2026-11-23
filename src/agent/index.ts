@@ -128,15 +128,10 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     const breadcrumbs = () => readBreadcrumbs(paths);
     const messageLimit = options.join?.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit };
     const sessions = createSessions(host.harness, { model: options.model, cwd: host.home }, options.models);
-    const delivery = createDelivery({
-      recordsId,
-      onError: report,
-      ...messageLimit,
-      ...(options.join?.backoff === undefined ? {} : { backoff: options.join.backoff }),
-    });
+    const delivery = createDelivery({ recordsId, onError: report, ...messageLimit });
     const turn = turnTask({ delivery, onError: report });
     const wakeups = createWakeups(turn.task, { onError: report, breadcrumbs });
-    // The delivery waits for chat as it must, so a question whose time is up looks at chat through it.
+    // A question whose time is up looks at chat through the delivery, as a reply is posted.
     const questions = createQuestions(turn.task, { onError: report, breadcrumbs, looking: delivery });
     const triggers = createTriggers(host.harness, {
       turn: turn.task,

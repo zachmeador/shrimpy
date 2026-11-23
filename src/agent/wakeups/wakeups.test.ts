@@ -51,7 +51,7 @@ async function start(t: TestContext, home: string, script: Script, options: Star
   const delivery: Delivery = {
     tell(input, outcome) {
       told.push({ input, outcome });
-      return Promise.resolve();
+      return Promise.resolve("told");
     },
   };
   const { models, model } = fauxModels({ home, script, tokensPerSecond: 4000 });

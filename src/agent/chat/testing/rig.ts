@@ -1,6 +1,5 @@
 import type { TestContext } from "node:test";
 import type { Message } from "../../../contracts/chat/index.ts";
-import { backoff } from "../../../lib/retry/index.ts";
 import { stopAfter, useRuntimeDir } from "../../../lib/testing/index.ts";
 import type { Outstanding } from "../../inputs/index.ts";
 import { type ChatCalls, type ChatLink, openChatLink } from "../../links/index.ts";
@@ -37,8 +36,7 @@ export interface ChatRig extends Talk {
  * The agent Scout's way to chat, and a delivery over it, wired to the real chat
  * server and gateway, with you to talk to it. Scout is a member of the roster
  * here, linked to the gateway as an agent's program is, without being a running
- * agent. Pauses between retries are a few milliseconds. The delivery and the
- * link are stopped when the test ends.
+ * agent. The delivery and the link are stopped when the test ends.
  */
 export async function startChatRig(t: TestContext, options: Pick<DeliveryOptions, "messageLimit"> = {}): Promise<ChatRig> {
   useRuntimeDir(t);
@@ -53,7 +51,6 @@ export async function startChatRig(t: TestContext, options: Pick<DeliveryOptions
   const delivery = createDelivery({
     recordsId: "rec_test",
     onError: (error) => errors.push(error),
-    backoff: () => backoff({ firstMs: 5, maxMs: 20 }),
     ...(options.messageLimit === undefined ? {} : { messageLimit: options.messageLimit }),
   });
   delivery.attach(link);

@@ -144,6 +144,31 @@ test("killed between the turn ending and the reply being posted: the reply arriv
   assert.equal(loggedRequests(home).length, 1, "the model was not asked again");
 });
 
+test("killed five times while a reply waits for chat: Pi counts none of it, and the reply arrives once when chat is back", { timeout }, async (t) => {
+  const { home, chat, start } = await setUp(t);
+  let agent = await start("gated", 400);
+  const talk = await talkTo(t, SCOUT);
+  const asked = await talk.say("hello");
+  await talk.untilWorking();
+  await chat.outage();
+  releaseGate(home);
+  const watching = await attachThread(t, home, talk.thread.id);
+  await waitForView(watching.session, answered);
+  await watching.connection.close();
+  // Each start tries chat, finds it away, and sleeps: a crash cuts off nothing that sleeps. A second is long enough for
+  // a task that waited for chat in place to be running by each kill, so that each one would count against it.
+  for (let kill = 1; kill <= 5; kill += 1) {
+    await delay(1_000);
+    await agent.kill("SIGKILL");
+    agent = await start("gated", 400);
+  }
+  await chat.recover();
+
+  assert.equal((await talk.receiptOn(asked, 20_000)).status, "answered");
+  assert.equal((await talk.replies()).length, 1);
+  assert.equal(loggedRequests(home).length, 1, "the model was not asked again");
+});
+
 test("killed while the receipt is being left: the reply is not posted a second time", { timeout }, async (t) => {
   const { start } = await setUp(t);
   const first = await start("mixed", 400, { holdReceipts: true });

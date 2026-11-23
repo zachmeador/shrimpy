@@ -5,6 +5,7 @@ import { ABORTED, COMPLETED, failTask, tasksOfKind } from "../host/durable.ts";
 import type { Breadcrumb, Question } from "../inputs/index.ts";
 import { QuestionsDoc } from "../records/durable.ts";
 import type { TurnTask } from "../turns/durable.ts";
+import { chatPause } from "../turns/index.ts";
 import { closeQuestion, forgetQuestion } from "./close.durable.ts";
 import type { Look } from "./look.ts";
 
@@ -46,7 +47,8 @@ export interface QuestionsOptions {
  * that the agent's feed has not brought yet, and closes the question, if it is
  * still open: with what the receipt says, if the other agent left one, and
  * otherwise by telling the session that the other agent has not answered. Not
- * having been able to look is not a reason to say so: the look waits for chat.
+ * having been able to look is not a reason to say so: while chat is away the task
+ * sleeps between looks, and closes the question at the first look that works.
  * Closing is one commit, so a question closes once: a receipt in chat's feed
  * closes it in the commit that moves the agent's place there, and whichever comes
  * first leaves nothing for the other. A question whose time was up while the agent
@@ -56,7 +58,7 @@ export interface QuestionsOptions {
  * later is an ordinary message in the question's thread.
  */
 export function createQuestions(turn: TurnTask, options: QuestionsOptions): Questions & { extension: Extension } {
-  const task = defineTask<Question, { phase: "sleep" } | { phase: "due" }, null>({
+  const task = defineTask<Question, { phase: "sleep" } | { phase: "due"; tries?: number }, null>({
     name: QUESTION_TASK,
     version: 1,
     initial: () => ({ phase: "sleep" }),
@@ -67,6 +69,11 @@ export function createQuestions(turn: TurnTask, options: QuestionsOptions): Ques
         const question = waiting.input;
         try {
           const looked = await options.looking.look(question, runtime.signal);
+          if (looked === "later") {
+            const tries = waiting.state.checkpoint.tries ?? 0;
+            await runtime.sleepUntil(runtime.now() + chatPause(tries), { phase: "due", tries: tries + 1 }, context);
+            return;
+          }
           const crumbs = await options.breadcrumbs();
           await runtime.commit(async (tx) => {
             await closeQuestion(tx, turn, question.id, looked?.result ?? { kind: "unanswered" }, crumbs, looked?.through);

@@ -19,6 +19,7 @@ import {
 } from "@earendil-works/pi-durable";
 import { failureWords } from "../../contracts/agent/index.ts";
 import { asError } from "../../lib/errors/index.ts";
+import { pause } from "../../lib/retry/index.ts";
 import {
   endingOf,
   type Ending,
@@ -35,7 +36,7 @@ import {
 } from "../inputs/index.ts";
 import { ABORTED, tasksOfKind } from "../host/durable.ts";
 import { keepSkipped, sessionAddress, SessionsDoc } from "../records/durable.ts";
-import type { Delivery } from "./delivery.ts";
+import { chatPause, type Delivery } from "./delivery.ts";
 import { modelChangeOf } from "./model-change.durable.ts";
 import { CUT_OFF, toOutcome } from "./turn.durable.ts";
 
@@ -48,9 +49,12 @@ const WAIT_TASK = "shrimpy.turn-wait";
 /**
  * Where an input's task is: handing the input over, following its turn, which
  * it does by waiting on the task `wait` that waits for the turn to end, or
- * telling its source how the turn ended.
+ * telling its source how the turn ended, after `tries` tries that chat was away for.
  */
-export type TurnState = { phase: "handOver" } | { phase: "follow"; wait: number } | { phase: "tell"; outcome: TurnOutcome };
+export type TurnState =
+  | { phase: "handOver" }
+  | { phase: "follow"; wait: number }
+  | { phase: "tell"; outcome: TurnOutcome; tries?: number };
 
 /** The phase an input's task is in. A task that has ended is in none. */
 export function phaseOf(record: TaskRecord<JsonValue, JsonValue, JsonValue>): TurnState["phase"] | undefined {
@@ -131,7 +135,8 @@ export interface TurnTaskOptions {
  * it failed, saying why; an input still waiting is taken back and skipped; and
  * one whose turn ended meanwhile is told as it ended. A task that is cut off
  * that often while it hands the input over or tells its source is ended itself,
- * and nothing is told.
+ * and nothing is told. While chat is away the task sleeps between tries at
+ * telling, which holds nothing, so a crash then cuts nothing off.
  */
 export function turnTask(options: TurnTaskOptions) {
   const { delivery } = options;
@@ -222,10 +227,13 @@ export function turnTask(options: TurnTaskOptions) {
       ),
 
       // Post the reply, tell the source how it ended, and keep a skipped input for the next one in its session.
-      tell: guarded(
+      tell: guarded<Extract<TurnState, { phase: "tell" }>>(
         async (turn, runtime, context) => {
-          const { outcome } = turn.state.checkpoint;
-          await delivery.tell(turn.input, outcome, runtime.signal);
+          const { outcome, tries = 0 } = turn.state.checkpoint;
+          if ((await delivery.tell(turn.input, outcome, runtime.signal)) === "later") {
+            await runtime.sleepUntil(runtime.now() + chatPause(tries), { phase: "tell", outcome, tries: tries + 1 }, context);
+            return;
+          }
           await runtime.commit((tx) => finish(tx, turn.input, outcome, "completed"), context);
         },
         // Once more, to say that it failed; if that is what was being told, there is nothing left to try.
@@ -241,7 +249,10 @@ export function turnTask(options: TurnTaskOptions) {
       try {
         const { checkpoint } = turn.state;
         const outcome = checkpoint.phase === "tell" ? checkpoint.outcome : await stopped(turn, runtime, context);
-        await delivery.tell(turn.input, outcome, runtime.signal);
+        // A stop ends its task, so it has no sleep to wait for chat in: it waits here.
+        for (let tries = 0; (await delivery.tell(turn.input, outcome, runtime.signal)) === "later"; tries += 1) {
+          await pause(chatPause(tries), runtime.signal);
+        }
         await runtime.commit((tx) => finish(tx, turn.input, outcome, "aborted"), context);
       } catch (error) {
         if (runtime.signal.aborted) throw error;

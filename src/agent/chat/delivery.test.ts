@@ -7,14 +7,16 @@ import { startChatRig } from "./testing/index.ts";
 const timeout = 15_000;
 const never = new AbortController().signal;
 
-test("a reply is posted once however delivery goes wrong", { timeout }, async (t) => {
+test("a reply is posted once however often telling goes wrong and is tried again", { timeout }, async (t) => {
   const rig = await startChatRig(t);
   const said = await rig.say("hello");
   rig.faults.fail("post", new Error("overloaded"));
   rig.faults.loseAnswerToNextPost();
   rig.faults.fail("leaveReceipt", new Error("chat hiccuped"), 2);
 
-  await rig.delivery.tell(rig.outstanding(said), { kind: "answered", answer: "1", text: "Only once." }, never);
+  // As the task that follows the input tries again after each pause, until it is told.
+  const tell = () => rig.delivery.tell(rig.outstanding(said), { kind: "answered", answer: "1", text: "Only once." }, never);
+  while ((await tell()) === "later") continue;
 
   const receipt = await rig.receiptOn(said);
   const replies = await rig.replies();
@@ -32,7 +34,7 @@ test("a reply that chat refuses for good is not posted again, and the event gets
   const said = await rig.say("hello");
   rig.faults.fail("post", new Refusal("Unknown thread: th_gone"), 10);
 
-  await rig.delivery.tell(rig.outstanding(said), { kind: "answered", answer: "1", text: "Too late." }, never);
+  assert.equal(await rig.delivery.tell(rig.outstanding(said), { kind: "answered", answer: "1", text: "Too late." }, never), "told");
 
   assert.deepEqual(await rig.replies(), []);
   const receipt = await rig.receiptOn(said);
@@ -43,24 +45,18 @@ test("a reply that chat refuses for good is not posted again, and the event gets
   assert.equal(rig.faults.calls("post"), 1, "and it was not asked again");
 });
 
-test("a reply waits for chat to come back, and the agent leaving chat first does not end it", { timeout }, async (t) => {
+test("while chat is away, and once the agent has left chat, a reply waits for a later try", { timeout }, async (t) => {
   const rig = await startChatRig(t);
   const said = await rig.say("hello");
+  const answer = { kind: "answered", answer: "1", text: "Late." } as const;
   await rig.chat.outage();
-  const engine = new AbortController();
+  await until(() => rig.link.current() === undefined, "the agent's way to chat to be down");
 
-  const told = rig.delivery.tell(rig.outstanding(said), { kind: "answered", answer: "1", text: "Late." }, engine.signal);
-  let ended: string | undefined;
-  const settled = told.then(
-    () => (ended = "told"),
-    () => (ended = "failed"),
-  );
+  assert.equal(await rig.delivery.tell(rig.outstanding(said), answer, never), "later");
   rig.delivery.close();
-  // Chat comes back and the agent's way to it is up again, long after anything the leaving would have ended.
   await rig.chat.recover();
   await until(() => rig.link.current() !== undefined, "the agent's way to chat to be up again");
 
-  assert.equal(ended, undefined, "a rejection now would end its task for good");
-  engine.abort(new Error("The engine is closing."));
-  assert.equal(await settled, "failed", "the engine closing is the only thing that ends it");
+  assert.equal(await rig.delivery.tell(rig.outstanding(said), answer, never), "later", "the reply waits for the agent's next start");
+  assert.deepEqual(await rig.replies(), []);
 });

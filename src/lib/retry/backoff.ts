@@ -14,19 +14,24 @@ export interface BackoffOptions {
 
 /** Pauses that double from `firstMs` to `maxMs`, each shortened by up to a quarter at random. */
 export function backoff(options: BackoffOptions = {}): Backoff {
+  let tries = 0;
+  return {
+    next: () => pauseAfter(tries++, options),
+    reset() {
+      tries = 0;
+    },
+  };
+}
+
+/**
+ * The pause after `tries` failed tries in a row, counting from 0, as `backoff`
+ * makes them, for whoever keeps the count itself, such as a task that sleeps
+ * between tries.
+ */
+export function pauseAfter(tries: number, options: BackoffOptions = {}): number {
   const first = options.firstMs ?? 250;
   const max = options.maxMs ?? 15_000;
   const random = options.random ?? Math.random;
-  let current = first;
-  return {
-    next() {
-      // Programs that lost the same peer would otherwise all retry at the same moment.
-      const pause = Math.round(current * (1 - random() * 0.25));
-      current = Math.min(current * 2, max);
-      return pause;
-    },
-    reset() {
-      current = first;
-    },
-  };
+  // Programs that lost the same peer would otherwise all retry at the same moment.
+  return Math.round(Math.min(first * 2 ** tries, max) * (1 - random() * 0.25));
 }

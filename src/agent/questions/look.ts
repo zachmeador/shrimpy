@@ -12,11 +12,11 @@ export interface Look {
   /**
    * Look at the question's message in chat once, and say what the other agent has
    * left on it: its receipt, in the form the feed would have brought it. Nothing
-   * when it has left none, or one that says it skipped the question. It waits for
-   * chat when chat is not there, and tries again after a failure, so that "nothing"
-   * is never an answer to not having looked; but chat refusing for good to show the
-   * message is also nothing, since there is nothing to wait for. It ends with a
-   * rejection only when `signal` aborts.
+   * when it has left none, or one that says it skipped the question, and nothing
+   * when chat refuses for good to show the message, since there is nothing to wait
+   * for. "later" when it could not look, as when chat is away, so that nothing is
+   * never an answer to not having looked: the task sleeps and looks again. It ends
+   * with a rejection only when `signal` aborts.
    */
-  look(question: Question, signal: AbortSignal): Promise<Looked | undefined>;
+  look(question: Question, signal: AbortSignal): Promise<Looked | undefined | "later">;
 }
