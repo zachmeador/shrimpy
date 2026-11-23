@@ -160,7 +160,20 @@ html[data-view="live"] body { overflow: hidden; }
   </section>
 
   <section class="sheet">
-    <h2><span>05</span>When things are not fine</h2>
+    <h2><span>05</span>Renaming and archiving a thread</h2>
+    <p class="cap">Both are commands written in the thread, as <code>/stop</code> and <code>/model</code> are: <code>/rename</code> and a name, and <code>/archive</code>. Neither is posted. An archived thread leaves its list for the row at the foot of it, which → opens.</p>
+    <div class="fit">
+      <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route="agent:lighthouse/thread:lh-disk" data-typed="/rename a fifth drive for the NAS"></div></div>
+      <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route="agent:lighthouse" data-at="arch"></div></div>
+    </div>
+    <p class="cap">Open, an archived thread has a tag by its name and nothing else differs. <code>/unarchive</code> brings it back, and so does a message that lands in it.</p>
+    <div class="fit">
+      <div class="unit"><div class="win term" data-cols="112" data-rows="32" data-mode="day" data-route="agent:lighthouse/thread:lh-ups" data-arch="1" data-typed="/un"></div></div>
+    </div>
+  </section>
+
+  <section class="sheet">
+    <h2><span>06</span>When things are not fine</h2>
     <p class="cap">A view with no connection goes dim under its note, a thread you only read says so where the input would be, and with no gateway the first screen is how to start one. The notes about a lost connection and a missing gateway are the terminal's sentences as they are today. The others are the shorter ones from the web mockup.</p>
     <div class="fit">
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route="agent:lighthouse/thread:lh-main" data-stale="1"></div></div>
@@ -173,7 +186,7 @@ html[data-view="live"] body { overflow: hidden; }
   </section>
 
   <section class="sheet">
-    <h2><span>06</span>On the terminal's own colors</h2>
+    <h2><span>07</span>On the terminal's own colors</h2>
     <p class="cap">Where a terminal has no true color, the client paints no ground: it draws on the terminal's own, in its sixteen colors. The layout and the marks are the same.</p>
     <div class="fit">
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="own" data-route="agent:lighthouse/thread:lh-backup"></div></div>
@@ -182,19 +195,19 @@ html[data-view="live"] body { overflow: hidden; }
   </section>
 
   <section class="sheet">
-    <h2><span>07</span>The commands</h2>
+    <h2><span>08</span>The commands</h2>
     <p class="cap">The commands print plain lines and tables, which agents read, and those stay as they are. On a terminal that shows color, three things are added: a name or a command to run is bold, a state has a color, and what failed is red.</p>
     <div class="fit">
       <div class="unit"><div class="win shell" data-cols="84" data-rows="24" data-show="help"></div></div>
       <div class="unit"><div class="win shell" data-cols="84" data-rows="24" data-show="status"></div></div>
     </div>
     <div class="fit">
-      <div class="unit"><div class="win shell" data-cols="100" data-rows="13" data-show="more"></div></div>
+      <div class="unit"><div class="win shell" data-cols="100" data-rows="15" data-show="more"></div></div>
     </div>
   </section>
 
   <section class="sheet">
-    <h2><span>08</span>What it is made of</h2>
+    <h2><span>09</span>What it is made of</h2>
     <p class="cap">The web client's stitch is two pixels. Here it is the cell, and the dot of a braille cell. A sigil is written once, as twelve lines of twelve, and each client draws it its own way.</p>
     <div class="fit">
       <div class="unit"><div class="win made" data-cols="108" data-rows="32" data-mode="dusk"></div></div>
@@ -218,7 +231,7 @@ html[data-view="live"] body { overflow: hidden; }
   </section>
 
   <section class="sheet">
-    <h2><span>09</span>What this changes, and what it leaves open</h2>
+    <h2><span>10</span>What this changes, and what it leaves open</h2>
     <p class="cap">The terminal was built to this mockup on 2026-11-22. The first card is where the mockup differed from the terminal as it was until then, written before it was built, with what you said of each. The plan has what you decided in <a href="REDESIGN/design/using-it.md">using it</a>, and <a href="REDESIGN/STATUS.md">status</a> has where the terminal still differs from these sheets.</p>
     <div class="grid2">
       <div class="card">
@@ -239,6 +252,14 @@ html[data-view="live"] body { overflow: hidden; }
           <li><b>The tab's title</b> has the shrimp, which you asked for, and with it how many agents are working and how much is new.</li>
           <li><b>The mouse works,</b> for choosing a row and for the wheel. Nothing needs it.</li>
         </ol>
+        <h3 style="margin-top:18px">Drawn on 2026-11-23, and not built</h3>
+        <ul>
+          <li><b>Renaming and archiving are commands, and have no key:</b> <code>/rename</code> and a name, <code>/archive</code> and <code>/unarchive</code>. They are the terminal's own, as <code>/status</code> is, so nothing is posted. Each is rare, a name has to be typed anyway, and the Ctrl keys that are left are the editor's.</li>
+          <li><b>An archived thread leaves its list for a row at the foot of it,</b> lit while an agent works in one. → on that row opens the archived threads in place, and → again shuts them, the one place → does anything but go in, and yours to strike. Open, a thread has a tag by its name and nothing else differs.</li>
+          <li><b>A message brings an archived thread back.</b> Chat doesn't do that yet: an archived thread takes a message and stays archived.</li>
+          <li><b>Neither leaves a line in the thread.</b> A new name shows where the name is, and an agent reads it with its next input.</li>
+          <li><b>A thread you only read takes neither.</b> Chat lets only a channel's members rename or archive, and such a thread has no input to write a command in. The main thread takes both. A trigger's own session is behind no thread.</li>
+        </ul>
       </div>
       <div class="card">
         <h3>Not drawn yet</h3>
@@ -649,7 +670,7 @@ const AGENTS = {
 const ORDER = ['shrimpy', 'lighthouse', 'scout', 'pantry', 'crab'];
 
 const ROOMS = {
-  ops: { members: ['you', 'lighthouse', 'scout', 'shrimpy'], threads: ['ops-window', 'ops-deploy', 'ops-main'] },
+  ops: { members: ['you', 'lighthouse', 'scout', 'shrimpy'], threads: ['ops-window', 'ops-deploy', 'ops-router', 'ops-main'] },
   house: { members: ['you', 'pantry', 'shrimpy'], threads: ['house-main'] },
   'reef-notes': { members: ['crab', 'scout'], threads: ['reef-main'] },
 };
@@ -700,6 +721,21 @@ const THREADS = {
       { who: 'lighthouse', at: 'Nov 19 21:44', html: `<p>Two bays are free. The pool is four 8 TB drives in one parity group, so a fifth of the same size adds 8 TB and takes about a day to fold in. I can watch it while it does.</p>` },
     ],
   },
+  'lh-ups': {
+    place: { kind: 'dm', agent: 'lighthouse' }, title: 'the UPS keeps beeping', when: 'Nov 20 19:34', archived: true,
+    messages: [
+      { who: 'you', at: 'Nov 20 19:30', html: `<p>the UPS under the desk beeps every few minutes. what is it telling me?</p>` },
+      { who: 'lighthouse', at: 'Nov 20 19:31', html: `<p>Its battery is at the end of its life. It failed its own test this morning, and it would hold the NAS for under a minute now.</p><p>The battery is one cartridge, and swapping it needs no tools.</p>` },
+      { who: 'you', at: 'Nov 20 19:34', html: `<p>ordered one</p>` },
+    ],
+  },
+  'lh-hello': {
+    place: { kind: 'dm', agent: 'lighthouse' }, when: 'Nov 20 09:31', archived: true,
+    messages: [
+      { who: 'you', at: 'Nov 20 09:31', html: `<p>hello, are you there?</p>` },
+      { who: 'lighthouse', at: 'Nov 20 09:31', html: `<p>Here. The nightly snapshot is set for 03:00.</p>` },
+    ],
+  },
   'lh-nightly': {
     place: { kind: 'trigger', agent: 'lighthouse', trigger: 'nightly' }, when: '03:00',
     session: {
@@ -718,6 +754,13 @@ const THREADS = {
     messages: [
       { who: 'scout', at: 'Nov 20 22:14', html: `<p>Which drive holds the 2019 photo exports? I need the path and the size for an estimate.</p>` },
       { who: 'lighthouse', at: 'Nov 20 22:14', html: `<p><code>/mnt/nas/photos/exports/2019</code>, 64 GB. It is in last night's snapshot too.</p>` },
+    ],
+  },
+  'ops-router': {
+    place: { kind: 'room', room: 'ops' }, title: `the router's firmware`, when: 'Nov 19 10:02', archived: true,
+    messages: [
+      { who: 'you', at: 'Nov 19 09:58', html: `<p>the router wants a firmware update. safe to do today?</p>` },
+      { who: 'scout', at: 'Nov 19 10:02', html: `<p>Yes. The notes for this release list two fixes and no changed settings. It restarts once, and is back in about two minutes.</p>` },
     ],
   },
   'ops-deploy': {
@@ -829,9 +872,9 @@ const THREADS = {
 };
 
 const LISTS = {
-  shrimpy: { yours: ['sh-night', 'sh-main'], elsewhere: ['ops-window', 'ops-deploy', 'ops-main'] },
-  lighthouse: { yours: ['lh-backup', 'lh-main', 'lh-disk'], elsewhere: ['ops-window', 'ops-deploy', 'lh-nightly', 'lh-scout-q'] },
-  scout: { yours: ['sc-screens'], elsewhere: ['ops-window', 'ops-deploy', 'reef-main', 'lh-scout-q'] },
+  shrimpy: { yours: ['sh-night', 'sh-main'], elsewhere: ['ops-window', 'ops-deploy', 'ops-router', 'ops-main'] },
+  lighthouse: { yours: ['lh-backup', 'lh-main', 'lh-ups', 'lh-hello', 'lh-disk'], elsewhere: ['ops-window', 'ops-deploy', 'lh-nightly', 'lh-scout-q'] },
+  scout: { yours: ['sc-screens'], elsewhere: ['ops-window', 'ops-deploy', 'reef-main', 'lh-scout-q', 'ops-router'] },
   pantry: { yours: ['pa-week', 'pa-main'], elsewhere: ['house-main'] },
   crab: { yours: [], elsewhere: [] },
 };
@@ -846,12 +889,20 @@ const TRIGGERS = {
   ],
 };
 
+const ARCHIVE = 'Hide this thread from the lists.';
+const RENAME = 'Name this thread: /rename <name>';
+const UNARCHIVE = 'Bring this thread back to the lists.';
 const COMMANDS = {
+  archive: { dm: ARCHIVE, room: ARCHIVE },
   devices: { dm: 'List your devices, or take one back: /devices take back <device>', room: 'List your devices, or take one back: /devices take back <device>' },
   model: { dm: 'Show the model of this thread, or try another one.', room: 'Try another model: name the agent first, as in @scout /model provider/id, or @all for every agent here.' },
+  rename: { dm: RENAME, room: RENAME },
   status: { dm: 'Show what the agent is doing, its model, tokens and cost.', room: 'Show which agents here are running and working.' },
   stop: { dm: `Stop the agent's work in this thread.`, room: 'Stop every agent here, or those named first: @scout /stop' },
+  unarchive: { dm: UNARCHIVE, room: UNARCHIVE },
 };
+/** The commands that can be written in a thread: archiving one that isn't archived, and bringing back one that is. */
+const commandsIn = (th) => Object.keys(COMMANDS).filter((name) => name !== (th.archived ? 'archive' : 'unarchive'));
 
 
 const SIGIL = Object.fromEntries(Object.entries(AGENTS).map(([a, A]) => [a, braille(BITS[A.sigil])]));
@@ -949,6 +1000,7 @@ function term(win, o) {
     mode: o.mode, cols: o.cols, rows: o.rows, level: 1, place: null, thread: null, cur: [0, 0, 0], filter: 'everything',
     side: Number(o.side) || 0, fold: Boolean(o.fold), keys: Boolean(o.keys), full: { tools: Boolean(o.full), thinking: Boolean(o.full) },
     input: '', caret: 0, slash: null, notice: null, status: null, scroll: 0, armed: false, stale: Boolean(o.stale), down: Boolean(o.down), clock: 22, made: 0,
+    arch: Boolean(o.arch),
   };
   for (const part of (o.route || '').split('/').filter(Boolean)) {
     const [k, v] = part.split(':');
@@ -1008,7 +1060,9 @@ function term(win, o) {
     if (!elsewhere.length) return { text: 'working', busy: true };
     return { text: `working · ${all.length === 1 ? placeFor(elsewhere[0], a) : `${all.length} sessions`}`, busy: true };
   };
-  const unreadOf = (a) => lists[a].yours.reduce((n, id) => n + (db[id].unread || 0), 0);
+  const live = (ids) => ids.filter((id) => !db[id].archived);
+  const shelved = (ids) => ids.filter((id) => db[id].archived);
+  const unreadOf = (a) => live(lists[a].yours).reduce((n, id) => n + (db[id].unread || 0), 0);
   /** Whose view Tab goes through in a thread, the agent it was opened from first. */
   const viewers = (th) => {
     const all = agentsIn(th);
@@ -1018,12 +1072,18 @@ function term(win, o) {
   const canWrite = (th) => Boolean(th) && th.place.kind !== 'trigger' && th.place.kind !== 'between' && youAreIn(th) && !s.stale;
 
   const railRows = () => [...ORDER.map((a) => `agent:${a}`), ...Object.keys(rooms).map((r) => `room:${r}`)];
-  const listRows = () => {
+  /** The threads the open list holds, archived ones too. */
+  const inList = () => {
     const p = s.place;
     if (!p) return [];
-    if (p.kind === 'room') return rooms[p.id].threads.map((t) => `thread:${t}`);
+    if (p.kind === 'room') return rooms[p.id].threads;
     if (!AGENTS[p.id].running) return [];
-    return [...lists[p.id].yours, ...(s.filter === 'everything' ? lists[p.id].elsewhere : [])].map((t) => `thread:${t}`);
+    return [...lists[p.id].yours, ...(s.filter === 'everything' ? lists[p.id].elsewhere : [])];
+  };
+  /** The rows the keys move through: the threads, then the row of the archived ones, then those while it is open. */
+  const listRows = () => {
+    const all = inList(), away = shelved(all), row = (t) => `thread:${t}`;
+    return [...live(all).map(row), ...(away.length ? ['arch'] : []), ...(s.arch ? away.map(row) : [])];
   };
   const seat = () => {
     s.cur[1] = Math.max(0, railRows().indexOf(s.place ? `${s.place.kind}:${s.place.id}` : ''));
@@ -1031,6 +1091,7 @@ function term(win, o) {
   };
   seat();
   if (o.level) s.level = Number(o.level);
+  if (o.at) s.cur[2] = Math.max(0, listRows().indexOf(o.at));
 
   /* ---- where each level goes ---- */
 
@@ -1127,6 +1188,18 @@ function term(win, o) {
     return y + hgt;
   }
 
+  /** The archived threads of a list: a row at its foot that opens them in place, lit while an agent works in one. */
+  function shelf(x, y, w, i, focus, ids, viewer) {
+    if (!ids.length) return;
+    const on = focus && s.cur[2] === i, busy = ids.some((id) => workingIn(db[id]).length);
+    mark(x, y, w, 1, focus, s.cur[2] === i, false);
+    const end = g.text(x + 1, y, `archived · ${ids.length}`, on ? INK2 : DIM, x + w - 1);
+    g.text(end + 1, y, '┈'.repeat(Math.max(0, x + w - (busy ? 5 : 2) - end)), { f: 'line2' }, x + w - 1);
+    if (busy) right(x, y, w - 1, [['▪', { f: lamp() }]]);
+    hit(x, y, w, 1, 'arch');
+    if (s.arch) ids.reduce((at, t, j) => threadRow(x, at, w, t, i + 1 + j, focus, viewer), y + 1);
+  }
+
   function drawList(x, w, h, focus) {
     g.fill(x, 0, w, h, 'list');
     const p = s.place;
@@ -1138,7 +1211,8 @@ function term(win, o) {
       if (mine) right(x, y, w, w >= 64 ? [['ctrl+n', INK2], [' new thread', DIM]] : [['ctrl+n', INK2], [' new', DIM]]);
       g.text(x + 1, y + 1, cut(`${mine ? '' : 'read-only · '}${room.members.map(nameOf).sort().join(', ')}`, w - 2), DIM);
       y = label(x, y + 3, w, 'threads');
-      for (const t of room.threads) y = threadRow(x, y, w, t, i++, focus, null);
+      for (const t of live(room.threads)) y = threadRow(x, y, w, t, i++, focus, null);
+      shelf(x, y + 1, w, i, focus, shelved(room.threads), null);
       return;
     }
     const a = p.id, A = AGENTS[a], d = agentDetail(a);
@@ -1162,15 +1236,13 @@ function term(win, o) {
       note(x, y, w, [[`You have not talked to ${A.name} yet. Press Ctrl+N to start a thread.${mine.elsewhere.length ? ` Tab shows everything ${A.name} takes part in.` : ''}`, DIM]]);
       return;
     }
-    if (mine.yours.length) {
-      y = label(x, y, w, 'your threads');
-      for (const t of mine.yours) y = threadRow(x, y, w, t, i++, focus, a);
+    for (const [name, ids] of [['your threads', live(mine.yours)], ['elsewhere', s.filter === 'everything' ? live(mine.elsewhere) : []]]) {
+      if (!ids.length) continue;
+      y = label(x, y, w, name);
+      for (const t of ids) y = threadRow(x, y, w, t, i++, focus, a);
       y += 1;
     }
-    if (s.filter === 'everything' && mine.elsewhere.length) {
-      y = label(x, y, w, 'elsewhere');
-      for (const t of mine.elsewhere) y = threadRow(x, y, w, t, i++, focus, a);
-    }
+    shelf(x, y, w, i, focus, shelved(inList()), a);
   }
 
   /* ---- a thread: what was said, the work, and the dock ---- */
@@ -1313,7 +1385,7 @@ function term(win, o) {
       L([], { rule: edge });
       for (const ln of inputLines(mx - 1, s.level === 3 && !s.keys)) L(ln);
       L([], { rule: edge });
-      if (s.slash) s.slash.names.forEach((name, i) => L([[i === s.slash.at ? '→ ' : '  ', { f: 'coral' }], [`/${name}`.padEnd(10), i === s.slash.at ? { f: 'coral' } : INK], [COMMANDS[name][th.place.kind === 'room' ? 'room' : 'dm'], DIM]], { one: true, go: `cmd:${name}` }));
+      if (s.slash) s.slash.names.forEach((name, i) => L([[i === s.slash.at ? '→ ' : '  ', { f: 'coral' }], [`/${name}`.padEnd(11), i === s.slash.at ? { f: 'coral' } : INK], [COMMANDS[name][th.place.kind === 'room' ? 'room' : 'dm'], DIM]], { one: true, go: `cmd:${name}` }));
     }
     if (out.length) out.unshift({ s: [] });
     return out;
@@ -1381,7 +1453,9 @@ function term(win, o) {
       g.segs(x + 1, 0, cutSegs([[nameOf(viewing), { f: pig(viewing), b: 1 }], [` · watching ${where}`, INK], ...stale], room), x + w - 1);
     } else {
       const who = p.kind === 'dm' ? [p.agent, { f: pig(p.agent), b: 1 }] : [channelOf(th), BOLD];
-      g.segs(x + 1, 0, cutSegs([who, [' · ', DIM], [th.messages.length || th.title ? titleOf(th) : 'new thread', INK], ...stale], room), x + w - 1);
+      const tag = th.archived ? ' archived ' : '';
+      const end = g.segs(x + 1, 0, cutSegs([who, [' · ', DIM], [th.messages.length || th.title ? titleOf(th) : 'new thread', INK], ...stale], room - (tag ? wd(tag) + 1 : 0)), x + w - 1);
+      if (tag) g.text(end + 1, 0, tag, { f: 'ink3', bg: 'well' });
       const sub = p.kind === 'dm' ? `your DM${th.model ? ` · ${th.model}` : ''}` : p.kind === 'room' ? rooms[p.room].members.map(nameOf).sort().join(', ') : 'read-only';
       g.text(x + 1, 1, cut(sub, w - 2), DIM);
       top = 3;
@@ -1480,6 +1554,7 @@ function term(win, o) {
     delete th.work[a];
     th.queued = [];
     th.messages.push({ who: a, at: clock(), html: SCRIPT[work.scripted] || (a === 'shrimpy' ? SCRIPT.shrimpy : SCRIPT.plain) });
+    th.archived = false;
     s.scroll = 0;
   }
 
@@ -1510,7 +1585,16 @@ function term(win, o) {
         ? `This thread uses ${th.model}, a model chosen for this thread. ${a}'s default is ${A.model}. Write /model default to follow ${a}'s model again, or /model and a space to choose another.`
         : `This thread uses ${A.model}, ${a}'s default model. To choose another, write /model and a space.`;
     } else if (name === 'model') s.notice = `Nothing was posted. ${COMMANDS.model.room}`;
-    else s.notice = `/${name} is no command here. The commands are ${listed(Object.keys(COMMANDS).map((c) => `/${c}`))}. To start a message with a slash, wrap it in backticks or put anything before it. Nothing was posted.`;
+    /* Renaming and archiving are the terminal's own, as /status is: chat is asked, and nothing is posted. */
+    else if (name === 'rename') {
+      const to = rest.join(' ').slice(0, 200);
+      if (to) th.title = to;
+      else s.notice = th.title ? `This thread is called "${th.title}". To rename it, write /rename and a name.` : 'This thread has no name, so it shows how it starts. To name it, write /rename and a name.';
+    } else if (name === 'archive' || name === 'unarchive') {
+      const hide = name === 'archive';
+      if (Boolean(th.archived) === hide) s.notice = hide ? 'This thread is archived already. Write /unarchive to bring it back.' : 'This thread is not archived.';
+      else th.archived = hide;
+    } else s.notice = `/${name} is no command here. The commands are ${listed(commandsIn(th).map((c) => `/${c}`))}. To start a message with a slash, wrap it in backticks or put anything before it. Nothing was posted.`;
   }
 
   function send() {
@@ -1525,6 +1609,8 @@ function term(win, o) {
     if (text.startsWith('/')) { command(th, text); return; }
     th.messages.push({ who: 'you', at: clock(), html: `<p>${esc(text)}</p>` });
     th.when = th.messages.at(-1).at;
+    /* A message that lands in an archived thread brings it back. */
+    th.archived = false;
     const named = agentsIn(th).filter((a) => text.includes(`@${a}`));
     for (const a of named.length ? named : agentsIn(th)) {
       if (!AGENTS[a].running) continue;
@@ -1549,7 +1635,7 @@ function term(win, o) {
   function slash() {
     const th = thread();
     const m = /^\/(\S*)$/.exec(s.input);
-    const names = m && th ? Object.keys(COMMANDS).filter((c) => c.startsWith(m[1])) : [];
+    const names = m && th ? commandsIn(th).filter((c) => c.startsWith(m[1])) : [];
     s.slash = names.length ? { names, at: s.slash ? Math.min(s.slash.at, names.length - 1) : 0 } : null;
   }
 
@@ -1557,7 +1643,7 @@ function term(win, o) {
     const cut2 = action.indexOf(':');
     const [k, v] = cut2 < 0 ? [action, ''] : [action.slice(0, cut2), action.slice(cut2 + 1)];
     if (k === 'agent' || k === 'room') {
-      if (!s.place || s.place.kind !== k || s.place.id !== v) { keep(); s.thread = null; s.input = ''; s.caret = 0; s.filter = 'everything'; s.side = 0; }
+      if (!s.place || s.place.kind !== k || s.place.id !== v) { keep(); s.thread = null; s.input = ''; s.caret = 0; s.filter = 'everything'; s.side = 0; s.arch = false; }
       s.place = { kind: k, id: v };
       s.level = 2;
       seat();
@@ -1570,6 +1656,7 @@ function term(win, o) {
     else if (k === 'side') { const th = thread(); if (th && th.place.kind !== 'trigger') { s.side = (s.side + 1) % (viewers(th).length + 1); s.scroll = 0; } }
     else if (k === 'end') s.scroll = 0;
     else if (k === 'cmd') { s.input = `/${v}`; s.slash = { names: [v], at: 0 }; send(); }
+    else if (k === 'arch') { s.arch = !s.arch; s.level = 2; s.cur[2] = Math.max(0, listRows().indexOf('arch')); }
   }
 
   /** What is typed in a thread stays with it while another is open. */
@@ -1665,6 +1752,7 @@ function term(win, o) {
 
   if (o.status && thread()) s.status = statusOf(thread());
   if (o.slash) { s.input = '/'; s.caret = 1; slash(); }
+  if (o.typed) { s.input = o.typed; s.caret = [...s.input].length; slash(); }
 
   const inst = {
     s, win, canvas, draw, visible: true,
@@ -1744,6 +1832,8 @@ const SHELLS = {
       cells(tw, ['thread', 'updated', 'working', 'name'], [FAINT, FAINT, FAINT, FAINT]),
       row('lh-backup', '2026-11-21T16:21:07-05:00', 'lighthouse', 'photo library backup'),
       row('lh-main', '2026-11-21T08:02:11-05:00', '', 'morning. anything odd overnight? [main]'),
+      row('lh-ups', '2026-11-20T19:34:40-05:00', '', 'the UPS keeps beeping [archived]'),
+      row('lh-hello', '2026-11-20T09:31:15-05:00', '', 'hello, are you there? [archived]'),
       row('lh-disk', '2026-11-19T21:44:02-05:00', '', 'spare disk for the NAS'),
       [],
       prompt('shrimpy status'),

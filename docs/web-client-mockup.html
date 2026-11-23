@@ -264,6 +264,11 @@
   color: var(--ink-3);
 }
 .label::after { content: ""; flex: 1; height: 2px; background: var(--line-2); -webkit-mask: var(--d-50) 0 0 / 4px 4px; mask: var(--d-50) 0 0 / 4px 4px; }
+/* The archived threads of a list: a label at its foot that opens them in place. */
+.label.fold { width: calc(100% - 28px); min-height: 30px; margin-top: 8px; margin-bottom: 0; }
+.label.fold:hover { color: var(--ink-2); }
+.label.fold > i { order: 1; }
+.label.fold[aria-expanded="true"] .px { transform: rotate(90deg); }
 
 .row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: var(--row); padding: 5px 14px; }
 .row:hover, .trow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent); }
@@ -356,8 +361,21 @@
 /* --- The thread ----------------------------------------------------------- */
 
 .thread { background: var(--pane); }
-.thead { padding-left: 28px; padding-right: 16px; border-bottom: 1px solid var(--line); }
+.thead { position: relative; z-index: 3; padding-left: 28px; padding-right: 16px; border-bottom: 1px solid var(--line); }
 .acts { display: flex; align-items: center; gap: 6px; }
+
+/* A thread's menu, its name as an input where it stands, and the tag of an archived one. */
+.menu { position: absolute; right: 12px; top: calc(100% - 8px); z-index: 4; min-width: 132px; padding: 4px; --fill: var(--raise); --edge: var(--line-2); }
+.menu button { display: block; width: 100%; padding: 5px 10px 6px; font-size: var(--t-small); color: var(--ink-2); }
+.menu button:hover { background: var(--well); color: var(--ink); }
+.titles h1.naming { display: flex; align-items: center; overflow: visible; }
+.rename { flex: 1; min-width: 0; max-width: 30rem; display: flex; padding: 0 9px; --fill: var(--well); --edge: var(--ink-3); }
+.rename input { flex: 1; min-width: 0; height: 30px; padding: 0 0 1px; border: 0; background: transparent; color: var(--ink); font: 500 var(--t-read)/1.3 var(--face); }
+.app .rename input:focus-visible { outline: 0; }
+.rename input::placeholder { color: var(--ink-3); }
+.titles h1.tagged { display: flex; align-items: baseline; }
+.titles h1.tagged .clip { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.titles h1.tagged .tag { flex: none; }
 
 /* What scrolls under the head and the dock leaves through a dither. */
 .thread .body::before, .thread .body::after, .watch .body::before {
@@ -549,6 +567,9 @@
   .thread .ib.only-narrow { display: grid; }
   .brand { left: 18px; }
   .label { margin: 18px 18px 4px; }
+  .label.fold { width: calc(100% - 36px); min-height: 44px; margin-top: 4px; }
+  .menu { right: 8px; min-width: 164px; }
+  .menu button { padding: 10px 12px 11px; }
   .row { padding: 6px 18px; gap: 12px; }
   .trow { padding: 8px 18px; }
   .me { padding-left: 18px; padding-right: 14px; }
@@ -786,12 +807,34 @@ body:not([data-view="live"]) .live { display: none; }
     </div></div>
     <div class="fit" style="margin-top:44px"><div class="fit-in">
       <div class="unit"><div class="pad frame" data-kind="pad" data-mode="day" data-route="agent:crab"></div></div>
-      <div class="unit"><div class="crop frame" data-kind="crop" data-mode="day" data-route="agent:shrimpy/thread:sh-night" data-slash="1"></div></div>
+      <div class="unit"><div class="phone frame" data-kind="phone" data-mode="day" data-route="agent:shrimpy/thread:sh-night" data-slash="1"></div></div>
+    </div></div>
+  </section>
+
+  <section class="sheet">
+    <h2><span>07</span>Renaming and archiving a thread</h2>
+    <p class="cap">A thread you can write in has a menu with both. <code>/rename</code> and <code>/archive</code> written in the thread do the same.</p>
+    <div class="fit"><div class="fit-in">
+      <div class="unit"><div class="desk frame" data-kind="desk" data-mode="dusk" data-route="agent:lighthouse/thread:lh-backup" data-menu="1"></div></div>
+    </div></div>
+    <p class="cap" style="margin-top:44px">Renaming turns the name into an input where it stands.</p>
+    <div class="fit"><div class="fit-in">
+      <div class="unit"><div class="pad frame" data-kind="pad" data-mode="day" data-route="agent:lighthouse/thread:lh-disk" data-rename="1"></div></div>
+      <div class="unit"><div class="crop frame" data-kind="crop" data-mode="dusk" data-route="room:ops/thread:ops-deploy" data-rename="moving the gateway on sunday"></div></div>
+    </div></div>
+    <p class="cap" style="margin-top:44px">An archived thread leaves its list for the group at the foot of it. It comes back from the same menu, or when a message lands in it.</p>
+    <div class="fit"><div class="fit-in">
+      <div class="unit"><div class="desk frame" data-kind="desk" data-mode="day" data-route="agent:lighthouse/thread:lh-ups" data-arch="1" data-menu="1"></div></div>
+    </div></div>
+    <div class="fit" style="margin-top:44px"><div class="fit-in">
+      <div class="unit"><div class="crop frame" data-kind="crop" data-mode="dusk" data-route="agent:scout/thread:sc-screens" data-menu="1"></div></div>
+      <div class="unit"><div class="crop frame" data-kind="crop" data-mode="dusk" data-route="agent:lighthouse" data-arch="1"></div></div>
+      <div class="unit"><div class="crop frame" data-kind="crop" data-mode="day" data-route="agent:lighthouse/thread:lh-hello"></div></div>
     </div></div>
   </section>
 
   <section class="sheet" id="grammar">
-    <h2><span>07</span>What it is made of</h2>
+    <h2><span>08</span>What it is made of</h2>
     <p class="cap">The studio's guardrails, applied to a surface that is read for hours: a warm dark that is never black, pigment that sits close to the ground, and pixels used as a quiet material.</p>
 
     <div class="grid2">
@@ -879,7 +922,7 @@ body:not([data-view="live"]) .live { display: none; }
   </section>
 
   <section class="sheet">
-    <h2><span>08</span>What this decided, and what it leaves open</h2>
+    <h2><span>09</span>What this decided, and what it leaves open</h2>
     <p class="cap">You took this page as the reference on 2026-11-21. These are the places where it chose something the plan hadn't said. They stand as drawn until you say otherwise.</p>
     <div class="notes">
       <div class="card" data-follow><div class="wool"></div>
@@ -896,6 +939,14 @@ body:not([data-view="live"]) .live { display: none; }
           <li><b>A stale view loses its color</b> and gets a dotted ground, under the sentence the terminal already says, with when it tries next.</li>
           <li><b>The line of keys stays at a desk,</b> so every key is still findable. Three of the terminal's keys can't come along as they are: Tab moves focus in a browser, and Ctrl+O and Ctrl+T belong to the browser off the Mac. Here the agent's view is on Ctrl+. and the other two are buttons on the work.</li>
         </ol>
+        <h3 style="margin-top:18px">Drawn on 2026-11-23, and not built</h3>
+        <ol start="11">
+          <li><b>Renaming and archiving are in a thread's menu,</b> and are <code>/rename</code> and <code>/archive</code> written in the thread, which is how the <a href="terminal-mockup.html">terminal mockup</a> has them. The name becomes an input where it stands: Enter keeps what is typed, and Esc or a tap elsewhere puts the old name back.</li>
+          <li><b>An archived thread leaves its list for a group at the foot of it,</b> shut until you open it, with a lantern while an agent works in one. Open, the thread has a tag by its name and nothing else differs. Nothing in it counts as new.</li>
+          <li><b>A message brings an archived thread back.</b> Chat doesn't do that yet: an archived thread takes a message and stays archived, so what an agent wrote there later would not be seen.</li>
+          <li><b>Neither leaves a line in the thread.</b> A new name shows where the name is, and an agent reads it with its next input.</li>
+          <li><b>Who gets the menu is chat's to say.</b> Only a channel's members rename or archive, so a thread you only read has none. The main thread has it like any other. A trigger's own session is behind no thread, and has none.</li>
+        </ol>
       </div>
       <div class="card" data-follow><div class="wool"></div>
         <h3>Not drawn yet</h3>
@@ -903,7 +954,8 @@ body:not([data-view="live"]) .live { display: none; }
           <li>Signing a phone in, and asking for push.</li>
           <li>Reacting, editing and deleting. The marks they leave are drawn, and the ways in are not.</li>
           <li>Attachments and pictures in a thread.</li>
-          <li>Renaming and archiving a thread, and searching.</li>
+          <li>Searching.</li>
+          <li>A rename or an archive that chat refuses because the thread changed in the meantime.</li>
           <li>The rest of the inspector: context, the request a turn sent, runtime.</li>
           <li>Paging back through a long thread or session.</li>
           <li>Your own settings and your devices, beyond <code>/devices</code>.</li>
@@ -1017,6 +1069,7 @@ const BITS = {
   sun: ['...#...', '.#...#.', '..###..', '#.###.#', '..###..', '.#...#.', '...#...'],
   eye: ['..#####..', '.#.....#.', '#..###..#', '.#.....#.', '..#####..'],
   bars: ['......#', '......#', '...#..#', '...#..#', '#..#..#'],
+  more: ['##.##.##', '##.##.##'],
   /* sigils, 12 × 12 */
   shrimp: [
     '............',
@@ -1231,7 +1284,7 @@ const AGENTS = {
 const ORDER = ['shrimpy', 'lighthouse', 'scout', 'pantry', 'crab'];
 
 const ROOMS = {
-  ops: { members: ['you', 'lighthouse', 'scout', 'shrimpy'], threads: ['ops-window', 'ops-deploy', 'ops-main'] },
+  ops: { members: ['you', 'lighthouse', 'scout', 'shrimpy'], threads: ['ops-window', 'ops-deploy', 'ops-router', 'ops-main'] },
   house: { members: ['you', 'pantry', 'shrimpy'], threads: ['house-main'] },
   'reef-notes': { members: ['crab', 'scout'], threads: ['reef-main'] },
 };
@@ -1282,6 +1335,21 @@ const THREADS = {
       { who: 'lighthouse', at: 'Nov 19 21:44', html: `<p>Two bays are free. The pool is four 8 TB drives in one parity group, so a fifth of the same size adds 8 TB and takes about a day to fold in. I can watch it while it does.</p>` },
     ],
   },
+  'lh-ups': {
+    place: { kind: 'dm', agent: 'lighthouse' }, title: 'the UPS keeps beeping', when: 'Nov 20 19:34', archived: true,
+    messages: [
+      { who: 'you', at: 'Nov 20 19:30', html: `<p>the UPS under the desk beeps every few minutes. what is it telling me?</p>` },
+      { who: 'lighthouse', at: 'Nov 20 19:31', html: `<p>Its battery is at the end of its life. It failed its own test this morning, and it would hold the NAS for under a minute now.</p><p>The battery is one cartridge, and swapping it needs no tools.</p>` },
+      { who: 'you', at: 'Nov 20 19:34', html: `<p>ordered one</p>` },
+    ],
+  },
+  'lh-hello': {
+    place: { kind: 'dm', agent: 'lighthouse' }, when: 'Nov 20 09:31', archived: true,
+    messages: [
+      { who: 'you', at: 'Nov 20 09:31', html: `<p>hello, are you there?</p>` },
+      { who: 'lighthouse', at: 'Nov 20 09:31', html: `<p>Here. The nightly snapshot is set for 03:00.</p>` },
+    ],
+  },
   'lh-nightly': {
     place: { kind: 'trigger', agent: 'lighthouse', trigger: 'nightly' }, when: '03:00',
     session: {
@@ -1300,6 +1368,13 @@ const THREADS = {
     messages: [
       { who: 'scout', at: 'Nov 20 22:14', html: `<p>Which drive holds the 2019 photo exports? I need the path and the size for an estimate.</p>` },
       { who: 'lighthouse', at: 'Nov 20 22:14', html: `<p><code>/mnt/nas/photos/exports/2019</code>, 64 GB. It is in last night's snapshot too.</p>` },
+    ],
+  },
+  'ops-router': {
+    place: { kind: 'room', room: 'ops' }, title: `the router's firmware`, when: 'Nov 19 10:02', archived: true,
+    messages: [
+      { who: 'you', at: 'Nov 19 09:58', html: `<p>the router wants a firmware update. safe to do today?</p>` },
+      { who: 'scout', at: 'Nov 19 10:02', html: `<p>Yes. The notes for this release list two fixes and no changed settings. It restarts once, and is back in about two minutes.</p>` },
     ],
   },
   'ops-deploy': {
@@ -1411,9 +1486,9 @@ const THREADS = {
 };
 
 const LISTS = {
-  shrimpy: { yours: ['sh-night', 'sh-main'], elsewhere: ['ops-window', 'ops-deploy', 'ops-main'] },
-  lighthouse: { yours: ['lh-backup', 'lh-main', 'lh-disk'], elsewhere: ['ops-window', 'ops-deploy', 'lh-nightly', 'lh-scout-q'] },
-  scout: { yours: ['sc-screens'], elsewhere: ['ops-window', 'ops-deploy', 'reef-main', 'lh-scout-q'] },
+  shrimpy: { yours: ['sh-night', 'sh-main'], elsewhere: ['ops-window', 'ops-deploy', 'ops-router', 'ops-main'] },
+  lighthouse: { yours: ['lh-backup', 'lh-main', 'lh-ups', 'lh-hello', 'lh-disk'], elsewhere: ['ops-window', 'ops-deploy', 'lh-nightly', 'lh-scout-q'] },
+  scout: { yours: ['sc-screens'], elsewhere: ['ops-window', 'ops-deploy', 'reef-main', 'lh-scout-q', 'ops-router'] },
   pantry: { yours: ['pa-week', 'pa-main'], elsewhere: ['house-main'] },
   crab: { yours: [], elsewhere: [] },
 };
@@ -1487,12 +1562,20 @@ function homeOf(a) {
   return sorted(tree);
 }
 
+const ARCHIVE = 'Hide this thread from the lists.';
+const RENAME = 'Name this thread: /rename <name>';
+const UNARCHIVE = 'Bring this thread back to the lists.';
 const COMMANDS = {
+  archive: { dm: ARCHIVE, room: ARCHIVE },
   devices: { dm: 'List your devices, or take one back: /devices take back <device>', room: 'List your devices, or take one back: /devices take back <device>' },
   model: { dm: 'Show the model of this thread, or try another one.', room: 'Try another model: name the agent first, as in @scout /model provider/id, or @all for every agent here.' },
+  rename: { dm: RENAME, room: RENAME },
   status: { dm: 'Show what the agent is doing, its model, tokens and cost.', room: 'Show which agents here are running and working.' },
   stop: { dm: `Stop the agent's work in this thread.`, room: 'Stop every agent here, or those named first: @scout /stop' },
+  unarchive: { dm: UNARCHIVE, room: UNARCHIVE },
 };
+/** The commands that can be written in a thread: archiving one that isn't archived, and bringing back one that is. */
+const commandsIn = (th) => Object.keys(COMMANDS).filter((name) => name !== (th.archived ? 'archive' : 'unarchive'));
 
 /* ==========================================================================
    3. THE CLIENT
@@ -1523,11 +1606,13 @@ function mount(host, kind, mode, route, flags = {}) {
     notice: null, status: null, slash: null, clock: 22, fresh: 0,
     later: Boolean(flags.later), work: null, file: null, dirs: new Set(),
     fold: Boolean(flags.fold), peek: flags.fold === 'peek',
+    menu: Boolean(flags.menu), naming: null, arch: Boolean(flags.arch),
   };
   for (const part of route.split('/').filter(Boolean)) {
     const [k, v] = part.split(':');
     if (k === 'thread') { s.thread = v; s.level = 3; } else { s.place = { kind: k, id: v }; s.level = 2; }
   }
+  if (flags.rename && s.thread) s.naming = { value: flags.rename === '1' ? db[s.thread].title ?? '' : flags.rename };
   if (flags.turned) s.turned = true;
   if (flags.file) {
     s.tab = 'home';
@@ -1551,13 +1636,21 @@ function mount(host, kind, mode, route, flags = {}) {
   const [rail, list, thead, tscroll, now, slot, watch] = ['.rail', '.list', '.thead', '.tscroll', '.now', '.slot', '.watch'].map(el);
   let slotFor = null;
   let timers = [];
+  let drawing = false;
+  let listOf = null;
+  /* A frame that opens on the archived threads shows the foot of its list until someone touches it. */
+  let atFoot = Boolean(flags.arch);
 
   /* ---- words, as the terminal and the contracts already say them ---- */
 
   const thread = () => (s.thread ? db[s.thread] : null);
+  const live = (ids) => ids.filter((id) => !db[id].archived);
+  const shelved = (ids) => ids.filter((id) => db[id].archived);
   const firstText = (th) => (th.messages && th.messages.find((m) => m.html) ? plain(th.messages.find((m) => m.html).html) : null);
   const titleOf = (th) => th.title ?? (th.place.kind === 'trigger' ? `trigger ${th.place.trigger}` : firstText(th)) ?? '(no messages yet)';
   const youAreIn = (th) => th.place.kind === 'dm' || (th.place.kind === 'room' && rooms[th.place.room].members.includes('you'));
+  /** Chat lets a channel's members rename and archive its threads, and no one else. */
+  const yoursToName = (th) => Boolean(th) && youAreIn(th) && !s.stale;
   const agentsIn = (th) => {
     const p = th.place;
     if (p.kind === 'dm' || p.kind === 'trigger') return [p.agent];
@@ -1588,7 +1681,7 @@ function mount(host, kind, mode, route, flags = {}) {
     if (!elsewhere.length) return { text: 'working', busy: true };
     return { text: `working · ${all.length === 1 ? placeFor(elsewhere[0], a) : `${all.length} sessions`}`, busy: true };
   };
-  const unreadOf = (a) => lists[a].yours.reduce((n, id) => n + (db[id].unread || 0), 0);
+  const unreadOf = (a) => live(lists[a].yours).reduce((n, id) => n + (db[id].unread || 0), 0);
   const current = (kind, id) => Boolean(s.place && s.place.kind === kind && s.place.id === id);
 
   /* ---- the rail ---- */
@@ -1650,11 +1743,12 @@ function mount(host, kind, mode, route, flags = {}) {
       const down = A.running ? '' : `<p class="note stepbox">No agent named ${A.name} is linked to this machine's gateway. It has no home in ~/shrimpy, so it lives somewhere else: start it where it lives.</p>`;
       const bar = `<div class="filterbar"><div class="seg stepbox" role="group" aria-label="What the list shows">
           <button data-go="filter:everything" aria-pressed="${s.filter === 'everything'}">everything</button><button data-go="filter:yours" aria-pressed="${s.filter === 'yours'}">yours</button></div></div>`;
-      const yours = mine.yours.length
-        ? `<h2 class="label">your threads</h2>${mine.yours.map((id) => threadRow(id, a)).join('')}`
+      const shown = [...mine.yours, ...(s.filter === 'everything' ? mine.elsewhere : [])];
+      const group = (label, ids) => (ids.length ? `<h2 class="label">${label}</h2>${ids.map((id) => threadRow(id, a)).join('')}` : '');
+      const yours = mine.yours.length ? group('your threads', live(mine.yours))
         : `<p class="hint">You have not talked to ${A.name} yet.${A.running ? ' Press Ctrl+N to start a thread.' : ''}</p>`;
-      const rest = s.filter === 'everything' && mine.elsewhere.length ? `<h2 class="label">elsewhere</h2>${mine.elsewhere.map((id) => threadRow(id, a)).join('')}` : '';
-      body = down + bar + yours + rest;
+      const rest = s.filter === 'everything' ? group('elsewhere', live(mine.elsewhere)) : '';
+      body = down + bar + yours + rest + shelfHTML(shelved(shown), a);
     } else if (s.tab === 'triggers') {
       const all = TRIGGERS[a] || [];
       body = all.length ? all.map((t) => `<article class="file stepbox"><h3>triggers/${t.name}.md</h3>
@@ -1675,7 +1769,15 @@ function mount(host, kind, mode, route, flags = {}) {
         <div class="titles"><h1>${id}${mine ? '' : '<span class="tag">read-only</span>'}</h1><p class="sub">${room.members.map(nameOf).sort().join(', ')}</p></div>
         ${mine ? `<button class="ib" data-go="new" title="New thread · ctrl+n" aria-label="New thread">${icon('plus')}</button>` : ''}
       </header>
-      <div class="body"><div class="scroll"><h2 class="label">threads</h2>${room.threads.map((t) => threadRow(t, null)).join('')}</div></div>`;
+      <div class="body"><div class="scroll"><h2 class="label">threads</h2>${live(room.threads).map((t) => threadRow(t, null)).join('')}${shelfHTML(shelved(room.threads), null)}</div></div>`;
+  }
+
+  /** The archived threads of a list: a label at its foot that opens them in place, lit while an agent works in one. */
+  function shelfHTML(ids, viewer) {
+    if (!ids.length) return '';
+    const busy = ids.some((id) => workingIn(db[id]).length);
+    return `<button class="label fold" data-go="arch" aria-expanded="${s.arch}"><span>archived · ${ids.length}</span>${busy ? '<i class="lamp"></i>' : ''}${icon('fold')}</button>
+      ${s.arch ? ids.map((id) => threadRow(id, viewer)).join('') : ''}`;
   }
 
   const listHTML = () => (!s.place ? '' : s.place.kind === 'agent' ? agentListHTML(s.place.id) : roomListHTML(s.place.id));
@@ -1779,9 +1881,18 @@ function mount(host, kind, mode, route, flags = {}) {
       : p.kind === 'room' ? rooms[p.room].members.map(nameOf).sort().join(', ')
       : p.kind === 'between' ? 'read-only' : '';
     const canTurn = p.kind !== 'trigger' && agentsIn(th).length > 0;
-    return `<button class="ib only-narrow" data-go="back" aria-label="Back">${icon('back')}</button>
-      <div class="titles ${p.agent ? pg(p.agent) : ''}"><h1>${who}<span class="dot">·</span><span class="rest">${rest}</span>${s.stale ? '<span class="stale-tag">(out of date)</span>' : ''}</h1>${sub ? `<p class="sub">${sub}</p>` : ''}</div>
-      <div class="acts">${canTurn ? `<button class="btn turn" data-go="turn" aria-pressed="${s.turned}" title="ctrl+.">${icon('flip')}<span>agent's view</span></button>` : ''}</div>`;
+    const back = `<button class="ib only-narrow" data-go="back" aria-label="Back">${icon('back')}</button>`;
+    const mine = yoursToName(th);
+    if (mine && s.naming) {
+      return `${back}<div class="titles ${p.agent ? pg(p.agent) : ''}"><h1 class="naming">${who}<span class="dot">·</span><span class="rename stepbox">
+        <input type="text" maxlength="200" enterkeyhint="done" value="${esc(s.naming.value)}" placeholder="${esc(titleOf(th))}" aria-label="This thread's name"></span></h1></div>`;
+    }
+    const said = `${who}<span class="dot">·</span><span class="rest">${rest}</span>${s.stale ? '<span class="stale-tag">(out of date)</span>' : ''}`;
+    const menu = !mine ? '' : `<button class="ib" data-go="menu" aria-haspopup="menu" aria-expanded="${s.menu}" title="Rename or archive" aria-label="Rename or archive this thread">${icon('more')}</button>`;
+    const rows = !mine || !s.menu ? '' : `<div class="menu stepbox" role="menu"><button role="menuitem" data-go="rename">rename</button><button role="menuitem" data-go="archive">${th.archived ? 'unarchive' : 'archive'}</button></div>`;
+    return `${back}
+      <div class="titles ${p.agent ? pg(p.agent) : ''}">${th.archived ? `<h1 class="tagged"><span class="clip">${said}</span><span class="tag">archived</span></h1>` : `<h1>${said}</h1>`}${sub ? `<p class="sub">${sub}</p>` : ''}</div>
+      <div class="acts">${canTurn ? `<button class="btn turn" data-go="turn" aria-pressed="${s.turned}" title="ctrl+.">${icon('flip')}<span>agent's view</span></button>` : ''}${menu}</div>${rows}`;
   }
 
   function emptyHTML() {
@@ -1954,7 +2065,12 @@ function mount(host, kind, mode, route, flags = {}) {
     const th = thread();
     const file = s.file && s.place && s.place.kind === 'agent' ? s.file : null;
     app.dataset.file = String(Boolean(file) || Boolean(th && th.place.kind === 'trigger'));
-    thead.innerHTML = file ? fileHeadHTML(s.place.id, file) : theadHTML(th);
+    /* While a name is being typed the head is left alone, so a turn that goes on underneath doesn't take the input away. */
+    if (!(s.naming && thead.querySelector('.rename input'))) {
+      drawing = true;
+      thead.innerHTML = file ? fileHeadHTML(s.place.id, file) : theadHTML(th);
+      drawing = false;
+    }
     thead.style.display = th || file ? '' : 'none';
     tscroll.innerHTML = file ? fileHTML(s.place.id, file) : tbodyHTML(th);
     now.innerHTML = file ? '' : nowHTML(th);
@@ -1981,9 +2097,27 @@ function mount(host, kind, mode, route, flags = {}) {
     app.dataset.fold = String(s.fold);
     app.dataset.peek = String(s.fold && s.peek);
     rail.innerHTML = railHTML();
+    /* A list that is drawn again stays where it was scrolled to. */
+    const which = s.place ? `${s.place.kind}:${s.place.id}:${s.tab}` : '';
+    const was = list.querySelector('.scroll');
+    const top = atFoot ? 1e6 : was && which === listOf ? was.scrollTop : 0;
     list.innerHTML = listHTML();
+    listOf = which;
+    const rows = list.querySelector('.scroll');
+    if (rows) rows.scrollTop = top;
     renderThread();
     drawTide(true);
+  }
+
+  /** Names the open thread. A name is one line of at most 200 characters, and an empty one changes nothing. */
+  function rename(th, typed) {
+    const name = typed.replace(/\s+/g, ' ').trim().slice(0, 200);
+    if (name) th.title = name;
+    s.naming = null;
+  }
+  function focusName() {
+    const box = thead.querySelector('.rename input');
+    if (box) { box.focus(); box.select(); }
   }
 
   /* ---- a scripted turn, so a sent message has something to watch ---- */
@@ -2004,6 +2138,7 @@ function mount(host, kind, mode, route, flags = {}) {
     const wakes = work.scripted === 'offsite';
     delete th.work[a];
     th.queued = [];
+    th.archived = false;
     const said = { who: a, at: clock(), html, streaming: true };
     th.messages.push(said);
     if (wakes) (th.wakeups ||= []).push({ agent: a, due: 1730, when: '17:30', note: 'see whether the offsite bucket is signed in again' });
@@ -2026,9 +2161,11 @@ function mount(host, kind, mode, route, flags = {}) {
     });
   }
 
+  /** A message that lands in an archived thread brings it back. */
   function post(th, text) {
     th.messages.push({ who: 'you', at: clock(), html: `<p>${esc(text)}</p>` });
     th.when = th.messages.at(-1).at;
+    th.archived = false;
   }
 
   function command(th, name, words, text) {
@@ -2038,8 +2175,19 @@ function mount(host, kind, mode, route, flags = {}) {
     s.notice = null;
     s.status = null;
     if (!COMMANDS[name]) {
-      s.notice = `${esc(`/${name}`)} is no command here. The commands are ${listed(Object.keys(COMMANDS).map((c) => `/${c}`))}. To start a message with a slash, wrap it in backticks or put anything before it. Nothing was posted.`;
+      s.notice = `${esc(`/${name}`)} is no command here. The commands are ${listed(commandsIn(th).map((c) => `/${c}`))}. To start a message with a slash, wrap it in backticks or put anything before it. Nothing was posted.`;
       return false;
+    }
+    /* Renaming and archiving are the client's own, as /status is: chat is asked, and nothing is posted. */
+    if (name === 'rename') {
+      if (words) rename(th, words); else s.naming = { value: th.title ?? '' };
+      return true;
+    }
+    if (name === 'archive' || name === 'unarchive') {
+      const hide = name === 'archive';
+      if (Boolean(th.archived) === hide) s.notice = hide ? 'This thread is archived already. Write /unarchive to bring it back.' : 'This thread is not archived.';
+      else th.archived = hide;
+      return true;
     }
     if (name === 'status') {
       s.status = { head: `status · shown only to you · read 2026-11-21T16:${String(s.clock).padStart(2, '0')}:04-05:00`, rows: here === 'room'
@@ -2084,7 +2232,7 @@ function mount(host, kind, mode, route, flags = {}) {
     if (!th || !text.trim()) return false;
     if (s.stale) { s.notice = 'Not sent: lost the connection to the chat server. Your message is still in the editor.'; renderThread(); return false; }
     const cmd = /^\s*(?:@\S+\s+)*\/([\p{L}\p{N}_-]+)(.*)$/su.exec(text);
-    if (cmd) { const took = command(th, cmd[1].toLowerCase(), cmd[2].trim(), text.trim()); render(); return took; }
+    if (cmd) { const took = command(th, cmd[1].toLowerCase(), cmd[2].trim(), text.trim()); render(); if (s.naming) focusName(); return took; }
     s.notice = null;
     s.status = null;
     const running = workingIn(th);
@@ -2120,7 +2268,7 @@ function mount(host, kind, mode, route, flags = {}) {
     const typed = /^\/(\S*)$/.exec(value);
     if (!typed) { ul.hidden = true; s.slash = null; return; }
     const here = th.place.kind === 'room' ? 'room' : 'dm';
-    const names = Object.keys(COMMANDS).filter((n) => n.startsWith(typed[1].toLowerCase()));
+    const names = commandsIn(th).filter((n) => n.startsWith(typed[1].toLowerCase()));
     if (!names.length) { ul.hidden = true; s.slash = null; return; }
     s.slash = { names, at: Math.min(s.slash ? s.slash.at : 0, names.length - 1) };
     ul.innerHTML = names.map((n, i) => `<li role="option" data-cmd="${n}" aria-selected="${i === s.slash.at}"><code>/${n}</code><span>${esc(COMMANDS[n][here])}</span></li>`).join('');
@@ -2132,7 +2280,13 @@ function mount(host, kind, mode, route, flags = {}) {
   function go(action) {
     const cut = action.indexOf(':');
     const [k, v] = cut < 0 ? [action, ''] : [action.slice(0, cut), action.slice(cut + 1)];
-    if (k === 'agent' || k === 'room') { s.place = { kind: k, id: v }; s.level = 2; s.tab = 'threads'; s.thread = s.file = null; s.dirs = new Set(); s.turned = false; s.notice = s.status = null; s.peek = s.fold; }
+    if (k !== 'menu') s.menu = false;
+    if (k !== 'send') s.naming = null;
+    if (k === 'agent' || k === 'room') { s.place = { kind: k, id: v }; s.level = 2; s.tab = 'threads'; s.thread = s.file = null; s.dirs = new Set(); s.turned = false; s.notice = s.status = null; s.peek = s.fold; s.arch = false; }
+    else if (k === 'menu') s.menu = !s.menu;
+    else if (k === 'rename') { if (yoursToName(thread())) s.naming = { value: thread().title ?? '' }; }
+    else if (k === 'archive') { if (yoursToName(thread())) thread().archived = !thread().archived; }
+    else if (k === 'arch') s.arch = !s.arch;
     else if (k === 'thread') { s.thread = v; s.file = null; s.level = 3; s.later = false; s.peek = false; s.notice = s.status = null; if (db[v].unread) db[v].unread = 0; s.turned = s.turned && db[v].place.kind !== 'trigger'; }
     else if (k === 'file') { s.file = v; s.thread = null; s.level = 3; s.turned = false; s.notice = s.status = null; s.peek = false; }
     else if (k === 'dir') { if (!s.dirs.delete(v)) s.dirs.add(v); }
@@ -2152,17 +2306,24 @@ function mount(host, kind, mode, route, flags = {}) {
     else if (k === 'board') { host.dispatchEvent(new CustomEvent('board', { bubbles: true })); return; }
     else if (k === 'send') { const ta = slot.querySelector('textarea'); if (ta && send(ta.value)) { ta.value = ''; ta.dispatchEvent(new Event('input', { bubbles: true })); } return; }
     render();
+    if (k === 'rename') focusName();
     if (k === 'mode') host.dispatchEvent(new CustomEvent('mode', { bubbles: true }));
   }
 
+  const naming = (e) => e.target instanceof Element && e.target.matches('.rename input');
+  for (const kind of ['pointerdown', 'wheel', 'keydown']) app.addEventListener(kind, () => { atFoot = false; }, { passive: true });
   app.addEventListener('click', (e) => {
     const cmd = e.target.closest('.slash li');
     if (cmd) { const ta = slot.querySelector('textarea'); ta.value = `/${cmd.dataset.cmd} `; ta.focus(); showSlash(ta.value); return; }
     if (s.fold && !s.peek && rail.contains(e.target)) { peek(true, 0); return; }
     const hit = e.target.closest('[data-go]');
     if (hit && app.contains(hit)) go(hit.dataset.go);
+    else if (s.menu && !e.target.closest('.menu')) { s.menu = false; renderThread(false); }
   });
+  /* Leaving the name's input puts the old name back. */
+  app.addEventListener('focusout', (e) => { if (!drawing && s.naming && naming(e)) { s.naming = null; renderThread(false); } });
   app.addEventListener('input', (e) => {
+    if (naming(e)) { if (s.naming) s.naming.value = e.target.value; return; }
     if (e.target.tagName !== 'TEXTAREA') return;
     const ta = e.target;
     ta.style.height = '';
@@ -2171,6 +2332,12 @@ function mount(host, kind, mode, route, flags = {}) {
     showSlash(ta.value);
   });
   app.addEventListener('keydown', (e) => {
+    if (naming(e)) {
+      if (e.key === 'Enter') { e.preventDefault(); rename(thread(), e.target.value); render(); }
+      else if (e.key === 'Escape') { e.preventDefault(); s.naming = null; renderThread(false); }
+      return;
+    }
+    if (e.key === 'Escape' && s.menu) { s.menu = false; renderThread(false); return; }
     if (e.target.tagName === 'TEXTAREA') {
       const ta = e.target;
       if (s.slash && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); s.slash.at = (s.slash.at + (e.key === 'ArrowDown' ? 1 : s.slash.names.length - 1)) % s.slash.names.length; showSlash(ta.value); return; }
@@ -2222,12 +2389,12 @@ const body = document.body;
 const frames = [];
 
 for (const frame of document.querySelectorAll('.board .frame')) {
-  const { kind, mode, route, turned, stale, slash, later, file, fold } = frame.dataset;
+  const { kind, mode, route, turned, stale, slash, later, file, fold, menu, rename, arch } = frame.dataset;
   frame.innerHTML = kind === 'phone'
     ? `<div class="screen"><div class="statusbar"><span>16:22</span><i class="px bm-bars"></i></div><div class="host" style="height:100%"></div><div class="homebar"></div></div>`
     : `<div class="screen host"></div>`;
   const screen = frame.querySelector('.screen');
-  const inst = mount(frame.querySelector('.host'), kind, mode, route, { turned, stale, slash, later, file, fold });
+  const inst = mount(frame.querySelector('.host'), kind, mode, route, { turned, stale, slash, later, file, fold, menu, rename, arch });
   const cap = document.createElement('div');
   cap.className = 'frame-cap';
   const size = { desk: '1360 × 820', phone: '390 × 844', pad: '860 × 580', crop: '390 × 580' }[kind];
@@ -2284,6 +2451,7 @@ function drawBoard() {
     [icon('wait'), 'waiting', '--ink-3'], ['<i class="lamp"></i>', 'running', '--busy-ink'], [icon('done'), 'done', '--moss-ink'],
     [icon('fail'), 'failed', '--red-ink'], [icon('bang'), 'interrupted, not run again', '--red-ink'],
     [icon('clock'), 'checks back, or a trigger fired', '--ink-2'], [icon('eye'), 'you are only reading', '--ink-2'], [icon('flip'), `the agent's view`, '--ink-2'],
+    [icon('more'), 'rename or archive', '--ink-2'],
     ['<i class="sigil bm-disc pg-you s12" style="width:12px;height:12px"></i>', 'you', '--ink-2'],
   ].map(([m, word, color]) => `<div><span class="slot" style="color:var(${color})">${m}</span>${word}</div>`).join('');
 
