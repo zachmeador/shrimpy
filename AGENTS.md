@@ -50,7 +50,7 @@ Take facts from `docs/REDESIGN/`, not its sentences, since much of its phrasing 
 
 ## No legacy support
 
-Do not add backward-compatibility or migration code unless the user asks for it.
+Do not add backward-compatibility or migration code unless the user asks for it. The one standing ask: from 1.0.0, a store Shrimpy owns migrates forward when its program starts, as [1-programs.md](docs/REDESIGN/design/1-programs.md) describes. Until then, a setup in use is converted by hand.
 
 - **Never** add a legacy support path by default.
 - **Never** leave dead code, deprecated command shims, compatibility wrappers or error-only placeholder modules behind after replacing behavior. Remove the old path entirely.
