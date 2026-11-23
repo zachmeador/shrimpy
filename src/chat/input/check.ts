@@ -81,8 +81,8 @@ const absent = (value: unknown): boolean => value === undefined || value === nul
 /**
  * What an agent says it did with messages: a status, and the reply or reason
  * that goes with it. Only an answered receipt has a reply. A failed one always
- * has a detail and a skipped one may; the others carry null in both. A reply
- * or detail left out counts as null.
+ * has a detail, and a skipped or answered one may; the others carry null in
+ * both. A reply or detail left out counts as null.
  */
 export function receipt(value: unknown, what: string): Omit<Receipt, "memberId" | "event"> {
   if (typeof value !== "object" || value === null) {
@@ -98,8 +98,8 @@ export function receipt(value: unknown, what: string): Omit<Receipt, "memberId" 
   if (status !== "answered" && !absent(reply)) {
     refuse(`Only an answered receipt has a reply, and this one is ${status}.`);
   }
-  if (status !== "failed" && status !== "skipped" && !absent(detail)) {
-    refuse(`Only a failed or skipped receipt has a detail, and this one is ${status}.`);
+  if ((status === "silent" || status === "stopped") && !absent(detail)) {
+    refuse(`Only a failed, skipped or answered receipt has a detail, and this one is ${status}.`);
   }
   if (status === "failed" && absent(detail)) {
     refuse("A failed receipt needs a detail: a short reason a person can read.");

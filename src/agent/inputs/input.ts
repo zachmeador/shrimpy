@@ -410,8 +410,12 @@ export type Ending = {
 
 /** How the turn for an input ended. */
 export type TurnOutcome =
-  /** `answer` names the final answer within the thread's session, and `text` is its text. */
-  | { kind: "answered"; answer: string; text: string }
+  /**
+   * `answer` names the final answer within the thread's session, and `text` is
+   * its text. `cut` says the agent ended uncleanly while the turn ran, and the
+   * turn went on after the agent started again.
+   */
+  | { kind: "answered"; answer: string; text: string; cut?: true }
   /** Someone stopped the work while the input's turn was running. */
   | { kind: "stopped" }
   /**

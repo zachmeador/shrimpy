@@ -30,6 +30,9 @@ function cutPoint(text: string, limit: number): number {
 /** `text` as the detail of a receipt: cut to what chat takes, with an ellipsis when it was cut. */
 export const receiptDetail = (text: string): string => cutEnd(text, MAX_RECEIPT_DETAIL_LENGTH, { ending: "…" });
 
+/** What the receipt of an answer says when the agent ended uncleanly while its turn ran. */
+export const PICKED_UP_AGAIN = "The agent stopped unexpectedly while working on this and picked it up again.";
+
 /** The receipt left when chat refused the reply, which says so with chat's words. */
 export const replyRefused = (words: string): LeftReceipt => ({
   status: "failed",

@@ -144,8 +144,11 @@ export function turnTask(options: TurnTaskOptions) {
   /**
    * The task that waits for an input's turn to end and says how it ended. It
    * holds the wait in memory, so the engine counts it each time the agent ends
-   * unexpectedly while the turn runs, and ends it at its limit. Whatever goes
-   * wrong in it is the task that follows the input's to tell.
+   * unexpectedly while the turn runs, and ends it at its limit. That count also
+   * says whether the turn an answer ends was cut short: it was if the agent
+   * ended uncleanly while the input was being answered, and not if the input was
+   * only waiting for its turn. Whatever goes wrong in it is the task that follows
+   * the input's to tell.
    */
   const wait = defineTask<Outstanding, { phase: "wait" }, TurnOutcome>({
     name: WAIT_TASK,
@@ -155,8 +158,10 @@ export function turnTask(options: TurnTaskOptions) {
       wait: async (waiting, runtime, context) => {
         const session = await sessionOf(waiting.input, runtime, context);
         const submission = await session.submit(inputOf(waiting.input), context);
+        const cut = (waiting.restarts ?? 0) > 0 && (await submission.status(context)).status === "placed";
         const outcome = await outcomeOf(await submission.wait(context), runtime, context);
-        await runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: outcome } }), context);
+        const result: TurnOutcome = cut && outcome.kind === "answered" ? { ...outcome, cut: true } : outcome;
+        await runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result } }), context);
       },
     },
     abort: (_waiting, runtime, context) => runtime.commit(() => ABORTED, context),

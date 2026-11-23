@@ -2,7 +2,7 @@ import type { LeftReceipt, Message } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { isChat, type Outstanding, readFinalText, type TurnOutcome } from "../inputs/index.ts";
 import type { ChatCalls } from "../links/index.ts";
-import { inParts, receiptDetail, replyRefused, replyRequestId } from "./reply.ts";
+import { inParts, PICKED_UP_AGAIN, receiptDetail, replyRefused, replyRequestId } from "./reply.ts";
 
 /** Events one receipt call takes, as the chat contract describes. */
 const RECEIPTS_AT_ONCE = 200;
@@ -73,7 +73,7 @@ async function postReply(
       }
       return first === undefined
         ? { status: "silent", reply: null, detail: null }
-        : { status: "answered", reply: first.id, detail: null };
+        : { status: "answered", reply: first.id, detail: outcome.cut === true ? PICKED_UP_AGAIN : null };
     }
     case "stopped":
       return { status: "stopped", reply: null, detail: null };

@@ -128,8 +128,9 @@ async function chooseThread(reached: Reached, dm: Channel, id: string | undefine
 }
 
 /**
- * Say what became of the message: the reply on standard output, anything else on standard error. What a failed,
- * stopped or skipped receipt tells a person is said in the contract's words, as a sentence.
+ * Say what became of the message: the reply on standard output, anything else on standard error. What a receipt
+ * tells a person is said in the contract's words, as a sentence: for a failed, stopped or skipped one in place of a
+ * reply, and for an answered one beside it.
  */
 function report(io: Io, agent: string, thread: string, waited: Waited): number {
   if (waited.kind === "moved-on") {
@@ -141,7 +142,8 @@ function report(io: Io, agent: string, thread: string, waited: Waited): number {
   }
   const { receipt, reply } = waited;
   const said = receiptWords(receipt, agent);
-  if (said !== undefined) {
+  if (said !== undefined && receipt.status === "answered") io.err(asSentence(said));
+  else if (said !== undefined) {
     io.err(asSentence(said));
     // A skipped receipt with a reason was left behind a turn that failed, and one with none behind a stop.
     const failed = receipt.status === "failed" || (receipt.status === "skipped" && receipt.detail !== null);

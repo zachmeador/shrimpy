@@ -7,16 +7,18 @@ import type { Thread } from "./thread.ts";
 /**
  * What a receipt says that a person needs to know, with `who` that left it:
  * "scout failed: …", "scout stopped before answering", "scout skipped this
- * message: …" or "scout skipped this message, because its work was stopped",
- * in the terminal and the commands alike, which each frame it their own way. An
- * answer is the message that follows, and a silent receipt is data nobody is
- * shown, so neither says anything. The name and the detail are put on one line
- * and made harmless here.
+ * message: …", "scout skipped this message, because its work was stopped" or
+ * "scout answered. …", in the terminal and the commands alike, which each frame
+ * it their own way. An answer is the message that follows, so an answered
+ * receipt says something only with a detail, and a silent receipt is data
+ * nobody is shown. The name and the detail are put on one line and made
+ * harmless here.
  */
 export function receiptWords(receipt: Receipt, who: string): string | undefined {
   const name = oneLine(who);
   switch (receipt.status) {
     case "answered":
+      return receipt.detail === null ? undefined : `${name} answered. ${oneLine(receipt.detail)}`;
     case "silent":
       return undefined;
     case "failed":

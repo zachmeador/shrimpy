@@ -5,6 +5,7 @@ import { test, type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { failureWords } from "../contracts/agent/index.ts";
 import { eventually, stopAfter, tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
+import { PICKED_UP_AGAIN } from "./chat/index.ts";
 import {
   answered,
   assistantItems,
@@ -67,7 +68,8 @@ test("killed while the model streams: the request is sent again, and the reply i
   await talk.untilIdle();
 
   await start("mixed", 4000);
-  assert.equal((await talk.receiptOn(asked)).status, "answered");
+  const receipt = await talk.receiptOn(asked);
+  assert.deepEqual([receipt.status, receipt.detail], ["answered", PICKED_UP_AGAIN], "and its receipt says the turn was cut short");
   const after = await attachThread(t, home, talk.thread.id);
   const view = await waitForView(after.session, answered);
   await after.connection.close();
@@ -105,7 +107,8 @@ test("killed while a tool runs: the tool is reported and not run again, and the 
   await before.connection.close().catch(() => undefined);
 
   await start("mixed", 400);
-  assert.equal((await talk.receiptOn(asked)).status, "answered");
+  const receipt = await talk.receiptOn(asked);
+  assert.deepEqual([receipt.status, receipt.detail], ["answered", PICKED_UP_AGAIN], "and its receipt says the turn was cut short");
   const after = await attachThread(t, home, talk.thread.id);
   const view = await waitForView(after.session, answered);
   await after.connection.close();
@@ -200,8 +203,10 @@ test("killed with a message waiting: the next start works through what it left, 
 
   await start("mixed", 4000);
 
-  assert.equal((await talk.receiptOn(one)).status, "answered");
-  assert.equal((await talk.receiptOn(two)).status, "answered");
+  const onOne = await talk.receiptOn(one);
+  const onTwo = await talk.receiptOn(two);
+  assert.deepEqual([onOne.status, onOne.detail], ["answered", PICKED_UP_AGAIN]);
+  assert.deepEqual([onTwo.status, onTwo.detail], ["answered", null], "a message that was only waiting had no turn to cut short");
   const replies = await talk.replies();
   assert.equal(replies.length, 2);
   assert.ok(replies[0]?.text.endsWith(LAST_LINE));
@@ -244,7 +249,8 @@ test("stopped in an orderly way twice while one turn runs: the turn is still ans
 
   await start("mixed", 4000);
 
-  assert.equal((await talk.receiptOn(asked)).status, "answered");
+  const receipt = await talk.receiptOn(asked);
+  assert.deepEqual([receipt.status, receipt.detail], ["answered", null], "an orderly stop is no crash");
   assert.equal((await talk.replies()).length, 1);
 });
 

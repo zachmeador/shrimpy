@@ -54,7 +54,7 @@ export const Chat = remote("shrimpy.chat", {
          *
          * `reply` is required for `answered` and must be a message the caller
          * wrote in the same thread as each event's message; `detail` is required
-         * for `failed` and may be given for `skipped`, at most
+         * for `failed` and may be given for `skipped` and `answered`, at most
          * `MAX_RECEIPT_DETAIL_LENGTH` characters. Each is null otherwise.
          */
         leaveReceipt: method(obj({ events: arr(str()), receipt: LeftReceiptSchema }), answerOf(nul())),

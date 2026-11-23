@@ -9,6 +9,7 @@
  */
 export type { Admissions } from "./admissions.ts";
 export { type ChatDelivery, createDelivery, type DeliveryOptions } from "./delivery.ts";
+export { PICKED_UP_AGAIN } from "./reply.ts";
 export { readFeed } from "./feed.ts";
 export { createWakes, type Wakes } from "./policy.ts";
 export { inParts } from "./reply.ts";

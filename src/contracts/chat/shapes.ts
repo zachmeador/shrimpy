@@ -46,7 +46,9 @@ const ReceiptSchema = obj({
   /**
    * A short reason a person can read. A failed receipt always has one: why the
    * turn failed. A skipped receipt has one when the turn ahead of it failed,
-   * saying why, and none when work was stopped. Any other receipt has null.
+   * saying why, and none when work was stopped. An answered receipt has one when
+   * the agent stopped unexpectedly during the turn and went on with it after
+   * starting again, saying so. Any other receipt has null.
    */
   detail: union([str(), nul()]),
 });
