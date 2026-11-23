@@ -4,8 +4,8 @@ import type { Sql } from "./sql.ts";
 
 /** What goes into the log. A post names no message: it makes the one that takes its position. */
 export type NewEvent =
-  | { kind: "posted"; channelId: string; actorId: string; at: number; text: string }
-  | { kind: "edited"; channelId: string; targetSeq: number; actorId: string; at: number; text: string }
+  | { kind: "posted"; channelId: string; actorId: string; at: number; text: string; mentions: string[] }
+  | { kind: "edited"; channelId: string; targetSeq: number; actorId: string; at: number; text: string; mentions: string[] }
   | { kind: "deleted"; channelId: string; targetSeq: number; actorId: string; at: number }
   | { kind: "reacted" | "unreacted"; channelId: string; targetSeq: number; actorId: string; at: number; emoji: string }
   | {
@@ -32,8 +32,8 @@ export type NewEvent =
 export function appendEvent(sql: Sql, event: NewEvent): { seq: number; id: string } {
   const id = newId("evt");
   const inserted = sql.one(
-    `INSERT INTO events (id, kind, channel_id, target_seq, actor_id, at, text, emoji, answers_seq, status, reply_seq, detail)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING seq`,
+    `INSERT INTO events (id, kind, channel_id, target_seq, actor_id, at, text, mentions, emoji, answers_seq, status, reply_seq, detail)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING seq`,
     id,
     event.kind,
     event.channelId,
@@ -41,6 +41,7 @@ export function appendEvent(sql: Sql, event: NewEvent): { seq: number; id: strin
     event.actorId,
     event.at,
     "text" in event ? event.text : null,
+    "mentions" in event ? JSON.stringify(event.mentions) : null,
     "emoji" in event ? event.emoji : null,
     "answers" in event ? event.answers : null,
     "status" in event ? event.status : null,

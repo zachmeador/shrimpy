@@ -1,16 +1,10 @@
-import { arr, bool, int, method, nul, obj, remote, str, union } from "@earendil-works/chord";
+import { arr, bool, evolve, int, method, nul, obj, remote, str, union } from "@earendil-works/chord";
 import { answerOf, chat } from "../gateway/index.ts";
 import { ChannelSchema } from "./channel.ts";
-import { ChatEventSchema, LeftReceiptSchema, MemberSchema } from "./shapes.ts";
+import { ChatEventSchema, ChatEventSchemaV1, LeftReceiptSchema, MemberSchema } from "./shapes.ts";
 
-/**
- * The caller as a member of chat, at `chat()`: whom chat takes it for, its
- * channels and the ones it only reads, and where its feed ends, all kept live,
- * with what a member does across channels. The relay says who is asking, so
- * nobody comes in first. A program that is no member gets nothing here, and its
- * calls are refused.
- */
-export const Chat = remote("shrimpy.chat", {
+/** `Chat` as it was first served, before a post or an edit in the feed carried the members it mentioned. */
+const ChatV1 = remote("shrimpy.chat", {
   version: 1,
   params: {},
   hostAddress: () => chat(),
@@ -44,7 +38,7 @@ export const Chat = remote("shrimpy.chat", {
          * channel it only reads. An agent watches `head` and asks when it
          * passes its place. A position past `head` is refused.
          */
-        events: method(obj({ after: int(), limit: int() }), answerOf(arr(ChatEventSchema))),
+        events: method(obj({ after: int(), limit: int() }), answerOf(arr(ChatEventSchemaV1))),
         /**
          * Leaves the caller's receipt on 1 to 200 events in its channels, all or
          * none. Only an agent leaves receipts, and never on a receipt's own
@@ -76,3 +70,22 @@ export const Chat = remote("shrimpy.chat", {
     },
   },
 });
+
+/**
+ * The caller as a member of chat, at `chat()`: whom chat takes it for, its
+ * channels and the ones it only reads, and where its feed ends, all kept live,
+ * with what a member does across channels. The relay says who is asking, so
+ * nobody comes in first. A program that is no member gets nothing here, and its
+ * calls are refused.
+ */
+export const Chat = evolve(ChatV1, (edit) =>
+  /**
+   * Up to `limit` events after the position `after` in the caller's channels,
+   * oldest first, or fewer when they are very long, at once, and maybe none.
+   * Every event is there, the caller's own included, and in each channel only
+   * those after the caller joined it: none from a channel it only reads. An
+   * agent watches `head` and asks when it passes its place. A position past
+   * `head` is refused.
+   */
+  edit.result("events", answerOf(arr(ChatEventSchema))),
+);

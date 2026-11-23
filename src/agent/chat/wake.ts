@@ -60,7 +60,8 @@ export function isUrgentPost(event: ChatEvent): boolean {
  * Under `none` nothing wakes the agent. Otherwise it wakes for a reaction to a
  * message it wrote, which is an answer to it; for a post, or an edit of one, in a
  * DM, whatever it says, since only the other member's get this far; for one in a
- * room that `wakesInRoom` says wakes it; and in a room for an answered
+ * room that `wakesInRoom` says wakes it, by the members it mentioned as it was
+ * written then; and in a room for an answered
  * receipt that another member leaves on a message of the agent's own that
  * mentioned them, which is an answer in words whether or not their reply
  * mentions the agent: it is taken up as the reply it points to. In a DM the reply
@@ -72,7 +73,7 @@ export function isUrgentPost(event: ChatEvent): boolean {
 export function wakingOf(self: Member, event: ChatEvent, policy: WakePolicy, where: Channel["kind"]): Waking | undefined {
   if (policy === "none" || passedOver(self, event)) return undefined;
   const { message } = event;
-  const wakesAsPost = where === "dm" || wakesInRoom(self, policy, event.actor, message.mentions);
+  const wakesAsPost = (mentions: readonly string[]): boolean => where === "dm" || wakesInRoom(self, policy, event.actor, mentions);
 
   const taken = (snapshot: Snapshot): Waking => ({
     kind: "event",
@@ -81,10 +82,10 @@ export function wakingOf(self: Member, event: ChatEvent, policy: WakePolicy, whe
   const { id, seq } = event;
   switch (event.kind) {
     case "posted":
-      if (!wakesAsPost) return undefined;
+      if (!wakesAsPost(event.mentions)) return undefined;
       return taken({ kind: "posted", id, seq, author: message.author.name, sentAt: message.sentAt, text: event.text });
     case "edited":
-      if (!wakesAsPost) return undefined;
+      if (!wakesAsPost(event.mentions)) return undefined;
       return taken({
         kind: "edited",
         id,

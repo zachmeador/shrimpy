@@ -8,6 +8,8 @@ type EventRow = {
   kind: ChatEvent["kind"];
   at: number;
   text: string | null;
+  /** The members a post or an edit mentioned, where `mentions` is those its message mentions now. */
+  said_mentions: string | null;
   emoji: string | null;
   /** The ID of the event a receipt answers. */
   answers_id: string | null;
@@ -32,7 +34,7 @@ type EventRow = {
 };
 
 const SELECT = `
-  SELECT e.seq, e.id, e.kind, e.at, e.text, e.emoji, e.status, e.detail,
+  SELECT e.seq, e.id, e.kind, e.at, e.text, e.mentions AS said_mentions, e.emoji, e.status, e.detail,
          answered.id AS answers_id, replied.id AS reply_id,
          x.id AS actor_id, x.kind AS actor_kind, x.name AS actor_name,
          m.id AS message_id, m.channel_id, m.thread_id, m.sent_at, m.mentions, m.deleted, m.preview,
@@ -72,7 +74,12 @@ function toEvent(row: EventRow): ChatEvent {
   switch (row.kind) {
     case "posted":
     case "edited":
-      return { ...base, kind: row.kind, text: row.text ?? "" };
+      return {
+        ...base,
+        kind: row.kind,
+        text: row.text ?? "",
+        mentions: JSON.parse(stored(row, "mentions", row.said_mentions)) as string[],
+      };
     case "deleted":
       return { ...base, kind: row.kind };
     case "reacted":

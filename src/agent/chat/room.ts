@@ -32,9 +32,10 @@ export async function inRoom(context: RoomContext, event: ChatEvent, taken: Take
 
   const { threadId } = taken;
   const snapshot = taken.event;
+  const mentioned = event.kind === "posted" || event.kind === "edited" ? event.mentions : event.message.mentions;
   const told: Snapshot =
     snapshot.kind === "posted" || snapshot.kind === "edited"
-      ? { ...snapshot, to: audienceOf(self, event.message.author, event.message.mentions, room) }
+      ? { ...snapshot, to: audienceOf(self, event.message.author, mentioned, room) }
       : snapshot;
 
   let backlog: Backlog;

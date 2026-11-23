@@ -1,7 +1,7 @@
 import { constant, defineFacet, type Facet, type FollowAttach } from "@earendil-works/chord";
 import type { JsonValue } from "@earendil-works/chord/json";
-import { Channel, Chat, ChatPresence, type Member, Thread } from "../../contracts/chat/index.ts";
-import type { Principal, Way } from "../../contracts/gateway/index.ts";
+import { Channel, Chat, type ChatEvent, ChatPresence, type Member, Thread } from "../../contracts/chat/index.ts";
+import { type Answer, done, type Principal, type Way } from "../../contracts/gateway/index.ts";
 import { follow } from "../../lib/follow/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import type { LiveIdentity } from "../identity/index.ts";
@@ -44,6 +44,19 @@ const wayKey = (way: Way): string => ("id" in way ? `${way.kind} ${way.id}` : wa
 
 /** A post as a version of `Thread` from before `quiet` asks for it: not quiet. */
 const loud = (args: { text: string; request: string }) => ({ ...args, quiet: false });
+
+/** An answer as an older version of a type gives it: its value changed by `older`, and a refusal as it is. */
+const answeredAs =
+  <T, U>(older: (value: T) => U) =>
+  (answer: Answer<T>): Answer<U> =>
+    answer.kind === "refused" ? answer : done(older(answer.value));
+
+/** An event as version 1 of `Chat` serves it: a post or an edit without the members it mentioned. */
+function eventV1(event: ChatEvent) {
+  if (event.kind !== "posted" && event.kind !== "edited") return event;
+  const { mentions: _mentions, ...unmentioned } = event;
+  return unmentioned;
+}
 
 /**
  * Whether a change in the store can change what `principal` is shown. Any
@@ -184,7 +197,7 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
           createRoom: async ({ name, members }) => answer(() => createRoom(deps, caller(), name, members)),
         },
       };
-    });
+    }, { accepts: { 1: { methods: { events: { result: answeredAs((events: ChatEvent[]) => events.map(eventV1)) } } } } });
 
     // Version 1 of `Channel` and `Thread` is from before read marks. A holder of it, such as an agent on another
     // machine that runs an older Shrimpy, binds as it did and is shown no counts. Versions 1 and 2 of `Thread` post

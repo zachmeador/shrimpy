@@ -42,7 +42,7 @@ function anEvent({
   switch (kind) {
     case "posted":
     case "edited":
-      return { ...base, kind, text: "hello" };
+      return { ...base, kind, text: "hello", mentions };
     case "deleted":
       return { ...base, kind };
     case "reacted":

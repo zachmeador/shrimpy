@@ -10,7 +10,9 @@ export const SCHEMA_VERSION = 10;
  * A message is what its events add up to, kept folded in `messages`. It takes
  * the position of the event that posted it, which is why a post has no
  * `target_seq`: it names the message it makes. `message_seq` is the message an
- * event names, either way.
+ * event names, either way. A post or an edit keeps the members its text
+ * mentioned then in its own `mentions`, since the message's are replaced at
+ * each edit.
  *
  * A receipt is an event too. It names the message of the event it answers, and
  * carries the receipt in `answers_seq`, `status`, `reply_seq` and `detail`.
@@ -84,6 +86,7 @@ CREATE TABLE events (
   actor_id TEXT NOT NULL REFERENCES members (id),
   at INTEGER NOT NULL,
   text TEXT,
+  mentions TEXT,
   emoji TEXT,
   answers_seq INTEGER REFERENCES events (seq),
   status TEXT CHECK (status IN ('answered', 'silent', 'stopped', 'skipped', 'failed')),
@@ -91,6 +94,7 @@ CREATE TABLE events (
   detail TEXT,
   CHECK ((kind = 'posted') = (target_seq IS NULL)),
   CHECK ((kind IN ('posted', 'edited')) = (text IS NOT NULL)),
+  CHECK ((kind IN ('posted', 'edited')) = (mentions IS NOT NULL)),
   CHECK ((kind IN ('reacted', 'unreacted')) = (emoji IS NOT NULL)),
   CHECK ((kind = 'receipted') = (answers_seq IS NOT NULL)),
   CHECK ((kind = 'receipted') = (status IS NOT NULL)),

@@ -144,23 +144,8 @@ const EVENT_BASE = {
   receipts: arr(ReceiptSchema),
 };
 
-/**
- * One thing that happened to a message, in the order it did. The feed is a log
- * of these, and a message is what they add up to. An event carries what it
- * added: the text of a post or an edit, the emoji of a reaction, the receipt of
- * an agent. Once a message is deleted, its posts and edits carry no text: a
- * delete takes the text out of the log too.
- *
- * A `receipted` event is a receipt an agent left. Its `actor` is that agent, its
- * `message` is the one the answered event names, and the rest is the receipt:
- * `event` is the ID of the event it answers. A receipt that replaces an earlier
- * one on the same event is an event of its own, and the message shows the one
- * that stands. Nothing is left on a receipt's own event, so its `receipts` are
- * always empty.
- */
-export const ChatEventSchema = union([
-  obj({ ...EVENT_BASE, kind: lit("posted"), text: str() }),
-  obj({ ...EVENT_BASE, kind: lit("edited"), text: str() }),
+/** The kinds of event that carry the same in every version of `Chat`. */
+const OTHER_EVENTS = [
   obj({ ...EVENT_BASE, kind: lit("deleted") }),
   obj({ ...EVENT_BASE, kind: lit("reacted"), emoji: str() }),
   obj({ ...EVENT_BASE, kind: lit("unreacted"), emoji: str() }),
@@ -172,5 +157,36 @@ export const ChatEventSchema = union([
     reply: union([str(), nul()]),
     detail: union([str(), nul()]),
   }),
+] as const;
+
+/** An event as the first version of `Chat` serves it, before a post or an edit carried the members it mentioned. */
+export const ChatEventSchemaV1 = union([
+  obj({ ...EVENT_BASE, kind: lit("posted"), text: str() }),
+  obj({ ...EVENT_BASE, kind: lit("edited"), text: str() }),
+  ...OTHER_EVENTS,
+]);
+
+/**
+ * One thing that happened to a message, in the order it did. The feed is a log
+ * of these, and a message is what they add up to. An event carries what it
+ * added: the text of a post or an edit and the members it mentioned, the emoji
+ * of a reaction, the receipt of an agent. Once a message is deleted, its posts
+ * and edits carry no text: a delete takes the text out of the log too.
+ *
+ * The `mentions` of a post or an edit are the members its text mentioned then,
+ * worked out as a message's are. Its `message` has the members the message
+ * mentions now, which a later edit may have changed.
+ *
+ * A `receipted` event is a receipt an agent left. Its `actor` is that agent, its
+ * `message` is the one the answered event names, and the rest is the receipt:
+ * `event` is the ID of the event it answers. A receipt that replaces an earlier
+ * one on the same event is an event of its own, and the message shows the one
+ * that stands. Nothing is left on a receipt's own event, so its `receipts` are
+ * always empty.
+ */
+export const ChatEventSchema = union([
+  obj({ ...EVENT_BASE, kind: lit("posted"), text: str(), mentions: arr(str()) }),
+  obj({ ...EVENT_BASE, kind: lit("edited"), text: str(), mentions: arr(str()) }),
+  ...OTHER_EVENTS,
 ]);
 export type ChatEvent = Static<typeof ChatEventSchema>;

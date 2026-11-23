@@ -133,6 +133,7 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         actorId: post.authorId,
         at: post.sentAt,
         text: post.text,
+        mentions: post.mentions,
       });
       sql.run(
         `INSERT INTO messages (seq, id, channel_id, thread_id, author_id, text, preview, sent_at, mentions)
@@ -192,6 +193,7 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         actorId: edit.actorId,
         at: edit.at,
         text: edit.text,
+        mentions: edit.mentions,
       });
       sql.run(
         "UPDATE messages SET text = ?, preview = ?, mentions = ?, edited_at = ? WHERE seq = ?",
