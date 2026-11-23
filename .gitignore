@@ -5,7 +5,6 @@ coverage/
 shrimpy-sessions/
 *.tsbuildinfo
 .claude
-.agents/skills/
 shrimpy-old/.agents/
 .vscode/
 shrimpy_pi.code-workspace

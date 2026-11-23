@@ -13,7 +13,6 @@ If `AGENTS-PRIVATE.md` exists at the project root, read it for workspace- and us
 - **How the web client looks:** [`docs/web-client-mockup.html`](docs/web-client-mockup.html), the owner's reference since 2026-11-21. Open it in a browser: it has live frames of the client at each width, and the first block of its styles is everything that decides the look.
 - **`src/`:** three programs (`agent/`, `chat/` and `gateway/`), the clients, the CLI, and the only code they share: `contracts/` and `lib/`.
 - **`skills/`:** the skills Shrimpy ships to its agents.
-- **`dev-skills/`:** instructions for working on this repo, such as the writing guide.
 - **`shrimpy-old/`:** old Shrimpy, kept for reference until the release deletes it. Don't build, test or edit anything there, and don't take its shapes, docs or tests as a guide. Its tests are not to be read at all.
 - **Entry point:** `src/cli/main.ts`, run as `bin/shrimpy.js`.
 
@@ -32,7 +31,22 @@ If `AGENTS-PRIVATE.md` exists at the project root, read it for workspace- and us
 
 ## Writing
 
-Use the [writing guide](dev-skills/shrimpy-dev-writing-guide/SKILL.md) for every doc, skill, instruction, command and error message.
+This covers everything a person or an agent will read, commit messages included. Write the way a developer who knows the code explains it to a colleague: lead with the point, and say only what the reader needs. A little playfulness is welcome where it fits, but keep it rare.
+
+The owner keeps cutting the same things:
+
+- **Invented phrasing for ordinary things.** Use the word people already use: "All commands", not "The whole list", and "12×12", not "twelve lines of twelve". Define a term Shrimpy coined the first time you use it.
+- **Files and programs written as if they think.** `vault/` is a folder of Markdown files, not "longer notes it reads when it needs them".
+- **Explaining more than the reader needs.** "Sessions are stored in SQLite" is the whole sentence. Leave out what a dependency saves you and how it works inside.
+- **Facts with no point, and rules with no reason.** If a reader would answer a sentence with "ok?", cut it. Give a rule's reason: "the programs never import each other" means nothing until the reader knows why.
+- **Answers to worries the reader doesn't have,** such as "You don't need to learn its commands."
+- **Selling.** No slogans, no lists of three for rhythm, and no "not X, but Y" unless someone would really pick X.
+- **Saying it twice.** Each fact belongs in one place, and other files link to it.
+- **Lists in the wrong place.** Explain in short paragraphs. Use bullets or a table for items a reader scans, and never string them into one long sentence.
+
+Docs in this repo get a `# 🦐` title, but the skills Shrimpy ships don't. Use the shrimp emoji sparingly anywhere else, and don't hard-wrap prose.
+
+Take facts from `docs/REDESIGN/`, not its sentences, since much of its phrasing has these habits. When you're done, read the text once as its reader and cut whatever slows them down.
 
 ## No legacy support
 
@@ -57,6 +71,7 @@ Use GitHub Releases for public versions. Early versions are alpha-quality unless
 - Cut a release only from a clean, pushed `main`, never from `wip`.
 - Tags are semantic versions with a `v` prefix, such as `v0.1.0`.
 - Every public release gets a short lyrical aquatic name. Keep it poetic but concrete, and put it in the release's title or notes. `v0.1.0` was **First Light in the Tidepool**.
+- `CHANGELOG.md` is only for what matters to someone running Shrimpy: changes they'll notice, and anything they have to do, such as updating every machine at once. Each gets one short line, and git history has the rest.
 - For an alpha, create a prerelease: `gh release create <tag> --target main --title "<tag> alpha - <release name>" --notes "<summary>" --prerelease`.
 
 ## Philosophy
