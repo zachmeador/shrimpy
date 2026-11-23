@@ -10,10 +10,11 @@ type ThreadRow = {
   name: string | null;
   preview: string | null;
   archived: number;
+  revision: number;
   updated_at: number;
 };
 
-const COLUMNS = "id, channel_id, main, name, preview, archived, updated_at";
+const COLUMNS = "id, channel_id, main, name, preview, archived, revision, updated_at";
 
 /** A thread as stored. Who is working in it lives in memory, never in the store. */
 export type ThreadRecord = Omit<Thread, "working">;
@@ -25,6 +26,7 @@ const toThread = (row: ThreadRow): ThreadRecord => ({
   name: row.name,
   preview: row.preview,
   archived: row.archived === 1,
+  revision: row.revision,
   updatedAt: row.updated_at,
 });
 
@@ -37,7 +39,9 @@ export interface ThreadOperations {
   threadsIn(channelId: string): ThreadRecord[];
   /** Start a side thread. */
   addThread(channelId: string, name: string | null, now: number): ThreadRecord;
+  /** Name a thread, which takes it to its next revision. A thread that has the name already stays as it is. */
   renameThread(id: string, name: string): ThreadRecord;
+  /** Archive a thread or bring it back, which takes it to its next revision. A thread that is that already stays as it is. */
   archiveThread(id: string, archived: boolean): ThreadRecord;
   /** How many messages the thread holds. */
   messageCount(id: string): number;
@@ -132,15 +136,16 @@ export function threadOperations(sql: Sql, report: ReportChange): ThreadOperatio
       return get(id);
     },
     renameThread(id, name) {
-      sql.run("UPDATE threads SET name = ? WHERE id = ?", name, id);
+      const changed = sql.run("UPDATE threads SET name = ?, revision = revision + 1 WHERE id = ? AND name IS NOT ?", name, id, name);
       const thread = get(id);
-      report({ kind: "thread", channelId: thread.channelId, threadId: id });
+      if (changed > 0) report({ kind: "thread", channelId: thread.channelId, threadId: id });
       return thread;
     },
     archiveThread(id, archived) {
-      sql.run("UPDATE threads SET archived = ? WHERE id = ?", archived ? 1 : 0, id);
+      const flag = archived ? 1 : 0;
+      const changed = sql.run("UPDATE threads SET archived = ?, revision = revision + 1 WHERE id = ? AND archived <> ?", flag, id, flag);
       const thread = get(id);
-      report({ kind: "thread", channelId: thread.channelId, threadId: id });
+      if (changed > 0) report({ kind: "thread", channelId: thread.channelId, threadId: id });
       return thread;
     },
     messageCount(id) {

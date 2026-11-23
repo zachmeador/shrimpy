@@ -1,8 +1,8 @@
 import { type Channel, DM_TAKES_NO_MORE, type Member, type Thread } from "../../contracts/chat/index.ts";
 import { noMember } from "../../contracts/gateway/index.ts";
-import { flag, identifier, identifiers, label, MAX_MEMBERS } from "../input/index.ts";
+import { flag, identifier, identifiers, label, MAX_MEMBERS, whole } from "../input/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import type { ChannelRecord, Transaction } from "../store/index.ts";
+import type { ChannelRecord, ThreadRecord, Transaction } from "../store/index.ts";
 import { isMember, readableChannel, readsOthers, requireAdmin, visibleChannel, visibleThread } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
 import { withWorking } from "./working.ts";
@@ -108,19 +108,38 @@ export function createThread(deps: ChatDeps, caller: Member, channelId: string, 
   });
 }
 
-export function renameThread(deps: ChatDeps, caller: Member, threadId: string, name: unknown): Thread {
+/**
+ * A thread the caller may change, as long as it is still at the revision the
+ * caller decided on: one that has moved on is refused, so that a stale retry
+ * can't undo a later rename or archive.
+ */
+function unchangedSince(tx: Transaction, caller: Member, threadId: string, revision: number): ThreadRecord {
+  const { thread } = visibleThread(tx, caller, threadId);
+  if (thread.revision !== revision) {
+    refuse(`The thread has changed since revision ${String(revision)}, and is at revision ${String(thread.revision)}. Look at it again first.`);
+  }
+  return thread;
+}
+
+/** Name a thread, as decided on its revision `revision`. Naming it what it is called already changes nothing. */
+export function renameThread(deps: ChatDeps, caller: Member, threadId: string, name: unknown, revision: unknown): Thread {
   const title = label(name, "The thread's name");
+  const seen = whole(revision, "revision", 0);
   return deps.store.transaction((tx) => {
-    visibleThread(tx, caller, threadId);
+    unchangedSince(tx, caller, threadId, seen);
     return withWorking(tx.renameThread(threadId, title), deps.working);
   });
 }
 
-/** Archiving hides a thread from lists; it stays readable and can take messages. */
-export function archiveThread(deps: ChatDeps, caller: Member, threadId: string, archived: unknown): Thread {
+/**
+ * Archive a thread or bring it back, as decided on its revision `revision`.
+ * Archiving hides a thread from lists; it stays readable and can take messages.
+ */
+export function archiveThread(deps: ChatDeps, caller: Member, threadId: string, archived: unknown, revision: unknown): Thread {
   const hidden = flag(archived, "archived");
+  const seen = whole(revision, "revision", 0);
   return deps.store.transaction((tx) => {
-    visibleThread(tx, caller, threadId);
+    unchangedSince(tx, caller, threadId, seen);
     return withWorking(tx.archiveThread(threadId, hidden), deps.working);
   });
 }

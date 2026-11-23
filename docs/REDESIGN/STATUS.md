@@ -19,7 +19,6 @@ As of 2026-11-23. An item leaves when it is fixed or when the design changes to 
 
 ### The contracts between them
 
-- Renaming and archiving a thread carry no version, though the plan says they are versioned set-to-value updates, so an old retry could overwrite a later decision.
 - Edits, deletes and reactions carry no request ID, so a provider replaying an old edit after a newer one would undo it.
 - Only the author edits or deletes, checked against the caller, so a provider acting for a person it maps has no way to.
 - The chat server's log of events never shrinks, and nothing shows a message's earlier versions.

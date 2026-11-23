@@ -20,6 +20,9 @@ export const SCHEMA_VERSION = 10;
  * `reactions` keeps the emoji that stand. A failed receipt always has a
  * detail, a skipped or answered one may, and no other has one.
  *
+ * A thread's `revision` counts the renames and archives that changed it, so
+ * that a rename or an archive can name the revision it was decided on.
+ *
  * A DM is found by its `direct_key`, the two members' IDs in order, and a room
  * by its `room_key`, its name in lower case, which no other room has. A member
  * is offered a channel's events after its `since_seq`: the position of the
@@ -68,6 +71,7 @@ CREATE TABLE threads (
   main INTEGER NOT NULL CHECK (main IN (0, 1)),
   name TEXT,
   archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+  revision INTEGER NOT NULL DEFAULT 0,
   preview TEXT,
   message_count INTEGER NOT NULL DEFAULT 0,
   last_seq INTEGER NOT NULL DEFAULT 0,

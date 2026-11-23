@@ -35,6 +35,7 @@ export interface Speaking {
   delete(thread: string, message: string): Promise<Message>;
   react(thread: string, message: string, emoji: string): Promise<Message>;
   unreact(thread: string, message: string, emoji: string): Promise<Message>;
+  /** Archive a thread, or bring it back, at the revision it is at. */
   archive(thread: string, archived: boolean): Promise<Thread>;
   events(after: number, limit: number): Promise<ChatEvent[]>;
   leaveReceipt(events: string[], receipt: LeftReceipt): Promise<void>;
@@ -107,7 +108,8 @@ export async function speakingAs(t: TestContext, holder: Holder): Promise<Speaki
     delete: (thread, message) => inThread(thread, (held) => held.delete({ message }, context)),
     react: (thread, message, emoji) => inThread(thread, (held) => held.react({ message, emoji }, context)),
     unreact: (thread, message, emoji) => inThread(thread, (held) => held.unreact({ message, emoji }, context)),
-    archive: (thread, archived) => onThread(holder, thread, async (held) => valueOf(await held.archive({ archived }, context))),
+    archive: (thread, archived) =>
+      onThread(holder, thread, async (held) => valueOf(await held.archive({ archived, revision: held.thread.value?.revision ?? 0 }, context))),
     events: async (after, limit) => valueOf(await chat.events({ after, limit }, context)),
     async leaveReceipt(events, receipt) {
       valueOf(await chat.leaveReceipt({ events, receipt }, context));

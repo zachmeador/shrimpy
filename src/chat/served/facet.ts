@@ -51,6 +51,28 @@ const answeredAs =
   (answer: Answer<T>): Answer<U> =>
     answer.kind === "refused" ? answer : done(older(answer.value));
 
+/** A thread as the versions of `Thread` and `Channel` from before revisions serve it: without its revision. */
+function threadV1(thread: Thread) {
+  const { revision: _revision, ...unrevised } = thread;
+  return unrevised;
+}
+
+/**
+ * What the versions of `Thread` from before revisions are given. A rename or
+ * an archive from one names no revision, so a stale retry can't be told from
+ * a later decision, and it is refused.
+ */
+const BEFORE_REVISIONS = {
+  state: { all: { thread: (thread: Thread | null) => (thread === null ? null : threadV1(thread)) } },
+  methods: { rename: "refuse", archive: "refuse" },
+} as const;
+
+/** What the versions of `Channel` from before revisions are given. */
+const CHANNEL_BEFORE_REVISIONS = {
+  state: { all: { threads: (threads: Thread[]) => threads.map(threadV1) } },
+  methods: { createThread: { result: answeredAs(threadV1) } },
+} as const;
+
 /** An event as version 1 of `Chat` serves it: a post or an edit without the members it mentioned. */
 function eventV1(event: ChatEvent) {
   if (event.kind !== "posted" && event.kind !== "edited") return event;
@@ -201,7 +223,7 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
 
     // Version 1 of `Channel` and `Thread` is from before read marks. A holder of it, such as an agent on another
     // machine that runs an older Shrimpy, binds as it did and is shown no counts. Versions 1 and 2 of `Thread` post
-    // nothing quietly.
+    // nothing quietly. Versions 1 to 3 of `Thread`, and 1 and 2 of `Channel`, are from before revisions.
     host.serve(
       Channel,
       ({ channel: channelId }, principal, self) => {
@@ -226,7 +248,7 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
           },
         };
       },
-      { accepts: { 1: {} } },
+      { accepts: { 1: CHANNEL_BEFORE_REVISIONS, 2: CHANNEL_BEFORE_REVISIONS } },
     );
 
     host.serve(
@@ -260,13 +282,19 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
             delete: async ({ message }) => answer(() => deleteMessage(deps, caller(), threadId, message)),
             react: async ({ message, emoji }) => answer(() => react(deps, caller(), threadId, message, emoji)),
             unreact: async ({ message, emoji }) => answer(() => unreact(deps, caller(), threadId, message, emoji)),
-            rename: async ({ name }) => answer(() => renameThread(deps, caller(), threadId, name)),
-            archive: async ({ archived }) => answer(() => archiveThread(deps, caller(), threadId, archived)),
+            rename: async ({ name, revision }) => answer(() => renameThread(deps, caller(), threadId, name, revision)),
+            archive: async ({ archived, revision }) => answer(() => archiveThread(deps, caller(), threadId, archived, revision)),
             markRead: async ({ message }) => answer(() => markRead(deps, caller(), threadId, message)),
           },
         };
       },
-      { accepts: { 1: { methods: { post: { args: loud } } }, 2: { methods: { post: { args: loud } } } } },
+      {
+        accepts: {
+          1: { ...BEFORE_REVISIONS, methods: { ...BEFORE_REVISIONS.methods, post: { args: loud } } },
+          2: { ...BEFORE_REVISIONS, methods: { ...BEFORE_REVISIONS.methods, post: { args: loud } } },
+          3: BEFORE_REVISIONS,
+        },
+      },
     );
   });
 }

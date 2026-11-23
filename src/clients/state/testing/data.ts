@@ -81,6 +81,7 @@ export function aThread(id: string, parts: Partial<Thread> = {}): Thread {
     name: null,
     preview: null,
     archived: false,
+    revision: 0,
     updatedAt: 0,
     working: [],
     ...parts,

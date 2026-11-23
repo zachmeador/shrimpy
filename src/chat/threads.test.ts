@@ -40,3 +40,23 @@ test("a client holding a Thread sees a post arrive, and a request ID's first use
   await until(() => watching.messages.value[0]?.text === "The disk is at 91%.", "the edit to arrive");
   assert.equal(watching.messages.value.length, 1);
 });
+
+test("a rename or an archive names the revision it was decided on, so a stale retry can't undo a later one", { timeout }, async (t) => {
+  const chat = await startChatInProcess(t);
+  const you = await chat.person();
+  const scout = await chat.agent("scout");
+  const dm = valueOf(await (await you.host.get(Chat, {}, context)).openDm({ member: scout.you.id }, context));
+  const side = valueOf(await (await you.host.get(Channel, { channel: dm.id }, context)).createThread({ name: null }, context));
+  const yours = await you.host.get(Thread, { thread: side.id }, context);
+  const scouts = await scout.host.get(Thread, { thread: side.id }, context);
+
+  const named = valueOf(await yours.rename({ name: "Disk", revision: side.revision }, context));
+  const renamed = valueOf(await scouts.rename({ name: "Logs", revision: named.revision }, context));
+  // Your first rename again, as a retry after its answer was lost would send it.
+  refusalOf(await yours.rename({ name: "Disk", revision: side.revision }, context));
+  refusalOf(await yours.archive({ archived: true, revision: named.revision }, context));
+  const archived = valueOf(await yours.archive({ archived: true, revision: renamed.revision }, context));
+
+  await until(() => yours.thread.value?.revision === archived.revision, "the thread to show the archive");
+  assert.deepEqual([yours.thread.value?.name, yours.thread.value?.archived], ["Logs", true]);
+});

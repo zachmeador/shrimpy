@@ -2,8 +2,7 @@ import { arr, bool, evolve, int, method, nul, num, obj, opt, remote, type Static
 import { answerOf, chat, RefusedSchema } from "../gateway/index.ts";
 import { MessageSchema, WorkingSchema } from "./shapes.ts";
 
-/** One conversation inside a channel, as a record. Every channel has a main thread. */
-export const ThreadSchema = obj({
+const THREAD_FIELDS = {
   id: str(),
   channelId: str(),
   main: bool(),
@@ -24,6 +23,16 @@ export const ThreadSchema = obj({
   updatedAt: num(),
   /** Who is working in this thread right now, longest first. */
   working: arr(WorkingSchema),
+};
+
+/** A thread as the first three versions of `Thread`, and the first two of `Channel`, serve it, before it had a revision. */
+export const ThreadSchemaV1 = obj(THREAD_FIELDS);
+
+/** One conversation inside a channel, as a record. Every channel has a main thread. */
+export const ThreadSchema = obj({
+  ...THREAD_FIELDS,
+  /** How many times the thread has been renamed, archived or brought back, from 0. `Thread`'s `rename` and `archive` name it. */
+  revision: int(),
 });
 
 /**
@@ -43,7 +52,7 @@ const ThreadV1 = remote("shrimpy.chat.thread", {
         /** Null, or why the caller can't have this thread. */
         refusal: union([RefusedSchema, nul()]),
         /** The thread, with who is working in it. */
-        thread: union([ThreadSchema, nul()]),
+        thread: union([ThreadSchemaV1, nul()]),
         /** Its newest messages, oldest first: at most 200, and fewer when they are very long. */
         messages: arr(MessageSchema),
         /** How many older messages there are, which `read` gives. */
@@ -79,9 +88,9 @@ const ThreadV1 = remote("shrimpy.chat.thread", {
         /** Takes the caller's emoji off a message in this thread. Taking one that isn't there changes nothing. */
         unreact: method(obj({ message: str(), emoji: str() }), answerOf(MessageSchema)),
         /** Names the thread, answering with it as it now stands. */
-        rename: method(obj({ name: str() }), answerOf(ThreadSchema)),
+        rename: method(obj({ name: str() }), answerOf(ThreadSchemaV1)),
         /** Archives the thread, which hides it from lists and leaves it readable, or brings it back. */
-        archive: method(obj({ archived: bool() }), answerOf(ThreadSchema)),
+        archive: method(obj({ archived: bool() }), answerOf(ThreadSchemaV1)),
       },
     },
   },
@@ -105,6 +114,19 @@ const ThreadV2 = evolve(ThreadV1, (edit) =>
     .addMethod("all", "markRead", obj({ message: str() }), answerOf(nul())),
 );
 
+/** `Thread` as it was served with quiet posts, before a thread had a revision. */
+const ThreadV3 = evolve(ThreadV2, (edit) =>
+  /**
+   * Posts a message of at most `MAX_MESSAGE_LENGTH` characters. A request ID's
+   * first use wins: a retry from the same member answers with the first
+   * message as it now stands, even if it was edited or deleted since, and the
+   * same ID with another thread or text is refused. The message records the
+   * members its text mentions. A message sent with `quiet` is never told to
+   * you on your devices.
+   */
+  edit.args("post", obj({ text: str(), request: str(), quiet: opt(bool()) })),
+);
+
 /**
  * One thread as the caller sees it, at `chat()`: its newest messages, kept
  * live, older ones a page at a time, how many are new to you, and what a member
@@ -121,15 +143,21 @@ const ThreadV2 = evolve(ThreadV1, (edit) =>
  * there, which a client moves while the thread is on show. Every client of
  * yours counts from the same mark. A message that stays new to you for a few
  * seconds can be told to you on your devices.
+ *
+ * A rename or an archive names the thread's revision it was decided on, and
+ * is refused once the thread has moved on from it, so that a stale retry can't
+ * undo a later decision.
  */
-export const Thread = evolve(ThreadV2, (edit) =>
-  /**
-   * Posts a message of at most `MAX_MESSAGE_LENGTH` characters. A request ID's
-   * first use wins: a retry from the same member answers with the first
-   * message as it now stands, even if it was edited or deleted since, and the
-   * same ID with another thread or text is refused. The message records the
-   * members its text mentions. A message sent with `quiet` is never told to
-   * you on your devices.
-   */
-  edit.args("post", obj({ text: str(), request: str(), quiet: opt(bool()) })),
+export const Thread = evolve(ThreadV3, (edit) =>
+  edit
+    /** The thread, with its revision and who is working in it. */
+    .state("all", "thread", union([ThreadSchema, nul()]))
+    /** Names the thread, answering with it as it now stands. Naming it what it is called already changes nothing. */
+    .method("rename", obj({ name: str(), revision: int() }), answerOf(ThreadSchema))
+    /**
+     * Archives the thread, which hides it from lists and leaves it readable,
+     * or brings it back, answering with it as it now stands. Asking for what
+     * it is already changes nothing.
+     */
+    .method("archive", obj({ archived: bool(), revision: int() }), answerOf(ThreadSchema)),
 );
