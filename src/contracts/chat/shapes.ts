@@ -168,29 +168,6 @@ const EVENT_BASE = {
   receipts: arr(ReceiptSchema),
 };
 
-/** The kinds of event that carry the same in every version of `Chat`. */
-const OTHER_EVENTS = [
-  obj({ ...EVENT_BASE, kind: lit("deleted") }),
-  obj({ ...EVENT_BASE, kind: lit("reacted"), emoji: str() }),
-  obj({ ...EVENT_BASE, kind: lit("unreacted"), emoji: str() }),
-  obj({
-    ...EVENT_BASE,
-    kind: lit("receipted"),
-    event: str(),
-    status: StatusSchema,
-    reply: union([str(), nul()]),
-    detail: union([str(), nul()]),
-  }),
-  obj({ ...EVENT_BASE, kind: lit("fired"), trigger: TriggerLineSchema }),
-] as const;
-
-/** An event as the first version of `Chat` serves it, before a post or an edit carried the members it mentioned. */
-export const ChatEventSchemaV1 = union([
-  obj({ ...EVENT_BASE, kind: lit("posted"), text: str() }),
-  obj({ ...EVENT_BASE, kind: lit("edited"), text: str() }),
-  ...OTHER_EVENTS,
-]);
-
 /**
  * One thing that happened to a message, in the order it did. The feed is a log
  * of these, and a message is what they add up to. An event carries what it
@@ -214,6 +191,17 @@ export const ChatEventSchemaV1 = union([
 export const ChatEventSchema = union([
   obj({ ...EVENT_BASE, kind: lit("posted"), text: str(), mentions: arr(str()) }),
   obj({ ...EVENT_BASE, kind: lit("edited"), text: str(), mentions: arr(str()) }),
-  ...OTHER_EVENTS,
+  obj({ ...EVENT_BASE, kind: lit("deleted") }),
+  obj({ ...EVENT_BASE, kind: lit("reacted"), emoji: str() }),
+  obj({ ...EVENT_BASE, kind: lit("unreacted"), emoji: str() }),
+  obj({
+    ...EVENT_BASE,
+    kind: lit("receipted"),
+    event: str(),
+    status: StatusSchema,
+    reply: union([str(), nul()]),
+    detail: union([str(), nul()]),
+  }),
+  obj({ ...EVENT_BASE, kind: lit("fired"), trigger: TriggerLineSchema }),
 ]);
 export type ChatEvent = Static<typeof ChatEventSchema>;

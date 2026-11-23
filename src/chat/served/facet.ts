@@ -1,7 +1,7 @@
 import { constant, defineFacet, type Facet, type FollowAttach } from "@earendil-works/chord";
 import type { JsonValue } from "@earendil-works/chord/json";
-import { Channel, Chat, type ChatEvent, ChatPresence, type Member, Thread } from "../../contracts/chat/index.ts";
-import { type Answer, done, type Principal, type Way } from "../../contracts/gateway/index.ts";
+import { Channel, Chat, ChatPresence, type Member, Thread } from "../../contracts/chat/index.ts";
+import type { Principal, Way } from "../../contracts/gateway/index.ts";
 import { follow } from "../../lib/follow/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import type { LiveIdentity } from "../identity/index.ts";
@@ -45,42 +45,6 @@ const wayKey = (way: Way): string => ("id" in way ? `${way.kind} ${way.id}` : wa
 
 /** A post as a version of `Thread` from before `quiet` asks for it: not quiet. */
 const loud = (args: { text: string; request: string }) => ({ ...args, quiet: false });
-
-/** An answer as an older version of a type gives it: its value changed by `older`, and a refusal as it is. */
-const answeredAs =
-  <T, U>(older: (value: T) => U) =>
-  (answer: Answer<T>): Answer<U> =>
-    answer.kind === "refused" ? answer : done(older(answer.value));
-
-/** A thread as the versions of `Thread` and `Channel` from before revisions serve it: without its revision. */
-function threadV1(thread: Thread) {
-  const { revision: _revision, ...unrevised } = thread;
-  return unrevised;
-}
-
-/**
- * What the versions of `Thread` from before revisions are given. A rename or
- * an archive from one names no revision, and a change to a message no request
- * ID, so a stale retry can't be told from a later decision, and each is
- * refused.
- */
-const BEFORE_REVISIONS = {
-  state: { all: { thread: (thread: Thread | null) => (thread === null ? null : threadV1(thread)) } },
-  methods: { edit: "refuse", delete: "refuse", react: "refuse", unreact: "refuse", rename: "refuse", archive: "refuse" },
-} as const;
-
-/** What the versions of `Channel` from before revisions are given. */
-const CHANNEL_BEFORE_REVISIONS = {
-  state: { all: { threads: (threads: Thread[]) => threads.map(threadV1) } },
-  methods: { createThread: { result: answeredAs(threadV1) } },
-} as const;
-
-/** An event as version 1 of `Chat` serves it: a post or an edit without the members it mentioned. */
-function eventV1(event: ChatEvent) {
-  if (event.kind !== "posted" && event.kind !== "edited") return event;
-  const { mentions: _mentions, ...unmentioned } = event;
-  return unmentioned;
-}
 
 /**
  * Whether a change in the store can change what `principal` is shown. Any
@@ -160,77 +124,72 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
 
     host.serve(ChatPresence, () => ({ variant: "present", members: {} }));
 
-    host.serve(
-      Chat,
-      (_params, principal, self) => {
-        // Positions only grow, so each reading of the head starts where the last one ended.
-        let since = 0;
-        const state = self.follow(
-          followed(
-            deps,
-            () => {
-              const view = chatView(deps, whoIs(deps, principal), since);
-              since = view.head;
-              return view;
-            },
-            (change) => change.kind === "event" || change.kind === "channel",
-            () => false,
-          ),
-        );
-
-        // A working mark lasts while the hold that made it does: one per host that holds this object, by its incarnation.
-        const owner = crypto.randomUUID();
-        const holders = new Map<string, string>();
-        const holderFor = (incarnation: string): string => {
-          const known = holders.get(incarnation);
-          if (known !== undefined) return known;
-          const made = `${owner} ${incarnation}`;
-          holders.set(incarnation, made);
-          return made;
-        };
-        self.on(holds, async ({ value }) => {
-          const present = new Set(
-            value.flatMap((hold) => (hold.principal !== undefined && samePrincipal(hold.principal, principal) ? [hold.incarnation] : [])),
-          );
-          for (const [incarnation, holder] of holders) {
-            if (present.has(incarnation)) continue;
-            holders.delete(incarnation);
-            deps.working.end(holder);
-          }
-        });
-        self.open(
-          async () => holders,
-          (open) => {
-            for (const holder of open.values()) deps.working.end(holder);
-            open.clear();
+    host.serve(Chat, (_params, principal, self) => {
+      // Positions only grow, so each reading of the head starts where the last one ended.
+      let since = 0;
+      const state = self.follow(
+        followed(
+          deps,
+          () => {
+            const view = chatView(deps, whoIs(deps, principal), since);
+            since = view.head;
+            return view;
           },
-        );
+          (change) => change.kind === "event" || change.kind === "channel",
+          () => false,
+        ),
+      );
 
-        const caller = (): Member => callerOf(principal);
-        return {
-          variant: "all",
-          members: {
-            you: self.derive([state], ([view]) => view.you),
-            channels: self.derive([state], ([view]) => view.channels),
-            readOnlyChannels: self.derive([state], ([view]) => view.readOnlyChannels),
-            head: self.derive([state], ([view]) => view.head),
-            store: constant(deps.store.id),
-            events: async ({ after, limit }) => answer(() => events(deps.store, caller(), after, limit)),
-            leaveReceipt: async ({ events: ids, receipt }) => answer(() => leaveReceipt(deps, caller(), ids, receipt)),
-            setWorking: async ({ thread, working }, ctx) =>
-              answer(() => setWorking(deps, holderFor(ctx.incarnation), caller(), thread, working)),
-            openDm: async ({ member }) => answer(() => openDm(deps, caller(), member)),
-            createRoom: async ({ name, members }) => answer(() => createRoom(deps, caller(), name, members)),
-          },
-        };
-      },
-      { accepts: { 1: { methods: { events: { result: answeredAs((events: ChatEvent[]) => events.map(eventV1)) } } } } },
-    );
+      // A working mark lasts while the hold that made it does: one per host that holds this object, by its incarnation.
+      const owner = crypto.randomUUID();
+      const holders = new Map<string, string>();
+      const holderFor = (incarnation: string): string => {
+        const known = holders.get(incarnation);
+        if (known !== undefined) return known;
+        const made = `${owner} ${incarnation}`;
+        holders.set(incarnation, made);
+        return made;
+      };
+      self.on(holds, async ({ value }) => {
+        const present = new Set(
+          value.flatMap((hold) => (hold.principal !== undefined && samePrincipal(hold.principal, principal) ? [hold.incarnation] : [])),
+        );
+        for (const [incarnation, holder] of holders) {
+          if (present.has(incarnation)) continue;
+          holders.delete(incarnation);
+          deps.working.end(holder);
+        }
+      });
+      self.open(
+        async () => holders,
+        (open) => {
+          for (const holder of open.values()) deps.working.end(holder);
+          open.clear();
+        },
+      );
+
+      const caller = (): Member => callerOf(principal);
+      return {
+        variant: "all",
+        members: {
+          you: self.derive([state], ([view]) => view.you),
+          channels: self.derive([state], ([view]) => view.channels),
+          readOnlyChannels: self.derive([state], ([view]) => view.readOnlyChannels),
+          head: self.derive([state], ([view]) => view.head),
+          store: constant(deps.store.id),
+          events: async ({ after, limit }) => answer(() => events(deps.store, caller(), after, limit)),
+          leaveReceipt: async ({ events: ids, receipt }) => answer(() => leaveReceipt(deps, caller(), ids, receipt)),
+          setWorking: async ({ thread, working }, ctx) =>
+            answer(() => setWorking(deps, holderFor(ctx.incarnation), caller(), thread, working)),
+          openDm: async ({ member }) => answer(() => openDm(deps, caller(), member)),
+          createRoom: async ({ name, members }) => answer(() => createRoom(deps, caller(), name, members)),
+        },
+      };
+    });
 
     // Version 1 of `Channel` and `Thread` is from before read marks. A holder of it, such as an agent on another
     // machine that runs an older Shrimpy, binds as it did and is shown no counts. Versions 1 and 2 of `Thread` post
-    // nothing quietly. Versions 1 to 3 of `Thread` are from before revisions and request IDs on changes to messages,
-    // and versions 1 and 2 of `Channel` from before revisions.
+    // nothing quietly.
     host.serve(
       Channel,
       ({ channel: channelId }, principal, self) => {
@@ -255,7 +214,7 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
           },
         };
       },
-      { accepts: { 1: CHANNEL_BEFORE_REVISIONS, 2: CHANNEL_BEFORE_REVISIONS } },
+      { accepts: { 1: {} } },
     );
 
     host.serve(
@@ -296,13 +255,7 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
           },
         };
       },
-      {
-        accepts: {
-          1: { ...BEFORE_REVISIONS, methods: { ...BEFORE_REVISIONS.methods, post: { args: loud } } },
-          2: { ...BEFORE_REVISIONS, methods: { ...BEFORE_REVISIONS.methods, post: { args: loud } } },
-          3: BEFORE_REVISIONS,
-        },
-      },
+      { accepts: { 1: { methods: { post: { args: loud } } }, 2: { methods: { post: { args: loud } } } } },
     );
   });
 }
