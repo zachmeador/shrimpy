@@ -124,6 +124,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 - Putting the move to Pi 1.5.2 on a setup in use: what Shrimpy wrote before it goes into an archive beside the Shrimpy folder, an agent elsewhere joins again with a new invitation, and your name goes in `settings.json`, as [the home](design/5-home.md) has it.
 - In the terminal, `/devices invite`. [Not built yet](design/using-it.md)
+- The contracts' histories from before the release go, since contracts change in place until it. [Not built yet](design/2-contracts.md)
 - The clients. Built by 2026-11-22 and on `wip` since that day, when you opened them, found the web client short of its mockup, and had both gone through against their mockups and brought in line: the modules the terminal and the web client share, the terminal as its mockup has it, and the web client, built for a phone first, with push notifications. What is left is the rough edges you found with the web client installed on your iPhone, and a Mac app that wraps it. The web client doesn't hold up the release. [Not built yet](design/using-it.md)
 - Cleaning up for the release, which you said on 2026-10-08 is close: the skills cover what a person and an agent do with Shrimpy, the reference documentation shrinks to very little, and old Shrimpy is replaced.
 - Living with it: what you notice goes on the list in [using it](design/using-it.md), and decides what is built next.
@@ -181,7 +182,9 @@ This plan deliberately leaves these out, so they don't creep back in:
 - Account for every CLI entry, slash command, export, setup and update recipe, service definition, template, skill, test, doc and security statement. Help and completion come from the real command surface.
 - Very little reference documentation. You said on 2026-10-08: "i'd actually like to move to very minimal reference documentation. shrimpy agents can just check the code if they need to. but instructions and skills should cover all of the core ux/agent-ex". So what an agent is told and the skills that ship carry how Shrimpy is used, by a person and by an agent, and the README and the developer docs are written for what the release ships, keeping the charming parts of today's. This folder goes at the release, as [its front page](README.md#when-this-folder-goes) says.
 - A decision for every command and affordance of today's Shrimpy that hasn't come back, from what [using it](design/using-it.md) has of them.
-- Updating Shrimpy, setting up through `shrimpy`, and moving over from old Shrimpy, from the list from living with it in [using it](design/using-it.md).
+- Versions: `1.0.0` and `-dev`, every contract's version and fingerprint written down with a test, and the hello's refusals and words for another version. [Not built yet](design/2-contracts.md)
+- Stored data migrating forward at start, with a fixture of each store and a test. [Not built yet](design/1-programs.md)
+- Updating Shrimpy, once how it is installed is settled, setting up through `shrimpy`, and moving over from old Shrimpy, from the list from living with it in [using it](design/using-it.md).
 - Choosing the model an agent starts with from the terminal, which you called a priority before the release on 2026-10-06 ([using it](design/using-it.md)).
 - `SECURITY.md` and `THIRD_PARTY_NOTICES.md` go with `shrimpy-old/` and are written anew, from [the keep list](keep-list.md). `CONTRIBUTING.md` was written from it on 2026-11-23.
 - `AGENTS.md`, `CONTRIBUTING.md`, `docs/README.md` and `lint/boundaries.js` point into this folder, and are repointed when it goes.
