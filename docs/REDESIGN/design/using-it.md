@@ -287,7 +287,7 @@ Dropped, fourteen:
 - Ask an agent to remember, search or search the web — wait until wanted.
 - Add a command's output to an agent's context each turn — gone; small fact files replace it.
 - Be told fleet status, other sessions' activity and worker summaries unasked — dropped.
-- Hand a coding task to Codex, then follow, steer and cancel it — later, as a skill over the agent's shell and a trigger.
+- Hand a coding task to Codex, then follow, steer and cancel it — later, through the agent's shell and a trigger, with one skill for Codex and every program like it.
 - Give an agent extra tools and commands through extensions — dropped.
 
 **Looking after Shrimpy.**
