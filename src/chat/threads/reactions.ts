@@ -19,6 +19,7 @@ export function react(deps: ChatDeps, caller: Member, threadId: string, messageI
       once(tx, caller, request, () => {
         const { message } = visibleMessage(tx, caller, threadId, id);
         if (message.deleted) refuse("That message was deleted, so it takes no reactions.");
+        if (message.trigger !== null) refuse("A trigger's line takes no reactions.");
         return tx.addReaction(message, caller.id, reaction, deps.now());
       }).message,
   );

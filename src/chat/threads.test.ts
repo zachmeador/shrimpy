@@ -83,3 +83,24 @@ test("a replayed edit or reaction answers with the message as it stands, and und
   refusalOf(await scouts.edit({ message: said.id, text: "Something else.", request: "scout-2" }, context));
   refusalOf(await yours.unreact({ message: said.id, emoji: "👀", request: "you-1" }, context));
 });
+
+test("a trigger's line shows in its thread once, counts as new to you, names no thread, and can't be changed", { timeout }, async (t) => {
+  const chat = await startChatInProcess(t);
+  const you = await chat.person();
+  const scout = await chat.agent("scout");
+  const dm = valueOf(await (await you.host.get(Chat, {}, context)).openDm({ member: scout.you.id }, context));
+  const [main] = (await you.host.get(Channel, { channel: dm.id }, context)).threads.value;
+  assert.ok(main);
+  const yours = await you.host.get(Thread, { thread: main.id }, context);
+  const scouts = await scout.host.get(Thread, { thread: main.id }, context);
+  const fired = { trigger: "groceries", firedAt: 1_700_000_000_000, prompt: "Make the week's list.", output: "14", request: "scout-line-1" };
+
+  const line = valueOf(await scouts.triggerFired(fired, context));
+  assert.deepEqual(line.trigger, { name: "groceries", firedAt: fired.firedAt, prompt: fired.prompt, output: "14" });
+  assert.equal(valueOf(await scouts.triggerFired(fired, context)).id, line.id, "a retry shows it once");
+  await until(() => yours.unread.value === 1, "the line to count as new to you");
+  assert.equal(yours.thread.value?.preview, null);
+  refusalOf(await yours.triggerFired({ ...fired, request: "you-1" }, context));
+  refusalOf(await scouts.edit({ message: line.id, text: "No.", request: "scout-2" }, context));
+  refusalOf(await yours.react({ message: line.id, emoji: "👀", request: "you-2" }, context));
+});

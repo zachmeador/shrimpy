@@ -33,6 +33,12 @@ export function receiptWords(receipt: Receipt, who: string): string | undefined 
   }
 }
 
+/**
+ * What a trigger's line says, as agents and the commands read it, with `at` the
+ * time it fired as the reader writes times: "trigger groceries fired at 14:30".
+ */
+export const firedWords = (trigger: string, at: string): string => `trigger ${oneLine(trigger)} fired at ${at}`;
+
 /** Why chat takes whoever asks for nobody: the roster has no member for them. */
 export const ONLY_MEMBERS = "Only the network's members use chat, and the roster has no member for whoever is asking.";
 

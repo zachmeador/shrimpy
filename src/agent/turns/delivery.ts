@@ -7,6 +7,13 @@ export type Told = "told" | "later";
 /** What the task that follows an input asks of whoever tells the input's source how its turn ended. */
 export interface Delivery {
   /**
+   * Try once to show, where an input's turn will answer, that its source is
+   * there: an occurrence's line in its thread. Nothing for any other input. The
+   * task goes on with the hand-over whatever this comes to, and `tell` shows the
+   * line above the reply if this could not.
+   */
+  announce(outstanding: Outstanding, signal: AbortSignal): Promise<Told>;
+  /**
    * Try once to tell the source of an input how its turn ended. The task tries
    * again after a pause when this comes to "later", and again after a crash, so
    * whoever tells makes every step safe to do twice. It ends with a rejection only

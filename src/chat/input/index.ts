@@ -12,6 +12,7 @@ export {
   label,
   messageText,
   receipt,
+  triggerLine,
   whole,
 } from "./check.ts";
 export { ANSWER_BYTES, fitAnswer, MAX_MEMBERS, MAX_PAGE } from "./limits.ts";

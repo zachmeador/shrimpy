@@ -39,10 +39,12 @@ export {
   type LeftReceipt,
   MAX_MESSAGE_LENGTH,
   MAX_RECEIPT_DETAIL_LENGTH,
+  MAX_TRIGGER_LINE_LENGTH,
   type Member,
   type Message,
   type Reaction,
   type Receipt,
+  type TriggerLine,
   type Working,
 } from "./shapes.ts";
 export { Thread } from "./thread.ts";
@@ -50,6 +52,7 @@ export {
   addToRoom,
   channelLabel,
   DM_TAKES_NO_MORE,
+  firedWords,
   memberNames,
   NO_MESSAGES,
   NO_ROOMS,

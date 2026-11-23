@@ -1,5 +1,5 @@
 import { modelWords } from "../../contracts/agent/index.ts";
-import { type Message, roomLabel } from "../../contracts/chat/index.ts";
+import { firedWords, type Message, roomLabel } from "../../contracts/chat/index.ts";
 import { listed, singleSpaced } from "../../lib/text/index.ts";
 import { howLong, localTime } from "../../lib/time/index.ts";
 import {
@@ -9,6 +9,7 @@ import {
   type Breadcrumbs,
   type CameBack,
   type ChatInput,
+  type Fired,
   isOccurrence,
   isQuestion,
   isWakeup,
@@ -233,10 +234,13 @@ function cancellations(cancelled: Wakeup[]): string {
  * A reaction says who reacted with what, and to which of the agent's messages
  * by when it was sent and how it starts. An answer says who answered which of
  * the agent's messages, by when it was sent and how it starts, and gives the
- * reply.
+ * reply. A trigger's line, which is never taken up and only read among what was
+ * said, says which trigger fired and when.
  */
-export function written(event: Snapshot): string {
+export function written(event: Snapshot | Fired): string {
   switch (event.kind) {
+    case "fired":
+      return firedWords(event.trigger, localTime(event.firedAt));
     case "posted": {
       const edited = event.editedAt === undefined ? "" : `, and edited it at ${localTime(event.editedAt)}`;
       const cut = event.clipped === true ? `\n(The rest of this message is cut here. To read all of it, call read_messages with before: ${event.seq + 1} and limit: 1.)` : "";
@@ -254,9 +258,11 @@ export function written(event: Snapshot): string {
 /**
  * A message as it now stands, for the model to read back: who wrote it and
  * when, what it says, whether it was edited or deleted, and who reacted with
- * what. `nameOf` says what a member is called.
+ * what, or for a trigger's line which trigger fired and when. `nameOf` says
+ * what a member is called.
  */
 export function standing(message: Message, nameOf: (memberId: string) => string): string {
+  if (message.trigger !== null) return firedWords(message.trigger.name, localTime(message.trigger.firedAt));
   const sent = `${message.author.name} wrote at ${localTime(message.sentAt)}`;
   if (message.deleted) return `${sent}, and deleted it.`;
   const lines = [message.editedAt === null ? `${sent}:` : `${sent}, and edited it at ${localTime(message.editedAt)}:`, message.text];

@@ -1,4 +1,4 @@
-import type { Member, Message, Reaction } from "../../contracts/chat/index.ts";
+import type { Member, Message, Reaction, TriggerLine } from "../../contracts/chat/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { appendEvent } from "./append.ts";
 import type { ReportChange } from "./changes.ts";
@@ -22,6 +22,11 @@ type MessageRow = {
   author_name: string;
   reactions: string;
   receipts: string;
+  /** The trigger of a trigger's line, which has the next three too; null for a message. */
+  line_trigger: string | null;
+  fired_at: number | null;
+  prompt: string | null;
+  output: string | null;
 };
 
 /**
@@ -40,10 +45,18 @@ const SELECT = `
   SELECT m.seq, p.id AS event_id, m.id, m.channel_id, m.thread_id, m.text, m.sent_at, m.edited_at, m.deleted, m.mentions,
          a.id AS author_id, a.kind AS author_kind, a.name AS author_name,
          ${REACTIONS_ON_MESSAGE} AS reactions,
-         ${RECEIPTS_ON_MESSAGE} AS receipts
+         ${RECEIPTS_ON_MESSAGE} AS receipts,
+         l.trigger AS line_trigger, l.fired_at, l.prompt, l.output
   FROM messages m
   JOIN events p ON p.seq = m.seq
-  JOIN members a ON a.id = m.author_id`;
+  JOIN members a ON a.id = m.author_id
+  LEFT JOIN trigger_lines l ON l.message_seq = m.seq`;
+
+/** The trigger of a trigger's line, from the columns a query read of `trigger_lines`, or null for a message. */
+export function lineOf(row: { line_trigger: string | null; fired_at: number | null; prompt: string | null; output: string | null }): TriggerLine | null {
+  if (row.line_trigger === null) return null;
+  return { name: row.line_trigger, firedAt: row.fired_at ?? 0, prompt: row.prompt ?? "", output: row.output };
+}
 
 const toMessage = (row: MessageRow): Message => ({
   id: row.id,
@@ -58,6 +71,7 @@ const toMessage = (row: MessageRow): Message => ({
   deleted: row.deleted === 1,
   mentions: JSON.parse(row.mentions) as string[],
   reactions: JSON.parse(row.reactions) as Reaction[],
+  trigger: lineOf(row),
   receipts: parseReceipts(row.receipts),
 });
 
@@ -76,6 +90,8 @@ export interface NewMessage {
   mentions: string[];
   /** The start of the text, for places that show only that. */
   preview: string;
+  /** For a trigger's line, which has no text and mentions nobody, the trigger that fired. */
+  trigger?: TriggerLine;
 }
 
 /** What an edit changes about a message. */
@@ -92,7 +108,7 @@ export interface MessageEdit {
  * change in the same transaction, and writes none when nothing would change.
  */
 export interface MessageOperations {
-  /** Add a message to a thread, with its post event. */
+  /** Add a message to a thread, with its post event, or a trigger's line, with its `fired` event. */
   appendMessage(message: NewMessage): Message;
   message(id: string): Message | undefined;
   /** Up to `limit` messages of a thread older than `before`, or the newest when it is null; oldest first. */
@@ -115,14 +131,12 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         | { channel_id: string }
         | undefined;
       if (thread === undefined) throw new Error(`Unknown thread ${post.threadId}`);
-      const posted = appendEvent(sql, {
-        kind: "posted",
-        channelId: thread.channel_id,
-        actorId: post.authorId,
-        at: post.sentAt,
-        text: post.text,
-        mentions: post.mentions,
-      });
+      const posted = appendEvent(
+        sql,
+        post.trigger === undefined
+          ? { kind: "posted", channelId: thread.channel_id, actorId: post.authorId, at: post.sentAt, text: post.text, mentions: post.mentions }
+          : { kind: "fired", channelId: thread.channel_id, actorId: post.authorId, at: post.sentAt },
+      );
       sql.run(
         `INSERT INTO messages (seq, id, channel_id, thread_id, author_id, text, preview, sent_at, mentions)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -136,6 +150,17 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         post.sentAt,
         JSON.stringify(post.mentions),
       );
+      if (post.trigger !== undefined) {
+        const { name, firedAt, prompt, output } = post.trigger;
+        sql.run(
+          "INSERT INTO trigger_lines (message_seq, trigger, fired_at, prompt, output) VALUES (?, ?, ?, ?, ?)",
+          posted.seq,
+          name,
+          firedAt,
+          prompt,
+          output,
+        );
+      }
       // A clock that steps back must not make a thread look older than it was.
       sql.run(
         `UPDATE threads

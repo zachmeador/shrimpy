@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { type LeftReceipt, MAX_RECEIPT_DETAIL_LENGTH } from "../../contracts/chat/index.ts";
+import { type LeftReceipt, MAX_RECEIPT_DETAIL_LENGTH, MAX_TRIGGER_LINE_LENGTH, type TriggerLine } from "../../contracts/chat/index.ts";
 import { cutEnd } from "../../lib/text/index.ts";
+import type { Occurrence } from "../inputs/index.ts";
 
 /**
  * Split text into messages of at most `limit` characters. A part ends where a
@@ -29,6 +30,19 @@ function cutPoint(text: string, limit: number): number {
 
 /** `text` as the detail of a receipt: cut to what chat takes, with an ellipsis when it was cut. */
 export const receiptDetail = (text: string): string => cutEnd(text, MAX_RECEIPT_DETAIL_LENGTH, { ending: "…" });
+
+/** An occurrence's trigger as its line in the thread shows it: the prompt and what the check printed cut to what chat takes. */
+export function lineOf(occurrence: Occurrence): TriggerLine {
+  const fit = (text: string): string => cutEnd(text, MAX_TRIGGER_LINE_LENGTH, { ending: "…" });
+  return { name: occurrence.trigger, firedAt: occurrence.firedAt, prompt: fit(occurrence.prompt), output: occurrence.output === undefined ? null : fit(occurrence.output) };
+}
+
+/**
+ * Names an occurrence's line by what the agent's records are called and the
+ * occurrence, so posting it again, at the hand-over and again with the reply,
+ * shows it once.
+ */
+export const lineRequestId = (recordsId: string, occurrence: string): string => `line-${recordsId}-${occurrence}`;
 
 /** What the receipt of an answer says when the agent ended uncleanly while its turn ran. */
 export const PICKED_UP_AGAIN = "The agent stopped unexpectedly while working on this and picked it up again.";

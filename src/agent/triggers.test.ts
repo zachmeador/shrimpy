@@ -160,11 +160,18 @@ test("a trigger with a thread runs in the session behind it, or fails its occurr
   open();
   await trigger(connection, "tidy", (found) => ended(found, "answered") >= 1, "the occurrence to be answered");
 
-  // Its final text is a reply in the thread, like any other, and there is no receipt for it.
-  const replies = (await rig.replies()).map((reply) => reply.text);
-  assert.ok(replies.length >= 2);
-  for (const fact of [rig.thread.id, rig.thread.channelId, "tidy", "Tidy the notes."]) assert.ok(replies[1]?.includes(fact), `${fact} in ${String(replies[1])}`);
-  assert.equal((await rig.said()).flatMap((message) => message.receipts).length, 1, "only the receipt on the message that was said");
+  // A line in the thread says the trigger fired, and below it the final text is a reply like any other. The agent's
+  // receipt on the line points to the reply.
+  const said = await rig.said();
+  const line = said.find((message) => message.trigger?.name === "tidy");
+  assert.ok(line);
+  assert.deepEqual([line.author.id, line.trigger?.prompt, line.trigger?.output], [rig.partner.id, "Tidy the notes.", null]);
+  const reply = said.find((message) => message.seq > line.seq && message.author.id === rig.partner.id && message.trigger === null);
+  for (const fact of [rig.thread.id, rig.thread.channelId, "tidy", "Tidy the notes."]) assert.ok(reply?.text.includes(fact), `${fact} in ${String(reply?.text)}`);
+  assert.deepEqual(
+    line.receipts.map((receipt) => [receipt.status, receipt.reply]),
+    [["answered", reply?.id]],
+  );
   // The session behind the thread is the one that took the message: one history.
   const { session } = await rig.attach();
   const inputs = inputsOf(session.view);

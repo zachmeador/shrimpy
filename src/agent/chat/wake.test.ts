@@ -52,6 +52,8 @@ function anEvent({
       return answered
         ? { ...base, kind, event: "evt_0", status: "answered", reply: "msg_2", detail: null }
         : { ...base, kind, event: "evt_0", status: "silent", reply: null, detail: null };
+    case "fired":
+      return { ...base, kind, trigger: { name: "groceries", firedAt: 2000, prompt: "Make the week's list.", output: null } };
   }
 }
 
@@ -90,8 +92,9 @@ test("what wakes the agent in a room is the room's policy, and the default is pe
   assert.deepEqual(woken("all"), Object.keys(messages));
   assert.deepEqual(woken(DEFAULT_WAKE_POLICY), woken("people"));
 
-  // Whatever the policy but none, a reaction to someone else's message, taking a reaction back and a delete wake nobody.
+  // Whatever the policy but none, a reaction to someone else's message, taking a reaction back, a delete and a trigger's line wake nobody.
   for (const policy of ["mentions", "people", "all"] as const) {
+    assert.equal(wakes(anEvent({ kind: "fired", actor: helper }), policy), false);
     assert.equal(wakes(anEvent({ kind: "reacted", author: zach }), policy), false);
     assert.equal(wakes(anEvent({ kind: "reacted", author: helper, mentions: [zach.id] }), policy), false);
     assert.equal(wakes(anEvent({ kind: "unreacted", author: scout, mentions: [zach.id] }), policy), false);

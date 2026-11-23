@@ -174,6 +174,9 @@ export type Place =
 /** A message of a thread, as the model reads one that arrives. */
 export type Said = Extract<Snapshot, { kind: "posted" }>;
 
+/** A trigger's line among what was said in a thread: which trigger fired, and when. */
+export type Fired = { kind: "fired"; id: string; seq: number; trigger: string; firedAt: number };
+
 /**
  * What was said in a room's thread since the agent last looked, which an event
  * that wakes the agent there comes with. These are messages the agent has not
@@ -182,7 +185,7 @@ export type Said = Extract<Snapshot, { kind: "posted" }>;
  */
 export type Backlog = {
   /** The newest of them that fit in what the model is shown, oldest first. */
-  messages: Said[];
+  messages: (Said | Fired)[];
   /** How many earlier messages are not shown, or at least that many when `atLeast` is set. */
   cut: number;
   atLeast?: true;
@@ -387,9 +390,13 @@ export function threadOf(outstanding: Outstanding): { threadId: string; channelI
   return outstanding.threadId === undefined ? undefined : { threadId: outstanding.threadId, channelId: outstanding.channelId };
 }
 
-/** Whether the source of an input wants a receipt: a chat event does, and nothing else has anyone to leave one for. */
+/**
+ * Whether the source of an input wants a receipt: a chat event does, and so
+ * does an occurrence of a trigger in a thread, on its line there. Nothing else
+ * has anyone to leave one for.
+ */
 export function hasReceipt(outstanding: Outstanding): boolean {
-  return isChat(outstanding);
+  return isChat(outstanding) || (isOccurrence(outstanding) && threadOf(outstanding) !== undefined);
 }
 
 /**

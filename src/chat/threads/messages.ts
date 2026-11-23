@@ -1,5 +1,6 @@
 import type { Member, Message } from "../../contracts/chat/index.ts";
-import { fitAnswer, MAX_PAGE, messageText, whole } from "../input/index.ts";
+import { fitAnswer, MAX_PAGE, messageText, triggerLine, whole } from "../input/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
 import { cutEnd, singleSpaced } from "../../lib/text/index.ts";
 import { readableThread, visibleThread } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
@@ -36,6 +37,30 @@ export function post(deps: ChatDeps, caller: Member, threadId: string, text: unk
   );
   if (!posted.retry && !quiet) deps.notifier.posted(posted.message);
   return posted.message;
+}
+
+/**
+ * Show in a thread that one of the caller's triggers fired, as a line, once for
+ * each request ID, as `once` says. Only an agent has triggers. The line counts
+ * as new to you, as a message does, and is told to nobody's devices.
+ */
+export function triggerFired(
+  deps: ChatDeps,
+  caller: Member,
+  threadId: string,
+  fired: { trigger: unknown; firedAt: unknown; prompt: unknown; output: unknown },
+  requestId: unknown,
+): Message {
+  if (caller.kind !== "agent") refuse("Only an agent has triggers.");
+  const line = triggerLine(fired);
+  const request = requestOf(requestId, "fired", threadId, JSON.stringify(line));
+  return deps.store.transaction(
+    (tx) =>
+      once(tx, caller, request, () => {
+        visibleThread(tx, caller, threadId);
+        return tx.appendMessage({ threadId, authorId: caller.id, text: "", sentAt: deps.now(), mentions: [], preview: "", trigger: line });
+      }).message,
+  );
 }
 
 /** Messages of a thread in a channel the caller reads, whether or not it is in it. */

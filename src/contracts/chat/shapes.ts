@@ -61,11 +61,33 @@ export type Receipt = Static<typeof ReceiptSchema>;
 export const LeftReceiptSchema = obj({ status: StatusSchema, reply: union([str(), nul()]), detail: union([str(), nul()]) });
 export type LeftReceipt = Static<typeof LeftReceiptSchema>;
 
+/**
+ * Characters a trigger's line keeps of the trigger's prompt, and of what its
+ * check printed. An agent cuts either to this, with an ellipsis when it cuts.
+ */
+export const MAX_TRIGGER_LINE_LENGTH = 2_000;
+
+/**
+ * That one of an agent's triggers fired into a thread: the trigger's name, when
+ * it fired, in milliseconds since the epoch, its prompt, and what its check
+ * printed, or the line that says the check failed, or null for a trigger with
+ * no check.
+ */
+const TriggerLineSchema = obj({ name: str(), firedAt: num(), prompt: str(), output: union([str(), nul()]) });
+export type TriggerLine = Static<typeof TriggerLineSchema>;
+
 /** One emoji on a message, and the members who put it there, in the order they did. */
 const ReactionSchema = obj({ emoji: str(), memberIds: arr(str()) });
 export type Reaction = Static<typeof ReactionSchema>;
 
-/** A message as it now stands: the log of events folded into one record. */
+/**
+ * A message as it now stands: the log of events folded into one record. A
+ * thread also holds trigger lines, each a record of this shape with `trigger`
+ * set, written by the agent whose trigger fired, with no text, no mentions and
+ * no reactions. A line counts as new to you like a message, wakes nobody and is
+ * told to nobody's devices, and can't be edited, deleted or reacted to. The
+ * agent leaves its receipt on the line's event, as on a message it took up.
+ */
 export const MessageSchema = obj({
   id: str(),
   /**
@@ -95,6 +117,8 @@ export const MessageSchema = obj({
   mentions: arr(str()),
   /** The emoji on it, in the order each first appeared. */
   reactions: arr(ReactionSchema),
+  /** For a trigger's line, the trigger that fired; null for a message. */
+  trigger: union([TriggerLineSchema, nul()]),
   /**
    * What each agent did with each event that names this message, in order of
    * event and then of member ID. Silent receipts are here like any other:
@@ -157,6 +181,7 @@ const OTHER_EVENTS = [
     reply: union([str(), nul()]),
     detail: union([str(), nul()]),
   }),
+  obj({ ...EVENT_BASE, kind: lit("fired"), trigger: TriggerLineSchema }),
 ] as const;
 
 /** An event as the first version of `Chat` serves it, before a post or an edit carried the members it mentioned. */
@@ -170,8 +195,10 @@ export const ChatEventSchemaV1 = union([
  * One thing that happened to a message, in the order it did. The feed is a log
  * of these, and a message is what they add up to. An event carries what it
  * added: the text of a post or an edit and the members it mentioned, the emoji
- * of a reaction, the receipt of an agent. Once a message is deleted, its posts
- * and edits carry no text: a delete takes the text out of the log too.
+ * of a reaction, the receipt of an agent, the trigger that fired for a trigger's
+ * line. Once a message is deleted, its posts and edits carry no text: a delete
+ * takes the text out of the log too. A `fired` event makes a trigger's line, as
+ * a post makes a message.
  *
  * The `mentions` of a post or an edit are the members its text mentioned then,
  * worked out as a message's are. Its `message` has the members the message

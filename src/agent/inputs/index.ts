@@ -31,6 +31,7 @@ export {
   type Place,
   type Question,
   type QuestionResult,
+  type Fired,
   type Said,
   type Snapshot,
   threadOf,

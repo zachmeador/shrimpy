@@ -28,6 +28,7 @@ import {
   renameThread,
   setWorking,
   threadView,
+  triggerFired,
   unreact,
 } from "../threads/index.ts";
 
@@ -291,6 +292,7 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
             rename: async ({ name, revision }) => answer(() => renameThread(deps, caller(), threadId, name, revision)),
             archive: async ({ archived, revision }) => answer(() => archiveThread(deps, caller(), threadId, archived, revision)),
             markRead: async ({ message }) => answer(() => markRead(deps, caller(), threadId, message)),
+            triggerFired: async ({ request, ...fired }) => answer(() => triggerFired(deps, caller(), threadId, fired, request)),
           },
         };
       },

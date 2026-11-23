@@ -130,7 +130,9 @@ export function keepSkipped(session: SessionRecord, input: Outstanding): void {
   if (isWakeup(input)) keepCancelled(session, [input.wakeup]);
   else if (isQuestion(input)) keepMissed(session, [{ question: input.question, result: input.result }]);
   else if (isChat(input)) {
-    session.unacted = inOrder([...copyOf(session.unacted), ...input.earlier, ...(input.backlog?.messages ?? []), input.event]);
+    // A trigger's line among the messages of a room is nothing to act on, and is not kept.
+    const said = (input.backlog?.messages ?? []).filter((message) => message.kind === "posted");
+    session.unacted = inOrder([...copyOf(session.unacted), ...input.earlier, ...said, input.event]);
   }
   keepCancelled(session, input.cancelled);
   keepMissed(session, input.missed);

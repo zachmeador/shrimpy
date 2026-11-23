@@ -2,11 +2,12 @@ import type { Receipt } from "../../contracts/chat/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import type { Sql } from "./sql.ts";
 
-/** What goes into the log. A post names no message: it makes the one that takes its position. */
+/** What goes into the log. A post names no message: it makes the one that takes its position, and so does a trigger's line. */
 export type NewEvent =
   | { kind: "posted"; channelId: string; actorId: string; at: number; text: string; mentions: string[] }
   | { kind: "edited"; channelId: string; targetSeq: number; actorId: string; at: number; text: string; mentions: string[] }
   | { kind: "deleted"; channelId: string; targetSeq: number; actorId: string; at: number }
+  | { kind: "fired"; channelId: string; actorId: string; at: number }
   | { kind: "reacted" | "unreacted"; channelId: string; targetSeq: number; actorId: string; at: number; emoji: string }
   | {
       kind: "receipted";

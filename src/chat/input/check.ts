@@ -1,7 +1,7 @@
-import type { Receipt } from "../../contracts/chat/index.ts";
+import type { Receipt, TriggerLine } from "../../contracts/chat/index.ts";
 import { fitName, NAME_RULE } from "../../contracts/gateway/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import { MAX_DETAIL, MAX_ID, MAX_TEXT } from "./limits.ts";
+import { MAX_DETAIL, MAX_ID, MAX_LINE, MAX_TEXT } from "./limits.ts";
 
 // Arguments arrive off the wire, so their TypeScript types promise nothing. Each
 // check refuses with a message that names the argument as `what`.
@@ -26,6 +26,22 @@ export function messageText(value: unknown): string {
     refuse(`A message holds at most ${MAX_TEXT} characters, and this one has ${value.length}.`);
   }
   return value;
+}
+
+/** One part of a trigger's line: text of at most `MAX_LINE` characters, which may be empty. */
+function linePart(value: unknown, what: string): string {
+  if (typeof value !== "string" || value.length > MAX_LINE) refuse(`${what} must be text of at most ${MAX_LINE} characters.`);
+  return value;
+}
+
+/** That one of an agent's triggers fired: its name, when, its prompt, and what its check printed, or null with no check. */
+export function triggerLine(line: { trigger: unknown; firedAt: unknown; prompt: unknown; output: unknown }): TriggerLine {
+  return {
+    name: label(line.trigger, "The trigger's name"),
+    firedAt: whole(line.firedAt, "firedAt", 0),
+    prompt: linePart(line.prompt, "The trigger's prompt"),
+    output: line.output === null ? null : linePart(line.output, "What the trigger's check printed"),
+  };
 }
 
 // Built from a string because TypeScript's target does not know the `v` flag; the runtime does.

@@ -1,10 +1,13 @@
-import { MAX_MESSAGE_LENGTH, MAX_RECEIPT_DETAIL_LENGTH } from "../../contracts/chat/index.ts";
+import { MAX_MESSAGE_LENGTH, MAX_RECEIPT_DETAIL_LENGTH, MAX_TRIGGER_LINE_LENGTH } from "../../contracts/chat/index.ts";
 
 /** Characters in one message. */
 export const MAX_TEXT = MAX_MESSAGE_LENGTH;
 
 /** Characters in the detail of a receipt. */
 export const MAX_DETAIL = MAX_RECEIPT_DETAIL_LENGTH;
+
+/** Characters a trigger's line holds of a prompt, and of what a check printed. */
+export const MAX_LINE = MAX_TRIGGER_LINE_LENGTH;
 
 /** Messages or events in one page of `read` or `feed`. Larger requests get a page this size. */
 export const MAX_PAGE = 200;

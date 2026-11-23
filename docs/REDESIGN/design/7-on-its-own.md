@@ -34,7 +34,7 @@ It covers waking itself later, standing triggers, breadcrumbs, asking another ag
 9. What every agent is told gains a line on when to ask and when to send a message, and one for the agent that is asked: a question comes in a thread of its own, so when it seems to follow from earlier ones, `shrimpy threads <name>` lists the threads with that agent and `shrimpy read <thread>` shows one. That is your answer to the asked agent starting each question with no memory of the last.
 
 
-7. **Order of building:** the one task and `check_back`; then standing triggers with a prompt; then checks and breadcrumbs. Asking another agent waited for [rooms](4-conversation.md), which are built now, since how two agents talk without going round in circles is one question in a DM and in a room. Helpers and the trigger line in chat follow.
+7. **Order of building:** the one task and `check_back`; then standing triggers with a prompt; then checks and breadcrumbs. Asking another agent waited for [rooms](4-conversation.md), which are built now, since how two agents talk without going round in circles is one question in a DM and in a room. Helpers follow.
 
 - A standing trigger is defined by a file in the home's `triggers/`: front matter for the schedule and the check, and the prompt as its body. The files are read at the start and whenever they change, and commands that write one check it first.
 - A trigger and each of its occurrences are separate durable tasks. A trigger's task belongs to a conversation of the agent's own that is no session, and an occurrence belongs to the session it goes to. Occurrences are marked `background: true`, so changing or cancelling a trigger doesn't cancel a running occurrence.
@@ -83,6 +83,15 @@ Settled on 2026-10-04 with the trigger design: the folder is `breadcrumbs/`, and
 
 The old row's "output filters" are `when`. A fact that changes while an input waits behind a running turn comes with the next input, since an input's breadcrumbs are fixed when it is taken up.
 
+**A trigger's line in its thread,** settled with you and built on 2026-11-23. An occurrence that goes to a thread shows there as a line above the agent's reply, as both clients' mockups draw it.
+
+- The agent posts the line as it hands the occurrence to the thread's session, so the thread shows the line, then the agent at work, then the reply. If chat is away then, the turn goes ahead and the line is posted just before the reply.
+- The line has the trigger's name, when it fired, its prompt, and what its check printed, which is null for a trigger with no check. The prompt is cut at 2,000 characters, as a check's output already is.
+- It counts as new to you, as a message does, and moves the thread up its list. It wakes no agent, is told to no device, doesn't name the thread, and can't be edited, deleted or reacted to.
+- The agent leaves its receipt on the line, as on a message it took up, so the thread shows how the occurrence ended: its reply, that it said nothing, or that it failed and why.
+- An occurrence that no turn runs, such as one whose check notes a breadcrumb, has no line.
+- An agent reading the thread, and `shrimpy read`, see the line as "trigger groceries fired at 14:30". The clients leave it out until they draw it, which [using it](using-it.md) has under Not built yet.
+
 **Decisions**
 
 | Topic | Today | Proposed | Decision |
@@ -102,8 +111,6 @@ The old row's "output filters" are `when`. A fact that changes while an input wa
 Helpers are under Not built yet below.
 
 **Not built yet**
-
-*A trigger's line in its thread:* a trigger that names a thread shows a small line there when it fires, which takes a change to the chat contract. Both clients' mockups draw it.
 
 *What an agent does without being asked: helpers.*
 

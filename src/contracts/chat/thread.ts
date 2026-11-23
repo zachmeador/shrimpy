@@ -179,5 +179,17 @@ export const Thread = evolve(ThreadV3, (edit) =>
      * or brings it back, answering with it as it now stands. Asking for what
      * it is already changes nothing.
      */
-    .method("archive", obj({ archived: bool(), revision: int() }), answerOf(ThreadSchema)),
+    .method("archive", obj({ archived: bool(), revision: int() }), answerOf(ThreadSchema))
+    /**
+     * Shows in this thread that one of the caller's triggers fired, as a line,
+     * answering with it. Only an agent has triggers. `prompt` and `output` are
+     * at most `MAX_TRIGGER_LINE_LENGTH` characters, and `output` is null for a
+     * trigger with no check. A request ID's first use wins, as for a post.
+     */
+    .addMethod(
+      "all",
+      "triggerFired",
+      obj({ trigger: str(), firedAt: num(), prompt: str(), output: union([str(), nul()]), request: str() }),
+      answerOf(MessageSchema),
+    ),
 );

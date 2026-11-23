@@ -32,7 +32,7 @@ export interface Talk {
   unreact(message: Message, emoji: string): Promise<Message>;
   /** Everything said in a thread, as it now stands, oldest first. */
   said(threadId?: string): Promise<Message[]>;
-  /** What the agent said in a thread, oldest first. */
+  /** What the agent said in a thread, oldest first, without its triggers' lines. */
   replies(threadId?: string): Promise<Message[]>;
   /** Every event in the DM's channel, oldest first: the log, as your feed has it. */
   events(): Promise<ChatEvent[]>;
@@ -114,7 +114,7 @@ export async function talkTo(t: TestContext, agentName: string): Promise<Talk> {
       inThread(message.threadId, (held) => held.unreact({ message: message.id, emoji, request: randomUUID() }, context)),
     said,
     async replies(threadId) {
-      return (await said(threadId)).filter((message) => message.author.id === partner.id);
+      return (await said(threadId)).filter((message) => message.author.id === partner.id && message.trigger === null);
     },
     async events() {
       const events = await onChat(await connection(), async (held) => valueOf(await held.events({ after: 0, limit: 200 }, context)));

@@ -184,6 +184,8 @@ What daily use asks for is under Not built yet below.
 
 *A Mac app that wraps the web client,* in Electron, as [the plan's direction](../PLAN.md#direction) has it: the fourth step of the two clients sharing one, above. It waits until you have reviewed the branch: "that can wait until after i review the branch".
 
+*A trigger's line in both clients,* as both mockups draw it: which trigger fired and when, folded open to its prompt or what its check printed in the web client and shown whole in the terminal, with the mark for what is new before it when it came while you were away, and its receipt below it. Chat has had the line since 2026-11-23, as [what an agent does without being asked](7-on-its-own.md) says.
+
 *What is left of the web client.* The rough edges you found on your iPhone, once they are listed. What its mockup doesn't draw: reacting, editing and deleting, attachments and pictures in a thread, renaming and archiving a thread, searching, your settings, and paging back through a long thread or session. The rest of the inspector: context, the request a turn sent, and runtime. A companion app can't bring Web Push along, since a web view has no push of its own. It needs Apple's push service: through a relay that holds the app's key, for a build from the App Store, or with your own key on the gateway, for a build you sign. Which of the two, and whether the project runs a relay, is to settle when the companion app comes.
 
 *Using it: what daily use asks for.*

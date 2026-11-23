@@ -16,7 +16,7 @@ export type { ChatDeps, Notifier } from "./deps.ts";
 export { addMembers, archiveThread, createRoom, createThread, openDm, renameThread, setWorking } from "./directory.ts";
 export { deleteMessage, editMessage } from "./edits.ts";
 export { markRead } from "./marks.ts";
-export { post, readMessages } from "./messages.ts";
+export { post, readMessages, triggerFired } from "./messages.ts";
 export { react, unreact } from "./reactions.ts";
 export { leaveReceipt } from "./receipts.ts";
 export { renameMembers } from "./renames.ts";

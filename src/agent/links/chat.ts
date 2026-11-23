@@ -8,6 +8,7 @@ import {
   type Member,
   type Message,
   Thread,
+  type TriggerLine,
 } from "../../contracts/chat/index.ts";
 import {
   contextOf,
@@ -51,6 +52,8 @@ export interface ChatCalls {
   post(thread: string, text: string, request: string, signal: AbortSignal, quiet?: boolean): Promise<Message>;
   /** Up to `limit` messages older than the position `before`, or the newest when it is null, oldest first. */
   read(thread: string, before: number | null, limit: number, signal: AbortSignal): Promise<Message[]>;
+  /** Show in a thread that one of the agent's triggers fired, as a line. A request ID's first use wins. */
+  triggerFired(thread: string, line: TriggerLine, request: string, signal: AbortSignal): Promise<Message>;
 }
 
 /** Chat as it is up: its calls, who the agent is there, and a signal that aborts when it is lost. */
@@ -159,6 +162,8 @@ function callsOver(host: Host<Principal, Revocation>, chat: Held<typeof Chat>, m
       thread(id, signal, async (held, context) => valueOf(await held.post({ text, request, quiet }, context))),
     read: (id, before, limit, signal) =>
       thread(id, signal, async (held, context) => valueOf(await held.read({ before, limit }, context))),
+    triggerFired: (id, { name, firedAt, prompt, output }, request, signal) =>
+      thread(id, signal, async (held, context) => valueOf(await held.triggerFired({ trigger: name, firedAt, prompt, output, request }, context))),
   };
 }
 

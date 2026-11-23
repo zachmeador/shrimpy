@@ -12,7 +12,9 @@ export const SCHEMA_VERSION = 10;
  * `target_seq`: it names the message it makes. `message_seq` is the message an
  * event names, either way. A post or an edit keeps the members its text
  * mentioned then in its own `mentions`, since the message's are replaced at
- * each edit.
+ * each edit. A `fired` event makes a trigger's line the way a post makes a
+ * message: the line is a row of `messages` with no text, and `trigger_lines`
+ * keeps the trigger that fired.
  *
  * A receipt is an event too. It names the message of the event it answers, and
  * carries the receipt in `answers_seq`, `status`, `reply_seq` and `detail`.
@@ -89,7 +91,7 @@ CREATE UNIQUE INDEX one_main_thread_per_channel ON threads (channel_id) WHERE ma
 CREATE TABLE events (
   seq INTEGER PRIMARY KEY AUTOINCREMENT,
   id TEXT NOT NULL UNIQUE,
-  kind TEXT NOT NULL CHECK (kind IN ('posted', 'edited', 'deleted', 'reacted', 'unreacted', 'receipted')),
+  kind TEXT NOT NULL CHECK (kind IN ('posted', 'edited', 'deleted', 'reacted', 'unreacted', 'receipted', 'fired')),
   channel_id TEXT NOT NULL REFERENCES channels (id),
   target_seq INTEGER REFERENCES messages (seq),
   message_seq INTEGER GENERATED ALWAYS AS (coalesce(target_seq, seq)) VIRTUAL,
@@ -102,7 +104,7 @@ CREATE TABLE events (
   status TEXT CHECK (status IN ('answered', 'silent', 'stopped', 'skipped', 'failed')),
   reply_seq INTEGER REFERENCES messages (seq),
   detail TEXT,
-  CHECK ((kind = 'posted') = (target_seq IS NULL)),
+  CHECK ((kind IN ('posted', 'fired')) = (target_seq IS NULL)),
   CHECK ((kind IN ('posted', 'edited')) = (text IS NOT NULL)),
   CHECK ((kind IN ('posted', 'edited')) = (mentions IS NOT NULL)),
   CHECK ((kind IN ('reacted', 'unreacted')) = (emoji IS NOT NULL)),
@@ -128,6 +130,14 @@ CREATE TABLE messages (
   mentions TEXT NOT NULL
 ) STRICT;
 CREATE INDEX messages_by_thread ON messages (thread_id, seq);
+
+CREATE TABLE trigger_lines (
+  message_seq INTEGER NOT NULL PRIMARY KEY REFERENCES messages (seq),
+  trigger TEXT NOT NULL,
+  fired_at INTEGER NOT NULL,
+  prompt TEXT NOT NULL,
+  output TEXT
+) STRICT;
 
 CREATE TABLE reactions (
   message_seq INTEGER NOT NULL REFERENCES messages (seq),

@@ -66,9 +66,9 @@ export function isUrgentPost(event: ChatEvent): boolean {
  * mentioned them, which is an answer in words whether or not their reply
  * mentions the agent: it is taken up as the reply it points to. In a DM the reply
  * wakes the agent by itself, so a receipt that points to it wakes it for nothing.
- * Deletes, reactions taken back, reactions to anyone else's message and every
- * other receipt, whoever left them and whatever message they name, wake it for
- * nothing.
+ * Deletes, reactions taken back, reactions to anyone else's message, every
+ * other receipt, whoever left them and whatever message they name, and a
+ * trigger's line wake it for nothing.
  */
 export function wakingOf(self: Member, event: ChatEvent, policy: WakePolicy, where: Channel["kind"]): Waking | undefined {
   if (policy === "none" || passedOver(self, event)) return undefined;
@@ -114,6 +114,7 @@ export function wakingOf(self: Member, event: ChatEvent, policy: WakePolicy, whe
       return { kind: "answer", receipt: event, reply: event.reply };
     case "deleted":
     case "unreacted":
+    case "fired":
       return undefined;
   }
 }

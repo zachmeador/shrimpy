@@ -201,6 +201,8 @@ export function turnTask(options: TurnTaskOptions) {
       // Hand the input over, after any input admitted before it that has not been, and wait on a task that waits for its turn.
       handOver: guarded(
         async (turn, runtime, context) => {
+          // An occurrence's line goes up before its turn starts, if chat is there; if not, it goes above the reply.
+          await delivery.announce(turn.input, runtime.signal);
           const session = await sessionOf(turn.input, runtime, context);
           // The session is told of a change of its model once, with the first input it is handed.
           const change = await modelChange(runtime, context);

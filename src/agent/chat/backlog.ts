@@ -1,6 +1,6 @@
 import type { Channel, Member, Message } from "../../contracts/chat/index.ts";
 import { cutEnd } from "../../lib/text/index.ts";
-import { type Backlog, type Said, written } from "../inputs/index.ts";
+import { type Backlog, type Fired, type Said, written } from "../inputs/index.ts";
 import type { ChatCalls } from "../links/index.ts";
 import { audienceOf } from "./audience.ts";
 
@@ -52,7 +52,7 @@ export async function readUnseen(options: {
  */
 export function backlogOf(unseen: readonly Message[], more: boolean, self: Member, room: Channel): Backlog {
   const messages = unseen.map((message) => said(message, self, room));
-  const shown: Said[] = [];
+  const shown: (Said | Fired)[] = [];
   let left = BACKLOG_BUDGET;
   let index = messages.length;
   while (index > 0) {
@@ -65,7 +65,7 @@ export function backlogOf(unseen: readonly Message[], more: boolean, self: Membe
       index -= 1;
       continue;
     }
-    const clipped = clippedTo(message, left);
+    const clipped = message.kind === "posted" ? clippedTo(message, left) : undefined;
     if (clipped !== undefined) {
       shown.unshift(clipped);
       index -= 1;
@@ -75,8 +75,11 @@ export function backlogOf(unseen: readonly Message[], more: boolean, self: Membe
   return { messages: shown, cut: index + (more ? 1 : 0), ...(more ? { atLeast: true as const } : {}) };
 }
 
-/** A message as the model reads one that arrives: with who it was for, and when it was edited if it was. */
-function said(message: Message, self: Member, room: Channel): Said {
+/** A message as the model reads one that arrives: with who it was for, and when it was edited if it was. A trigger's line says which trigger fired and when. */
+function said(message: Message, self: Member, room: Channel): Said | Fired {
+  if (message.trigger !== null) {
+    return { kind: "fired", id: message.event, seq: message.seq, trigger: message.trigger.name, firedAt: message.trigger.firedAt };
+  }
   return {
     kind: "posted",
     id: message.event,

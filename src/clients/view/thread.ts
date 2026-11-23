@@ -198,7 +198,13 @@ export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel |
   const who = here.label;
 
   const members = here.channel?.members ?? [];
-  const messages = (live?.messages ?? []).map((message) => messageRow(message, { model, names, members, firstNew: live?.firstNew }, now));
+  // A trigger's line is left out until the clients draw it, and when it is the first thing new, the message after it is.
+  const held = live?.messages ?? [];
+  const firstAt = held.findIndex((message) => message.id === live?.firstNew);
+  const firstNew = firstAt < 0 ? undefined : held.slice(firstAt).find((message) => message.trigger === null)?.id;
+  const messages = held
+    .filter((message) => message.trigger === null)
+    .map((message) => messageRow(message, { model, names, members, firstNew }, now));
   // A session that was working when the agent went away is not working now, whatever its last view says.
   const busy = (agent: string): boolean => model.behind[agent]?.status.busy === true && model.behind[agent].reached;
   const nameOf = (agent: string): string => (known(agent) === agent ? oneLine(agentNameOf(model, agent)) : names(agent));
