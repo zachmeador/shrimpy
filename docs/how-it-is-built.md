@@ -1,6 +1,6 @@
 # 🦐 How Shrimpy Is Built
 
-For anyone about to read the code. How to run it is in the [README](../README.md).
+For anyone about to read the code. How to run it is in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Three programs
 

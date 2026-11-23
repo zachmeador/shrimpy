@@ -9,7 +9,7 @@ If `AGENTS-PRIVATE.md` exists at the project root, read it for workspace- and us
 - **The redesign:** [`docs/REDESIGN/`](docs/REDESIGN/README.md) holds the design and the order of work. Its front page says where each kind of planning fact lives, each in one place, and what to read. The design is one file for each core piece in `docs/REDESIGN/design/`, and [`PLAN.md`](docs/REDESIGN/PLAN.md) has the order of work.
 - **Where the code trails the plan:** [`docs/REDESIGN/STATUS.md`](docs/REDESIGN/STATUS.md). What was built, and why, is in the commit messages.
 - **For the author to review:** [`docs/REDESIGN/AUTHOR-TO-REVIEW.md`](docs/REDESIGN/AUTHOR-TO-REVIEW.md) holds what is waiting on the owner, and nothing else.
-- **How to run and check it:** [`README.md`](README.md), which also has the layout rules and every command.
+- **How to run and check it:** [`CONTRIBUTING.md`](CONTRIBUTING.md). The layout rules are in [how Shrimpy is built](docs/how-it-is-built.md), and every command is in the [README](README.md).
 - **How the web client looks:** [`docs/web-client-mockup.html`](docs/web-client-mockup.html), the owner's reference since 2026-11-21. Open it in a browser: it has live frames of the client at each width, and the first block of its styles is everything that decides the look.
 - **`src/`:** three programs (`agent/`, `chat/` and `gateway/`), the clients, the CLI, and the only code they share: `contracts/` and `lib/`.
 - **`skills/`:** the skills Shrimpy ships to its agents.

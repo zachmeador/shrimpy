@@ -5,51 +5,55 @@
   </picture>
 </h1>
 
-Shrimpy is a system for running your own agents, on your own machines.
+Shrimpy is a system for running your own agents on your own machines.
 
-Each agent has a home: a folder of plain files on the machine it lives on. It stays running there, with a shell, skills, and jobs it does on a schedule. A gateway joins your agents into one network, across as many machines as you have. They work with each other and with you in DMs and rooms, and you reach all of them from a terminal or your phone.
-
-You don't need to learn its commands. When you want another agent, or one on a new machine, you ask an agent you already have.
+Each agent is a long-running process with a home folder and a shell. Agents can run on different machines, and a gateway connects them into one network. You talk to them in DMs and rooms, from a terminal or your phone, and they talk to each other the same way.
 
 ## Install
 
-Ask your coding agent, whichever you use:
+Most coding agents can set Shrimpy up for you. Ask yours:
 
 > Install Shrimpy from https://github.com/zachmeador/shrimpy
 
-Or run the installer yourself:
+Or run the installer:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | bash
 ```
 
-Then `shrimpy` opens the terminal client. There is a web client too, which installs on your phone.
+Then run `shrimpy` to open the terminal client and talk to your first agent. Ask it when you want another agent, here or on another machine. There's also a web client you can add to your phone's home screen.
 
 <details>
 <summary>For the agent doing the install</summary>
 
-Shrimpy needs Node 22.19 or later and git, on macOS or Linux, and runs from a checkout.
+Shrimpy runs from a git checkout on macOS or Linux, with Node 22.19 or later.
 
-1. Clone this repository somewhere that will stay. Not `~/shrimpy`: that folder is where Shrimpy keeps what gets set up.
+1. Clone this repository somewhere permanent, but not `~/shrimpy`, which is where Shrimpy keeps its data.
 2. In the checkout, run `npm install --ignore-scripts`.
-3. Link `bin/shrimpy.js` into a directory on the PATH, as `shrimpy`.
-4. Follow [the setup skill](skills/shrimpy-setup/SKILL.md) from there. Signing in to a model provider needs the person, so hand them that command.
+3. Symlink `bin/shrimpy.js` as `shrimpy` somewhere on the PATH.
+4. Follow [the setup skill](skills/shrimpy-setup/SKILL.md). The person has to run `shrimpy login` themselves, since signing in needs a browser.
 
 </details>
 
-## An agent is a folder
+## Agents
+
+An agent's home folder looks like this:
 
 ```text
 ~/shrimpy/agents/scout/
-  SOUL.md        who it is
-  context/       notes it sees in every conversation
-  skills/        what it knows how to do, in Markdown
-  vault/         longer notes it reads when it needs them
-  triggers/      jobs on a schedule
-  sigil          its face, twelve lines of twelve
-  agent.json     its name, model and color
-  state/         its sessions and its token
+  SOUL.md        personality and instructions
+  context/       Markdown added to its context
+  vault/         Markdown that isn't
+  skills/        a folder for each skill, with a SKILL.md
+  triggers/      prompts on a schedule
+  sigil          a 12×12 picture, in # and .
+  agent.json     name, model and sigil color
+  state/         sessions, keys and model settings
 ```
+
+Changes to these files take effect within a few seconds. A trigger can run a shell command first and only wake the agent when the output changes.
+
+Every agent gets a random sigil when it's created, a small creature or emblem that the clients show next to its name. Agents can redraw their own.
 
 <p align="center">
   <picture>
@@ -58,34 +62,30 @@ Shrimpy needs Node 22.19 or later and git, on macOS or Linux, and runs from a ch
   </picture>
 </p>
 
-Edit a file and the agent picks it up a few seconds later. You can open any session of any agent and watch it work, including two agents talking to each other.
+In the terminal or the web client you can open any session of any agent and watch it work, including two agents talking to each other.
 
 ## How it's built
 
-- `src/` has a folder for each program: the agent, the chat server and the gateway, plus the clients and the CLI. The three programs never import each other. They talk through the contracts in `src/contracts/`, and a lint fails the check when a file reaches past another module's `index.ts`.
-- What you edit is Markdown and JSON. Sessions and messages are in SQLite, through Node's built-in `node:sqlite`, so there is no database server to run.
-- Each agent runs on [Pi](https://github.com/earendil-works/pi), an open-source agent harness. Pi saves an agent's work as it goes, so an agent that is stopped or crashes picks up where it was. Its packages are pinned to one release.
-- Every program connects out to the gateway and keeps that link open. Nothing has to listen where an agent lives, which is what lets one run on another machine, in a container or under its own account.
-- A scheduled job can run a command first and call the model only when the output has changed.
-- There are twelve runtime dependencies and no build step. Node runs the TypeScript directly.
-- An agent has a real shell and runs as whoever started it. Shrimpy doesn't sandbox it. To wall one off, run it under its own account, in a container or on another machine.
+Shrimpy is three programs. Each agent runs as its own process, the chat server stores messages, and the gateway keeps track of who's on the network and routes requests between them. Every program connects out to the gateway and stays connected, so an agent doesn't need an open port, only a way to reach the gateway.
 
-## Working on Shrimpy
+Agents run shell commands as the user who started them, and Shrimpy doesn't sandbox them. To isolate one, run it under its own user account, in a container or on another machine.
 
-```bash
-npm run check
-```
+Agents are built on the durable runtime of [Pi](https://github.com/earendil-works/pi), an open-source agent harness. Sessions and messages are stored in SQLite. There are twelve runtime dependencies and no build step.
 
-That runs the type check, the lint and every test. One test talks to a real model, and is skipped unless `SHRIMPY_TEST_MODEL_URL` and `SHRIMPY_TEST_MODEL_ID` name a server. Give every run its own `SHRIMPY_DIR` and `SHRIMPY_RUNTIME_DIR`, so it never touches a setup in use.
-
-[How Shrimpy is built](docs/how-it-is-built.md) is the page to read before the code, [`AGENTS.md`](AGENTS.md) has the rules for working here, and [the design](docs/REDESIGN/README.md) has a file for each piece. Shrimpy is [MIT licensed](LICENSE).
+Coding agents write most of Shrimpy, and they make a mess of big, tangled programs. So the code is split into small pieces with clear boundaries. The three programs share no code except their contracts and some generic helpers, and a lint in `npm run check` fails any import that reaches into another module instead of going through its `index.ts`.
 
 ## Commands
 
-These are for agents and scripts. `shrimpy <command> --help` says more about each.
+```text
+shrimpy          open the terminal client
+shrimpy up       start Shrimpy and keep it running
+shrimpy login    sign in to a model provider
+```
+
+The rest are mostly for agents and scripts. `shrimpy <command> --help` explains any of them.
 
 <details>
-<summary>The whole list</summary>
+<summary>All commands</summary>
 
 <!-- commands:start -->
 | Command | What it does |
