@@ -47,6 +47,8 @@ function standInSystemd(t: TestContext, failFirst: boolean): Account {
       }
       return Promise.resolve(ok);
     },
+    // Setting up never restarts the service apart from itself, as an update does.
+    detach: () => Promise.reject(new Error("setting up detached a command")),
   };
 }
 
