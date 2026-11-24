@@ -6,6 +6,7 @@ import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import { listed, shellWord } from "../../lib/text/index.ts";
 import { defaultFolderPath, FOLDER_VARIABLE, folderPath } from "../folder/index.ts";
+import { REMOVE_INSTALL, thisInstall } from "../installed/index.ts";
 import type { Io } from "../io/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
 import {
@@ -70,11 +71,15 @@ const uninstall: Command = {
     "Stops the service that shrimpy install set up for your Shrimpy folder, which is ~/shrimpy or the folder " +
     "SHRIMPY_DIR names, and removes it. Your Shrimpy folder and everything in it are left as they are, and so is " +
     "the log file on macOS. On Linux it leaves lingering as it is, and says how to turn it off. With no service " +
-    "installed it says so and exits 0. A service for another folder is removed with SHRIMPY_DIR set to that folder.",
-  run(args, io) {
+    "installed it says so and exits 0. A service for another folder is removed with SHRIMPY_DIR set to that folder. " +
+    "When the install script installed this Shrimpy, the last line gives the command that removes it: its versions, " +
+    "their Nodes and ~/.local/bin/shrimpy.",
+  async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     expectArguments(positionals, []);
-    return uninstallService(io, thisAccount());
+    const code = await uninstallService(io, thisAccount());
+    if (thisInstall() !== undefined) io.out(`To remove Shrimpy itself too: ${REMOVE_INSTALL}`);
+    return code;
   },
 };
 

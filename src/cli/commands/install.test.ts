@@ -67,6 +67,10 @@ function standIn(t: TestContext, platform: NodeJS.Platform, options: { home?: st
       }
       return Promise.resolve(ok);
     },
+    detach(command, args) {
+      ran.push([command, ...args].join(" "));
+      return Promise.resolve();
+    },
   };
   return { account, ran };
 }

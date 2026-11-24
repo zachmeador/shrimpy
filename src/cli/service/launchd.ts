@@ -1,30 +1,29 @@
 import { setTimeout as delay } from "node:timers/promises";
-import { FOLDER_VARIABLE } from "../folder/index.ts";
+import { shellWord } from "../../lib/text/index.ts";
 import { type Account, runChecked } from "./account.ts";
-import { type LaunchdService, type Program, STOP_SECONDS, type State } from "./service.ts";
+import { type LaunchdService, type Program, STOP_SECONDS, type State, variablesOf, WRITTEN } from "./service.ts";
 
 const xml = (text: string): string => text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+const unxml = (text: string): string => text.replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&amp;", "&");
 
 /**
  * The LaunchAgent that runs the program for the folder, as soon as it is loaded. launchd starts it again when it
  * exits with a failure, and leaves it alone when it exits with success, which is what a stop and a run that found
  * everything running already end with. What it prints goes to a file.
  */
-export function plist(service: LaunchdService, { argv, path }: Program): string {
-  const variables: [string, string][] = [];
-  if (path !== undefined && path !== "") variables.push(["PATH", path]);
-  if (!service.plain) variables.push([FOLDER_VARIABLE, service.folder]);
+export function plist(service: LaunchdService, program: Program): string {
+  const variables = variablesOf(service, program);
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
-    "<!-- Written by shrimpy install. Running it again writes this file again. -->",
+    `<!-- ${WRITTEN} -->`,
     '<plist version="1.0">',
     "<dict>",
     "  <key>Label</key>",
     `  <string>${xml(service.name)}</string>`,
     "  <key>ProgramArguments</key>",
     "  <array>",
-    ...argv.map((arg) => `    <string>${xml(arg)}</string>`),
+    ...program.argv.map((arg) => `    <string>${xml(arg)}</string>`),
     "  </array>",
     ...(variables.length === 0
       ? []
@@ -51,6 +50,16 @@ export function plist(service: LaunchdService, { argv, path }: Program): string 
     "</plist>",
     "",
   ].join("\n");
+}
+
+/** What a LaunchAgent that `plist` wrote runs. */
+export function readPlist(text: string): Program {
+  const strings = /<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/.exec(text)?.[1] ?? "";
+  const path = /<key>PATH<\/key>\s*<string>([\s\S]*?)<\/string>/.exec(text)?.[1];
+  return {
+    argv: [...strings.matchAll(/<string>([\s\S]*?)<\/string>/g)].map(([, arg = ""]) => unxml(arg)),
+    path: path === undefined ? undefined : unxml(path),
+  };
 }
 
 /** The account's graphical domain, which LaunchAgents are loaded into. */
@@ -91,4 +100,15 @@ export async function stop(account: Account, service: LaunchdService): Promise<v
 export async function start(account: Account, service: LaunchdService): Promise<void> {
   await stop(account, service);
   await runChecked(account, "launchctl", ["bootstrap", domain(account), service.file]);
+}
+
+/**
+ * Start `program` in a session of its own, which launchd doesn't stop with the service, since it stops only the
+ * service's own group of processes. It prints to the service's log. Says how to see what it prints.
+ */
+export async function restartApart(account: Account, service: LaunchdService, program: Program): Promise<string> {
+  const [command, ...args] = program.argv;
+  if (command === undefined) throw new Error("There is no command to restart the service with.");
+  await account.detach(command, args, Object.fromEntries(variablesOf(service, program)), service.log);
+  return `tail -f ${shellWord(service.log)}`;
 }

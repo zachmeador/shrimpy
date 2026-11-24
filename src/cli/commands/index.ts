@@ -28,6 +28,7 @@ const FAMILIES = new Map<string, Family>([
   ["rooms", async () => (await import("./rooms.ts")).roomsCommands],
   ["install", async () => (await import("./install.ts")).installCommands],
   ["uninstall", async () => (await import("./install.ts")).uninstallCommands],
+  ["update", async () => (await import("./update.ts")).updateCommands],
   ["invite", async () => (await import("./invite.ts")).inviteCommands],
   ["join", async () => (await import("./join.ts")).joinCommands],
   ["members", async () => (await import("./members.ts")).membersCommands],

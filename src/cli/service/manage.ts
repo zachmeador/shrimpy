@@ -1,9 +1,9 @@
-import { existsSync, mkdirSync, rmSync } from "node:fs";
-import { dirname } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { saveFile } from "../../lib/files/node.ts";
 import type { Account } from "./account.ts";
 import * as launchd from "./launchd.ts";
-import type { Program, Service, State } from "./service.ts";
+import { filesOf, type Program, type Service, type State, WRITTEN } from "./service.ts";
 import * as systemd from "./systemd.ts";
 
 /** Whether the manager has the service running. It rejects when the manager can't be asked. */
@@ -39,4 +39,27 @@ export async function remove(account: Account, service: Service): Promise<void> 
     await launchd.stop(account, service);
     rmSync(service.file);
   }
+}
+
+/** What each service that `shrimpy install` wrote on the account runs, by its file, whichever folder it is for. */
+export function installedPrograms(account: Account): Map<string, Program> {
+  const programs = new Map<string, Program>();
+  const files = filesOf(account);
+  if (files === undefined || !existsSync(files.folder)) return programs;
+  for (const name of readdirSync(files.folder)) {
+    if (!name.startsWith("shrimpy") || !name.endsWith(files.ending)) continue;
+    const file = join(files.folder, name);
+    const text = readFileSync(file, "utf8");
+    if (!text.includes(WRITTEN)) continue;
+    programs.set(file, account.platform === "linux" ? systemd.readUnit(text) : launchd.readPlist(text));
+  }
+  return programs;
+}
+
+/**
+ * Start `program`, which restarts the service, apart from the service, so that it isn't stopped with the programs
+ * the service runs, and don't wait for it. It runs with the service's variables. Says how to see what it prints.
+ */
+export function restartApart(account: Account, service: Service, program: Program): Promise<string> {
+  return service.manager === "systemd" ? systemd.restartApart(account, service, program) : launchd.restartApart(account, service, program);
 }

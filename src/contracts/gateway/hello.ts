@@ -308,6 +308,14 @@ export function compareShrimpy(a: string, b: string): number | undefined {
   return left.build < right.build ? -1 : 1;
 }
 
+/** Which part of the version goes up from Shrimpy `from` to `to`, or undefined when either isn't a version. */
+export function releaseStep(from: string, to: string): "major" | "minor" | "patch" | undefined {
+  const [left, right] = [readRelease(from), readRelease(to)];
+  if (left === undefined || right === undefined) return undefined;
+  if (left.major !== right.major) return "major";
+  return left.numbers.split(".")[1] === right.numbers.split(".")[1] ? "patch" : "minor";
+}
+
 /** The one version every package is at, if they agree. */
 function uniform(pi: PiPackages): string | undefined {
   const versions = new Set(Object.values(pi));

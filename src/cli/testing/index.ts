@@ -8,17 +8,18 @@
  * link to it or an agent to answer at its home, the roster as you see it and
  * roles changed on it, the CLI itself as a child process, including the command
  * that serves an agent, the shell of an agent that runs it, the finding of
- * `shrimpy` command lines in a text, free loopback addresses to listen on, and a
- * Shrimpy folder and a home directory of their own for every test, and a PATH
- * with no way to the machine's service manager, which importing this gives each
- * one so that no test can reach a real `~/shrimpy`, look in the person's own
- * home or run a real `systemctl`. Only tests and test fixtures import this, and
- * it must not know how a program works inside.
+ * `shrimpy` command lines in a text, free loopback addresses to listen on,
+ * programs of a test's own put first on its PATH, and a Shrimpy folder and a
+ * home directory of their own for every test, and a PATH with no way to the
+ * machine's service manager, which importing this gives each one so that no
+ * test can reach a real `~/shrimpy`, look in the person's own home or run a
+ * real `systemctl`. Only tests and test fixtures import this, and it must not
+ * know how a program works inside.
  */
 export { canConnect, freeAddresses } from "./addresses.ts";
 export { commandLines, whyNotACommand } from "./commands.ts";
 export { openConsoleOn } from "./console.ts";
-export { useShrimpyDir } from "./folder.ts";
+export { firstOnPath, useShrimpyDir } from "./folder.ts";
 export { agentHome, declareLocalModel, localProvider } from "./home.ts";
 export { captureIo } from "./io.ts";
 export { type ModelServer, startModelServer } from "./model-server.ts";

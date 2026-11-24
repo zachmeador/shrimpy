@@ -42,10 +42,23 @@ function useHome(t: TestContext): void {
 }
 
 /**
+ * Put the programs in `bin` first on the PATH of this test, so that a command run by name finds them before the
+ * machine's own. Programs the test starts inherit this, and the PATH comes back when the test ends.
+ */
+export function firstOnPath(t: TestContext, bin: string): void {
+  const saved = process.env.PATH;
+  process.env.PATH = saved === undefined || saved === "" ? bin : `${bin}${delimiter}${saved}`;
+  stopAfter(t, () => {
+    if (saved === undefined) delete process.env.PATH;
+    else process.env.PATH = saved;
+  });
+}
+
+/**
  * Put programs that stand for the machine's service manager first on the PATH of this test, so that a command which
  * runs `systemctl`, `loginctl` or `launchctl` by name, as the one that installs a service does, reaches one that
  * fails and says why, and never the real one. A test that wants a service installed hands the command a stand-in
- * for the service manager instead. Programs the test starts inherit this, and the PATH comes back when it ends.
+ * for the service manager instead.
  */
 function useNoServiceManager(t: TestContext): void {
   const bin = tempDir(t, "no-service-manager");
@@ -54,12 +67,7 @@ function useNoServiceManager(t: TestContext): void {
     writeFileSync(file, `#!/bin/sh\necho "${name} was run by a test. Hand the command a stand-in for the service manager." >&2\nexit 99\n`);
     chmodSync(file, 0o755);
   }
-  const saved = process.env.PATH;
-  process.env.PATH = saved === undefined || saved === "" ? bin : `${bin}${delimiter}${saved}`;
-  stopAfter(t, () => {
-    if (saved === undefined) delete process.env.PATH;
-    else process.env.PATH = saved;
-  });
+  firstOnPath(t, bin);
 }
 
 // Every test in a file that imports the CLI's test support has a folder and a home of its own, and no way to reach

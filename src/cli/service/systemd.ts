@@ -1,7 +1,6 @@
 import { asError } from "../../lib/errors/index.ts";
-import { FOLDER_VARIABLE } from "../folder/index.ts";
 import { type Account, type Ran, runChecked } from "./account.ts";
-import { type Program, STOP_SECONDS, type State, type SystemdService } from "./service.ts";
+import { type Program, STOP_SECONDS, type State, type SystemdService, variablesOf, WRITTEN } from "./service.ts";
 
 /** `text` in double quotes as systemd reads them: with `\` and `"` escaped, and `%` written twice since it starts a specifier even there. */
 const quoted = (text: string): string =>
@@ -11,6 +10,17 @@ const quoted = (text: string): string =>
 const word = (text: string): string =>
   /^[A-Za-z0-9_@+=:,./-]+$/.test(text) ? text : quoted(text.replaceAll("$", () => "$$"));
 
+/** What `quoted` wrote, as it was. A word that isn't quoted is as it is. */
+function unquoted(text: string): string {
+  if (!/^".*"$/s.test(text)) return text;
+  return text
+    .slice(1, -1)
+    .replace(/\\(.)|%%/gs, (found, escaped: string | undefined) => {
+      if (escaped === undefined) return "%";
+      return escaped === "n" ? "\n" : escaped === "r" ? "\r" : escaped;
+    });
+}
+
 /**
  * The user unit that runs the program for the folder.
  *
@@ -19,18 +29,15 @@ const word = (text: string): string =>
  * chat server, then the gateway, one after another: by default every one of them would be told at once. Whatever
  * is left when the time to stop runs out is ended by force.
  */
-export function unit(service: SystemdService, { argv, path }: Program): string {
-  const variables: [string, string][] = [];
-  if (path !== undefined && path !== "") variables.push(["PATH", path]);
-  if (!service.plain) variables.push([FOLDER_VARIABLE, service.folder]);
+export function unit(service: SystemdService, program: Program): string {
   return [
-    "# Written by shrimpy install. Running it again writes this file again.",
+    `# ${WRITTEN}`,
     "[Unit]",
     `Description=Shrimpy for ${service.folder.replace(/[\r\n]+/g, " ").replaceAll("%", "%%")}`,
     "",
     "[Service]",
-    `ExecStart=${argv.map(word).join(" ")}`,
-    ...variables.map(([name, value]) => `Environment=${quoted(`${name}=${value}`)}`),
+    `ExecStart=${program.argv.map(word).join(" ")}`,
+    ...variablesOf(service, program).map(([name, value]) => `Environment=${quoted(`${name}=${value}`)}`),
     "Restart=on-failure",
     "RestartSec=5",
     "KillMode=mixed",
@@ -42,6 +49,16 @@ export function unit(service: SystemdService, { argv, path }: Program): string {
   ].join("\n");
 }
 
+/** What a unit that `unit` wrote runs. */
+export function readUnit(text: string): Program {
+  const start = /^ExecStart=(.*)$/m.exec(text)?.[1] ?? "";
+  const argv = [...start.matchAll(/"(?:[^"\\]|\\.)*"|\S+/g)].map(([found]) => unquoted(found).replaceAll("$$", "$"));
+  const path = [...text.matchAll(/^Environment=(.*)$/gm)]
+    .map(([, value = ""]) => unquoted(value))
+    .find((variable) => variable.startsWith("PATH="));
+  return { argv, path: path?.slice("PATH=".length) };
+}
+
 /** `message`, with where the account's own systemd is when what it says is that systemd could not be reached. */
 function withWhereSystemdIs(message: string): string {
   return /Failed to connect to .*bus|XDG_RUNTIME_DIR/.test(message)
@@ -49,15 +66,18 @@ function withWhereSystemdIs(message: string): string {
     : message;
 }
 
-/** `systemctl --user` with `args`, failing with what it said. */
-async function systemctl(account: Account, ...args: string[]): Promise<Ran> {
+/** `command --user` with `args`, for a command that talks to the account's own systemd, failing with what it said. */
+async function ofTheAccount(account: Account, command: string, args: string[]): Promise<Ran> {
   try {
-    return await runChecked(account, "systemctl", ["--user", ...args]);
+    return await runChecked(account, command, ["--user", ...args]);
   } catch (error) {
     if (error instanceof Error) throw new Error(withWhereSystemdIs(error.message), { cause: error });
     throw error;
   }
 }
+
+/** `systemctl --user` with `args`, failing with what it said. */
+const systemctl = (account: Account, ...args: string[]): Promise<Ran> => ofTheAccount(account, "systemctl", args);
 
 /** Whether systemd has the service running. It can't say when it can't be asked. */
 export async function state(account: Account, service: SystemdService): Promise<State> {
@@ -85,6 +105,18 @@ export async function stop(account: Account, service: SystemdService): Promise<v
 /** Have systemd forget a unit whose file has been removed. */
 export async function forget(account: Account): Promise<void> {
   await systemctl(account, "daemon-reload");
+}
+
+/**
+ * Start `program` as a unit of its own, which systemd doesn't stop with the service, since stopping the service ends
+ * every process in the service's own unit. It runs with the service's variables, and what it prints goes to the
+ * journal. Says how to see what it printed.
+ */
+export async function restartApart(account: Account, service: SystemdService, program: Program): Promise<string> {
+  const name = service.name.replace(/\.service$/, "-restart.service");
+  const variables = variablesOf(service, program).map(([variable, value]) => `--setenv=${variable}=${value}`);
+  await ofTheAccount(account, "systemd-run", ["--collect", "--quiet", `--unit=${name}`, ...variables, "--", ...program.argv]);
+  return `journalctl --user -u ${name}`;
 }
 
 /** Whether the account lingers: its systemd keeps running when nobody is logged in. */

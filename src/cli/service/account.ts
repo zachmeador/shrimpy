@@ -1,5 +1,7 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { closeSync, mkdirSync, openSync } from "node:fs";
 import { homedir, userInfo } from "node:os";
+import { dirname } from "node:path";
 
 /** How a command of the service manager ended. */
 export interface Ran {
@@ -9,9 +11,9 @@ export interface Ran {
 }
 
 /**
- * The account that a service is for: where its files go and what runs a command of the service manager, which a
- * test hands in so that nothing reaches the real ones, and the facts about the account and the shell the command
- * runs in that a service is made from.
+ * The account that a service is for: where its files go, what runs a command of the service manager and what starts
+ * a process apart from the service, which a test hands in so that nothing reaches the real ones, and the facts about
+ * the account and the shell the command runs in that a service is made from.
  */
 export interface Account {
   /** The operating system, as `process.platform` names it. */
@@ -29,6 +31,11 @@ export interface Account {
    * is an answer. One that can't be run at all rejects.
    */
   run(command: string, args: string[]): Promise<Ran>;
+  /**
+   * Start a command in a session of its own, with `variables` added to this process's environment, printing to the
+   * file `log`, and don't wait for it. It rejects when the command can't be started.
+   */
+  detach(command: string, args: string[], variables: Record<string, string>, log: string): Promise<void>;
 }
 
 /** Longer than any command of the service manager should take, since a stop waits for the programs to stop. */
@@ -47,10 +54,28 @@ function execute(command: string, args: string[]): Promise<Ran> {
   });
 }
 
+function detach(command: string, args: string[], variables: Record<string, string>, log: string): Promise<void> {
+  mkdirSync(dirname(log), { recursive: true });
+  const output = openSync(log, "a");
+  try {
+    const child = spawn(command, args, { detached: true, stdio: ["ignore", output, output], env: { ...process.env, ...variables } });
+    return new Promise((resolve, reject) => {
+      child.once("error", reject);
+      child.once("spawn", () => {
+        child.unref();
+        resolve();
+      });
+    });
+  } finally {
+    // The child has its own copy of the file by now.
+    closeSync(output);
+  }
+}
+
 /** The account that runs this command, with the machine's own service manager. */
 export function thisAccount(): Account {
   const { username, uid } = userInfo();
-  return { platform: process.platform, home: homedir(), user: username, uid, path: process.env.PATH, run: execute };
+  return { platform: process.platform, home: homedir(), user: username, uid, path: process.env.PATH, run: execute, detach };
 }
 
 /** Run a command of the service manager, and fail with what it said when it did not end well. */

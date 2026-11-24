@@ -36,6 +36,7 @@ export function frontPage(): string {
     "",
     "More than one machine",
     row("  install, uninstall", "keep Shrimpy running as a service"),
+    row("  update", "see the latest release, or install one here"),
     row("  invite, join", "let an agent or a machine of yours in"),
     row("  members ...", "the roster and who is an admin"),
     "",

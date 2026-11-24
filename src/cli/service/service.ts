@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { basename, join } from "node:path";
-import { defaultFolderPath } from "../folder/index.ts";
+import { defaultFolderPath, FOLDER_VARIABLE } from "../folder/index.ts";
 import type { Account } from "./account.ts";
 
 /**
@@ -8,6 +8,9 @@ import type { Account } from "./account.ts";
  * gives running turns up to five seconds to finish before it closes, then `up` stops the chat server and the gateway.
  */
 export const STOP_SECONDS = 30;
+
+/** A comment in every service file `shrimpy install` writes, by which its files are told from others in their folder. */
+export const WRITTEN = "Written by shrimpy install. Running it again writes this file again.";
 
 /** What a service has whichever manager keeps it. */
 interface Kept {
@@ -45,6 +48,14 @@ export interface Program {
   readonly path: string | undefined;
 }
 
+/** The variables a service runs with: its PATH, and the folder when it isn't the default. */
+export function variablesOf(service: Service, { path }: Program): [string, string][] {
+  const variables: [string, string][] = [];
+  if (path !== undefined && path !== "") variables.push(["PATH", path]);
+  if (!service.plain) variables.push([FOLDER_VARIABLE, service.folder]);
+  return variables;
+}
+
 /** Whether the manager has the service running, and the word it used for how it is: `active`, `failed`, `not loaded`. */
 export interface State {
   readonly running: boolean;
@@ -67,17 +78,20 @@ function nameFor(folder: string, plain: boolean): string {
   return last === "" ? `shrimpy-${hash}` : `shrimpy-${last}-${hash}`;
 }
 
+/** The folder of the account's service files and the ending of their names, or undefined where Shrimpy knows no manager. */
+export function filesOf(account: Account): { folder: string; ending: string } | undefined {
+  if (account.platform === "linux") return { folder: join(account.home, ".config", "systemd", "user"), ending: ".service" };
+  if (account.platform === "darwin") return { folder: join(account.home, "Library", "LaunchAgents"), ending: ".plist" };
+  return undefined;
+}
+
 /** The service for `folder` on this account, or undefined when its operating system has no manager Shrimpy knows. */
 export function serviceFor(account: Account, folder: string): Service | undefined {
   const plain = folder === defaultFolderPath(account.home);
   const name = nameFor(folder, plain);
-  if (account.platform === "linux") {
-    const file = join(account.home, ".config", "systemd", "user", `${name}.service`);
-    return { manager: "systemd", name: `${name}.service`, file, log: undefined, folder, plain };
-  }
-  if (account.platform === "darwin") {
-    const file = join(account.home, "Library", "LaunchAgents", `${name}.plist`);
-    return { manager: "launchd", name, file, log: join(account.home, "Library", "Logs", `${name}.log`), folder, plain };
-  }
-  return undefined;
+  const files = filesOf(account);
+  if (files === undefined) return undefined;
+  const file = join(files.folder, `${name}${files.ending}`);
+  if (account.platform === "linux") return { manager: "systemd", name: `${name}.service`, file, log: undefined, folder, plain };
+  return { manager: "launchd", name, file, log: join(account.home, "Library", "Logs", `${name}.log`), folder, plain };
 }

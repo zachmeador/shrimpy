@@ -40,6 +40,7 @@ export {
   readAnswer,
   readHello,
   readVersions,
+  releaseStep,
   turnAway,
   UnknownAnswerError,
   type Versions,
