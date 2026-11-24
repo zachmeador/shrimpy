@@ -2,7 +2,7 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
-## 🦐 Unreleased
+## 🦐 1.0.0 - A Rising Tide - 2026-11-24
 
 This release replaces the old Shrimpy, `0.6.2` and before, and nothing of an old setup carries over. The old releases' notes are in git, in this file at the tag `v0.6.2`.
 

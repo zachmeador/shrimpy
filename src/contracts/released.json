@@ -1,1 +1,44 @@
-{}
+{
+  "1.0.0": {
+    "shrimpy.gateway.roster": {
+      "version": 2,
+      "fingerprint": "9cabbe03d978dd72"
+    },
+    "shrimpy.gateway.notifications": {
+      "version": 1,
+      "fingerprint": "d76e34603b633cc3"
+    },
+    "shrimpy.gateway.workspace-context": {
+      "version": 1,
+      "fingerprint": "268a9f56d089f5f7"
+    },
+    "shrimpy.chat": {
+      "version": 1,
+      "fingerprint": "130df6da51df7357"
+    },
+    "shrimpy.chat.channel": {
+      "version": 2,
+      "fingerprint": "dbe6a176288e35ab"
+    },
+    "shrimpy.chat.thread": {
+      "version": 3,
+      "fingerprint": "4c1e3215e68fd9b4"
+    },
+    "shrimpy.chat.presence": {
+      "version": 1,
+      "fingerprint": "fe3fc3c599630562"
+    },
+    "shrimpy.agent": {
+      "version": 2,
+      "fingerprint": "18221c5e5ac4f249"
+    },
+    "shrimpy.agent.session": {
+      "version": 1,
+      "fingerprint": "d9e5a9fadd27ed49"
+    },
+    "shrimpy.agent.presence": {
+      "version": 1,
+      "fingerprint": "05f4444fbcc02c06"
+    }
+  }
+}
