@@ -46,7 +46,6 @@ Daily use decides what comes after the release. The last order was compaction an
 - A trigger whose task five unclean ends in a row cut off, as while its check runs, has no task until the agent next reads its files.
 - A turn at Pi's limit may make one more model call or start one more tool before the agent stops it after the restart. Its session then says `stopped`, and its receipt says the agent stopped unexpectedly too many times.
 - A save that a crash cuts short leaves a hidden file beside the file it was saving, and nothing removes it.
-- A model's answer can carry a stray `</think>` with a copy of the answer before it, and once one is in a thread, the model repeats it in every reply after, apologies included. Messy's `qwen3.8-27b` did it in one thread of 24 on 2026-11-24, after clean replies there on the same release. Pi takes thinking only from the server's reasoning field and has no setting for tags in the text, so the tag reaches the thread and the session's history. Keeping only what follows the last `</think>` in an answer would keep it out of both. A new thread gets away from it today.
 - A store refused for being newer names the copy beside it without checking that this release can open the copy. After two releases that each migrated it, the copy is in the format of the release between them.
 
 **Untried**
