@@ -13,7 +13,7 @@ npm run check
 
 `npm run shrimpy -- <command>` runs the CLI from your checkout. Give everything you run its own `SHRIMPY_DIR` and `SHRIMPY_RUNTIME_DIR`, so it stays away from your real setup.
 
-Read [how Shrimpy is built](docs/how-it-is-built.md) before the code. [`AGENTS.md`](AGENTS.md) has the rules for working here, and [the design](docs/REDESIGN/README.md) has a file for each piece.
+Read [how Shrimpy is built](docs/how-it-is-built.md) before the code. [`AGENTS.md`](AGENTS.md) has the rules for working here, and [the open list](docs/open.md) has what isn't built yet.
 
 ## Pull requests
 

@@ -6,9 +6,7 @@ If `AGENTS-PRIVATE.md` exists at the project root, read it for workspace- and us
 
 ## Where things are
 
-- **The redesign:** [`docs/REDESIGN/`](docs/REDESIGN/README.md) holds the design and the order of work. Its front page says where each kind of planning fact lives, each in one place, and what to read. The design is one file for each core piece in `docs/REDESIGN/design/`, and [`PLAN.md`](docs/REDESIGN/PLAN.md) has the order of work.
-- **Where the code trails the plan:** [`docs/REDESIGN/STATUS.md`](docs/REDESIGN/STATUS.md). What was built, and why, is in the commit messages.
-- **For the author to review:** [`docs/REDESIGN/AUTHOR-TO-REVIEW.md`](docs/REDESIGN/AUTHOR-TO-REVIEW.md) holds what is waiting on the owner, and nothing else.
+- **What is open:** [`docs/open.md`](docs/open.md), a line for each thing that isn't built, falls short or hasn't been tried, and what waits on the owner. A gap you find goes in it in the same change, and a question for the owner under Waiting on the owner. What is decided and built is in the code, and why is in the commit messages.
 - **How to run and check it:** [`CONTRIBUTING.md`](CONTRIBUTING.md). The layout rules are in [how Shrimpy is built](docs/how-it-is-built.md), and every command is in the [README](README.md).
 - **How the web client looks:** [`docs/web-client-mockup.html`](docs/web-client-mockup.html), the owner's reference since 2026-11-21. Open it in a browser: it has live frames of the client at each width, and the first block of its styles is everything that decides the look.
 - **`src/`:** three programs (`agent/`, `chat/` and `gateway/`), the clients, the CLI, and the only code they share: `contracts/` and `lib/`.
@@ -17,9 +15,9 @@ If `AGENTS-PRIVATE.md` exists at the project root, read it for workspace- and us
 
 ## How to work here
 
-- **Build what the plan says, and raise every mismatch.** If the plan is wrong, unclear or silent, or the code can't follow it, say so to the user. Never settle it quietly in the code. A visible choice you make that the plan doesn't cover goes in your report, so it can be reviewed.
+- **Build what the owner decided, and raise every mismatch.** If a decision is wrong, unclear or silent, or the code can't follow it, say so to the user. Never settle it quietly in the code. A visible choice you make that no decision covers goes in your report, so it can be reviewed.
 - **Core first.** Effort goes to the shape, which is hard to change later: the three programs and what each owns, the contracts between them, identity and addressing, the conversation model, the home, and the network. Wording, extra tools, skills and terminal affordances are made correct and plain, then tuned through use.
-- **Tests earn their place.** A test protects a seam between programs, starting, stopping, crashing and recovering, a promise the plan makes, or a bug that was actually seen. Don't pin wording or an internal shape, and don't test test support. When a change breaks a test that only recorded how things were, the test goes.
+- **Tests earn their place.** A test protects a seam between programs, starting, stopping, crashing and recovering, a promise Shrimpy makes, or a bug that was actually seen. Don't pin wording or an internal shape, and don't test test support. When a change breaks a test that only recorded how things were, the test goes.
 - **No shortcuts reach a commit.** `npm run check` passes at every commit that changes code: types, the boundary lint and the tests.
 - **Commands operate Shrimpy; clients and tools use it.** A `shrimpy` command starts, stops, configures, inspects or repairs a program or a home. `run` and `read` are the shell's client: one asks and prints the answer, the other prints a thread. What happens inside a conversation, such as editing or reacting, belongs to the clients and to an agent's tools. A contract method needs no command: it is reachable from code and from an agent's tools.
 - **A command is never added in the change that adds the feature.** It gets a change of its own, which names who asked for it and what they couldn't do without it: the owner, a skill that tells someone to run it, or a test that can't reach the seam from code. Whoever is building it doesn't count as an asker. A feature that arrives as a noun, such as triggers or rooms, doesn't bring a full set of verbs with it.
@@ -45,11 +43,11 @@ The owner keeps cutting the same things:
 
 Docs in this repo get a `# 🦐` title, but the skills Shrimpy ships don't. Use the shrimp emoji sparingly anywhere else, and don't hard-wrap prose.
 
-Take facts from `docs/REDESIGN/`, not its sentences, since much of its phrasing has these habits. When you're done, read the text once as its reader and cut whatever slows them down.
+When you're done, read the text once as its reader and cut whatever slows them down.
 
 ## No legacy support
 
-Do not add backward-compatibility or migration code unless the user asks for it. The one standing ask: from 1.0.0, a store Shrimpy owns migrates forward when its program starts, as [1-programs.md](docs/REDESIGN/design/1-programs.md) describes. Until then, a setup in use is converted by hand.
+Do not add backward-compatibility or migration code unless the user asks for it. The one standing ask: from 1.0.0, the chat store, the roster and each agent's storage migrate forward when their program starts, after a copy is set aside, through `src/lib/migration/`. Until then, a setup in use is converted by hand.
 
 - **Never** add a legacy support path by default.
 - **Never** leave dead code, deprecated command shims, compatibility wrappers or error-only placeholder modules behind after replacing behavior. Remove the old path entirely.
