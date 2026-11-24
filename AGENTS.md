@@ -55,23 +55,23 @@ Do not add backward-compatibility or migration code unless the user asks for it.
 
 ## Git
 
+- **`nightly`** is where work lands. Commit freely there, and push it as it moves. It's what the owner's machines run. Between releases its version is the next minor with `-dev`, such as `1.1.0-dev`.
+- **`main`** moves only at a release, by a fast-forward to the release commit on `nightly`. So its tip is always the latest release, and its README and install line match what people get.
 - **Release tags** are the safest known states.
-- **`main`** is expected to build and run.
-- **`wip`** is the working branch. Commit freely there.
-
-Promote coherent work from `wip` to `main` with cherry-picks, squash commits or a temporary promotion branch. Use a feature branch only when it solves a real problem.
+- A patch for a release, once `nightly` has moved on, is cherry-picked onto `main` and tagged there. Then `main` is merged back into `nightly`, so the next release can still fast-forward.
+- Use a feature branch only when it solves a real problem.
 
 ## Releases
 
-Use GitHub Releases for public versions. Early versions are alpha-quality unless the user says otherwise.
+Use GitHub Releases for public versions.
 
-- Cut a release only from a clean, pushed `main`, never from `wip`.
+- A release is a commit on `nightly` that sets the version. `main` fast-forwards to it, and it's tagged there with a GitHub release: `gh release create <tag> --target main --title "<tag> - <release name>" --notes "<summary>"`.
+- A release candidate is a prerelease tag on a `nightly` commit, such as `v1.0.0-rc.1`, never on `main`, made with `--target nightly --prerelease`. It installs only by its exact version.
 - Tags are semantic versions with a `v` prefix, such as `v0.1.0`.
 - Every public release gets a short lyrical aquatic name. Keep it poetic but concrete, and put it in the release's title or notes. `v0.1.0` was **First Light in the Tidepool**.
 - `CHANGELOG.md` is only for what matters to someone running Shrimpy: changes they'll notice, and anything they have to do, such as updating every machine at once. Each gets one short line, added under Unreleased in the change that makes it, and git history has the rest. A release's heading there is like `## 🦐 1.0.0 - A Rising Tide - YYYY-MM-DD`, since `shrimpy update` takes the release's name from it.
-- For an alpha, create a prerelease: `gh release create <tag> --target main --title "<tag> alpha - <release name>" --notes "<summary>" --prerelease`.
 - A release writes down every contract it serves in `src/contracts/released.json`, since programs of one major keep serving what any release of it shipped. `npm run check` fails at a release until it has, and prints what to write.
-- From 1.0.0 a release is a full one, not a prerelease. The install script installs GitHub's latest release, which skips prereleases, so a prerelease is installed only by its exact version.
+- From 1.0.0 a release is a full one, never a prerelease, since the install script installs GitHub's latest release, which skips prereleases.
 
 ## Philosophy
 

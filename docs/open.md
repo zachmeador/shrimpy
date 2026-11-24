@@ -8,7 +8,7 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 
 ## The release
 
-- Version 1.0.0, A Rising Tide: Shrimpy says `1.0.0`, `wip` says the next minor with `-dev`, and the release writes the contracts it serves in `src/contracts/released.json`.
+- Version 1.0.0, A Rising Tide: Shrimpy says `1.0.0`, `nightly` says the next minor with `-dev`, and the release writes the contracts it serves in `src/contracts/released.json`.
 - A release candidate, tagged as a prerelease, that an admin agent updates everywhere to 1.0.0, which proves the tagged update.
 - A fixture of each store at 1.0.0 and at each release after it, and a test that opens every fixture of this major and the last.
 - Choosing the model an agent starts with, from the terminal.
