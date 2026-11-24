@@ -13,7 +13,7 @@
  * know how a command prints, or how an agent works: what became of a message is
  * read from the receipts on its events in the thread, never asked of the agent.
  */
-export { type AgentReached, homeOnRoster, onAgent, onSession, reachAgent, requireAdminFor, type Sought } from "./agent.ts";
+export { type AgentReached, homeOfMember, homeOnRoster, onAgent, onSession, reachAgent, requireAdminFor, type Sought } from "./agent.ts";
 export { agentNamed, memberNamed, membersNamed, notRunning, runningAgent } from "./agents.ts";
 export { askGateway, askLocalGateway, withGatewayAsMe } from "./gateway.ts";
 export { JoinFailedError } from "./join.ts";

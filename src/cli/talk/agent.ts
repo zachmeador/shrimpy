@@ -179,6 +179,11 @@ export async function homeOnRoster(name: string): Promise<string | undefined> {
   } finally {
     await client.close();
   }
+  return homeOfMember(id);
+}
+
+/** The home in the Shrimpy folder of the agent whose ID on the roster is `id`, found by the member ID each home keeps, or undefined when the folder has none. */
+export function homeOfMember(id: string): string | undefined {
   return allHomes().find((home) => readMembership(home)?.memberId === id);
 }
 

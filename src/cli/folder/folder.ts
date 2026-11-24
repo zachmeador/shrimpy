@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, renameSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, resolve, sep } from "node:path";
+import { basename, join, resolve, sep } from "node:path";
 import { homePaths } from "../../contracts/agent/node.ts";
 import { MACHINE_FILE } from "../../contracts/gateway/index.ts";
 import { UsageError } from "../usage/index.ts";
@@ -10,6 +10,9 @@ export const FOLDER_VARIABLE = "SHRIMPY_DIR";
 
 /** The folder of the Shrimpy folder that holds one home for each agent. */
 const AGENTS = "agents";
+
+/** The folder of the Shrimpy folder that holds the homes of agents removed from the roster, with every file. */
+const REMOVED = "removed";
 
 /** The folder of the Shrimpy folder that holds the sign-ins, keys and model servers every agent started there shares. */
 const PROVIDERS = "providers";
@@ -204,6 +207,21 @@ export function lookForHome(name: string): { found: boolean; where: string } {
   const where = join(folderPath(), AGENTS);
   // A name that is a path is not the name of a home, and `agent serve` would take it for the folder it points to.
   return { found: !isPath(name) && existsSync(homeConfigFile(join(where, name))), where };
+}
+
+/**
+ * Move `home` out of `agents/` into the Shrimpy folder's `removed/`, with every file, so that a running `up` stops
+ * its agent, and give where it is now: a folder of the same name, with a number after it when a home removed before
+ * has that name.
+ */
+export function setHomeAside(home: string): string {
+  const removed = join(ownFolder(), REMOVED);
+  mkdirSync(removed, { recursive: true });
+  const name = basename(home);
+  let place = join(removed, name);
+  for (let count = 2; existsSync(place); count += 1) place = join(removed, `${name}-${count}`);
+  renameSync(home, place);
+  return place;
 }
 
 /** The homes of every agent in the Shrimpy folder, for `up` when it is told no agents. A folder with none gives an empty list. */

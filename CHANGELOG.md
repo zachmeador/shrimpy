@@ -8,6 +8,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - `shrimpy --version` prints the version and the release's name, and `shrimpy --help` starts with them.
 - `shrimpy status` lists the gateway's version beside chat's and the agents'.
 - `shrimpy agent init` refuses a name your gateway's roster already holds, where the agent used to be turned away when it first ran.
+- `shrimpy members remove <name>` removes an agent, and moves its home in your Shrimpy folder to `removed/`.
 
 ## 🦐 1.0.0 - A Rising Tide - 2026-11-24
 

@@ -1,12 +1,26 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { networkInterfaces, userInfo } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import { hello, type HelloAnswer, type Link, readAnswer, readLink } from "../contracts/gateway/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { dial } from "../lib/link/node.ts";
-import { useRuntimeDir } from "../lib/testing/index.ts";
-import { commandLines, type OnTheRoster, onTheRoster, shrimpy, startAgentShell } from "./testing/index.ts";
+import { until, useRuntimeDir } from "../lib/testing/index.ts";
+import {
+  commandLines,
+  declareLocalModel,
+  isAlive,
+  launchUp,
+  type OnTheRoster,
+  onTheRoster,
+  shrimpy,
+  startAgentShell,
+  startModelServer,
+  untilLinked,
+  useShrimpyDir,
+} from "./testing/index.ts";
 
 const timeout = 60_000;
 
@@ -76,6 +90,39 @@ test("an agent's role outlives the gateway", { timeout }, async (t) => {
   await gateway.recover();
 
   assert.deepEqual(await adminsOn(await onTheRoster(t)), [person, "scout"]);
+});
+
+test("an admin removes an agent that up runs: up stops it, its home leaves agents/ whole, and it doesn't come back", { timeout }, async (t) => {
+  await startTestGateway(t);
+  const roster = await onTheRoster(t);
+  const rex = await startAgentShell(t, "rex");
+  const model = await startModelServer(t);
+  const folder = useShrimpyDir(t);
+  assert.equal((await shrimpy(["agent", "init", "scout", "--model", "local/test-model"])).code, 0);
+  const home = join(folder, "agents", "scout");
+  declareLocalModel(home, { url: model.url, model: "test-model" });
+  const up = launchUp(t, []);
+  await up.until(untilLinked("agent", "scout"));
+  const [scout] = (await up.programs()).filter((program) => program.home === home);
+  assert.ok(scout);
+  const onRosterNow = async (): Promise<string[]> => (await roster.members()).map((member) => member.name);
+
+  const refused = await rex.run(["members", "remove", "scout"]);
+  assert.equal(refused.code, 1);
+  assert.ok(refused.stderr.includes(person), refused.stderr);
+  assert.ok((await onRosterNow()).includes("scout") && existsSync(home), "and nothing changed");
+
+  const removed = await shrimpy(["members", "remove", "scout"]);
+  assert.equal(removed.code, 0, removed.stderr);
+  await until(() => !isAlive(scout.pid), "up to stop the agent whose home left agents/", 30_000);
+  assert.ok(!(await onRosterNow()).includes("scout"), "the agent did not join again under its name");
+  assert.ok(!existsSync(home));
+  assert.ok(existsSync(join(folder, "removed", "scout", "state", "member.json")), removed.stdout);
+
+  // rex's home is not in the Shrimpy folder, so it is left where it is.
+  assert.equal((await shrimpy(["members", "remove", "rex"])).code, 0);
+  assert.deepEqual(await onRosterNow(), [person]);
+  assert.ok(existsSync(rex.home));
 });
 
 test("invite prints a line for each address the gateway listens on, whose code lets the agent in", { timeout }, async (t) => {

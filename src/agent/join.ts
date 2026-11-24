@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import type { Facet, Host } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { readMembership, saveMembership } from "../contracts/agent/node.ts";
@@ -104,7 +105,14 @@ export function join(participant: Participant, options: JoinOptions): Joined {
   const gateway = linkToGateway({
     serve,
     name,
-    membership: { read: () => readMembership(paths.root), save: (membership) => saveMembership(paths.root, membership) },
+    membership: {
+      read: () => readMembership(paths.root),
+      save(membership) {
+        // A removed agent's home is moved away while it runs: a new token would join as a new member under the freed name.
+        if (!existsSync(paths.root)) throw new Error(`The home at ${paths.root} is gone, so the agent keeps no token there.`);
+        saveMembership(paths.root, membership);
+      },
+    },
     files: { name: paths.config, membership: paths.member },
     onError,
     ...(participant.shrimpy === undefined ? {} : { follow: followGateway(participant.shrimpy, (line) => onError(new Error(line))) }),

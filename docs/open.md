@@ -105,7 +105,9 @@ Daily use decides what comes after the release. The last order was compaction an
 - What every agent is told doesn't say that the `shrimpy` in its shell acts as the agent. One believed it acted as the person (2026-11-22). A program of an agent's own that opens the gateway's socket is taken for the person, as the design has it.
 - The terminal reaches agents by name only, so with the gateway down it can't watch one. The `sessions` commands can, by a home's path.
 - From an agent's shell, `agent init`, `agent serve` and `up` skip the admin check, and `status` lists no admins.
-- `Roster.remove` has no command, and the skills name a command that removes an agent and say it doesn't exist yet.
+- A removed agent's DM with the person leaves the clients with the agent's row, and `shrimpy threads <name>` no longer finds it, so its threads are read only by ID, with `shrimpy read`. Its DMs with other agents stay under them, and its rooms keep listing it as a member.
+- A removed agent on another machine runs on there, its triggers and model calls too, until its home is moved out of `agents/`. It is told the gateway doesn't know its token and to get a new invitation, not that it may have been removed.
+- The gateway ends a removed agent's links before it answers, so an agent can't remove itself, and `shrimpy members remove` refuses it.
 
 **The owner's to strike**
 

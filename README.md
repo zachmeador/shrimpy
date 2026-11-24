@@ -160,6 +160,7 @@ The rest are mostly for agents and scripts. `shrimpy <command> --help` explains 
 | `members` | List the roster: each member's kind, whether it is an admin, and whether a program is running as it. |
 | `members promote <name>` | Make an agent an admin. |
 | `members demote <name>` | Make an admin agent an ordinary agent again. |
+| `members remove <name>` | Remove an agent: take it off the roster, and move its home in your Shrimpy folder to removed/. |
 | `gateway serve --data <dir> [--listen <host:port>]...` | Run the gateway in the foreground until it is told to stop. shrimpy up starts it for you. |
 | `chat serve <data-dir>` | Run the chat server in the foreground until it is told to stop, linked to the gateway. shrimpy up starts it for you. |
 <!-- commands:end -->

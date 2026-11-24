@@ -33,6 +33,7 @@ export function upCommand(pace: Pace = PACE): Command {
       [
         "Your Shrimpy folder is ~/shrimpy, or the folder SHRIMPY_DIR names:",
         "  agents/          a home for each agent",
+        "  removed/         the homes of agents removed from the roster",
         "  providers/       the sign-ins and model servers its agents share",
         "  gateway/, chat/  the data of those programs",
         "  settings.json    your own settings, such as your name",
