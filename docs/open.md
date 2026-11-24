@@ -449,7 +449,6 @@ What old Shrimpy could do that isn't back, by what a person or an agent could do
 
 - Restart or stop the gateway, read its logs, and run a service for each program: undecided.
 - Complete commands, agents and options with Tab in the shell: planned. A line in the shell's startup file still looks for old Shrimpy's completion.
-- See the version and release name with `--version` and in help: kept. The terminal's first screen has them.
 
 ## Not building
 

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { loadAll } from "./commands/index.ts";
 import { runCli } from "./index.ts";
 import { captureIo, useShrimpyDir } from "./testing/index.ts";
@@ -50,6 +51,14 @@ test("every command is reached from the front page: it is on it, or its group is
     const help = await run(group, "--help");
     assert.equal(help.code, 0, group);
     assert.match(help.out, new RegExp(`^  ${command.name}( |$)`, "m"), `${command.name} is in the help of ${group}`);
+  }
+});
+
+test("--version and the front page say the version and the release's name", async () => {
+  for (const args of [["--version"], ["--help"]]) {
+    const result = await run(...args);
+    assert.equal(result.code, 0, args.join(" "));
+    assert.ok(result.out.includes(SHRIMPY_VERSION) && result.out.includes(SHRIMPY_RELEASE_NAME), result.out);
   }
 });
 

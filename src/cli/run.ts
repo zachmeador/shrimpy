@@ -4,7 +4,7 @@ import type { ConsoleOptions } from "../clients/console/index.ts";
 import { asError } from "../lib/errors/index.ts";
 import { type Command, loadFamily, setUpIfNeeded } from "./commands/index.ts";
 import { lookForHome } from "./folder/index.ts";
-import { commandHelp, frontPage, groupHelp, unknownCommand, usageLine } from "./help.ts";
+import { commandHelp, frontPage, groupHelp, unknownCommand, usageLine, versionWords } from "./help.ts";
 import { commandOf, thisInstall } from "./installed/index.ts";
 import { forPeople, type Io } from "./io/index.ts";
 import { shrimpyCommand } from "./programs/index.ts";
@@ -43,6 +43,10 @@ export async function runCli(argv: string[], given: Io, options: RunOptions = {}
   }
   if (first === "help" || first === "--help" || first === "-h") {
     io.out(frontPage());
+    return 0;
+  }
+  if (first === "--version") {
+    io.out(versionWords());
     return 0;
   }
 

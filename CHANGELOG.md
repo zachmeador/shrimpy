@@ -5,6 +5,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 ## Unreleased
 
 - A DM has no main thread any more: every conversation is a thread, and an agent's `send_message` to you starts a new one each time, so give each trigger that reports to you a thread with `--thread`, or ask your agent to.
+- `shrimpy --version` prints the version and the release's name, and `shrimpy --help` starts with them.
 
 ## 🦐 1.0.0 - A Rising Tide - 2026-11-24
 

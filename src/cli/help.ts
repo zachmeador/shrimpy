@@ -1,4 +1,5 @@
 import type { Command } from "./commands/index.ts";
+import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { folderPath } from "./folder/index.ts";
 
 /** How a command is typed: its name, then its arguments if it takes any. */
@@ -8,16 +9,21 @@ const invocation = (command: Command): string =>
 /** The top of a command's help, and what a command used wrongly ends with. */
 export const usageLine = (command: Command): string => `Usage: shrimpy ${invocation(command)}`;
 
+/** What `shrimpy --version` prints, and the front page's first line: the version and the release's name. */
+export const versionWords = (): string => `shrimpy ${SHRIMPY_VERSION} · ${SHRIMPY_RELEASE_NAME}`;
+
 /** Where the descriptions start on the front page. */
 const COLUMN = 29;
 
 /**
- * What `shrimpy --help` prints: the few commands a person uses, the groups of the rest, and where the Shrimpy folder
- * is. It is written by hand, and a test checks that every command is on it or in a group that is.
+ * What `shrimpy --help` prints: the version, the few commands a person uses, the groups of the rest, and where the
+ * Shrimpy folder is. It is written by hand, and a test checks that every command is on it or in a group that is.
  */
 export function frontPage(): string {
   const row = (names: string, what: string): string => `${names.padEnd(COLUMN)}${what}`;
   return [
+    versionWords(),
+    "",
     row("shrimpy", "set this machine up, or open the terminal"),
     row("shrimpy up", "start Shrimpy here and keep it running"),
     row("shrimpy status", "what is running and who is on the roster"),
