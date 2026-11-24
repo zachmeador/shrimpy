@@ -43,6 +43,9 @@ export interface ToolRig extends Talk {
 
 const never = new AbortController().signal;
 
+/** What each call kept with `memo`, by its task and call ID, as the engine keeps it across runs of the same call. */
+type Memos = Map<string, Map<string, unknown>>;
+
 /**
  * The message tools for the agent Scout, wired to the real chat server and
  * gateway, where you have a DM with it. Scout is a member of the roster here,
@@ -81,6 +84,7 @@ export async function startToolRig(t: TestContext, options: ToolRigOptions = {})
 
   // The engine's number for the session, and the one document that says it is behind the main thread of the DM.
   const sessions = { [talk.thread.id]: { conversationId: 1, channelId: talk.thread.channelId, unacted: [], cancelled: [], missed: [], shown: {} } };
+  const memos: Memos = new Map();
   return {
     ...talk,
     chat,
@@ -89,11 +93,20 @@ export async function startToolRig(t: TestContext, options: ToolRigOptions = {})
       await up.chat.post(talk.thread.id, text, randomUUID(), never);
     },
     async call(name, args, call = {}) {
+      const taskId = call.taskId ?? 1;
+      const callId = call.callId ?? "call-0";
+      const kept = memos.get(`${String(taskId)}/${callId}`) ?? new Map<string, unknown>();
+      memos.set(`${String(taskId)}/${callId}`, kept);
       const api = {
         conversationId: 1,
-        taskId: call.taskId ?? 1,
-        callId: call.callId ?? "call-0",
+        taskId,
+        callId,
         snapshot: () => Promise.resolve({ sessions }),
+        // The first value kept under a name stays, as the engine's memo keeps it.
+        memo: (memoName: string, ...rest: unknown[]) => {
+          if (rest.length === 2 && !kept.has(memoName)) kept.set(memoName, rest[0]);
+          return Promise.resolve(kept.get(memoName));
+        },
       } as unknown as ToolExecutionApi;
       const context = call.signal === undefined ? BACKGROUND_CONTEXT : withAbortSignal(call.signal, BACKGROUND_CONTEXT);
       const result = await tool(name).execute(args, api, context);

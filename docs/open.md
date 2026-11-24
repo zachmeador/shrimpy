@@ -128,7 +128,7 @@ Daily use decides what comes after the release. The last order was compaction an
 
 - An answer to a `send_message` that asked another agent something wakes a new session behind the thread the message started, not the session that asked. That session is shown the question but not why it was asked, and tells the person in a new thread of their DM, away from where they asked. `ask_agent` brings an answer back to the session that asked, and agents don't always reach for it.
 - What a session posted in its own thread without a receipt, which is what it sent there with `send_message` and its reply to a wake-up or a question's result, is shown to it once more among what was said since it last looked. Its replies to messages and triggers are left out, since their receipts name them.
-- A `send_message` to `@name` makes the thread before it posts, so a post that chat refuses or loses leaves an empty thread in the DM.
+- A `send_message` to `@name` makes its thread before it posts, so a post that chat refuses, or that never arrives because the link dropped, leaves an empty thread in the DM.
 - In a DM, two messages a few seconds apart get two answers when the first turn uses no tools, and the first answer says the message looks cut off.
 - An agent doesn't know what it said in its other threads, and `shrimpy threads` with no argument refuses instead of listing them.
 - A message that joined a running turn is marked answered by that turn's one reply, whether or not the reply speaks to it.

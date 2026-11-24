@@ -45,6 +45,8 @@ export function sendMessage(options: MessageToolsOptions) {
           chat: live.chat,
           self: live.self,
           roster: options.roster(),
+          // A run of the call after a crash posts in the thread its first run started.
+          newThread: async (make) => (await api.memo<string>("thread", context)) ?? api.memo("thread", await make(), context),
           context,
           signal,
         });

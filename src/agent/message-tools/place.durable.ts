@@ -35,6 +35,12 @@ export interface Find {
   self: Member;
   /** Everyone on the roster, or undefined while the agent has not heard it. */
   roster: readonly RosterEntry[] | undefined;
+  /**
+   * Given for a post: the ID of the thread a post to `@name` starts, which
+   * `make` makes on the call's first run, and which every later run of the
+   * same call gets back.
+   */
+  newThread?: (make: () => Promise<string>) => Promise<string>;
   context: Context;
   signal: AbortSignal;
 }
@@ -72,8 +78,9 @@ async function dmPlace(find: Find, written: string, current: string | undefined)
   const { member, thread } = named;
 
   if (thread === "" && argument === "to") {
-    const made = await find.chat.createThread((await find.chat.openDm(member.id, find.signal)).id, null, find.signal);
-    return { threadId: made.id, label: words.newDmThread(member.name, made.id), here: false, again: `@${member.name}/${made.id}` };
+    const make = async (): Promise<string> => (await find.chat.createThread((await find.chat.openDm(member.id, find.signal)).id, null, find.signal)).id;
+    const made = find.newThread === undefined ? await make() : await find.newThread(make);
+    return { threadId: made, label: words.newDmThread(member.name, made), here: false, again: `@${member.name}/${made}` };
   }
   const channel = findDm(find.chat.channels(), member.id);
   if (channel === undefined) return { problem: words.noDmYet(member.name, argument) };

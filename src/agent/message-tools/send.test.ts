@@ -16,7 +16,7 @@ const timeout = 15_000;
 const saidByScout = (rig: { partner: { id: string } }, messages: { author: { id: string }; text: string }[]): string[] =>
   messages.filter((message) => message.author.id === rig.partner.id).map((message) => message.text);
 
-test("a call that runs again posts nothing twice", { timeout }, async (t) => {
+test("a call that runs again posts nothing twice, and one to @name posts in the thread its first run started", { timeout }, async (t) => {
   const rig = await startToolRig(t, { messageLimit: 20 });
   const text = "first line here\nsecond line here";
 
@@ -25,6 +25,17 @@ test("a call that runs again posts nothing twice", { timeout }, async (t) => {
 
   assert.equal(again.isError, false);
   assert.equal(saidByScout(rig, await rig.said()).length, 2, "two parts, once");
+
+  const to = `@${rig.me.name}`;
+  await rig.call("send_message", { text, to }, { taskId: 8, callId: "call-0" });
+  const rerun = await rig.call("send_message", { text, to }, { taskId: 8, callId: "call-0" });
+
+  assert.equal(rerun.isError, false, rerun.text);
+  const started = new Set((await rig.events()).filter((event) => event.kind === "posted" && event.message.threadId !== rig.thread.id).map((event) => event.message.threadId));
+  assert.equal(started.size, 1, "one thread");
+  const [thread] = started;
+  assert.ok(thread !== undefined && rerun.text.includes(thread));
+  assert.equal(saidByScout(rig, await rig.said(thread)).length, 2, "two parts, once");
 });
 
 test("a call ID with characters chat does not take, or a very long one, still names a post chat takes", { timeout }, async (t) => {
