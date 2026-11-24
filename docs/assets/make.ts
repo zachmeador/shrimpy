@@ -2,9 +2,9 @@
  * The README's pictures, drawn on the stitch from the look the clients share:
  * the wools, the shrimp, the wordmark and the sigils an agent is given.
  * `node docs/assets/make.ts` writes them beside this file, each at dusk and by
- * day. Give it a directory and it also writes each one there as a PNG, to look
- * at, with the card a link to the repository shows, which is uploaded in the
- * repository's settings and kept nowhere here.
+ * day, with the card a link to the repository shows as a PNG, which GitHub
+ * takes only as an upload in the repository's settings. Give it a directory
+ * and it also writes each picture there as a PNG, to look at.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -391,4 +391,4 @@ for (const mode of ["dusk", "day"] as const) {
     if (look !== undefined) writeFileSync(`${look}/${plate.name}-${mode}.png`, plate.png());
   }
 }
-if (look !== undefined) writeFileSync(`${look}/social-preview.png`, card().png(4));
+writeFileSync(`${here}social-preview.png`, card().png(4));
