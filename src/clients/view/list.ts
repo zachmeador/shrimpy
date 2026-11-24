@@ -1,5 +1,5 @@
 import { placeLabel, threadName, YOUR_DM } from "../../contracts/agent/index.ts";
-import { ARCHIVED, notTalkedTo, threadTags, titleOf } from "../../contracts/chat/index.ts";
+import { ARCHIVED, isListed, notTalkedTo, threadTags, titleOf } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { agentEntries, agentNameOf, agentRuns, type Model, type Part, partsOf, type Place, unreadOf } from "../state/index.ts";
 import { agentAbout } from "./agents.ts";
@@ -90,14 +90,15 @@ function channelList(model: Model, place: Exclude<Place, { kind: "agent" }>, opt
   const here = lookingAt(model, place);
   const stale = model.chat.state === "down";
   const reading = place.kind === "read-only";
-  const listed = here.threads.map((thread) => ({
+  const kind = here.channel?.kind ?? "room";
+  const listed = here.threads.filter((thread) => isListed(thread, kind)).map((thread) => ({
     archived: thread.archived,
     row: {
       id: thread.id,
       kind: "thread",
       label: titleOf(thread),
       name: titleOf(thread),
-      tags: threadTags({ main: thread.main, archived: false }),
+      tags: threadTags({ main: thread.main, archived: false }, kind),
       detail: [whenOf(thread.updatedAt, options.now), reading ? READ_ONLY_TAG : undefined].filter((part) => part !== undefined).join(" · "),
       working: thread.working.length > 0 && !stale,
       unread: unreadOf(here.unread, thread),
@@ -208,11 +209,11 @@ function partRow(part: Part, me: string | undefined, now: number, stale: boolean
   // An archived thread stands apart under the row that says so, which marks it.
   if (part.thread !== undefined) {
     label = titleOf(part.thread);
-    tags = threadTags({ main: part.thread.main, archived: false });
+    tags = threadTags({ main: part.thread.main, archived: false }, part.place?.kind === "room" ? "room" : "dm");
   } else if (part.place !== null && part.place.kind !== "trigger") {
-    const named = threadName(part.place.thread, part.id);
+    const named = threadName(part.place, part.id);
     label = named.label;
-    tags = named.named ? threadTags({ main: part.place.thread.main, archived: false }) : [];
+    tags = named.named ? threadTags({ main: part.place.thread.main, archived: false }, part.place.kind) : [];
   }
   const when = part.at === undefined ? undefined : whenOf(part.at, now);
   return {

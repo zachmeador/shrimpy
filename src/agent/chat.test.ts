@@ -13,6 +13,7 @@ import {
   SCOUT,
   type Script,
   startAgentRig,
+  talking,
   untilReleased,
   writtenLast,
 } from "./testing/index.ts";
@@ -55,6 +56,30 @@ test("a message in a DM becomes a turn, and only the turn's final text is the re
   assert.deepEqual(receipt, { memberId: rig.partner.id, event: asked.event, status: "answered", reply: reply.id, detail: null });
   assert.ok(reply.text.startsWith("The command finished.\n\n- first point"), "not what it said while it worked");
   assert.doesNotMatch(reply.text, /Let me look at the work directory/);
+  assert.deepEqual(rig.reports, []);
+});
+
+test("a reply to what the agent posted from another session wakes a session that is shown the post, and not again what it saw", { timeout }, async (t) => {
+  let person = "";
+  const model = talking((_shown, turn) =>
+    turn === 0 ? { send: { to: `@${person}`, text: "Build report: the nightly build failed in its tests." }, final: "I told them." } : { final: `Answer ${String(turn)}.` },
+  );
+  const rig = await startAgentRig(t, { script: model.script });
+  person = rig.me.name;
+
+  await rig.receiptOn(await rig.say("Watch the nightly build."));
+  const report = (await rig.events()).find((event) => event.kind === "posted" && event.text.startsWith("Build report"));
+  assert.ok(report);
+  const thread = report.message.threadId;
+
+  await rig.receiptOn(await rig.say("Why did it fail?", thread));
+  const woken = model.shown[1] ?? "";
+  const [posted, asked] = ["Build report", "Why did it fail?"].map((text) => woken.indexOf(text));
+  assert.ok(posted !== undefined && asked !== undefined && 0 <= posted && posted < asked, `the report comes first:\n${woken}`);
+
+  await rig.receiptOn(await rig.say("Thanks.", thread));
+  const next = model.shown[2] ?? "";
+  assert.ok(!next.includes("Build report") && !next.includes("Answer 1."), `and neither the report nor the session's own reply comes again:\n${next}`);
   assert.deepEqual(rig.reports, []);
 });
 

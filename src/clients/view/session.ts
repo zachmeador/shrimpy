@@ -73,7 +73,8 @@ export function sessionLevel(model: Model, options: SessionOptions): SessionLeve
     const threadId = item.thread;
     const thread = (model.thread?.thread.id === threadId ? model.thread.thread : undefined) ?? here.threads.find((each) => each.id === threadId);
     const where = placeFor(model, item.place, here, item.side);
-    const watching = watchingWords(thread === undefined ? behindThread(where, false, threadId) : behindThread(where, thread.main, titleOf(thread)));
+    const roomMain = thread?.main === true && item.place.kind !== "agent" && here.channel?.kind === "room";
+    const watching = watchingWords(behindThread(where, roomMain, thread === undefined ? threadId : titleOf(thread)));
     return sessionOf(model, item.side, threadId, model.behind[item.side], { watching, turned: true, refused: undefined }, options);
   }
   return undefined;

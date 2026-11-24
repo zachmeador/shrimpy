@@ -115,7 +115,6 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Not built**
 
-- A DM with no main thread, as the owner decided on 2026-11-24: every conversation in a DM is a thread, and what is about a topic goes in that topic's thread. `send_message` to `@name` starts a thread, whose first line is its title, and `@name/<thread>` posts in one by its ID or name. A trigger that tells someone something runs in a thread with them, its own or its topic's. A session woken in a thread is shown what its agent posted there from other sessions. The clients show a DM's main thread as an ordinary thread, not listed while it's empty, and rooms keep theirs. Chat keeps making the thread, since an agent at 1.0.0 posts there, so no contract changes.
 - Hearing a thread while working in it: a message that wakes nobody, in a thread where the agent's session is busy, is written into that session as an entry of Shrimpy's own kind that starts no turn, up to 20,000 characters a turn, and what every agent is told gains two sentences on it. A demo decides whether it stays: three agents in a room on a LAN model, asked the same thing with nothing, with one sentence telling them to read the thread first, and with hearing.
 - Whether Pi's public `submit(tx, draft)` makes the handover of an input one commit, keeping the feed's order.
 - Attachments, as both mockups draw them, the [web client's](web-client-mockup.html) and the [terminal's](terminal-mockup.html). Each travels with its message, the chat server keeps it with the thread, and it is copied into the agent's home, in `attachments/` with a folder for each day, when the message is offered. A message carries up to 25 MB, and the copy into a home has the same limit. An image goes to the model with its message. Clipboard files and images attach to a message, on Ctrl+V in the terminal, which is to be checked against Pi's own key. A click opens one, and no key does. How an agent attaches a file of its own isn't drawn, and `send_message` can't attach one yet. None of it is built.
@@ -127,11 +126,11 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Falls short**
 
-- An answer to a `send_message` that asked another agent something wakes the asker's session behind their DM, not the session that asked. That session then forwards it to the person's main thread, away from where the person asked. `ask_agent` brings an answer back to the session that asked, and agents don't always reach for it.
-- A reply to what an agent posted from another session, such as a trigger's report in a DM's main thread, wakes the session behind that thread, which never saw the post: a DM's wake shows only the new message, and a room's backlog leaves out the agent's own messages. It knows what the reply answers only if it reads the thread.
+- An answer to a `send_message` that asked another agent something wakes a new session behind the thread the message started, not the session that asked. That session is shown the question but not why it was asked, and tells the person in a new thread of their DM, away from where they asked. `ask_agent` brings an answer back to the session that asked, and agents don't always reach for it.
+- What a session posted in its own thread without a receipt, which is what it sent there with `send_message` and its reply to a wake-up or a question's result, is shown to it once more among what was said since it last looked. Its replies to messages and triggers are left out, since their receipts name them.
+- A `send_message` to `@name` makes the thread before it posts, so a post that chat refuses or loses leaves an empty thread in the DM.
 - In a DM, two messages a few seconds apart get two answers when the first turn uses no tools, and the first answer says the message looks cut off.
 - An agent doesn't know what it said in its other threads, and `shrimpy threads` with no argument refuses instead of listing them.
-- When `send_message` or `read_messages` refuses a place, it doesn't give the `#room/thread` form, so agents try the bare thread IDs every input shows them.
 - A message that joined a running turn is marked answered by that turn's one reply, whether or not the reply speaks to it.
 - When the chat store is replaced, an agent goes on with unfinished work behind the old store's threads: a waiting wake-up or a cut-short turn runs once more, calls the model, can't post, and is reported. The agent knows the store was replaced, so it could stop that work and say so once.
 - After a fresh start an agent's first wake in a room shows up to 20,000 characters of history, from before it joined included.
@@ -308,7 +307,6 @@ Daily use decides what comes after the release. The last order was compaction an
 - The tide and the lanterns move only while an agent works, where the mockup moves them always.
 - The thread printed back on leaving keeps the spaces its Markdown was padded with, and nothing is printed back when no thread is open.
 - The terminal calls the person's DM with an agent "your DM", where `shrimpy sessions list` says "DM with" and their name.
-- An empty main thread reads "(no messages yet) [main]" on an agent's screen, so the main threads of two empty DMs look the same. A room can be called `#main` too.
 
 **Falls short in the web client**
 

@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { type Channel, findDm, notTalkedTo } from "../../contracts/chat/index.ts";
+import { type Channel, findDm, isListed, notTalkedTo } from "../../contracts/chat/index.ts";
 import { memberNamed, onChannel, type Reached, reachChat, roomNamed } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
@@ -31,14 +31,11 @@ const threads: Command = {
     const reached = await reachChat(io);
     try {
       const channel = channelNamed(reached, reached.chat.channels.value, name);
-      if (channel === undefined) {
-        if (json) io.json([]);
-        else io.out(`${notTalkedTo(name)} Start with: shrimpy run ${name} "<text>"`);
-        return 0;
-      }
-      const list = await onChannel(reached.client, channel.id, (held) => held.threads.value);
+      const list = channel === undefined ? [] : await onChannel(reached.client, channel.id, (held) => held.threads.value);
+      const shown = channel === undefined ? [] : list.filter((thread) => isListed(thread, channel.kind));
       if (json) io.json(list);
-      else for (const line of renderThreads(list, channel)) io.out(line);
+      else if (channel === undefined || shown.length === 0) io.out(`${notTalkedTo(name)} Start with: shrimpy run ${name} "<text>"`);
+      else for (const line of renderThreads(shown, channel)) io.out(line);
       return 0;
     } finally {
       await reached.close();

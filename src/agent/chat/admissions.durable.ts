@@ -135,7 +135,7 @@ export function createAdmissions(
         await moveCursor(tx, position);
         const session = await openSession(tx, defaults, { threadId: draft.threadId, channelId: draft.channelId });
         if (draft.place !== undefined) learnPlace(session, draft.place);
-        // An event in a room is the newest thing the agent has looked at in its thread.
+        // An event that came with what was said before it is the newest thing the agent has looked at in its thread.
         if (draft.backlog !== undefined && session.channelId !== null) {
           session.looked = Math.max(session.looked ?? 0, draft.event.seq);
         }

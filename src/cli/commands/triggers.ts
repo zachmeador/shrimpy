@@ -153,9 +153,11 @@ const list: Command = {
     "",
     "To make one:",
     '  shrimpy triggers add nightly --cron "0 3 * * *" "Look over today\'s notes and tidy what needs it."',
-    '  shrimpy triggers add heartbeat --every 1h "Check the build, and use send_message to tell @maya if it broke."',
+    '  shrimpy triggers add heartbeat --every 1h --thread <id> "Check the build, and say so if it broke. If it didn\'t, write only END."',
     "To be woken only when something has changed, give the trigger a check, a command that runs first:",
-    '  shrimpy triggers add inbox --every 10m --check "ls inbox | wc -l" "Tell @maya what is new in the inbox."',
+    '  shrimpy triggers add inbox --every 10m --check "ls inbox | wc -l" --thread <id> "Say what is new in the inbox."',
+    "A trigger that tells someone something runs in a thread with them, given with --thread, so that their answer " +
+      "reaches the session that knows the trigger.",
     "The other commands take a trigger's name: show, run, on, off and remove, as in: shrimpy triggers show nightly. " +
       "Each has its own --help.",
     "",
@@ -208,7 +210,7 @@ const add: Command = {
     "",
     "The prompt is what the agent is told at each occurrence. Without --thread, each occurrence goes to a session " +
       "of the trigger's own, called trigger:<name>, which keeps its history from one occurrence to the next. What " +
-      "the agent writes last there is posted nowhere: to tell someone something it uses send_message with to. " +
+      "the agent writes last there is posted nowhere, so a trigger that tells someone something is given a thread with them. " +
       "With --thread <id>, each goes to the session behind that thread, which the first one makes if the agent " +
       "has none, and what the agent writes last is posted in the thread. Run in the agent's own shell, this checks " +
       "before it writes that the agent is in the thread's channel. An occurrence that is due while the last is " +

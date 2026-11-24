@@ -1,18 +1,20 @@
 import type { Context } from "@earendil-works/chord/context";
 import type { DocumentReader } from "@earendil-works/pi-durable";
-import { type Channel, findDm, findRoom, type Member, notInRoom, type Thread } from "../../contracts/chat/index.ts";
+import { type Channel, findDm, findRoom, isListed, type Member, notInRoom, roomLabel, type Thread } from "../../contracts/chat/index.ts";
 import { nameKey, type RosterEntry } from "../../contracts/gateway/index.ts";
-import { type ChatCalls, nameOnRoster } from "../links/index.ts";
+import { type ChatCalls, type Named, nameOnRoster } from "../links/index.ts";
 import { threadOfSession } from "../records/durable.ts";
 import * as words from "./words.ts";
 
 /** A thread a tool means, and what the model calls it. */
 export interface Place {
   threadId: string;
-  /** "this thread", "your DM with Zach" or "the room #ops". */
+  /** "this thread", "the thread thr_1 of your DM with Zach" or "the room #ops". */
   label: string;
   /** Whether it is the thread the turn came from. */
   here: boolean;
+  /** For a thread a post started, what reaches it again: `@name/thread`. */
+  again?: string;
 }
 
 /** A place that cannot be used, in words the model can act on. */
@@ -21,9 +23,9 @@ export interface Unusable {
 }
 
 export interface Find {
-  /** Which argument named the place, for the words that complain about it. */
+  /** Which argument named the place: `to` for a post, which starts a thread for `@name`, and `from` for a read. */
   argument: words.PlaceArgument;
-  /** What the model gave, if anything: `@name` for a DM, `#room` or `#room/thread` for a room. */
+  /** What the model gave, if anything: `@name` or `@name/thread` for a DM, `#room` or `#room/thread` for a room. */
   value: string | undefined;
   /** The session the tool runs in, as the engine numbers it. */
   conversationId: number;
@@ -33,21 +35,21 @@ export interface Find {
   self: Member;
   /** Everyone on the roster, or undefined while the agent has not heard it. */
   roster: readonly RosterEntry[] | undefined;
-  /** Whether a DM with a member that there is none with yet is started. Posting starts one; reading does not. */
-  startDm: boolean;
   context: Context;
   signal: AbortSignal;
 }
 
 /**
  * The thread a tool means. With nothing given it is the thread the turn came
- * from. `@name` is the main thread of the agent's DM with that member of the
- * roster, made if there is no DM yet. `#room` is
- * the main thread of a room the agent is in, and `#room/thread` one of that
- * room's threads, by its name or its ID.
+ * from. `@name` is a new thread of the agent's DM with that member of the
+ * roster, made with the DM if there is none yet, when posting; reading it is
+ * refused with the DM's threads, since there is no one thread to read.
+ * `@name/thread` is one of that DM's threads, and `#room/thread` one of a
+ * room's, by its name or its ID. `#room` is the main thread of a room the agent
+ * is in.
  */
 export async function placeOf(find: Find): Promise<Place | Unusable> {
-  const { argument, value, self } = find;
+  const { argument, value } = find;
   const current = await threadOfSession(find.read, find.conversationId, find.context);
   if (value === undefined) {
     if (current === undefined) return { problem: words.noThreadHere(argument) };
@@ -56,22 +58,32 @@ export async function placeOf(find: Find): Promise<Place | Unusable> {
 
   const written = value.trim();
   if (written.startsWith("#")) return roomPlace(find, written.slice(1).trim(), current?.threadId);
+  if (written.startsWith("@") && written.length > 1) return dmPlace(find, written.slice(1).trim(), current?.threadId);
+  return { problem: words.badPlace(argument) };
+}
 
-  const name = /^@(.+)$/s.exec(written)?.[1]?.trim();
-  if (name === undefined) return { problem: words.badPlace(argument) };
+/** A thread of the agent's DM with a member: a new one when `written` is the member's name alone, or the one named after a slash. */
+async function dmPlace(find: Find, written: string, current: string | undefined): Promise<Place | Unusable> {
+  const { argument, self } = find;
+  const named = memberAndThread(find.roster, written, self.id);
+  if (named.kind === "unknown") return { problem: words.noRoster(firstPart(written), argument) };
+  if (named.kind === "nobody") return { problem: words.nobody(firstPart(written), named.roster.map((each) => each.name)) };
+  if (named.kind === "self") return { problem: words.yourself(named.member.name, argument) };
+  const { member, thread } = named;
 
-  const named = nameOnRoster(find.roster, name, self.id);
-  if (named.kind === "unknown") return { problem: words.noRoster(name, argument) };
-  if (named.kind === "nobody") return { problem: words.nobody(name, named.roster.map((each) => each.name)) };
-  if (named.kind === "self") return { problem: words.yourself(name, argument) };
-  const { member } = named;
-
-  const label = words.dmWith(member.name);
-  const channel = find.startDm ? await find.chat.openDm(member.id, find.signal) : findDm(find.chat.channels(), member.id);
-  if (channel === undefined) return { problem: words.noDmYet(member.name) };
-  const main = (await find.chat.threads(channel.id, find.signal)).find((thread) => thread.main);
-  if (main === undefined) return { problem: words.noMainThread(label) };
-  return { threadId: main.id, label, here: main.id === current?.threadId };
+  if (thread === "" && argument === "to") {
+    const made = await find.chat.createThread((await find.chat.openDm(member.id, find.signal)).id, null, find.signal);
+    return { threadId: made.id, label: words.newDmThread(member.name, made.id), here: false, again: `@${member.name}/${made.id}` };
+  }
+  const channel = findDm(find.chat.channels(), member.id);
+  if (channel === undefined) return { problem: words.noDmYet(member.name, argument) };
+  const threads = (await find.chat.threads(channel.id, find.signal)).filter((each) => isListed(each, "dm"));
+  if (thread === "") return { problem: words.whichDmThread(member.name, threads) };
+  const where = words.dmWith(member.name);
+  const found = threadCalled(threads, thread);
+  if (found === undefined) return { problem: words.noSuchThread(where, thread, threads, "dm") };
+  if (Array.isArray(found)) return { problem: words.manyThreads(where, thread, found, "dm") };
+  return { threadId: found.id, label: words.dmThreadLabel(member.name, found.id), here: found.id === current };
 }
 
 /** The main thread of a room the agent is in, or one of its threads when `written` goes on after the room's name with a slash. */
@@ -79,7 +91,7 @@ async function roomPlace(find: Find, written: string, current: string | undefine
   const rooms = find.chat.channels().filter((channel) => channel.kind === "room");
   const found = roomAndThread(rooms, written);
   if (found === undefined) {
-    return { problem: notInRoom(written.split("/")[0]?.trim() ?? written, rooms.map((room) => room.name)) };
+    return { problem: notInRoom(firstPart(written), rooms.map((room) => room.name)) };
   }
   const { room, thread } = found;
   const threads = await find.chat.threads(room.id, find.signal);
@@ -90,17 +102,52 @@ async function roomPlace(find: Find, written: string, current: string | undefine
     if (main === undefined) return { problem: words.noMainThread(label) };
     return { threadId: main.id, label, here: main.id === current };
   }
-  // An ID or a name, whatever the case, as names are compared.
-  const wanted = nameKey(thread);
-  const byId = threads.filter((candidate) => nameKey(candidate.id) === wanted);
-  const matches = byId.length > 0 ? byId : threads.filter((candidate) => candidate.name !== null && nameKey(candidate.name) === wanted);
-  const [only, ...others] = matches;
-  if (only === undefined) return { problem: words.noSuchThread(room.name, thread, threads) };
-  if (others.length > 0) return { problem: words.manyThreads(room.name, thread, matches) };
+  const where = roomLabel(room.name);
+  const only = threadCalled(threads, thread);
+  if (only === undefined) return { problem: words.noSuchThread(where, thread, threads, "room") };
+  if (Array.isArray(only)) return { problem: words.manyThreads(where, thread, only, "room") };
   return { threadId: only.id, label: words.roomThreadLabel(nameOf(only), room.name), here: only.id === current };
 }
 
 const nameOf = (thread: Thread): string => thread.name ?? thread.id;
+
+/** What was written before its first slash, for words about a name that matched nothing. */
+const firstPart = (written: string): string => written.split("/")[0]?.trim() ?? written;
+
+/** The thread called `wanted`, by its ID or else its name, whatever the case, as names are compared; or all of them when more than one is. */
+function threadCalled(threads: readonly Thread[], wanted: string): Thread | Thread[] | undefined {
+  const key = nameKey(wanted);
+  const byId = threads.filter((candidate) => nameKey(candidate.id) === key);
+  const matches = byId.length > 0 ? byId : threads.filter((candidate) => candidate.name !== null && nameKey(candidate.name) === key);
+  const [only, ...others] = matches;
+  return others.length > 0 ? matches : only;
+}
+
+/**
+ * Each way to read `written` as something before a slash and the rest after
+ * it: the whole text first, and then each part of it before a slash, the
+ * longest first, since a name may have a slash in it.
+ */
+function* splits(written: string): Generator<{ before: string; after: string }> {
+  for (let end = written.length; end > 0; end = written.lastIndexOf("/", end - 1)) {
+    yield { before: written.slice(0, end).trim(), after: written.slice(end + 1).trim() };
+  }
+}
+
+/** The member of the roster that `written` names, and the rest of it after a slash, which is a thread, or "" when it names the member alone. */
+function memberAndThread(
+  roster: readonly RosterEntry[] | undefined,
+  written: string,
+  self: string,
+): Exclude<Named, { kind: "found" }> | { kind: "found"; member: RosterEntry; thread: string } {
+  if (roster === undefined) return { kind: "unknown" };
+  for (const { before, after } of splits(written)) {
+    const named = nameOnRoster(roster, before, self);
+    if (named.kind === "found") return { ...named, thread: after };
+    if (named.kind === "self") return named;
+  }
+  return { kind: "nobody", roster };
+}
 
 /**
  * The room that `written` means, whatever the case, and the rest of it after a
@@ -109,9 +156,9 @@ const nameOf = (thread: Thread): string => thread.name ?? thread.id;
  * of it before a slash, the longest first.
  */
 function roomAndThread(rooms: readonly Channel[], written: string): { room: Channel; thread: string } | undefined {
-  for (let end = written.length; end > 0; end = written.lastIndexOf("/", end - 1)) {
-    const room = findRoom(rooms, written.slice(0, end));
-    if (room !== undefined) return { room, thread: written.slice(end + 1).trim() };
+  for (const { before, after } of splits(written)) {
+    const room = findRoom(rooms, before);
+    if (room !== undefined) return { room, thread: after };
   }
   return undefined;
 }

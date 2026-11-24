@@ -10,10 +10,10 @@ import * as words from "./words.ts";
 
 /**
  * `send_message`: post a message now, without ending the turn. With nothing
- * said about where, it goes to the thread the turn came from; `to` names a DM
- * or a room the agent is in, or one of its threads. With `quiet`, it is told
- * to nobody's devices. The turn's final text is still its reply, so this is
- * never the way to answer.
+ * said about where, it goes to the thread the turn came from; `to` starts a
+ * thread in a DM, or names one of a DM's threads, or a room the agent is in or
+ * one of its threads. With `quiet`, it is told to nobody's devices. The turn's
+ * final text is still its reply, so this is never the way to answer.
  */
 export function sendMessage(options: MessageToolsOptions) {
   const limit = options.messageLimit ?? MAX_MESSAGE_LENGTH;
@@ -45,7 +45,6 @@ export function sendMessage(options: MessageToolsOptions) {
           chat: live.chat,
           self: live.self,
           roster: options.roster(),
-          startDm: true,
           context,
           signal,
         });
@@ -58,7 +57,7 @@ export function sendMessage(options: MessageToolsOptions) {
           asking = false;
           confirmed += 1;
         }
-        return answer(words.posted(place.label, parts.length, place.here));
+        return answer(words.posted(place.label, parts.length, place.here, place.again));
       } catch (error) {
         const why = chatFailure(error, live, context);
         if ("refused" in why) return failure(words.sendRefused(why.refused, confirmed, parts.length));

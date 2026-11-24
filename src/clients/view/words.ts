@@ -364,7 +364,7 @@ export const sessionTitle = (who: string, watching: string): string => `${oneLin
 export const SESSION_EMPTY = "Nothing in this session yet.";
 /** The label over what a session was shown. */
 export const SHOWN = "shown";
-/** Where the session behind a thread is, as its agent's view names it: the place as the agent's list says it, then "main" for the main thread, or the thread's title. */
+/** Where the session behind a thread is, as its agent's view names it: the place as the agent's list says it, then "main" for a room's main thread, or the thread's title. */
 export const behindThread = (place: string, main: boolean, title: string): string => `${place} · ${main ? "main" : oneLine(title)}`;
 /** That an agent is not linked to the gateway, wherever it is said in a word. */
 export const NOT_RUNNING = "not running";

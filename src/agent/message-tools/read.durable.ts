@@ -14,8 +14,8 @@ const MOST = 100;
 /**
  * `read_messages`: read the newest messages of a thread, oldest first, each as
  * it now stands: edited, deleted or reacted to as it may be. With nothing said
- * about which thread, it is the one the turn came from; `from` names a DM or a
- * room the agent is in, or one of its threads.
+ * about which thread, it is the one the turn came from; `from` names one of a
+ * DM's threads, or a room the agent is in or one of its threads.
  */
 export function readMessages(options: MessageToolsOptions) {
   return defineTool({
@@ -45,7 +45,6 @@ export function readMessages(options: MessageToolsOptions) {
           chat: live.chat,
           self: live.self,
           roster: options.roster(),
-          startDm: false,
           context,
           signal,
         });

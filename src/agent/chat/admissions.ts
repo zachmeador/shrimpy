@@ -29,11 +29,11 @@ export interface Admissions {
    * pointed to. The thread's earlier unacted events go with it, and so do the
    * wake-ups cancelled since the model last heard of them, the results of
    * questions the session was never shown and the breadcrumbs that are new to the
-   * session. An event in a room,
-   * one with a `backlog`, also moves where the agent has looked in its thread to
-   * the event. An event that comes with its `place` has the session's record say
-   * where its thread is, written again when it differs from what the record had.
-   * An event is taken up once, because the cursor moves with it.
+   * session. An event with a `backlog` also moves where the agent has looked in
+   * its thread to the event. An event that comes with its `place` has the
+   * session's record say where its thread is, written again when it differs from
+   * what the record had. An event is taken up once, because the cursor moves
+   * with it.
    */
   admit(draft: Omit<ChatInput, "earlier" | "cancelled" | "missed" | "breadcrumbs">, position?: number): Promise<void>;
   /**
@@ -53,10 +53,10 @@ export interface Admissions {
    */
   closeQuestion(id: string, result: QuestionResult, position: number): Promise<void>;
   /**
-   * Where the agent last looked in a thread of a room: the position of the
-   * newest event it took up there, kept with the thread's session. Undefined
-   * for a thread it has never been woken in. Everything the thread says after
-   * that position is what the agent has not seen.
+   * Where the agent last looked in a thread: the position of the newest event
+   * it took up there, kept with the thread's session. Undefined for a thread it
+   * has never been woken in. Everything the thread says after that position is
+   * what the agent has not seen.
    */
   looked(threadId: string): Promise<number | undefined>;
   /**

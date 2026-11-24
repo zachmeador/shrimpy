@@ -54,6 +54,7 @@ export {
   channelLabel,
   DM_TAKES_NO_MORE,
   firedWords,
+  isListed,
   memberNames,
   NO_MESSAGES,
   NO_ROOMS,

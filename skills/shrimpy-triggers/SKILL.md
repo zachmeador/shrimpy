@@ -15,8 +15,8 @@ A trigger gives you a prompt on a schedule. It is a file in your home's `trigger
 
 ## Make one
 
-1. `shrimpy triggers add morning --cron "0 8 * * *" --timezone Europe/Berlin "Read the overnight notes and use send_message to tell @zach what needs him."` makes the trigger `morning`, or replaces the one of that name. `--cron` has five fields: minute, hour, day of month, month and day of week. Without `--timezone` it uses this machine's.
-2. `shrimpy triggers add build --every 1h "Check the build, and use send_message to tell @maya if it broke."` repeats every hour from the moment you make it. The shortest is `1m`. Give `--every` or `--cron`, not both.
+1. `shrimpy triggers add morning --cron "0 8 * * *" --timezone Europe/Berlin --thread <id> "Read the overnight notes and say what needs zach."` makes the trigger `morning`, or replaces the one of that name. Each morning what you write last is posted in the thread `<id>`. `--cron` has five fields: minute, hour, day of month, month and day of week. Without `--timezone` it uses this machine's.
+2. `shrimpy triggers add build --every 1h --thread <id> "Check the build, and say so if it broke. If it didn't, write only END."` repeats every hour from the moment you make it. The shortest is `1m`. Give `--every` or `--cron`, not both.
 3. The prompt is all an occurrence has beyond its own history, so write it as instructions to yourself with what you will need.
 4. The command ends by saying when the trigger first runs, so that you can tell the person.
 
@@ -24,7 +24,7 @@ A trigger gives you a prompt on a schedule. It is a file in your home's `trigger
 
 A check makes a trigger wake you only when there is news. Use one when most occurrences would find nothing to do: a build that is usually fine, an inbox that is usually empty. The check is a command that runs at each occurrence, from your home, with the `shrimpy` command on its path. With no news, no turn is made and no model is called, so looking often costs nothing until there is something to see.
 
-1. `shrimpy triggers add inbox --every 10m --check "ls inbox | wc -l" "Tell @maya what is new in the inbox."` runs `ls inbox | wc -l` every 10 minutes and wakes you when the number is not what it was last time. A trigger's first occurrence always counts as news.
+1. `shrimpy triggers add inbox --every 10m --check "ls inbox | wc -l" --thread <id> "Say what is new in the inbox."` runs `ls inbox | wc -l` every 10 minutes and wakes you when the number is not what it was last time. A trigger's first occurrence always counts as news.
 2. `--when` says what news is. `changed`, the default, is output that differs from the last occurrence's. `output` is any output at all, which suits a command that prints only when something is wrong, such as `test -f stuck.lock && echo stuck`. `always` is every time.
 3. `--then` says what news does. `wake`, the default, wakes you with the prompt and the output. `note` writes the output to a breadcrumb, `breadcrumbs/<name>.md` with the prompt above it, and wakes nobody. Use `note` for a fact you want to know and not to act on at once, and `wake` for one that can't wait. `shrimpy triggers add inbox --every 10m --check "ls inbox | wc -l" --then note "Files waiting in inbox/. Look closer with ls inbox."` leaves such a breadcrumb. A trigger that notes needs no prompt, and has no `--thread`.
 4. `--timeout` is how long the command may run: `30s` or `2m`, a minute unless you give another, at most `10m`. A command that exits with anything but 0, runs past its timeout or can't be started has failed, and the failure is news too, once, until it fails differently. A trigger that notes writes the failure to its breadcrumb.
@@ -38,8 +38,9 @@ A breadcrumb is a fact that moves, in a small Markdown file directly in `breadcr
 
 ## Where an occurrence speaks
 
-- With no `--thread`, each occurrence goes to a session of its own, `trigger:morning`, behind no thread. It keeps its history from one occurrence to the next, so it can remember what it did last time. What you write last there is posted nowhere. To tell someone something, use `send_message` with `to: "@name"`, or `to: "#room"` for a room you are in.
+- A trigger that tells someone something runs in a thread with them, given with `--thread <id>`, so that their answer reaches the session that knows the trigger. Use the thread of its topic, such as the one where they asked for it, whose ID comes with every message you are shown there. For a trigger with a topic of its own, start a thread for it with `send_message` and `to: "@name"`, with a first line that says what the trigger is for, and use the ID the result gives.
 - With `--thread <id>`, the occurrence goes to the session behind that thread, which it makes if you have none, and what you write last is posted there like any reply. When chat is up, the command checks that you are in the thread's channel.
+- With no `--thread`, each occurrence goes to a session of its own, `trigger:morning`, behind no thread. It keeps its history from one occurrence to the next, so it can remember what it did last time. What you write last there is posted nowhere, so use it for work that tells nobody, such as tidying files.
 - An occurrence that is due while the last is still going is skipped. `--overlap allow` hands it over behind instead.
 
 ## Look, change, stop

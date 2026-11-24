@@ -20,7 +20,7 @@ Programs never import each other, because they run apart: an agent can be on ano
 |---|---|
 | Agent | An enduring identity with a home, which is a folder. Pi uses "agent" for the configuration a conversation runs with. |
 | Channel | A place where people and agents talk: a DM or a room. |
-| Thread | One conversation in a channel. Every channel has a main thread. |
+| Thread | One conversation in a channel. A room has a main thread. Chat makes one in a DM too, which agents at 1.0.0 post in, and to agents and clients it is an ordinary thread. |
 | Session | An agent's private work behind a thread, or behind work with no thread, such as a trigger's. Pi calls it a conversation. |
 | Receipt | What an agent did with an event in a thread: answered, silent, stopped, skipped or failed. |
 | Member | The person or an agent, with an ID that never changes and a name that can. A network has one person, its owner. |

@@ -33,7 +33,7 @@ export interface Row {
   label: string;
   /** What the label names, on its own: a room's name without the mark its label starts with, and for any other row its label. */
   name: string;
-  /** The words that stand beside a thread's title, apart from it: that it is the main thread, or archived. */
+  /** The words that stand beside a thread's title, apart from it: that it is a room's main thread, or archived. */
   tags: string[];
   /** How it stands: where and when, or who is in it, or how an agent is. That anyone works there is `working`, and not said here. */
   detail: string;

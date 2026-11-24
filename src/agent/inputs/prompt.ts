@@ -67,14 +67,16 @@ function whereIs({ threadId, channelId }: { threadId: string; channelId: string 
 }
 
 /**
- * A place as the model reads it: the agent's DM with a person or an agent, by
- * name, or a room, by name, and who else is in it, each with whether they are a
- * person or an agent. A thread that is not its channel's main one says so.
+ * A place as the model reads it: a thread of the agent's DM with a person or an
+ * agent, by name, or a room, by name, and who else is in it, each with whether
+ * they are a person or an agent. A thread of a room that is not its main one
+ * says so, and a thread with a name says it.
  */
 function inWords(place: Place): string {
   const { main, name } = place.thread;
-  const side = main ? "" : name === null ? "a side thread of " : `the thread "${name}" of `;
-  if (place.kind === "dm") return `You are in ${side}your DM with ${place.with.name}, ${aKind(place.with.kind)}.`;
+  const called = name === null ? undefined : `the thread "${name}" of `;
+  if (place.kind === "dm") return `You are in ${called ?? "a thread of "}your DM with ${place.with.name}, ${aKind(place.with.kind)}.`;
+  const side = main ? "" : (called ?? "a side thread of ");
   const others = place.others.map((other) => `${other.name} (${aKind(other.kind)})`);
   if (place.more !== undefined) others.push(`${String(place.more)} more`);
   const who = others.length === 0 ? "Nobody else is in it." : `Also in it: ${listed(others)}.`;
@@ -96,7 +98,7 @@ const THEN_WOKE = "Then this woke you:";
 
 /**
  * A chat event as the model reads it: any earlier events the agent has not
- * acted on, then, in a room, what was said since it last looked, then the event.
+ * acted on, then what was said since it last looked, then the event.
  */
 function chatBody({ earlier, backlog, event }: ChatInput): string {
   const blocks = earlier.map(written);
@@ -124,7 +126,7 @@ function fired(occurrence: Occurrence, inThread: boolean): string {
   const how = occurrence.byHand ? "run by hand" : "fired";
   const where = inThread
     ? ""
-    : " You are not in a thread, so what you write last is posted nowhere. To tell someone something, use send_message with to: @name for a DM, or to: #room for a room you are in.";
+    : " You are not in a thread, so what you write last is posted nowhere. To tell someone something, use send_message: to: @name starts a thread with them, to: @name/thread posts in one of your threads with them, and to: #room posts in a room you are in.";
   const text = `This is the trigger ${occurrence.trigger}, ${how} at ${localTime(occurrence.firedAt)}. Its schedule is ${occurrence.schedule}.${where}\n\n${occurrence.prompt}`;
   return occurrence.output === undefined ? text : `${text}\n\n${printed(occurrence.output)}`;
 }

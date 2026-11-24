@@ -1019,7 +1019,7 @@ body:not([data-view="live"]) .live { display: none; }
           <li><b>An archived thread leaves its list for a group at the foot of it,</b> shut until you open it, with a lantern while an agent works in one. Open, the thread has a tag by its name and nothing else differs. Nothing in it counts as new.</li>
           <li><b>A message brings an archived thread back.</b> Chat doesn't do that yet: an archived thread takes a message and stays archived, so what an agent wrote there later would not be seen.</li>
           <li><b>Neither leaves a line in the thread.</b> A new name shows where the name is, and an agent reads it with its next input.</li>
-          <li><b>Who gets the menu is chat's to say.</b> Only a channel's members rename or archive, so a thread you only read has none. The main thread has it like any other. A trigger's own session is behind no thread, and has none.</li>
+          <li><b>Who gets the menu is chat's to say.</b> Only a channel's members rename or archive, so a thread you only read has none. A room's main thread has it like any other. A trigger's own session is behind no thread, and has none.</li>
         </ol>
         <h3 style="margin-top:18px">Drawn on 2026-11-24, and not built</h3>
         <ol start="16">
@@ -1594,7 +1594,7 @@ const THREADS = {
     },
   },
   'lh-main': {
-    place: { kind: 'dm', agent: 'lighthouse' }, main: true, when: '08:02', earlier: 38,
+    place: { kind: 'dm', agent: 'lighthouse' }, when: '08:02', earlier: 38,
     messages: [
       { who: 'you', at: '08:02', html: `<p>morning. anything odd overnight?</p>` },
       { who: 'lighthouse', at: '08:02', html: `<p>A quiet night. The nightly snapshot ran at 03:00 and both checks passed. The NAS is at 81%.</p><p>One thing to know: the offsite copy has not synced since Thursday. I am watching it, and I will say this afternoon if it is still behind.</p>` },
@@ -1702,7 +1702,7 @@ const THREADS = {
     ],
   },
   'sh-main': {
-    place: { kind: 'dm', agent: 'shrimpy' }, main: true, when: 'Nov 20 09:20',
+    place: { kind: 'dm', agent: 'shrimpy' }, when: 'Nov 20 09:20',
     messages: [
       { who: 'you', at: 'Nov 20 09:12', html: `<p>make me an agent that keeps an eye on backups and the NAS. call it lighthouse</p>` },
       { who: 'shrimpy', at: 'Nov 20 09:14', html: `<p>Made <code>lighthouse</code>. Its home is <code>agents/lighthouse/</code>, and it is running.</p><ul><li><code>SOUL.md</code> says it is calm and brief, and speaks up when something is off.</li><li><code>context/backups.md</code> has what I know about your backups. Read it over, since some of it comes from old notes.</li><li>Two triggers: <code>nightly</code> at 03:00, and <code>disk-space</code> every hour, which only leaves a note.</li></ul><p>Say hello to it when you like. 🦐</p>` },
@@ -1729,7 +1729,7 @@ const THREADS = {
     ],
   },
   'pa-main': {
-    place: { kind: 'dm', agent: 'pantry' }, main: true, when: 'Nov 17 19:02',
+    place: { kind: 'dm', agent: 'pantry' }, when: 'Nov 17 19:02',
     messages: [
       { who: 'you', at: 'Nov 17 19:01', html: `<p>you're pantry. you plan our meals and keep the shopping list. two adults, and we don't eat shellfish</p>` },
       { who: 'pantry', at: 'Nov 17 19:02', html: `<p>Understood: two adults, no shellfish. I keep the list in <code>lists/</code> and the plan in <code>vault/weeks/</code>. Tell me what is in the fridge and I will start from that.</p>` },
@@ -1762,7 +1762,7 @@ const THREADS = {
     ],
     session: {
       scout: [
-        { kind: 'shown', at: '15:30', text: `You are in your DM with zach, a person. Thread th_51e2 in channel ch_6b07.\n\nzach wrote at 2026-11-21T15:30:02-05:00:\nthe screen from the shop: would it run a year on two AA cells by the door?` },
+        { kind: 'shown', at: '15:30', text: `You are in a thread of your DM with zach, a person. Thread th_51e2 in channel ch_6b07.\n\nzach wrote at 2026-11-21T15:30:02-05:00:\nthe screen from the shop: would it run a year on two AA cells by the door?` },
         { kind: 'text', html: `<p>That depends on how often it redraws, and on the board that drives it. Which board?</p>` },
         { kind: 'shown', at: '15:40', text: `zach wrote at 2026-11-21T15:40:31-05:00:\nthis one. the screenshot is from the shop's page\n\nAttached: attachments/2026-11-21/driver-board.png in your home, image/png, 182 kB.`, files: [{ name: 'driver-board.png', size: '182 kB', pic: 'driver-board' }] },
         { kind: 'thinking', text: 'The page says 2 µA asleep and 1.6 mA for a 40 ms redraw. Check those against its datasheet, then work out the months.' },
@@ -2269,7 +2269,7 @@ function mount(host, kind, mode, route, flags = {}) {
     if (!given && th.messages) {
       const where = th.place.kind === 'room'
         ? `You are in ${th.main ? '' : `the thread "${titleOf(th)}" of `}the room #${th.place.room}. Also in it: ${listed(rooms[th.place.room].members.filter((m) => m !== a).map((m) => `${nameOf(m)} (${m === 'you' ? 'a person' : 'an agent'})`))}.`
-        : `You are in ${th.main ? '' : `the thread "${titleOf(th)}" of `}your DM with ${th.place.kind === 'dm' ? `${ME}, a person` : `${th.place.a === a ? th.place.b : th.place.a}, an agent`}.`;
+        : `You are in ${th.title ? `the thread "${th.title}" of ` : 'a thread of '}your DM with ${th.place.kind === 'dm' ? `${ME}, a person` : `${th.place.a === a ? th.place.b : th.place.a}, an agent`}.`;
       let first = true;
       const blind = !seesPictures(th.model || AGENTS[a].model);
       for (const m of th.messages) {

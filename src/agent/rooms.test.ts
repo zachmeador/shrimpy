@@ -77,7 +77,7 @@ test("an agent that mentioned another is woken once by the answer, though it doe
   assert.deepEqual(scout.reports, []);
 });
 
-test("in a DM an answer is taken up once, by its reply and not again by its receipt", { timeout }, async (t) => {
+test("in a DM an answer is taken up once, by its reply and not again by its receipt, by a session shown what it answers", { timeout }, async (t) => {
   const asking = talking((_shown, turn) =>
     turn === 0 ? { send: { to: "@bob", text: "Which stanza will you take?" }, final: "I asked bob." } : { final: "Noted." },
   );
@@ -88,7 +88,8 @@ test("in a DM an answer is taken up once, by its reply and not again by its rece
 
   const [channel] = await eventually(() => bob.channels(), (channels) => channels.length > 0, { what: "scout's DM with bob" });
   assert.ok(channel);
-  const [dm] = await bob.threads(channel.id);
+  const started = await eventually(() => bob.threads(channel.id), (threads) => threads.some((thread) => !thread.main), { what: "the thread scout started" });
+  const dm = started.find((thread) => !thread.main);
   assert.ok(dm);
   const [question] = await messagesWhen(bob, dm.id, (messages) => messages.length > 0, "scout's question");
   assert.ok(question);
@@ -104,7 +105,9 @@ test("in a DM an answer is taken up once, by its reply and not again by its rece
   await untilQuiet(bob, channel.id, dm.id);
 
   assert.equal(asking.shown.length, 2, "the person's message and bob's reply, and the receipt on the question woke nobody");
-  assert.ok((asking.shown[1] ?? "").includes(written({ kind: "posted", id: reply.event, seq: reply.seq, author: "bob", sentAt: reply.sentAt, text: reply.text })), "shown as any message in a DM is");
+  const woken = asking.shown[1] ?? "";
+  assert.ok(woken.includes(written({ kind: "posted", id: reply.event, seq: reply.seq, author: "bob", sentAt: reply.sentAt, text: reply.text })), "shown as any message in a DM is");
+  assert.ok(woken.indexOf(question.text) >= 0 && woken.indexOf(question.text) < woken.indexOf(reply.text), "after the question it answers, which another session asked");
   assert.deepEqual(scout.reports, []);
 });
 

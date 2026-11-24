@@ -11,7 +11,7 @@ import { type Child, runChild, startChild, tempDir } from "../../lib/testing/ind
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { CONNECTING } from "../network/index.ts";
 import type { Model } from "../state/index.ts";
-import { aChatServer, aDm, agentMember, aListing, aModel, anAgent, aThread, type Rig, startRig } from "../state/testing/index.ts";
+import { aChatServer, aDm, agentMember, aListing, aModel, anAgent, aRoom, aThread, type Rig, startRig } from "../state/testing/index.ts";
 import { agentsLevel, listLevel, type ListLevel, type Look, type Row, threadLevel, withMentions } from "./index.ts";
 
 /*
@@ -287,6 +287,23 @@ test("no one is said to work while the gateway is out of reach, whatever chat la
   assert.equal(agentsLevel(lost, at).rows.find((row) => row.id === scout.id)?.working, false);
   const opened = listLevel({ ...lost, open: { list: { kind: "agent", id: scout.id }, item: undefined } }, at);
   assert.deepEqual([opened?.working, opened?.rows.map((row) => row.working)], [false, [false]]);
+});
+
+test("a DM's main thread is left off an agent's list while it is empty, and listed untagged once an agent at 1.0.0 posts in it; a room's keeps its tag", () => {
+  const scout = agentMember("scout");
+  const side = aThread("th_2", { preview: "the build", updatedAt: 2 });
+  const main = aThread("th_1", { main: true, updatedAt: 1 });
+  const rowsOf = (dmMain: Thread): [string, string[]][] | undefined =>
+    listLevel(
+      aModel({ listing: aListing([anAgent("scout"), aChatServer()]), dms: { [scout.id]: aDm("scout", [side, dmMain]) }, open: { list: { kind: "agent", id: scout.id }, item: undefined } }),
+      at,
+    )?.rows.map((row) => [row.id, row.tags]);
+
+  assert.deepEqual(rowsOf(main), [["th_2", []]]);
+  assert.deepEqual(rowsOf({ ...main, preview: "Build report: green." }), [["th_2", []], ["th_1", []]]);
+  const room = aRoom("ops", ["scout"], [aThread("th_3", { main: true, channelId: "ch_2", preview: "morning" })]);
+  const roomRows = listLevel(aModel({ rooms: { ch_2: room }, open: { list: { kind: "room", id: "ch_2" }, item: undefined } }), at)?.rows;
+  assert.deepEqual(roomRows?.map((row) => row.tags), [["main"]]);
 });
 
 test("the terminal's first screen says when this machine is behind the gateway, and a page's never does", () => {

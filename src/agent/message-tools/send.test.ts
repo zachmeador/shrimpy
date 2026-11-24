@@ -110,6 +110,35 @@ test("a session behind a DM posts in a room it is in, in its main thread or anot
   assert.deepEqual(saidByScout(rig, await rig.said()), [], "none of it went to the DM the session is behind");
 });
 
+test("@name starts a thread and names it, @name/thread posts in one, and a DM's main thread an agent at 1.0.0 posted in is one of them", { timeout }, async (t) => {
+  const rig = await startToolRig(t);
+  const me = `@${rig.me.name}`;
+  await rig.postAsScout("Posted where an agent at 1.0.0 posts.");
+
+  const first = await rig.call("send_message", { text: "Build report\nAll green.", to: me }, { callId: "first" });
+  const second = await rig.call("send_message", { text: "Disk report\nThe NAS is at 81%.", to: me }, { callId: "second" });
+  const threadOf = async (text: string): Promise<string> => {
+    const found = (await rig.events()).find((event) => event.kind === "posted" && event.text === text);
+    assert.ok(found, text);
+    return found.message.threadId;
+  };
+  const [build, disk] = [await threadOf("Build report\nAll green."), await threadOf("Disk report\nThe NAS is at 81%.")];
+  assert.equal(new Set([build, disk, rig.thread.id]).size, 3, "each starts a thread of its own");
+  assert.ok(first.text.includes(build) && second.text.includes(disk), "and its result names it");
+
+  const again = await rig.call("send_message", { text: "Still green.", to: `${me}/${build}` }, { callId: "again" });
+  const old = await rig.call("send_message", { text: "And here.", to: `${me}/${rig.thread.id}` }, { callId: "old" });
+  assert.deepEqual([again.isError, old.isError], [false, false]);
+  assert.deepEqual(saidByScout(rig, await rig.said(build)), ["Build report\nAll green.", "Still green."]);
+  assert.deepEqual(saidByScout(rig, await rig.said()), ["Posted where an agent at 1.0.0 posts.", "And here."]);
+
+  const which = await rig.call("read_messages", { from: me });
+  assert.equal(which.isError, true, "there is no one thread to read");
+  for (const named of [build, disk, rig.thread.id, "Build report", "Disk report", "Posted where"]) assert.ok(which.text.includes(named), named);
+  const read = await rig.call("read_messages", { from: `${me}/${disk}` });
+  assert.ok(read.text.includes("The NAS is at 81%."), read.text);
+});
+
 test("a message sent quietly is told to none of the person's devices, and one sent plainly is", { timeout: 30_000 }, async (t) => {
   const rig = await startToolRig(t);
   const person = await rig.chat.person();

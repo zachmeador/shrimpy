@@ -45,8 +45,8 @@ export const RecordsDoc = defineDoc<{ id: string }>({
  * A session of the agent, and what the model has yet to be shown for it: the
  * events in its thread the agent has not acted on, the wake-ups it asked for that
  * were cancelled, and the results of questions it asked that it was never shown.
- * All go with the session's next input. A session in a room also keeps where the
- * agent last looked in the thread. A session also keeps what it was shown of the
+ * All go with the session's next input. A session behind a thread also keeps
+ * where the agent last looked in it. A session also keeps what it was shown of the
  * home's breadcrumbs, to tell which are new to it. A session is behind a thread,
  * and has that thread's channel and, once it has learned it, where the thread is,
  * or is a trigger's own and behind none, and has no channel and no place;
@@ -71,9 +71,10 @@ export type SessionRecord =
        */
       missed: CameBack[];
       /**
-       * In a room, the position of the newest event the agent took up in the thread:
+       * The position of the newest event the agent took up in the thread:
        * everything the thread says after it is what the agent has not looked at. A
-       * session that was never woken in a room has none.
+       * session that was never woken has none, and so has one that an agent at
+       * 1.0.0 woke only in a DM.
        */
       looked?: number;
       /**

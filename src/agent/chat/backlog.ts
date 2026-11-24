@@ -17,8 +17,10 @@ const LEAST_CLIPPED = 200;
 /**
  * The messages of a thread that the agent has not looked at, which come before
  * the event that woke it: the newest page of them, and whether there may be
- * more beyond the page. The agent's own messages and ones taken back are left
- * out, since neither tells it anything, and so is `except`, a message that the
+ * more beyond the page. What the agent posted there from its other sessions is
+ * among them. The thread's own session saw what the agent's receipts name, the
+ * messages it took up and its replies, and its triggers' lines; those and
+ * messages taken back are left out, and so is `except`, a message that the
  * event itself is about and shows.
  */
 export async function readUnseen(options: {
@@ -35,7 +37,10 @@ export async function readUnseen(options: {
   const { chat, self, threadId, before, since, except, signal } = options;
   const isUnseen = (message: Message): boolean => since === undefined || message.seq > since;
   const page = await chat.read(threadId, before, PAGE, signal);
-  const unseen = page.filter((message) => isUnseen(message) && message.author.id !== self.id && !message.deleted && message.id !== except);
+  const receipted = page.flatMap((message) => message.receipts.filter((receipt) => receipt.memberId === self.id).map((receipt) => [message.id, receipt.reply]));
+  const named = new Set(receipted.flat());
+  const seen = (message: Message): boolean => named.has(message.id) || (message.author.id === self.id && message.trigger !== null);
+  const unseen = page.filter((message) => isUnseen(message) && !seen(message) && !message.deleted && message.id !== except);
 
   // The page is the newest messages. Whether more of what is unseen lies beyond it takes one look at what is just before it.
   const oldest = page[0];
@@ -50,8 +55,8 @@ export async function readUnseen(options: {
  * for enough of it to be worth showing. What is left out is counted. `more` says
  * there were messages beyond the ones read, so the count is a least.
  */
-export function backlogOf(unseen: readonly Message[], more: boolean, self: Member, room: Channel): Backlog {
-  const messages = unseen.map((message) => said(message, self, room));
+export function backlogOf(unseen: readonly Message[], more: boolean, self: Member, channel: Channel): Backlog {
+  const messages = unseen.map((message) => said(message, self, channel));
   const shown: (Said | Fired)[] = [];
   let left = BACKLOG_BUDGET;
   let index = messages.length;
@@ -75,8 +80,8 @@ export function backlogOf(unseen: readonly Message[], more: boolean, self: Membe
   return { messages: shown, cut: index + (more ? 1 : 0), ...(more ? { atLeast: true as const } : {}) };
 }
 
-/** A message as the model reads one that arrives: with who it was for, and when it was edited if it was. A trigger's line says which trigger fired and when. */
-function said(message: Message, self: Member, room: Channel): Said | Fired {
+/** A message as the model reads one that arrives: in a room with who it was for, and when it was edited if it was. A trigger's line says which trigger fired and when. */
+function said(message: Message, self: Member, channel: Channel): Said | Fired {
   if (message.trigger !== null) {
     return { kind: "fired", id: message.event, seq: message.seq, trigger: message.trigger.name, firedAt: message.trigger.firedAt };
   }
@@ -87,7 +92,7 @@ function said(message: Message, self: Member, room: Channel): Said | Fired {
     author: message.author.name,
     sentAt: message.sentAt,
     text: message.text,
-    to: audienceOf(self, message.author, message.mentions, room),
+    ...(channel.kind === "room" ? { to: audienceOf(self, message.author, message.mentions, channel) } : {}),
     ...(message.editedAt === null ? {} : { editedAt: message.editedAt }),
   };
 }

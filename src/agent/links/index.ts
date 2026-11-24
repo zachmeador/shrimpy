@@ -12,5 +12,5 @@
 export { followGateway } from "./behind.ts";
 export { callSignal, type ChatCalls, chatFailure, type ChatLink, type LiveChat, openChatLink } from "./chat.ts";
 export { linkToGateway } from "./gateway.ts";
-export { nameOnRoster } from "./roster.ts";
+export { type Named, nameOnRoster } from "./roster.ts";
 export { followWorkspace, type LiveWorkspace } from "./workspace.ts";

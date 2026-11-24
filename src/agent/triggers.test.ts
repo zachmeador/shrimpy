@@ -44,9 +44,6 @@ function textOf(message: Message | undefined): string {
 /** The inputs a session was given, as the model read them, oldest first. */
 const inputsOf = (view: SessionView): string[] => view.items.flatMap((item) => (item.type === "user" ? [item.text] : []));
 
-const sentBy = (id: string, messages: { author: { id: string }; text: string }[]): string[] =>
-  messages.filter((message) => message.author.id === id).map((message) => message.text);
-
 /** A trigger's detail once `done` accepts it. */
 const trigger = (connection: AgentConnection, name: string, done: (detail: TriggerDetail) => boolean, what: string) =>
   eventually(() => connection.trigger(name), done, { what, timeoutMs: 20_000 });
@@ -90,7 +87,8 @@ test("a trigger fires on its schedule into a session of its own, and what it wri
   assert.ok(!first.includes("Thread th_"), "it is in no thread");
 
   // What it wrote last was posted nowhere, and send_message needed someone to tell.
-  assert.deepEqual(sentBy(rig.partner.id, await rig.said()), ["Tidied once."]);
+  const posted = (await rig.events()).filter((event) => event.kind === "posted" && event.actor.id === rig.partner.id);
+  assert.deepEqual(posted.map((event) => (event.kind === "posted" ? event.text : "")), ["Tidied once."]);
   const [nowhere, told, set] = model.answers;
   assert.equal(nowhere?.isError, true);
   assert.equal(told?.isError, false);

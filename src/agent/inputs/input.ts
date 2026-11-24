@@ -178,10 +178,10 @@ export type Said = Extract<Snapshot, { kind: "posted" }>;
 export type Fired = { kind: "fired"; id: string; seq: number; trigger: string; firedAt: number };
 
 /**
- * What was said in a room's thread since the agent last looked, which an event
- * that wakes the agent there comes with. These are messages the agent has not
- * taken up as events of its own: it was only shown them. A command it acted on
- * is one of them.
+ * What was said in a thread since the agent last looked, which an event that
+ * wakes the agent there comes with. These are messages the agent has not taken
+ * up as events of its own: it was only shown them. What it posted there from
+ * its other sessions is among them.
  */
 export type Backlog = {
   /** The newest of them that fit in what the model is shown, oldest first. */
@@ -227,10 +227,9 @@ export type ChatInput = {
    */
   earlier: Snapshot[];
   /**
-   * In a room, what was said in the thread since the agent last looked, shown
-   * to the model before the event. Present for every event that wakes the agent
-   * in a room, with nothing in it when there was nothing to show, and absent in
-   * a DM.
+   * What was said in the thread since the agent last looked, shown to the model
+   * before the event. Present for every event that wakes the agent, with nothing
+   * in it when there was nothing to show. An agent at 1.0.0 left it out in a DM.
    */
   backlog?: Backlog;
   /**

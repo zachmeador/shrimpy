@@ -281,7 +281,7 @@ html[data-view="live"] body { overflow: hidden; }
           <li><b>An archived thread leaves its list for a row at the foot of it,</b> lit while an agent works in one. → on that row opens the archived threads in place, and → again shuts them, the one place → does anything but go in, and yours to strike. Open, a thread has a tag by its name and nothing else differs.</li>
           <li><b>A message brings an archived thread back.</b> Chat doesn't do that yet: an archived thread takes a message and stays archived.</li>
           <li><b>Neither leaves a line in the thread.</b> A new name shows where the name is, and an agent reads it with its next input.</li>
-          <li><b>A thread you only read takes neither.</b> Chat lets only a channel's members rename or archive, and such a thread has no input to write a command in. The main thread takes both. A trigger's own session is behind no thread.</li>
+          <li><b>A thread you only read takes neither.</b> Chat lets only a channel's members rename or archive, and such a thread has no input to write a command in. A room's main thread takes both. A trigger's own session is behind no thread.</li>
         </ul>
         <h3 style="margin-top:18px">Drawn on 2026-11-24, and not built</h3>
         <ul>
@@ -922,7 +922,7 @@ const THREADS = {
     },
   },
   'lh-main': {
-    place: { kind: 'dm', agent: 'lighthouse' }, main: true, when: '08:02', earlier: 38,
+    place: { kind: 'dm', agent: 'lighthouse' }, when: '08:02', earlier: 38,
     messages: [
       { who: 'you', at: '08:02', html: `<p>morning. anything odd overnight?</p>` },
       { who: 'lighthouse', at: '08:02', html: `<p>A quiet night. The nightly snapshot ran at 03:00 and both checks passed. The NAS is at 81%.</p><p>One thing to know: the offsite copy has not synced since Thursday. I am watching it, and I will say this afternoon if it is still behind.</p>` },
@@ -1030,7 +1030,7 @@ const THREADS = {
     ],
   },
   'sh-main': {
-    place: { kind: 'dm', agent: 'shrimpy' }, main: true, when: 'Nov 20 09:20',
+    place: { kind: 'dm', agent: 'shrimpy' }, when: 'Nov 20 09:20',
     messages: [
       { who: 'you', at: 'Nov 20 09:12', html: `<p>make me an agent that keeps an eye on backups and the NAS. call it lighthouse</p>` },
       { who: 'shrimpy', at: 'Nov 20 09:14', html: `<p>Made <code>lighthouse</code>. Its home is <code>agents/lighthouse/</code>, and it is running.</p><ul><li><code>SOUL.md</code> says it is calm and brief, and speaks up when something is off.</li><li><code>context/backups.md</code> has what I know about your backups. Read it over, since some of it comes from old notes.</li><li>Two triggers: <code>nightly</code> at 03:00, and <code>disk-space</code> every hour, which only leaves a note.</li></ul><p>Say hello to it when you like. 🦐</p>` },
@@ -1057,7 +1057,7 @@ const THREADS = {
     ],
   },
   'pa-main': {
-    place: { kind: 'dm', agent: 'pantry' }, main: true, when: 'Nov 17 19:02',
+    place: { kind: 'dm', agent: 'pantry' }, when: 'Nov 17 19:02',
     messages: [
       { who: 'you', at: 'Nov 17 19:01', html: `<p>you're pantry. you plan our meals and keep the shopping list. two adults, and we don't eat shellfish</p>` },
       { who: 'pantry', at: 'Nov 17 19:02', html: `<p>Understood: two adults, no shellfish. I keep the list in <code>lists/</code> and the plan in <code>vault/weeks/</code>. Tell me what is in the fridge and I will start from that.</p>` },
@@ -1090,7 +1090,7 @@ const THREADS = {
     ],
     session: {
       scout: [
-        { kind: 'shown', at: '15:30', text: `You are in your DM with zach, a person. Thread th_51e2 in channel ch_6b07.\n\nzach wrote at 2026-11-21T15:30:02-05:00:\nthe screen from the shop: would it run a year on two AA cells by the door?` },
+        { kind: 'shown', at: '15:30', text: `You are in a thread of your DM with zach, a person. Thread th_51e2 in channel ch_6b07.\n\nzach wrote at 2026-11-21T15:30:02-05:00:\nthe screen from the shop: would it run a year on two AA cells by the door?` },
         { kind: 'text', html: `<p>That depends on how often it redraws, and on the board that drives it. Which board?</p>` },
         { kind: 'shown', at: '15:40', text: `zach wrote at 2026-11-21T15:40:31-05:00:\nthis one. the screenshot is from the shop's page\n\nAttached: attachments/2026-11-21/driver-board.png in your home, image/png, 182 kB.`, files: [{ name: 'driver-board.png', size: '182 kB', pic: 'driver-board' }] },
         { kind: 'thinking', text: 'The page says 2 µA asleep and 1.6 mA for a 40 ms redraw. Check those against its datasheet, then work out the months.' },
@@ -2212,7 +2212,7 @@ const SHELLS = {
       prompt('shrimpy threads lighthouse'),
       cells(tw, ['thread', 'updated', 'working', 'name'], [FAINT, FAINT, FAINT, FAINT]),
       row('lh-backup', '2026-11-21T16:21:07-05:00', 'lighthouse', 'photo library backup'),
-      row('lh-main', '2026-11-21T08:02:11-05:00', '', 'morning. anything odd overnight? [main]'),
+      row('lh-main', '2026-11-21T08:02:11-05:00', '', 'morning. anything odd overnight?'),
       row('lh-ups', '2026-11-20T19:34:40-05:00', '', 'the UPS keeps beeping [archived]'),
       row('lh-hello', '2026-11-20T09:31:15-05:00', '', 'hello, are you there? [archived]'),
       row('lh-disk', '2026-11-19T21:44:02-05:00', '', 'spare disk for the NAS'),

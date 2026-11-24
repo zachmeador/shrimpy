@@ -9,7 +9,7 @@ import { takeUpAnswer } from "./answer.ts";
 import { commandFor, obey } from "./commands.ts";
 import { inPlace } from "./place.ts";
 import { resultOf, toQuestion } from "./questions.ts";
-import { inRoom } from "./room.ts";
+import { withUnseen } from "./unseen.ts";
 import { isUrgentPost, passedOver, wakingOf } from "./wake.ts";
 
 /** Events asked for at a time. */
@@ -155,9 +155,9 @@ export async function readFeed(options: FeedOptions): Promise<void> {
             : waking?.taken;
         if (woken !== undefined) {
           const context = { chat, self, looked: (threadId: string) => admissions.looked(threadId), signal, onError: reported };
-          // In a room the event comes with what was said before it, and who each message was for.
-          // In a room or a DM it comes with where its thread is.
-          const taken = await inPlace(context, await inRoom(context, event, woken));
+          // The event comes with what was said before it that the agent has not seen, and where its thread is, and in a
+          // room who each message was for.
+          const taken = await inPlace(context, await withUnseen(context, event, woken));
           // A person's message is read by the turn that is running, at its next step, and not after it.
           const input = isUrgentPost(event) ? { ...taken, urgent: true as const } : taken;
           // The agent's place in the feed moves in the commit that takes the event up, to where the feed brought it.

@@ -10,7 +10,7 @@ import type {
   TurnFailure,
   WaitingWakeup,
 } from "../../contracts/agent/index.ts";
-import type { AgentCommand, Channel, Member, Message, Thread } from "../../contracts/chat/index.ts";
+import { type AgentCommand, type Channel, isListed, type Member, type Message, type Thread } from "../../contracts/chat/index.ts";
 import { compareShrimpy, linksWith, type Program, type RosterEntry, type TurnedAwayProgram, type Versions, type WayIn } from "../../contracts/gateway/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import type { LinkStatus, Problem } from "../network/index.ts";
@@ -592,11 +592,17 @@ export function partsOf(model: Model, agentId: string): Part[] {
     });
   };
 
-  if (dm !== undefined) for (const thread of dm.threads) addThread(dm, thread);
-  for (const reading of Object.values(model.readOnly)) {
-    if (reading.channel.kind === "dm" && reading.channel.members.some((member) => member.id === agentId)) {
-      for (const thread of reading.threads) addThread(reading, thread);
+  const addThreads = (channel: ChannelThreads): void => {
+    for (const thread of channel.threads) {
+      // A DM's main thread with nothing in it is left out, and so is any session behind it.
+      if (isListed(thread, channel.channel.kind)) addThread(channel, thread);
+      else have.add(thread.id);
     }
+  };
+
+  if (dm !== undefined) addThreads(dm);
+  for (const reading of Object.values(model.readOnly)) {
+    if (reading.channel.kind === "dm" && reading.channel.members.some((member) => member.id === agentId)) addThreads(reading);
   }
   // What is left of the agent's sessions: a thread of a room, which chat lists, and what chat does not list.
   const rooms = [...Object.values(model.rooms), ...Object.values(model.readOnly)].filter(({ channel }) => channel.kind === "room");
