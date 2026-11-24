@@ -1,3 +1,4 @@
+import { visibleWidth } from "@earendil-works/pi-tui";
 import { oneLine } from "../../../lib/plain/index.ts";
 import { dots, WORDMARK } from "../../look/index.ts";
 import { placeKey } from "../../state/index.ts";
@@ -22,7 +23,10 @@ export function drawRail(frame: Frame, width: number, height: number, notes: rea
   const { agents } = levels;
   const top: Line[] = [{ text: "" }, ...MARK.map((line) => ({ text: ` ${paint.text(line, "ink")}` }))];
   const [lead, release] = versionLine();
-  top.push({ text: ` ${paint.runs([[lead, "ink3"], [release, { tone: "ink2", italic: true }]])}` });
+  const named: Run = [release, { tone: "ink2", italic: true }];
+  // A long version, such as a release candidate's, would cut the release's name, so the name takes a line of its own.
+  if (visibleWidth(` ${lead}${release}`) <= width - 1) top.push({ text: ` ${paint.runs([[lead, "ink3"], named])}` });
+  else top.push({ text: ` ${paint.text(lead.replace(/ · $/, ""), "ink3")}` }, { text: ` ${paint.runs([named])}` });
   const agentRows = agents.rows.filter((each) => each.kind === "agent");
   top.push({ text: tide(frame, width, agentRows) }, { text: "" });
   for (const note of notes) top.push(...wrapped(paint, noteRuns(note), width));
