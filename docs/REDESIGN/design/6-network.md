@@ -127,7 +127,7 @@ A scout of sandbox runtimes on 2026-08-26 compared the candidates.
 - **An invitation.** It is good once and for fifteen minutes. The answer has the code, the addresses the gateway listens on and its key's fingerprint, and with no address it is refused: nobody could use it.
 - **The link.** One function writes it and one reads it, for the command that prints it and the one that takes it.
 - **Being there.** An agent apart links in at the entry with its token, so the roster says it is reachable, and a copy of its home is turned away while it runs.
-- **Reached by ID.** A client looks up the agent's member ID on the roster and asks for it at `agent({ id })`, for an agent apart as for one beside the gateway, and the gateway routes the request over the agent's link. A request for an agent that is away waits, and binds when the agent is back.
+- **Reached by ID.** A client looks up the agent's member ID on the roster and asks for it at `agent({ id })`, for an agent apart as for one beside the gateway, and the gateway routes the request over the agent's link. A request for an agent that is away waits, and binds when the agent is back. Since 2026-11-23 a command about one agent does the same for the name `--agent` gives, as [using it](using-it.md) has it.
 - **What the agent says.** One line when it loses its gateway, with the address and that it keeps trying, and one line when it is back.
 - **A token the gateway doesn't know.** An agent apart is told to get a new invitation and run `shrimpy join <link>` to replace its token. An agent beside the gateway is told to delete its membership so it makes a new token (or to move its home out if it was removed).
 - **A stop always ends.** A link's socket is dropped the moment Chord closes it, so an agent apart that is told to stop ends whatever the network is doing.
@@ -150,7 +150,7 @@ Open the terminal with: shrimpy
 
 - **The invitation.** `shrimpy invite` with no name is for a machine of your own. Only you can ask for it: on the gateway's machine, or from a machine of yours that is in already. No agent can, admin or not, since it would let the agent in as you. Its link carries no name.
 - **Joining.** `shrimpy join <link>` makes a token, keeps it in the Shrimpy folder of that machine, and shows the gateway the code and the token. The gateway keeps a hash of the token with your entry on the roster. A machine that never heard the answer shows the same link again and is let in.
-- **From then on** a connection over the entry that shows that token is you, with everything you may do. A command in that folder that is not in an agent's shell reaches the gateway there as you: the terminal, `run`, `threads`, `read`, `rooms`, `members` and the rest that talk. A command about an agent's home acts on the homes of the machine it runs on, as it does everywhere.
+- **From then on** a connection over the entry that shows that token is you, with everything you may do. A command in that folder that is not in an agent's shell reaches the gateway there as you: the terminal, `run`, `threads`, `read`, `rooms`, `members`, `status` and the rest that talk, and a command about one agent named by its name. A command that reads or changes a home's files acts on the homes of the machine it runs on, as it does everywhere.
 - **A folder that has a gateway of its own** is not joined: you are you there already, and `shrimpy join` says so.
 - **Leaving** is deleting the file the token is kept in. `/devices take back` in the terminal ends the token at the gateway, and everything it holds open.
 
@@ -184,7 +184,6 @@ Open the terminal with: shrimpy
 
 **Left for later**
 
-- **Commands about one agent, from elsewhere.** `sessions`, `triggers` and the like find an agent by its home's folder and talk to it by that path, so they act on an agent only where its home is, and as its OS user. The terminal reaches an agent by its name through the gateway, so after the second step it lists, watches and stops an agent wherever it lives. Naming an agent by its roster name in a command is a change of its own.
 - **The chat server on a machine other than the gateway's.**
 
 **Prove**

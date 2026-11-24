@@ -27,7 +27,6 @@ As of 2026-11-23. An item leaves when it is fixed or when the design changes to 
 ### Identity and addressing
 
 - The terminal reaches agents by name only, so with the gateway down it can't watch one. The `sessions` commands by a home's path can.
-- A command's `--agent` takes the name of a home's folder, or a path, and not the name on the roster. For an agent whose name in `agent.json` differs from its folder, the line the terminal prints about stopping its work names an agent the command can't find.
 - From an agent's shell, `agent init`, `agent serve` and `up` skip the admin check, and `status` lists no admins.
 - `Roster.remove` is on the contract and has no `shrimpy` command yet.
 
@@ -63,7 +62,7 @@ As of 2026-11-23. An item leaves when it is fixed or when the design changes to 
 ### The network
 
 - An agent apart from the gateway is paired with three commands: `shrimpy up --listen`, `shrimpy invite` and `shrimpy join`. Nothing lists the invitations that are out or takes one back, nothing shows where a gateway listens but its own start, and nothing makes it forget an address but deleting the file it keeps them in. `--listen` given to `up` when a gateway is already running only warns.
-- An agent apart is reached through the gateway, by the code the terminal uses, and no command reaches it: `shrimpy sessions` and `triggers` find an agent by its home's folder, and `shrimpy status` looks only on the machine it runs on. Two messages still say to start an agent apart with `shrimpy agent serve` on the gateway's machine, where it has no home.
+- The commands that read or change a home's files work only on the machine where the home is, as [using it](design/using-it.md) has it, since an agent's contract has no way to change its files. So an admin agent can't change the triggers of an agent apart, and has to ask that agent. On a machine whose agents belong to a gateway elsewhere and that hasn't joined as yours, a command names those agents only by their homes' paths, since the command is nobody at that gateway.
 - A machine of your own comes in with `shrimpy invite` and `shrimpy join`, and keeps its place in `machine.json` in its Shrimpy folder. A folder that has joined as you and also holds agents that belong to no gateway is at odds with itself: `shrimpy up` there starts a gateway and a chat server for them, and the commands that talk reach the gateway elsewhere and find nobody. The terminal's words still say "this machine's gateway".
 - It has run for real since 2026-10-07 on a Linux machine of yours: a gateway, a chat server and two agents under one account, a third agent under another account of that machine that joined over loopback, each account's kept running by a service that `shrimpy install` set up, and all on model servers on the LAN. Before that, a gateway on a Mac with Node 26 was paired with an agent, and then a machine of your own, on Linux with Node 22, through an SSH tunnel and straight over a tailnet.
 - `shrimpy install` and `uninstall` have run for real on Linux only, on your machine: a first install, an update of a unit written by hand and an uninstall, for the account with the gateway and for one whose agent belongs to a gateway elsewhere. Not run for real: lingering that takes an administrator, and everything on macOS, where the LaunchAgent passes `plutil -lint` and no `launchctl` command has run.
