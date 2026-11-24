@@ -93,7 +93,7 @@ export interface RunningUp extends RunningCommand {
  * however it ended: what it runs is read from the process table while it runs,
  * never from what it prints.
  */
-export function launchUp(t: TestContext, args: string[], options: LaunchOptions & { pace?: Pace } = {}): RunningUp {
+export function launchUp(t: TestContext, args: string[], options: LaunchOptions & { pace?: Pace; session?: boolean } = {}): RunningUp {
   useRuntimeDir(t);
   const folder = options.env?.SHRIMPY_DIR ?? process.env.SHRIMPY_DIR;
   if (folder !== undefined && !existsSync(join(folder, "settings.json"))) pagePortOfItsOwn(join(folder, "settings.json"));
@@ -101,7 +101,7 @@ export function launchUp(t: TestContext, args: string[], options: LaunchOptions 
     options.pace === undefined
       ? { file: main, args: ["up", ...args], env: options.env }
       : { file: paced, args: [JSON.stringify(options.pace), ...args], env: options.env };
-  const child = runChild(program, { t, untilStopped: true });
+  const child = runChild(program, { t, untilStopped: true, session: options.session });
   const ended = (): boolean => child.output().code !== null || child.output().signal !== null;
 
   // Every process up was seen to run, by its ID and command line, so that what outlives up is found and only that.

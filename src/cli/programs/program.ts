@@ -1,5 +1,6 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { once } from "node:events";
+import { closeSync, openSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
@@ -13,6 +14,21 @@ const main = fileURLToPath(new URL("../main.ts", import.meta.url));
  */
 export function shrimpyCommand(): string[] {
   return [process.execPath, main];
+}
+
+let terminal: boolean | undefined;
+
+/** Whether this process has a terminal, which Ctrl+C and the terminal closing come from. */
+function hasTerminal(): boolean {
+  if (terminal === undefined) {
+    try {
+      closeSync(openSync("/dev/tty", "r"));
+      terminal = true;
+    } catch {
+      terminal = false;
+    }
+  }
+  return terminal;
 }
 
 /** The programs still running, so that a process that ends without stopping them takes them down. */
@@ -61,13 +77,16 @@ export type Say = (stream: "out" | "err", line: string) => void;
 /**
  * Run `shrimpy` with `args`, which serve a program, as a process of its own and
  * wait until it says it is listening. It keeps its own lock, socket and crash
- * boundary, which is why it is a process and not a call. It runs in a process
- * group of its own, so the Ctrl+C that stops the command that started it does
- * not reach it: that command stops it, in the order it chooses.
+ * boundary, which is why it is a process and not a call. When the command that
+ * starts it has a terminal, it runs in a session of its own, so that Ctrl+C and
+ * the terminal closing reach only the command, which stops it in the order it
+ * chooses. Without one, as under a service, it stays in the command's process
+ * group, so that a service manager that ends the group when the command dies,
+ * as launchd does, ends it too.
  */
 export async function startProgram<Listening>(args: string[], say: Say): Promise<Program<Listening>> {
   const [node = process.execPath, ...entry] = shrimpyCommand();
-  const child = spawn(node, [...entry, ...args], { stdio: ["ignore", "pipe", "pipe"], detached: true });
+  const child = spawn(node, [...entry, ...args], { stdio: ["ignore", "pipe", "pipe"], detached: hasTerminal() });
   running.add(child);
   const ended = once(child, "close").then(([code, signal]): Ended => {
     running.delete(child);

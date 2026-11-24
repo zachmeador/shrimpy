@@ -49,13 +49,22 @@ const howItEnded = ({ code, signal }: ChildOutput): string => (signal === null ?
  * the environment, SHRIMPY_RUNTIME_DIR included, and keep what it prints. It is
  * killed when this process exits, when the test ends if it is given `t`, and
  * after two minutes unless `untilStopped` says that it runs until it is stopped.
+ * With `session` it runs in a session of its own, with no terminal, as a service
+ * manager starts a program.
  */
-export function runChild(program: ChildProgram, options: { t?: TestContext; untilStopped?: boolean } = {}): RunningChild {
+export function runChild(
+  program: ChildProgram,
+  options: { t?: TestContext; untilStopped?: boolean; session?: boolean } = {},
+): RunningChild {
   const argv =
     "source" in program
       ? ["--input-type=module", "-e", program.source]
       : [typeof program.file === "string" ? program.file : fileURLToPath(program.file), ...(program.args ?? [])];
-  const child = spawn(process.execPath, argv, { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...program.env } });
+  const child = spawn(process.execPath, argv, {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, ...program.env },
+    detached: options.session === true,
+  });
   running.add(child);
   const stuck = options.untilStopped === true ? undefined : setTimeout(() => child.kill("SIGKILL"), LONGEST_MS);
   let stdout = "";

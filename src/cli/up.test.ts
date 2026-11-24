@@ -446,6 +446,27 @@ test("a home that can't start is said once however often it is tried, and starts
   await up.until(untilLinked("agent", "rex"));
 });
 
+test("launchd ending up's process group when up dies ends its programs, so the up it starts again starts them all", { timeout }, async (t) => {
+  const model = await startModelServer(t);
+  const home = await agentInFolder(t, model, "scout");
+  const killed = launchUp(t, [], { pace: quick, session: true });
+  await killed.until(untilLinked("agent", "scout"));
+  const programs = await killed.programs();
+  assert.equal(programs.length, 3);
+
+  killed.kill("SIGKILL");
+  await killed.finished;
+  // What launchd does when a job dies, and it starts the job again in the same moment.
+  process.kill(-killed.pid, "SIGTERM");
+  const again = launchUp(t, [], { pace: quick, session: true });
+  const agent = await untilStartedAt(again, home);
+  await again.until(untilLinked("agent", "scout"));
+
+  await eventually(async () => alive(programs), (each) => !each.includes(true), { what: "the killed up's programs to end" });
+  assert.deepEqual((await again.programs()).map((program) => program.kind).sort(), ["agent", "chat", "gateway"]);
+  assert.equal(await pidOfAgent(home), agent);
+});
+
 test("an agent someone else started is used as it is, and up starts its own once that ends", { timeout }, async (t) => {
   const model = await startModelServer(t);
   const home = await agentInFolder(t, model, "scout");
