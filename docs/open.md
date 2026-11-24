@@ -4,6 +4,9 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 
 ## Waiting on the owner
 
+- What a DM's main thread is for. The owner asked twice, the second time after archiving one: "whats the … point of the concept of a main thread" (2026-11-24). An agent's unprompted messages land there and name it, and an empty one is listed. One way: an agent's unprompted message starts a thread of its own, and a DM shows no main. Another: main shows as the DM's inbox, and an empty one isn't listed.
+- What wakes agents in a room with several of them. A question that mentioned nobody woke all five agents under the default `people`, and their mentions of each other doubled it: ten replies in four minutes on 2026-11-22, "too much for me to catch up on". One way: `mentions` as the default once a room holds more than two agents, and what every agent is told says room replies stay short and a brainstorm doesn't start work.
+- Files copied into the owner's homes from the read-only archive kept read-only modes: 726 in career's home, `vault/.git` among them, and 4 in SCREAMO's. Agents hit `EACCES` and worked around it with `chmod`. Making them writable is a one-time change to the owner's data, and should touch only what came from the archive, since career and nervous-bob make some of their own files read-only on purpose.
 - Whom a push service is told to write to about the gateway. As built it is the address of the page's door, which on a tailnet holds the tailnet's name. It could be an address the owner sets, such as an email, or nobody. Apple's service turns away a contact that isn't a URL or a mailto address and took the page's address. Whether it takes a notification that names nobody is untried.
 
 ## The release
@@ -37,6 +40,8 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Falls short**
 
+- `up`'s start lines name whichever agent started first in "Talk to an agent with", and repeat the line about `listen.json`, at every start of the service.
+- A service that `shrimpy update` installs from an agent's shell has `~/.local/bin` once more in its `PATH` with each update, since it copies the shell's `PATH`.
 - A turn that a crash cut short says so only on an answer's receipt. One that ends with `END`, or is stopped, says nothing of the crash.
 - Pi counts every task running at an unclean end, not only the one that killed it. A stop while chat is away waits for chat in place, so five unclean ends before chat is back end it without a receipt.
 - A trigger whose task five unclean ends in a row cut off, as while its check runs, has no task until the agent next reads its files.
@@ -59,6 +64,7 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Falls short**
 
+- After a deploy, a client from the build before waits on every contract whose shape changed, and the log says `shrimpy.chat.channel v2 does not match the served v2` without naming the client. The client says to update both to the same build, where reloading would do. Nightly builds all say the same version, so this comes back at each deploy.
 - Only a message's author edits or deletes it, so a chat provider acting for a person it maps can't.
 - Chat's log of events never shrinks, and nothing shows a message's earlier versions.
 - A message waiting behind a turn that Pi's restart limit ended is withdrawn by the agent's stop, so its skipped receipt has no reason. The terminal, `read` and `run` say its work was stopped as if someone had, and `run` exits 130.
@@ -70,7 +76,7 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Untried**
 
-- Two real programs of different versions meeting: every build says `0.0.0`, so only stand-ins have met. A hold that waits on an older program hasn't been seen to bind once that program updates. The page reloading itself, and offering a reload, haven't run in a browser.
+- A hold that waits on an older program, seen to bind once that program updates. The page reloading itself, and offering a reload, in a browser. Two releases of different majors met for real on 2026-11-24, and the gateway turned the older one away in the right words.
 - An agent following its gateway after a release that changes the Pi packages or the major, and the terminal's `/update`, for real: only stand-ins have run. The update skill has run for real, from 1.0.0-rc.1 to 1.0.0 across two machines.
 
 **Open question**
@@ -92,6 +98,8 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Falls short**
 
+- `agent init` makes a home with a name the roster already holds, and the gateway's refusal shows only in the service's log. `agent status` then says only that the agent isn't running.
+- What every agent is told doesn't say that the `shrimpy` in its shell acts as the agent. One believed it acted as the person (2026-11-22). A program of an agent's own that opens the gateway's socket is taken for the person, as the design has it.
 - The terminal reaches agents by name only, so with the gateway down it can't watch one. The `sessions` commands can, by a home's path.
 - From an agent's shell, `agent init`, `agent serve` and `up` skip the admin check, and `status` lists no admins.
 - `Roster.remove` has no command, and the skills name a command that removes an agent and say it doesn't exist yet.
@@ -114,6 +122,10 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Falls short**
 
+- An answer to a `send_message` that asked another agent something wakes the asker's session behind their DM, not the session that asked. That session then forwards it to the person's main thread, away from where the person asked. `ask_agent` brings an answer back to the session that asked, and agents don't always reach for it.
+- In a DM, two messages a few seconds apart get two answers when the first turn uses no tools, and the first answer says the message looks cut off.
+- An agent doesn't know what it said in its other threads, and `shrimpy threads` with no argument refuses instead of listing them.
+- When `send_message` or `read_messages` refuses a place, it doesn't give the `#room/thread` form, so agents try the bare thread IDs every input shows them.
 - A message that joined a running turn is marked answered by that turn's one reply, whether or not the reply speaks to it.
 - When the chat store is replaced, an agent goes on with unfinished work behind the old store's threads: a waiting wake-up or a cut-short turn runs once more, calls the model, can't post, and is reported. The agent knows the store was replaced, so it could stop that work and say so once.
 - After a fresh start an agent's first wake in a room shows up to 20,000 characters of history, from before it joined included.
@@ -143,6 +155,10 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Falls short**
 
+- What every agent is told doesn't say that each bash call starts in the home, so a relative path after an earlier `cd` misses.
+- The rule for ending a turn with `END` sends small models into long deliberation over a one-word reply.
+- A call to a tool that doesn't exist is refused without naming the tools that do. The words are Pi's.
+- A sigil that doesn't check out is reported as "twelve lines of twelve # or . characters", where `AGENTS.md` writes 12×12.
 - Pi's storage only grows: about a megabyte a day for a trigger that fires every minute. The list of triggers reads the task of every input the agent has taken up, and a client holding the list reads them all again at each commit that touches a trigger.
 - Nothing prunes the finished task each event leaves in the agent's records, or a wake-up's finished sleeper, and each `check_back` scans the session's sleepers.
 - A `triggers/` folder that exists and can't be listed ends every trigger.
@@ -183,6 +199,7 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Falls short**
 
+- Nothing says which machine an agent runs on: `shrimpy status` and `agent status` show no host, so an agent looking for another asked it.
 - `--listen` given to `up` while a gateway runs only warns.
 - On a machine whose agents belong to a gateway elsewhere and that hasn't joined as the owner's, a command names those agents only by their homes' paths.
 - A folder that has joined as the owner's and also holds agents of no gateway is at odds with itself: `up` starts a gateway and a chat server for them, and the commands that talk reach the gateway elsewhere. The terminal still says "this machine's gateway".
@@ -221,6 +238,8 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Falls short**
 
+- A wake-up set with `check_back` can't be withdrawn once it isn't needed, so it still fires and spends a turn.
+- A question's thread is named by cutting the question mid-word, with no ellipsis.
 - A trigger that names a thread and comes due while the agent was down fires before the link to chat is up, so that one occurrence fails.
 - A trigger file that doesn't check out is named on standard error, in a breadcrumb and by `agent context`, and is missing from `shrimpy triggers` while the agent runs.
 - A trigger or a wake-up that comes due during a stop's grace period can still start.
@@ -301,6 +320,9 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Falls short in the commands**
 
+- `shrimpy status` lists chat and the agents with their versions, and not the gateway's own.
+- `shrimpy status` lists the person as not reachable, since reachable means only that an agent's program is linked.
+- Commands agents guess don't exist: `shrimpy agent <name>` and `shrimpy sessions <name>`. `shrimpy read '#room'` doesn't print the room's main thread.
 - `shrimpy threads` can't name a DM between two agents, so from a shell its thread's ID comes from `shrimpy sessions list`.
 - `shrimpy update`'s preview calls going from a release candidate to its release a patch.
 - `shrimpy sessions list`, and the triggers' rows on an agent's screen, are in the order the agent made them, which the contract doesn't promise.
@@ -318,7 +340,6 @@ Daily use decides what comes after the release. The last order was compaction an
 - A trigger's line, renaming and archiving on an iPhone, in a DM between two agents, and with an agent whose model answers.
 - Signing in from a shell, as the setup skill has it, got as far as the link and a pasted address.
 - `shrimpy update` from a real release, and restarting a real Shrimpy service that way on macOS.
-- A turn cut off by a clean restart of the service picking up again.
 - Setting up through a bare `shrimpy` with a subscription's sign-in, under launchd, and with a person at a real terminal: only the tests have run it, with an API key and a stand-in for systemd.
 - Keyboard, editor, file, image and shell interactions; navigating agents with several clients open, and a failed preflight; a failed switch putting back the previous view and draft; large transcripts; the web client's queries, subscriptions, IDs and anchors on the same operations as the terminal; and presentation never reaching a provider's input.
 
