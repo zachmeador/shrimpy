@@ -18,6 +18,8 @@ This release replaces the old Shrimpy, `0.6.2` and before, and nothing of an old
 - Your setup lives in `~/shrimpy`: agents' homes in `agents/`, and sign-ins in `providers/`. The old `~/.shrimpy` is never read or written.
 - `shrimpy install` keeps Shrimpy running as a service, in place of `shrimpy gateway install`.
 - The install script brings its own Node.
+- `shrimpy` on a new machine sets it up: signing in, your first agent and the service.
+- `shrimpy update` updates a machine, and your admin agent updates every machine when you ask it to.
 - Most old commands are gone, and `shrimpy --help` lists the new ones.
 
 **Moving over**
