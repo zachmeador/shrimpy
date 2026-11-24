@@ -16,7 +16,8 @@ export interface HostOptions {
   models: Models;
   /**
    * The program and arguments that run Shrimpy, such as node and the path of the
-   * command's entry point. With it, the agent's shell finds `shrimpy` and runs that.
+   * command's entry point. With it, the agent's shell finds `shrimpy` and runs that,
+   * and an agent its gateway turns away for its release runs `shrimpy update` with it.
    */
   shrimpy?: readonly string[];
   /** Non-fatal failures the engine reports while it works. */

@@ -2,10 +2,12 @@ import type { Host } from "@earendil-works/chord";
 import { type Membership, unknownTokenAdvice } from "../../contracts/agent/index.ts";
 import {
   type Entry,
+  HelloRefusedError,
   type Member,
   type Principal,
   type Reason,
   type Revocation,
+  type Versions,
 } from "../../contracts/gateway/index.ts";
 import { gatewaySocket, keepLinked, newToken, reportLinking } from "../../contracts/gateway/node.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
@@ -41,6 +43,8 @@ export interface GatewayLinkOptions {
    * is back.
    */
   onError(error: Error): void;
+  /** Told what the gateway runs each time it turns the agent away, so that an agent behind it can follow it. */
+  follow?(gateway: Versions): void;
   /** The pauses between hellos. Tests shorten them. */
   backoff?: Backoff;
 }
@@ -153,7 +157,10 @@ export function linkToGateway(options: GatewayLinkOptions): GatewayLink {
       }
       membership.save({ ...kept, memberId: answer.you.id, ...(rosterId === undefined ? {} : { rosterId }) });
     },
-    onError: (error) => standing.failed(error),
+    onError(error) {
+      standing.failed(error);
+      if (error instanceof HelloRefusedError) options.follow?.(error.versions);
+    },
     ...(options.backoff === undefined ? {} : { backoff: options.backoff }),
   });
 

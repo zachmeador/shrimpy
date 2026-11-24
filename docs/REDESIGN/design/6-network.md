@@ -177,13 +177,15 @@ Open the terminal with: shrimpy
 - **What the page may fetch.** The document carries a Content-Security-Policy that holds the page to its own gateway and its own script: `default-src 'self'`, with pictures also from `data:`, for the ones a home's files hold. The face's files come from the door too, so a page asks no other server for anything. The policy is a choice of the build, and yours to strike. The door serves every file to be fetched afresh each time, about 800 KB in all.
 - **Tried** in a Chromium browser on 2026-11-21 and 22, on the gateway's own machine: the page got in by an invitation's link, its cookie stayed out of its scripts' reach, it kept its link through a gateway that went away and came back, and the policy refused nothing the page needs. On 2026-11-22 the door went onto a tailnet with a certificate that `tailscale cert` made, and the page was installed on your iPhone from there and worked. A browser's subscription, Firefox, and Safari on a desktop are untried.
 
+**An agent behind its gateway,** built on 2026-11-24 as the row on it has it. When the gateway turns the agent's hello away and runs a newer release that the agent can't link with, the agent runs `shrimpy update` with the gateway's version, once for each version the gateway runs, and its log has what that printed. From a checkout `shrimpy update` refuses and says to update with git, so only an agent that runs from an install updates. The update restarts the service, and every agent it runs with it.
+
 **Not built yet**
 
 *What is left of a browser's way in.* The certificate's skill, an invitation as a code to scan, and renewing a browser's cookie before its 400 days are up. A page that isn't let in has no field that takes a code. An app on a phone's home screen keeps storage of its own, so unless the phone copies the browser's cookie when the page is installed, the installed app has no way in. The app on your iPhone was in on 2026-11-22. How it got in wasn't looked at, and other phones are untried. A desktop app that wraps the page, which [the plan](../PLAN.md#direction) stays open to, could check the gateway's key by its fingerprint as a machine does. It would then need no certificate, on a plain LAN or anywhere else. That is untried.
 
 *What is left of an agent apart from the gateway.*
 
-The install at the start of the line `shrimpy invite <name>` prints, and an agent following its gateway's version, as the row on it has it, both decided on 2026-11-23.
+The install at the start of the line `shrimpy invite <name>` prints, decided on 2026-11-23.
 
 **Left for later**
 

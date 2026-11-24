@@ -234,6 +234,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
             wakes,
             working: createWorking(host.harness),
             delivery,
+            ...(options.shrimpy === undefined ? {} : { shrimpy: options.shrimpy }),
             onError: report,
           },
           options.join,

@@ -5,7 +5,7 @@ import type { Entry, LiveRoster, Principal, Revocation } from "../contracts/gate
 import type { Backoff } from "../lib/retry/index.ts";
 import { type Admissions, type ChatDelivery, markWorking, readFeed, type Wakes } from "./chat/index.ts";
 import { homePaths } from "./home/index.ts";
-import { type ChatCalls, type LiveChat, linkToGateway, type LiveWorkspace, openChatLink } from "./links/index.ts";
+import { type ChatCalls, followGateway, type LiveChat, linkToGateway, type LiveWorkspace, openChatLink } from "./links/index.ts";
 import { createAgentHost } from "./server.ts";
 import type { Working } from "./turns/index.ts";
 
@@ -64,6 +64,12 @@ export interface Participant {
   working: Working;
   /** What the tasks that follow the events tell chat with. It is given the agent's way to chat. */
   delivery: ChatDelivery;
+  /**
+   * The program and arguments that run this Shrimpy, with which an agent its
+   * gateway turns away for its release runs `shrimpy update` to follow it.
+   * Without it the agent doesn't follow.
+   */
+  shrimpy?: readonly string[];
   onError: (error: Error) => void;
 }
 
@@ -101,6 +107,7 @@ export function join(participant: Participant, options: JoinOptions): Joined {
     membership: { read: () => readMembership(paths.root), save: (membership) => saveMembership(paths.root, membership) },
     files: { name: paths.config, membership: paths.member },
     onError,
+    ...(participant.shrimpy === undefined ? {} : { follow: followGateway(participant.shrimpy, (line) => onError(new Error(line))) }),
     ...(options.apart === undefined ? {} : { apart: options.apart }),
     ...(backoff === undefined ? {} : { backoff: backoff() }),
   });
