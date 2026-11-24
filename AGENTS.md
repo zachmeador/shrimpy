@@ -8,7 +8,7 @@ If `AGENTS-PRIVATE.md` exists at the project root, read it for workspace- and us
 
 - **What is open:** [`docs/open.md`](docs/open.md), a line for each thing that isn't built, falls short or hasn't been tried, and what waits on the owner. A gap you find goes in it in the same change, and a question for the owner under Waiting on the owner. What is decided and built is in the code, and why is in the commit messages.
 - **How to run and check it:** [`CONTRIBUTING.md`](CONTRIBUTING.md). The layout rules are in [how Shrimpy is built](docs/how-it-is-built.md), and every command is in the [README](README.md).
-- **How the web client looks:** [`docs/web-client-mockup.html`](docs/web-client-mockup.html), the owner's reference since 2026-11-21. Open it in a browser: it has live frames of the client at each width, and the first block of its styles is everything that decides the look.
+- **How the web client looks:** [`docs/web-client-mockup.html`](docs/web-client-mockup.html), the owner's reference since 2026-11-21. Open it in a browser: it has live frames of the client at each width, and the first block of its styles is everything that decides the look. The README's screenshots are taken from it and from [the terminal's mockup](docs/terminal-mockup.html) by `node docs/assets/shoot.ts`, so a change to either mockup runs it again.
 - **`src/`:** three programs (`agent/`, `chat/` and `gateway/`), the clients, the CLI, and the only code they share: `contracts/` and `lib/`.
 - **`skills/`:** the skills Shrimpy ships to its agents.
 - **Entry point:** `src/cli/main.ts`, run as `bin/shrimpy.js`.
