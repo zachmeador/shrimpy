@@ -71,7 +71,7 @@ Daily use decides what comes after the release. The last order was compaction an
 **Untried**
 
 - Two real programs of different versions meeting: every build says `0.0.0`, so only stand-ins have met. A hold that waits on an older program hasn't been seen to bind once that program updates. The page reloading itself, and offering a reload, haven't run in a browser.
-- An agent following its gateway to a new release, the update skill and the terminal's `/update` for real: only stand-ins have run, since there is no release yet.
+- An agent following its gateway after a release that changes the Pi packages or the major, and the terminal's `/update`, for real: only stand-ins have run. The update skill has run for real, from 1.0.0-rc.1 to 1.0.0 across two machines.
 
 **Open question**
 
@@ -302,6 +302,7 @@ Daily use decides what comes after the release. The last order was compaction an
 **Falls short in the commands**
 
 - `shrimpy threads` can't name a DM between two agents, so from a shell its thread's ID comes from `shrimpy sessions list`.
+- `shrimpy update`'s preview calls going from a release candidate to its release a patch.
 - `shrimpy sessions list`, and the triggers' rows on an agent's screen, are in the order the agent made them, which the contract doesn't promise.
 - `threads #ops` needs quotes in a shell, or the room's name is taken for a comment.
 - `run --no-wait` prints the IDs to follow up with, but no command waits on one.
@@ -315,7 +316,7 @@ Daily use decides what comes after the release. The last order was compaction an
 - In the terminal: a list longer than its pane, an agent on another machine, more than a handful of models, `/model` on a narrow terminal, an agent that doesn't answer when asked for its models, an agent that goes down between changing a model and leaving the receipt, and two inputs handed over at once.
 - The web client in Firefox and Safari on a desktop, and its Content-Security-Policy anywhere but Chromium and the iPhone.
 - A trigger's line, renaming and archiving on an iPhone, in a DM between two agents, and with an agent whose model answers.
-- The install script from a real tag: only a stand-in for GitHub's archive has been installed from. Signing in from a shell, as the setup skill has it, got as far as the link and a pasted address.
+- Signing in from a shell, as the setup skill has it, got as far as the link and a pasted address.
 - `shrimpy update` from a real release, and restarting a real Shrimpy service that way on macOS.
 - A turn cut off by a clean restart of the service picking up again.
 - Setting up through a bare `shrimpy` with a subscription's sign-in, under launchd, and with a person at a real terminal: only the tests have run it, with an API key and a stand-in for systemd.
