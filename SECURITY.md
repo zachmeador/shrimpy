@@ -39,3 +39,7 @@ The web client is served on loopback over plain HTTP. On any other address, whic
 - Read a skill and its scripts before you give it to an agent.
 - Take back a lost device in the terminal with `/devices take back <device>`.
 - Look at an agent's triggers with `shrimpy triggers --agent <agent>` before you leave it alone, and keep backups of anything an agent can change.
+
+## Reporting a vulnerability
+
+Report it privately on GitHub, under the repository's Security tab, with "Report a vulnerability".
