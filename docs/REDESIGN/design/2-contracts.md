@@ -301,7 +301,7 @@ So every link is a WebSocket, on one machine as well. Every link is untrusted, s
 
 *The rest of the agent's operations,* as daily use asks for them: reset, fork, withdraw, thinking level, defaults, context queries, completion, provider status, delegation and attachments.
 
-*Versions,* as decided on 2026-11-23. By the release, Shrimpy says `1.0.0`, and `wip` the next minor with `-dev`. Every contract's version and fingerprint is written down at each release, with a test that fails when one written down for the current major stops being served or changes.
+*Versions,* as decided on 2026-11-23. By the release, Shrimpy says `1.0.0`, and `wip` the next minor with `-dev`, and the release writes its contracts down in `src/contracts/released.json`, as the test of the contracts asks at a release.
 
 **Built on 2026-10-05**
 

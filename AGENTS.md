@@ -73,6 +73,7 @@ Use GitHub Releases for public versions. Early versions are alpha-quality unless
 - Every public release gets a short lyrical aquatic name. Keep it poetic but concrete, and put it in the release's title or notes. `v0.1.0` was **First Light in the Tidepool**.
 - `CHANGELOG.md` is only for what matters to someone running Shrimpy: changes they'll notice, and anything they have to do, such as updating every machine at once. Each gets one short line, and git history has the rest.
 - For an alpha, create a prerelease: `gh release create <tag> --target main --title "<tag> alpha - <release name>" --notes "<summary>" --prerelease`.
+- A release writes down every contract it serves in `src/contracts/released.json`, since programs of one major keep serving what any release of it shipped. `npm run check` fails at a release until it has, and prints what to write.
 - From 1.0.0 a release is a full one, not a prerelease. The install script installs GitHub's latest release, which skips prereleases, so a prerelease is installed only by its exact version.
 
 ## Philosophy
