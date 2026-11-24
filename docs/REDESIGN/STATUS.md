@@ -134,6 +134,8 @@ As of 2026-11-23. An item leaves when it is fixed or when the design changes to 
 - The web client has run in one Chromium browser on the gateway's machine and, since 2026-11-22, installed on your iPhone, over a tailnet with a certificate that `tailscale cert` made. It has rough edges there that aren't listed yet. Untried: Firefox and Safari on a desktop. Its Content-Security-Policy has run in those two places only.
 - In the web client the address of an agent's view names no agent, so reloading it in a room shows whichever agent's session is known first. Esc there goes back to the conversation, where the terminal's goes back to the list. Where a thread can be started it names Ctrl+N on a phone too. A trigger's card holds everything `shrimpy triggers` says of it, which is long at the list's width.
 - The page's door serves every file of the page to be fetched afresh, so each load of the web client takes about 800 KB.
+- The install script has installed only from a stand-in for GitHub's archive of a tag, since this tree has no tag yet. That was on 2026-11-23, on Debian 12 and Ubuntu 24.04 on arm64, Debian 12 on x64 under emulation, and macOS 27.2 in an account of its own. Signing in from a shell, as the setup skill has it, was tried as far as the link and a pasted address, and no sign-in has finished that way.
+- `shrimpy login` reading its answers from a pipe keeps running once it has said it's done, until the pipe closes.
 
 ### Tests
 

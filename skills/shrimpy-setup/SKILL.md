@@ -72,7 +72,22 @@ An agent takes its model, servers and keys from two places and nowhere else: not
   `{"providers": {"local": {"baseUrl": "http://localhost:8090/v1", "api": "openai-completions", "apiKey": "local", "models": [{"id": "qwen3.8-27b"}]}}}`
 - `auth.json` holds keys for the built-in providers: `state/pi/auth.json` in a home, `providers/auth.json` in the folder. `{"anthropic": {"type": "api_key", "key": "..."}}`. A key is used as written, so `$NAME` and `!command` are refused. A key in the folder serves every agent, and one in a home only that agent. Copy none from another home.
 
-The person signs the folder in with `shrimpy login [<provider>]`, with a subscription or an API key, and it asks which model agents start with if `default-model.json` isn't there. It is theirs to run, since it needs them at a terminal, and at a browser for a subscription: hand them the command, and don't ask for a key in chat. A sign-in is renewed when its token runs out.
+The folder is signed in with `shrimpy login [<provider>]`, with a subscription or an API key, and it asks which model agents start with if `default-model.json` isn't there. A sign-in is renewed when its token runs out.
+
+## Signing in from a shell
+
+A subscription needs the person at a browser, which can be on any machine. `shrimpy login` reads its answers from standard input, so you can run it for them and pass on what it asks:
+
+1. Make a folder only you can open with `mktemp -d`, and start the sign-in in the background, reading its answers from a file there. Give it the provider the person named, or none to list the subscriptions it offers:
+   ```bash
+   touch <folder>/answers
+   tail -f <folder>/answers | shrimpy login [<provider>] > <folder>/output 2>&1 &
+   ```
+2. Read `<folder>/output`, and answer each question it asks with a line added to the answers: `printf '%s\n' '<answer>' >> <folder>/answers`. Ask the person where the choice is theirs, such as the provider and the model agents start with.
+3. Give them the link and the instructions it prints. When it asks for a code or the address the browser ended on, have them paste it into the chat, and add it to the answers the same way.
+4. When it says the folder is signed in, or that nothing was, stop the `tail`, which ends `shrimpy login` too, and remove the folder.
+
+If it asks for an API key, stop it the same way. A key is the person's to type into `shrimpy login` at a terminal, since pasted into the chat it would reach your own model provider. Hand them the command.
 
 ## When a command says
 

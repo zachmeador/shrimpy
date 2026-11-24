@@ -26,12 +26,16 @@ Then run `shrimpy` to open the terminal client and talk to your first agent. Ask
 <details>
 <summary>For the agent doing the install</summary>
 
-Shrimpy runs from a git checkout on macOS or Linux, with the Node that `.node-version` names.
+The installer puts the latest release and a Node of its own into the account that runs it, with no admin rights, on macOS or on Linux with glibc, on arm64 or x64. It needs `curl` and `tar`, and on Linux the library libatomic, which minimal images leave out: on Debian and Ubuntu it is the package `libatomic1`. With `bash -s -- <version>` in place of `bash`, it installs that version.
 
-1. Clone this repository somewhere permanent, but not `~/shrimpy`, which is where Shrimpy keeps its data.
-2. In the checkout, run `npm install --ignore-scripts`.
-3. Symlink `bin/shrimpy.js` as `shrimpy` somewhere on the PATH.
-4. Follow [the setup skill](skills/shrimpy-setup/SKILL.md). The person has to run `shrimpy login` themselves, since signing in needs a browser.
+Then finish the setup, so the person needs no terminal:
+
+1. Sign the Shrimpy folder in to a model provider, as [the setup skill](skills/shrimpy-setup/SKILL.md#signing-in-from-a-shell) says.
+2. Make the first agent with `shrimpy agent init shrimpy`, or with another name the person picks.
+3. Run `shrimpy install`, which keeps Shrimpy running as a service of the account.
+4. Run `shrimpy invite` and give the person the link it prints for a browser.
+
+Until a new shell picks up the PATH, the command is `~/.local/bin/shrimpy`. The rest of the setup skill says what a command's message means.
 
 </details>
 
