@@ -78,6 +78,10 @@ Daily use decides what comes after the release. The last order was compaction an
 - A hold that waits on an older program, seen to bind once that program updates. The page reloading itself, and offering a reload, in a browser. Two releases of different majors met for real on 2026-11-24, and the gateway turned the older one away in the right words.
 - An agent following its gateway after a release that changes the Pi packages or the major, and the terminal's `/update`, for real: only stand-ins have run. The update skill has run for real, from 1.0.0-rc.1 to 1.0.0 across two machines.
 
+**At the next major**
+
+- Chat stops making a main thread in each DM. Until then it makes one, since an agent at 1.0.0 posts there, though agents and clients from 1.1 don't use it.
+
 **Open question**
 
 - For Pi's developers: will Chord raise its protocol version for every wire change, and from when? Until it does, a Pi release reaches every machine together.
