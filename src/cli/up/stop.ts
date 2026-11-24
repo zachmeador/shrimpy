@@ -47,7 +47,11 @@ export function watchForStop(io: Io, crew: Started[]): StopWatch {
  */
 export async function stopAll(io: Io, crew: Started[], forced: boolean): Promise<boolean> {
   if (crew.length === 0) return false;
-  io.out("Stopping what this command started. Another Ctrl+C stops without waiting.");
+  io.out(
+    io.terminal
+      ? "Stopping what this command started. Another Ctrl+C stops without waiting."
+      : "Stopping what this command started.",
+  );
   let abnormal = false;
   for (const role of ["agent", "chat", "gateway"] as const) {
     const these = crew.filter((member) => member.role === role);

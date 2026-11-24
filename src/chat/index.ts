@@ -77,12 +77,12 @@ export async function startChat(options: ChatOptions): Promise<RunningChat> {
   open.add(() => lock.release());
 
   try {
-    const onError = (error: Error): void => console.error("[chat]", error.message);
+    const onError = (error: Error): void => console.error(error.message);
     const store = openStore(options.dataDir, { onError });
     open.add(() => store.close());
     const identity = createIdentity(onError);
     const working = createWorkingMarks({ onError });
-    const report = (error: HostError): void => console.error(`[chat] ${hostFailure(error).message}`);
+    const report = (error: HostError): void => console.error(hostFailure(error).message);
     const host = createHost<Principal, Revocation>({
       address: chat(),
       principal: { kind: "chat" },

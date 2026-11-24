@@ -158,9 +158,9 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     open.add(() => programs.close());
     const report = (error: HostError): void => {
       if (error.kind === "resolve_failed" && programs.notLinked(error.error)) return;
-      console.error(`[gateway] ${hostFailure(error).message}`);
+      console.error(hostFailure(error).message);
     };
-    const onError = (error: unknown): void => console.error("[gateway]", asError(error).message);
+    const onError = (error: unknown): void => console.error(asError(error).message);
     let workspace: Workspace | undefined;
     const workspaceView = createView(() => workspace?.files() ?? []);
     if (options.context !== undefined) {
@@ -264,7 +264,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
  * your name as it is, and the gateway says why where it reports problems.
  */
 function followYourName(roster: Roster, file: string): () => void {
-  const stays = (): string => `[gateway] Your name stays "${roster.you().name}"`;
+  const stays = (): string => `Your name stays "${roster.you().name}"`;
   return followSettings(
     file,
     ({ name }) => {

@@ -259,7 +259,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
 /** Where problems with the gateway and chat go: they are told once each and the agent carries on. */
 function reporter(options: AgentOptions): (error: Error) => void {
   return (error) => {
-    if (options.onReport === undefined) console.error("[agent]", error.message);
+    if (options.onReport === undefined) console.error(error.message);
     else options.onReport(error);
   };
 }

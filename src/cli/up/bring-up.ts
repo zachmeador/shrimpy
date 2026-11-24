@@ -72,7 +72,7 @@ async function keepUp(io: Io, plan: Plan, crew: Started[], stop: StopWatch, pace
 /** That everything runs, and how to use it: from here, or from the gateway's machine when the agents belong to one elsewhere. */
 function sayRunning(io: Io, plan: Plan, crew: Started[], following: boolean): void {
   const agent = crew.find((member) => member.role === "agent")?.program.listening.name;
-  io.out("Running. Press Ctrl+C to stop what this command started.");
+  io.out(io.terminal ? "Running. Press Ctrl+C to stop what this command started." : "Running.");
   if (plan.here === undefined) {
     // There is no gateway here to ask, so these agents are talked to where the gateway is.
     const where = listed(plan.elsewhere.map(formatAddress));

@@ -104,5 +104,5 @@ export async function openHost(options: HostOptions, storage: StoreFormat<Storag
 }
 
 function reportToStderr(error: unknown): void {
-  console.error("[agent]", error);
+  console.error(error);
 }
