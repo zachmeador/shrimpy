@@ -123,6 +123,7 @@ Daily use decides what comes after the release. The last order was compaction an
 **Falls short**
 
 - An answer to a `send_message` that asked another agent something wakes the asker's session behind their DM, not the session that asked. That session then forwards it to the person's main thread, away from where the person asked. `ask_agent` brings an answer back to the session that asked, and agents don't always reach for it.
+- A reply to what an agent posted from another session, such as a trigger's report in a DM's main thread, wakes the session behind that thread, which never saw the post: a DM's wake shows only the new message, and a room's backlog leaves out the agent's own messages. It knows what the reply answers only if it reads the thread.
 - In a DM, two messages a few seconds apart get two answers when the first turn uses no tools, and the first answer says the message looks cut off.
 - An agent doesn't know what it said in its other threads, and `shrimpy threads` with no argument refuses instead of listing them.
 - When `send_message` or `read_messages` refuses a place, it doesn't give the `#room/thread` form, so agents try the bare thread IDs every input shows them.
