@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { ConfigError } from "../../lib/json-config/index.ts";
 import { startChild, tempDir } from "../../lib/testing/index.ts";
@@ -9,7 +9,7 @@ import { AgentNotRunningError, connectHome, readEndpoint } from "./node.ts";
 
 function tempHome(t: TestContext): string {
   const home = tempDir(t, "node-door");
-  mkdirSync(join(home, "runtime"));
+  mkdirSync(dirname(endpointFile(home)), { recursive: true });
   return home;
 }
 
@@ -29,7 +29,7 @@ async function staleSocket(t: TestContext, path: string): Promise<void> {
 
 test("a socket that nothing answers on means no agent is running", async (t) => {
   const home = tempHome(t);
-  const socket = join(home, "runtime", "stale.sock");
+  const socket = join(dirname(endpointFile(home)), "stale.sock");
   await staleSocket(t, socket);
   recordEndpoint(home, socket);
 

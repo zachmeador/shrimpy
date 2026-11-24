@@ -139,6 +139,11 @@ export class ConfigObject {
     return value;
   }
 
+  /** A value of any kind that this file does not check, such as one its caller checks in a way of its own. */
+  optionalUnchecked(key: string): unknown {
+    return this.#take(key);
+  }
+
   /** An object with string values and keys chosen by the file. */
   optionalStrings(key: string): Record<string, string> | undefined {
     const value = this.optionalFreeform(key);

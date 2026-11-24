@@ -26,21 +26,22 @@ An agent can live on another machine, in a container or under another user of th
 The Shrimpy folder is `~/shrimpy`, or the folder `SHRIMPY_DIR` names, and has a home for each agent in `agents/`. A command that takes an `<agent>` takes its name, like `scout`, or the path of its home. A word with a `/` in it, or one that starts with `.` or `~`, is a path.
 
 ```text
-agent.json            its name, and the model it starts with if it names one
 SOUL.md               who it is: the first thing in its instructions
 context/              Markdown notes shown in every conversation
 skills/               its own skills, a folder each with a SKILL.md
 triggers/             its triggers, a small file each (see shrimpy-triggers)
 vault/                longer notes it reads when it needs them
+breadcrumbs/          facts that move, a small file each (see shrimpy-triggers)
+agent.json            its settings: its name, the model it starts with if it names one, its pigment and sigil, and what wakes it in each room (see shrimpy-chat)
 state/pi/models.json  model servers it can use
 state/pi/auth.json    its API keys
 state/agent.sqlite    the engine's storage
 state/member.json     the key that proves it is this agent, its ID on the roster and the roster's ID once it has joined
 state/workspace-context/  its copy of the notes every agent is shown (see shrimpy-setup), which it keeps itself
-runtime/              the lock, where to find the agent by its home, and the shrimpy command: disposable
+state/runtime/        the lock, where to find the agent by its home, and the shrimpy command: disposable
 ```
 
-Never open `state/agent.sqlite` or edit `runtime/`: the running agent owns them. Never show `state/member.json` to anyone: whoever holds the key is that agent. Every agent under one user can read and edit every other's files, so be sure which home you are in.
+Everything but `state/` is what you and the person write, so a home put in Git ignores `state/`. Never open `state/agent.sqlite` or edit `state/runtime/`: the running agent owns them. Never show `state/member.json` to anyone: whoever holds the key is that agent. Every agent under one user can read and edit every other's files, so be sure which home you are in.
 
 ## Change who an agent is
 

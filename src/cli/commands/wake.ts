@@ -1,7 +1,7 @@
 import { parseArgs } from "node:util";
 import { DEFAULT_WAKE_POLICY, isWakePolicy, WAKE_POLICIES, type WakePolicy } from "../../contracts/agent/index.ts";
 import { roomLabel } from "../../contracts/chat/index.ts";
-import { loadHome, readWake, saveWake } from "../../contracts/agent/node.ts";
+import { loadHome, saveWake } from "../../contracts/agent/node.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { listed } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
@@ -67,7 +67,7 @@ const wake: Command = {
       '#name, in quotes, or as its name alone: a shell treats an unquoted # as the start of a comment, so ' +
       '`shrimpy wake #ops all` would only list. With no room and policy, this lists the rooms that are set.',
     "",
-    "The choice is kept in wake.json in the agent's home. A running agent is told to read its files again, and " +
+    "The choice is kept under wake in the agent's agent.json. A running agent is told to read its files again, and " +
       "one that is not running reads the file when it starts.",
     "",
     `${WHICH_AGENT} ${ITS_FILES} ${ABOUT_ANOTHER_AGENT}`,
@@ -86,21 +86,21 @@ const wake: Command = {
     }
     await mayActOn(target, "Choosing what wakes another agent");
     const room = await checkRoom(io, target, written);
-    const { file } = await saveWake(target.home, room, policy);
+    const { file } = saveWake(target.home, room, policy);
     io.out(`Set ${roomLabel(room)} to ${policy}: ${MEANING[policy]} Written to ${file}.`);
     await toldOfChange(io, target);
     return 0;
   },
 };
 
-/** What the home's wake file sets, one room to a line, and what every other room has. */
-async function list(io: Io, target: AtHome): Promise<number> {
-  const read = await readWake(loadHome(target.home).paths);
-  if (read.kind === "left out") {
-    io.err(`${read.leftOut.file} can't be used: ${read.leftOut.reason}. Until it is fixed the agent keeps what it last read.`);
+/** What the home's agent.json sets under wake, one room to a line, and what every other room has. */
+function list(io: Io, target: AtHome): number {
+  const { wake, leftOut } = loadHome(target.home);
+  if (leftOut.wake !== undefined) {
+    io.err(`${leftOut.wake.file} can't be used: ${leftOut.wake.reason}. Until it is fixed the agent keeps what it last read.`);
     return 1;
   }
-  const rooms = Object.entries(read.settings);
+  const rooms = Object.entries(wake ?? {});
   if (rooms.length === 0) {
     io.out(`No room is set, so every room has the default, ${DEFAULT_WAKE_POLICY}. Set one with: ${command(target, 'wake "#ops" all')}`);
     return 0;

@@ -7,13 +7,13 @@ import { refuse } from "../../lib/refusal/index.ts";
 import { isInside } from "./files.ts";
 import type { HomePaths } from "./layout.ts";
 
-/** The folders at the top of a home that hold what the agent needs to run, which are never listed or shown. */
-const KEPT = ["state", "runtime"];
+/** The folder at the top of a home that holds what the agent needs to run, which is never listed or shown. */
+const KEPT = "state";
 
 const megabytes = (bytes: number): string => `${String(bytes / 1_000_000)} MB`;
 
 const outside = (path: string): string => `${path} is outside the home, and only the home's files are shown.`;
-const KEPT_WORDS = "Nothing in state/ or runtime/ is shown: they hold what the agent needs to run, such as its token.";
+const KEPT_WORDS = "Nothing in state/ is shown: it holds what the agent needs to run, such as its token.";
 const missing = (path: string): string => `There is no ${path} in the home.`;
 const unreadable = (path: string, error: unknown): string => `${path} can't be read: ${why(error)}.`;
 const notAFolder = (path: string): string => `${path} is not a folder.`;
@@ -26,9 +26,9 @@ const notShown = (path: string): string => `${path} is not text or a PNG, JPEG, 
 interface Shown {
   /** The home's own path, with every link in it followed. */
   readonly root: string;
-  /** Whether a path, with every link in it followed, is in the home and outside `state/` and `runtime/`. */
+  /** Whether a path, with every link in it followed, is in the home and outside `state/`. */
   shows(real: string): boolean;
-  /** Whether it is in `state/` or `runtime/`. */
+  /** Whether it is in `state/`. */
   keeps(real: string): boolean;
 }
 
@@ -36,8 +36,8 @@ const within = (folder: string, path: string): boolean => path === folder || isI
 
 async function shownOf(paths: HomePaths): Promise<Shown> {
   const root = await realpath(paths.root);
-  const kept = await Promise.all(KEPT.map((name) => realpath(join(paths.root, name)).catch(() => join(root, name))));
-  const keeps = (real: string): boolean => kept.some((folder) => within(folder, real));
+  const kept = await realpath(paths.state).catch(() => join(root, KEPT));
+  const keeps = (real: string): boolean => within(kept, real);
   return { root, keeps, shows: (real) => within(root, real) && !keeps(real) };
 }
 
@@ -53,14 +53,14 @@ interface Found {
 /**
  * What `path` names in the home: a path inside it with `/` between folders,
  * `""` for the home itself. It is refused when it leads out of the home, by
- * `..`, from `/` or through a link, when it leads into `state/` or `runtime/`,
- * and when there is nothing there.
+ * `..`, from `/` or through a link, when it leads into `state/`, and when there
+ * is nothing there.
  */
 async function find(paths: HomePaths, path: string): Promise<Found> {
   if (path.startsWith("/")) refuse(outside(path));
   const parts = path.split("/").filter((part) => part !== "" && part !== ".");
   if (parts.includes("..")) refuse(outside(path));
-  if (KEPT.includes(parts[0] ?? "")) refuse(KEPT_WORDS);
+  if (parts[0] === KEPT) refuse(KEPT_WORDS);
   const named = parts.length === 0 ? "The home" : parts.join("/");
   if (path.includes("\0")) refuse(missing(named));
   const shown = await shownOf(paths);
@@ -79,7 +79,7 @@ async function find(paths: HomePaths, path: string): Promise<Found> {
 
 /**
  * The entries of the folder at `path` in the home, in order of name, with
- * `state/` and `runtime/` left out of the home's own. An entry is a folder or a
+ * `state/` left out of the home's own. An entry is a folder or a
  * file when it, or what its link leads to, is one that is shown, and anything
  * else is listed as other and never followed.
  */
@@ -92,7 +92,7 @@ export async function folderAt(paths: HomePaths, path: string): Promise<HomeEntr
   } catch (error) {
     refuse(unreadable(named, error));
   }
-  const listed = real === shown.root ? names.filter((name) => !KEPT.includes(name)) : names;
+  const listed = real === shown.root ? names.filter((name) => name !== KEPT) : names;
   const entries = await Promise.all(listed.map((name) => entryOf(shown, join(real, name), name)));
   return entries.sort((a, b) => compare(a.name, b.name));
 }

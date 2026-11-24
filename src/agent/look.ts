@@ -4,7 +4,7 @@ import { createListeners } from "../lib/listeners/index.ts";
 
 /** What the home says of how the agent looks. */
 export interface Look {
-  /** The twelve lines of its `sigil` file, or null when it has none that is a sigil. */
+  /** The twelve lines of the sigil its `agent.json` has, or null when it has none that is a sigil. */
   readonly sigil: string[] | null;
   /** The pigment its `agent.json` names, or null when it names none. */
   readonly pigment: Pigment | null;

@@ -18,7 +18,7 @@ export interface ServedParts {
   look: Pick<KeptLook, "sigil" | "pigment">;
   /** Where the home's files are, which a caller who may watch the agent can look at. */
   paths: HomePaths;
-  /** Read the home's instructions, context files, skills, triggers, wake file and model again. */
+  /** Read the home's instructions, context files, skills, triggers and agent.json again. */
   reload(): Promise<Reloaded>;
   /** The roster as the agent holds it, which says who a member is and whether it is an admin. */
   roster: LiveRoster;

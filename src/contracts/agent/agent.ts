@@ -82,8 +82,8 @@ const AgentV1 = remote("shrimpy.agent", {
 export const Agent = evolve(AgentV1, (edit) =>
   edit
     /**
-     * Its sigil: the twelve lines of the `sigil` file in its home, `#` for on
-     * and `.` for off, or null when the file is missing or isn't twelve by
+     * Its sigil: the twelve lines of `sigil` in its home's `agent.json`, `#`
+     * for on and `.` for off, or null when it has none or it isn't twelve by
      * twelve. The agent reads it again whenever it changes.
      */
     .addState("all", "sigil", union([arr(str()), nul()]))
@@ -92,7 +92,7 @@ export const Agent = evolve(AgentV1, (edit) =>
     /**
      * The entries of a folder of the home, in order of name. `path` is where
      * the folder is in the home, with `/` between folders, and `""` is the
-     * home itself. `state/` and `runtime/` are never listed, and a path that
+     * home itself. `state/` is never listed, and a path that
      * leads out of the home, by `..`, from `/` or through a link, is refused.
      */
     .addMethod("all", "folder", obj({ path: str() }), answerOf(arr(HomeEntrySchema)))
@@ -100,7 +100,7 @@ export const Agent = evolve(AgentV1, (edit) =>
      * One file of the home, at a path as `folder` takes one: as text, up to
      * `MAX_TEXT_BYTES`, or as a PNG, JPEG, GIF or WebP image, up to
      * `MAX_IMAGE_BYTES`. Anything else is refused with why, and so is
-     * anything in `state/` or `runtime/` and any path `folder` refuses.
+     * anything in `state/` and any path `folder` refuses.
      */
     .addMethod("all", "file", obj({ path: str() }), answerOf(HomeFileSchema)),
 );

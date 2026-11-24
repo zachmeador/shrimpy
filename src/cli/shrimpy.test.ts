@@ -142,7 +142,7 @@ test("the agent's shell finds this Shrimpy, though the agent's PATH has none", {
   );
   assert.equal(tool?.status, "done");
   const [launcher, ...status] = tool.output.split("\n");
-  assert.equal(launcher, join(home, "runtime", "bin", "shrimpy"), "the shell finds the agent's own launcher");
+  assert.equal(launcher, join(home, "state", "runtime", "bin", "shrimpy"), "the shell finds the agent's own launcher");
   assert.ok(status.some((line) => line.includes("scout") && line.includes(SHRIMPY_VERSION)), "and it reaches this machine's gateway, which lists the agent");
 });
 

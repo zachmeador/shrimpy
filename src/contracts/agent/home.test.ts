@@ -13,20 +13,20 @@ function tempHome(t: TestContext): string {
   return join(tempDir(t, "home"), "scout");
 }
 
-/** What a home's agent.json says, with its pigment apart, since that is picked at random. */
-function configOf(file: string): { config: unknown; pigment: unknown } {
-  const { pigment, ...config } = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
-  return { config, pigment };
+/** What a home's agent.json says, with its pigment and its sigil apart, since they are made at random. */
+function configOf(file: string): { config: unknown; pigment: unknown; sigil: unknown } {
+  const { pigment, sigil, ...config } = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+  return { config, pigment, sigil };
 }
 
 test("init creates every file and folder, with a sigil and a pigment made at random, and the home loads", (t) => {
   const home = tempHome(t);
   const { paths } = initHome(home, { name: "scout", model });
 
-  const { config, pigment } = configOf(paths.config);
+  const { config, pigment, sigil } = configOf(paths.config);
   assert.deepEqual(config, { name: "scout", model });
   assert.ok(PIGMENTS.some((each) => each === pigment), `${String(pigment)} is a pigment`);
-  assert.ok(parseSigil(readFileSync(paths.sigil, "utf8")) !== undefined, "and the sigil is twelve by twelve");
+  assert.ok(parseSigil(sigil) !== undefined, "and the sigil is twelve by twelve");
   assert.deepEqual(JSON.parse(readFileSync(paths.models, "utf8")), { providers: {} });
   assert.deepEqual(JSON.parse(readFileSync(paths.auth, "utf8")), {});
   assert.notEqual(readFileSync(paths.soul, "utf8").trim(), "", "and a starter SOUL.md");
@@ -38,6 +38,7 @@ test("init creates every file and folder, with a sigil and a pigment made at ran
   assert.equal(loaded.name, "scout");
   assert.deepEqual(loaded.model, model);
   assert.equal(loaded.pigment, pigment);
+  assert.deepEqual(loaded.sigil, sigil);
   assert.deepEqual(loaded.paths, paths);
 });
 
@@ -107,6 +108,16 @@ test("agent.json is checked, and a bad value is refused with the file and the ke
 
   writeFileSync(paths.config, JSON.stringify({ name: "scout", pigment: "teal" }));
   assert.throws(() => loadHome(home), refusedFor("pigment"));
+});
+
+test("a sigil or wake settings that don't check out are left out on their own, and the rest of agent.json loads", (t) => {
+  const home = tempHome(t);
+  const { paths } = initHome(home, { name: "scout", model });
+
+  writeFileSync(paths.config, JSON.stringify({ name: "scout", model, sigil: ["#.#"], wake: { ops: "loud" } }));
+  const loaded = loadHome(home);
+  assert.deepEqual([loaded.name, loaded.model, loaded.sigil, loaded.wake], ["scout", model, undefined, undefined]);
+  assert.deepEqual(Object.keys(loaded.leftOut).sort(), ["sigil", "wake"]);
 });
 
 test("a model is written provider/id, and the ID may contain slashes", () => {

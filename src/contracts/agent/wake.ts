@@ -1,4 +1,4 @@
-import { parseConfig } from "../../lib/json-config/index.ts";
+import type { ConfigObject } from "../../lib/json-config/index.ts";
 import { nameKey } from "../gateway/index.ts";
 
 /**
@@ -23,20 +23,19 @@ export type WakeSettings = Readonly<Record<string, WakePolicy>>;
 const CHOICES = '"none", "mentions", "people" or "all"';
 
 /**
- * What a wake file says: for each room it names, the policy the agent is woken
- * by there. The rooms are in `rooms`, by name, and any other key, a room named
- * twice in different cases or a policy that is not one is an error that names
+ * What `wake` in `agent.json` says: for each room it names, by name, the policy
+ * the agent is woken by there, or undefined when it has no `wake`. A policy that
+ * is not one, or a room named twice in different cases, is an error that names
  * the file and the place.
  */
-export function parseWake(text: string, file: string): WakeSettings {
-  const root = parseConfig(text, file);
-  const rooms = root.optionalStrings("rooms") ?? {};
-  root.done();
+export function wakeIn(root: ConfigObject): WakeSettings | undefined {
+  const rooms = root.optionalStrings("wake");
+  if (rooms === undefined) return undefined;
   const named = new Set<string>();
   const settings: Record<string, WakePolicy> = {};
   for (const [room, policy] of Object.entries(rooms)) {
-    if (!isWakePolicy(policy)) throw root.problem(`rooms.${room}`, `must be ${CHOICES}, not "${policy}"`);
-    if (named.has(nameKey(room))) throw root.problem(`rooms.${room}`, "is a room named already, whatever the case");
+    if (!isWakePolicy(policy)) throw root.problem(`wake.${room}`, `must be ${CHOICES}, not "${policy}"`);
+    if (named.has(nameKey(room))) throw root.problem(`wake.${room}`, "is a room named already, whatever the case");
     named.add(nameKey(room));
     settings[room] = policy;
   }

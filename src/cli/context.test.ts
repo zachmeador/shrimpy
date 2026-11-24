@@ -21,7 +21,7 @@ async function newHome(t: TestContext) {
     soul: join(home, "SOUL.md"),
     context: join(home, "context"),
     skills: join(home, "skills"),
-    runtime: join(home, "runtime"),
+    runtime: join(home, "state", "runtime"),
     database: join(home, "state", "agent.sqlite"),
   };
 }

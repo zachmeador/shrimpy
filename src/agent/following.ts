@@ -1,12 +1,12 @@
 import { stat } from "node:fs/promises";
-import type { Pigment, Reloaded } from "../contracts/agent/index.ts";
-import { loadHome, readWake } from "../contracts/agent/node.ts";
+import type { Reloaded } from "../contracts/agent/index.ts";
+import { type LoadedHome, loadHome } from "../contracts/agent/node.ts";
 import { asError } from "../lib/errors/index.ts";
 import { type LeftOut, leftOutSentence } from "../lib/files/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
 import type { Wakes } from "./chat/index.ts";
 import type { HomeContext } from "./context/durable.ts";
-import { homePaths, readSigil, removeBreadcrumb, shownIn, writeBreadcrumb } from "./home/index.ts";
+import { homePaths, removeBreadcrumb, shownIn, writeBreadcrumb } from "./home/index.ts";
 import type { ModelReload } from "./host/durable.ts";
 import type { KeptLook } from "./look.ts";
 import type { Sessions } from "./sessions/durable.ts";
@@ -91,29 +91,26 @@ export interface HomeParts {
 
 /**
  * Reading the home: its instructions, context files and skills, its triggers,
- * its wake file, its model, its sigil and its pigment, and the files it could
- * not use, which are said. When the home names another model, every session
- * follows it from its next request. A model that can't be used is named, and the
- * sessions keep the one they follow.
+ * and from its `agent.json` its model, what wakes it, its sigil and its
+ * pigment, and the files it could not use, which are said. When the home names
+ * another model, every session follows it from its next request. A model that
+ * can't be used is named, and the sessions keep the one they follow.
  */
 export function homeReader(parts: HomeParts): () => Promise<Reloaded> {
-  const paths = homePaths(parts.home);
   const told = keepLeftOut({ home: parts.home, report: parts.report });
   return async () => {
     if (parts.homeFile !== undefined) await requireSeen(parts.home, parts.homeFile);
     const read = await parts.context.reload();
     const followed = await parts.triggers.reload();
     const model = await followModel(parts);
-    const wake = await readWake(paths);
-    if (wake.kind === "settings") parts.wakes.replace(wake.settings);
-    const sigil = await readSigil(paths);
-    parts.look.take({ sigil: sigil.lines, pigment: pigmentOf(parts.home) ?? parts.look.now().pigment });
+    const config = configOf(parts.home);
+    if (config?.wake !== undefined) parts.wakes.replace(config.wake);
+    if (config !== undefined) parts.look.take({ sigil: config.sigil ?? null, pigment: config.pigment ?? null });
     const leftOut = [
       ...read.leftOut,
       ...followed.leftOut,
-      ...(wake.kind === "left out" ? [wake.leftOut] : []),
       ...model.leftOut,
-      ...sigil.leftOut,
+      ...(config === undefined ? [] : Object.values(config.leftOut)),
     ];
     await told(leftOut);
     const now = parts.sessions.defaults.model;
@@ -122,13 +119,12 @@ export function homeReader(parts: HomeParts): () => Promise<Reloaded> {
 }
 
 /**
- * The pigment the home's `agent.json` names, null when it names none, or
- * undefined when the file can't be read or used. Then the agent keeps the one it
- * has, and reading the model names the file.
+ * The home's `agent.json`, or undefined when it can't be read or used. Then the
+ * agent keeps what it has of it, and reading the model names the file.
  */
-function pigmentOf(home: string): Pigment | null | undefined {
+function configOf(home: string): LoadedHome | undefined {
   try {
-    return loadHome(home).pigment ?? null;
+    return loadHome(home);
   } catch {
     return undefined;
   }

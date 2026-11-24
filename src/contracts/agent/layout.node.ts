@@ -1,16 +1,15 @@
 import { join, resolve } from "node:path";
+import { AGENT_CONFIG } from "./agent-config.ts";
 import { AGENT_RUNTIME_DIR } from "./endpoint.ts";
 import { membershipFile } from "./membership.ts";
 
 /** Where the files are inside one agent home that the agent and the `shrimpy` command both reach. */
 export interface HomePaths {
   readonly root: string;
-  /** The agent's name and default model. */
+  /** Every setting of the agent: its name, its model, its pigment and sigil, and what wakes it in each room. */
   readonly config: string;
   /** The agent's own instructions. */
   readonly soul: string;
-  /** The agent's sigil: twelve lines of twelve characters, `#` for on and `.` for off. */
-  readonly sigil: string;
   readonly context: string;
   readonly vault: string;
   readonly skills: string;
@@ -18,8 +17,8 @@ export interface HomePaths {
   readonly triggers: string;
   /** One small Markdown file for each fact that moves, which a session is shown once, when the fact is new to it. */
   readonly breadcrumbs: string;
-  /** What wakes the agent in each room it has chosen for. It is not there until something is chosen. */
-  readonly wake: string;
+  /** The folder of what only Shrimpy writes, which holds each file below. */
+  readonly state: string;
   /** Pi's credential file for this home. */
   readonly auth: string;
   /** Pi's model file for this home: custom providers and their models. */
@@ -27,8 +26,8 @@ export interface HomePaths {
   /** The agent's token, made before it first joins the network, and its ID in the gateway's roster once it has joined. */
   readonly member: string;
   /**
-   * Disposable files: the owner lock, where to find the agent by this home's path, the shrimpy command the agent's
-   * shell runs, and what each trigger's check last printed on standard error.
+   * Disposable files: the owner lock, where to find the agent by this home's path, the shrimpy command
+   * the agent's shell runs, and what each trigger's check last printed on standard error.
    */
   readonly runtime: string;
 }
@@ -63,18 +62,18 @@ export function providerPaths(dir: string): ProviderPaths {
 
 export function homePaths(home: string): HomePaths {
   const root = resolve(home);
-  const pi = join(root, "state", "pi");
+  const state = join(root, "state");
+  const pi = join(state, "pi");
   return {
     root,
-    config: join(root, "agent.json"),
+    config: join(root, AGENT_CONFIG),
     soul: join(root, "SOUL.md"),
-    sigil: join(root, "sigil"),
     context: join(root, "context"),
     vault: join(root, "vault"),
     skills: join(root, "skills"),
     triggers: join(root, "triggers"),
     breadcrumbs: join(root, "breadcrumbs"),
-    wake: join(root, "wake.json"),
+    state,
     auth: join(pi, "auth.json"),
     models: join(pi, "models.json"),
     member: membershipFile(root),

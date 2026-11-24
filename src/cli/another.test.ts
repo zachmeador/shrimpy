@@ -4,7 +4,7 @@ import { userInfo } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { AGENT_HOME_VARIABLE } from "../contracts/agent/index.ts";
-import { saveMembership } from "../contracts/agent/node.ts";
+import { loadHome, saveMembership } from "../contracts/agent/node.ts";
 import { memberNamed } from "../contracts/chat/testing/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
 import { linkTestAgent, startTestGateway } from "../contracts/gateway/testing/index.ts";
@@ -95,7 +95,8 @@ test("in an agent's shell, changing another agent's files or reading what it is 
 
   assert.deepEqual([refused.code, wakeRefused.code, contextRefused.code], [1, 1, 1]);
   assert.ok(refused.stderr.includes(person), `it says who to ask:\n${refused.stderr}`);
-  assert.equal(existsSync(trigger) || existsSync(join(rexHome, "wake.json")), false, "nothing was written");
+  assert.equal(existsSync(trigger), false, "nothing was written");
+  assert.deepEqual(loadHome(rexHome).wake, {});
 
   // The agent's own triggers are its to change, and once the person has made it an admin so are another's.
   const own = await scout.run(["triggers", "add", "nightly", "--every", "1h", "Tidy."]);

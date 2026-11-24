@@ -46,9 +46,8 @@ An agent's home folder looks like this:
   vault/         Markdown that isn't
   skills/        a folder for each skill, with a SKILL.md
   triggers/      prompts on a schedule
-  sigil          a 12×12 picture, in # and .
-  agent.json     name, model and sigil color
-  state/         sessions, keys and model settings
+  agent.json     name, model, sigil and what wakes it
+  state/         sessions, keys and the rest of what Shrimpy writes
 ```
 
 Changes to these files take effect within a few seconds. A trigger can run a shell command first and only wake the agent when the output changes.

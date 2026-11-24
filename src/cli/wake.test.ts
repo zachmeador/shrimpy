@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { AGENT_HOME_VARIABLE, parseWake } from "../contracts/agent/index.ts";
+import { AGENT_HOME_VARIABLE } from "../contracts/agent/index.ts";
+import { loadHome } from "../contracts/agent/node.ts";
 import { memberNamed, startTestChat } from "../contracts/chat/testing/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { useRuntimeDir } from "../lib/testing/index.ts";
@@ -29,13 +29,12 @@ test("wake chooses what wakes an agent in a room, and lists what is set", { time
   await memberNamed(t, "scout");
   const inShell = { env: { [AGENT_HOME_VARIABLE]: home } };
   const elsewhere = { env: { [AGENT_HOME_VARIABLE]: "" } };
-  const file = join(home, "wake.json");
-  const chosen = (): unknown => parseWake(readFileSync(file, "utf8"), file);
+  const chosen = (): unknown => loadHome(home).wake;
   assert.equal((await shrimpy(["rooms", "new", "Ops"], inShell)).code, 0, "the agent makes a room, so it is in it");
 
   const nothing = await shrimpy(["wake"], inShell);
   assert.equal(nothing.code, 0, nothing.stderr);
-  assert.equal(existsSync(file), false);
+  assert.deepEqual(chosen(), {});
 
   // In the agent's shell the room is checked, and written as chat has its name, in any case it was typed.
   const set = await shrimpy(["wake", "#ops", "all"], inShell);

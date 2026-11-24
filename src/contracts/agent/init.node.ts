@@ -10,7 +10,7 @@ import {
 } from "./agent-config.ts";
 import { type HomePaths, homePaths } from "./layout.node.ts";
 import type { ModelId } from "./shapes.ts";
-import { formatSigil, makeSigil, pickPigment } from "./sigil.ts";
+import { makeSigil, pickPigment } from "./sigil.ts";
 import { modelWords } from "./words.ts";
 
 export interface InitOptions {
@@ -43,7 +43,8 @@ const STARTING_SOUL = `${[
  * and a pigment picked at random. Anything that already exists is left as it
  * is, so running it again only fills in what is missing. An existing
  * `agent.json` must say the same thing as the options: with no model in them,
- * whatever model it names is no difference, and its pigment is never one.
+ * whatever model it names is no difference, and its pigment, its sigil and
+ * what wakes it are never one.
  */
 export function initHome(home: string, options: InitOptions): InitResult {
   const paths = homePaths(home);
@@ -51,6 +52,7 @@ export function initHome(home: string, options: InitOptions): InitResult {
     name: options.name,
     ...(options.model === undefined ? {} : { model: options.model }),
     pigment: pickPigment(Math.random),
+    sigil: makeSigil(Math.random),
   };
   checkAgentName(config.name);
   // Parsing first means init never writes an agent.json that cannot load.
@@ -73,7 +75,6 @@ export function initHome(home: string, options: InitOptions): InitResult {
   mkdirSync(paths.root, { recursive: true });
   file(paths.config, text);
   file(paths.soul, STARTING_SOUL);
-  file(paths.sigil, formatSigil(makeSigil(Math.random)));
   folder(paths.context);
   folder(paths.vault);
   folder(paths.skills);
@@ -87,7 +88,7 @@ export function initHome(home: string, options: InitOptions): InitResult {
 }
 
 function checkSame(paths: HomePaths, wanted: AgentConfig): void {
-  const existing = parseAgentConfig(readFileSync(paths.config, "utf8"), paths.config);
+  const existing = parseAgentConfig(readFileSync(paths.config, "utf8"), paths.config).config;
   const keepsModel = wanted.model === undefined || (existing.model !== undefined && sameModel(existing.model, wanted.model));
   if (existing.name === wanted.name && keepsModel) return;
   const has = existing.model === undefined ? "no model of its own" : `the model ${modelWords(existing.model)}`;

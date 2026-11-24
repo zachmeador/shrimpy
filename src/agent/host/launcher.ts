@@ -14,7 +14,7 @@ const ORDINARY_PATH = "/usr/local/bin:/usr/bin:/bin";
  * it runs the same Shrimpy as the agent does, and names the agent's home, so
  * that what a command does from this shell is done as the agent. `command` is
  * the program and the arguments that run it, such as node and the path of the
- * entry point. The launcher is a file of the home's `runtime/bin`, written again
+ * entry point. The launcher is a file of the home's `state/runtime/bin`, written again
  * at every start. Returns what the shell adds to the agent's environment: a
  * PATH that begins with the launcher's folder.
  */

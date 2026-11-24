@@ -931,7 +931,7 @@ body:not([data-view="live"]) .live { display: none; }
           <li><b>An agent's list is in two groups,</b> your threads and elsewhere, from your note of 2026-11-17. The terminal's filter stays: everything, or yours.</li>
           <li><b>At a desk the agent's view sits beside the conversation.</b> On a phone it turns the thread over, as Tab does in the terminal.</li>
           <li><b>The two lists fold into a strip of sigils,</b> from a tablet's width up, on the button at the top of the rail or Ctrl+\, the key the terminal mockup folds on. The pointer, a tap or the focus brings them back over the thread, and they go when it leaves or a thread is picked. Each device remembers its own fold.</li>
-          <li><b>Each agent has a pigment and a sigil.</b> The terminal draws every agent in one color. A sigil is one bitmap of twelve by twelve that each client draws its own way, as you said on 2026-11-21: "i actually really like this if the sigil is defined once and rendered for cli/web". The <a href="terminal-mockup.html">terminal mockup</a> draws the same ones in dots. It is a file in the agent's home, made at random when the agent is made, and the agent can change it.</li>
+          <li><b>Each agent has a pigment and a sigil.</b> The terminal draws every agent in one color. A sigil is one bitmap of twelve by twelve that each client draws its own way, as you said on 2026-11-21: "i actually really like this if the sigil is defined once and rendered for cli/web". The <a href="terminal-mockup.html">terminal mockup</a> draws the same ones in dots. It is in the agent's <code>agent.json</code>, made at random when the agent is made, and the agent can change it.</li>
           <li><b>The tide.</b> One lantern for each agent, lit while it works, above the list of agents.</li>
           <li><b>An agent has three tabs:</b> threads, triggers and home. Home is the agent's folder to look through, and the file that holds its token is not shown.</li>
           <li><b>A thread's dock keeps to a line for each kind of thing:</b> who is working, and the soonest wake-up with a count of the rest. Where several agents work at once, one block of work is open and the others are a line each.</li>
@@ -1539,7 +1539,7 @@ const HOMES = {
     'skills/': {},
     'lists/': { 'saturday.md': `- sage\n- white miso\n- arborio rice\n- black beans\n- corn tortillas\n- limes\n- scallions\n- firm tofu\n- short-grain rice\n- parmesan\n- spaghetti\n- canned tomatoes\n- vegetable stock\n- olive oil\n` },
     'vault/': { 'weeks/': { '2026-11-23.md': `# Week of Nov 23\n\n- Mon: squash and sage risotto\n- Tue: black bean tacos with quick pickled onion\n- Wed: out\n- Thu: miso soup, rice, and the last of the squash, roasted\n- Fri: pasta with whatever is left\n` } },
-    'wake.json': `{\n  "rooms": {\n    "house": "mentions"\n  }\n}\n`,
+    wake: { house: 'mentions' },
   },
 };
 
@@ -1547,15 +1547,17 @@ const HOMES = {
 function homeOf(a) {
   const A = AGENTS[a];
   const [provider, id] = A.model.split('/');
-  const own = HOMES[a] || {};
+  const { wake, ...own } = HOMES[a] || {};
   const triggers = Object.fromEntries((TRIGGERS[a] || []).map((t) => [`${t.name}.md`, `---\n${t.front}\n---\n${t.body ? `${t.body}\n` : ''}`]));
   const tree = {
-    'agent.json': `${JSON.stringify({ name: A.name, model: { provider, id } }, null, 2)}\n`,
+    'agent.json': `${JSON.stringify({ name: A.name, model: { provider, id }, pigment: A.pig, sigil: BITS[A.sigil], ...(wake ? { wake } : {}) }, null, 2)}\n`,
     'SOUL.md': own['SOUL.md'],
     'breadcrumbs/': {}, 'context/': {}, 'skills/': {}, 'triggers/': {}, 'vault/': {},
     ...own,
-    'runtime/': { 'endpoint.json': `${JSON.stringify({ socket: `/run/shrimpy/${A.name}.sock`, name: A.name, pid: 4100 + ORDER.indexOf(a) * 9 }, null, 2)}\n`, 'owner.lock': '' },
-    'state/': { 'agent.sqlite': { binary: 'a SQLite database', size: '4.1 MB' }, 'member.json': KEPT },
+    'state/': {
+      'agent.sqlite': { binary: 'a SQLite database', size: '4.1 MB' }, 'member.json': KEPT,
+      'runtime/': { 'endpoint.json': `${JSON.stringify({ socket: `/run/shrimpy/${A.name}.sock`, name: A.name, pid: 4100 + ORDER.indexOf(a) * 9 }, null, 2)}\n`, 'owner.lock': '' },
+    },
   };
   tree['triggers/'] = { ...triggers, ...(own['triggers/'] || {}) };
   const sorted = (dir) => Object.fromEntries(Object.entries(dir).sort(([x], [y]) => (y.endsWith('/') - x.endsWith('/')) || x.localeCompare(y)).map(([k, v]) => [k, k.endsWith('/') ? sorted(v) : v]));

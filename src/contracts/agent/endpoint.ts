@@ -19,8 +19,8 @@ export interface AgentEndpoint {
   pid: number;
 }
 
-/** The folder of a home where the agent writes its endpoint. */
-export const AGENT_RUNTIME_DIR = "runtime";
+/** The folder of a home that holds the agent's disposable files, such as its endpoint. */
+export const AGENT_RUNTIME_DIR = "state/runtime";
 
 /** The agent writes its endpoint here once it is listening. */
 export function endpointFile(home: string): string {

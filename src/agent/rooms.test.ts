@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { renameSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import type { WakePolicy } from "../contracts/agent/index.ts";
+import { saveWake } from "../contracts/agent/node.ts";
 import type { Message } from "../contracts/chat/index.ts";
 import { type Speaking, speakingAs } from "../contracts/chat/testing/index.ts";
 import { eventually } from "../lib/testing/index.ts";
@@ -270,7 +271,7 @@ test("an input tells the model where it is, and the list of sessions says the sa
   assert.deepEqual(scout.reports, []);
 });
 
-test("a person's post that mentions nobody wakes every agent in a room, until the wake file says otherwise", { timeout }, async (t) => {
+test("a person's post that mentions nobody wakes every agent in a room, until agent.json says otherwise", { timeout }, async (t) => {
   const model = talking(() => ({ final: "Seen." }));
   const scout = await startAgentRig(t, { script: model.script });
   const bob = await speakingAs(t, await scout.chat.agent("bob"));
@@ -283,10 +284,15 @@ test("a person's post that mentions nobody wakes every agent in a room, until th
     await scout.receiptOn(await scout.say("Are you still there?"), PATIENT);
     return model.shown.filter((shown) => shown.includes(`Thread ${main.id}`));
   };
-  /** Choose a policy for the room in the home's file, by the room's name in another case, and tell the agent to read it. */
+  /** Choose a policy for the room in the home's agent.json, by the room's name in another case, and tell the agent to read it. */
   const choose = async (policy: WakePolicy): Promise<{ file: string; reason: string }[]> => {
-    writeFileSync(homePaths(scout.home).wake, JSON.stringify({ rooms: { ops: policy } }));
+    saveWake(scout.home, "ops", policy);
     return (await agent.reload()).leftOut;
+  };
+  /** Write `wake` in the home's agent.json as an editor would, whatever it is. */
+  const writeWake = (wake: unknown): void => {
+    const { config } = homePaths(scout.home);
+    writeFileSync(config, JSON.stringify({ ...(JSON.parse(readFileSync(config, "utf8")) as object), wake }));
   };
 
   // By default a person's post that mentions nobody wakes it, and an agent's post only when it mentions it.
@@ -320,15 +326,15 @@ test("a person's post that mentions nobody wakes every agent in a room, until th
   await post(person, "@scout, hello?");
   assert.equal((await roomTurns()).length, 4);
 
-  // A file that does not check out is left out and named, and what the agent last read stays.
-  writeFileSync(homePaths(scout.home).wake, "{ not json");
+  // Wake settings that don't check out are left out and named, and what the agent last read stays.
+  writeWake("loud");
   const [problem, ...others] = (await agent.reload()).leftOut;
-  assert.equal(problem?.file, "wake.json");
+  assert.equal(problem?.file, '"wake" in agent.json');
   assert.deepEqual(others, []);
-  writeFileSync(homePaths(scout.home).wake, JSON.stringify({ rooms: { ops: "loud" } }));
+  writeWake({ ops: "loud" });
   const [wrong] = (await agent.reload()).leftOut;
-  assert.equal(wrong?.reason, 'rooms.ops must be "none", "mentions", "people" or "all", not "loud"');
+  assert.equal(wrong?.reason, 'wake.ops must be "none", "mentions", "people" or "all", not "loud"');
   await post(person, "@scout, still there?");
   assert.equal((await roomTurns()).length, 4);
-  assert.equal(scout.reports.length, 2, "the agent said each of the two files it couldn't use, once");
+  assert.equal(scout.reports.length, 2, "the agent said each of the two problems, once");
 });

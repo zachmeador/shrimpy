@@ -15,9 +15,9 @@ export function homePaths(home: string): HomePaths {
   const paths = sharedPaths(home);
   return {
     ...paths,
-    database: join(paths.root, "state", "agent.sqlite"),
+    database: join(paths.state, "agent.sqlite"),
     bin: join(paths.runtime, "bin"),
-    workspaceContext: join(paths.root, "state", "workspace-context"),
+    workspaceContext: join(paths.state, "workspace-context"),
   };
 }
 

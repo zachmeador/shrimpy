@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { fauxAssistantMessage } from "@earendil-works/pi-ai";
+import { saveWake } from "../contracts/agent/node.ts";
 import type { Message } from "../contracts/chat/index.ts";
 import { speakingAs } from "../contracts/chat/testing/index.ts";
 import { until, waitForView } from "../lib/testing/index.ts";
-import { homePaths } from "./home/index.ts";
 import {
   roomWith,
   SCOUT,
@@ -127,7 +126,7 @@ test("a room that wakes the agent for nothing does not turn /stop away", { timeo
   const { main } = await roomWith(t, rig.chat, "Ops", [rig.partner]);
   const working = await rig.say("get started", main.id);
   await until(() => model.asked.length === 1, "the turn to be at work");
-  writeFileSync(homePaths(rig.home).wake, JSON.stringify({ rooms: { ops: "none" } }));
+  saveWake(rig.home, "ops", "none");
   assert.deepEqual((await (await rig.connect()).reload()).leftOut, []);
 
   const command = await rig.say("/stop", main.id);

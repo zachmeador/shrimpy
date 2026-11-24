@@ -176,16 +176,15 @@ async function startCrab(t: TestContext): Promise<{ rig: Rig; home: string; crab
 test("an agent's look follows its home's files while it runs, and is worked out from its member ID while it does not", { timeout: 90_000 }, async (t) => {
   const { rig, home, crab } = await startCrab(t);
   const looked = (model: Model): Look | undefined => agentsLevel(model, at).rows.find((row) => row.kind === "agent")?.look;
-  const config = (): { pigment: string } => JSON.parse(readFileSync(join(home, "agent.json"), "utf8")) as { pigment: string };
-  const sigil = parseSigil(readFileSync(join(home, "sigil"), "utf8"));
+  const config = (): { pigment: string; sigil: unknown } => JSON.parse(readFileSync(join(home, "agent.json"), "utf8")) as { pigment: string; sigil: unknown };
+  const sigil = parseSigil(config().sigil);
   assert.ok(sigil, "a new home has a sigil");
   const { pigment } = config();
 
   await rig.until((model) => looked(model)?.sigil.join() === sigil.join() && looked(model)?.pigment === pigment, "crab's look as its home has it");
   const frame = ["#".repeat(12), ...Array.from({ length: 10 }, () => `#${".".repeat(10)}#`), "#".repeat(12)];
-  writeFileSync(join(home, "sigil"), `${frame.join("\n")}\n`);
   const other = PIGMENTS.find((each) => each !== pigment);
-  writeFileSync(join(home, "agent.json"), `${JSON.stringify({ ...config(), pigment: other }, null, 2)}\n`);
+  writeFileSync(join(home, "agent.json"), `${JSON.stringify({ ...config(), sigil: frame, pigment: other }, null, 2)}\n`);
   await rig.until((model) => looked(model)?.sigil.join() === frame.join() && looked(model)?.pigment === other, "crab's look as its home has it now");
 
   await crab.kill();

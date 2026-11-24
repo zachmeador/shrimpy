@@ -189,7 +189,7 @@ test("an agent apart joins with an invitation, answers, and a copy of its home i
   const copy = join(tempDir(t, "apart-copy"), "crab");
   cpSync(home, copy, {
     recursive: true,
-    filter: (source) => !source.startsWith(join(home, "runtime")) && !source.includes("agent.sqlite"),
+    filter: (source) => !source.startsWith(join(home, "state", "runtime")) && !source.includes("agent.sqlite"),
   });
   const copying = shrimpyInBackground(t, ["agent", "serve", copy], {
     env: { ...apart, SHRIMPY_RUNTIME_DIR: tempDir(t, "rt-copy") },

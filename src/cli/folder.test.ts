@@ -29,9 +29,9 @@ const modelFlags = ["--model", "local/test-model"];
 /** What `agent init` says to type first, to give the agent a way to reach its model. */
 const SIGN_IN = "shrimpy login";
 
-/** What a home's agent.json says, apart from the pigment, which is picked at random. */
+/** What a home's agent.json says, apart from the pigment and the sigil, which are made at random. */
 function agentFile(home: string): unknown {
-  const { pigment: _pigment, ...rest } = JSON.parse(readFileSync(join(home, "agent.json"), "utf8")) as Record<string, unknown>;
+  const { pigment: _pigment, sigil: _sigil, ...rest } = JSON.parse(readFileSync(join(home, "agent.json"), "utf8")) as Record<string, unknown>;
   return rest;
 }
 

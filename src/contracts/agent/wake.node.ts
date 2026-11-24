@@ -1,47 +1,30 @@
-import type { LeftOut } from "../../lib/files/index.ts";
-import { readText, saveFile } from "../../lib/files/node.ts";
-import { ConfigError } from "../../lib/json-config/index.ts";
-import { withoutPeriod } from "../../lib/text/index.ts";
+import { readFileSync } from "node:fs";
+import { saveFile } from "../../lib/files/node.ts";
+import { parseConfig } from "../../lib/json-config/index.ts";
 import { nameKey } from "../gateway/index.ts";
-import type { HomePaths } from "./layout.node.ts";
+import { AGENT_CONFIG, formatAgentConfig } from "./agent-config.ts";
 import { loadHome } from "./load.node.ts";
-import { parseWake, type WakePolicy, type WakeSettings } from "./wake.ts";
-
-/** What the wake file is called, as a message about it says. */
-const FILE = "wake.json";
-
-/** The settings of a home that has a wake file that checks out, or a home that has none; or the file, left out, and why. */
-export type WakeRead = { kind: "settings"; settings: WakeSettings } | { kind: "left out"; leftOut: LeftOut };
-
-/** Read the home's wake file. A home with none sets nothing, and a file that cannot be used is left out and named. */
-export async function readWake(paths: HomePaths): Promise<WakeRead> {
-  const read = await readText(paths.wake);
-  if (read.kind === "missing") return { kind: "settings", settings: {} };
-  if (read.kind === "unreadable") return { kind: "left out", leftOut: { file: FILE, reason: read.reason } };
-  try {
-    return { kind: "settings", settings: parseWake(read.text, paths.wake) };
-  } catch (error) {
-    if (!(error instanceof ConfigError)) throw error;
-    // The message names the file and ends with a full stop; a left-out file's reason finishes "<file> was left out: ".
-    return { kind: "left out", leftOut: { file: FILE, reason: withoutPeriod(error.message.replace(`${paths.wake}: `, "")) } };
-  }
-}
+import type { WakePolicy, WakeSettings } from "./wake.ts";
 
 /**
- * Set the policy of a room in the home's wake file, in place of any it had,
- * written whole so that nobody reading it at the same moment sees half of it.
- * A file that does not check out is not written over: the error says why, and
- * the file is for a person to fix. Gives the settings as they are now.
+ * Set the policy of a room under `wake` in the home's `agent.json`, in place of
+ * any it had, written whole so that nobody reading it at the same moment sees
+ * half of it. The rest of the file is kept as it is. Wake settings that don't
+ * check out are not written over: the error says why, and the file is for a
+ * person to fix. Gives the settings as they are now.
  */
-export async function saveWake(home: string, room: string, policy: WakePolicy): Promise<{ file: string; settings: WakeSettings }> {
-  const { paths } = loadHome(home);
-  const read = await readWake(paths);
-  if (read.kind === "left out") {
-    throw new Error(`${FILE} was not changed, because it does not check out: ${read.leftOut.reason}. Fix it by hand, or delete it.`);
+export function saveWake(home: string, room: string, policy: WakePolicy): { file: string; settings: WakeSettings } {
+  const { paths, wake, leftOut } = loadHome(home);
+  if (leftOut.wake !== undefined) {
+    throw new Error(
+      `${AGENT_CONFIG} was not changed, because its "wake" does not check out: ${leftOut.wake.reason}. Fix it by hand, or remove "wake".`,
+    );
   }
   const wanted = nameKey(room);
-  const others = Object.entries(read.settings).filter(([name]) => nameKey(name) !== wanted);
+  const others = Object.entries(wake ?? {}).filter(([name]) => nameKey(name) !== wanted);
   const settings: WakeSettings = { ...Object.fromEntries(others), [room]: policy };
-  saveFile(paths.wake, `${JSON.stringify({ rooms: settings }, null, 2)}\n`);
-  return { file: paths.wake, settings };
+  // Everything else in the file is written back as it was read, a sigil that doesn't check out included.
+  const rest = parseConfig(readFileSync(paths.config, "utf8"), paths.config).rest();
+  saveFile(paths.config, formatAgentConfig({ ...rest, wake: settings }));
+  return { file: paths.config, settings };
 }

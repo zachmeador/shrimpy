@@ -27,7 +27,7 @@ const fromId = (id: string): Look => {
  */
 export function lookOf(model: Pick<Model, "listing" | "looks">, id: string): Look {
   const shown = agentRuns(model, id) ? model.looks[id] : undefined;
-  const sigil = shown?.sigil === null || shown?.sigil === undefined ? undefined : parseSigil(shown.sigil.join("\n"));
+  const sigil = parseSigil(shown?.sigil);
   const pigment = PIGMENTS.find((each) => each === shown?.pigment);
   return { sigil: sigil ?? fromId(id).sigil, pigment: pigment ?? fromId(id).pigment };
 }

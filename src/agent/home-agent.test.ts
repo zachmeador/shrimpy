@@ -92,17 +92,17 @@ const rosterOf = (gateway: TestGateway): Promise<RosterEntry[]> => onRoster(gate
 const agentNames = async (gateway: TestGateway): Promise<string[]> =>
   (await rosterOf(gateway)).filter((member) => member.kind === "agent").map((member) => member.name).sort();
 
-/** Change the name a home's `agent.json` gives its agent, as a person does with an editor. */
-function renameHome(paths: ReturnType<typeof newHome>, name: string): void {
+/** Set `key` in a home's `agent.json`, keeping the rest, as a person or the agent does with an editor. */
+function setInConfig(paths: ReturnType<typeof newHome>, key: string, value: unknown): void {
   const config = JSON.parse(readFileSync(paths.config, "utf8")) as object;
-  writeFileSync(paths.config, JSON.stringify({ ...config, name }));
+  writeFileSync(paths.config, JSON.stringify({ ...config, [key]: value }));
 }
 
-/** Change the model a home's `agent.json` names, as a person does with an editor. */
-function nameModel(paths: ReturnType<typeof newHome>, provider: string, id: string): void {
-  const config = JSON.parse(readFileSync(paths.config, "utf8")) as object;
-  writeFileSync(paths.config, JSON.stringify({ ...config, model: { provider, id } }));
-}
+/** Change the name a home's `agent.json` gives its agent. */
+const renameHome = (paths: ReturnType<typeof newHome>, name: string): void => setInConfig(paths, "name", name);
+
+/** Change the model a home's `agent.json` names. */
+const nameModel = (paths: ReturnType<typeof newHome>, provider: string, id: string): void => setInConfig(paths, "model", { provider, id });
 
 /** How often the agent looks at its files in the tests that change them while it runs, in milliseconds. */
 const LOOK = 25;
@@ -368,21 +368,20 @@ test("a new home's sigil and pigment show on its agent, and an edit of either sh
   const paths = newHome(t);
   await startAt(t, paths.root, { lookEveryMs: LOOK });
   const connection = await connectAgent(t, paths.root);
-  const made = loadHome(paths.root).pigment;
-  assert.ok(made !== undefined);
-  assert.deepEqual(connection.look(), { sigil: parseSigil(readFileSync(paths.sigil, "utf8")), pigment: made });
+  const made = loadHome(paths.root);
+  assert.ok(made.pigment !== undefined && parseSigil(made.sigil) !== undefined);
+  assert.deepEqual(connection.look(), { sigil: made.sigil, pigment: made.pigment });
 
-  writeFileSync(paths.sigil, `${LIGHTHOUSE.join("\n")}\n`);
+  setInConfig(paths, "sigil", LIGHTHOUSE);
   await eventually(() => connection.look().sigil, (sigil) => sigil?.join("\n") === LIGHTHOUSE.join("\n"), { what: "the redrawn sigil to show" });
 
   // A drawing that isn't twelve by twelve shows no sigil, and the agent is told why.
-  writeFileSync(paths.sigil, "#.#\n.#.\n#.#\n");
+  setInConfig(paths, "sigil", ["#.#", ".#.", "#.#"]);
   await eventually(() => connection.look().sigil, (sigil) => sigil === null, { what: "the sigil to go" });
-  assert.ok((await connection.reload()).leftOut.some(({ file }) => file === "sigil"), "it is left out, with why");
+  assert.ok((await connection.reload()).leftOut.some(({ file }) => file === '"sigil" in agent.json'), "it is left out, with why");
 
-  const other = PIGMENTS.find((pigment) => pigment !== made) ?? made;
-  const config = JSON.parse(readFileSync(paths.config, "utf8")) as object;
-  writeFileSync(paths.config, JSON.stringify({ ...config, pigment: other }));
+  const other = PIGMENTS.find((pigment) => pigment !== made.pigment) ?? made.pigment;
+  setInConfig(paths, "pigment", other);
   await eventually(() => connection.look().pigment, (pigment) => pigment === other, { what: "the new pigment to show" });
 });
 

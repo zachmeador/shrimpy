@@ -1,6 +1,8 @@
+import { writeFileSync } from "node:fs";
 import type { TestContext } from "node:test";
 import { backoff } from "../../lib/retry/index.ts";
 import { stopAfter, tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
+import { homePaths } from "../home/index.ts";
 import { type JoinOptions, type RunningAgent, startAgent } from "../index.ts";
 import { type AgentConnection, attachThread, closeAfter, connectAgent, type SessionHandle } from "./attach.ts";
 import { type ChatServer, startChatServer } from "./chat-server.ts";
@@ -52,9 +54,16 @@ export interface AgentRig extends Talk {
  * rig can be given the first one's home and chat server, to see an agent that
  * is started again.
  */
+/** A home of its own with only an `agent.json` that names the agent, where a test sets what wakes it or how it looks. */
+function newHome(t: TestContext, name: string): string {
+  const home = tempDir(t, "agent");
+  writeFileSync(homePaths(home).config, JSON.stringify({ name }));
+  return home;
+}
+
 export async function startAgentRig(t: TestContext, options: AgentRigOptions = {}): Promise<AgentRig> {
   useRuntimeDir(t);
-  const home = options.home ?? tempDir(t, "agent");
+  const home = options.home ?? newHome(t, options.name ?? SCOUT);
   const chat = options.chat ?? (await startChatServer(t));
   const reports: unknown[] = [];
   const agent = closeAfter(

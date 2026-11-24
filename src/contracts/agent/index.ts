@@ -37,7 +37,6 @@ export { lookFromId, makeSigil, parseSigil, pickPigment, type Pigment, PIGMENTS 
 export {
   DEFAULT_WAKE_POLICY,
   isWakePolicy,
-  parseWake,
   WAKE_POLICIES,
   type WakePolicy,
   type WakeSettings,

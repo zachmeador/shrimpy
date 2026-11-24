@@ -10,7 +10,7 @@ import { homePaths } from "./layout.ts";
 
 /*
  * Whoever may watch an agent can look through its home's files and change nothing. No path leads out of the home, and
- * nothing in state/ or runtime/ is listed or read, since they hold the agent's token and keys.
+ * nothing in state/ is listed or read, since it holds the agent's token and keys.
  */
 
 function write(path: string, content: string | Buffer): void {
@@ -37,7 +37,7 @@ function homeWithLinks(t: TestContext) {
   return { paths, secret: join(elsewhere, "secret.md") };
 }
 
-test("no path leaves the home, by .., from / or through a link, and nothing in state/ or runtime/ is listed or read", async (t) => {
+test("no path leaves the home, by .., from / or through a link, and nothing in state/ is listed or read", async (t) => {
   const { paths, secret } = homeWithLinks(t);
 
   assert.deepEqual((await folderAt(paths, "")).map(({ name }) => name), ["SOUL.md", "context", "vault"]);
@@ -60,13 +60,13 @@ test("no path leaves the home, by .., from / or through a link, and nothing in s
     "vault/out.md",
     "vault/away/secret.md",
     "state/member.json",
-    "runtime/endpoint.json",
+    "state/runtime/endpoint.json",
     "vault/token.json",
     "vault/kept/member.json",
     "vault/gone.md",
   ];
   for (const path of refusedFiles) await assert.rejects(fileAt(paths, path), isRefusal, path);
-  for (const path of ["/", "..", "state", "./runtime", "vault/away", "vault/kept"]) {
+  for (const path of ["/", "..", "state", "./state/runtime", "vault/away", "vault/kept"]) {
     await assert.rejects(folderAt(paths, path), isRefusal, path);
   }
 });

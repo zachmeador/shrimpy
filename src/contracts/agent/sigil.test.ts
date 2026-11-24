@@ -23,7 +23,7 @@ test("a made sigil is twelve by twelve, the same left to right, and neither near
   const sources = [...Array.from({ length: 500 }, (_, seed) => numbers(seed)), () => 0, () => 0.999, () => 1, () => -3, () => Number.NaN];
   for (const random of sources) {
     const sigil = makeSigil(random);
-    assert.deepEqual(parseSigil(`${sigil.join("\n")}\n`), sigil);
+    assert.deepEqual(parseSigil(sigil), sigil);
     for (const line of sigil) assert.equal(line, Array.from(line).reverse().join(""), sigil.join("\n"));
     const on = sigil.join("").replaceAll(".", "").length;
     assert.ok(on >= 144 / 5 && on <= (144 * 2) / 3, `${String(on)} of 144 cells are on:\n${sigil.join("\n")}`);

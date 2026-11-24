@@ -214,7 +214,7 @@ The contracts list three reasons. All three come when connecting, and the agent 
 
 `Presence`, at `agent({ id: agent })`, with params `{ agent }`, has no members. The gateway holds it.
 
-Server IDs go, with the paths that carried tickets and answered calls, `reachProgram`, `keepRegistered`, and an agent's second socket, the one the gateway piped to. The invitation's link, `machine.json`, a home's `state/member.json`, `SHRIMPY_AGENT_HOME` and the commands for agents stay. A home's `runtime/endpoint.json` keeps its socket's path, pid and name for `agent status` and `up`; clients on the home's socket hold objects at `agent({ id: "home" })`.
+Server IDs go, with the paths that carried tickets and answered calls, `reachProgram`, `keepRegistered`, and an agent's second socket, the one the gateway piped to. The invitation's link, `machine.json`, a home's `state/member.json`, `SHRIMPY_AGENT_HOME` and the commands for agents stay. A home's `state/runtime/endpoint.json` keeps its socket's path, pid and name for `agent status` and `up`; clients on the home's socket hold objects at `agent({ id: "home" })`.
 
 *Versions.* A change to a type bumps its version with Chord's `evolve`, and the program that serves the type maps each older version it still takes with `checkAccepts`. Chord checks a contract's fingerprint, a hash of its params and members, as well as its number, so two builds that disagree on what a version is wait on each other instead of misreading each other. A mapping gives an older caller what its own release did, and refuses a call only where that would be unsafe, with words saying to update. `Presence` has no members, so it never needs a new version.
 

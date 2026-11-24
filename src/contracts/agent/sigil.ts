@@ -10,20 +10,15 @@ const OFF = ".";
 const LINE = /^[#.]{12}$/;
 
 /**
- * The lines of a sigil from the text of a `sigil` file: twelve lines of twelve
- * characters, `#` for on and `.` for off. Blank lines before and after them, and
- * spaces at the end of a line, don't count. Anything else is no sigil, and
- * gives undefined.
+ * The lines of a sigil, as `agent.json` and an agent's look hold them: twelve
+ * strings of twelve characters, `#` for on and `.` for off. Anything else is no
+ * sigil, and gives undefined.
  */
-export function parseSigil(text: string): string[] | undefined {
-  const lines = text.split("\n").map((line) => line.trimEnd());
-  while (lines[0] === "") lines.shift();
-  while (lines.at(-1) === "") lines.pop();
-  return lines.length === S && lines.every((line) => LINE.test(line)) ? lines : undefined;
+export function parseSigil(value: unknown): string[] | undefined {
+  if (!Array.isArray(value) || value.length !== S) return undefined;
+  const lines: unknown[] = value;
+  return lines.every((line): line is string => typeof line === "string" && LINE.test(line)) ? lines : undefined;
 }
-
-/** A sigil as its file holds it. */
-export const formatSigil = (lines: readonly string[]): string => `${lines.join("\n")}\n`;
 
 /** A pigment picked by `random`, which gives numbers from 0 up to 1, as `Math.random` does. */
 export function pickPigment(random: () => number): Pigment {
