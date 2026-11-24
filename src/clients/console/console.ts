@@ -43,8 +43,10 @@ export interface ConsoleOptions {
   startOnLanding?: boolean;
   /**
    * Put the gateway's version, `version`, on this machine and open the
-   * terminal again, once the console has left the screen, for `/update`. The
-   * result is the exit code. Without it the console doesn't offer `/update`.
+   * terminal again, once the console has left the screen, for `/update` and
+   * for what the first screen offers while the gateway turns the console away
+   * for the release it runs. The result is the exit code. Without it the
+   * console offers neither.
    */
   update?: (version: string) => Promise<number>;
 }
@@ -53,13 +55,22 @@ export interface ConsoleOptions {
  * Open the console on the person's terminal, and keep it open until they leave.
  * It links to the gateway and holds what it shows through that link. Leaving
  * lets go of everything held and stops no work; if an agent is still working,
- * one line says so and how to stop it. `/update` leaves the same way before
- * it updates. The result is the exit code.
+ * one line says so and how to stop it. Updating this machine leaves the same
+ * way first. The result is the exit code.
  */
 export async function openConsole(options: ConsoleOptions): Promise<number> {
   const { update } = options;
   let updateTo: string | undefined;
   let leave = (): void => undefined;
+  const updating =
+    update === undefined
+      ? {}
+      : {
+          update(version: string) {
+            updateTo = version;
+            leave();
+          },
+        };
   const state = await createClientState({
     dial: dialAt(options.place ?? { path: gatewaySocket() }),
     token: options.token ?? null,
@@ -67,14 +78,7 @@ export async function openConsole(options: ConsoleOptions): Promise<number> {
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.homes === undefined ? {} : { homes: options.homes }),
     ...(options.startOnLanding === undefined ? {} : { startOnLanding: options.startOnLanding }),
-    ...(update === undefined
-      ? {}
-      : {
-          update(version: string) {
-            updateTo = version;
-            leave();
-          },
-        }),
+    ...updating,
   });
   try {
     const drawing = startDrawing({
@@ -84,7 +88,7 @@ export async function openConsole(options: ConsoleOptions): Promise<number> {
       quitWindowMs: options.quitWindowMs,
       onDraw: options.onDraw,
       machine: hostname(),
-      updates: update !== undefined,
+      ...updating,
     });
     leave = () => drawing.leave();
     const stopListening = options.io.onStop(() => drawing.leave());

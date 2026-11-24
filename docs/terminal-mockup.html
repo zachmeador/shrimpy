@@ -183,10 +183,13 @@ html[data-view="live"] body { overflow: hidden; }
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="day" data-route="agent:crab"></div></div>
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="day" data-route="" data-down="1"></div></div>
     </div>
-    <p class="cap">On a machine whose Shrimpy is older than the gateway's, the first screen says so. <code>/update</code>, written in any thread, leaves the screen, runs <code>shrimpy update</code> with the gateway's version and opens the terminal again on it. A page comes from the gateway, so it has neither.</p>
+    <p class="cap">On a machine whose Shrimpy is older than the gateway's, the first screen says so. <code>/update</code>, written in any thread, leaves the screen, runs <code>shrimpy update</code> with the gateway's version and opens the terminal again on it. After a release that changes the Pi packages or the major, the gateway turns the terminal away and no thread opens, so the first screen offers the same update, and Enter starts it. A page comes from the gateway, so it has none of this.</p>
     <div class="fit">
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route="" data-behind="0.1.0"></div></div>
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route="agent:lighthouse/thread:lh-main" data-behind="0.1.0" data-typed="/up"></div></div>
+    </div>
+    <div class="fit">
+      <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="day" data-route="" data-refused="1.0.0"></div></div>
     </div>
   </section>
 
@@ -1006,8 +1009,8 @@ function term(win, o) {
   const s = {
     mode: o.mode, cols: o.cols, rows: o.rows, level: 1, place: null, thread: null, cur: [0, 0, 0], filter: 'everything',
     side: Number(o.side) || 0, fold: Boolean(o.fold), keys: Boolean(o.keys), full: { tools: Boolean(o.full), thinking: Boolean(o.full) },
-    input: '', caret: 0, slash: null, notice: null, status: null, scroll: 0, armed: false, stale: Boolean(o.stale), down: Boolean(o.down), clock: 22, made: 0,
-    arch: Boolean(o.arch), behind: o.behind || null,
+    input: '', caret: 0, slash: null, notice: null, status: null, scroll: 0, armed: false, stale: Boolean(o.stale), down: Boolean(o.down || o.refused), clock: 22, made: 0,
+    arch: Boolean(o.arch), behind: o.behind || null, refused: o.refused || null,
   };
   for (const part of (o.route || '').split('/').filter(Boolean)) {
     const [k, v] = part.split(':');
@@ -1144,6 +1147,11 @@ function term(win, o) {
       g.text(x + w - 1 - (ORDER.length - i) * 2, 5, '▪', { f: on ? lamp() : AGENTS[a].running ? 'line2' : 'line' });
     });
     let y = 7;
+    if (s.refused) {
+      y = note(x, y, w, [[`The gateway turned this console away: The gateway runs Shrimpy ${s.refused} on Pi 1.6.0, and this runs Shrimpy ${VERSION} on Pi 1.5.2. Programs that link need the same Pi packages: update Shrimpy here to ${s.refused}.`, SAND]]);
+      note(x, y, w, [['Press ', INK2], ['enter', { f: 'ink', b: 1 }], [` to install Shrimpy ${s.refused} here and open the terminal again.`, INK2]]);
+      return;
+    }
     if (s.down) {
       note(x, y, w, [['No gateway is running on this machine. Start Shrimpy with: ', SAND], ['shrimpy up', { f: 'ink', b: 1 }]]);
       return;
@@ -1498,6 +1506,7 @@ function term(win, o) {
     const keys = s.keys ? [['esc', 'close']]
       : s.level === 3 && canWrite(th) ? [['enter', 'send'], ['/', 'commands'], [s.input ? 'esc' : '←', 'back']]
       : s.level === 3 ? [['←', 'back']]
+      : s.refused ? [['enter', 'update this machine']]
       : s.down ? []
       : s.level === 2 ? [...(listRows().length ? [['↑↓', 'choose'], ['→', 'open']] : []), ['←', 'back']]
       : [['↑↓', 'choose'], ['→', 'open']];

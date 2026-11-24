@@ -5,6 +5,7 @@ import { LABELS, OUT_OF_DATE, type Row, versionLine } from "../../view/index.ts"
 import { role, type Run, type Tone } from "./paint.ts";
 import { isChosen, label, lamp, type Line, noteRuns, rowEnd, rowLines, spread, windowed, wrapped } from "./rows.ts";
 import { type Frame, rowKey } from "./screen.ts";
+import { updateOffer } from "./words.ts";
 
 /** The wordmark in braille, with a row of dots above it: sixteen cells by three. */
 const MARK = dots(["", ...WORDMARK]);
@@ -25,8 +26,12 @@ export function drawRail(frame: Frame, width: number, height: number, notes: rea
   const agentRows = agents.rows.filter((each) => each.kind === "agent");
   top.push({ text: tide(frame, width, agentRows) }, { text: "" });
   for (const note of notes) top.push(...wrapped(paint, noteRuns(note), width));
+  if (agents.update !== undefined) {
+    const [before, key, after] = updateOffer(agents.update);
+    top.push(...wrapped(paint, [[before, "ink2"], [key, { tone: "ink", bold: true }], [after, "ink2"]], width));
+  }
   if (agents.empty !== undefined) top.push(...wrapped(paint, agents.empty, width, "ink3"));
-  if (notes.length > 0 || agents.empty !== undefined) top.push({ text: "" });
+  if (notes.length > 0 || agents.empty !== undefined || agents.update !== undefined) top.push({ text: "" });
 
   const focus = frame.front === "agents";
   const openKey = model.open.list === undefined ? undefined : placeKey(model.open.list);

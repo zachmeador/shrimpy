@@ -25,6 +25,8 @@ export interface KeysHere {
   typed: boolean;
   /** The keys are in the first level, where Ctrl+D is how to leave. */
   first: boolean;
+  /** The first level offers to update this machine, which Enter does. */
+  update: boolean;
 }
 
 /**
@@ -34,6 +36,7 @@ export interface KeysHere {
  */
 export function keyHints(here: KeysHere): Hint[] {
   const hints: Hint[] = [];
+  if (here.update) hints.push(UPDATE_KEY);
   if (here.send) hints.push(["enter", "send"], ["/", "commands"]);
   if (here.choose) hints.push(["↑↓", "choose"], ["→", "open"]);
   if (here.back) hints.push([here.typed ? "esc" : "←", "back"]);
@@ -41,6 +44,16 @@ export function keyHints(here: KeysHere): Hint[] {
   if (here.first) hints.push(["ctrl+d", "quit"]);
   return hints;
 }
+
+/** What Enter does on the first screen while the gateway turns the console away for the release it runs. */
+const UPDATE_KEY: Hint = ["enter", "update this machine"];
+
+/** What the first screen offers then, as words before the key, the key, and words after it, for Shrimpy `version`. */
+export const updateOffer = (version: string): [before: string, key: string, after: string] => [
+  "Press ",
+  UPDATE_KEY[0],
+  ` to install Shrimpy ${version} here and open the terminal again.`,
+];
 
 /** The last line while the list of keys is open. */
 export const CLOSE_KEYS: Hint = ["esc", "close"];

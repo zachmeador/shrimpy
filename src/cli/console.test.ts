@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
-import type { ConsoleScreen } from "../clients/console/index.ts";
+import { type ConsoleScreen, openConsole } from "../clients/console/index.ts";
 import type { SessionStatus } from "../contracts/agent/index.ts";
 import type { Message, Thread } from "../contracts/chat/index.ts";
 import { memberNamed, startTestChat } from "../contracts/chat/testing/index.ts";
+import { gatewaySocket } from "../contracts/gateway/node.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
-import { eventually, FakeTerminal, stopAfter, tempDir, until, within } from "../lib/testing/index.ts";
+import { listen } from "../lib/link/node.ts";
+import { eventually, FakeTerminal, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
+import { PI_PACKAGES, SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { openTheConsole } from "./run.ts";
 import {
   agentHome,
@@ -340,5 +343,27 @@ test("a stop request, as SIGTERM is, leaves the console as the keys do", { timeo
   cli.requestStop();
 
   assert.equal(await within(30_000, exited, "the console to be left"), 0);
+  assert.equal(terminal.stopped, true);
+});
+
+test("a console the gateway turns away for a newer release offers that release, and Enter installs it", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const [major = 0] = SHRIMPY_VERSION.split(/[.-]/).map(Number);
+  const newer = `${String(major + 1)}.0.0`;
+  const gateway = await listen({ path: gatewaySocket() }, () => ({
+    answer: { kind: "refused", words: "Another major.", reason: null, shrimpy: newer, pi: PI_PACKAGES },
+  }));
+  stopAfter(t, () => gateway.close());
+  const asked: string[] = [];
+  const terminal = new FakeTerminal();
+  const { exited } = openConsoleOn(t, terminal, (io, stand) =>
+    openConsole({ io, update: (version) => Promise.resolve(asked.push(version) + 6), ...stand }),
+  );
+
+  await seen(terminal, newer, "the offer of the gateway's release");
+  terminal.type(ENTER);
+
+  assert.equal(await within(30_000, exited, "the console to be left"), 7, "the update's exit code is the command's");
+  assert.deepEqual(asked, [newer]);
   assert.equal(terminal.stopped, true);
 });

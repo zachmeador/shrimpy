@@ -53,6 +53,7 @@ export {
   sidesOf,
   type Status,
   type ThreadView,
+  turnedAwayBehind,
   unreadOf,
 } from "./model.ts";
 export { type ClientCommand, CLIENT_COMMANDS, commandNames, type Standing, standingOf, type Written, writtenInOpen } from "./written.ts";

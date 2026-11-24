@@ -61,8 +61,12 @@ export interface DrawingOptions {
   onDraw?: (screen: Screen) => void;
   /** The name of this machine, which the foot of the agents and rooms says beside the person's. */
   machine?: string;
-  /** Whether the console offers `/update`, which puts the gateway's version on this machine. */
-  updates?: boolean;
+  /**
+   * Put the gateway's version on this machine, which `/update` does, and the
+   * first screen offers while the gateway turns the console away for the
+   * release it runs. Without it the console offers neither.
+   */
+  update?: (version: string) => void;
 }
 
 export interface Drawing {
@@ -97,7 +101,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
 
   const { state } = options;
   const now = options.now ?? Date.now;
-  const updates = options.updates ?? false;
+  const updates = options.update !== undefined;
   const terminal = options.terminal ?? new ProcessTerminal();
   const trueColor = getTerminalColorMode() === "truecolor";
   const inFull = { toolCalls: false, thinking: false };
@@ -276,7 +280,8 @@ export function startDrawing(options: DrawingOptions): Drawing {
     if (waitingForSecondPress) return "quit-again";
     if (keys !== undefined) return [CLOSE_KEYS];
     const typed = current.can.send && editor.getText() !== "";
-    return keyHints({ send: current.can.send, choose: current.can.choose, back: current.can.back, typed, first: frame.front === "agents" });
+    const first = frame.front === "agents";
+    return keyHints({ send: current.can.send, choose: current.can.choose, back: current.can.back, typed, first, update: first && frame.levels.agents.update !== undefined });
   });
   const levelsShown = (count: 1 | 2 | 3) => (viewport: { width: number }) => levelsAt(viewport.width, frame.folded) === count;
   tui.setLayoutRoot(
@@ -438,7 +443,9 @@ export function startDrawing(options: DrawingOptions): Drawing {
 
   /** What a key does where the keys are in a list. */
   function onList(data: string): void {
-    if (matchesKey(data, "up") || matchesKey(data, "down")) choose(matchesKey(data, "up") ? -1 : 1);
+    const offered = frame.front === "agents" ? frame.levels.agents.update : undefined;
+    if (offered !== undefined && matchesKey(data, "enter")) options.update?.(offered);
+    else if (matchesKey(data, "up") || matchesKey(data, "down")) choose(matchesKey(data, "up") ? -1 : 1);
     else if (matchesKey(data, "right") || matchesKey(data, "enter")) {
       const { rows, chosen } = inFront();
       const row = rows.find((each) => rowKey(each) === chosen);

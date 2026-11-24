@@ -11,7 +11,7 @@ import type {
   WaitingWakeup,
 } from "../../contracts/agent/index.ts";
 import type { AgentCommand, Channel, Member, Message, Thread } from "../../contracts/chat/index.ts";
-import { compareShrimpy, type Program, type RosterEntry, type TurnedAwayProgram, type Versions, type WayIn } from "../../contracts/gateway/index.ts";
+import { compareShrimpy, linksWith, type Program, type RosterEntry, type TurnedAwayProgram, type Versions, type WayIn } from "../../contracts/gateway/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import type { LinkStatus, Problem } from "../network/index.ts";
 
@@ -132,10 +132,23 @@ export function nextSide(model: Pick<Model, "open" | "behind" | "listing" | "dms
   return item.side !== undefined && at === -1 ? undefined : sides[at + 1];
 }
 
+/** `version` when it is a newer Shrimpy than this client's. */
+const newerThanThis = (version: string | undefined): string | undefined =>
+  version !== undefined && (compareShrimpy(version, SHRIMPY_VERSION) ?? 0) > 0 ? version : undefined;
+
 /** The gateway's version when it runs a newer Shrimpy than this client, which `/update` puts on the client's machine. */
-export function gatewayAhead(model: Pick<Model, "listing">): string | undefined {
-  const gateway = model.listing?.versions?.shrimpy;
-  return gateway !== undefined && (compareShrimpy(gateway, SHRIMPY_VERSION) ?? 0) > 0 ? gateway : undefined;
+export const gatewayAhead = (model: Pick<Model, "listing">): string | undefined => newerThanThis(model.listing?.versions?.shrimpy);
+
+/**
+ * The gateway's version when it turns this client away for the release it
+ * runs, as after a release that changes the Pi packages or the major, and is
+ * newer than this client's: no thread opens then, so the terminal offers to put
+ * that version on its machine on the screen it shows instead.
+ */
+export function turnedAwayBehind(model: Pick<Model, "gateway">): string | undefined {
+  const { gateway } = model;
+  if (gateway.state !== "down" || gateway.why.kind !== "refused" || linksWith(gateway.why.versions)) return undefined;
+  return newerThanThis(gateway.why.versions.shrimpy);
 }
 
 /** The current name of the agent with member ID `id`, from the roster or its DM, falling back to `id`. */

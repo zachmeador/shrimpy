@@ -1,7 +1,7 @@
 import { channelLabel, roomLabel } from "../../contracts/chat/index.ts";
 import { NO_AGENT_YET } from "../../contracts/gateway/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
-import { type AgentEntry, agentEntries, gatewayAhead, type Model, readOnlyEntries, roomEntries } from "../state/index.ts";
+import { type AgentEntry, agentEntries, gatewayAhead, type Model, readOnlyEntries, roomEntries, turnedAwayBehind } from "../state/index.ts";
 import type { LevelOptions, Row } from "./level.ts";
 import { lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
@@ -22,6 +22,12 @@ export interface AgentsLevel {
   unread: number;
   /** What is not working, or has just gone wrong, most pressing first: each a line the person should read, apart from the list. */
   notes: string[];
+  /**
+   * The version to offer to put on this machine, in a client that updates its
+   * machine, when the gateway turns the client away for the release it runs and
+   * runs a newer one.
+   */
+  update: string | undefined;
 }
 
 /** How an agent stands, as its row and its list say it: idle or working, and where, or that it is not running. */
@@ -80,6 +86,7 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
       ...notesOf(model, { agent: undefined, watching: false, looking: undefined, refused: undefined, notice: false }, options.self),
       ...(options.updates === true ? behind(model) : []),
     ],
+    update: options.updates === true ? turnedAwayBehind(model) : undefined,
   };
 }
 

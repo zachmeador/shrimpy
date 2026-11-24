@@ -59,7 +59,7 @@ With a version, it runs that tag's install script, removes every version but tha
 
 **Updating everywhere,** built on 2026-11-24 as the row on `shrimpy update` has it.
 
-- **The terminal's `/update`,** drawn in [its mockup](../../terminal-mockup.html) first. When the gateway runs a newer Shrimpy than this machine, the first screen says so and names `/update`. Written in a thread, `/update` leaves the screen, runs `shrimpy update` with the gateway's version on this terminal, and opens the terminal again on that version. An update that fails leaves what it said on the screen, and the terminal stays closed. On a machine that isn't behind it says so and does nothing. The page comes from the gateway, so it offers neither.
+- **The terminal's `/update`,** drawn in [its mockup](../../terminal-mockup.html) first. When the gateway runs a newer Shrimpy than this machine, the first screen says so and names `/update`. Written in a thread, `/update` leaves the screen, runs `shrimpy update` with the gateway's version on this terminal, and opens the terminal again on that version. An update that fails leaves what it said on the screen, and the terminal stays closed. On a machine that isn't behind it says so and does nothing. After a release that changes the Pi packages or the major, the gateway turns the terminal away and no thread opens, so the first screen offers the same update under the gateway's words, and Enter starts it, as you decided on 2026-11-24. The page comes from the gateway, so it offers none of this.
 
 Uninstalling is `shrimpy uninstall`, whose last line gives the rest: `rm -rf ~/.local/share/shrimpy/versions ~/.local/share/shrimpy/node ~/.local/bin/shrimpy`. The Shrimpy folder stays, and so do the macOS log, lingering and the PATH line.
 
@@ -222,8 +222,6 @@ Inherited terminal commands each need a disposition:
 - **Keep** `/skill:name` and prompt-template expansion, the `!` and `!!` distinction, command completion and existing input shortcuts. The new work view is a reviewed addition.
 
 **Open**
-
-- **`/update` while the gateway turns the terminal away.** A release that changes the Pi packages or the major turns away every program on the old one, the terminal of a machine of yours too. Then no thread opens, so there is nowhere to write `/update`, and the first screen has only the gateway's words, which say to update Shrimpy here to its version. That is the case `/update` matters most for. Raised on 2026-11-24, with no answer yet: the first screen could take `/update` itself while the gateway turns the terminal away.
 
 What daily use asks for is under Not built yet below.
 
