@@ -8,7 +8,7 @@ import {
   WorkspaceContext,
   type WorkspaceFile,
 } from "../../contracts/gateway/index.ts";
-import { type Actions, deviceInvitationV1 } from "./actions.ts";
+import type { Actions } from "./actions.ts";
 import type { GatewayView, View } from "./view.ts";
 
 /** The member `caller` is, in `view`, or null for a program that isn't one. */
@@ -28,8 +28,7 @@ function waysFor(view: GatewayView, caller: Principal): WayIn[] {
 
 /**
  * The objects the gateway serves: `Roster`, one for each caller, following the
- * view, at its first version too, for a program of an older Shrimpy;
- * `Notifications`, where the chat server hands over what to tell you; and
+ * view; `Notifications`, where the chat server hands over what to tell you; and
  * `WorkspaceContext`, following the files of the workspace context, the same
  * for every caller.
  */
@@ -61,7 +60,6 @@ export function gatewayFacet(view: View<GatewayView>, workspace: View<WorkspaceF
           },
         };
       },
-      { accepts: { 1: { methods: { inviteDevice: { result: deviceInvitationV1 } } } } },
     );
   });
 }

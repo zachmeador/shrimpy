@@ -74,8 +74,6 @@ export function agentFacet(parts: ServedParts): Facet<Principal> {
   return defineFacet<Principal>((host) => {
     host.serve(AgentPresence, () => ({ variant: "present", members: {} }));
 
-    // Version 1 of `Agent` is from before its sigil, its pigment and its home's files. A holder of it, such as a
-    // terminal on another machine that runs an older Shrimpy, binds as it did and is shown none of them.
     host.serve(
       Agent,
       (_params, principal, self) => {
@@ -124,7 +122,6 @@ export function agentFacet(parts: ServedParts): Facet<Principal> {
           },
         };
       },
-      { accepts: { 1: {} } },
     );
 
     host.serve(Session, ({ session: address }, principal, self) => {

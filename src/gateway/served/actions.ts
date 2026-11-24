@@ -38,17 +38,6 @@ const NOWHERE = refused(
   "This gateway listens on no address, so nobody could use an invitation. Start it with one, such as its tailnet address.",
 );
 
-/**
- * An invitation for a device as version 1 of `Roster` answers it, to a caller
- * that runs an older Shrimpy: with no page's address, and refused where only a
- * browser could use it, since version 1 promised an address.
- */
-export function deviceInvitationV1(answer: Answer<DeviceInvitation>): Answer<Invitation> {
-  if (answer.kind === "refused") return answer;
-  const { page: _page, ...invitation } = answer.value;
-  return invitation.addresses.length === 0 ? NOWHERE : done(invitation);
-}
-
 /** What a caller of `Roster` may do with it, each checked against the roster as it is now, and what the chat server may hand over to tell you. */
 export interface Actions {
   invite(caller: Principal, name: string): Answer<Invitation>;

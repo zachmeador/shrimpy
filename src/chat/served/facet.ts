@@ -43,9 +43,6 @@ function whoIs(deps: ServedDeps, principal: Principal): Member | undefined {
 
 const wayKey = (way: Way): string => ("id" in way ? `${way.kind} ${way.id}` : way.kind);
 
-/** A post as a version of `Thread` from before `quiet` asks for it: not quiet. */
-const loud = (args: { text: string; request: string }) => ({ ...args, quiet: false });
-
 /**
  * Whether a change in the store can change what `principal` is shown. Any
  * change can, but a read mark that moved changes only what its own member is
@@ -187,9 +184,6 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
       };
     });
 
-    // Version 1 of `Channel` and `Thread` is from before read marks. A holder of it, such as an agent on another
-    // machine that runs an older Shrimpy, binds as it did and is shown no counts. Versions 1 and 2 of `Thread` post
-    // nothing quietly.
     host.serve(
       Channel,
       ({ channel: channelId }, principal, self) => {
@@ -214,7 +208,6 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
           },
         };
       },
-      { accepts: { 1: {} } },
     );
 
     host.serve(
@@ -255,7 +248,6 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
           },
         };
       },
-      { accepts: { 1: { methods: { post: { args: loud } } }, 2: { methods: { post: { args: loud } } } } },
     );
   });
 }
