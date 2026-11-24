@@ -2,7 +2,7 @@
 
 This is one piece of the design. The words for a decision's status, such as Confirmed or Open, are explained in the [plan](../PLAN.md#the-design).
 
-This is the layout of `src/`. Old Shrimpy sits in `shrimpy-old/` until the release deletes it, along with its tests, which test old internals.
+This is the layout of `src/`. Old Shrimpy sat in `shrimpy-old/`, with its tests, until the release cleanup deleted it on 2026-11-24.
 
 The tree is organized by program. Shrimpy is three programs (an agent, the chat server and the gateway) plus the clients and the CLI, and the only code they share is their contracts.
 

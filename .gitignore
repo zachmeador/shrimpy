@@ -1,15 +1,6 @@
 node_modules/
-dist/
-coverage/
-.nyc_output/
-shrimpy-sessions/
-*.tsbuildinfo
 .claude
-shrimpy-old/.agents/
 .vscode/
-shrimpy_pi.code-workspace
 AGENTS-PRIVATE.md
 AGENTS_PRIVATE.md
-.shrimpy/
-.shrimpy*
 .DS_Store

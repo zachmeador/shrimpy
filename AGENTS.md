@@ -13,7 +13,6 @@ If `AGENTS-PRIVATE.md` exists at the project root, read it for workspace- and us
 - **How the web client looks:** [`docs/web-client-mockup.html`](docs/web-client-mockup.html), the owner's reference since 2026-11-21. Open it in a browser: it has live frames of the client at each width, and the first block of its styles is everything that decides the look.
 - **`src/`:** three programs (`agent/`, `chat/` and `gateway/`), the clients, the CLI, and the only code they share: `contracts/` and `lib/`.
 - **`skills/`:** the skills Shrimpy ships to its agents.
-- **`shrimpy-old/`:** old Shrimpy, kept for reference until the release deletes it. Don't build, test or edit anything there, and don't take its shapes, docs or tests as a guide. Its tests are not to be read at all.
 - **Entry point:** `src/cli/main.ts`, run as `bin/shrimpy.js`.
 
 ## How to work here
@@ -59,8 +58,8 @@ Do not add backward-compatibility or migration code unless the user asks for it.
 ## Git
 
 - **Release tags** are the safest known states.
-- **`main`** is expected to build and run. It holds old Shrimpy until the release replaces it.
-- **`wip`** is the working branch, where the new Shrimpy is built. Commit freely there.
+- **`main`** is expected to build and run.
+- **`wip`** is the working branch. Commit freely there.
 
 Promote coherent work from `wip` to `main` with cherry-picks, squash commits or a temporary promotion branch. Use a feature branch only when it solves a real problem.
 

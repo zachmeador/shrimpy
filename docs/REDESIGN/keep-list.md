@@ -2,7 +2,7 @@
 
 Status: in review. Compiled on 2026-10-04 by a read-only pass over today's docs, skills, agent instructions and the words in the product. Your first answers are under [Decided so far](#decided-so-far). An item not named there is kept unless you say otherwise.
 
-The docs, skills and agent instructions get [rewritten from scratch](design/5-home.md) for the new Shrimpy, keeping the charming parts of today's. This is the list of those parts, quoted as they stand, for you to cut from or add to before anything is rewritten. A ★ marks the twelve the pass would least want to lose. Every path is in `shrimpy-old/`, where old Shrimpy moved on 2026-10-04, and `AGENTS.md` is `AGENTS.old.md` there. Skill paths are under `src/skills/included/`, and template paths are under `src/setup/templates/workspace/`.
+The docs, skills and agent instructions get [rewritten from scratch](design/5-home.md) for the new Shrimpy, keeping the charming parts of today's. This is the list of those parts, quoted as they stand, for you to cut from or add to before anything is rewritten. A ★ marks the twelve the pass would least want to lose. Every path was in `shrimpy-old/`, where old Shrimpy moved on 2026-10-04, and `AGENTS.md` is `AGENTS.old.md` there. The release cleanup deleted that folder on 2026-11-24, and git has it at `c840ca83`. Skill paths are under `src/skills/included/`, and template paths are under `src/setup/templates/workspace/`.
 
 ## Decided so far
 

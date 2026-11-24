@@ -1,13 +1,13 @@
 # 🦐 Pi Durable Replacement Plan
 
 Updated: 2026-11-15
-Status: experience decisions reviewed on 2026-10-03. The plan was reshaped around the core pieces on 2026-10-05, and the design moved into a file for each piece the same day. The new Shrimpy is the repo's root on `wip`, and old Shrimpy is in `shrimpy-old/`. A few interface and command details are left for the work that builds them.
+Status: experience decisions reviewed on 2026-10-03. The plan was reshaped around the core pieces on 2026-10-05, and the design moved into a file for each piece the same day. The new Shrimpy is the repo's root on `wip`. Old Shrimpy was in `shrimpy-old/` until the release cleanup deleted it on 2026-11-24. A few interface and command details are left for the work that builds them.
 
 Shrimpy's session machinery gets replaced with `pi-durable`. Each agent becomes an independent program: one resident process owns its home and its Pi storage. People talk to agents in threads kept by a chat server, from the console, the web app or chat providers such as Telegram, and clients can attach to an agent to watch and steer its work. Pi owns admission, queues, transcripts, task lifetimes, cancellation, compaction, recovery and committed observation. Shrimpy owns the home, the agent's context and tools, the clients, and the routes in.
 
 The aim is fewer state machines, clearer ownership, and a smaller, better organized codebase. Switching engines doesn't license quiet changes to how people or agents use Shrimpy: every visible change is a row in a piece's Decisions table, under [the design](#the-design).
 
-This file owns why, the direction, the words and the order of work. The [design files](#the-design) own the architecture and the experience decisions, and each one's Not built yet holds what isn't built of its piece. [STATUS.md](STATUS.md) lists where built code trails them, [your list](AUTHOR-TO-REVIEW.md) holds what waits on you, and the commit messages record what was built and why. Each of these has one home, and other files link to it instead of saying it again. [Reference docs](../../shrimpy-old/docs/reference/README.md) describe old Shrimpy.
+This file owns why, the direction, the words and the order of work. The [design files](#the-design) own the architecture and the experience decisions, and each one's Not built yet holds what isn't built of its piece. [STATUS.md](STATUS.md) lists where built code trails them, [your list](AUTHOR-TO-REVIEW.md) holds what waits on you, and the commit messages record what was built and why. Each of these has one home, and other files link to it instead of saying it again. Old Shrimpy's reference docs are in git, in `shrimpy-old/docs/reference/` at `c840ca83`.
 
 ## Why
 
@@ -92,7 +92,7 @@ The design is in one file for each piece:
 
 **Use it early.** Old Shrimpy's shape was discovered by using it, and this one gets the same chance. The new Shrimpy is used for real conversations while it is built. What turns out rough or missing decides the order of the work after that. Tests and review pauses don't replace this.
 
-**The new Shrimpy is the repo's root.** Since 2026-10-04, on `wip`, old Shrimpy sits in `shrimpy-old/` as one unit: its code, tests and docs. Nothing there is built, tested or edited, nobody building the new Shrimpy reads its tests, and the release deletes it. Until then the new tree was a side folder, `next/`, which protected a live install that no longer exists; leaving old Shrimpy at the root meant its `AGENTS.md`, docs and tests reached every agent that worked here.
+**The new Shrimpy is the repo's root.** From 2026-10-04, on `wip`, old Shrimpy sat in `shrimpy-old/` as one unit: its code, tests and docs. Nothing there was built, tested or edited, and nobody building the new Shrimpy read its tests. Before that the new tree was a side folder, `next/`, which protected a live install that no longer exists; leaving old Shrimpy at the root meant its `AGENTS.md`, docs and tests reached every agent that worked here. The release cleanup deleted `shrimpy-old/` on 2026-11-24.
 
 Development uses its own homes, sockets and data paths, so nothing touches a setup in use or the old workspace. `main` stays on old Shrimpy and Pi `0.84.4` until the release replaces it; there's no interim upgrade.
 
