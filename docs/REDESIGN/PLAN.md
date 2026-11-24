@@ -124,6 +124,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 - In the terminal, `/devices invite`. [Not built yet](design/using-it.md)
 - The clients. Built by 2026-11-22 and on `wip` since that day, when you opened them, found the web client short of its mockup, and had both gone through against their mockups and brought in line: the modules the terminal and the web client share, the terminal as its mockup has it, and the web client, built for a phone first, with push notifications. What is left is the rough edges you found with the web client installed on your iPhone, and a Mac app that wraps it. The web client doesn't hold up the release. [Not built yet](design/using-it.md)
+- Installing and updating, in this order: the checks on Node 26 ([the programs](design/1-programs.md)); the install script, with the README's install section and the setup skill on signing in from a shell; `shrimpy update`; the update skill, agents following their gateway ([the network](design/6-network.md)) and the terminal's `/update`; and a release candidate, tagged as a prerelease, that your admin agent updates everywhere to 1.0.0, which proves the release's tagged update. [Not built yet](design/using-it.md)
 - Cleaning up for the release, which you said on 2026-10-08 is close: the skills cover what a person and an agent do with Shrimpy, the reference documentation shrinks to very little, and old Shrimpy is replaced.
 - Living with it: what you notice goes on the list in [using it](design/using-it.md), and decides what is built next.
 
@@ -169,6 +170,8 @@ This plan deliberately leaves these out, so they don't creep back in:
 - A gateway that more than one person shares, as [identity](design/3-identity.md) has it.
 - Logins with a password, or a token for you on the gateway's own socket, as [identity](design/3-identity.md) has it.
 - Depending on Chord's app kit, Pi's own apps or Earendil's hosted services such as Radius, or on anything that needs an Earendil account. Decided on 2026-11-14.
+- A way to install other than the script, such as a Homebrew formula, distribution packages, a container image or an npm package, and one install for several accounts, which takes root.
+- Checking for updates in the background. An agent can, with a trigger whose check is `shrimpy update`, when you ask it to.
 - A mesh protocol, ACP product, visual redesign or mandatory hosting platform.
 
 **Release**
@@ -182,7 +185,7 @@ This plan deliberately leaves these out, so they don't creep back in:
 - A decision for every command and affordance of today's Shrimpy that hasn't come back, from what [using it](design/using-it.md) has of them.
 - Versions: `1.0.0` and `-dev`, every contract's version and fingerprint written down with a test, and the hello's refusals and words for another version. [Not built yet](design/2-contracts.md)
 - Stored data migrating forward at start, with a fixture of each store and a test. [Not built yet](design/1-programs.md)
-- Updating Shrimpy, once how it is installed is settled, setting up through `shrimpy`, and moving over from old Shrimpy, from the list from living with it in [using it](design/using-it.md).
+- Setting up through `shrimpy`, and moving over from old Shrimpy, from the list from living with it in [using it](design/using-it.md).
 - Choosing the model an agent starts with from the terminal, which you called a priority before the release on 2026-10-06 ([using it](design/using-it.md)).
 - `SECURITY.md` and `THIRD_PARTY_NOTICES.md` go with `shrimpy-old/` and are written anew, from [the keep list](keep-list.md). `CONTRIBUTING.md` was written from it on 2026-11-23.
 - `AGENTS.md`, `CONTRIBUTING.md`, `docs/README.md` and `lint/boundaries.js` point into this folder, and are repointed when it goes.

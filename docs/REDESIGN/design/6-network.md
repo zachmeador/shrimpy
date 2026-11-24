@@ -37,7 +37,7 @@ To let an agent in, make an invitation for it:
 shrimpy invite crab
 ```
 
-Your own name is refused there and then. For a vacant name, or an agent that is already on the roster, it prints one line to run where the agent will live, with the agent's name, an address and a code. The code works once, for fifteen minutes, and for that name only. Where the agent will live, with Shrimpy at the same version, you sign the folder in if it isn't yet, paste the line and start the agent:
+Your own name is refused there and then. For a vacant name, or an agent that is already on the roster, it prints one line to run where the agent will live: it installs Shrimpy at the gateway's version, as [using it](using-it.md) has installing, then joins with the agent's name, an address and a code. The code works once, for fifteen minutes, and for that name only. Where the agent will live, you sign the folder in if it isn't yet, paste the line and start the agent:
 
 ```bash
 shrimpy login
@@ -51,7 +51,7 @@ shrimpy up
 
 From then on the agent connects out to that address by itself, and comes back by itself after either side restarts. Nothing is opened where the agent lives. On the gateway's machine crab is in the terminal's list like any agent: you talk to it in a thread, and watch and stop its sessions.
 
-By hand that is one line on the gateway's machine and two where the agent will live, after a sign-in that a folder needs once. An admin agent can do the rest for you: it makes the invitation, reaches the other machine over SSH, runs the join, and sets up whatever keeps the agent running there. The sign-in is yours, since it needs you at a browser. `invite` is open to an admin agent, as `members promote` is.
+By hand that is one line on the gateway's machine and two where the agent will live, after a sign-in that a folder needs once. An admin agent can do the rest for you: it makes the invitation, reaches the other machine over SSH, runs the line, and sets up whatever keeps the agent running there. Without SSH, a coding agent you open there runs the line instead. The sign-in is yours, since it needs you at a browser. `invite` is open to an admin agent, as `members promote` is.
 
 **Underneath**
 
@@ -92,7 +92,8 @@ A scout of sandbox runtimes on 2026-08-26 compared the candidates.
 | Sandbox boundary | Agents aren't sandboxed | The whole agent process runs inside whatever sandbox or VM you pick, or none ([how](6-network.md)). No per-tool sandboxing; `bash` stays available. | Confirmed |
 | Attachments | Telegram photos and clipboard images are paths on the same machine | Attachments travel with their message. The chat server keeps them with the thread, and each is copied into an agent's home, up to a size limit, when the message is offered; the agent's tools use them from there. | Confirmed |
 | Home edits | The CLI edits workspace files directly | Homes live where their agent runs, and edits happen there: by the agent itself, by `shrimpy` run in that environment, or by an agent with the admin role over SSH to the machine hosting it. Remote clients get session operations and reload, not file editing. | Confirmed |
-| Provider login | A browser callback on the same machine | Pi's login flows already handle a browser on another machine: they show a URL or device code and accept a pasted code or redirect URL. You run `shrimpy login` where the agents are, over a shell there, and it signs in the folder for every agent started in it, as [providers](5-home.md) has it. Nothing is relayed through an agent. Sandboxes allow provider traffic, including login endpoints. | Confirmed, and changed on 2026-10-06 |
+| Provider login | A browser callback on the same machine | Pi's login flows already handle a browser on another machine: they show a URL or device code and accept a pasted code or redirect URL. You run `shrimpy login` where the agents are, over a shell there, or a coding agent setting up there runs it and passes you its link and what you paste back, as [using it](using-it.md) has it. It signs in the folder for every agent started in it, as [providers](5-home.md) has it. Sandboxes allow provider traffic, including login endpoints. | Confirmed, and changed on 2026-10-06. A coding agent passes it on since 2026-11-23 |
+| An agent behind its gateway | It is turned away, and keeps trying, until someone updates its machine | After a release that changes the Pi packages or the major, the gateway turns away an agent still on the old release, so nothing can reach it to ask it to update. Such an agent installs its gateway's version and restarts by itself, when that version is newer and the agent runs from an install. That covers a machine that was off during an update too. It never goes past the gateway's version, and is the one update nobody asks for. | Confirmed on 2026-11-23: "lgtm" |
 | Letting an agent in | Only a program that can open the gateway's socket joins | By an invitation made on the gateway's machine and pasted where the agent will live. The other way round, a new machine asking and you approving it, would need the gateway open to strangers first. | Confirmed on 2026-10-06 |
 | Tailscale | — | Never needed. Shrimpy uses a network that Tailscale provides, may later read from it who is at the other end, never manages it and is never served through it. | Confirmed on 2026-10-06 |
 | Encryption | — | The gateway makes a key with its data, an invitation carries the key's fingerprint, and every connection over the entry is encrypted and checked against it. A browser checks a certificate it trusts instead. | Changed on 2026-11-14, from none of Shrimpy's own, which was confirmed for now on 2026-10-06, and built that day |
@@ -181,6 +182,8 @@ Open the terminal with: shrimpy
 *What is left of a browser's way in.* The certificate's skill, an invitation as a code to scan, and renewing a browser's cookie before its 400 days are up. A page that isn't let in has no field that takes a code. An app on a phone's home screen keeps storage of its own, so unless the phone copies the browser's cookie when the page is installed, the installed app has no way in. The app on your iPhone was in on 2026-11-22. How it got in wasn't looked at, and other phones are untried. A desktop app that wraps the page, which [the plan](../PLAN.md#direction) stays open to, could check the gateway's key by its fingerprint as a machine does. It would then need no certificate, on a plain LAN or anywhere else. That is untried.
 
 *What is left of an agent apart from the gateway.*
+
+The install at the start of the line `shrimpy invite <name>` prints, and an agent following its gateway's version, as the row on it has it, both decided on 2026-11-23.
 
 **Left for later**
 
