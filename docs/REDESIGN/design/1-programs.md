@@ -60,6 +60,5 @@ What the runs on Linux showed, and what is still to try there, is in [status](..
 
 **Not built yet**
 
-- `.node-version`, naming Node 26, and the checks running on it, as the row on Node says.
 - `shrimpy up` starting the gateway and the chat server again alone, and behaving the same with agents named, as the row on it says.
 - A fixture of each store at each release from 1.0.0, and a test that opens every fixture of this major and the last, as the row on stored data says.

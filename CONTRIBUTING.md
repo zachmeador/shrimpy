@@ -2,6 +2,8 @@
 
 Welcome, hypothetical contributor.
 
+Shrimpy runs on the Node that `.node-version` names, and the checks run there.
+
 ```bash
 npm install --ignore-scripts
 npm run check

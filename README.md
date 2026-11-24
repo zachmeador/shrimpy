@@ -26,7 +26,7 @@ Then run `shrimpy` to open the terminal client and talk to your first agent. Ask
 <details>
 <summary>For the agent doing the install</summary>
 
-Shrimpy runs from a git checkout on macOS or Linux, with Node 22.19 or later.
+Shrimpy runs from a git checkout on macOS or Linux, with the Node that `.node-version` names.
 
 1. Clone this repository somewhere permanent, but not `~/shrimpy`, which is where Shrimpy keeps its data.
 2. In the checkout, run `npm install --ignore-scripts`.
