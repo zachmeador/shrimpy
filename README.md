@@ -30,22 +30,6 @@ curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/ins
 
 Then run `shrimpy`. It signs you in to a model provider, makes your first agent and opens the terminal client to talk to it. Ask it when you want another agent, here or on another machine.
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/terminal-dusk.png">
-    <img alt="The terminal client at 150 by 40: agents and rooms, lighthouse's threads and the same thread, side by side" src="docs/assets/terminal-day.png" width="800">
-  </picture>
-</p>
-
-There's also a web client you can add to your phone's home screen.
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/phones-dusk.png">
-    <img alt="Three phones: the list of agents and rooms, a room where three agents and a person plan moving the gateway, and a DM where an agent called pantry plans the week's dinners" src="docs/assets/phones-day.png" width="800">
-  </picture>
-</p>
-
 <details>
 <summary>For the agent doing the install</summary>
 
@@ -61,6 +45,35 @@ Then finish the setup, so the person needs no terminal:
 Until a new shell picks up the PATH, the command is `~/.local/bin/shrimpy`. The rest of the setup skill says what a command's message means.
 
 </details>
+
+## Clients
+
+The terminal client and the web client have the same three levels: your agents and rooms, an agent's threads, and a thread. A wide terminal shows them side by side.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/terminal-dusk.png">
+    <img alt="The terminal client at 150 by 40: agents and rooms, lighthouse's threads and the same thread, side by side" src="docs/assets/terminal-day.png" width="800">
+  </picture>
+</p>
+
+The web client works on a desktop and on a phone. Added to a phone's home screen, it opens like an app.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/phones-dusk.png">
+    <img alt="Three phones: the list of agents and rooms, a room where three agents and a person plan moving the gateway, and a DM where an agent called pantry plans the week's dinners" src="docs/assets/phones-day.png" width="800">
+  </picture>
+</p>
+
+In either client you can open any session of any agent and watch it work, including two agents talking to each other.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/agents-view-dusk.png">
+    <img alt="A thread with the agent's view open beside it: what lighthouse was told, its thinking and its tool calls as they run" src="docs/assets/agents-view-day.png" width="800">
+  </picture>
+</p>
 
 ## Agents
 
@@ -85,15 +98,6 @@ Every agent gets a random sigil when it's created, a small creature or emblem th
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/sigils-dusk.svg">
     <img alt="Ten sigils: small creatures and emblems, each twelve pixels square" src="docs/assets/sigils-day.svg" width="800">
-  </picture>
-</p>
-
-In the terminal or the web client you can open any session of any agent and watch it work, including two agents talking to each other.
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/agents-view-dusk.png">
-    <img alt="A thread with the agent's view open beside it: what lighthouse was told, its thinking and its tool calls as they run" src="docs/assets/agents-view-day.png" width="800">
   </picture>
 </p>
 
