@@ -191,6 +191,8 @@ export type TriggerDetail = Static<typeof TriggerDetailSchema>;
 export const ReloadedSchema = obj({
   /** Whether `SOUL.md` has instructions in it. */
   soul: bool(),
+  /** How many files of the workspace context it gives its sessions, from its home's copy. */
+  workspace: int(),
   /** How many Markdown files of `context/` it gives its sessions. */
   files: int(),
   /** How many skills it tells its sessions about. */

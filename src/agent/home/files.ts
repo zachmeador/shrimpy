@@ -1,9 +1,8 @@
 import { isAbsolute, relative, sep } from "node:path";
-import type { LeftOut } from "../../lib/files/index.ts";
 import { cutEnd } from "../../lib/text/index.ts";
 
-/** A left-out file as a sentence, which is how the agent says it on standard error and in the breadcrumb it leaves. */
-export const leftOutSentence = ({ file, reason }: LeftOut): string => `${file} was left out: ${reason}.`;
+/** Whether `path` is inside `folder`, and not `folder` itself. */
+export const isInside = (folder: string, path: string): boolean => path.startsWith(`${folder}${sep}`);
 
 /** Where `path` is, as a left-out file says: inside `root` with `/` between folders, or its absolute path when it is not in `root`. */
 export function shownIn(root: string, path: string): string {

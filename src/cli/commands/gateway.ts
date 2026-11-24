@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { settingsPath } from "../folder/index.ts";
+import { settingsPath, workspaceContextPath } from "../folder/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { ABOUT_LISTEN, LISTEN_OPTION, listenAddresses } from "./listen.ts";
@@ -14,7 +14,9 @@ const serve: Command = {
     "The gateway keeps the roster of who is on the network in the data directory, which is made if it does " +
     "not exist. Your name there is set in settings.json in your Shrimpy folder, as {\"name\": \"...\"}, which the " +
     "gateway reads when it starts and whenever the file changes. The gateway's key is in state/key.pem in the data " +
-    "directory, made when there is none. Prints one JSON line when it is listening. SIGTERM or " +
+    "directory, made when there is none. It gives every agent on the network the Markdown files of context/ in your " +
+    "Shrimpy folder, the workspace context, and each agent sees a change there within a few seconds. Prints one JSON " +
+    "line when it is listening. SIGTERM or " +
     `Ctrl+C stops it. ${ABOUT_LISTEN} The JSON line has the ` +
     "addresses it listens on as listen, each with the port it got, and names the file as listenKept when this " +
     "start took them from it, and has null there when it did not. It has the fingerprint of the gateway's key as " +
@@ -47,7 +49,7 @@ const serve: Command = {
         // Loaded here, so that no other command loads the gateway or bundles the page.
         const { startGateway } = await import("../../gateway/index.ts");
         const { bundlePage } = await import("../../clients/web/node.ts");
-        return startGateway({ dataDir, listen, settings: settingsPath(), page: await bundlePage() });
+        return startGateway({ dataDir, listen, settings: settingsPath(), context: workspaceContextPath(), page: await bundlePage() });
       },
       ({ socket, listening, listeningAsKept, fingerprint, page }) => ({
         event: "listening",

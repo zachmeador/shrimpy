@@ -8,5 +8,6 @@ export { type FollowFilesOptions, followFiles, type FollowingFiles } from "./fol
 export { listFolder } from "./list.node.ts";
 export { lookAtFile, lookAtMarkdown, whyNotLooked } from "./look.node.ts";
 export { type MarkdownRead, readMarkdown } from "./markdown.node.ts";
+export { walkMarkdown } from "./walk.node.ts";
 export { readText } from "./read.node.ts";
 export { saveFile } from "./save.node.ts";

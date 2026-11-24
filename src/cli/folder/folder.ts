@@ -17,6 +17,9 @@ const PROVIDERS = "providers";
 /** The folder of the Shrimpy folder that holds the gateway's data, where `up` keeps it unless it is told another place. */
 const GATEWAY = "gateway";
 
+/** The folder of the Shrimpy folder that holds the workspace context, the notes the gateway started there gives every agent on the network. */
+const CONTEXT = "context";
+
 /** The file of the Shrimpy folder that holds the person's own settings, such as their name, which the gateway started there reads. */
 const SETTINGS = "settings.json";
 
@@ -59,6 +62,15 @@ export function providersPath(): string {
  */
 export function settingsPath(): string {
   return join(folderPath(), SETTINGS);
+}
+
+/**
+ * Where the workspace context is: `context/` in the Shrimpy folder, whose
+ * Markdown files the gateway started there hosts for every agent on the
+ * network. Nothing is read or made.
+ */
+export function workspaceContextPath(): string {
+  return join(folderPath(), CONTEXT);
 }
 
 /**

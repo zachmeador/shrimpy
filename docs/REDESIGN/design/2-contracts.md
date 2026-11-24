@@ -132,6 +132,12 @@ The contracts list three reasons. All three come when connecting, and the agent 
 |---|---|---|
 | `notify({ from, room, line, thread, unread })` | Sends a finished notification to each device of yours that has a place to be told things, and answers once every push service has answered or given up. Only the chat server | New on 2026-11-21 |
 
+`WorkspaceContext`, at `gateway()`, with no params, is the [workspace context](5-home.md):
+
+| Member | What it is | Today |
+|---|---|---|
+| `files` | The Markdown files of `context/` in the Shrimpy folder where the gateway runs, each with its full path on the gateway's machine and its text, in order of path. The same for every caller | New on 2026-11-23 |
+
 *The chat contract.* `enter` goes: the relay says who is asking, and `you` says whom chat takes the caller for. Holding a `Thread` is what attaching to it was.
 
 `Chat`, at `chat()`, with no params, is the caller as a member of chat:

@@ -1,5 +1,13 @@
 import { defineFacet, type Facet } from "@earendil-works/chord";
-import { type Member, Notifications, type Principal, Roster, type WayIn } from "../../contracts/gateway/index.ts";
+import {
+  type Member,
+  Notifications,
+  type Principal,
+  Roster,
+  type WayIn,
+  WorkspaceContext,
+  type WorkspaceFile,
+} from "../../contracts/gateway/index.ts";
 import { type Actions, deviceInvitationV1 } from "./actions.ts";
 import type { GatewayView, View } from "./view.ts";
 
@@ -20,11 +28,14 @@ function waysFor(view: GatewayView, caller: Principal): WayIn[] {
 
 /**
  * The objects the gateway serves: `Roster`, one for each caller, following the
- * view, at its first version too, for a program of an older Shrimpy; and
- * `Notifications`, where the chat server hands over what to tell you.
+ * view, at its first version too, for a program of an older Shrimpy;
+ * `Notifications`, where the chat server hands over what to tell you; and
+ * `WorkspaceContext`, following the files of the workspace context, the same
+ * for every caller.
  */
-export function gatewayFacet(view: View, actions: Actions): Facet<Principal> {
+export function gatewayFacet(view: View<GatewayView>, workspace: View<WorkspaceFile[]>, actions: Actions): Facet<Principal> {
   return defineFacet<Principal>((host) => {
+    host.serve(WorkspaceContext, (_params, _caller, self) => ({ variant: "all", members: { files: self.follow(workspace.follow) } }));
     host.serve(Notifications, (_params, caller) => ({
       variant: "all",
       members: { notify: async (notification) => actions.notify(caller, notification) },

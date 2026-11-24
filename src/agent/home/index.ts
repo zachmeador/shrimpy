@@ -3,21 +3,23 @@
  * with the `shrimpy` command, such as `agent.json`, the trigger files and the
  * wake file, are in `contracts/agent`; this adds where the agent keeps its own,
  * what its instructions, context and skills files tell the agent, read into a
- * snapshot together with the skills that ship with Shrimpy, which goes on with
- * what an earlier reading had of a file the next one leaves out, and what its
- * breadcrumbs folder holds. It writes and deletes the breadcrumbs the agent and
- * a trigger leave. It also looks at the files an agent reads, by their names,
- * sizes, modes and times and never their contents, so the agent can tell when to
- * read them again, and says what to do with storage that another version of
- * Shrimpy wrote. It reads the agent's sigil, and lists the home's folders and
+ * snapshot together with the skills that ship with Shrimpy and its copy of the
+ * workspace context, which goes on with what an earlier reading had of a file
+ * the next one leaves out, and what its breadcrumbs folder holds. It writes and
+ * deletes the breadcrumbs the agent and a trigger leave, and keeps the copy of
+ * the workspace context as the gateway gives it. It also looks at the files an
+ * agent reads, by their names, sizes, modes and times and never their contents,
+ * so the agent can tell when to read them again, and says what to do with
+ * storage that another version of Shrimpy wrote. It reads the agent's sigil, and lists the home's folders and
  * reads its files for whoever may look at them, never leaving the home and never
  * showing `state/` or `runtime/`. It must not know about the engine, the model
  * runtime or how the agent is reached.
  */
 export { readBreadcrumbs, removeBreadcrumb, writeBreadcrumb } from "./breadcrumbs.ts";
 export { fileAt, folderAt } from "./browse.ts";
-export { cutText, leftOutSentence, shownIn } from "./files.ts";
+export { cutText, shownIn } from "./files.ts";
 export { type HomePaths, homePaths, storageOfAnotherVersion } from "./layout.ts";
 export { lookAtHome } from "./look.ts";
 export { readSigil } from "./sigil.ts";
 export { carryOver, type HomeSnapshot, readHomeSnapshot } from "./snapshot.ts";
+export { type WorkspaceCopier, workspaceCopier } from "./workspace.ts";

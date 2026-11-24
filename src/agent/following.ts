@@ -2,18 +2,15 @@ import { stat } from "node:fs/promises";
 import type { Pigment, Reloaded } from "../contracts/agent/index.ts";
 import { loadHome, readWake } from "../contracts/agent/node.ts";
 import { asError } from "../lib/errors/index.ts";
-import type { LeftOut } from "../lib/files/index.ts";
+import { type LeftOut, leftOutSentence } from "../lib/files/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
 import type { Wakes } from "./chat/index.ts";
 import type { HomeContext } from "./context/durable.ts";
-import { homePaths, leftOutSentence, readSigil, removeBreadcrumb, shownIn, writeBreadcrumb } from "./home/index.ts";
+import { homePaths, readSigil, removeBreadcrumb, shownIn, writeBreadcrumb } from "./home/index.ts";
 import type { ModelReload } from "./host/durable.ts";
 import type { KeptLook } from "./look.ts";
 import type { Sessions } from "./sessions/durable.ts";
 import type { Triggers } from "./triggers/durable.ts";
-
-/** How often the agent looks at its files, in milliseconds. A test gives a shorter time. */
-export const LOOK_EVERY_MS = 2_000;
 
 /**
  * Fail, with one sentence that says so, when `file` can't be seen. It is the file

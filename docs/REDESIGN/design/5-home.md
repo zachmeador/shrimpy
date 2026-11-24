@@ -21,6 +21,7 @@ breadcrumbs/          one small file for each fact that moves
 state/pi/auth.json    keys and sign-ins of the agent's own, when it has any
 state/pi/models.json  model servers of the agent's own, when it has any
 state/member.json     the agent's token, its member ID and the roster's ID once it has joined
+state/workspace-context/  its copy of the workspace context, which it keeps itself
 state/agent.sqlite
 runtime/              disposable endpoint and log files
 ```
@@ -46,6 +47,16 @@ providers/default-model.json  the model an agent starts with when its agent.json
 - **`shrimpy login` signs a folder in** with Pi's own flows, in the terminal. It shows a link or a code and takes what you paste back, so it works over SSH, and it asks which model agents start with when the folder names none. A place you have no shell in isn't covered: you, or an agent of yours, are taken to have one.
 
 A single sign-in kept at the gateway was looked at first and dropped. The gateway would hold secrets, and every agent would need it to reach a model.
+
+**Workspace context.** Built on 2026-11-23. The workspace context is the Markdown files of `context/` in the Shrimpy folder where the gateway runs. Every agent on the network is shown them, on whatever machine it runs.
+
+- **The gateway reads them** as an agent reads its own `context/`: the Markdown files there and in the folders under it, with hidden ones skipped and links followed. It looks at them every two seconds and serves them as `WorkspaceContext`, which [the contracts](2-contracts.md) list. A file it can't read keeps what it last read of it, and is named once on its standard error.
+- **Each agent keeps a copy** in its home, `state/workspace-context/`, with each file at its path on the gateway's machine. It holds `WorkspaceContext` over its link to the gateway, makes the copy match at each change, and reads its home again. Its instructions come from the copy, so with the gateway down, at a start too, it has what the gateway last gave it. An agent that has never reached a gateway has none.
+- **They are a section of their own,** `<workspace>`, after what every agent is told and before `SOUL.md`, so a change there doesn't resend the home's own notes. Each file is headed by its path on the gateway's machine, as a home's own notes are by their path in the home, so an agent tells a shared note from its own note of the same name. Neither replaces the other.
+- **Nothing limits their size,** as nothing limits a home's own notes. What every agent is told asks it to keep its own notes short, and to move what grows long into `vault/`. The link between programs takes at most 64 MB in one message.
+- **Running on the copy shows nothing new.** The section's text is the same either way, and an agent apart already says on standard error when it loses its gateway and when it is back. `shrimpy agent context` shows the copy as the agent would get it.
+
+You settled the open points on 2026-11-23: the section's place, both files of one name shown, no limit with a line or two asking agents to keep their notes short, the copy's place, and nothing shown when an agent runs on its copy. Each file headed by its path was yours: "why don't we just show the path to the context file as its section header".
 
 A durable extension supplies base instructions, skill trails, input facts and compaction guidance. Dynamic facts are captured when input is consumed, with provenance and budgets, and committed before the request. Queued input sees the facts from when it was consumed, not when it was queued.
 
@@ -78,7 +89,7 @@ Inspection shows raw entries, effective model messages, selected tools, source r
 | Instruction selection | Approved base context, `SOUL.md`, agent context, skill precedence and required-tool filtering; ambient `AGENTS.md` and global Pi skills and settings excluded | Same, with the workspace's shared `context/` files coming from the gateway. Facts are captured when queued input is consumed, and later edits don't rewrite committed context. | Keep |
 | `/reload` | Refreshes skills and templates; base files load only at session open | Also rebuilds base instructions. It takes Pi's behavior: sections render again at every request, so a reload reaches each session at its next request, including a turn that is running. Nothing a session already holds is rewritten. This replaces "for later inputs only", which would need a captured revision for each input. Code, tool or environment changes need a drain and restart. | Decided in the build. Since 2026-10-08 nobody asks for it: an agent reads its files again when they change, as [providers](5-home.md) has it, and the command is gone |
 | Automatic awareness | Sender, destination, time and session facts; a channel unread count with a preview of the latest message; memory breadcrumbs; fleet and status; other-session activity; worker and watch summaries | Keep sender, destination, time and session facts and the thread's unread messages. Unread messages appear as written, the way a person scrolls a chat room: who said what, when, and whether it was addressed to this agent, newest last, within the turn-context budget. Nothing summarizes them. Drop the rest from every request, and give agents instructions for checking status, other threads and sessions, triggers and workers when they need to. The unread messages are cut at 20,000 characters, keeping the newest, and a cut says how many earlier ones there are and that `read_messages` reads them: on 2026-10-04 you found 6,000 small for a room's backlog. Memory breadcrumbs wait until daily use asks for them: they need a search index, and until then agents are trusted to search their own files and Shrimpy's state with the tools they have. | Confirmed |
-| Workspace context | Shared `context/` files in the workspace that every agent reads | The gateway hosts the workspace's `context/` files, and agents receive them through the API. Each agent keeps a cached copy for when the gateway is unreachable and picks up changes on reload, at the cost of one prompt-cache miss. You or the mechanic edit them in one place. | Confirmed |
+| Workspace context | Shared `context/` files in the workspace that every agent reads | The gateway hosts the workspace's `context/` files, and agents receive them through the API. Each agent keeps a cached copy for when the gateway is unreachable and picks up a change within a few seconds, at the cost of one prompt-cache miss. You, or an admin agent, edit them in one place: `context/` in the Shrimpy folder where the gateway runs. | Confirmed, and built on 2026-11-23, as Workspace context, above, has it |
 | Memory | Ordinary files; mechanic can search every agent | Same files. An agent with the admin role reaches other agents' homes over SSH instead of a built-in all-agent search. | Confirmed |
 | Compaction | A copied runner with Shrimpy's guidance | Pi's native compaction with Shrimpy's summary guidance for dates, voice, paths and work state; same thresholds and model at first. Qualify summary quality before deleting the copy. Compaction only shrinks the session, so agents are told they can re-read the thread when a detail went missing. | Confirmed |
 | Skills | Trails, `/skill:name` and templates | Same mechanics. The skills themselves are rewritten, as the next two rows say. | Keep |
@@ -93,11 +104,11 @@ Inspection shows raw entries, effective model messages, selected tools, source r
 
 **Open**
 
-Compaction with Shrimpy's guidance, seeing the request a turn sent, and workspace context from the gateway are under Not built yet below.
+Compaction with Shrimpy's guidance and seeing the request a turn sent are under Not built yet below.
 
 **Not built yet**
 
-*The home: compaction, the request a turn sent, and workspace context.*
+*The home: compaction and the request a turn sent.*
 
 Under Next in the [order of work](../PLAN.md#order-of-work).
 
@@ -111,7 +122,6 @@ Pi compacts a session by default: it starts a summary in the background as the h
 - Request and context inspection.
 - Agent instructions and the first included skills rewritten from scratch against the new commands and tools: the base instructions, the starter `SOUL.md`, and each of the [skills that come first](5-home.md) with its helper commands, tool requirements and precedence. First comes the [keep list](../keep-list.md) of what's charming in today's, for you to review.
 - Native compaction with Shrimpy's guidance in place of the copied runner.
-- Workspace context hosted by the gateway, with each agent's cached copy.
 
 **Prove**
 

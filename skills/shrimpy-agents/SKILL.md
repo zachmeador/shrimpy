@@ -36,6 +36,7 @@ state/pi/models.json  model servers it can use
 state/pi/auth.json    its API keys
 state/agent.sqlite    the engine's storage
 state/member.json     the key that proves it is this agent, its ID on the roster and the roster's ID once it has joined
+state/workspace-context/  its copy of the notes every agent is shown (see shrimpy-setup), which it keeps itself
 runtime/              the lock, where to find the agent by its home, and the shrimpy command: disposable
 ```
 
@@ -43,7 +44,7 @@ Never open `state/agent.sqlite` or edit `runtime/`: the running agent owns them.
 
 ## Change who an agent is
 
-Edit `SOUL.md` for its voice and role, and `context/` for what it should always have in mind. Both are shown on every request, so keep them short and put the long material in `vault/`. Don't repeat in `SOUL.md` what its instructions already say about replying and the message tools.
+Edit `SOUL.md` for its voice and role, and `context/` for what it should always have in mind. Both are shown on every request, so keep them short and put the long material in `vault/`. What every agent should have in mind goes in the workspace context instead, as shrimpy-setup says. Don't repeat in `SOUL.md` what its instructions already say about replying and the message tools.
 
 A running agent looks at its files every couple of seconds and reads again what changed, so a change is picked up within a few seconds, with nothing to run. Each session uses it with its next request.
 

@@ -1,3 +1,4 @@
+import type { JsonValue } from "@earendil-works/chord/json";
 import type { Program, RosterEntry, WayIn } from "../../contracts/gateway/index.ts";
 import { type FollowAttach, follow } from "../../lib/follow/index.ts";
 
@@ -9,16 +10,16 @@ export type GatewayView = {
   ways: WayIn[];
 };
 
-/** The view, for the gateway's objects to follow. */
-export interface View {
+/** A view, for the gateway's objects to follow. */
+export interface View<T> {
   /** Something the view is worked out from changed: whoever follows it reads it again. */
   changed(): void;
   /** What Chord's `self.follow` takes. */
-  readonly follow: FollowAttach<GatewayView>;
+  readonly follow: FollowAttach<T>;
 }
 
 /** A view that `read` works out at once, for each object that follows it and again at each change. */
-export function createView(read: () => GatewayView): View {
+export function createView<T extends JsonValue>(read: () => T): View<T> {
   const followers = new Set<() => void>();
   return {
     changed() {

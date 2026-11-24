@@ -1,3 +1,4 @@
+import { relative, sep } from "node:path";
 import { codeOf, compare, type LeftOut, type MarkdownFile, why, whyUnseen } from "./files.ts";
 import { readText } from "./read.node.ts";
 import { walkMarkdown } from "./walk.node.ts";
@@ -10,19 +11,23 @@ export interface MarkdownRead {
   readonly leftOut: LeftOut[];
 }
 
+/** How a reader names the files it reads, by their full paths. */
+export interface MarkdownNames {
+  /** The path each file is read as. Where it is inside the folder, with `/` between folders, if not given. */
+  named?: (path: string) => string;
+  /** The path a file or folder that can't be read is left out under, for a reader that tells a person where it is some other way. `named`, if not given. */
+  leftOutAs?: (path: string) => string;
+}
+
 /**
  * Read the Markdown files under `folder` and the folders under it, as
- * `walkMarkdown` finds them, each with the path `named` gives it. A file with
- * nothing in it but space is as if it were not there, and so is a folder that
- * isn't. A file or folder that can't be read is left out under the path
- * `leftOutAs` gives it, which is `named` unless the reader tells a person where
- * it is some other way, and never stops the rest.
+ * `walkMarkdown` finds them. A file with nothing in it but space is as if it
+ * were not there, and so is a folder that isn't. A file or folder that can't be
+ * read is left out, and never stops the rest.
  */
-export async function readMarkdown(
-  folder: string,
-  named: (path: string) => string,
-  leftOutAs: (path: string) => string = named,
-): Promise<MarkdownRead> {
+export async function readMarkdown(folder: string, names: MarkdownNames = {}): Promise<MarkdownRead> {
+  const named = names.named ?? ((path: string) => relative(folder, path).split(sep).join("/"));
+  const leftOutAs = names.leftOutAs ?? named;
   const files: MarkdownFile[] = [];
   const leftOut: LeftOut[] = [];
   for await (const entry of walkMarkdown(folder)) {

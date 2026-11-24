@@ -6,7 +6,7 @@ For anyone about to read the code. How to run it is in [CONTRIBUTING.md](../CONT
 
 - **The agent** is one process for each home. It owns the home's files, its Pi storage and its private work, one session for each thread it takes part in. Only it opens the storage, behind a lock taken first, because opening is a write.
 - **The chat server** owns the shared record of what was said: channels, threads, messages, attachments, mentions, reactions, edits, receipts and who is working, in its own SQLite store.
-- **The gateway** owns who is on the network and how to reach them: the roster, invitations and the relay. It never hosts agents or conversations.
+- **The gateway** owns who is on the network and how to reach them: the roster, invitations and the relay. It also hosts the workspace context, the notes every agent is shown, from `context/` in the Shrimpy folder it runs in. It never hosts agents or conversations.
 
 Clients and the `shrimpy` command use the programs and own nothing.
 

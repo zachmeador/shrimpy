@@ -8,6 +8,12 @@ export interface LeftOut {
   readonly reason: string;
 }
 
+/** A left-out file as a sentence, which is how its reader says it to a person. */
+export const leftOutSentence = ({ file, reason }: LeftOut): string => `${file} was left out: ${reason}.`;
+
+/** A left-out file whose reader goes on with what it last read of it, saying so in its reason. */
+export const stillKept = ({ file, reason }: LeftOut): LeftOut => ({ file, reason: `${reason}, so what was last read of it is kept` });
+
 /** A Markdown file as a reader read it. */
 export interface MarkdownFile {
   /** Where it is, as its reader names it, with `/` between folders. */

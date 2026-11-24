@@ -1,15 +1,16 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { hostname } from "node:os";
+import { dirname, join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type AgentModels, parseModelChoice, parseSigil, PIGMENTS } from "../contracts/agent/index.ts";
 import { initHome, loadHome, readMembership, saveMembership } from "../contracts/agent/node.ts";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
-import { type Program, Roster, type RosterEntry } from "../contracts/gateway/index.ts";
-import { newToken } from "../contracts/gateway/node.ts";
-import { linkTestAgent, type TestGateway } from "../contracts/gateway/testing/index.ts";
+import { type Program, Roster, type RosterEntry, valueOf } from "../contracts/gateway/index.ts";
+import { newToken, sayHello } from "../contracts/gateway/node.ts";
+import { linkTestAgent, startTestGateway, type TestGateway } from "../contracts/gateway/testing/index.ts";
 import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { homePaths } from "./home/index.ts";
@@ -238,6 +239,82 @@ test("a note written into context/ while the agent runs is in what the model is 
 
   assert.doesNotMatch(told(0), /The disk is on fire\./, "the request before the note did not have it");
   assert.equal(now, (await previewHomeContext(paths.root)).sections.map((section) => section.text).join("\n\n"), "and the one after has the home as the preview shows it");
+});
+
+/** Write a file of the workspace context: `context/` in the Shrimpy folder the gateway runs in. */
+function writeShared(gateway: TestGateway, path: string, text: string): void {
+  const file = join(gateway.folder, "context", path);
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, text);
+}
+
+/** What the home would tell its agent now, from its files and its copy of the workspace context. */
+const previewed = async (home: string): Promise<string> =>
+  (await previewHomeContext(home)).sections.map((section) => section.text).join("\n\n");
+
+/** Wait until the home's copy of the workspace context has `text`, which reaches it from the gateway. */
+const untilCopied = (home: string, text: string): Promise<string> =>
+  eventually(() => previewed(home), (now) => now.includes(text), { what: "the home's copy of the workspace context to have it" });
+
+test("an agent apart is given the workspace context through the gateway, and a change to it reaches its sessions", { timeout: 60_000 }, async (t) => {
+  const paths = newHome(t);
+  const requests = stubChatCompletions(t, "Ok");
+  const gateway = await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
+  const [address] = gateway.listening.listen;
+  assert.ok(address);
+  await startNetwork(t);
+  writeShared(gateway, "team.md", "Alex owns the release.\n");
+  // The agent joins with an invitation over loopback, as one on another machine does, and keeps where its gateway is.
+  const person = await gateway.connect();
+  const roster = await person.host.get(Roster, {}, BACKGROUND_CONTEXT);
+  const { code, fingerprint } = valueOf(await roster.invite({ name: "scout" }, BACKGROUND_CONTEXT));
+  const token = newToken();
+  const entry = { ...address, fingerprint };
+  const joined = await sayHello(entry, { kind: "join", name: "scout", token, code, machine: hostname() });
+  joined.linked.drop();
+  assert.ok(joined.welcome.you !== null);
+  saveMembership(paths.root, { token, memberId: joined.welcome.you.id, gateway: entry });
+
+  await startAt(t, paths.root);
+  await untilCopied(paths.root, "Alex owns the release.");
+  const talk = await talkToAgent(t, "scout");
+  await talk.ask("hi");
+  const told = (): string => String(requests.at(-1)?.body.messages[0]?.content);
+  assert.equal(told(), await previewed(paths.root), "the model is shown the workspace context as the preview shows it");
+  assert.ok(told().includes(join(gateway.folder, "context", "team.md")), "each file under its path on the gateway's machine");
+
+  writeShared(gateway, "team.md", "Sam owns the release.\n");
+  const now = await eventually(
+    async () => {
+      await talk.ask("and now?");
+      return told();
+    },
+    (text) => text.includes("Sam owns the release."),
+    { what: "the change to reach the session" },
+  );
+  assert.doesNotMatch(now, /Alex owns the release\./);
+});
+
+test("an agent whose gateway is down starts on its copy of the workspace context", { timeout: 60_000 }, async (t) => {
+  const paths = newHome(t);
+  const requests = stubChatCompletions(t, "Ok");
+  const { gateway } = await startNetwork(t);
+  writeShared(gateway, "team.md", "Alex owns the release.\n");
+  const first = await startAt(t, paths.root);
+  await untilCopied(paths.root, "Alex owns the release.");
+  const talk = await talkToAgent(t, "scout");
+  await talk.ask("hi");
+  await first.close();
+  await gateway.outage();
+
+  await startAt(t, paths.root);
+  // With no gateway there is no chat either, so the session is asked on the home's own socket.
+  const { session } = await attachThread(t, paths.root, talk.thread.id);
+  const asked = requests.length;
+  await session.wait((await session.steer("and now?")).submission);
+
+  assert.ok(requests.length > asked);
+  assert.match(String(requests.at(-1)?.body.messages[0]?.content), /Alex owns the release\./);
 });
 
 test("a home whose agent.json can't be seen is not read until it can be", { timeout }, async (t) => {

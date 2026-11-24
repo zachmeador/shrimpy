@@ -131,7 +131,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Next:**
 
-- The home: compaction, the request a turn sent, and workspace context. [Not built yet](design/5-home.md)
+- The home: compaction and the request a turn sent. [Not built yet](design/5-home.md)
 - The conversation model: hearing a thread while working in it, and the demo that decides whether it stays. [Not built yet](design/4-conversation.md)
 
 **Later:**

@@ -7,11 +7,18 @@ export interface HomePaths extends SharedPaths {
   readonly database: string;
   /** Where the owner puts the `shrimpy` command its agent's shell runs. */
   readonly bin: string;
+  /** The copy of the workspace context the gateway last gave the agent, each file at its path on the gateway's machine. Only the agent writes it. */
+  readonly workspaceContext: string;
 }
 
 export function homePaths(home: string): HomePaths {
   const paths = sharedPaths(home);
-  return { ...paths, database: join(paths.root, "state", "agent.sqlite"), bin: join(paths.runtime, "bin") };
+  return {
+    ...paths,
+    database: join(paths.root, "state", "agent.sqlite"),
+    bin: join(paths.runtime, "bin"),
+    workspaceContext: join(paths.root, "state", "workspace-context"),
+  };
 }
 
 /**

@@ -5,7 +5,7 @@ import type { Entry, LiveRoster, Principal, Revocation } from "../contracts/gate
 import type { Backoff } from "../lib/retry/index.ts";
 import { type Admissions, type ChatDelivery, markWorking, readFeed, type Wakes } from "./chat/index.ts";
 import { homePaths } from "./home/index.ts";
-import { type ChatCalls, type LiveChat, linkToGateway, openChatLink } from "./links/index.ts";
+import { type ChatCalls, type LiveChat, linkToGateway, type LiveWorkspace, openChatLink } from "./links/index.ts";
 import { createAgentHost } from "./server.ts";
 import type { Working } from "./turns/index.ts";
 
@@ -54,6 +54,8 @@ export interface Participant {
   facet: Facet<Principal>;
   /** The roster, which the agent holds at the gateway from now on. */
   roster: LiveRoster;
+  /** The workspace context, which the agent holds at the gateway from now on. */
+  workspace: LiveWorkspace;
   /** Where the agent stands in chat's feed, and how it takes an event up. */
   admissions: Admissions;
   /** What wakes the agent in each room. */
@@ -68,14 +70,14 @@ export interface Participant {
 /**
  * Take part in the network: keep the agent linked to the gateway, which is how
  * it is a member and how requests for it arrive at `agent({ id })`, hold the
- * roster and chat over that link, and take up the events chat brings that wake
- * the agent. Who the agent is comes from the gateway and from nothing the agent
- * says. None of it delays the agent's start or stops its sessions working: the
+ * roster, the workspace context and chat over that link, and take up the events
+ * chat brings that wake the agent. Who the agent is comes from the gateway and
+ * from nothing the agent says. None of it delays the agent's start or stops its sessions working: the
  * gateway and chat may not be there yet, or go away, and the agent finds them
  * again.
  */
 export function join(participant: Participant, options: JoinOptions): Joined {
-  const { name, facet, roster, admissions, wakes, working, delivery, onError } = participant;
+  const { name, facet, roster, workspace, admissions, wakes, working, delivery, onError } = participant;
   const paths = homePaths(participant.home);
   const backoff = options.backoff;
   const link = openChatLink(onError, options.chatCalls);
@@ -87,6 +89,7 @@ export function join(participant: Participant, options: JoinOptions): Joined {
     const previous = network?.host;
     network = { id: memberId, host };
     roster.follow(host, BACKGROUND_CONTEXT);
+    workspace.follow(host, BACKGROUND_CONTEXT);
     link.follow(host);
     await previous?.close(BACKGROUND_CONTEXT);
     return host;
@@ -133,6 +136,7 @@ export function join(participant: Participant, options: JoinOptions): Joined {
         } finally {
           await link.close();
           roster.close();
+          workspace.close();
           await network?.host.close(BACKGROUND_CONTEXT);
         }
       }

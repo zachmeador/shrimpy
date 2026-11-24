@@ -7,22 +7,24 @@ import { INCLUDED_SKILLS } from "./included.ts";
 import type { HomePaths } from "./layout.ts";
 
 /**
- * A look at the files that reading the home reads: `SOUL.md`, the Markdown files
- * of `context/`, the skills of the home and those that ship with Shrimpy, the
- * Markdown files of `triggers/`, the wake file, `agent.json`, `sigil`, and
- * `outside`, the other files the agent reads, such as its model files. It gives
- * their names, sizes, modes and the times they were changed, and never opens
- * one, so it is cheap enough to repeat every few seconds. Two looks are the same
- * text when none of those files has changed between them. It never fails: a
- * file that can't be looked at is in the text with the reason. It picks the
- * files that `readHomeSnapshot` and `readTriggers` read, with the same walk of
- * `context/` and the same listing of a folder, so whatever they would read
- * differently shows in the look.
+ * A look at the files that reading the home reads: `SOUL.md`, the copy of the
+ * workspace context, the Markdown files of `context/`, the skills of the home
+ * and those that ship with Shrimpy, the Markdown files of `triggers/`, the wake
+ * file, `agent.json`, `sigil`, and `outside`, the other files the agent reads,
+ * such as its model files. It gives their names, sizes, modes and the times
+ * they were changed, and never opens one, so it is cheap enough to repeat every
+ * few seconds. Two looks are the same text when none of those files has changed
+ * between them. It never fails: a file that can't be looked at is in the text
+ * with the reason. It picks the files that `readHomeSnapshot` and
+ * `readTriggers` read, with the same walk of a folder of Markdown files and the
+ * same listing of a folder, so whatever they would read differently shows in
+ * the look.
  */
 export async function lookAtHome(paths: HomePaths, outside: readonly string[] = []): Promise<string> {
   const found = new Map<string, string>();
   await Promise.all([
     ...[paths.soul, paths.wake, paths.config, paths.sigil, ...outside].map(async (file) => void found.set(file, await lookAtFile(file))),
+    lookAtMarkdown(paths.workspaceContext, found),
     lookAtMarkdown(paths.context, found),
     lookAtSkills(paths.skills, found),
     lookAtSkills(INCLUDED_SKILLS, found),

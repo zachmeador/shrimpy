@@ -8,7 +8,8 @@
  * key it keeps in its data directory, whose fingerprint every invitation's
  * link carries. It keeps the addresses it listens on, so that a start with
  * none listens where the last one did, and follows your settings file for your
- * name. Given the web client's page, it serves it at a door of its own for
+ * name. It hosts the workspace context, the Markdown files of `context/` in
+ * the Shrimpy folder, for every agent to hold, and follows them as they change. Given the web client's page, it serves it at a door of its own for
  * browsers, where your settings say, and lets a browser in there as a device
  * of yours, which may say where it is told things. What the chat server hands
  * it to tell you, it sends to each such device by Web Push, signed with a
@@ -44,6 +45,7 @@ import { createPush, publicKeyOf } from "./push/index.ts";
 import { openRoster, type Roster } from "./roster/index.ts";
 import { createActions, createView, gatewayFacet } from "./served/index.ts";
 import { followSettings } from "./settings/index.ts";
+import { hostWorkspace, type Workspace } from "./workspace/index.ts";
 
 export { GatewayRunningError } from "./lock.ts";
 
@@ -73,6 +75,12 @@ export interface GatewayOptions {
    * it serves with, are read from it when the gateway starts.
    */
   settings?: string;
+  /**
+   * The Shrimpy folder's `context/`, whose Markdown files the gateway hosts as
+   * the workspace context: read when it starts, and again whenever they
+   * change. Without it, the workspace context has no files.
+   */
+  context?: string;
   /**
    * The web client's page, as a browser is served it: the file at "/" and
    * every file it asks for. Given, the gateway opens the page's door, where
@@ -152,6 +160,14 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
       if (error.kind === "resolve_failed" && programs.notLinked(error.error)) return;
       console.error(`[gateway] ${hostFailure(error).message}`);
     };
+    const onError = (error: unknown): void => console.error("[gateway]", asError(error).message);
+    let workspace: Workspace | undefined;
+    const workspaceView = createView(() => workspace?.files() ?? []);
+    if (options.context !== undefined) {
+      const hosted = await hostWorkspace(options.context, { onChange: () => workspaceView.changed(), onError });
+      open.add(() => hosted.close());
+      workspace = hosted;
+    }
     const view = createView(() => ({
       id: roster.id,
       members: roster.members().map((member) => ({ ...member, reachable: programs.reachable(member.id) })),
@@ -160,7 +176,6 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     }));
     const entries: Listener[] = [];
     let page: string | undefined;
-    const onError = (error: unknown): void => console.error("[gateway]", asError(error).message);
     const push = createPush({
       places: () => roster.webPushPlaces(),
       forget: (way, endpoint) => roster.forgetWebPush(way, endpoint),
@@ -180,7 +195,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
       fingerprint,
       context,
     });
-    await host.load([{ name: "@shrimpy/gateway", facet: gatewayFacet(view, actions) }], context);
+    await host.load([{ name: "@shrimpy/gateway", facet: gatewayFacet(view, workspaceView, actions) }], context);
     programs.start();
     roster.onChange(() => {
       programs.followRoster();

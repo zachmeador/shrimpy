@@ -7,6 +7,8 @@ import { type RenderedSection, renderSections } from "./sections.ts";
 export interface ContextReport {
   /** Whether `SOUL.md` has instructions in it. */
   soul: boolean;
+  /** How many files of the workspace context the agent is given, from its home's copy. */
+  workspace: number;
   /** How many Markdown files of `context/` the agent is given. */
   files: number;
   /** How many skills the agent is told about. */
@@ -32,6 +34,7 @@ export const factsOf = (agent: AgentFacts): AgentFacts => ({ name: agent.name, h
 export function reportOf(snapshot: HomeSnapshot): ContextReport {
   return {
     soul: snapshot.soul !== undefined,
+    workspace: snapshot.workspace.length,
     files: snapshot.files.length,
     skills: snapshot.skills.length,
     leftOut: [...snapshot.leftOut],

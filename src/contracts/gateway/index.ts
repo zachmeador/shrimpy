@@ -4,7 +4,8 @@
  * another program's object, the hello every caller says before Chord, a
  * client's link once it is welcomed, the roster as `Roster`, and as a program
  * holds it live, `Notifications`, where the chat server hands the gateway
- * what to tell you on your devices, the rule for a name and how names are
+ * what to tell you on your devices, `WorkspaceContext`, the notes every agent
+ * is shown, the rule for a name and how names are
  * compared, the invitation's link and the page's, with what a machine of yours
  * keeps, the page's door as the page sees it, with where a browser is told
  * things, and the page's link to it, and what every client tells a person to
@@ -78,3 +79,4 @@ export {
 } from "./roster.ts";
 export { isToken } from "./token.ts";
 export { GATEWAY_NOT_RUNNING, howToStartAgent, NO_AGENT_YET, NO_CHAT_SERVER, NO_GATEWAY } from "./words.ts";
+export { WorkspaceContext, type WorkspaceFile } from "./workspace.ts";

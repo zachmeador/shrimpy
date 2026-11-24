@@ -3,7 +3,8 @@
  * contract for it at `agent({ id })` over its link to the gateway (which relays
  * every request for it stamped with who asks) and at `agent({ id: HOME_AGENT })`
  * on the home's own socket, where a client is `home`. Over its gateway link it
- * takes part in the network as a member and in chat.
+ * takes part in the network as a member and in chat, and holds the workspace
+ * context, which it copies into its home and reads from there.
  * Other programs reach an agent only through `contracts/agent`; they never
  * import this program's modules, except that the CLI starts an agent, previews
  * what a home would tell an agent, and signs the folder its agents are started
@@ -11,19 +12,20 @@
  * are beyond who it is told they are, or anything about the chat server and the
  * gateway beyond their contracts.
  */
-import type { AgentEndpoint, Reloaded } from "../contracts/agent/index.ts";
+import type { AgentEndpoint } from "../contracts/agent/index.ts";
 import { loadHome, readMembership, readTriggers } from "../contracts/agent/node.ts";
 import { createLiveRoster } from "../contracts/gateway/index.ts";
-import { followFiles, type FollowingFiles } from "../lib/files/node.ts";
+import { followFiles } from "../lib/files/node.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { createAdmissions } from "./chat/durable.ts";
 import { channelOfThread, createDelivery, createWakes } from "./chat/index.ts";
 import { homeContext } from "./context/durable.ts";
 import { type ContextPreview, previewContext } from "./context/index.ts";
-import { homeReader, LOOK_EVERY_MS } from "./following.ts";
-import { homePaths, lookAtHome, readBreadcrumbs, writeBreadcrumb } from "./home/index.ts";
+import { homeReader } from "./following.ts";
+import { homePaths, lookAtHome, readBreadcrumbs, workspaceCopier, writeBreadcrumb } from "./home/index.ts";
 import { buildModels, type HostOptions, type ModelReload, openHost } from "./host/durable.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
+import { followWorkspace } from "./links/index.ts";
 import { keepLook } from "./look.ts";
 import { messageTools } from "./message-tools/durable.ts";
 import { askTools, createQuestions } from "./questions/durable.ts";
@@ -115,7 +117,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
   const context = await homeContext({ name: options.name, home: options.home });
   const report = reporter(options);
   const host = await openHost(options);
-  let following: FollowingFiles<Reloaded> | undefined;
+  let following: { close(): Promise<void> } | undefined;
   try {
     // What the agent posts under names of its own making carries what its records are called, which only the opened
     // storage can say, so what posts is made now, and installed before anything runs.
@@ -162,7 +164,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     const wakes = createWakes();
     const look = keepLook(report);
     const keeping = followFiles({
-      everyMs: options.lookEveryMs ?? LOOK_EVERY_MS,
+      ...(options.lookEveryMs === undefined ? {} : { everyMs: options.lookEveryMs }),
       look: () => lookAtHome(paths, options.modelFiles),
       read: homeReader({
         home: options.home,
@@ -177,7 +179,16 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       }),
       onError: report,
     });
-    following = keeping;
+    // The copy of the workspace context is kept as the gateway changes it, and read with the rest of the home at once.
+    const copier = workspaceCopier(paths, { changed: () => keeping.reload(), onError: report });
+    // A copy under way finishes before the agent stops reading its home.
+    const keepingUp = {
+      async close() {
+        await copier.close();
+        await keeping.close();
+      },
+    };
+    following = keepingUp;
     // Sessions from an earlier start follow the home as it is now, and the home is read, before any of their work
     // resumes: a trigger whose schedule changed while the agent was down is not woken by its old one.
     await sessions.applyDefaults();
@@ -216,6 +227,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
             home: options.home,
             facet,
             roster,
+            workspace: followWorkspace((files) => copier.copy(files)),
             admissions,
             wakes,
             working: createWorking(host.harness),
@@ -228,7 +240,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       const refuseInput = (): void => {
         takingInput = false;
       };
-      return { endpoint: server.endpoint, close: stopper({ host, server, joined, following: keeping, refuseInput }) };
+      return { endpoint: server.endpoint, close: stopper({ host, server, joined, following: keepingUp, refuseInput }) };
     } catch (error) {
       await server.close();
       throw error;

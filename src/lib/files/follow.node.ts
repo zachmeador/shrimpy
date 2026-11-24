@@ -1,11 +1,14 @@
 import { asError } from "../errors/index.ts";
 
+/** How often files are looked at, in milliseconds, unless whoever follows them says otherwise. */
+const LOOK_EVERY_MS = 2_000;
+
 /** The most times one reading reads the files while they move under it. */
 const READS = 3;
 
 export interface FollowFilesOptions<T> {
-  /** The time between two looks. */
-  everyMs: number;
+  /** The time between two looks, in milliseconds. Two seconds, if not given. */
+  everyMs?: number;
   /** A look at the files: the same text for as long as none of them changes. */
   look(): Promise<string>;
   /** Read the files again, all of them. */
@@ -26,9 +29,9 @@ export interface FollowingFiles<T> {
 }
 
 /**
- * Keep up with files by looking at them every `everyMs`, and reading them again
- * when what the look shows has changed and is the same at the look after, so
- * that a file that is being written is not read half-way. It looks and does not
+ * Keep up with files by looking at them every couple of seconds, and reading
+ * them again when what the look shows has changed and is the same at the look
+ * after, so that a file that is being written is not read half-way. It looks and does not
  * watch: file-system events are not delivered for a folder that another machine
  * shares. Nothing is known of the files until whoever starts this asks for the
  * first reading. A reading looks at the files before and after it reads them, and
@@ -96,7 +99,7 @@ export function followFiles<T>(options: FollowFilesOptions<T>): FollowingFiles<T
       });
   };
 
-  const timer = setInterval(tick, options.everyMs);
+  const timer = setInterval(tick, options.everyMs ?? LOOK_EVERY_MS);
   timer.unref();
 
   return {

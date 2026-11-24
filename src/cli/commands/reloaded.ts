@@ -8,11 +8,12 @@ import { connectIfRunning, startOne } from "./connected.ts";
 import type { AtHome } from "./which-agent.ts";
 
 /** How much of each kind an agent reads from its home, which a reload and a preview both count. */
-export type Read = Pick<Reloaded, "soul" | "files" | "skills" | "triggers">;
+export type Read = Pick<Reloaded, "soul" | "workspace" | "files" | "skills" | "triggers">;
 
 /** What was found, such as "SOUL.md, 2 context files, 1 skill and 3 triggers". */
-export function whatItReads({ soul, files, skills, triggers }: Read): string {
+export function whatItReads({ soul, workspace, files, skills, triggers }: Read): string {
   const parts = [
+    ...(workspace > 0 ? [`${workspace} ${workspace === 1 ? "file" : "files"} of the workspace context`] : []),
     ...(soul ? ["SOUL.md"] : []),
     ...(files > 0 ? [`${files} context ${files === 1 ? "file" : "files"}`] : []),
     ...(skills > 0 ? [`${skills} ${skills === 1 ? "skill" : "skills"}`] : []),

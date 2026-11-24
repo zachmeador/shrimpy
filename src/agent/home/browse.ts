@@ -1,9 +1,10 @@
 import { constants, type Stats } from "node:fs";
 import { open, readdir, realpath, stat } from "node:fs/promises";
-import { join, sep } from "node:path";
+import { join } from "node:path";
 import { type HomeEntry, type HomeFile, MAX_IMAGE_BYTES, MAX_TEXT_BYTES } from "../../contracts/agent/index.ts";
 import { codeOf, compare, why } from "../../lib/files/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
+import { isInside } from "./files.ts";
 import type { HomePaths } from "./layout.ts";
 
 /** The folders at the top of a home that hold what the agent needs to run, which are never listed or shown. */
@@ -31,7 +32,7 @@ interface Shown {
   keeps(real: string): boolean;
 }
 
-const within = (folder: string, path: string): boolean => path === folder || path.startsWith(`${folder}${sep}`);
+const within = (folder: string, path: string): boolean => path === folder || isInside(folder, path);
 
 async function shownOf(paths: HomePaths): Promise<Shown> {
   const root = await realpath(paths.root);

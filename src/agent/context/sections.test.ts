@@ -9,10 +9,11 @@ import { renderSections } from "./sections.ts";
 
 const agent = { name: "scout", home: "/agents/scout" };
 
-const empty: HomeSnapshot = { soul: undefined, files: [], skills: [], leftOut: [] };
+const empty: HomeSnapshot = { soul: undefined, workspace: [], files: [], skills: [], leftOut: [] };
 
 const full: HomeSnapshot = {
   soul: "\n# SOUL\n\nBe brief.\n\n",
+  workspace: [{ path: "/home/zach/shrimpy/context/people.md", text: "Alex owns the release.\n" }],
   files: [
     { path: "context/user.md", text: "Zach likes short answers.\n" },
     { path: 'context/"quoted".md', text: "  indented\n" },
@@ -29,11 +30,11 @@ test("the sections come in a fixed order, each in a tag of its own, and a file p
 
   assert.deepEqual(
     sections.map((section) => section.key),
-    ["shrimpy", "soul", "context", "skills"],
+    ["shrimpy", "workspace", "soul", "context", "skills"],
   );
   assert.ok(sections.every((section) => section.text.startsWith(`<${section.key}>\n`) && section.text.endsWith(`\n</${section.key}>`)));
-  assert.ok(sections[2]?.text.includes('<file path="context/&quot;quoted&quot;.md">'));
-  assert.ok(sections[3]?.text.includes("- review: Review a diff for bugs.\n  /agents/scout/skills/review/SKILL.md"));
+  assert.ok(sections[3]?.text.includes('<file path="context/&quot;quoted&quot;.md">'));
+  assert.ok(sections[4]?.text.includes("- review: Review a diff for bugs.\n  /agents/scout/skills/review/SKILL.md"));
   assert.doesNotMatch(sections.map((section) => section.text).join("\n"), /broken/, "what was left out is in no section");
 });
 
@@ -41,9 +42,10 @@ test("a section with nothing to say is left out, and the others keep their place
   const keys = (snapshot: HomeSnapshot): string[] => renderSections(agent, snapshot).map((section) => section.key);
 
   assert.deepEqual(keys(empty), ["shrimpy"], "a home with nothing in it still gives the agent what every agent is told");
-  assert.deepEqual(keys({ ...full, soul: " \n" }), ["shrimpy", "context", "skills"]);
-  assert.deepEqual(keys({ ...full, files: [] }), ["shrimpy", "soul", "skills"]);
-  assert.deepEqual(keys({ ...full, skills: [] }), ["shrimpy", "soul", "context"]);
+  assert.deepEqual(keys({ ...full, workspace: [] }), ["shrimpy", "soul", "context", "skills"]);
+  assert.deepEqual(keys({ ...full, soul: " \n" }), ["shrimpy", "workspace", "context", "skills"]);
+  assert.deepEqual(keys({ ...full, files: [] }), ["shrimpy", "workspace", "soul", "skills"]);
+  assert.deepEqual(keys({ ...full, skills: [] }), ["shrimpy", "workspace", "soul", "context"]);
 });
 
 test("what every agent is told names the agent, its home and every tool of its own the agent has", () => {

@@ -13,7 +13,7 @@ You can check things and edit files. Starting Shrimpy is the person's step: `shr
 - **The chat server**, one per machine. It keeps every channel, thread and message in its data directory, `chat/`. Never delete that directory.
 - **An agent for each home.** One process that owns the home's files and answers in threads.
 
-By default all of it lives in the Shrimpy folder, `~/shrimpy` or the folder `SHRIMPY_DIR` names: `agents/` holds a home for each agent, beside `providers/`, `gateway/`, `chat/` and the person's `settings.json`. `up` and `agent serve` take an agent by the name of its home there, like `scout` for `agents/scout`. A command about one agent takes `--agent` with its name on the roster, which reaches it through the gateway wherever it lives, or with the path of its home.
+By default all of it lives in the Shrimpy folder, `~/shrimpy` or the folder `SHRIMPY_DIR` names: `agents/` holds a home for each agent, beside `providers/`, `gateway/`, `chat/`, `context/` and the person's `settings.json`. `up` and `agent serve` take an agent by the name of its home there, like `scout` for `agents/scout`. A command about one agent takes `--agent` with its name on the roster, which reaches it through the gateway wherever it lives, or with the path of its home.
 
 `shrimpy up` starts whichever of these is missing, with every agent in `agents/`, and stays in that terminal. Ctrl+C stops what it started. Anything already running is used as it is. An agent that ends is started again, after pauses that grow while it keeps failing. An agent that joined a gateway elsewhere with `shrimpy join` belongs to that gateway: where every agent in the folder does, `up` starts those agents and no gateway or chat server, and they are talked to from the gateway's machine.
 
@@ -26,6 +26,12 @@ A program that won't start says why in the terminal that started it. Ask the per
 An agent beside the gateway runs under the person's own account, so it can do anything the person can: whatever runs under that account can read every token there. Shrimpy's roles keep it from doing so by accident, and nothing more. Tell the person so when you make an agent. One that should be walled off runs under an account of its own, in a container or on another machine, and comes in with an invitation, as below.
 
 There is no setup command yet. A new setup is `shrimpy login` to sign in and choose a model, then `shrimpy agent init <name>`, then `shrimpy up`. One agent that answers is a complete setup, and a second can wait until the person asks for it. On an account made for Shrimpy, set the person's name first, as below.
+
+## Notes every agent is shown
+
+The Markdown files in `context/` in the Shrimpy folder on the gateway's machine are the workspace context: every agent on the network is shown them in every conversation, wherever it runs. Put there what every agent should know, such as who the person is and what they're working on, and keep it short, since every request carries it. What only one agent needs goes in that agent's own `context/`. A change reaches every running agent within a few seconds, with nothing to run.
+
+Each agent keeps a copy in its home's `state/workspace-context/`, so it has the notes while the gateway is down. Don't edit the copy: the agent replaces it at each change. A machine that joined with `shrimpy join` has a Shrimpy folder of its own, and nothing reads that folder's `context/`.
 
 ## The person's name
 
