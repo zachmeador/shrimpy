@@ -122,9 +122,9 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- Putting the move to Pi 1.5.2 on a setup in use: what Shrimpy wrote before it goes into an archive beside the Shrimpy folder, an agent elsewhere joins again with a new invitation, and your name goes in `settings.json`, as [the home](design/5-home.md) has it.
 - In the terminal, `/devices invite`. [Not built yet](design/using-it.md)
 - The contracts' histories from before the release go, since contracts change in place until it. [Not built yet](design/2-contracts.md)
+- The home's layout, before 1.0: what you and the agent write at the top, every setting in `agent.json`, and what Shrimpy writes in `state/`. [Not built yet](design/5-home.md)
 - The clients. Built by 2026-11-22 and on `wip` since that day, when you opened them, found the web client short of its mockup, and had both gone through against their mockups and brought in line: the modules the terminal and the web client share, the terminal as its mockup has it, and the web client, built for a phone first, with push notifications. What is left is the rough edges you found with the web client installed on your iPhone, and a Mac app that wraps it. The web client doesn't hold up the release. [Not built yet](design/using-it.md)
 - Cleaning up for the release, which you said on 2026-10-08 is close: the skills cover what a person and an agent do with Shrimpy, the reference documentation shrinks to very little, and old Shrimpy is replaced.
 - Living with it: what you notice goes on the list in [using it](design/using-it.md), and decides what is built next.
