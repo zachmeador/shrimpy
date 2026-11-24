@@ -202,6 +202,9 @@ export const FeedDoc = defineDoc<{ cursor: number | null; store: string | null }
   checkpointWhen: () => false,
 });
 
+/** Every one of Shrimpy's own documents. */
+export const DOCUMENTS = [RecordsDoc, SessionsDoc, QuestionsDoc, TriggersDoc, FeedDoc] as const;
+
 /** A copy of something read from a document, safe to keep after the commit. */
 export function copyOf<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;

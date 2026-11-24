@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { HelloRefusedError, Roster } from "../contracts/gateway/index.ts";
 import { newToken, sayHello } from "../contracts/gateway/node.ts";
+import { migrationCopy } from "../lib/migration/node.ts";
 import { tempDir, until } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { connectTestClient, Echo, linkTestAgent } from "../contracts/gateway/testing/index.ts";
+import { openRoster, ROSTER_FORMAT, type RosterStep } from "./roster/index.ts";
 import { startGatewayInProcess } from "./testing/index.ts";
 
 const timeout = 30_000;
@@ -92,6 +94,34 @@ test("a roster of an older version is refused and left as it is", { timeout }, a
     assert.equal(readFileSync(file, "utf8"), old);
     assert.equal(existsSync(join(dataDir, "state", "key.pem")), false);
   }
+});
+
+test("the next release copies the roster aside and migrates it, and this one then refuses it, naming the copy, until the copy is put back", (t) => {
+  const dataDir = tempDir(t, "gateway-update");
+  const file = join(dataDir, "state", "roster.json");
+  const token = newToken();
+  const names = (roster: { members(): { name: string }[] }): string[] => roster.members().map((member) => member.name);
+  // The next release keeps every name in lower case.
+  const lowerCase: RosterStep = {
+    version: ROSTER_FORMAT.current + 1,
+    migrate: (roster) => ({ ...roster, members: (roster.members as { name: string }[]).map((member) => ({ ...member, name: member.name.toLowerCase() })) }),
+  };
+  const next = { ...ROSTER_FORMAT, current: lowerCase.version, steps: [...ROSTER_FORMAT.steps, lowerCase] };
+  assert.equal(openRoster(dataDir, "Zach").join("Scout", token).kind, "done");
+
+  const updated = openRoster(dataDir, "Zach", next);
+  assert.deepEqual(names(updated), ["zach", "scout"]);
+  assert.equal(updated.recognize(token)?.member.name, "scout");
+  const copy = migrationCopy(file);
+  assert.ok(existsSync(copy));
+
+  assert.throws(
+    () => openRoster(dataDir, "Zach"),
+    (error: Error) => error.message.includes(copy),
+  );
+
+  renameSync(copy, file);
+  assert.deepEqual(names(openRoster(dataDir, "Zach")), ["Zach", "Scout"]);
 });
 
 test("taking back an agent's token keeps its entry, and inviting it again replaces the token and drops the old link", { timeout }, async (t) => {

@@ -16,7 +16,7 @@ import {
 import { newId } from "../../lib/ids/index.ts";
 import { listed } from "../../lib/text/index.ts";
 import type { WebPushPlace } from "../push/index.ts";
-import { type DeviceRecord, type MemberRecord, readRoster, rosterFile, writeRoster } from "./file.ts";
+import { type DeviceRecord, type MemberRecord, ROSTER_FORMAT, readRoster, rosterFile, writeRoster } from "./file.ts";
 
 const TOKEN_RULE = "A token is 32 to 200 letters, digits, hyphens or underscores, such as 32 random bytes in base64url.";
 
@@ -109,11 +109,12 @@ const publicly = (record: MemberRecord): Member => ({
  * for you yet, as when the gateway first makes its data, gets you, called
  * `firstName`. A file that cannot be read stops the gateway, and so does one
  * with a second person, or a first name another member has: guessing at who is
- * who would be worse.
+ * who would be worse. The file's format is this release's, unless a test gives
+ * the next release's.
  */
-export function openRoster(dataDir: string, firstName: string): Roster {
+export function openRoster(dataDir: string, firstName: string, format = ROSTER_FORMAT): Roster {
   const file = rosterFile(dataDir);
-  const loaded = readRoster(dataDir);
+  const loaded = readRoster(dataDir, format);
   const rosterId = loaded?.id ?? newId("ros");
   let records = loaded?.members ?? [];
   const seenNames = new Map<string, string>();
@@ -140,7 +141,7 @@ export function openRoster(dataDir: string, firstName: string): Roster {
   const listeners = new Set<() => void>();
 
   const save = (next: MemberRecord[]): void => {
-    writeRoster(file, { id: rosterId, members: next });
+    writeRoster(file, { id: rosterId, members: next }, format.current);
     records = next;
     for (const listener of [...listeners]) listener();
   };

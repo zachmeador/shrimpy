@@ -1,15 +1,14 @@
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
 import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
 import type { Models } from "@earendil-works/pi-ai";
 import { createRegistry, type Extension, Harness } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
+import type { StoreFormat } from "../../lib/migration/node.ts";
 import { homePaths } from "../home/index.ts";
 import { shellWithShrimpy } from "./launcher.ts";
 import { takeOwnerLock } from "./owner-lock.ts";
-import { refuseOlderStorage } from "./storage.ts";
+import { AGENT_STORAGE, prepareStorage, type StorageVersion } from "./storage.ts";
 
 export interface HostOptions {
   home: string;
@@ -50,16 +49,17 @@ const context = BACKGROUND_CONTEXT;
 
 /**
  * Take ownership of a home and open its storage and engine, with the stock
- * coding tools installed. Storage written before the move to Pi 1.5.2 is
- * refused before it is opened.
+ * coding tools installed. Before Pi opens the storage, storage at an older
+ * version of `storage` is copied aside, and storage that a newer release wrote,
+ * or that was written before the move to Pi 1.5.2, is refused. `storage` is
+ * this release's format, unless a test gives the next release's.
  */
-export async function openHost(options: HostOptions): Promise<Host> {
+export async function openHost(options: HostOptions, storage: StoreFormat<StorageVersion> = AGENT_STORAGE): Promise<Host> {
   const { home } = options;
   const { database } = homePaths(home);
   const lock = takeOwnerLock(home);
   try {
-    refuseOlderStorage(database);
-    mkdirSync(dirname(database), { recursive: true });
+    prepareStorage(database, storage);
     const shell = options.shrimpy === undefined ? undefined : shellWithShrimpy(home, options.shrimpy);
     const registry = createRegistry();
     registry.install(CodingTools);

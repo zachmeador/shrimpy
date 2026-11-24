@@ -1,7 +1,8 @@
 /**
  * The owner of a home: takes the home's lock, then opens its storage and
- * engine, refusing storage written before the move to Pi 1.5.2, and builds the
- * model runtime from the home's files and the folder's. It reads the engine's
+ * engine, copying storage an older release wrote aside first and refusing
+ * storage a newer release wrote, or one from before the move to Pi 1.5.2, and
+ * builds the model runtime from the home's files and the folder's. It reads the engine's
  * tasks of a kind, ends a session's, has what a task ends with when it is done
  * or aborted, and ends one that failed, for the modules that keep tasks there,
  * and says what a tool answers and what names a request a tool call makes.
@@ -22,5 +23,6 @@ export {
   type SignInWay,
   type WayToSignIn,
 } from "./sign-in.ts";
+export { AGENT_STORAGE, checkStorageVersion, type StorageVersion } from "./storage.ts";
 export { ABORTED, COMPLETED, endTasks, failTask, type TaskScanner, tasksOfKind } from "./tasks.durable.ts";
 export { answer, failure, toolRequestId } from "./tools.durable.ts";

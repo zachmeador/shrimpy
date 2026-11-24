@@ -23,13 +23,13 @@ import { homeContext } from "./context/durable.ts";
 import { type ContextPreview, previewContext } from "./context/index.ts";
 import { homeReader } from "./following.ts";
 import { homePaths, lookAtHome, readBreadcrumbs, workspaceCopier, writeBreadcrumb } from "./home/index.ts";
-import { buildModels, type HostOptions, type ModelReload, openHost } from "./host/durable.ts";
+import { AGENT_STORAGE, buildModels, checkStorageVersion, type HostOptions, type ModelReload, openHost } from "./host/durable.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { followWorkspace } from "./links/index.ts";
 import { keepLook } from "./look.ts";
 import { messageTools } from "./message-tools/durable.ts";
 import { askTools, createQuestions } from "./questions/durable.ts";
-import { openRecords, type SessionDefaults } from "./records/durable.ts";
+import { DOCUMENTS, openRecords, type SessionDefaults } from "./records/durable.ts";
 import { agentFacet } from "./served.ts";
 import { startServer } from "./server.ts";
 import { createSessions, requireModel, stopWork } from "./sessions/durable.ts";
@@ -145,7 +145,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       leaveBreadcrumb: (name, text) => writeBreadcrumb(paths, name, text),
       onError: report,
     });
-    host.install(
+    const extensions = [
       context.extension,
       messageTools({ recordsId, chat, roster: members, ...messageLimit }),
       wakeupTools({ wakeups }),
@@ -160,7 +160,9 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       wakeups.extension,
       questions.extension,
       triggers.extension,
-    );
+    ];
+    checkStorageVersion({ documents: DOCUMENTS, extensions }, AGENT_STORAGE);
+    host.install(...extensions);
     const wakes = createWakes();
     const look = keepLook(report);
     const keeping = followFiles({

@@ -184,7 +184,7 @@ This plan deliberately leaves these out, so they don't creep back in:
 - Very little reference documentation. You said on 2026-10-08: "i'd actually like to move to very minimal reference documentation. shrimpy agents can just check the code if they need to. but instructions and skills should cover all of the core ux/agent-ex". So what an agent is told and the skills that ship carry how Shrimpy is used, by a person and by an agent, and the README and the developer docs are written for what the release ships, keeping the charming parts of today's. This folder goes at the release, as [its front page](README.md#when-this-folder-goes) says.
 - A decision for every command and affordance of today's Shrimpy that hasn't come back, from what [using it](design/using-it.md) has of them.
 - Versions: `1.0.0` and `-dev`, and the release's contracts written down. [Not built yet](design/2-contracts.md)
-- Stored data migrating forward at start, with a fixture of each store and a test. [Not built yet](design/1-programs.md)
+- A fixture of each store at the release, and a test that opens every fixture of this major and the last. Stored data migrates forward at start since 2026-11-23. [Not built yet](design/1-programs.md)
 - Setting up through `shrimpy`, and moving over from old Shrimpy, from the list from living with it in [using it](design/using-it.md).
 - Choosing the model an agent starts with from the terminal, which you called a priority before the release on 2026-10-06 ([using it](design/using-it.md)).
 - `SECURITY.md` and `THIRD_PARTY_NOTICES.md` go with `shrimpy-old/` and are written anew, from [the keep list](keep-list.md). `CONTRIBUTING.md` was written from it on 2026-11-23.

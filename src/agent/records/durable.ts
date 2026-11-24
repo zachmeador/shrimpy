@@ -16,6 +16,7 @@
 export type { SessionDefaults } from "./defaults.durable.ts";
 export {
   copyOf,
+  DOCUMENTS,
   FeedDoc,
   type OpenQuestion,
   QuestionsDoc,

@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import type { Member } from "../../contracts/chat/index.ts";
+import { migrationCopy } from "../../lib/migration/node.ts";
 import { tempDir } from "../../lib/testing/index.ts";
 import { agent, openTestStore, person, reportToStderr } from "../testing/index.ts";
-import { type ChannelRecord, type Change, openStore, type Transaction } from "./index.ts";
+import { type ChannelRecord, type Change, CHAT_FORMAT, type ChatFormat, openStore, type Store, type Transaction } from "./index.ts";
 
 function openDm(tx: Transaction, first: Member, second: Member, now = 1000): ChannelRecord {
   tx.saveMember(first);
@@ -117,4 +118,46 @@ test("a store from before the move to Pi 1.5.2 is refused, in words that name it
     tables.map((table) => table.name),
     ["skips"],
   );
+});
+
+test("the next release copies a store aside and migrates it, and this one then refuses it, naming the copy, until the copy is put back", (t) => {
+  const dataDir = tempDir(t, "chat-update");
+  const file = join(dataDir, "state", "chat.sqlite");
+  const onError = reportToStderr;
+  const zach = person("Zach");
+  const texts = (store: Store, threadId: string): string[] =>
+    store.transaction((tx) => tx.messagesIn(threadId, null, 10).map((message) => message.text));
+  // The next release adds a column to the threads.
+  const next: ChatFormat = {
+    ...CHAT_FORMAT,
+    current: CHAT_FORMAT.current + 1,
+    steps: [...CHAT_FORMAT.steps, { version: CHAT_FORMAT.current + 1, statements: ["ALTER TABLE threads ADD COLUMN colour TEXT"] }],
+  };
+  const today = openStore(dataDir, { onError });
+  const threadId = today.transaction((tx) => {
+    const main = mainThread(tx, openDm(tx, zach, agent("Shrimpy")).id);
+    post(tx, main, zach, "said before the update");
+    return main;
+  });
+  today.close();
+
+  const updated = openStore(dataDir, { onError, format: next });
+  assert.deepEqual(texts(updated, threadId), ["said before the update"]);
+  updated.close();
+  const raw = new DatabaseSync(file, { readOnly: true });
+  const columns = raw.prepare("SELECT name FROM pragma_table_info('threads')").all().map((column) => column.name);
+  raw.close();
+  assert.ok(columns.includes("colour"), "the next release's step ran");
+  const copy = migrationCopy(file);
+  assert.ok(existsSync(copy));
+
+  assert.throws(
+    () => openStore(dataDir, { onError }),
+    (error: Error) => error.message.includes(copy),
+  );
+
+  renameSync(copy, file);
+  const back = openStore(dataDir, { onError });
+  assert.deepEqual(texts(back, threadId), ["said before the update"]);
+  back.close();
 });

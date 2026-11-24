@@ -2,10 +2,10 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Harness } from "@earendil-works/pi-durable";
 import { asError } from "../../lib/errors/index.ts";
 import { storageOfAnotherVersion } from "../home/index.ts";
-import { FeedDoc, QuestionsDoc, RecordsDoc, SessionsDoc, TriggersDoc } from "./documents.durable.ts";
+import { DOCUMENTS, FeedDoc, QuestionsDoc, RecordsDoc, SessionsDoc, TriggersDoc } from "./documents.durable.ts";
 
 /** The kinds of Shrimpy's own documents, which the engine names when it refuses one. */
-const KINDS = new Set([SessionsDoc, FeedDoc, TriggersDoc, QuestionsDoc, RecordsDoc].map(({ definition }) => definition.kind));
+const KINDS = new Set(DOCUMENTS.map(({ definition }) => definition.kind));
 
 /**
  * Open the agent's records at the start, and say what they are called: the ID

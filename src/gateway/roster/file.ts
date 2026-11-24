@@ -1,8 +1,9 @@
-import { mkdirSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { saveFile } from "../../lib/files/node.ts";
-import type { ConfigObject } from "../../lib/json-config/index.ts";
+import { type ConfigObject, parseConfig } from "../../lib/json-config/index.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
+import { beforeOpening, type Step, type StoreFormat } from "../../lib/migration/node.ts";
 import type { WebPushPlace } from "../push/index.ts";
 
 /**
@@ -34,22 +35,44 @@ export interface RosterFile {
   members: MemberRecord[];
 }
 
-/** The file's format. A roster of any other version is refused, never changed. */
-const VERSION = 3;
+/** A change to the file: what turns the file at the version before into one at `version`. */
+export interface RosterStep extends Step {
+  migrate(file: Record<string, unknown>): Record<string, unknown>;
+}
+
+/** This release's format of the file. */
+export const ROSTER_FORMAT: StoreFormat<RosterStep> = { current: 3, oldest: 3, steps: [] };
 
 /** Where the roster is kept inside the gateway's data directory. */
 export const rosterFile = (dataDir: string): string => join(dataDir, "state", "roster.json");
 
-/** The roster in the gateway's data directory, or undefined when there is no file yet. */
-export function readRoster(dataDir: string): RosterFile | undefined {
-  const root = readConfig(rosterFile(dataDir));
+/**
+ * The roster in the gateway's data directory, or undefined when there is no
+ * file yet. A file at an older version of `format` is copied aside, brought up
+ * to date and saved before it is read.
+ */
+export function readRoster(dataDir: string, format = ROSTER_FORMAT): RosterFile | undefined {
+  const file = rosterFile(dataDir);
+  let root = readConfig(file);
   if (root === undefined) return undefined;
-  if (root.number("version") !== VERSION) {
-    throw new Error(
-      `The roster in ${dataDir} was written by another version of Shrimpy, and nothing converts it. ` +
-        `Move ${dataDir} into an archive folder, and start the gateway again. ` +
-        "Whatever joined with an invitation, an agent or a machine of yours, needs a new one.",
-    );
+  const steps = beforeOpening(
+    {
+      file,
+      what: `The roster in ${dataDir}`,
+      program: "the gateway",
+      startingOver: "Whatever joined with an invitation, an agent or a machine of yours, needs a new one.",
+      found: root.number("version"),
+      format,
+    },
+    (to) => copyFileSync(file, to),
+  );
+  if (steps.length > 0) {
+    const stored = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+    const migrated = steps.reduce((json, step) => step.migrate(json), stored);
+    const text = formatted({ ...migrated, version: format.current });
+    saveFile(file, text, { mode: 0o600 });
+    root = parseConfig(text, file);
+    root.number("version");
   }
   const id = root.string("id");
   const members = root.objects("members").map(parseMember);
@@ -92,7 +115,10 @@ function parseDevice(entry: ConfigObject): DeviceRecord {
 }
 
 /** Write the roster whole, so that nobody reads half of it and a power cut leaves the old one or the new, readable only by its owner. */
-export function writeRoster(file: string, roster: RosterFile): void {
+export function writeRoster(file: string, roster: RosterFile, version: number): void {
   mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-  saveFile(file, `${JSON.stringify({ version: VERSION, id: roster.id, members: roster.members }, null, 2)}\n`, { mode: 0o600 });
+  saveFile(file, formatted({ version, id: roster.id, members: roster.members }), { mode: 0o600 });
 }
+
+const formatted = (json: object): string => `${JSON.stringify(json, null, 2)}\n`;
+

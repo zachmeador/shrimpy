@@ -9,6 +9,7 @@ import { type MessageOperations, messageOperations } from "./messages.ts";
 import { type ReactionOperations, reactionOperations } from "./reactions.ts";
 import { type ReceiptOperations, receiptOperations } from "./receipts.ts";
 import { type RequestOperations, requestOperations } from "./requests.ts";
+import { CHAT_FORMAT, type ChatFormat } from "./schema.ts";
 import { createSql, type Sql } from "./sql.ts";
 import { type ThreadOperations, threadOperations } from "./threads.ts";
 
@@ -40,6 +41,8 @@ export interface Store {
 export interface StoreOptions {
   /** Where a failing watcher is reported. A watcher's failure never undoes a commit. */
   onError: (error: Error) => void;
+  /** The store's format: this release's, unless a test gives the next release's. */
+  format?: ChatFormat;
 }
 
 /**
@@ -47,7 +50,7 @@ export interface StoreOptions {
  * `LockHeldError` while another process or connection has it.
  */
 export function openStore(dataDir: string, options: StoreOptions): Store {
-  const db = openDatabase(dataDir);
+  const db = openDatabase(dataDir, options.format ?? CHAT_FORMAT);
   const sql = createSql(db);
   const { id } = sql.one("SELECT id FROM store") as { id: string };
   const watchers = createListeners<Change>(options.onError);

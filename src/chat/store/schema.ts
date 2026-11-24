@@ -1,5 +1,22 @@
-/** The tables' version. A store written by any other version is refused, never changed. */
-export const SCHEMA_VERSION = 10;
+import type { Step, StoreFormat } from "../../lib/migration/node.ts";
+
+/** The tables' version, kept in the store's `user_version`. */
+const SCHEMA_VERSION = 10;
+
+/**
+ * A change to the tables: the SQL that brings a store from the version before
+ * to `version`, run in the transaction that opens the store. SQLite can't
+ * change a check in place, so a table whose checks change is made again and its
+ * rows copied, with `PRAGMA defer_foreign_keys = ON` first.
+ */
+export interface ChatStep extends Step {
+  readonly statements: readonly string[];
+}
+
+/** The chat store's format: the tables a new store is made with, and the steps that bring an older one up to date. */
+export interface ChatFormat extends StoreFormat<ChatStep> {
+  readonly schema: string;
+}
 
 /**
  * `events` is the log, and the one thing that gives positions. AUTOINCREMENT
@@ -175,3 +192,6 @@ CREATE TABLE read_marks (
   PRIMARY KEY (member_id, thread_id)
 ) STRICT, WITHOUT ROWID;
 `;
+
+/** This release's format, which a change to `SCHEMA` changes. */
+export const CHAT_FORMAT: ChatFormat = { schema: SCHEMA, current: SCHEMA_VERSION, oldest: SCHEMA_VERSION, steps: [] };

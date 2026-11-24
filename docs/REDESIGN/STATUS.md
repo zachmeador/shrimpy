@@ -15,6 +15,8 @@ As of 2026-11-23. An item leaves when it is fixed or when the design changes to 
 - Untried: power loss, a full disk, log damage, and a kill during a tool commit.
 - A save that a crash cuts short leaves a hidden file beside the file it was saving, named for the process, and nothing removes it.
 - The owner lock is untried on network file systems and sandbox mounts.
+- Stored data has migrated only in the tests, with steps they make up, since nothing has changed a store's format since migrating was built.
+- A store refused for being newer names the copy beside it without checking that this release can open the copy. After two releases that each migrated it, the copy is in the format of the release between them.
 
 ### The contracts between them
 
