@@ -1,5 +1,5 @@
 import { placeLabel, threadName, YOUR_DM } from "../../contracts/agent/index.ts";
-import { ARCHIVED, isListed, notTalkedTo, threadTags, titleOf } from "../../contracts/chat/index.ts";
+import { ARCHIVED, type Channel, isListed, notTalkedTo, threadTags, titleOf } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { agentEntries, agentNameOf, agentRuns, type Model, type Part, partsOf, type Place, unreadOf } from "../state/index.ts";
 import { agentAbout } from "./agents.ts";
@@ -142,7 +142,10 @@ function agentList(model: Model, agentId: string, filter: ListFilter, options: L
   const said = model.sessions !== undefined;
   const stale = model.chat.state === "down" || (model.agent?.state === "down" && said);
   const shown = parts.filter((part) => filter === "everything" || part.yours);
-  const listed = shown.map((part) => ({ archived: part.thread?.archived === true, row: partRow(part, model.me?.name, options.now, stale, readOnly(model, part)) }));
+  const listed = shown.map((part) => ({
+    archived: part.thread?.archived === true,
+    row: partRow(part, model.me?.name, options.now, stale, readOnly(model, part), part.thread === undefined ? undefined : channelKind(model, part.thread.channelId)),
+  }));
   const refused = model.refusal === undefined ? undefined : { what: "sessions" as const, words: model.refusal };
   const entry = agentEntries(model).find((each) => each.id === agentId);
   const running = entry?.running === true;
@@ -190,13 +193,19 @@ function readOnly(model: Model, part: Part): boolean {
   return part.place?.kind === "dm" && part.place.with.kind === "agent";
 }
 
+/** The kind of the channel `channelId`, as chat lists it to the person: one of their DMs or rooms, or a channel they only read. */
+function channelKind(model: Model, channelId: string): Channel["kind"] | undefined {
+  return [...Object.values(model.dms), ...Object.values(model.rooms), ...Object.values(model.readOnly)].find((each) => each.channel.id === channelId)?.channel.kind;
+}
+
 /**
  * The row for something an agent takes part in: what it is called, with the
  * words that mark it, then where it is, when it was last active, and that the
  * person only reads it when they are not in it. A session behind no thread is
- * called for where it is, and has no time.
+ * called for where it is, and has no time. `kind` is the kind of the channel of
+ * a thread chat lists.
  */
-function partRow(part: Part, me: string | undefined, now: number, stale: boolean, reading: boolean): Row {
+function partRow(part: Part, me: string | undefined, now: number, stale: boolean, reading: boolean, kind: Channel["kind"] | undefined): Row {
   const where = part.yours ? YOUR_DM : part.place === null ? undefined : placeLabel(part.place, me);
   const working = part.working && !stale;
   if (part.kind === "session") {
@@ -209,7 +218,7 @@ function partRow(part: Part, me: string | undefined, now: number, stale: boolean
   // An archived thread stands apart under the row that says so, which marks it.
   if (part.thread !== undefined) {
     label = titleOf(part.thread);
-    tags = threadTags({ main: part.thread.main, archived: false }, part.place?.kind === "room" ? "room" : "dm");
+    tags = kind === undefined ? [] : threadTags({ main: part.thread.main, archived: false }, kind);
   } else if (part.place !== null && part.place.kind !== "trigger") {
     const named = threadName(part.place, part.id);
     label = named.label;
