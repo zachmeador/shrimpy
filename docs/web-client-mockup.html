@@ -1025,10 +1025,11 @@ body:not([data-view="live"]) .live { display: none; }
         <ol start="16">
           <li><b>A paperclip in the input attaches.</b> On a phone it opens the phone's own picker. At a desk a pasted picture or a file dropped on the thread does the same, with no key of its own.</li>
           <li><b>What is attached waits in the input,</b> a picture as a small square and a file as its name and size, each with a cross. A message can be pictures or files alone.</li>
+          <li><b>A message carries up to 25 MB,</b> and a file is copied into an agent's home up to the same 25 MB, one number for both, as you said on 2026-11-24. Something bigger is left out of the input, with a note.</li>
           <li><b>In a thread the words come first, then the pictures, then the files.</b> One picture keeps its shape, several sit side by side as squares, and none has its name under it. A tap opens one whole, with its name and a save button.</li>
           <li><b>A file is its name and its size,</b> and a tap saves it. A video or a voice note is a file here, with no player.</li>
           <li><b>The agent's view shows the picture the model was shown,</b> under what it was shown, where the client today names its kind. Where the model takes no pictures it shows Pi's line in its place, as the model got it, and the agent can say so.</li>
-          <li><b>The agent is told where each file is in its home:</b> <code>attachments/</code>, by day. The design says only that a file is copied into the home.</li>
+          <li><b>The agent is told where each file is in its home:</b> <code>attachments/</code>, with a folder for each day, which you took on 2026-11-24.</li>
           <li><b>How an agent attaches a file of its own isn't drawn.</b> Its message shows the file as yours does, and the tool it takes waits with the other questions about tools.</li>
         </ol>
       </div>
@@ -1037,7 +1038,6 @@ body:not([data-view="live"]) .live { display: none; }
         <ul>
           <li>Signing a phone in, and asking for push.</li>
           <li>Reacting, editing and deleting. The marks they leave are drawn, and the ways in are not.</li>
-          <li>The most a message carries. The 25 MB in the note is a stand-in.</li>
           <li>Searching.</li>
           <li>A rename or an archive that chat refuses because the thread changed in the meantime.</li>
           <li>The rest of the inspector: context, the request a turn sent, runtime.</li>
@@ -1908,7 +1908,7 @@ const COMMANDS = {
 /** The commands that can be written in a thread: archiving one that isn't archived, and bringing back one that is. */
 const commandsIn = (th) => Object.keys(COMMANDS).filter((name) => name !== (th.archived ? 'archive' : 'unarchive'));
 
-/** The most one message carries. The number is a stand-in until the owner gives one. */
+/** The most one message carries, which is also the most copied into an agent's home. */
 const MOST = 25e6;
 const bytes = (n) => (n < 1e3 ? `${n} B` : n < 1e6 ? `${Math.round(n / 1e3)} kB` : n < 1e9 ? `${+(n / 1e6).toFixed(n < 1e8 ? 1 : 0)} MB` : `${+(n / 1e9).toFixed(1)} GB`);
 const tooBig = (name, size) => `Not attached: ${name} is ${bytes(size)}, and a message carries up to ${bytes(MOST)}.`;
