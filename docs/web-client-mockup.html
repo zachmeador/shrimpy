@@ -510,6 +510,54 @@
 .readonly > span { flex: 1; min-width: 0; }
 .readonly .px { color: var(--ink-3); }
 
+/* --- Attachments: what is picked waits in the input until it is sent ------- */
+
+.dock .slot { position: relative; }
+.composer { flex-wrap: wrap; padding-left: 7px; }
+.composer[data-drop="true"] { --edge: var(--ink-3); }
+.tray { flex-basis: 100%; display: flex; gap: 8px; padding: 1px 0 8px 5px; overflow-x: auto; scrollbar-width: none; }
+.tray[hidden] { display: none; }
+.tray-item { position: relative; flex: none; }
+.tray-item .thumb { display: block; width: 64px; height: 64px; object-fit: cover; clip-path: var(--step); }
+.tray-item .att { height: 64px; max-width: 232px; padding-right: 34px; }
+.tray-item .drop { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; display: grid; place-items: center; color: var(--ink); background: color-mix(in srgb, var(--well) 80%, transparent); clip-path: var(--step); }
+.composer .clip[aria-expanded="true"] { background: var(--raise); color: var(--ink); }
+
+/* In a thread a picture shows itself, and a file is its name and its size. */
+.pics { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 168px)); gap: 6px; margin-top: 8px; }
+.pics.one { display: block; }
+.pic { display: block; position: relative; overflow: hidden; background: var(--well); clip-path: var(--step); cursor: zoom-in; }
+.pics:not(.one) .pic { aspect-ratio: 1; }
+.pics:not(.one) .pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pics.one .pic { display: inline-block; max-width: 100%; vertical-align: top; }
+.pics.one .pic img { display: block; max-width: min(100%, 360px); max-height: 280px; }
+.atts { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px; }
+.att { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; min-height: 40px; padding: 6px 12px 7px 10px; text-decoration: none; color: var(--ink); --fill: var(--well); --edge: var(--line); }
+.att:hover { --edge: var(--line-2); }
+.att .px { color: var(--ink-3); }
+.att b { min-width: 0; font-size: var(--t-small); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.att span { flex: none; font: 400 var(--t-meta)/1 var(--mono); color: var(--ink-3); }
+.step .pics, .step .atts { font-family: var(--face); }
+.watch .pics.one .pic img, .session .pics.one .pic img { max-width: min(100%, 240px); max-height: 150px; }
+.watch .pics, .session .pics { grid-template-columns: repeat(var(--n, 2), minmax(0, 96px)); }
+.step.shown .with { margin: -6px 0 6px; padding: 2px 0 0 12px; border-left: 2px solid var(--line-2); }
+.step.shown .with .pics { margin-top: 0; }
+.step.shown .omitted { display: block; padding-bottom: 2px; color: var(--ink-3); }
+.step.said .pics:first-child, .step.said .atts:first-child { margin-top: 0; }
+
+/* A picture opened whole, over everything. */
+.viewer { position: absolute; inset: 0; z-index: 7; display: flex; flex-direction: column; background: var(--board); }
+.viewer .head { border-bottom: 1px solid var(--line); }
+.viewer .titles h1 { font: 500 13.5px/1.3 var(--mono); }
+.viewer .stage { flex: 1; min-height: 0; display: grid; place-items: center; padding: 16px 16px calc(16px + var(--safe-bottom, 0px)); }
+.viewer .stage img { display: block; max-width: 100%; max-height: 100%; clip-path: var(--step); }
+
+/* The phone's own picker, which the paperclip opens. Its look is the phone's, not this client's. */
+.sysmenu { position: absolute; left: 2px; bottom: calc(100% + 6px); z-index: 5; width: 252px; border-radius: 13px; overflow: hidden; font: 400 17px/1.25 -apple-system, BlinkMacSystemFont, system-ui, sans-serif; color: #fff; background: rgba(44, 44, 46, 0.97); box-shadow: 0 12px 44px rgba(0, 0, 0, 0.42); }
+.app[data-mode="day"] .sysmenu { color: #000; background: rgba(242, 242, 247, 0.97); box-shadow: 0 12px 44px rgba(60, 50, 30, 0.22); }
+.sysmenu button { display: block; width: 100%; padding: 12px 16px 13px; border-top: 0.5px solid rgba(120, 120, 128, 0.36); font: inherit; color: inherit; }
+.sysmenu button:first-child { border-top: 0; }
+
 /* --- The agent's view: the session as the agent sees it ------------------- */
 
 .watch { background: var(--well); border-left: 1px solid var(--line); }
@@ -587,8 +635,9 @@
   .keys { display: none; }
   .turn span { display: none; }
   .turn { width: 30px; height: 30px; padding: 0; justify-content: center; background: none; }
-  .send { width: 34px; height: 34px; }
+  .send, .composer .clip { width: 34px; height: 34px; }
   .composer textarea { height: 34px; padding: 5px 0; }
+  .tray-item .drop { width: 26px; height: 26px; }
   .work-head .lk { display: none; }
 }
 
@@ -833,8 +882,33 @@ body:not([data-view="live"]) .live { display: none; }
     </div></div>
   </section>
 
+  <section class="sheet" id="attachments">
+    <h2><span>08</span>Pictures and files</h2>
+    <p class="cap">The paperclip by the input opens the phone's own picker. What is picked waits in the input until it is sent, and its cross takes it off. In the thread a picture shows itself, and a file is its name and its size.</p>
+    <div class="fit"><div class="fit-in">
+      <div class="unit"><div class="phone frame" data-kind="phone" data-mode="dusk" data-route="agent:scout/thread:sc-module" data-draft="pick"></div></div>
+      <div class="unit"><div class="phone frame" data-kind="phone" data-mode="dusk" data-route="agent:scout/thread:sc-module" data-draft="tray"></div></div>
+      <div class="unit"><div class="phone frame" data-kind="phone" data-mode="dusk" data-route="agent:scout/thread:sc-module"></div></div>
+    </div></div>
+    <p class="cap" style="margin-top:44px">At a desk a pasted picture, or a file dropped on the thread, joins the input the same way. A file too big to send is left out, and a note says so.</p>
+    <div class="fit"><div class="fit-in">
+      <div class="unit"><div class="pad frame" data-kind="pad" data-mode="day" data-route="agent:scout/thread:sc-life" data-draft="paste"></div></div>
+      <div class="unit"><div class="crop frame" data-kind="crop" data-mode="dusk" data-route="agent:scout/thread:sc-module" data-draft="big"></div></div>
+    </div></div>
+    <p class="cap" style="margin-top:44px">The agent's view shows the picture the model was shown with the message, and where the file was put in the agent's home.</p>
+    <div class="fit"><div class="fit-in">
+      <div class="unit"><div class="desk frame" data-kind="desk" data-mode="dusk" data-route="agent:scout/thread:sc-life" data-turned="1"></div></div>
+    </div></div>
+    <p class="cap" style="margin-top:44px">A tap opens a picture whole. A model that takes no pictures is shown Pi's line in place of one, so the agent knows to say it can't see it.</p>
+    <div class="fit"><div class="fit-in">
+      <div class="unit"><div class="crop frame" data-kind="crop" data-mode="dusk" data-route="agent:scout/thread:sc-module" data-view="module-front"></div></div>
+      <div class="unit"><div class="crop frame" data-kind="crop" data-mode="day" data-route="agent:pantry/thread:pa-fridge"></div></div>
+      <div class="unit"><div class="crop frame" data-kind="crop" data-mode="day" data-route="agent:pantry/thread:pa-fridge" data-turned="1"></div></div>
+    </div></div>
+  </section>
+
   <section class="sheet" id="grammar">
-    <h2><span>08</span>What it is made of</h2>
+    <h2><span>09</span>What it is made of</h2>
     <p class="cap">The studio's guardrails, applied to a surface that is read for hours: a warm dark that is never black, pigment that sits close to the ground, and pixels used as a quiet material.</p>
 
     <div class="grid2">
@@ -922,7 +996,7 @@ body:not([data-view="live"]) .live { display: none; }
   </section>
 
   <section class="sheet">
-    <h2><span>09</span>What this decided, and what it leaves open</h2>
+    <h2><span>10</span>What this decided, and what it leaves open</h2>
     <p class="cap">You took this page as the reference on 2026-11-21. These are the places where it chose something the plan hadn't said. They stand as drawn until you say otherwise.</p>
     <div class="notes">
       <div class="card" data-follow><div class="wool"></div>
@@ -947,13 +1021,23 @@ body:not([data-view="live"]) .live { display: none; }
           <li><b>Neither leaves a line in the thread.</b> A new name shows where the name is, and an agent reads it with its next input.</li>
           <li><b>Who gets the menu is chat's to say.</b> Only a channel's members rename or archive, so a thread you only read has none. The main thread has it like any other. A trigger's own session is behind no thread, and has none.</li>
         </ol>
+        <h3 style="margin-top:18px">Drawn on 2026-11-24, and not built</h3>
+        <ol start="16">
+          <li><b>A paperclip in the input attaches.</b> On a phone it opens the phone's own picker. At a desk a pasted picture or a file dropped on the thread does the same, with no key of its own.</li>
+          <li><b>What is attached waits in the input,</b> a picture as a small square and a file as its name and size, each with a cross. A message can be pictures or files alone.</li>
+          <li><b>In a thread the words come first, then the pictures, then the files.</b> One picture keeps its shape, several sit side by side as squares, and none has its name under it. A tap opens one whole, with its name and a save button.</li>
+          <li><b>A file is its name and its size,</b> and a tap saves it. A video or a voice note is a file here, with no player.</li>
+          <li><b>The agent's view shows the picture the model was shown,</b> under what it was shown, where the client today names its kind. Where the model takes no pictures it shows Pi's line in its place, as the model got it, and the agent can say so.</li>
+          <li><b>The agent is told where each file is in its home:</b> <code>attachments/</code>, by day. The design says only that a file is copied into the home.</li>
+          <li><b>How an agent attaches a file of its own isn't drawn.</b> Its message shows the file as yours does, and the tool it takes waits with the other questions about tools.</li>
+        </ol>
       </div>
       <div class="card" data-follow><div class="wool"></div>
         <h3>Not drawn yet</h3>
         <ul>
           <li>Signing a phone in, and asking for push.</li>
           <li>Reacting, editing and deleting. The marks they leave are drawn, and the ways in are not.</li>
-          <li>Attachments and pictures in a thread.</li>
+          <li>The most a message carries. The 25 MB in the note is a stand-in.</li>
           <li>Searching.</li>
           <li>A rename or an archive that chat refuses because the thread changed in the meantime.</li>
           <li>The rest of the inspector: context, the request a turn sent, runtime.</li>
@@ -1070,6 +1154,9 @@ const BITS = {
   eye: ['..#####..', '.#.....#.', '#..###..#', '.#.....#.', '..#####..'],
   bars: ['......#', '......#', '...#..#', '...#..#', '#..#..#'],
   more: ['##.##.##', '##.##.##'],
+  clip: ['....#..', '...#.#.', '.#.#.#.', '.#.#.#.', '.#.#.#.', '.#.#.#.', '.#.#.#.', '.#...#.', '.#...#.', '..###..'],
+  doc: ['####...', '#..##..', '#..#.#.', '#..####', '#.....#', '#.....#', '#.....#', '#.....#', '#######'],
+  down: ['...#...', '...#...', '.#.#.#.', '..###..', '...#...', '.......', '#######'],
   /* sigils, 12 × 12 */
   shrimp: [
     '............',
@@ -1262,6 +1349,192 @@ function drawRelief(cv, cells, cell, mode, surface) {
     g.fillStyle = mix(from, to, by * cells[y][x]);
     g.fillRect(x * cell, y * cell, cell - 1, cell - 1);
   }
+}
+
+/* ==========================================================================
+   PICTURES
+   The photos, the screenshot and the chart people and agents send in the
+   made-up threads, drawn here so the page needs no files of its own.
+   ========================================================================== */
+
+const SANS = 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
+const MONOPIC = 'ui-monospace, Menlo, Consolas, monospace';
+
+/** Film grain and a darker edge, so a drawing reads as a phone's photo. */
+function asPhoto(g, w, h, next) {
+  const edge = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.75);
+  edge.addColorStop(0, 'rgba(0,0,0,0)');
+  edge.addColorStop(1, 'rgba(0,0,0,0.5)');
+  g.fillStyle = edge;
+  g.fillRect(0, 0, w, h);
+  const img = g.getImageData(0, 0, w, h), d = img.data;
+  for (let i = 0; i < d.length; i += 4) { const n = (next() - 0.5) * 18; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+  g.putImageData(img, 0, 0);
+}
+
+function table(g, w, h, next) {
+  const wood = g.createLinearGradient(0, 0, w * 0.4, h);
+  wood.addColorStop(0, '#9a7754');
+  wood.addColorStop(1, '#5f4532');
+  g.fillStyle = wood;
+  g.fillRect(0, 0, w, h);
+  g.strokeStyle = '#2e1f14';
+  for (let i = 0; i < 80; i++) {
+    const y = next() * h * 1.3 - h * 0.15;
+    g.globalAlpha = 0.05 + next() * 0.1;
+    g.lineWidth = 1 + next() * 4;
+    g.beginPath();
+    g.moveTo(0, y);
+    g.bezierCurveTo(w * 0.3, y + (next() - 0.5) * 50, w * 0.7, y + (next() - 0.5) * 50, w, y + (next() - 0.5) * 40);
+    g.stroke();
+  }
+  g.globalAlpha = 1;
+}
+
+function board(g, colour) {
+  g.shadowColor = 'rgba(0,0,0,0.5)';
+  g.shadowBlur = 34;
+  g.shadowOffsetY = 16;
+  g.fillStyle = colour;
+  g.beginPath();
+  g.roundRect(-330, -205, 660, 410, 14);
+  g.fill();
+  g.shadowColor = 'transparent';
+  for (const [x, y] of [[-302, -177], [302, -177], [-302, 177], [302, 177]]) {
+    g.fillStyle = '#cdb578';
+    g.beginPath(); g.arc(x, y, 14, 0, 7); g.fill();
+    g.fillStyle = '#2a1d13';
+    g.beginPath(); g.arc(x, y, 7, 0, 7); g.fill();
+  }
+}
+
+const PICTURES = {
+  /* The memory LCD at the shop, from the front, showing the house's status. */
+  'module-front': { w: 960, h: 720, type: 'image/jpeg', draw(g, w, h, next) {
+    table(g, w, h, next);
+    g.save(); g.translate(w * 0.5, h * 0.53); g.rotate(-0.06);
+    board(g, '#1f5a3c');
+    g.fillStyle = '#141618'; g.fillRect(-282, -168, 564, 306);
+    const glass = g.createLinearGradient(-270, -156, 270, 126);
+    glass.addColorStop(0, '#b7bab2'); glass.addColorStop(0.46, '#d7d9d0'); glass.addColorStop(0.56, '#adb0a7'); glass.addColorStop(1, '#989b93');
+    g.fillStyle = glass; g.fillRect(-270, -156, 540, 282);
+    g.fillStyle = '#25272b';
+    g.font = `700 76px ${MONOPIC}`; g.fillText('16:22', -236, -52);
+    g.font = `30px ${MONOPIC}`; g.fillText('NAS 81%   backup ok', -236, 10); g.fillText('2 agents working', -236, 56);
+    g.globalAlpha = 0.2; g.fillStyle = '#fff';
+    g.beginPath(); g.moveTo(-270, 70); g.lineTo(-40, -156); g.lineTo(60, -156); g.lineTo(-170, 126); g.lineTo(-270, 126); g.closePath(); g.fill();
+    g.globalAlpha = 1;
+    for (let i = 0; i < 10; i++) { g.fillStyle = '#d9b45c'; g.fillRect(-112 + i * 24, 156, 12, 26); }
+    g.fillStyle = '#e8eadf'; g.font = `600 21px ${SANS}`; g.fillText('MLCD-27', 160, 178);
+    g.restore();
+    asPhoto(g, w, h, next);
+  } },
+  /* The same module turned over: its sticker and its ribbon. */
+  'module-back': { w: 960, h: 720, type: 'image/jpeg', draw(g, w, h, next) {
+    table(g, w, h, next);
+    g.save(); g.translate(w * 0.48, h * 0.47); g.rotate(0.05);
+    const ribbon = g.createLinearGradient(-90, 0, 90, 0);
+    ribbon.addColorStop(0, '#c9822a'); ribbon.addColorStop(0.5, '#e1a24a'); ribbon.addColorStop(1, '#c47c25');
+    g.fillStyle = ribbon; g.fillRect(-90, 150, 180, 230);
+    g.fillStyle = 'rgba(80,50,10,0.35)'; for (let i = 0; i < 10; i++) g.fillRect(-80 + i * 17, 330, 7, 50);
+    board(g, '#1d5638');
+    g.fillStyle = '#111'; g.fillRect(-250, -120, 90, 90); g.fillRect(-130, -110, 50, 30); g.fillRect(-130, -60, 50, 30);
+    g.fillStyle = '#c8c3b0'; for (let i = 0; i < 6; i++) g.fillRect(-240 + i * 26, 40, 14, 8);
+    g.fillStyle = '#f1eee4'; g.fillRect(0, -150, 290, 190);
+    g.fillStyle = '#1c1c1c';
+    g.font = `700 40px ${SANS}`; g.fillText('MLCD-27', 22, -98);
+    g.font = `24px ${SANS}`; g.fillText('2.7" 400 × 240, 1-bit', 22, -60); g.fillText('Memory LCD · 3 V', 22, -28);
+    for (let x = 22; x < 268; x += 3 + Math.floor(next() * 4)) g.fillRect(x, -6, 1 + Math.floor(next() * 3), 34);
+    g.restore();
+    asPhoto(g, w, h, next);
+  } },
+  /* A screenshot of the shop's page for the driver board. */
+  'driver-board': { w: 960, h: 600, type: 'image/png', draw(g, w, h) {
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#f3f3f1'; g.fillRect(0, 0, w, 58); g.fillStyle = '#e2e2de'; g.fillRect(0, 58, w, 1);
+    g.fillStyle = '#222'; g.font = `700 21px ${SANS}`; g.fillText('parts & pieces', 28, 37);
+    g.fillStyle = '#777'; g.font = `16px ${SANS}`; ['displays', 'boards', 'power', 'cases'].forEach((t, i) => g.fillText(t, 300 + i * 100, 37));
+    g.fillStyle = '#f2f2ef'; g.fillRect(28, 86, 404, 404);
+    g.save(); g.translate(230, 288); g.rotate(-0.12);
+    g.fillStyle = '#1d4f8f'; g.beginPath(); g.roundRect(-140, -92, 280, 184, 10); g.fill();
+    g.fillStyle = '#111'; g.fillRect(-90, -40, 80, 80);
+    g.fillStyle = '#e9e6dc'; g.fillRect(60, -60, 50, 120);
+    g.fillStyle = '#d6b05a'; for (let i = 0; i < 8; i++) g.fillRect(-120 + i * 22, -84, 10, 14);
+    g.restore();
+    g.fillStyle = '#1b1b1b'; g.font = `600 29px ${SANS}`; g.fillText('Low-power driver board', 470, 124); g.fillText('for memory LCDs', 470, 160);
+    g.fillStyle = '#b23b1e'; g.font = `600 27px ${SANS}`; g.fillText('€14.90', 470, 214);
+    g.fillStyle = '#2a7a3a'; g.font = `16px ${SANS}`; g.fillText('In stock · ships Monday', 470, 244);
+    g.fillStyle = '#333'; g.font = `18px ${SANS}`;
+    ['Sleep current: 2 µA', 'Redraw: 1.6 mA for 40 ms', 'Input: 2.0 – 3.6 V', 'Connector: 10-pin FFC, 0.5 mm', '32 × 24 mm'].forEach((t, i) => g.fillText(`•  ${t}`, 470, 298 + i * 30));
+    g.fillStyle = '#1b1b1b'; g.beginPath(); g.roundRect(470, 456, 206, 50, 6); g.fill();
+    g.fillStyle = '#fff'; g.font = `600 18px ${SANS}`; g.fillText('Add to basket', 515, 487);
+  } },
+  /* The chart scout made: months on two AA cells, by how often the screen redraws. */
+  life: { w: 960, h: 600, type: 'image/png', draw(g, w, h) {
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
+    const x0 = 110, x1 = 900, y0 = 500, y1 = 84, top = 30;
+    const Y = (v) => y0 - (v / top) * (y0 - y1);
+    const at = ['10 s', '30 s', '1 min', '5 min', '15 min'];
+    const X = (i) => x0 + 40 + i * ((x1 - x0 - 80) / (at.length - 1));
+    g.fillStyle = '#222'; g.font = `600 23px ${SANS}`; g.fillText('Months on two AA cells, by how often it redraws', x0, 50);
+    g.font = `16px ${SANS}`; g.textAlign = 'right';
+    for (let v = 0; v <= top; v += 6) { g.fillStyle = '#e8e8e8'; g.fillRect(x0, Y(v), x1 - x0, 1); g.fillStyle = '#555'; g.fillText(String(v), x0 - 12, Y(v) + 6); }
+    g.textAlign = 'center';
+    at.forEach((t, i) => g.fillText(t, X(i), y0 + 30));
+    g.fillText('redraw every', (x0 + x1) / 2, y0 + 64);
+    g.textAlign = 'left';
+    g.fillStyle = '#333'; g.fillRect(x0, y1, 1.5, y0 - y1); g.fillRect(x0, y0, x1 - x0, 1.5);
+    g.strokeStyle = '#c0392b'; g.lineWidth = 2; g.setLineDash([9, 7]);
+    g.beginPath(); g.moveTo(x0, Y(12)); g.lineTo(x1, Y(12)); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#c0392b'; g.fillText('1 year', x1 - 52, Y(12) - 10);
+    const months = [5.1, 10.3, 14.2, 22.6, 26.1];
+    g.strokeStyle = '#1f77b4'; g.lineWidth = 3.5; g.beginPath();
+    months.forEach((v, i) => (i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v))));
+    g.stroke();
+    g.fillStyle = '#1f77b4';
+    months.forEach((v, i) => { g.beginPath(); g.arc(X(i), Y(v), 7, 0, 7); g.fill(); });
+  } },
+  /* Inside the fridge, for pantry. */
+  fridge: { w: 960, h: 720, type: 'image/jpeg', draw(g, w, h, next) {
+    const wall = g.createLinearGradient(0, 0, 0, h);
+    wall.addColorStop(0, '#eef2f3'); wall.addColorStop(1, '#bfc9cd');
+    g.fillStyle = wall; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#dfe6e8'; g.beginPath(); g.moveTo(0, 0); g.lineTo(90, 60); g.lineTo(90, h - 40); g.lineTo(0, h); g.fill();
+    g.fillStyle = '#d2dadd'; g.beginPath(); g.moveTo(w, 0); g.lineTo(w - 90, 60); g.lineTo(w - 90, h - 40); g.lineTo(w, h); g.fill();
+    const lamp = g.createRadialGradient(w / 2, 30, 10, w / 2, 30, 420);
+    lamp.addColorStop(0, 'rgba(255,255,250,0.9)'); lamp.addColorStop(1, 'rgba(255,255,250,0)');
+    g.fillStyle = lamp; g.fillRect(0, 0, w, h);
+    const shelf = (y) => { g.fillStyle = 'rgba(160,190,200,0.35)'; g.fillRect(60, y, w - 120, 18); g.fillStyle = '#f8fcfd'; g.fillRect(60, y, w - 120, 4); g.fillStyle = '#8fa3aa'; g.fillRect(60, y + 18, w - 120, 3); };
+    g.fillStyle = '#f7f7f2'; g.fillRect(150, 110, 104, 200); g.fillStyle = '#3d6fb0'; g.fillRect(150, 190, 104, 44); g.fillStyle = '#e6e6df'; g.beginPath(); g.moveTo(150, 110); g.lineTo(202, 76); g.lineTo(254, 110); g.fill();
+    g.fillStyle = '#c47a2c'; g.beginPath(); g.roundRect(300, 190, 96, 120, 14); g.fill(); g.fillStyle = '#e0dccf'; g.fillRect(304, 176, 88, 22);
+    g.fillStyle = '#e9c35b'; g.beginPath(); g.moveTo(450, 310); g.lineTo(610, 310); g.lineTo(610, 246); g.closePath(); g.fill();
+    g.fillStyle = '#b9ad97'; g.fillRect(650, 262, 220, 48);
+    g.fillStyle = '#efe2c8'; for (let i = 0; i < 4; i++) { g.beginPath(); g.ellipse(680 + i * 54, 262, 22, 26, 0, Math.PI, 0); g.fill(); }
+    shelf(310);
+    for (let i = 0; i < 3; i++) {
+      const y = 470 + i * 26;
+      const leek = g.createLinearGradient(130, 0, 660, 0);
+      leek.addColorStop(0, '#f1f1e4'); leek.addColorStop(0.45, '#dfe5c2'); leek.addColorStop(0.7, '#7aa04d'); leek.addColorStop(1, '#4f7a33');
+      g.fillStyle = leek; g.beginPath(); g.roundRect(130 + i * 14, y, 520, 24, 12); g.fill();
+    }
+    g.fillStyle = 'rgba(235,235,225,0.75)'; g.beginPath(); g.roundRect(700, 430, 170, 110, 10); g.fill();
+    g.fillStyle = '#e5d2a0'; for (let i = 0; i < 9; i++) { g.beginPath(); g.ellipse(728 + (i % 3) * 52, 456 + Math.floor(i / 3) * 30, 18, 11, 0.3, 0, 7); g.fill(); }
+    shelf(550);
+    g.fillStyle = '#f4f4f0'; g.beginPath(); g.ellipse(300, 640, 150, 50, 0, 0, 7); g.fill();
+    g.fillStyle = '#c4473a'; for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(230 + i * 34, 616 + (i % 2) * 8, 22, 0, 7); g.fill(); }
+    g.fillStyle = '#efe6d2'; g.beginPath(); g.roundRect(560, 590, 190, 90, 12); g.fill();
+    asPhoto(g, w, h, next);
+  } },
+};
+
+/** Each picture as a URL an img can show, drawn once for the whole page. */
+const PIC = {};
+for (const [name, p] of Object.entries(PICTURES)) {
+  const cv = document.createElement('canvas');
+  cv.width = p.w;
+  cv.height = p.h;
+  p.draw(cv.getContext('2d'), p.w, p.h, rng(name.length * 977));
+  PIC[name] = cv.toDataURL(p.type, 0.86);
 }
 
 /* ==========================================================================
@@ -1470,6 +1743,49 @@ const THREADS = {
       { who: 'you', at: '13:20', html: `<p>could the memory LCD run a year on two AA cells?</p>`, receipts: [{ bad: true, text: 'scout failed: The model failed: the server closed the connection. Send it again, or try another model with /model.' }] },
     ],
   },
+  'sc-module': {
+    place: { kind: 'dm', agent: 'scout' }, when: '14:52',
+    messages: [
+      { who: 'you', at: '14:40', html: `<p>found one at the shop by the station. is this the screen you meant?</p>`, files: [{ name: 'module-front.jpg', size: '2.4 MB', pic: 'module-front' }, { name: 'module-back.jpg', size: '2.2 MB', pic: 'module-back' }] },
+      { who: 'scout', at: '14:41', html: `<p>It is. The sticker says MLCD-27, 400 × 240 at 3 V, the 2.7 inch memory LCD from this morning, and its ribbon plugs straight into a driver board.</p>` },
+      { who: 'you', at: '14:50', html: `<p>this is the frame i want to print for it. will it fit?</p>`, files: [{ name: 'door-frame.stl', size: '1.8 MB' }] },
+      { who: 'scout', at: '14:52', html: `<p>Only just: 0.4 mm on each side. I widened the opening by half a millimetre and moved the cable slot to where the ribbon comes out.</p>`, files: [{ name: 'door-frame-2.stl', size: '1.8 MB' }] },
+    ],
+  },
+  'sc-life': {
+    place: { kind: 'dm', agent: 'scout' }, when: '15:41',
+    messages: [
+      { who: 'you', at: '15:30', html: `<p>the screen from the shop: would it run a year on two AA cells by the door?</p>` },
+      { who: 'scout', at: '15:31', html: `<p>That depends on how often it redraws, and on the board that drives it. Which board?</p>` },
+      { who: 'you', at: '15:40', html: `<p>this one. the screenshot is from the shop's page</p>`, files: [{ name: 'driver-board.png', size: '182 kB', pic: 'driver-board' }] },
+      { who: 'scout', at: '15:41', html: `<p>On that board, a redraw once a minute lasts about fourteen months, and once every ten seconds about five. It sleeps at 2 µA between redraws, which is most of the time. The figures are from the board's datasheet, attached.</p>`, files: [{ name: 'life.png', size: '38 kB', pic: 'life' }, { name: 'driver-board-datasheet.pdf', size: '1.2 MB' }] },
+    ],
+    session: {
+      scout: [
+        { kind: 'shown', at: '15:30', text: `You are in your DM with zach, a person. Thread th_51e2 in channel ch_6b07.\n\nzach wrote at 2026-11-21T15:30:02-05:00:\nthe screen from the shop: would it run a year on two AA cells by the door?` },
+        { kind: 'text', html: `<p>That depends on how often it redraws, and on the board that drives it. Which board?</p>` },
+        { kind: 'shown', at: '15:40', text: `zach wrote at 2026-11-21T15:40:31-05:00:\nthis one. the screenshot is from the shop's page\n\nAttached: attachments/2026-11-21/driver-board.png in your home, image/png, 182 kB.`, files: [{ name: 'driver-board.png', size: '182 kB', pic: 'driver-board' }] },
+        { kind: 'thinking', text: 'The page says 2 µA asleep and 1.6 mA for a 40 ms redraw. Check those against its datasheet, then work out the months.' },
+        { kind: 'tool', name: 'bash', call: 'cd vault/door-screen && python3 life.py', status: 'done', out: ['1 min  14.2 months', 'wrote life.png'] },
+        { kind: 'text', html: `<p>On that board, a redraw once a minute lasts about fourteen months, and once every ten seconds about five. It sleeps at 2 µA between redraws, which is most of the time. The figures are from the board's datasheet, attached.</p>`, files: [{ name: 'life.png', size: '38 kB', pic: 'life' }, { name: 'driver-board-datasheet.pdf', size: '1.2 MB' }] },
+      ],
+    },
+  },
+  'pa-fridge': {
+    place: { kind: 'dm', agent: 'pantry' }, title: 'dinner from the fridge', when: '15:55', model: 'lan/gpt-oss-120b',
+    messages: [
+      { who: 'you', at: '15:48', html: `<p class="cmd">/model lan/gpt-oss-120b</p>` },
+      { who: 'pantry', at: '15:48', html: `<p>This thread runs on lan/gpt-oss-120b now. Before, it ran on ${LAN}.</p>` },
+      { who: 'you', at: '15:55', html: `<p>what can we make tonight from this? no shopping</p>`, files: [{ name: 'fridge.jpg', size: '2.6 MB', pic: 'fridge' }] },
+      { who: 'pantry', at: '15:55', html: `<p>This thread's model takes no pictures, so I have your photo as a file and can't see it. Tell me what is in there, or write <code>/model default</code> and I will look at the photo.</p>` },
+    ],
+    session: {
+      pantry: [
+        { kind: 'shown', at: '15:55', text: `You are in the thread "dinner from the fridge" of your DM with zach, a person. Thread th_7d20 in channel ch_c118.\n\nzach wrote at 2026-11-21T15:55:12-05:00:\nwhat can we make tonight from this? no shopping\n\nAttached: attachments/2026-11-21/fridge.jpg in your home, image/jpeg, 2.6 MB.`, files: [{ name: 'fridge.jpg', size: '2.6 MB', pic: 'fridge' }], blind: true },
+        { kind: 'text', html: `<p>This thread's model takes no pictures, so I have your photo as a file and can't see it. Tell me what is in there, or write <code>/model default</code> and I will look at the photo.</p>` },
+      ],
+    },
+  },
   'house-main': {
     place: { kind: 'room', room: 'house' }, main: true, when: 'Nov 20 18:02',
     messages: [
@@ -1488,8 +1804,8 @@ const THREADS = {
 const LISTS = {
   shrimpy: { yours: ['sh-night', 'sh-main'], elsewhere: ['ops-window', 'ops-deploy', 'ops-router', 'ops-main'] },
   lighthouse: { yours: ['lh-backup', 'lh-main', 'lh-ups', 'lh-hello', 'lh-disk'], elsewhere: ['ops-window', 'ops-deploy', 'lh-nightly', 'lh-scout-q'] },
-  scout: { yours: ['sc-screens'], elsewhere: ['ops-window', 'ops-deploy', 'reef-main', 'lh-scout-q', 'ops-router'] },
-  pantry: { yours: ['pa-week', 'pa-main'], elsewhere: ['house-main'] },
+  scout: { yours: ['sc-life', 'sc-module', 'sc-screens'], elsewhere: ['ops-window', 'ops-deploy', 'reef-main', 'lh-scout-q', 'ops-router'] },
+  pantry: { yours: ['pa-fridge', 'pa-week', 'pa-main'], elsewhere: ['house-main'] },
   crab: { yours: [], elsewhere: [] },
 };
 
@@ -1531,7 +1847,19 @@ const HOMES = {
       'screens.md': `# Small screens\n\n- Memory LCD, 2.7 inch, 400 x 240, 1-bit. Fast to redraw, holds a picture on almost no power.\n- E-paper, 4.2 inch, 400 x 300, 1-bit or four grays. Slow to redraw, easy to read in sun.\n`,
       'notes/': { 'setup.md': `# Setup\n\n- Model server: lan, on the LAN.\n- The gateway listens on 7447.\n- The chat server and the gateway run on the same machine.\n` },
       'inbox/': {},
+      'door-screen/': {
+        'door-frame-2.stl': { binary: 'a 3D model', size: '1.8 MB' },
+        'driver-board-datasheet.pdf': { binary: 'a PDF', size: '1.2 MB' },
+        'life.png': { pic: 'life', size: '38 kB' },
+        'life.py': `"""Months a memory LCD lasts on a battery, by how often it redraws."""\n`,
+      },
     },
+    'attachments/': { '2026-11-21/': {
+      'door-frame.stl': { binary: 'a 3D model', size: '1.8 MB' },
+      'driver-board.png': { pic: 'driver-board', size: '182 kB' },
+      'module-back.jpg': { pic: 'module-back', size: '2.2 MB' },
+      'module-front.jpg': { pic: 'module-front', size: '2.4 MB' },
+    } },
   },
   pantry: {
     'SOUL.md': `Plan meals for two and keep the shopping list. No shellfish.\n\nUse what is in the house before buying. Say what a plan uses up.\n`,
@@ -1539,6 +1867,7 @@ const HOMES = {
     'skills/': {},
     'lists/': { 'saturday.md': `- sage\n- white miso\n- arborio rice\n- black beans\n- corn tortillas\n- limes\n- scallions\n- firm tofu\n- short-grain rice\n- parmesan\n- spaghetti\n- canned tomatoes\n- vegetable stock\n- olive oil\n` },
     'vault/': { 'weeks/': { '2026-11-23.md': `# Week of Nov 23\n\n- Mon: squash and sage risotto\n- Tue: black bean tacos with quick pickled onion\n- Wed: out\n- Thu: miso soup, rice, and the last of the squash, roasted\n- Fri: pasta with whatever is left\n` } },
+    'attachments/': { '2026-11-21/': { 'fridge.jpg': { pic: 'fridge', size: '2.6 MB' } } },
     wake: { house: 'mentions' },
   },
 };
@@ -1579,6 +1908,28 @@ const COMMANDS = {
 /** The commands that can be written in a thread: archiving one that isn't archived, and bringing back one that is. */
 const commandsIn = (th) => Object.keys(COMMANDS).filter((name) => name !== (th.archived ? 'archive' : 'unarchive'));
 
+/** The most one message carries. The number is a stand-in until the owner gives one. */
+const MOST = 25e6;
+const bytes = (n) => (n < 1e3 ? `${n} B` : n < 1e6 ? `${Math.round(n / 1e3)} kB` : n < 1e9 ? `${+(n / 1e6).toFixed(n < 1e8 ? 1 : 0)} MB` : `${+(n / 1e9).toFixed(1)} GB`);
+const tooBig = (name, size) => `Not attached: ${name} is ${bytes(size)}, and a message carries up to ${bytes(MOST)}.`;
+const TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', heic: 'image/heic', pdf: 'application/pdf', stl: 'model/stl', mov: 'video/quicktime' };
+const typeOf = (f) => f.type || TYPES[f.name.split('.').pop().toLowerCase()] || 'application/octet-stream';
+const isPicture = (f) => Boolean(f.pic) || typeOf(f).startsWith('image/');
+/** Whether a model is shown the pictures that come with a message. In the made-up network only one is not. */
+const seesPictures = (model) => !/gpt-oss/.test(model);
+/** What an agent is told of each file that came with a message: where it was put in its home. */
+const attachedWords = (files) => files.map((f) => `Attached: attachments/2026-11-21/${f.name} in your home, ${typeOf(f)}, ${f.size}.`).join('\n');
+
+/* What a frame's input holds when it opens. `cut` is how many of the thread's messages were sent before it. */
+const FRONT = { name: 'module-front.jpg', size: '2.4 MB', pic: 'module-front' };
+const BACK = { name: 'module-back.jpg', size: '2.2 MB', pic: 'module-back' };
+const DRAFTS = {
+  pick: { cut: 0, text: 'found one at the shop by the station. is this the screen you meant?', pick: true },
+  tray: { cut: 0, text: 'found one at the shop by the station. is this the screen you meant?', tray: [FRONT, BACK] },
+  paste: { cut: 2, text: `this one. the screenshot is from the shop's page`, tray: [{ name: 'driver-board.png', size: '182 kB', pic: 'driver-board' }] },
+  big: { cut: 2, text: 'it works. a video of it at the shop', notice: tooBig('shop-demo.mov', 212e6) },
+};
+
 /* ==========================================================================
    3. THE CLIENT
    One instance for each frame. It keeps its own copy of the network, so a
@@ -1609,12 +1960,24 @@ function mount(host, kind, mode, route, flags = {}) {
     later: Boolean(flags.later), work: null, file: null, dirs: new Set(),
     fold: Boolean(flags.fold), peek: flags.fold === 'peek',
     menu: Boolean(flags.menu), naming: null, arch: Boolean(flags.arch),
+    tray: [], pick: false, view: null,
   };
   for (const part of route.split('/').filter(Boolean)) {
     const [k, v] = part.split(':');
     if (k === 'thread') { s.thread = v; s.level = 3; } else { s.place = { kind: k, id: v }; s.level = 2; }
   }
   if (flags.rename && s.thread) s.naming = { value: flags.rename === '1' ? db[s.thread].title ?? '' : flags.rename };
+  const draft = flags.draft && s.thread ? DRAFTS[flags.draft] : null;
+  if (draft) {
+    const th = db[s.thread];
+    th.messages = th.messages.slice(0, draft.cut);
+    th.when = draft.cut ? th.messages.at(-1).at : 'now';
+    if (!draft.cut) delete th.title;
+    s.tray = structuredClone(draft.tray || []);
+    s.pick = Boolean(draft.pick);
+    s.notice = draft.notice || null;
+  }
+  if (flags.view && s.thread) s.view = db[s.thread].messages.flatMap((m) => m.files || []).find((f) => f.pic === flags.view) || null;
   if (flags.turned) s.turned = true;
   if (flags.file) {
     s.tab = 'home';
@@ -1632,10 +1995,10 @@ function mount(host, kind, mode, route, flags = {}) {
       <footer class="dock"><div class="dock-col"><div class="now"></div><div class="slot"></div></div></footer>
     </section>
     <section class="pane watch"></section>
-  </div></div>`;
+  </div><div class="seen"></div></div>`;
   const app = host.firstElementChild;
   const el = (q) => app.querySelector(q);
-  const [rail, list, thead, tscroll, now, slot, watch] = ['.rail', '.list', '.thead', '.tscroll', '.now', '.slot', '.watch'].map(el);
+  const [rail, list, thead, tscroll, now, slot, watch, shown] = ['.rail', '.list', '.thead', '.tscroll', '.now', '.slot', '.watch', '.seen'].map(el);
   let slotFor = null;
   let timers = [];
   let drawing = false;
@@ -1648,7 +2011,11 @@ function mount(host, kind, mode, route, flags = {}) {
   const thread = () => (s.thread ? db[s.thread] : null);
   const live = (ids) => ids.filter((id) => !db[id].archived);
   const shelved = (ids) => ids.filter((id) => db[id].archived);
-  const firstText = (th) => (th.messages && th.messages.find((m) => m.html) ? plain(th.messages.find((m) => m.html).html) : null);
+  /** How a thread with no name starts: its first message's words, or the name of the first file it brought. */
+  const firstText = (th) => {
+    const m = (th.messages || []).find((x) => x.html || (x.files && x.files.length));
+    return !m ? null : m.html ? plain(m.html) : m.files[0].name;
+  };
   const titleOf = (th) => th.title ?? (th.place.kind === 'trigger' ? `trigger ${th.place.trigger}` : firstText(th)) ?? '(no messages yet)';
   const youAreIn = (th) => th.place.kind === 'dm' || (th.place.kind === 'room' && rooms[th.place.room].members.includes('you'));
   /** Chat lets a channel's members rename and archive its threads, and no one else. */
@@ -1813,18 +2180,62 @@ function mount(host, kind, mode, route, flags = {}) {
     const file = fileAt(a, path);
     const name = path.split('/').at(-1);
     if (file === KEPT) return `<div class="empty"><p>${name} holds ${a}'s token, so it is not shown.</p></div>`;
+    if (file.pic) return `<div class="col"><img src="${PIC[file.pic]}" alt="${esc(name)}" style="display:block;max-width:100%;clip-path:var(--step)"></div>`;
     if (typeof file !== 'string') return `<div class="empty"><p>${name} is ${file.binary}. It is not shown as text.</p></div>`;
     return `<div class="col">${file ? `<pre class="filetext">${esc(file)}</pre>` : '<p class="hint" style="padding:0">(empty)</p>'}</div>`;
   }
 
   /* ---- a thread ---- */
 
+  /* ---- pictures and files ---- */
+
+  /** The pictures drawn since the thread was last drawn, so a tap can open one. */
+  let seen = [];
+  const srcOf = (f) => f.url || PIC[f.pic];
+  function picsHTML(files) {
+    const all = files.filter(isPicture);
+    if (!all.length) return '';
+    return `<div class="pics${all.length === 1 ? ' one' : ''}" style="--n:${Math.min(3, all.length)}">${all.map((f) => `<button class="pic" data-go="view:${seen.push(f) - 1}" title="${esc(f.name)} · ${f.size}" aria-label="Open ${esc(f.name)}"><img src="${srcOf(f)}" alt="${esc(f.name)}"></button>`).join('')}</div>`;
+  }
+  function attsHTML(files) {
+    const all = files.filter((f) => !isPicture(f));
+    if (!all.length) return '';
+    const att = (f) => `${icon('doc')}<b>${esc(f.name)}</b><span>${f.size}</span>`;
+    return `<div class="atts">${all.map((f) => (f.url ? `<a class="att stepbox" href="${f.url}" download="${esc(f.name)}" title="Save ${esc(f.name)}">${att(f)}</a>` : `<button class="att stepbox" type="button" title="Save ${esc(f.name)}">${att(f)}</button>`)).join('')}</div>`;
+  }
+  const filesHTML = (files) => (files && files.length ? picsHTML(files) + attsHTML(files) : '');
+  /** What came with a message, under what the model was shown: each picture, or Pi's line where the model takes none. */
+  function withHTML(st) {
+    const pics = (st.files || []).filter(isPicture);
+    if (!pics.length) return '';
+    return `<div class="with">${st.blind ? pics.map(() => '<span class="omitted">(image omitted: model does not support images)</span>').join('') : picsHTML(pics)}</div>`;
+  }
+  function trayHTML() {
+    return s.tray.map((f, i) => `<div class="tray-item">${isPicture(f) ? `<img class="thumb" src="${srcOf(f)}" alt="${esc(f.name)}" title="${esc(f.name)} · ${f.size}">` : `<span class="att stepbox">${icon('doc')}<b>${esc(f.name)}</b><span>${f.size}</span></span>`}
+      <button class="drop" data-go="untray:${i}" title="Take it off" aria-label="Take ${esc(f.name)} off">${icon('close')}</button></div>`).join('');
+  }
+  function viewerHTML(f) {
+    return `<div class="viewer" role="dialog" aria-label="${esc(f.name)}"><header class="head">
+        <div class="titles"><h1>${esc(f.name)}</h1><p class="sub">${f.size}</p></div>
+        <a class="ib" href="${srcOf(f)}" download="${esc(f.name)}" title="Save" aria-label="Save ${esc(f.name)}">${icon('down')}</a>
+        <button class="ib" data-go="unview" title="Close · esc" aria-label="Close">${icon('close')}</button></header>
+      <div class="stage"><img src="${srcOf(f)}" alt="${esc(f.name)}"></div></div>`;
+  }
+  /** Puts what was picked, pasted or dropped in the input. Something too big is left out, with a note. */
+  function addFiles(list) {
+    for (const f of list) {
+      if (f.size > MOST) { s.notice = esc(tooBig(f.name, f.size)); continue; }
+      s.tray.push({ name: f.name || 'pasted.png', size: bytes(f.size), type: f.type, url: URL.createObjectURL(f) });
+    }
+    renderThread(false);
+  }
+
   function stepHTML(st, full) {
     if (st.kind === 'note') return `<li class="step note">${esc(st.text)}</li>`;
     if (st.kind === 'thinking') return `<li class="step thinking${full.thinking ? '' : ' brief'}">thinking: ${esc(st.text)}</li>`;
-    if (st.kind === 'shown') return `<li class="step shown"><span class="lbl">shown${st.at ? ` · ${st.at}` : ''}</span><pre>${esc(st.text)}</pre></li>`;
+    if (st.kind === 'shown') return `<li class="step shown"><span class="lbl">shown${st.at ? ` · ${st.at}` : ''}</span><pre>${esc(st.text)}</pre>${withHTML(st)}</li>`;
     if (st.kind === 'marker') return `<li class="step marker">-- ${esc(st.text)} --</li>`;
-    if (st.kind === 'text') return `<li class="step said prose${st.streaming ? ' streaming' : ''}">${st.html}</li>`;
+    if (st.kind === 'text') return `<li class="step said prose${st.streaming ? ' streaming' : ''}">${st.html}${filesHTML(st.files)}</li>`;
     const mark = { pending: icon('wait'), running: '<i class="lamp"></i>', done: icon('done'), error: icon('fail'), interrupted: icon('bang') }[st.status];
     const word = { pending: 'waiting', running: 'running', done: 'done', error: 'failed', interrupted: 'interrupted, not run again' }[st.status];
     const out = st.out ? (full.tools ? st.out : st.out.slice(-2)) : [];
@@ -1848,7 +2259,7 @@ function mount(host, kind, mode, route, flags = {}) {
     const text = m.deleted ? '<p class="deleted">This message was deleted.</p>' : m.html;
     return `<article class="msg ${pg(m.who)}${m.cont ? ' cont' : ''}">${m.cont ? '<span></span>' : sigil(m.who)}
       <div>${m.cont ? '' : `<header><b class="who">${nameOf(m.who)}</b><time>${m.at}</time>${m.edited ? `<span class="edited">edited ${m.edited}</span>` : ''}</header>`}
-        <div class="prose${m.streaming ? ' streaming' : ''}">${text}</div>${reactions}${receipts}</div></article>`;
+        ${text ? `<div class="prose${m.streaming ? ' streaming' : ''}">${text}</div>` : ''}${m.deleted ? '' : filesHTML(m.files)}${reactions}${receipts}</div></article>`;
   }
 
   /** The session as one agent sees it: what a thread's script gives, or what can be read off its messages. */
@@ -1860,12 +2271,14 @@ function mount(host, kind, mode, route, flags = {}) {
         ? `You are in ${th.main ? '' : `the thread "${titleOf(th)}" of `}the room #${th.place.room}. Also in it: ${listed(rooms[th.place.room].members.filter((m) => m !== a).map((m) => `${nameOf(m)} (${m === 'you' ? 'a person' : 'an agent'})`))}.`
         : `You are in ${th.main ? '' : `the thread "${titleOf(th)}" of `}your DM with ${th.place.kind === 'dm' ? `${ME}, a person` : `${th.place.a === a ? th.place.b : th.place.a}, an agent`}.`;
       let first = true;
+      const blind = !seesPictures(th.model || AGENTS[a].model);
       for (const m of th.messages) {
         if (m.trigger) steps.push({ kind: 'shown', at: m.at, text: `This is the trigger ${m.trigger}, fired at ${m.at}.\n\n${m.brought}` });
-        else if (m.who === a) { if (!m.deleted) steps.push({ kind: 'text', html: m.html }); }
+        else if (m.who === a) { if (!m.deleted) steps.push({ kind: 'text', html: m.html, files: m.files }); }
         else {
-          const said = m.deleted ? `${nameOf(m.who)} wrote at ${m.at}, and deleted it.` : `${nameOf(m.who)} wrote at ${m.at}:\n${plain(m.html)}`;
-          steps.push({ kind: 'shown', at: m.at, text: `${first ? `${where}\n\n` : ''}${said}` });
+          const files = m.deleted ? [] : m.files || [];
+          const said = m.deleted ? `${nameOf(m.who)} wrote at ${m.at}, and deleted it.` : `${nameOf(m.who)} wrote at ${m.at}:\n${plain(m.html)}${files.length ? `\n\n${attachedWords(files)}` : ''}`;
+          steps.push({ kind: 'shown', at: m.at, text: `${first ? `${where}\n\n` : ''}${said}`, files, blind });
           first = false;
         }
       }
@@ -1965,9 +2378,13 @@ function mount(host, kind, mode, route, flags = {}) {
     if (th.place.kind === 'between') return `<p class="readonly stepbox">${icon('eye')}<span>Read-only. A DM has two members and takes no more.</span></p>`;
     if (!youAreIn(th)) return `<p class="readonly stepbox">${icon('eye')}<span>Read-only. To join: <code>shrimpy rooms add "#${th.place.room}" ${ME}</code></span><button class="btn" data-go="join:${th.place.room}">join</button></p>`;
     const to = th.place.kind === 'dm' ? th.place.agent : `#${th.place.room}`;
-    return `<ul class="slash stepbox" role="listbox" aria-label="Commands" hidden></ul>
-      <div class="composer stepbox"><textarea rows="1" placeholder="Write to ${to}" aria-label="Write to ${to}"></textarea>
-        <button class="send" data-go="send" aria-label="Send" disabled>${icon('send')}</button></div>
+    const picker = !s.pick ? '' : `<div class="sysmenu" role="menu"><button role="menuitem" data-go="attach">Photo Library</button><button role="menuitem" data-go="attach">Take Photo or Video</button><button role="menuitem" data-go="attach">Choose File</button></div>`;
+    return `<ul class="slash stepbox" role="listbox" aria-label="Commands" hidden></ul>${picker}
+      <div class="composer stepbox"><div class="tray" hidden></div>
+        <button class="ib clip" data-go="attach" aria-expanded="${s.pick}" title="Attach a picture or a file" aria-label="Attach a picture or a file">${icon('clip')}</button>
+        <textarea rows="1" placeholder="Write to ${to}" aria-label="Write to ${to}"></textarea>
+        <button class="send" data-go="send" aria-label="Send" disabled>${icon('send')}</button>
+        <input type="file" multiple hidden></div>
       <p class="keys"><b>enter</b> send · <b>/</b> commands · <b>ctrl+n</b> new thread · <b>ctrl+.</b> agent's view · <b>esc</b> back</p>`;
   }
 
@@ -2066,6 +2483,7 @@ function mount(host, kind, mode, route, flags = {}) {
   function renderThread(follow = true) {
     const th = thread();
     const file = s.file && s.place && s.place.kind === 'agent' ? s.file : null;
+    seen = [];
     app.dataset.file = String(Boolean(file) || Boolean(th && th.place.kind === 'trigger'));
     /* While a name is being typed the head is left alone, so a turn that goes on underneath doesn't take the input away. */
     if (!(s.naming && thead.querySelector('.rename input'))) {
@@ -2081,6 +2499,8 @@ function mount(host, kind, mode, route, flags = {}) {
     if (slotFor !== key) { slot.innerHTML = file ? '' : slotHTML(th); slotFor = key; }
     const box = slot.querySelector('.composer');
     if (box && th) box.dataset.busy = String(workingIn(th).length > 0);
+    drawTray();
+    shown.innerHTML = s.view ? viewerHTML(s.view) : '';
     drawReliefs();
     if (follow) {
       tscroll.scrollTop = file ? 0 : tscroll.scrollHeight;
@@ -2109,6 +2529,18 @@ function mount(host, kind, mode, route, flags = {}) {
     if (rows) rows.scrollTop = top;
     renderThread();
     drawTide(true);
+  }
+
+  /** What waits in the input: the tray drawn again, the picker shut once it has been left, and send ready for either. */
+  function drawTray() {
+    const tray = slot.querySelector('.tray');
+    if (!tray) return;
+    tray.innerHTML = trayHTML();
+    tray.hidden = !s.tray.length;
+    if (!s.pick) { const menu = slot.querySelector('.sysmenu'); if (menu) menu.remove(); }
+    slot.querySelector('.clip').setAttribute('aria-expanded', String(s.pick));
+    const ta = slot.querySelector('textarea');
+    slot.querySelector('.send').disabled = !ta.value.trim() && !s.tray.length;
   }
 
   /** Names the open thread. A name is one line of at most 200 characters, and an empty one changes nothing. */
@@ -2164,8 +2596,8 @@ function mount(host, kind, mode, route, flags = {}) {
   }
 
   /** A message that lands in an archived thread brings it back. */
-  function post(th, text) {
-    th.messages.push({ who: 'you', at: clock(), html: `<p>${esc(text)}</p>` });
+  function post(th, text, files = []) {
+    th.messages.push({ who: 'you', at: clock(), html: text ? `<p>${esc(text)}</p>` : '', ...(files.length ? { files } : {}) });
     th.when = th.messages.at(-1).at;
     th.archived = false;
   }
@@ -2231,14 +2663,14 @@ function mount(host, kind, mode, route, flags = {}) {
 
   function send(text) {
     const th = thread();
-    if (!th || !text.trim()) return false;
+    if (!th || (!text.trim() && !s.tray.length)) return false;
     if (s.stale) { s.notice = 'Not sent: lost the connection to the chat server. Your message is still in the editor.'; renderThread(); return false; }
     const cmd = /^\s*(?:@\S+\s+)*\/([\p{L}\p{N}_-]+)(.*)$/su.exec(text);
     if (cmd) { const took = command(th, cmd[1].toLowerCase(), cmd[2].trim(), text.trim()); render(); if (s.naming) focusName(); return took; }
     s.notice = null;
     s.status = null;
     const running = workingIn(th);
-    post(th, text.trim());
+    post(th, text.trim(), s.tray.splice(0));
     if (running.length) {
       (th.queued ||= []).push({ when: 'next_step', text: text.trim() });
       render();
@@ -2284,6 +2716,11 @@ function mount(host, kind, mode, route, flags = {}) {
     const [k, v] = cut < 0 ? [action, ''] : [action.slice(0, cut), action.slice(cut + 1)];
     if (k !== 'menu') s.menu = false;
     if (k !== 'send') s.naming = null;
+    s.pick = false;
+    if (k === 'attach') { const pick = slot.querySelector('input[type="file"]'); if (pick) pick.click(); drawTray(); return; }
+    if (k === 'untray') { s.tray.splice(Number(v), 1); drawTray(); return; }
+    if (k === 'view') { s.view = seen[Number(v)] || null; shown.innerHTML = s.view ? viewerHTML(s.view) : ''; return; }
+    if (k === 'unview') { s.view = null; shown.innerHTML = ''; return; }
     if (k === 'agent' || k === 'room') { s.place = { kind: k, id: v }; s.level = 2; s.tab = 'threads'; s.thread = s.file = null; s.dirs = new Set(); s.turned = false; s.notice = s.status = null; s.peek = s.fold; s.arch = false; }
     else if (k === 'menu') s.menu = !s.menu;
     else if (k === 'rename') { if (yoursToName(thread())) s.naming = { value: thread().title ?? '' }; }
@@ -2321,7 +2758,21 @@ function mount(host, kind, mode, route, flags = {}) {
     const hit = e.target.closest('[data-go]');
     if (hit && app.contains(hit)) go(hit.dataset.go);
     else if (s.menu && !e.target.closest('.menu')) { s.menu = false; renderThread(false); }
+    else if (s.pick) { s.pick = false; drawTray(); }
   });
+  /* A picture pasted into the input, a file dropped on the thread, and what the picker gave, all wait in the input. */
+  app.addEventListener('paste', (e) => {
+    const files = [...((e.clipboardData && e.clipboardData.files) || [])];
+    if (e.target.tagName !== 'TEXTAREA' || !files.length) return;
+    e.preventDefault();
+    addFiles(files);
+  });
+  app.addEventListener('change', (e) => { if (e.target.matches('input[type="file"]')) { addFiles([...e.target.files]); e.target.value = ''; } });
+  const pane = el('.thread');
+  const dropping = (on) => { const box = slot.querySelector('.composer'); if (box) box.dataset.drop = String(on); };
+  pane.addEventListener('dragover', (e) => { if (!slot.querySelector('.composer') || ![...e.dataTransfer.types].includes('Files')) return; e.preventDefault(); dropping(true); });
+  pane.addEventListener('dragleave', (e) => { if (!pane.contains(e.relatedTarget)) dropping(false); });
+  pane.addEventListener('drop', (e) => { if (!slot.querySelector('.composer')) return; e.preventDefault(); dropping(false); addFiles([...e.dataTransfer.files]); });
   /* Leaving the name's input puts the old name back. */
   app.addEventListener('focusout', (e) => { if (!drawing && s.naming && naming(e)) { s.naming = null; renderThread(false); } });
   app.addEventListener('input', (e) => {
@@ -2330,7 +2781,7 @@ function mount(host, kind, mode, route, flags = {}) {
     const ta = e.target;
     ta.style.height = '';
     ta.style.height = `${Math.min(132, ta.scrollHeight)}px`;
-    slot.querySelector('.send').disabled = !ta.value.trim();
+    slot.querySelector('.send').disabled = !ta.value.trim() && !s.tray.length;
     showSlash(ta.value);
   });
   app.addEventListener('keydown', (e) => {
@@ -2340,6 +2791,7 @@ function mount(host, kind, mode, route, flags = {}) {
       return;
     }
     if (e.key === 'Escape' && s.menu) { s.menu = false; renderThread(false); return; }
+    if (e.key === 'Escape' && (s.view || s.pick)) { go(s.view ? 'unview' : 'shut'); return; }
     if (e.target.tagName === 'TEXTAREA') {
       const ta = e.target;
       if (s.slash && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); s.slash.at = (s.slash.at + (e.key === 'ArrowDown' ? 1 : s.slash.names.length - 1)) % s.slash.names.length; showSlash(ta.value); return; }
@@ -2380,6 +2832,10 @@ function mount(host, kind, mode, route, flags = {}) {
     const ta = slot.querySelector('textarea');
     if (ta) { command(thread(), 'status', '', '/status'); renderThread(); ta.value = '/'; showSlash('/'); slot.querySelector('.send').disabled = false; }
   }
+  if (draft) {
+    const ta = slot.querySelector('textarea');
+    if (ta) { ta.value = draft.text; ta.dispatchEvent(new Event('input', { bubbles: true })); }
+  }
   return inst;
 }
 
@@ -2391,12 +2847,12 @@ const body = document.body;
 const frames = [];
 
 for (const frame of document.querySelectorAll('.board .frame')) {
-  const { kind, mode, route, turned, stale, slash, later, file, fold, menu, rename, arch } = frame.dataset;
+  const { kind, mode, route, turned, stale, slash, later, file, fold, menu, rename, arch, draft, view } = frame.dataset;
   frame.innerHTML = kind === 'phone'
     ? `<div class="screen"><div class="statusbar"><span>16:22</span><i class="px bm-bars"></i></div><div class="host" style="height:100%"></div><div class="homebar"></div></div>`
     : `<div class="screen host"></div>`;
   const screen = frame.querySelector('.screen');
-  const inst = mount(frame.querySelector('.host'), kind, mode, route, { turned, stale, slash, later, file, fold, menu, rename, arch });
+  const inst = mount(frame.querySelector('.host'), kind, mode, route, { turned, stale, slash, later, file, fold, menu, rename, arch, draft, view });
   const cap = document.createElement('div');
   cap.className = 'frame-cap';
   const size = { desk: '1360 × 820', phone: '390 × 844', pad: '860 × 580', crop: '390 × 580' }[kind];
@@ -2453,7 +2909,7 @@ function drawBoard() {
     [icon('wait'), 'waiting', '--ink-3'], ['<i class="lamp"></i>', 'running', '--busy-ink'], [icon('done'), 'done', '--moss-ink'],
     [icon('fail'), 'failed', '--red-ink'], [icon('bang'), 'interrupted, not run again', '--red-ink'],
     [icon('clock'), 'checks back, or a trigger fired', '--ink-2'], [icon('eye'), 'you are only reading', '--ink-2'], [icon('flip'), `the agent's view`, '--ink-2'],
-    [icon('more'), 'rename or archive', '--ink-2'],
+    [icon('more'), 'rename or archive', '--ink-2'], [icon('clip'), 'attach', '--ink-2'], [icon('doc'), 'a file', '--ink-3'],
     ['<i class="sigil bm-disc pg-you s12" style="width:12px;height:12px"></i>', 'you', '--ink-2'],
   ].map(([m, word, color]) => `<div><span class="slot" style="color:var(${color})">${m}</span>${word}</div>`).join('');
 

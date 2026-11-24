@@ -172,8 +172,22 @@ html[data-view="live"] body { overflow: hidden; }
     </div>
   </section>
 
+  <section class="sheet" id="attachments">
+    <h2><span>06</span>Pictures and files</h2>
+    <p class="cap">Ctrl+V attaches the picture or the files on the clipboard, and a file dragged onto the terminal is attached in place of its path. Each stands in what is typed as one piece, the way Pi's editor holds a long paste, so the arrows step over it and Backspace takes it out. Sent, the pieces leave the words and go with the message.</p>
+    <div class="fit">
+      <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route="agent:scout/thread:sc-life" data-draft="paste"></div></div>
+      <div class="unit"><div class="win term" data-cols="80" data-rows="36" data-mode="dusk" data-route="agent:scout/thread:sc-life" data-pics="1"></div></div>
+    </div>
+    <p class="cap">A terminal that speaks Kitty's or iTerm2's picture protocol, which pi-tui draws, shows a picture in the thread and in the agent's view. Anywhere else a picture is its name and size, and the agent's view names its kind, as it does today. A click opens either in the machine's own viewer.</p>
+    <div class="fit">
+      <div class="unit"><div class="win term" data-cols="80" data-rows="36" data-mode="dusk" data-route="agent:scout/thread:sc-life" data-side="1" data-pics="1"></div></div>
+      <div class="unit"><div class="win term" data-cols="80" data-rows="30" data-mode="day" data-route="agent:scout/thread:sc-module"></div></div>
+    </div>
+  </section>
+
   <section class="sheet">
-    <h2><span>06</span>When things are not fine</h2>
+    <h2><span>07</span>When things are not fine</h2>
     <p class="cap">A view with no connection goes dim under its note, a thread you only read says so where the input would be, and with no gateway the first screen is how to start one. The notes about a lost connection and a missing gateway are the terminal's sentences as they are today. The others are the shorter ones from the web mockup.</p>
     <div class="fit">
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route="agent:lighthouse/thread:lh-main" data-stale="1"></div></div>
@@ -194,7 +208,7 @@ html[data-view="live"] body { overflow: hidden; }
   </section>
 
   <section class="sheet">
-    <h2><span>07</span>On the terminal's own colors</h2>
+    <h2><span>08</span>On the terminal's own colors</h2>
     <p class="cap">Where a terminal has no true color, the client paints no ground: it draws on the terminal's own, in its sixteen colors. The layout and the marks are the same.</p>
     <div class="fit">
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="own" data-route="agent:lighthouse/thread:lh-backup"></div></div>
@@ -203,7 +217,7 @@ html[data-view="live"] body { overflow: hidden; }
   </section>
 
   <section class="sheet">
-    <h2><span>08</span>The commands</h2>
+    <h2><span>09</span>The commands</h2>
     <p class="cap">The commands print plain lines and tables, which agents read, and those stay as they are. On a terminal that shows color, three things are added: a name or a command to run is bold, a state has a color, and what failed is red.</p>
     <div class="fit">
       <div class="unit"><div class="win shell" data-cols="84" data-rows="24" data-show="help"></div></div>
@@ -215,10 +229,10 @@ html[data-view="live"] body { overflow: hidden; }
   </section>
 
   <section class="sheet">
-    <h2><span>09</span>What it is made of</h2>
+    <h2><span>10</span>What it is made of</h2>
     <p class="cap">The web client's stitch is two pixels. Here it is the cell, and the dot of a braille cell. A sigil is written once, as twelve lines of twelve, and each client draws it its own way.</p>
     <div class="fit">
-      <div class="unit"><div class="win made" data-cols="108" data-rows="32" data-mode="dusk"></div></div>
+      <div class="unit"><div class="win made" data-cols="108" data-rows="33" data-mode="dusk"></div></div>
     </div>
     <div class="grid2" style="margin-top:40px">
       <div class="card">
@@ -233,13 +247,14 @@ html[data-view="live"] body { overflow: hidden; }
           <tr><td>true color</td><td>The wool: dusk on a dark terminal, day on a light one. The client asks the terminal for its background, which pi-tui can do.</td></tr>
           <tr><td>256 or 16 colors</td><td>No ground is painted. Words and marks take the terminal's own sixteen colors, and a chosen row is its bright black.</td></tr>
           <tr><td>piped, or <code>NO_COLOR</code></td><td>The commands print what they print today.</td></tr>
+          <tr><td>Kitty's or iTerm2's pictures</td><td>A picture is drawn where it stands, up to 40 columns by 10 rows. Without them it is a line with its name and size.</td></tr>
         </table>
       </div>
     </div>
   </section>
 
   <section class="sheet">
-    <h2><span>10</span>What this changes, and what it leaves open</h2>
+    <h2><span>11</span>What this changes, and what it leaves open</h2>
     <p class="cap">The terminal was built to this mockup on 2026-11-22. The first card is where the mockup differed from the terminal as it was until then, written before it was built, with what you said of each. <a href="open.md">The open list</a> has where the terminal still differs from these sheets.</p>
     <div class="grid2">
       <div class="card">
@@ -268,6 +283,14 @@ html[data-view="live"] body { overflow: hidden; }
           <li><b>Neither leaves a line in the thread.</b> A new name shows where the name is, and an agent reads it with its next input.</li>
           <li><b>A thread you only read takes neither.</b> Chat lets only a channel's members rename or archive, and such a thread has no input to write a command in. The main thread takes both. A trigger's own session is behind no thread.</li>
         </ul>
+        <h3 style="margin-top:18px">Drawn on 2026-11-24, and not built</h3>
+        <ul>
+          <li><b>Ctrl+V attaches</b> the picture or the files on the clipboard of the machine the terminal runs on. A dragged file arrives as a pasted path, and a path to a file there is attached in its place. Text still pastes as the terminal pastes it. Claude Code pastes a picture on Ctrl+V too.</li>
+          <li><b>An attachment is one piece of what is typed,</b> as Pi's editor already holds a long paste, so it needs no key of its own. Sent, it leaves the words and goes with the message.</li>
+          <li><b>In a thread the words come first, then the pictures, then the files,</b> as in the web client. A picture is drawn where the terminal can, and is a line with <code>▣</code>, its name and size where it can't. A file is a line with <code>▤</code>.</li>
+          <li><b>The agent's view shows what came with a message</b> under what it was shown: the picture where the terminal draws one, and otherwise <code>[image: image/png]</code>, as today.</li>
+          <li><b>A click opens a picture or a file</b> in the machine's own viewer. There is no key for it yet.</li>
+        </ul>
       </div>
       <div class="card">
         <h3>Not drawn yet</h3>
@@ -278,6 +301,7 @@ html[data-view="live"] body { overflow: hidden; }
           <li>Signing in from the terminal, and <code>/thinking</code>.</li>
           <li>A list longer than the screen, and the search panel.</li>
           <li>Opening where you left off.</li>
+          <li>A file too big to send, which the web mockup draws as a note.</li>
         </ul>
         <h3 style="margin-top:18px">Yours to choose</h3>
         <ul>
@@ -398,13 +422,20 @@ class Grid {
   constructor(cols, rows) {
     this.cols = cols;
     this.rows = rows;
-    this.cells = Array.from({ length: cols * rows }, () => ({ ch: ' ', f: 'ink', bg: 'base', at: 0 }));
+    this.cells = Array.from({ length: cols * rows }, () => ({ ch: ' ', f: 'ink', bg: 'base', at: 0, img: null }));
   }
   at(x, y) { return x >= 0 && y >= 0 && x < this.cols && y < this.rows ? this.cells[y * this.cols + x] : null; }
   fill(x, y, w, h, bg) {
     for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
       const c = this.at(xx, yy);
-      if (c) { c.ch = ' '; c.f = 'ink'; c.bg = bg; c.at = 0; }
+      if (c) { c.ch = ' '; c.f = 'ink'; c.bg = bg; c.at = 0; c.img = null; }
+    }
+  }
+  /** Row `j` of a picture `w` cells by `h`, from `x`. Each cell holds its slice, as a terminal's picture protocol places one. */
+  picture(x, y, key, w, h, j, max = this.cols) {
+    for (let i = 0; i < w && x + i < max; i++) {
+      const c = this.at(x + i, y);
+      if (c) { c.ch = ' '; c.img = { key, i, j, w, h }; }
     }
   }
   /** Writes `str` from `x`, never into or past column `max`, and says where it stopped. */
@@ -414,7 +445,7 @@ class Grid {
       const w = cwOf(ch);
       if (x + w > max) break;
       const c = this.at(x, y);
-      if (c) { c.ch = ch; c.f = st.f || 'ink'; c.at = at; if (st.bg) c.bg = st.bg; }
+      if (c) { c.ch = ch; c.f = st.f || 'ink'; c.at = at; c.img = null; if (st.bg) c.bg = st.bg; }
       if (w === 2) { const t = this.at(x + 1, y); if (t) { t.ch = ''; t.at = 0; if (st.bg) t.bg = st.bg; } }
       x += w;
     }
@@ -450,6 +481,13 @@ function drawBuiltIn(g, ch, x, y, w, h, dpr) {
     case '┈': { const d = s(w / 4); g.fillRect(x + s(w / 8), y + s(h / 2), d, d); g.fillRect(x + s((w * 5) / 8), y + s(h / 2), d, d); return true; }
     case '▪': { const d = s(w / 2); g.fillRect(x + s(w / 4), y + s((h - d) / 2), d, d); return true; }
     case '●': g.beginPath(); g.arc(x + w / 2, y + h / 2, w * 0.36, 0, Math.PI * 2); g.fill(); return true;
+    case '▣': case '▤': {
+      const d = s(w * 0.86), ox = x + s((w - d) / 2), oy = y + s((h - d) / 2);
+      g.fillRect(ox, oy, d, one); g.fillRect(ox, oy + d - one, d, one); g.fillRect(ox, oy, one, d); g.fillRect(ox + d - one, oy, one, d);
+      if (ch === '▣') g.fillRect(ox + s(d * 0.3), oy + s(d * 0.3), s(d * 0.4), s(d * 0.4));
+      else for (const k of [0.3, 0.5, 0.7]) g.fillRect(ox + s(d * 0.25), oy + s(d * k), s(d * 0.5), one);
+      return true;
+    }
     case '○': case '◷': {
       g.lineWidth = Math.max(1 / dpr, w / 8);
       g.strokeStyle = g.fillStyle;
@@ -483,7 +521,8 @@ class Screen {
     const off = Math.max(0, (cw - this.adv) / 2), base = ch * 0.72;
     for (let y = 0; y < grid.rows; y++) for (let x = 0; x < grid.cols; x++) {
       const i = y * grid.cols + x, c = grid.cells[i];
-      const key = `${c.ch}|${c.f}|${c.bg}|${c.at}|${pal.id}`;
+      const img = c.img ? `${c.img.key}:${c.img.i}:${c.img.j}:${c.img.w}:${c.img.h}` : '';
+      const key = `${c.ch}|${c.f}|${c.bg}|${c.at}|${pal.id}|${img}`;
       if (this.prev[i] === key) continue;
       this.prev[i] = key;
       if (c.ch === '') continue;
@@ -491,6 +530,12 @@ class Screen {
       const px = x * cw, py = y * ch;
       g.fillStyle = pal[c.bg] || pal.base;
       g.fillRect(px, py, wide ? cw * 2 : cw, ch);
+      if (c.img && PICS[c.img.key]) {
+        const p = PICS[c.img.key], W = p.naturalWidth || p.width, H = p.naturalHeight || p.height;
+        const sw = W / c.img.w, sh = H / c.img.h;
+        g.drawImage(p, c.img.i * sw, c.img.j * sh, sw, sh, px, py, cw + 0.4, ch + 0.4);
+        continue;
+      }
       if (c.ch === ' ') continue;
       g.fillStyle = pal[c.f] || pal.ink;
       if (drawBuiltIn(g, c.ch, px, py, cw, ch, dpr)) continue;
@@ -657,6 +702,167 @@ function halves(rows) {
 }
 
 const WORDMARK = braille(['', ...Array.from({ length: 9 }, (_, y) => [...'shrimpy'].map((c) => LETTERS[c][y]).join('.'))]);
+
+/* ==========================================================================
+   PICTURES: the web mockup's photos, screenshot and chart, drawn the same
+   way, so a terminal that shows pictures has the same ones to show.
+   ========================================================================== */
+
+function rng(seed) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const SANS = 'system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
+const MONOPIC = 'ui-monospace, Menlo, Consolas, monospace';
+
+function asPhoto(g, w, h, next) {
+  const edge = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.75);
+  edge.addColorStop(0, 'rgba(0,0,0,0)');
+  edge.addColorStop(1, 'rgba(0,0,0,0.5)');
+  g.fillStyle = edge;
+  g.fillRect(0, 0, w, h);
+  const img = g.getImageData(0, 0, w, h), d = img.data;
+  for (let i = 0; i < d.length; i += 4) { const n = (next() - 0.5) * 18; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+  g.putImageData(img, 0, 0);
+}
+
+function table(g, w, h, next) {
+  const wood = g.createLinearGradient(0, 0, w * 0.4, h);
+  wood.addColorStop(0, '#9a7754');
+  wood.addColorStop(1, '#5f4532');
+  g.fillStyle = wood;
+  g.fillRect(0, 0, w, h);
+  g.strokeStyle = '#2e1f14';
+  for (let i = 0; i < 80; i++) {
+    const y = next() * h * 1.3 - h * 0.15;
+    g.globalAlpha = 0.05 + next() * 0.1;
+    g.lineWidth = 1 + next() * 4;
+    g.beginPath();
+    g.moveTo(0, y);
+    g.bezierCurveTo(w * 0.3, y + (next() - 0.5) * 50, w * 0.7, y + (next() - 0.5) * 50, w, y + (next() - 0.5) * 40);
+    g.stroke();
+  }
+  g.globalAlpha = 1;
+}
+
+function board(g, colour) {
+  g.shadowColor = 'rgba(0,0,0,0.5)';
+  g.shadowBlur = 34;
+  g.shadowOffsetY = 16;
+  g.fillStyle = colour;
+  g.beginPath();
+  g.roundRect(-330, -205, 660, 410, 14);
+  g.fill();
+  g.shadowColor = 'transparent';
+  for (const [x, y] of [[-302, -177], [302, -177], [-302, 177], [302, 177]]) {
+    g.fillStyle = '#cdb578';
+    g.beginPath(); g.arc(x, y, 14, 0, 7); g.fill();
+    g.fillStyle = '#2a1d13';
+    g.beginPath(); g.arc(x, y, 7, 0, 7); g.fill();
+  }
+}
+
+const PICTURES = {
+  'module-front': { w: 960, h: 720, draw(g, w, h, next) {
+    table(g, w, h, next);
+    g.save(); g.translate(w * 0.5, h * 0.53); g.rotate(-0.06);
+    board(g, '#1f5a3c');
+    g.fillStyle = '#141618'; g.fillRect(-282, -168, 564, 306);
+    const glass = g.createLinearGradient(-270, -156, 270, 126);
+    glass.addColorStop(0, '#b7bab2'); glass.addColorStop(0.46, '#d7d9d0'); glass.addColorStop(0.56, '#adb0a7'); glass.addColorStop(1, '#989b93');
+    g.fillStyle = glass; g.fillRect(-270, -156, 540, 282);
+    g.fillStyle = '#25272b';
+    g.font = `700 76px ${MONOPIC}`; g.fillText('16:22', -236, -52);
+    g.font = `30px ${MONOPIC}`; g.fillText('NAS 81%   backup ok', -236, 10); g.fillText('2 agents working', -236, 56);
+    g.globalAlpha = 0.2; g.fillStyle = '#fff';
+    g.beginPath(); g.moveTo(-270, 70); g.lineTo(-40, -156); g.lineTo(60, -156); g.lineTo(-170, 126); g.lineTo(-270, 126); g.closePath(); g.fill();
+    g.globalAlpha = 1;
+    for (let i = 0; i < 10; i++) { g.fillStyle = '#d9b45c'; g.fillRect(-112 + i * 24, 156, 12, 26); }
+    g.fillStyle = '#e8eadf'; g.font = `600 21px ${SANS}`; g.fillText('MLCD-27', 160, 178);
+    g.restore();
+    asPhoto(g, w, h, next);
+  } },
+  'module-back': { w: 960, h: 720, draw(g, w, h, next) {
+    table(g, w, h, next);
+    g.save(); g.translate(w * 0.48, h * 0.47); g.rotate(0.05);
+    const ribbon = g.createLinearGradient(-90, 0, 90, 0);
+    ribbon.addColorStop(0, '#c9822a'); ribbon.addColorStop(0.5, '#e1a24a'); ribbon.addColorStop(1, '#c47c25');
+    g.fillStyle = ribbon; g.fillRect(-90, 150, 180, 230);
+    g.fillStyle = 'rgba(80,50,10,0.35)'; for (let i = 0; i < 10; i++) g.fillRect(-80 + i * 17, 330, 7, 50);
+    board(g, '#1d5638');
+    g.fillStyle = '#111'; g.fillRect(-250, -120, 90, 90); g.fillRect(-130, -110, 50, 30); g.fillRect(-130, -60, 50, 30);
+    g.fillStyle = '#c8c3b0'; for (let i = 0; i < 6; i++) g.fillRect(-240 + i * 26, 40, 14, 8);
+    g.fillStyle = '#f1eee4'; g.fillRect(0, -150, 290, 190);
+    g.fillStyle = '#1c1c1c';
+    g.font = `700 40px ${SANS}`; g.fillText('MLCD-27', 22, -98);
+    g.font = `24px ${SANS}`; g.fillText('2.7" 400 × 240, 1-bit', 22, -60); g.fillText('Memory LCD · 3 V', 22, -28);
+    for (let x = 22; x < 268; x += 3 + Math.floor(next() * 4)) g.fillRect(x, -6, 1 + Math.floor(next() * 3), 34);
+    g.restore();
+    asPhoto(g, w, h, next);
+  } },
+  'driver-board': { w: 960, h: 600, draw(g, w, h) {
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#f3f3f1'; g.fillRect(0, 0, w, 58); g.fillStyle = '#e2e2de'; g.fillRect(0, 58, w, 1);
+    g.fillStyle = '#222'; g.font = `700 21px ${SANS}`; g.fillText('parts & pieces', 28, 37);
+    g.fillStyle = '#777'; g.font = `16px ${SANS}`; ['displays', 'boards', 'power', 'cases'].forEach((t, i) => g.fillText(t, 300 + i * 100, 37));
+    g.fillStyle = '#f2f2ef'; g.fillRect(28, 86, 404, 404);
+    g.save(); g.translate(230, 288); g.rotate(-0.12);
+    g.fillStyle = '#1d4f8f'; g.beginPath(); g.roundRect(-140, -92, 280, 184, 10); g.fill();
+    g.fillStyle = '#111'; g.fillRect(-90, -40, 80, 80);
+    g.fillStyle = '#e9e6dc'; g.fillRect(60, -60, 50, 120);
+    g.fillStyle = '#d6b05a'; for (let i = 0; i < 8; i++) g.fillRect(-120 + i * 22, -84, 10, 14);
+    g.restore();
+    g.fillStyle = '#1b1b1b'; g.font = `600 29px ${SANS}`; g.fillText('Low-power driver board', 470, 124); g.fillText('for memory LCDs', 470, 160);
+    g.fillStyle = '#b23b1e'; g.font = `600 27px ${SANS}`; g.fillText('€14.90', 470, 214);
+    g.fillStyle = '#2a7a3a'; g.font = `16px ${SANS}`; g.fillText('In stock · ships Monday', 470, 244);
+    g.fillStyle = '#333'; g.font = `18px ${SANS}`;
+    ['Sleep current: 2 µA', 'Redraw: 1.6 mA for 40 ms', 'Input: 2.0 – 3.6 V', 'Connector: 10-pin FFC, 0.5 mm', '32 × 24 mm'].forEach((t, i) => g.fillText(`•  ${t}`, 470, 298 + i * 30));
+    g.fillStyle = '#1b1b1b'; g.beginPath(); g.roundRect(470, 456, 206, 50, 6); g.fill();
+    g.fillStyle = '#fff'; g.font = `600 18px ${SANS}`; g.fillText('Add to basket', 515, 487);
+  } },
+  life: { w: 960, h: 600, draw(g, w, h) {
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
+    const x0 = 110, x1 = 900, y0 = 500, y1 = 84, top = 30;
+    const Y = (v) => y0 - (v / top) * (y0 - y1);
+    const at = ['10 s', '30 s', '1 min', '5 min', '15 min'];
+    const X = (i) => x0 + 40 + i * ((x1 - x0 - 80) / (at.length - 1));
+    g.fillStyle = '#222'; g.font = `600 23px ${SANS}`; g.fillText('Months on two AA cells, by how often it redraws', x0, 50);
+    g.font = `16px ${SANS}`; g.textAlign = 'right';
+    for (let v = 0; v <= top; v += 6) { g.fillStyle = '#e8e8e8'; g.fillRect(x0, Y(v), x1 - x0, 1); g.fillStyle = '#555'; g.fillText(String(v), x0 - 12, Y(v) + 6); }
+    g.textAlign = 'center';
+    at.forEach((t, i) => g.fillText(t, X(i), y0 + 30));
+    g.fillText('redraw every', (x0 + x1) / 2, y0 + 64);
+    g.textAlign = 'left';
+    g.fillStyle = '#333'; g.fillRect(x0, y1, 1.5, y0 - y1); g.fillRect(x0, y0, x1 - x0, 1.5);
+    g.strokeStyle = '#c0392b'; g.lineWidth = 2; g.setLineDash([9, 7]);
+    g.beginPath(); g.moveTo(x0, Y(12)); g.lineTo(x1, Y(12)); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#c0392b'; g.fillText('1 year', x1 - 52, Y(12) - 10);
+    const months = [5.1, 10.3, 14.2, 22.6, 26.1];
+    g.strokeStyle = '#1f77b4'; g.lineWidth = 3.5; g.beginPath();
+    months.forEach((v, i) => (i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v))));
+    g.stroke();
+    g.fillStyle = '#1f77b4';
+    months.forEach((v, i) => { g.beginPath(); g.arc(X(i), Y(v), 7, 0, 7); g.fill(); });
+  } },
+};
+
+/** Each picture as something a cell can draw a slice of, and as an address a click can open. Ones attached while the page is open join them. */
+const PICS = {};
+const URLS = {};
+let attached = 0;
+for (const [name, p] of Object.entries(PICTURES)) {
+  const cv = document.createElement('canvas');
+  cv.width = p.w;
+  cv.height = p.h;
+  p.draw(cv.getContext('2d'), p.w, p.h, rng(name.length * 977));
+  PICS[name] = cv;
+  cv.toBlob((blob) => { if (blob) URLS[name] = URL.createObjectURL(blob); });
+}
 
 /* ==========================================================================
    3. THE SAME MADE-UP NETWORK AS THE WEB MOCKUP
@@ -864,6 +1070,34 @@ const THREADS = {
       { who: 'you', at: '13:20', html: `<p>could the memory LCD run a year on two AA cells?</p>`, receipts: [{ bad: true, text: 'scout failed: The model failed: the server closed the connection. Send it again, or try another model with /model.' }] },
     ],
   },
+  'sc-module': {
+    place: { kind: 'dm', agent: 'scout' }, when: '14:52',
+    messages: [
+      { who: 'you', at: '14:40', html: `<p>found one at the shop by the station. is this the screen you meant?</p>`, files: [{ name: 'module-front.jpg', size: '2.4 MB', pic: 'module-front' }, { name: 'module-back.jpg', size: '2.2 MB', pic: 'module-back' }] },
+      { who: 'scout', at: '14:41', html: `<p>It is. The sticker says MLCD-27, 400 × 240 at 3 V, the 2.7 inch memory LCD from this morning, and its ribbon plugs straight into a driver board.</p>` },
+      { who: 'you', at: '14:50', html: `<p>this is the frame i want to print for it. will it fit?</p>`, files: [{ name: 'door-frame.stl', size: '1.8 MB' }] },
+      { who: 'scout', at: '14:52', html: `<p>Only just: 0.4 mm on each side. I widened the opening by half a millimetre and moved the cable slot to where the ribbon comes out.</p>`, files: [{ name: 'door-frame-2.stl', size: '1.8 MB' }] },
+    ],
+  },
+  'sc-life': {
+    place: { kind: 'dm', agent: 'scout' }, when: '15:41',
+    messages: [
+      { who: 'you', at: '15:30', html: `<p>the screen from the shop: would it run a year on two AA cells by the door?</p>` },
+      { who: 'scout', at: '15:31', html: `<p>That depends on how often it redraws, and on the board that drives it. Which board?</p>` },
+      { who: 'you', at: '15:40', html: `<p>this one. the screenshot is from the shop's page</p>`, files: [{ name: 'driver-board.png', size: '182 kB', pic: 'driver-board' }] },
+      { who: 'scout', at: '15:41', html: `<p>On that board, a redraw once a minute lasts about fourteen months, and once every ten seconds about five. It sleeps at 2 µA between redraws, which is most of the time. The figures are from the board's datasheet, attached.</p>`, files: [{ name: 'life.png', size: '38 kB', pic: 'life' }, { name: 'driver-board-datasheet.pdf', size: '1.2 MB' }] },
+    ],
+    session: {
+      scout: [
+        { kind: 'shown', at: '15:30', text: `You are in your DM with zach, a person. Thread th_51e2 in channel ch_6b07.\n\nzach wrote at 2026-11-21T15:30:02-05:00:\nthe screen from the shop: would it run a year on two AA cells by the door?` },
+        { kind: 'text', html: `<p>That depends on how often it redraws, and on the board that drives it. Which board?</p>` },
+        { kind: 'shown', at: '15:40', text: `zach wrote at 2026-11-21T15:40:31-05:00:\nthis one. the screenshot is from the shop's page\n\nAttached: attachments/2026-11-21/driver-board.png in your home, image/png, 182 kB.`, files: [{ name: 'driver-board.png', size: '182 kB', pic: 'driver-board' }] },
+        { kind: 'thinking', text: 'The page says 2 µA asleep and 1.6 mA for a 40 ms redraw. Check those against its datasheet, then work out the months.' },
+        { kind: 'tool', name: 'bash', call: 'cd vault/door-screen && python3 life.py', status: 'done', out: ['1 min  14.2 months', 'wrote life.png'] },
+        { kind: 'text', html: `<p>On that board, a redraw once a minute lasts about fourteen months, and once every ten seconds about five. It sleeps at 2 µA between redraws, which is most of the time. The figures are from the board's datasheet, attached.</p>`, files: [{ name: 'life.png', size: '38 kB', pic: 'life' }, { name: 'driver-board-datasheet.pdf', size: '1.2 MB' }] },
+      ],
+    },
+  },
   'house-main': {
     place: { kind: 'room', room: 'house' }, main: true, when: 'Nov 20 18:02',
     messages: [
@@ -882,7 +1116,7 @@ const THREADS = {
 const LISTS = {
   shrimpy: { yours: ['sh-night', 'sh-main'], elsewhere: ['ops-window', 'ops-deploy', 'ops-router', 'ops-main'] },
   lighthouse: { yours: ['lh-backup', 'lh-main', 'lh-ups', 'lh-hello', 'lh-disk'], elsewhere: ['ops-window', 'ops-deploy', 'lh-nightly', 'lh-scout-q'] },
-  scout: { yours: ['sc-screens'], elsewhere: ['ops-window', 'ops-deploy', 'reef-main', 'lh-scout-q', 'ops-router'] },
+  scout: { yours: ['sc-life', 'sc-module', 'sc-screens'], elsewhere: ['ops-window', 'ops-deploy', 'reef-main', 'lh-scout-q', 'ops-router'] },
   pantry: { yours: ['pa-week', 'pa-main'], elsewhere: ['house-main'] },
   crab: { yours: [], elsewhere: [] },
 };
@@ -913,6 +1147,20 @@ const COMMANDS = {
 };
 /** The commands that can be written in a thread: archiving one that isn't archived, and bringing back one that is. */
 const commandsIn = (th) => Object.keys(COMMANDS).filter((name) => name !== (th.archived ? 'archive' : 'unarchive'));
+
+const TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', pdf: 'application/pdf', stl: 'model/stl' };
+const typeOf = (f) => f.type || TYPES[f.name.split('.').pop().toLowerCase()] || 'application/octet-stream';
+const isPicture = (f) => Boolean(f.pic) || typeOf(f).startsWith('image/');
+/** What an agent is told of each file that came with a message: where it was put in its home. */
+const attachedWords = (files) => files.map((f) => `Attached: attachments/2026-11-21/${f.name} in your home, ${typeOf(f)}, ${f.size}.`).join('\n');
+const bytes = (n) => (n < 1e3 ? `${n} B` : n < 1e6 ? `${Math.round(n / 1e3)} kB` : `${+(n / 1e6).toFixed(1)} MB`);
+/* An attachment in what is typed is one character from here on, standing for the file it names. */
+const PIECE = 0xe000;
+const isPiece = (ch) => ch.codePointAt(0) >= PIECE && ch.codePointAt(0) < PIECE + 0x100;
+/* What a frame's input holds when it opens. `cut` is how many of the thread's messages were sent before it. */
+const DRAFTS = {
+  paste: { cut: 2, text: `this one. the screenshot is from the shop's page`, files: [{ name: 'driver-board.png', size: '182 kB', pic: 'driver-board' }] },
+};
 
 
 const SIGIL = Object.fromEntries(Object.entries(AGENTS).map(([a, A]) => [a, braille(BITS[A.sigil])]));
@@ -988,6 +1236,7 @@ const KEYS = [
   ['←', 'through what is typed, then back'],
   ['esc', 'back, whatever is typed'],
   ['/', 'commands, and esc closes their list'],
+  ['ctrl+v', 'attach the picture or files on the clipboard'],
   ['ctrl+o', 'tool calls in full, and back to brief'],
   ['ctrl+t', 'thinking in full, and back to brief'],
   ['pgup pgdn', 'scroll, as the wheel does'],
@@ -1011,10 +1260,17 @@ function term(win, o) {
     side: Number(o.side) || 0, fold: Boolean(o.fold), keys: Boolean(o.keys), full: { tools: Boolean(o.full), thinking: Boolean(o.full) },
     input: '', caret: 0, slash: null, notice: null, status: null, scroll: 0, armed: false, stale: Boolean(o.stale), down: Boolean(o.down || o.refused), clock: 22, made: 0,
     arch: Boolean(o.arch), behind: o.behind || null, refused: o.refused || null,
+    pics: Boolean(o.pics), pieces: [],
   };
   for (const part of (o.route || '').split('/').filter(Boolean)) {
     const [k, v] = part.split(':');
     if (k === 'thread') { s.thread = v; s.level = 3; } else { s.place = { kind: k, id: v }; s.level = 2; }
+  }
+  const draft = o.draft && s.thread ? DRAFTS[o.draft] : null;
+  if (draft) {
+    const th = db[s.thread];
+    th.messages = th.messages.slice(0, draft.cut);
+    th.when = th.messages.at(-1).at;
   }
 
   let bar = null, canvas;
@@ -1030,6 +1286,8 @@ function term(win, o) {
   const screen = new Screen(canvas);
   let g = new Grid(s.cols, s.rows);
   let hits = [];
+  /** The pictures and files drawn this time, so a click can open one. */
+  let opens = [];
   let timers = [];
   let paneAt = [];
   const drafts = {};
@@ -1038,7 +1296,11 @@ function term(win, o) {
   /* ---- words, as the terminal and the contracts already say them ---- */
 
   const thread = () => (s.thread ? db[s.thread] : null);
-  const firstText = (th) => { const m = (th.messages || []).find((x) => x.html); return m ? plain(m.html) : null; };
+  /** How a thread with no name starts: its first message's words, or the name of the first file it brought. */
+  const firstText = (th) => {
+    const m = (th.messages || []).find((x) => x.html || (x.files && x.files.length));
+    return !m ? null : m.html ? plain(m.html) : m.files[0].name;
+  };
   const titleOf = (th) => th.title ?? (th.place.kind === 'trigger' ? `trigger ${th.place.trigger}` : firstText(th)) ?? '(no messages yet)';
   const youAreIn = (th) => th.place.kind === 'dm' || (th.place.kind === 'room' && rooms[th.place.room].members.includes('you'));
   const agentsIn = (th) => {
@@ -1263,6 +1525,37 @@ function term(win, o) {
 
   /* ---- a thread: what was said, the work, and the dock ---- */
 
+  /** A picture's box in cells: as big as fits `maxW` by `maxH`, in its own shape. */
+  function boxOf(key, maxW, maxH) {
+    const p = PICS[key], W = p.naturalWidth || p.width || 4, H = p.naturalHeight || p.height || 3;
+    const w = Math.max(4, Math.min(maxW, Math.round(maxH * (CELL_H / CELL_W) * (W / H))));
+    return { w, h: Math.max(2, Math.round(w * (CELL_W / CELL_H) * (H / W))) };
+  }
+
+  /**
+   * What came with a message, under its words: its pictures where the terminal
+   * draws them, then a line for each of the rest. In the agent's view, `small`,
+   * a picture is drawn smaller, as the session around it matters more.
+   */
+  function filesLines(files, width, lead = [], small = false) {
+    const all = files || [];
+    const pics = s.pics ? all.filter(isPicture) : [];
+    const out = [];
+    if (pics.length) {
+      const room = width - segW(lead), many = pics.length > 1;
+      const maxW = many ? Math.min(small ? 20 : 28, Math.floor((room - 2 * (pics.length - 1)) / pics.length)) : Math.min(small ? 28 : 40, room);
+      const boxes = pics.map((f) => ({ key: f.pic, open: opens.push(f) - 1, ...boxOf(f.pic, maxW, small ? 6 : many ? 8 : 10) }));
+      const h = Math.max(...boxes.map((b) => b.h));
+      for (let row = 0; row < h; row++) out.push({ s: lead, pics: boxes, row });
+    }
+    for (const f of all) {
+      if (pics.includes(f)) continue;
+      out.push({ s: [...lead, [isPicture(f) ? '▣ ' : '▤ ', DIM], [f.name, INK], [`  ${f.size}`, DIM]], one: true, go: `open:${opens.push(f) - 1}` });
+    }
+    return out;
+  }
+  const asLine = (ln) => (Array.isArray(ln) ? { s: ln } : ln);
+
   /** One step of work as lines. `view` is the session as the agent sees it, where a tool call says how it stands in a word. */
   function stepLines(st, W, view) {
     if (st.kind === 'thinking') {
@@ -1276,10 +1569,18 @@ function term(win, o) {
       for (const out of st.out || []) for (const ln of s.full.tools ? wrap([[out, DIM]], W - 2) : [cutSegs([[out, DIM]], W - 2)]) lines.push([['  ', {}], ...ln]);
       return lines;
     }
-    if (st.kind === 'shown') return [[[`shown ${st.at}`, DIM]], ...para(st.text, INK2, W - 2).map((ln) => [['▏ ', { f: 'line2' }], ...ln])];
+    if (st.kind === 'shown') {
+      const bar = [['▏ ', { f: 'line2' }]];
+      const lines = [[[`shown ${st.at}`, DIM]], ...para(st.text, INK2, W - 2).map((ln) => [...bar, ...ln])];
+      const pics = (st.files || []).filter(isPicture);
+      if (st.blind) for (const f of pics) lines.push([...bar, ['(image omitted: model does not support images)', DIM]]);
+      else if (s.pics) lines.push(...filesLines(pics, W, bar, true));
+      else for (const f of pics) lines.push([...bar, [`[image: ${typeOf(f)}]`, DIM]]);
+      return lines;
+    }
     if (st.kind === 'marker') return [[[`-- ${st.text} --`, DIM]]];
     if (st.kind === 'note') return wrap([[st.text, DIM]], W);
-    return proseLines(st.html, W);
+    return [...proseLines(st.html, W), ...filesLines(st.files, W, [], view)];
   }
 
   function workLines(th, mx) {
@@ -1295,7 +1596,7 @@ function term(win, o) {
       if (i === 0 && segW(head) + segW(toggles) + 2 <= W) out.push({ s: head, bar: 'Ochre', right: toggles });
       else if (named) out.push({ s: head, bar: 'Ochre' });
       const steps = many && !s.full.tools ? work.steps.slice(-1) : work.steps;
-      for (const st of steps) for (const ln of stepLines(st, W - (named ? 2 : 0), false)) out.push({ s: ln, bar: 'Ochre', pad: named ? 2 : 0 });
+      for (const st of steps) for (const ln of stepLines(st, W - (named ? 2 : 0), false)) out.push({ ...asLine(ln), bar: 'Ochre', pad: named ? 2 : 0 });
     });
     return out;
   }
@@ -1314,6 +1615,7 @@ function term(win, o) {
       if (m.deleted) L([['This message was deleted.', DIM]], { pad: 2 });
       else if (m.brought) for (const ln of para(m.brought, DIM, mx - 4)) L([['▏ ', { f: 'line2' }], ...ln], { pad: 2 });
       else for (const ln of proseLines(m.html, mx - 2)) L(ln, { pad: 2 });
+      if (!m.deleted) for (const ln of filesLines(m.files, mx - 2)) out.push({ ...ln, pad: 2 });
       if (m.reactions) L([[m.reactions.map((r) => `${r.emoji} ${r.by.join(', ')}`).join('  '), DIM]], { pad: 2 });
       for (const r of m.receipts || []) for (const ln of wrap([[r.bad ? '✗ ' : '· ', { f: r.bad ? 'red' : 'ink3' }], [r.text, { f: r.bad ? 'red' : 'ink3' }]], mx - 2)) L(ln, { pad: 2 });
     }
@@ -1327,9 +1629,9 @@ function term(win, o) {
     const given = th.session && th.session[a];
     const out = given ? [...given] : [];
     if (!given) for (const m of th.messages || []) {
-      if (m.deleted || !m.html) continue;
-      if (m.who === a) out.push({ kind: 'text', html: m.html });
-      else out.push({ kind: 'shown', at: m.at, text: `${nameOf(m.who)} wrote at ${m.at}:\n${plain(m.html)}` });
+      if (m.deleted || (!m.html && !m.files)) continue;
+      if (m.who === a) out.push({ kind: 'text', html: m.html, files: m.files });
+      else out.push({ kind: 'shown', at: m.at, text: `${nameOf(m.who)} wrote at ${m.at}:\n${plain(m.html)}${m.files ? `\n\n${attachedWords(m.files)}` : ''}`, files: m.files });
     }
     if (th.work && th.work[a] && !s.stale) out.push(...th.work[a].steps);
     return out;
@@ -1342,7 +1644,7 @@ function term(win, o) {
     const apart = (st) => st && (st.kind === 'shown' || st.kind === 'marker' || st.kind === 'note' || st.kind === 'text');
     steps.forEach((st, i) => {
       if (i === 0 || apart(st) || apart(steps[i - 1])) out.push({ s: [] });
-      for (const ln of stepLines(st, mx, true)) out.push({ s: ln });
+      for (const ln of stepLines(st, mx, true)) out.push(asLine(ln));
     });
     return out;
   }
@@ -1414,9 +1716,12 @@ function term(win, o) {
     const lines = [[]];
     let x = 0;
     typed.forEach((ch, i) => {
-      if (x + cwOf(ch) > width) { lines.push([]); x = 0; }
-      lines[lines.length - 1].push([ch, cursor && i === s.caret ? { f: 'pane', bg: 'ink' } : INK]);
-      x += cwOf(ch);
+      /* An attachment is one piece: its name on a raised ground, which the cursor stands on as on one character. */
+      const piece = isPiece(ch) ? s.pieces[ch.codePointAt(0) - PIECE] : null;
+      const shown = piece ? ` ${isPicture(piece) ? '▣' : '▤'} ${piece.name} ` : ch;
+      if (x + wd(shown) > width) { lines.push([]); x = 0; }
+      lines[lines.length - 1].push([shown, cursor && i === s.caret ? { f: 'pane', bg: 'ink' } : piece ? { f: 'ink', bg: 'raise' } : INK]);
+      x += wd(shown);
     });
     return lines;
   }
@@ -1427,7 +1732,11 @@ function term(win, o) {
     if (ln.bar) { g.text(cx, y, '▎', { f: ln.bar }); cx += 2; }
     cx += ln.pad || 0;
     const room = x + w - 1 - cx - (ln.right ? segW(ln.right) + 2 : 0);
-    g.segs(cx, y, ln.one ? cutSegs(ln.s, room) : ln.s, x + w - 1);
+    let end = g.segs(cx, y, ln.one ? cutSegs(ln.s, room) : ln.s, x + w - 1);
+    if (ln.pics) for (const b of ln.pics) {
+      if (ln.row < b.h) { g.picture(end, y, b.key, b.w, b.h, ln.row, x + w - 1); hit(end, y, b.w, 1, `open:${b.open}`); }
+      end += b.w + 2;
+    }
     if (ln.right) right(x, y, w, ln.right);
     if (ln.go) hit(x, y, w, 1, ln.go);
   }
@@ -1524,14 +1833,16 @@ function term(win, o) {
   }
 
   function drawKeys() {
-    const w = Math.min(s.cols - 4, 66), h = KEYS.length + 4;
+    /* Where the screen is short, the line under the title goes, so every key still fits. */
+    const gap = KEYS.length + 4 <= s.rows - 1 ? 1 : 0;
+    const w = Math.min(s.cols - 4, 66), h = KEYS.length + 3 + gap;
     const x = Math.floor((s.cols - w) / 2), y = Math.max(0, Math.floor((s.rows - 1 - h) / 2));
     box(x, y, w, h, 'raise');
     g.text(x + 3, y + 1, 'keys', BOLD);
     right(x, y + 1, w - 2, [['esc', INK2], [' close', DIM]]);
     KEYS.forEach(([k, does], i) => {
-      if (does === undefined) g.text(x + 3, y + 3 + i, k, DIM);
-      else { g.text(x + 5, y + 3 + i, k, { f: 'ink', b: 1 }); g.text(x + 18, y + 3 + i, cut(does, w - 21), INK2); }
+      if (does === undefined) g.text(x + 3, y + 2 + gap + i, k, DIM);
+      else { g.text(x + 5, y + 2 + gap + i, k, { f: 'ink', b: 1 }); g.text(x + 18, y + 2 + gap + i, cut(does, w - 21), INK2); }
     });
   }
 
@@ -1545,6 +1856,7 @@ function term(win, o) {
     if (g.cols !== s.cols || g.rows !== s.rows) g = new Grid(s.cols, s.rows);
     g.fill(0, 0, s.cols, s.rows, 'ground');
     hits = [];
+    opens = [];
     paneAt = panes();
     const focus = ['', 'rail', 'list', 'thread'][s.level];
     const h = s.rows - 1;
@@ -1614,17 +1926,50 @@ function term(win, o) {
     } else s.notice = `/${name} is no command here. The commands are ${listed(commandsIn(th).map((c) => `/${c}`))}. To start a message with a slash, wrap it in backticks or put anything before it. Nothing was posted.`;
   }
 
+  /** Puts each file in what is typed, at the cursor, as one piece. */
+  function attach(files) {
+    for (const f of files) {
+      const picture = f.type.startsWith('image/');
+      const piece = { name: f.name || 'pasted.png', size: bytes(f.size), type: f.type, url: URL.createObjectURL(f) };
+      if (picture) {
+        piece.pic = `attached-${++attached}`;
+        const img = new Image();
+        img.onload = () => { screen.prev = []; draw(); };
+        img.src = piece.url;
+        PICS[piece.pic] = img;
+      }
+      s.pieces.push(piece);
+      edit(s.caret, 0, `${String.fromCodePoint(PIECE + s.pieces.length - 1)} `);
+    }
+    s.notice = null;
+    draw();
+  }
+
+  async function fromClipboard() {
+    try {
+      const found = [];
+      for (const item of await navigator.clipboard.read()) {
+        for (const type of item.types) if (type.startsWith('image/')) found.push(new File([await item.getType(type)], `pasted.${type.split('/')[1]}`, { type }));
+      }
+      if (found.length) { attach(found); return; }
+    } catch { /* the browser keeps its clipboard to itself */ }
+    s.notice = 'The clipboard holds no picture or file.';
+    draw();
+  }
+
   function send() {
     const th = thread();
-    const text = s.slash ? `/${s.slash.names[s.slash.at]}` : s.input.trim();
+    const typed = [...s.input];
+    const pieces = typed.filter(isPiece).map((ch) => s.pieces[ch.codePointAt(0) - PIECE]);
+    const text = s.slash ? `/${s.slash.names[s.slash.at]}` : typed.filter((ch) => !isPiece(ch)).join('').replace(/\s+/g, ' ').trim();
     s.input = '';
     s.caret = 0;
     s.slash = null;
-    if (!text || !canWrite(th)) return;
+    if ((!text && !pieces.length) || !canWrite(th)) return;
     s.notice = s.status = null;
     s.scroll = 0;
     if (text.startsWith('/')) { command(th, text); return; }
-    th.messages.push({ who: 'you', at: clock(), html: `<p>${esc(text)}</p>` });
+    th.messages.push({ who: 'you', at: clock(), html: text ? `<p>${esc(text)}</p>` : '', ...(pieces.length ? { files: pieces } : {}) });
     th.when = th.messages.at(-1).at;
     /* A message that lands in an archived thread brings it back. */
     th.archived = false;
@@ -1674,6 +2019,8 @@ function term(win, o) {
     else if (k === 'end') s.scroll = 0;
     else if (k === 'cmd') { s.input = `/${v}`; s.slash = { names: [v], at: 0 }; send(); }
     else if (k === 'arch') { s.arch = !s.arch; s.level = 2; s.cur[2] = Math.max(0, listRows().indexOf('arch')); }
+    /* The machine's own viewer, which here is a new tab. A file the page only names has nothing to open. */
+    else if (k === 'open') { const f = opens[Number(v)]; const url = f && (f.url || URLS[f.pic]); if (url) window.open(url, '_blank', 'noopener'); }
   }
 
   /** What is typed in a thread stays with it while another is open. */
@@ -1702,6 +2049,7 @@ function term(win, o) {
     if (ctrl && k === 'd') { if (!s.input) quit(); return true; }
     s.armed = false;
     if (ctrl && k === 'n') { newThread(); return true; }
+    if (ctrl && k === 'v') { if (s.level === 3 && canWrite(thread())) fromClipboard(); return true; }
     if (ctrl && k === 'o') { s.full.tools = !s.full.tools; return true; }
     if (ctrl && k === 't') { s.full.thinking = !s.full.thinking; return true; }
     if (ctrl && s.level === 3 && (k === 'a' || k === 'e')) { s.caret = k === 'a' ? 0 : [...s.input].length; return true; }
@@ -1766,10 +2114,25 @@ function term(win, o) {
   }, { passive: false });
   canvas.addEventListener('focus', () => draw());
   canvas.addEventListener('blur', () => { s.armed = false; draw(); });
+  /* A file pasted or dragged onto a terminal arrives as its path, and a path to a file here is attached in its place. The page has the file itself. */
+  const takes = () => s.level === 3 && canWrite(thread());
+  document.addEventListener('paste', (e) => {
+    const files = [...((e.clipboardData && e.clipboardData.files) || [])];
+    if (document.activeElement !== canvas || !files.length || !takes()) return;
+    e.preventDefault();
+    attach(files);
+  });
+  canvas.addEventListener('dragover', (e) => { if (takes() && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+  canvas.addEventListener('drop', (e) => { if (!takes()) return; e.preventDefault(); canvas.focus(); attach([...e.dataTransfer.files]); });
 
   if (o.status && thread()) s.status = statusOf(thread());
   if (o.slash) { s.input = '/'; s.caret = 1; slash(); }
   if (o.typed) { s.input = o.typed; s.caret = [...s.input].length; slash(); }
+  if (draft) {
+    s.pieces = structuredClone(draft.files);
+    s.input = `${draft.files.map((_, i) => String.fromCodePoint(PIECE + i)).join(' ')} ${draft.text}`;
+    s.caret = [...s.input].length;
+  }
 
   const inst = {
     s, win, canvas, draw, visible: true,
@@ -1902,6 +2265,7 @@ function made(win, o) {
       [2, 11, [['2 ▪', { f: 'coral' }], [' new to you', INK2]]], [26, 11, [['◷', DIM], [' checks back', INK2]]],
       [2, 12, [['●', { f: 'Ochre' }], [' running', INK2]]], [14, 12, [['✓', { f: 'moss' }], [' done', INK2]]], [23, 12, [['✗', { f: 'red' }], [' failed', INK2]]], [34, 12, [['○', DIM], [' waiting', INK2]]],
       [2, 13, [['!', { f: 'red' }], [' interrupted', INK2]]], [18, 13, [['▏', { f: 'line2' }], [' what an agent was shown', INK2]]],
+      [2, 14, [['▣', DIM], [' a picture', INK2]]], [18, 14, [['▤', DIM], [' a file', INK2]]],
     ];
     for (const [x, y, segs] of marks) g.segs(x, y, segs);
     head(52, 8, 'the shrimp walks while an agent works');
@@ -1909,29 +2273,29 @@ function made(win, o) {
     g.text(57, 10, 'lighthouse is working · running bash', BUSY);
     LOADER.forEach((f, i) => { g.text(52 + i * 7, 12, f, {}); });
     g.text(81, 12, 'its four frames', DIM);
-    head(2, 15, 'a sigil is written once');
-    BITS.lighthouse.forEach((row, j) => [...row].forEach((bit, i) => g.text(2 + i, 17 + j, bit, bit === '#' ? INK : { f: 'line2' })));
-    g.text(2, 30, 'twelve lines of twelve', DIM);
-    SIGIL.lighthouse.forEach((ln, j) => g.text(18, 17 + j, ln, { f: 'Sky' }));
-    g.text(18, 21, 'the terminal,', DIM);
-    g.text(18, 22, 'by its name', DIM);
-    halves(BITS.lighthouse).forEach((ln, j) => g.text(34, 17 + j, ln, { f: 'press' }));
-    g.text(34, 24, 'the terminal,', DIM);
-    g.text(34, 25, 'in an empty pane', DIM);
-    g.text(18, 28, 'The web client draws the same', DIM);
-    g.text(18, 29, 'twelve rows as pixels.', DIM);
-    head(52, 15, 'a stepped corner is half a cell');
-    g.fill(52, 17, 38, 6, 'raise');
-    for (const [cx, cy, ch] of [[52, 17, '▄'], [89, 17, '▄'], [52, 22, '▀'], [89, 22, '▀']]) { const c = g.at(cx, cy); c.ch = ch; c.f = 'raise'; c.bg = 'pane'; }
-    g.text(55, 18, 'keys', BOLD);
-    g.text(57, 20, 'ctrl+g', BOLD);
-    g.text(70, 20, 'this list', INK2);
-    g.text(52, 24, 'the box the list of keys is in', DIM);
-    g.text(52, 26, 'a line', DIM); g.text(68, 26, '─'.repeat(22), { f: 'line2' });
-    g.text(52, 28, 'a dotted rule', DIM); g.text(68, 28, '┈'.repeat(22), { f: 'line2' });
-    g.text(52, 30, 'the tide', DIM);
-    for (let i = 0; i < 18; i++) { const u = (i + Math.floor(tick / 4)) % 9; if (u < 4) g.text(68 + i, 30, '─', { f: u < 2 ? 'tide2' : 'tide' }); else if (u === 5 || u === 6) g.text(68 + i, 30, '┈', { f: 'tide' }); }
-    g.text(87, 30, '▪', { f: lamp() }); g.text(89, 30, '▪', { f: 'line2' });
+    head(2, 16, 'a sigil is written once');
+    BITS.lighthouse.forEach((row, j) => [...row].forEach((bit, i) => g.text(2 + i, 18 + j, bit, bit === '#' ? INK : { f: 'line2' })));
+    g.text(2, 31, 'twelve lines of twelve', DIM);
+    SIGIL.lighthouse.forEach((ln, j) => g.text(18, 18 + j, ln, { f: 'Sky' }));
+    g.text(18, 22, 'the terminal,', DIM);
+    g.text(18, 23, 'by its name', DIM);
+    halves(BITS.lighthouse).forEach((ln, j) => g.text(34, 18 + j, ln, { f: 'press' }));
+    g.text(34, 25, 'the terminal,', DIM);
+    g.text(34, 26, 'in an empty pane', DIM);
+    g.text(18, 29, 'The web client draws the same', DIM);
+    g.text(18, 30, 'twelve rows as pixels.', DIM);
+    head(52, 16, 'a stepped corner is half a cell');
+    g.fill(52, 18, 38, 6, 'raise');
+    for (const [cx, cy, ch] of [[52, 18, '▄'], [89, 18, '▄'], [52, 23, '▀'], [89, 23, '▀']]) { const c = g.at(cx, cy); c.ch = ch; c.f = 'raise'; c.bg = 'pane'; }
+    g.text(55, 19, 'keys', BOLD);
+    g.text(57, 21, 'ctrl+g', BOLD);
+    g.text(70, 21, 'this list', INK2);
+    g.text(52, 25, 'the box the list of keys is in', DIM);
+    g.text(52, 27, 'a line', DIM); g.text(68, 27, '─'.repeat(22), { f: 'line2' });
+    g.text(52, 29, 'a dotted rule', DIM); g.text(68, 29, '┈'.repeat(22), { f: 'line2' });
+    g.text(52, 31, 'the tide', DIM);
+    for (let i = 0; i < 18; i++) { const u = (i + Math.floor(tick / 4)) % 9; if (u < 4) g.text(68 + i, 31, '─', { f: u < 2 ? 'tide2' : 'tide' }); else if (u === 5 || u === 6) g.text(68 + i, 31, '┈', { f: 'tide' }); }
+    g.text(87, 31, '▪', { f: lamp() }); g.text(89, 31, '▪', { f: 'line2' });
     screen.flush(g, LOOK[s.mode]);
   }
   const inst = { s, win, draw, visible: true, natural: () => o.cols * CELL_W + 2, scale(k) { screen.size(o.cols, o.rows, k); draw(); }, setMode(m) { s.mode = m; draw(); }, moving: () => true };
@@ -2008,7 +2372,7 @@ function sizeLive() {
 function setView(view) {
   root.dataset.view = view;
   if (view !== 'live') return;
-  if (!live) live = term(liveHost, { live: true, mode: root.dataset.mode, route: '', cols: 80, rows: 24 });
+  if (!live) live = term(liveHost, { live: true, mode: root.dataset.mode, route: '', cols: 80, rows: 24, pics: true });
   live.setMode(root.dataset.mode);
   sizeLive();
   live.canvas.focus();
