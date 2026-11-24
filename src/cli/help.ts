@@ -18,7 +18,7 @@ const COLUMN = 29;
 export function frontPage(): string {
   const row = (names: string, what: string): string => `${names.padEnd(COLUMN)}${what}`;
   return [
-    row("shrimpy", "open the terminal: your agents, rooms and threads"),
+    row("shrimpy", "set this machine up, or open the terminal"),
     row("shrimpy up", "start Shrimpy here and keep it running"),
     row("shrimpy status", "what is running and who is on the roster"),
     row("shrimpy login", "sign this folder in to a model provider"),

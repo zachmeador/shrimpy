@@ -5,7 +5,7 @@ import type { SessionStatus } from "../contracts/agent/index.ts";
 import type { Message, Thread } from "../contracts/chat/index.ts";
 import { memberNamed, startTestChat } from "../contracts/chat/testing/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
-import { eventually, FakeTerminal, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
+import { eventually, FakeTerminal, stopAfter, tempDir, until, within } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
 import { openTheConsole } from "./run.ts";
 import {
@@ -319,7 +319,8 @@ test("the list of agents shows where an agent works when that is none of the per
 });
 
 test("a console that cannot start says why, exits with 1, and leaves nothing running", { timeout }, async (t) => {
-  useRuntimeDir(t);
+  // A gateway answers, so there is nothing to set up first.
+  await startTestGateway(t);
   const terminal = new FakeTerminal(100, 40);
   terminal.start = () => {
     throw new Error("The terminal could not be set up.");
@@ -331,7 +332,7 @@ test("a console that cannot start says why, exits with 1, and leaves nothing run
 });
 
 test("a stop request, as SIGTERM is, leaves the console as the keys do", { timeout }, async (t) => {
-  useRuntimeDir(t);
+  await startTestGateway(t);
   const terminal = new FakeTerminal(100, 40);
   const { cli, exited, untilScreen } = openOn(t, terminal);
   await untilScreen((screen) => screen.kind === "agents", "the first screen");

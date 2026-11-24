@@ -53,20 +53,6 @@ test("every command is reached from the front page: it is on it, or its group is
   }
 });
 
-test("with no command at a terminal it opens the console instead, and its result is the exit code", async () => {
-  const cli = captureIo({ terminal: true });
-  let opened = 0;
-
-  const result = await runCli([], cli.io, {
-    openConsole: () => {
-      opened += 1;
-      return Promise.resolve(1);
-    },
-  });
-
-  assert.deepEqual([result, opened, cli.err, cli.out], [1, 1, [], []]);
-});
-
 test("a command that does not exist is refused with 2, and says where to find the ones that do", async () => {
   const cases: [string[], string][] = [
     [["nope"], "shrimpy --help"],

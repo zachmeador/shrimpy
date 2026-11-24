@@ -5,6 +5,8 @@
  * command loads it. It must not know how a command reads its own arguments.
  */
 import type { Command } from "./command.ts";
+import type { Account } from "../service/index.ts";
+import type { Io } from "../io/index.ts";
 import type { Pace } from "../up/index.ts";
 
 export type { Command } from "./command.ts";
@@ -49,4 +51,16 @@ export async function loadAll(): Promise<Command[]> {
 /** `shrimpy up` with the times of `pace`, for a test that can't wait for the ones it has. */
 export async function loadUpWithPace(pace: Pace): Promise<Command> {
   return (await import("./up.ts")).upCommand(pace);
+}
+
+/**
+ * Set the machine up where a bare `shrimpy` at a terminal finds nothing set up, before it opens the terminal: the
+ * exit code of setting up, or undefined where there was nothing to do. `account` is this process's unless a test
+ * stands in for its service manager.
+ */
+export async function setUpIfNeeded(io: Io, account?: Account): Promise<number | undefined> {
+  const { needsSetup, setUp } = await import("./setup.ts");
+  const { thisAccount } = await import("../service/index.ts");
+  const who = account ?? thisAccount();
+  return (await needsSetup(who)) ? setUp(io, who) : undefined;
 }

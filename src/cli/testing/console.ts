@@ -2,10 +2,11 @@ import type { TestContext } from "node:test";
 import type { ConsoleOptions, ConsoleScreen } from "../../clients/console/index.ts";
 import { type FakeTerminal, stopAfter, until } from "../../lib/testing/index.ts";
 import { type Io, runCli } from "../index.ts";
+import type { Account } from "../service/index.ts";
 import { type CapturedIo, captureIo } from "./io.ts";
 
 /** How a bare `shrimpy` at a terminal opens the console, with what a test stands in for. */
-export type ConsoleOpener = (io: Io, stand: Pick<ConsoleOptions, "terminal" | "onDraw">) => Promise<number>;
+export type ConsoleOpener = (io: Io, stand: Pick<ConsoleOptions, "terminal" | "onDraw" | "startOnLanding">) => Promise<number>;
 
 /** The console, opened from the command line on a terminal of the test's own. */
 export interface OpenedConsole {
@@ -19,13 +20,23 @@ export interface OpenedConsole {
 
 /**
  * Open the console the way a bare `shrimpy` at a terminal does, with `open`, on
- * `terminal`. A test that fails must not leave it open, so it is asked to stop
- * when the test ends.
+ * `terminal`, after setting up where nothing is set up yet, with `answers` to
+ * what setting up asks and `account` standing in for the service manager. A
+ * test that fails must not leave it open, so it is asked to stop when the test
+ * ends.
  */
-export function openConsoleOn(t: TestContext, terminal: FakeTerminal, open: ConsoleOpener): OpenedConsole {
-  const cli = captureIo({ terminal: true });
+export function openConsoleOn(
+  t: TestContext,
+  terminal: FakeTerminal,
+  open: ConsoleOpener,
+  setUp: { answers?: readonly string[]; account?: Account } = {},
+): OpenedConsole {
+  const cli = captureIo({ terminal: true, ...(setUp.answers === undefined ? {} : { answers: setUp.answers }) });
   let latest: ConsoleScreen | undefined;
-  const exited = runCli([], cli.io, { openConsole: (io) => open(io, { terminal, onDraw: (screen) => void (latest = screen) }) });
+  const exited = runCli([], cli.io, {
+    openConsole: (io, opening) => open(io, { terminal, onDraw: (screen) => void (latest = screen), ...opening }),
+    ...(setUp.account === undefined ? {} : { account: setUp.account }),
+  });
   stopAfter(t, async () => {
     cli.requestStop();
     await exited.catch(() => undefined);

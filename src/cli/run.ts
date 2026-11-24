@@ -1,32 +1,39 @@
 import type { ConsoleOptions } from "../clients/console/index.ts";
 import { asError } from "../lib/errors/index.ts";
-import { type Command, loadFamily } from "./commands/index.ts";
+import { type Command, loadFamily, setUpIfNeeded } from "./commands/index.ts";
 import { lookForHome } from "./folder/index.ts";
 import { commandHelp, frontPage, groupHelp, unknownCommand, usageLine } from "./help.ts";
 import { forPeople, type Io } from "./io/index.ts";
+import type { Account } from "./service/index.ts";
 import { UsageError } from "./usage/index.ts";
+
+/** How the console opens: on a new thread with the only agent there is, once it is on the roster, after setting up. */
+type Opening = Pick<ConsoleOptions, "startOnLanding">;
 
 export interface RunOptions {
   /**
    * How a bare `shrimpy` at a terminal opens the console, as an exit code. The
    * console itself by default; a test stands in for it.
    */
-  openConsole?: (io: Io) => Promise<number>;
+  openConsole?: (io: Io, opening: Opening) => Promise<number>;
+  /** The account a bare `shrimpy` sets a service up for. This process's by default; a test stands in for its service manager. */
+  account?: Account;
 }
 
 /**
  * Run `shrimpy` with the arguments after its name. The result is the exit
  * code: 0 for success, 2 when the command was used wrongly, and 1 for any
  * other failure. A command may use other codes for results it reports. With no
- * command, at a terminal, it opens the console; anywhere else it prints the
- * front page. Whatever is printed for a person is made harmless for a
- * terminal, since much of it was written by other members, agents and tools.
+ * command, at a terminal, it opens the console, after setting the machine up
+ * where nothing is set up yet; anywhere else it prints the front page.
+ * Whatever is printed for a person is made harmless for a terminal, since
+ * much of it was written by other members, agents and tools.
  */
 export async function runCli(argv: string[], given: Io, options: RunOptions = {}): Promise<number> {
   const io = forPeople(given);
   const [first] = argv;
   if (first === undefined) {
-    if (io.terminal) return runConsole(io, options.openConsole ?? openTheConsole);
+    if (io.terminal) return runConsole(io, options);
     io.err(frontPage());
     return 2;
   }
@@ -71,10 +78,15 @@ export async function runCli(argv: string[], given: Io, options: RunOptions = {}
   }
 }
 
-/** The console, as a command: a failure to open it is said on standard error and is exit code 1, like any other command's. */
-async function runConsole(io: Io, open: (io: Io) => Promise<number>): Promise<number> {
+/**
+ * The console, as a command, after setting the machine up where nothing is set up yet. A failure to open it is said on
+ * standard error and is exit code 1, like any other command's.
+ */
+async function runConsole(io: Io, options: RunOptions): Promise<number> {
   try {
-    return await open(io);
+    const setUp = await setUpIfNeeded(io, options.account);
+    if (setUp !== undefined && setUp !== 0) return setUp;
+    return await (options.openConsole ?? openTheConsole)(io, { startOnLanding: setUp === 0 });
   } catch (error) {
     io.err(asError(error).message);
     return 1;
@@ -88,7 +100,7 @@ async function runConsole(io: Io, open: (io: Io) => Promise<number>): Promise<nu
  * has joined a gateway as the person's own. `terminal` and `onDraw` are for a
  * test, which draws on a terminal of its own and waits for the screen it needs.
  */
-export async function openTheConsole(io: Io, stand: Pick<ConsoleOptions, "terminal" | "onDraw"> = {}): Promise<number> {
+export async function openTheConsole(io: Io, stand: Pick<ConsoleOptions, "terminal" | "onDraw" | "startOnLanding"> = {}): Promise<number> {
   const { openConsole } = await import("../clients/console/index.ts");
   const { me } = await import("./talk/index.ts");
   const who = me();

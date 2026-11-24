@@ -39,6 +39,8 @@ export interface ClientStateOptions {
   now?: () => number;
   /** Whether this machine has a home for an agent that is not running, so that a note can say whether to start it here. */
   homes?: HomeLookup;
+  /** Open a new thread with the only agent there is when the person is taken to it, so that what they write first starts it. */
+  startOnLanding?: boolean;
 }
 
 /** What a client knows and can do, without a terminal or a page. */
@@ -224,7 +226,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
     follow: () => followModel(),
   });
   const stopLink = link.onChange(() => store.changed());
-  const moves = createMoves(store, held);
+  const moves = createMoves(store, held, options.startOnLanding === true);
   const sending = createSending(store, held, moves, options.sendMs ?? SEND_MS);
   const asking = createAsking(store, held, options.now ?? Date.now);
   let closed = false;

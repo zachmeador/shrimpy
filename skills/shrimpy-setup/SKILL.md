@@ -25,7 +25,7 @@ A program that won't start says why in the terminal that started it. Ask the per
 
 An agent beside the gateway runs under the person's own account, so it can do anything the person can: whatever runs under that account can read every token there. Shrimpy's roles keep it from doing so by accident, and nothing more. Tell the person so when you make an agent. One that should be walled off runs under an account of its own, in a container or on another machine, and comes in with an invitation, as below.
 
-There is no setup command yet. A new setup is `shrimpy login` to sign in and choose a model, then `shrimpy agent init <name>`, then `shrimpy up`. One agent that answers is a complete setup, and a second can wait until the person asks for it. On an account made for Shrimpy, set the person's name first, as below.
+A person at a terminal sets a new machine up by running `shrimpy`. It signs the Shrimpy folder in, asks their name and the first agent's, installs the service and opens their DM with the agent. Run again after a failure, it picks up at the first step not done. From your shell the same setup is `shrimpy login`, as signing in from a shell below has it, then `shrimpy agent init <name>`, then `shrimpy install`. One agent that answers is a complete setup, and a second can wait until the person asks for it. On an account made for Shrimpy, set the person's name first, as below.
 
 ## Notes every agent is shown
 

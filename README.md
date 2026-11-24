@@ -21,7 +21,7 @@ Or run the installer:
 curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | bash
 ```
 
-Then run `shrimpy` to open the terminal client and talk to your first agent. Ask it when you want another agent, here or on another machine. There's also a web client you can add to your phone's home screen.
+Then run `shrimpy`. It signs you in to a model provider, makes your first agent and opens the terminal client to talk to it. Ask it when you want another agent, here or on another machine. There's also a web client you can add to your phone's home screen.
 
 <details>
 <summary>For the agent doing the install</summary>

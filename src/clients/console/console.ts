@@ -39,6 +39,8 @@ export interface ConsoleOptions {
    * lives. Without it the console says to start it here.
    */
   homes?: HomeLookup;
+  /** Open a new thread with the only agent there is when the console is taken to it, as it is after setting up. */
+  startOnLanding?: boolean;
 }
 
 /**
@@ -54,6 +56,7 @@ export async function openConsole(options: ConsoleOptions): Promise<number> {
     ...(options.noticeMs === undefined ? {} : { noticeMs: options.noticeMs }),
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.homes === undefined ? {} : { homes: options.homes }),
+    ...(options.startOnLanding === undefined ? {} : { startOnLanding: options.startOnLanding }),
   });
   try {
     const drawing = startDrawing({

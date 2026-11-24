@@ -185,7 +185,7 @@ This plan deliberately leaves these out, so they don't creep back in:
 - A decision for every command and affordance of today's Shrimpy that hasn't come back, from what [using it](design/using-it.md) has of them.
 - Versions: `1.0.0` and `-dev`, and the release's contracts written down. [Not built yet](design/2-contracts.md)
 - A fixture of each store at the release, and a test that opens every fixture of this major and the last. Stored data migrates forward at start since 2026-11-23. [Not built yet](design/1-programs.md)
-- Setting up through `shrimpy`, and moving over from old Shrimpy, from the list from living with it in [using it](design/using-it.md).
+- What is left of setting up through `shrimpy`, and moving over from old Shrimpy, from the list from living with it in [using it](design/using-it.md).
 - Choosing the model an agent starts with from the terminal, which you called a priority before the release on 2026-10-06 ([using it](design/using-it.md)).
 - `SECURITY.md` and `THIRD_PARTY_NOTICES.md` go with `shrimpy-old/` and are written anew, from [the keep list](keep-list.md). `CONTRIBUTING.md` was written from it on 2026-11-23.
 - `AGENTS.md`, `CONTRIBUTING.md`, `docs/README.md` and `lint/boundaries.js` point into this folder, and are repointed when it goes.

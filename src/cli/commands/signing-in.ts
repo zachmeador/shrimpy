@@ -6,6 +6,7 @@ import { asError } from "../../lib/errors/index.ts";
 import { upTo } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
 import { UsageError } from "../usage/index.ts";
+import { firstStop } from "./first-stop.ts";
 
 /** How wide a list of IDs is made. */
 const WIDTH = 78;
@@ -14,24 +15,22 @@ const WIDTH = 78;
  * Sign the folder in to a provider, as a person at a terminal answers it: the
  * provider named, or chosen from a list, the way to sign in when there is more
  * than one, whatever the provider's own flow asks, and then the model agents
- * start with when theirs names none. `providers` is the folder's `providers/`.
- * The result is the exit code. Stopping it before the sign-in is saved changes
- * nothing.
+ * start with when theirs names none, which setting up won't leave for later.
+ * `providers` is the folder's `providers/`. The result is the exit code.
+ * Stopping it before the sign-in is saved changes nothing.
  */
-export async function signInAtTerminal(io: Io, providers: string, wanted: string | undefined): Promise<number> {
+export async function signInAtTerminal(
+  io: Io,
+  providers: string,
+  wanted: string | undefined,
+  options: { modelNow?: boolean } = {},
+): Promise<number> {
   // Loaded here, so that no other command loads the agent program.
   const { openSignIns } = await import("../../agent/index.ts");
   const signIns = await openSignIns(providers);
   const all = await signIns.providers();
   const named = wanted === undefined ? undefined : findProvider(all, wanted);
-  const stopped = new AbortController();
-  const { signal } = stopped;
-  let stopListening = (): void => undefined;
-  // A second request ends the command at once, as it does for any command: it is no longer listened for.
-  stopListening = io.onStop(() => {
-    stopped.abort();
-    stopListening();
-  });
+  const { signal, release } = firstStop(io);
   const folder = dirname(providers);
   let signedIn = false;
   try {
@@ -49,7 +48,7 @@ export async function signInAtTerminal(io: Io, providers: string, wanted: string
       `Signed in to ${provider.name}. Every agent started in ${folder} can use it, ` +
         "and agents that are already running need no restart.",
     );
-    await chooseDefaultModel(io, signIns, provider, providerPaths(providers).defaultModel, signal);
+    await chooseDefaultModel(io, signIns, provider, providerPaths(providers).defaultModel, options.modelNow === true, signal);
     return 0;
   } catch (error) {
     if (signal.aborted) {
@@ -60,7 +59,7 @@ export async function signInAtTerminal(io: Io, providers: string, wanted: string
     }
     return 1;
   } finally {
-    stopListening();
+    release();
   }
 }
 
@@ -188,12 +187,16 @@ function noticeLines(notice: Notice): string[] {
   }
 }
 
-/** The model agents start with when theirs names none, unless the folder has one already: asked for from the provider's own. */
+/**
+ * The model agents start with when theirs names none, unless the folder has one already: asked for from the
+ * provider's own, and asked again until one is chosen when it can't be left for later.
+ */
 async function chooseDefaultModel(
   io: Io,
   signIns: SignIns,
   provider: ProviderToSignIn,
   file: string,
+  now: boolean,
   signal: AbortSignal,
 ): Promise<void> {
   if (readDefaultModel(file) !== undefined) return;
@@ -207,7 +210,8 @@ async function chooseDefaultModel(
   io.out(`Agents that name no model start with a default one. ${provider.name} has:`);
   for (const line of wrapped(upTo(ids))) io.out(`  ${line}`);
   for (;;) {
-    const answer = (await io.ask("Which model? Type its ID, or press Enter to choose later: ", { signal })).trim();
+    const answer = (await io.ask(now ? "Which model? Type its ID: " : "Which model? Type its ID, or press Enter to choose later: ", { signal })).trim();
+    if (answer === "" && now) continue;
     if (answer === "") {
       io.out(`No default model is set, so an agent that names none won't start. ${later}`);
       return;

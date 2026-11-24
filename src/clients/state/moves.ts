@@ -20,11 +20,14 @@ export interface Moves {
   /** In a thread, put the view of the agent with member ID `agent` on show, if it is one of its sides. */
   showView(agent: string): void;
   openSession(address: string): void;
-  /** With one agent and no room to choose from, open the agent's list, once chat has said which channels the person has. */
+  /**
+   * With one agent and no room to choose from, open the agent's list, once chat has said which channels the person
+   * has, and a new thread in it too when the moves were made to start one there.
+   */
   land(entries: AgentEntry[]): void;
 }
 
-export function createMoves(store: Store, held: Holdings): Moves {
+export function createMoves(store: Store, held: Holdings, startOnLanding = false): Moves {
   let landed = false;
 
   /** Open `item` in the list that is open. */
@@ -93,7 +96,9 @@ export function createMoves(store: Store, held: Holdings): Moves {
       const model = store.model();
       const [only] = entries;
       const channelsToChoose = Object.keys(model.rooms).length + readOnlyEntries(model).length;
-      if (only !== undefined && entries.length === 1 && channelsToChoose === 0 && model.open.list === undefined) moves.selectAgent(only.id);
+      if (only === undefined || entries.length !== 1 || channelsToChoose !== 0 || model.open.list !== undefined) return;
+      moves.selectAgent(only.id);
+      if (startOnLanding) moves.start(undefined);
     },
   };
   return moves;
