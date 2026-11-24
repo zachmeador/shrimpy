@@ -77,6 +77,17 @@ Every sentence a model or a person reads lives in a few files, so wording change
 
 A few sentences that a program and the commands both say sit beside their code in `contracts/`, such as what to do when the gateway doesn't know a home's token, in `contracts/agent/membership.ts`. `shrimpy agent context` prints what an agent would be told, and a test holds every `shrimpy` command line in it and in the skills to the commands the CLI has.
 
+## The terminal's keys
+
+Four rules decide a key, so the terminal stays learnable as it grows:
+
+1. One key means one thing on every screen.
+2. Right and Enter go in, and Left and Esc go out. The screens are levels: agents and rooms, then what one of them takes part in, then one thread or one session. In a thread, Left moves through what is typed and goes back from its start. Esc goes back from anywhere, whatever is typed, and going back never does anything else, such as stopping work. `/stop` stops it.
+3. Pi's key where Pi has one, since the editor is Pi's.
+4. Every key is findable. A key that acts on one thing is named beside it, the last line names the keys that move you, and Ctrl+G lists them all.
+
+`/` written in a thread is always a command, so a key never stands in for one. The [terminal's mockup](terminal-mockup.html) draws every key in use.
+
 ## Checking a change
 
 `npm run check` runs types, lint and every test. [AGENTS.md](../AGENTS.md) says what a test is for.
