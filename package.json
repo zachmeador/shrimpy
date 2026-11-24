@@ -1,6 +1,6 @@
 {
   "name": "shrimpy",
-  "version": "0.0.0",
+  "version": "1.0.0-rc.1",
   "private": true,
   "type": "module",
   "description": "A home for agents, built on Pi's durable runtime.",
