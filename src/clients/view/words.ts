@@ -74,6 +74,13 @@ const RENAMES = `Name this thread: /${RENAME} <name>`;
 const ARCHIVES = "Hide this thread from the lists.";
 const UNARCHIVES = "Bring this thread back to the lists.";
 
+/** What `/update` does, the same in a DM and a room. */
+const UPDATE = "Install the gateway's version of Shrimpy on this machine, and open the terminal again.";
+
+/** That this machine runs an older Shrimpy than the gateway's `gateway`, and how to update it. */
+export const behindNote = (gateway: string): string =>
+  `This machine runs Shrimpy ${SHRIMPY_VERSION}, older than the gateway's ${oneLine(gateway)}. Write /update in a thread to install ${oneLine(gateway)} here.`;
+
 /** What `/model` is written with to have the thread follow the agent's model again. */
 export const MODEL_DEFAULT = "default";
 
@@ -239,6 +246,10 @@ export function noticeText(notice: Notice, agentName: string, self: string): str
       return "This thread is not archived.";
     case "not-changed":
       return `Could not ${CHANGES[notice.change]}: ${because({ kind: "chat" }, notice.problem, self)}.`;
+    case "nothing-to-update":
+      return notice.gateway === undefined
+        ? `What the gateway runs is known once ${self} links to it. Nothing was updated.`
+        : `This machine runs Shrimpy ${SHRIMPY_VERSION}, and the gateway ${oneLine(notice.gateway)}, so there is nothing to update.`;
   }
 }
 
@@ -501,6 +512,7 @@ export const CLIENT_COMMAND_LINES = {
     room: "Show which agents here are running and working.",
   },
   unarchive: { dm: UNARCHIVES, room: UNARCHIVES },
+  update: { dm: UPDATE, room: UPDATE },
 } as const satisfies Record<ClientCommand, { dm: string; room: string }>;
 
 /** The line beside `default` in the list that `/model ` opens: whose model it stands for, and which one that is. */

@@ -11,6 +11,7 @@ import {
   agentOfList,
   type Farewell,
   farewellOf,
+  gatewayAhead,
   type AgentRead,
   type HomeLookup,
   type Model,
@@ -43,6 +44,13 @@ export interface ClientStateOptions {
   homes?: HomeLookup;
   /** Open a new thread with the only agent there is when the person is taken to it, so that what they write first starts it. */
   startOnLanding?: boolean;
+  /**
+   * Put the gateway's version, `version`, on this machine, as the terminal
+   * does when the person writes `/update` and the machine is behind. A client
+   * without it doesn't offer `/update`, as a page doesn't, since it comes from
+   * the gateway.
+   */
+  update?: (version: string) => void;
 }
 
 /** What a client knows and can do, without a terminal or a page. */
@@ -357,7 +365,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
       }
     },
     async write(text) {
-      const written = writtenInOpen(store.model(), text);
+      const written = writtenInOpen(store.model(), text, options.update !== undefined);
       switch (written.do) {
         case "status":
           void asking.readStatus();
@@ -380,6 +388,12 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
         case "archive":
           void renaming.archive(written.archived);
           return true;
+        case "update": {
+          const ahead = gatewayAhead(store.model());
+          if (ahead === undefined) store.say({ kind: "nothing-to-update", gateway: store.model().listing?.versions?.shrimpy });
+          else options.update?.(ahead);
+          return true;
+        }
         case "refuse":
           store.say(written.notice);
           return false;

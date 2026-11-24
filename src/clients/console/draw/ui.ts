@@ -61,6 +61,8 @@ export interface DrawingOptions {
   onDraw?: (screen: Screen) => void;
   /** The name of this machine, which the foot of the agents and rooms says beside the person's. */
   machine?: string;
+  /** Whether the console offers `/update`, which puts the gateway's version on this machine. */
+  updates?: boolean;
 }
 
 export interface Drawing {
@@ -95,6 +97,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
 
   const { state } = options;
   const now = options.now ?? Date.now;
+  const updates = options.updates ?? false;
   const terminal = options.terminal ?? new ProcessTerminal();
   const trueColor = getTerminalColorMode() === "truecolor";
   const inFull = { toolCalls: false, thinking: false };
@@ -107,7 +110,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
     folded: false,
     front: "agents",
     model: state.model(),
-    levels: levelsOf(state.model(), { now: now(), inFull, filter: "everything" }),
+    levels: levelsOf(state.model(), { now: now(), inFull, filter: "everything", updates }),
     filter: "everything",
     archived: false,
     inFull,
@@ -371,7 +374,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
     else if (item === undefined && frame.front === "item") frame.front = "list";
 
     frame.running = runningIn(model);
-    frame.levels = levelsOf(model, { now: now(), inFull, filter: frame.filter });
+    frame.levels = levelsOf(model, { now: now(), inFull, filter: frame.filter, updates });
     const { agents, list: listLevel, thread: threadLevel } = frame.levels;
     frame.chosen.agents = kept(agents.rows, frame.chosen.agents);
     const rows = listLevel === undefined ? [] : listRows(listLevel, frame.archived);

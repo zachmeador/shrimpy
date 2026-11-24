@@ -27,7 +27,7 @@ As of 2026-11-23. An item leaves when it is fixed or when the design changes to 
 - What happens when versions meet has run only against stand-ins: a hello that says another version, and an agent's program that serves another build's `Agent`. Every build says `0.0.0`, so no two real programs differ. A hold that waits on an older program has not been seen to bind once that program updates. The page reloading itself and offering a reload haven't run in a browser.
 - The hello and its answer are checked as closed shapes, so a field added to either within a major would make an older program take the frame for one it doesn't know.
 - A program newer than the gateway warns only in its own log, and the roster's versions let the clients and `shrimpy status` say so. A page newer than the gateway, as after the gateway went back a release, is told to update the gateway's machine, where reloading the page would do.
-- An agent following its gateway has run only against a stand-in gateway and a stand-in `shrimpy`, since there is no release to update to yet.
+- An agent following its gateway has run only against a stand-in gateway and a stand-in `shrimpy`, and the terminal's `/update` hasn't run for real, since there is no release to update to yet.
 - The roster lists a program turned away for its release until the gateway restarts, and lists no other refusal. An agent turned away is named only when the roster knows its token.
 - A session that waits on another version is said only on its agent's list and the levels that follow it, so a session behind a thread in a room says nothing when no agent's list is open.
 

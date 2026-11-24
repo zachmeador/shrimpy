@@ -79,12 +79,14 @@ export interface Levels {
 export interface LevelsOptions {
   /** The moment it is, in milliseconds since the epoch. */
   now: number;
+  /** Whether the console offers `/update`, which puts the gateway's version on this machine. */
+  updates: boolean;
   inFull: InFull;
   filter: ListFilter;
 }
 
 export function levelsOf(model: Model, options: LevelsOptions): Levels {
-  const at = { now: options.now, self: SELF };
+  const at = { now: options.now, self: SELF, updates: options.updates };
   return {
     agents: agentsLevel(model, at),
     list: listLevel(model, { ...at, filter: options.filter }),

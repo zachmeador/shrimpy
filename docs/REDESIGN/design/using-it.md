@@ -57,6 +57,10 @@ By itself, `shrimpy update` reads the latest release's `package.json` and change
 
 With a version, it runs that tag's install script, removes every version but that one and the one it replaced, unless a service names it, and restarts the service by running the new version's `shrimpy install`. The restart runs in a process of its own, since it stops the agent that asked, and keeps the service's PATH, since an agent's shell puts its own folder at the front of it. Going back is `shrimpy update` with the earlier version.
 
+**Updating everywhere,** built on 2026-11-24 as the row on `shrimpy update` has it.
+
+- **The terminal's `/update`,** drawn in [its mockup](../../terminal-mockup.html) first. When the gateway runs a newer Shrimpy than this machine, the first screen says so and names `/update`. Written in a thread, `/update` leaves the screen, runs `shrimpy update` with the gateway's version on this terminal, and opens the terminal again on that version. An update that fails leaves what it said on the screen, and the terminal stays closed. On a machine that isn't behind it says so and does nothing. The page comes from the gateway, so it offers neither.
+
 Uninstalling is `shrimpy uninstall`, whose last line gives the rest: `rm -rf ~/.local/share/shrimpy/versions ~/.local/share/shrimpy/node ~/.local/bin/shrimpy`. The Shrimpy folder stays, and so do the macOS log, lingering and the PATH line.
 
 **Setting up is `shrimpy` too,** agreed on 2026-11-14. On a machine with nothing set up, `shrimpy` walks you through it in the terminal: signing in to a model provider, the one step that needs you at a browser; naming your first agent, `shrimpy` unless you choose otherwise; and keeping Shrimpy running as a service. Then it opens your DM with that agent. A coding agent that installed Shrimpy takes those steps itself, decided with installing: it runs `shrimpy login` in the background, passes you its link, and feeds it the address a browser elsewhere ends on, which you paste into the chat. Then it makes the first agent, installs the service and gives you the link `shrimpy invite` prints, so you need no terminal. An API key you type into `shrimpy login` yourself, since pasted into a chat it would reach the coding agent's own provider. After that `shrimpy` opens the terminal, whose first screen says when a program is down and being started again, so you never need `status` or `up`. A new agent, a room or a trigger is something you ask your admin agent for. What only you may do, such as signing in again, letting another machine of yours in or taking back a device, is a `/` command in the terminal. Another machine starts with `/devices invite`, since no agent may invite a device, and an agent can do the rest there, as you agreed on 2026-11-15. `shrimpy login`, `shrimpy agent init` and `shrimpy up` stay, for scripts and agents.
@@ -219,13 +223,15 @@ Inherited terminal commands each need a disposition:
 
 **Open**
 
+- **`/update` while the gateway turns the terminal away.** A release that changes the Pi packages or the major turns away every program on the old one, the terminal of a machine of yours too. Then no thread opens, so there is nowhere to write `/update`, and the first screen has only the gateway's words, which say to update Shrimpy here to its version. That is the case `/update` matters most for. Raised on 2026-11-24, with no answer yet: the first screen could take `/update` itself while the gateway turns the terminal away.
+
 What daily use asks for is under Not built yet below.
 
 **Not built yet**
 
 *`/devices invite`,* decided on 2026-11-15: letting another machine of yours in from the terminal, beside `/devices` and `/devices take back`, with the line to run there that `shrimpy invite` prints, which stays for scripts.
 
-*Installing and updating,* as installing and the row on `shrimpy update` have them, in the order of [the plan](../PLAN.md#order-of-work): the update skill, and the terminal's `/update`, drawn in its mockup first. `shrimpy update` and the last line of `shrimpy uninstall` were built on 2026-11-24. Untried: that a turn cut off by a clean restart of the service picks up again, as one did after a kill on macOS. Until the release your own machines run checkouts, which `shrimpy update` says to update with git, and at the release they move to the installed layout by hand.
+*Installing and updating,* as installing and the row on `shrimpy update` have them, in the order of [the plan](../PLAN.md#order-of-work): the update skill. `shrimpy update` and the last line of `shrimpy uninstall` were built on 2026-11-24. Untried: that a turn cut off by a clean restart of the service picks up again, as one did after a kill on macOS. Until the release your own machines run checkouts, which `shrimpy update` says to update with git, and at the release they move to the installed layout by hand.
 
 *Color in what the commands print,* as the seventh sheet of [the terminal's mockup](../../terminal-mockup.html) has it: on a terminal that shows color, a name or a command to run is bold, a state has a color, and what failed is red. The commands print plain lines and tables today, which agents read, and those stay as they are.
 

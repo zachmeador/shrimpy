@@ -34,6 +34,7 @@ export {
   type ChannelThreads,
   type DevicesStatus,
   type Farewell,
+  gatewayAhead,
   type HomeLookup,
   type Item,
   type Model,

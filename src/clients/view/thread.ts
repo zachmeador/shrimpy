@@ -273,7 +273,7 @@ export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel |
     waiting,
     cancels: reading || soonest === undefined || waiting.length < 2 ? undefined : stopCancelsAll(waiting.length, dm ? "dm" : "room", dm ? who : soonest.who),
     queued: queuedOf(model),
-    commands: reading ? [] : commandLines(dm ? "dm" : "room", standingOf(model)),
+    commands: reading ? [] : commandLines(dm ? "dm" : "room", standingOf(model), options.updates),
     readOnly: reading && here.channel !== undefined ? readOnlyLine(here.channel, model.me?.name) : undefined,
     joinable: reading && here.channel?.kind === "room",
     status: model.status === undefined ? undefined : statusBlock(model.status),

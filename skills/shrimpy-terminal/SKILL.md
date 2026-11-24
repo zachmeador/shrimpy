@@ -30,6 +30,7 @@ Typing `/` in a thread lists the commands, each with a line on what it does. Arr
 - `/stop` stops your work in that thread. In a room it stops every agent, or the ones named first, as in `@scout /stop`.
 - `/status` shows them, and nobody else, what the agent is doing, its model, what the thread's session has used, why its last turn ended without an answer if it did, and when it will check back if it is waiting to. Nothing is posted.
 - `/devices` lists their devices: the other machines of theirs that joined. `/devices take back <device>` takes one back, by its name or its ID, and its link ends at once. Only they can do this, so hand them the command.
+- `/update` installs the gateway's version of Shrimpy on the machine the terminal runs on, then opens the terminal again. The first screen says when that machine is behind the gateway.
 - `/model` and a space lists the models the agent can use. Choosing one has that thread run on it from the next message, and the agent says so in the thread. It can be the first thing in a new thread. `/model default` goes back. In a room they name the agent first, as in `@scout /model provider/id`.
 
 Under a thread, the terminal says when the soonest of your wake-ups there comes, and `/status` lists every one and says that `/stop` cancels them.

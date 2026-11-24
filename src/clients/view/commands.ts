@@ -18,10 +18,11 @@ const LINES: Record<string, { dm: string; room?: string }> = { ...AGENT_COMMANDS
  * room, that stands as `standing`, in order of name, each with what it does
  * there: the commands for agents, which are posted for the agents they are for
  * to act on, and the commands for the client, which the client acts on itself
- * and posts nowhere.
+ * and posts nowhere. `updates` says whether the client updates its own
+ * machine, and so offers `/update`.
  */
-export function commandLines(where: "dm" | "room", standing: Standing): CommandLine[] {
-  return commandNames(where, standing).map((name) => ({ name, line: LINES[name.slice(1)]?.[where] ?? "" }));
+export function commandLines(where: "dm" | "room", standing: Standing, updates = false): CommandLine[] {
+  return commandNames(where, standing, updates).map((name) => ({ name, line: LINES[name.slice(1)]?.[where] ?? "" }));
 }
 
 /** The command after which a model is written, with its slash. */

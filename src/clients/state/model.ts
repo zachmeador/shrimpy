@@ -11,7 +11,8 @@ import type {
   WaitingWakeup,
 } from "../../contracts/agent/index.ts";
 import type { AgentCommand, Channel, Member, Message, Thread } from "../../contracts/chat/index.ts";
-import type { Program, RosterEntry, TurnedAwayProgram, Versions, WayIn } from "../../contracts/gateway/index.ts";
+import { compareShrimpy, type Program, type RosterEntry, type TurnedAwayProgram, type Versions, type WayIn } from "../../contracts/gateway/index.ts";
+import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import type { LinkStatus, Problem } from "../network/index.ts";
 
 /**
@@ -129,6 +130,12 @@ export function nextSide(model: Pick<Model, "open" | "behind" | "listing" | "dms
   const sides = sidesOf(model);
   const at = item.side === undefined ? -1 : sides.indexOf(item.side);
   return item.side !== undefined && at === -1 ? undefined : sides[at + 1];
+}
+
+/** The gateway's version when it runs a newer Shrimpy than this client, which `/update` puts on the client's machine. */
+export function gatewayAhead(model: Pick<Model, "listing">): string | undefined {
+  const gateway = model.listing?.versions?.shrimpy;
+  return gateway !== undefined && (compareShrimpy(gateway, SHRIMPY_VERSION) ?? 0) > 0 ? gateway : undefined;
 }
 
 /** The current name of the agent with member ID `id`, from the roster or its DM, falling back to `id`. */
@@ -257,7 +264,9 @@ export type Notice =
   | { kind: "archived-already" }
   | { kind: "not-archived" }
   /** Chat did not rename the thread, archive it or bring it back, as `change` says. */
-  | { kind: "not-changed"; change: "rename" | "archive" | "unarchive"; problem: Problem };
+  | { kind: "not-changed"; change: "rename" | "archive" | "unarchive"; problem: Problem }
+  /** `/update` when this machine isn't behind the gateway, which runs `gateway`, or before the client knows what the gateway runs. */
+  | { kind: "nothing-to-update"; gateway: string | undefined };
 
 /** An agent in its DM with the person, as `/status` found it. */
 export interface AgentStatus {

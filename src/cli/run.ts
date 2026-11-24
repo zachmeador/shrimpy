@@ -1,9 +1,13 @@
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import type { ConsoleOptions } from "../clients/console/index.ts";
 import { asError } from "../lib/errors/index.ts";
 import { type Command, loadFamily, setUpIfNeeded } from "./commands/index.ts";
 import { lookForHome } from "./folder/index.ts";
 import { commandHelp, frontPage, groupHelp, unknownCommand, usageLine } from "./help.ts";
+import { commandOf, thisInstall } from "./installed/index.ts";
 import { forPeople, type Io } from "./io/index.ts";
+import { shrimpyCommand } from "./programs/index.ts";
 import type { Account } from "./service/index.ts";
 import { UsageError } from "./usage/index.ts";
 
@@ -104,7 +108,28 @@ export async function openTheConsole(io: Io, stand: Pick<ConsoleOptions, "termin
   const { openConsole } = await import("../clients/console/index.ts");
   const { me } = await import("./talk/index.ts");
   const who = me();
-  return openConsole({ io, homes: lookForHome, place: who.place, token: who.token, ...stand });
+  return openConsole({ io, homes: lookForHome, place: who.place, token: who.token, update: updateAndReopen, ...stand });
+}
+
+/**
+ * What updating this machine does once the console has left the screen:
+ * `shrimpy update` with the gateway's version, on this terminal, then the
+ * console again on that version, with its own Node. An update that fails
+ * leaves what it said on the screen, as one from a checkout does.
+ */
+async function updateAndReopen(version: string): Promise<number> {
+  const [node = process.execPath, ...entry] = shrimpyCommand();
+  const updated = await onThisTerminal(node, [...entry, "update", version]);
+  const installed = thisInstall();
+  if (updated !== 0 || installed === undefined) return updated;
+  const [program = node, ...args] = commandOf(installed, version);
+  return onThisTerminal(program, args);
+}
+
+/** Run `program` with `args` on this terminal, and give its exit code once it ends. */
+async function onThisTerminal(program: string, args: string[]): Promise<number> {
+  const [code] = (await once(spawn(program, args, { stdio: "inherit" }), "close")) as [number | null];
+  return code ?? 1;
 }
 
 /** The words that select a command: one for `up`, two for `agent serve`. */

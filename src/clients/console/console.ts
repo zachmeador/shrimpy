@@ -41,15 +41,25 @@ export interface ConsoleOptions {
   homes?: HomeLookup;
   /** Open a new thread with the only agent there is when the console is taken to it, as it is after setting up. */
   startOnLanding?: boolean;
+  /**
+   * Put the gateway's version, `version`, on this machine and open the
+   * terminal again, once the console has left the screen, for `/update`. The
+   * result is the exit code. Without it the console doesn't offer `/update`.
+   */
+  update?: (version: string) => Promise<number>;
 }
 
 /**
  * Open the console on the person's terminal, and keep it open until they leave.
  * It links to the gateway and holds what it shows through that link. Leaving
  * lets go of everything held and stops no work; if an agent is still working,
- * one line says so and how to stop it. The result is the exit code.
+ * one line says so and how to stop it. `/update` leaves the same way before
+ * it updates. The result is the exit code.
  */
 export async function openConsole(options: ConsoleOptions): Promise<number> {
+  const { update } = options;
+  let updateTo: string | undefined;
+  let leave = (): void => undefined;
   const state = await createClientState({
     dial: dialAt(options.place ?? { path: gatewaySocket() }),
     token: options.token ?? null,
@@ -57,6 +67,14 @@ export async function openConsole(options: ConsoleOptions): Promise<number> {
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.homes === undefined ? {} : { homes: options.homes }),
     ...(options.startOnLanding === undefined ? {} : { startOnLanding: options.startOnLanding }),
+    ...(update === undefined
+      ? {}
+      : {
+          update(version: string) {
+            updateTo = version;
+            leave();
+          },
+        }),
   });
   try {
     const drawing = startDrawing({
@@ -66,7 +84,9 @@ export async function openConsole(options: ConsoleOptions): Promise<number> {
       quitWindowMs: options.quitWindowMs,
       onDraw: options.onDraw,
       machine: hostname(),
+      updates: update !== undefined,
     });
+    leave = () => drawing.leave();
     const stopListening = options.io.onStop(() => drawing.leave());
     try {
       await drawing.left;
@@ -76,8 +96,8 @@ export async function openConsole(options: ConsoleOptions): Promise<number> {
     }
     const working = state.farewell();
     if (working !== undefined) options.io.out(farewellLine(working.agent, working.thread));
-    return 0;
   } finally {
     await state.close();
   }
+  return update === undefined || updateTo === undefined ? 0 : update(updateTo);
 }

@@ -10,6 +10,8 @@ export interface LevelOptions {
   now: number;
   /** What the client calls itself in a sentence, such as "this console". */
   self: string;
+  /** Whether the client updates its own machine with `/update`, as the terminal does. A page comes from the gateway, so it doesn't. */
+  updates?: boolean;
 }
 
 /** What is shown in full where work is shown: nothing, unless a client asks. */

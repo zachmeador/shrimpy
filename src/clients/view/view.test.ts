@@ -288,3 +288,14 @@ test("no one is said to work while the gateway is out of reach, whatever chat la
   const opened = listLevel({ ...lost, open: { list: { kind: "agent", id: scout.id }, item: undefined } }, at);
   assert.deepEqual([opened?.working, opened?.rows.map((row) => row.working)], [false, [false]]);
 });
+
+test("the terminal's first screen says when this machine is behind the gateway, and a page's never does", () => {
+  const [major = 0, minor = 0] = SHRIMPY_VERSION.split(/[.-]/).map(Number);
+  const newer = `${String(major)}.${String(minor + 1)}.0`;
+  const behind = aModel({ listing: aListing([aChatServer()], newer) });
+  const level = (model: Model, updates: boolean): string[] => agentsLevel(model, { ...at, updates }).notes.filter((note) => note.includes(newer));
+
+  assert.equal(level(behind, true).length, 1, "the terminal says so");
+  assert.deepEqual(level(behind, false), [], "a page comes from the gateway");
+  assert.deepEqual(agentsLevel(aModel({ listing: aListing([aChatServer()]) }), { ...at, updates: true }).notes, [], "nothing is said on the gateway's version");
+});

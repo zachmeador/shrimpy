@@ -1,11 +1,11 @@
 import { channelLabel, roomLabel } from "../../contracts/chat/index.ts";
 import { NO_AGENT_YET } from "../../contracts/gateway/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
-import { type AgentEntry, agentEntries, type Model, readOnlyEntries, roomEntries } from "../state/index.ts";
+import { type AgentEntry, agentEntries, gatewayAhead, type Model, readOnlyEntries, roomEntries } from "../state/index.ts";
 import type { LevelOptions, Row } from "./level.ts";
 import { lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
-import { agentDetail, agentsTitle, membersLine, NOT_RUNNING, readOnlyDetail } from "./words.ts";
+import { agentDetail, agentsTitle, behindNote, membersLine, NOT_RUNNING, readOnlyDetail } from "./words.ts";
 
 /** The first level: the agents on the roster, running or not, the rooms the person is in, and the rooms they only read. */
 export interface AgentsLevel {
@@ -76,6 +76,15 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
     rows,
     empty: rows.length === 0 && model.gateway.state === "up" && model.listing !== undefined ? NO_AGENT_YET : undefined,
     unread: [...agents, ...rooms].reduce((sum, row) => sum + row.unread, 0),
-    notes: notesOf(model, { agent: undefined, watching: false, looking: undefined, refused: undefined, notice: false }, options.self),
+    notes: [
+      ...notesOf(model, { agent: undefined, watching: false, looking: undefined, refused: undefined, notice: false }, options.self),
+      ...(options.updates === true ? behind(model) : []),
+    ],
   };
+}
+
+/** That this machine is behind the gateway, once the client knows what the gateway runs. */
+function behind(model: Model): string[] {
+  const gateway = gatewayAhead(model);
+  return gateway === undefined ? [] : [behindNote(gateway)];
 }
