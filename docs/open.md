@@ -25,6 +25,7 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 - Measuring against old Shrimpy at `574bb2c`: the code and dependencies deleted, and resource use at startup, idle and under load. Old Shrimpy there has 45,536 lines in `src/` and `extensions/`, 3,099 in `web/` and 27,026 in `test/`.
 - The gate: if client and framework complexity outweigh what the runtime saves, revise before going live, and the docs describe only what the release implements.
 - Rewriting old Shrimpy's eleven idea docs for the new Shrimpy. They wait unchanged in the owner's journal.
+- Before 1.1 reaches a setup in use, each trigger there that tells someone something with `send_message` to `@name` gets a thread with `--thread`, or every run starts a new thread: the owner's triggers, and Kathleen's 17. Each agent can point its own when asked.
 
 ## Next
 
@@ -206,7 +207,7 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Falls short**
 
-- Nothing says which machine an agent runs on: `shrimpy status` and `agent status` show no host, so an agent looking for another asked it.
+- Nothing says which machine an agent runs on: `shrimpy status` and `agent status` show no host, so an agent looking for another asked it. Nothing records an agent's machine, so saying it takes the next versions of the hello and the roster.
 - `--listen` given to `up` while a gateway runs only warns.
 - On a machine whose agents belong to a gateway elsewhere and that hasn't joined as the owner's, a command names those agents only by their homes' paths.
 - A folder that has joined as the owner's and also holds agents of no gateway is at odds with itself: `up` starts a gateway and a chat server for them, and the commands that talk reach the gateway elsewhere. The terminal still says "this machine's gateway".
