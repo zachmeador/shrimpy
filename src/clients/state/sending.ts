@@ -1,5 +1,5 @@
 import { valueOf } from "../../contracts/gateway/index.ts";
-import { Down, problemOf } from "../network/index.ts";
+import { Down, type Problem, problemOf } from "../network/index.ts";
 import type { Holdings } from "./holdings.ts";
 import { type AgentEntry, agentEntries, type Model, type Place, placeKey } from "./model.ts";
 import type { Moves } from "./moves.ts";
@@ -12,6 +12,10 @@ export interface Sending {
   /** Say something in the open thread, or in a new one, and say whether it was sent. The person's draft is theirs to put back when it was not. */
   send(text: string): Promise<boolean>;
 }
+
+/** What went wrong with a change asked of chat: `error`, or that chat did not answer before `answered` ran out. */
+export const chatProblem = (error: unknown, answered: AbortSignal): Problem =>
+  problemOf(answered.aborted ? new Down({ kind: "unreachable", message: "the chat server did not answer" }) : error);
 
 /** The agent on the roster with member ID `id`. */
 function rosterAgent(model: Model, id: string): AgentEntry {
@@ -89,8 +93,7 @@ export function createSending(store: Store, held: Holdings, moves: Moves, sendMs
         }
         return true;
       } catch (error) {
-        const silent = answered.aborted ? new Down({ kind: "unreachable", message: "the chat server did not answer" }) : error;
-        store.say({ kind: "not-sent", problem: problemOf(silent) });
+        store.say({ kind: "not-sent", problem: chatProblem(error, answered) });
         return false;
       }
     },

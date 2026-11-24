@@ -31,12 +31,29 @@ function ThreadRow({ row, current, open }: { row: Row; current: boolean; open: (
   );
 }
 
+/** The archived threads of a list: the row at its foot that opens them in place, lit while an agent works in one, and theirs while it is open. */
+function Archived({ archived, open, toggle, rows }: { archived: ListLevel["archived"]; open: boolean; toggle: () => void; rows: (each: Row[]) => ComponentChildren }) {
+  if (archived === undefined) return null;
+  return (
+    <>
+      <button class="label fold" type="button" aria-expanded={open} onClick={toggle}>
+        <span>{archived.row.label}</span>
+        {archived.row.working && <Lamp />}
+        <Glyph name="fold" />
+      </button>
+      {open && rows(archived.rows)}
+    </>
+  );
+}
+
 interface ListProps {
   list: ListLevel;
   /** An agent's tab on show, and what its triggers and home tabs hold. */
   tab: Tab;
   tabs: { triggers: ComponentChildren; home: ComponentChildren };
   filter: ListFilter;
+  /** The archived threads are open in place at the foot of the list. */
+  archivedOpen: boolean;
   /** The row that is open, by what opens it. */
   current: string | undefined;
   retry: string | undefined;
@@ -45,6 +62,7 @@ interface ListProps {
   open: (row: Row) => void;
   setFilter: (filter: ListFilter) => void;
   setTab: (tab: Tab) => void;
+  toggleArchived: () => void;
 }
 
 const TABS: readonly Tab[] = ["threads", "triggers", "home"];
@@ -57,6 +75,7 @@ export function ListView(props: ListProps) {
   const yours = list.rows.filter((row) => row.yours);
   const elsewhere = list.rows.filter((row) => !row.yours);
   const pigment = list.look === undefined ? "" : ` pg-${list.look.pigment}`;
+  const archived = <Archived archived={list.archived} open={props.archivedOpen} toggle={props.toggleArchived} rows={rows} />;
   let body: ComponentChildren;
   if (list.ofAgent && props.tab === "home" && list.off) body = <p class="note stepbox">{homeNotRunning(list.name)}</p>;
   else if (list.ofAgent && props.tab !== "threads") body = props.tabs[props.tab];
@@ -77,6 +96,7 @@ export function ListView(props: ListProps) {
         {list.empty !== undefined && <p class="hint">{list.startable ? thenStart(list.empty, NEW_THREAD_KEY) : list.empty}</p>}
         {elsewhere.length > 0 && <h2 class="label">{LABELS.elsewhere}</h2>}
         {rows(elsewhere)}
+        {archived}
       </>
     );
   } else {
@@ -84,6 +104,7 @@ export function ListView(props: ListProps) {
       <>
         <h2 class="label">{LABELS.threads}</h2>
         {rows(list.rows)}
+        {archived}
       </>
     );
   }

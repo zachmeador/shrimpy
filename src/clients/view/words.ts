@@ -25,6 +25,7 @@ import {
   addToRoom,
   AGENT_COMMANDS,
   type AgentCommand,
+  ARCHIVED,
   type Channel,
   channelLabel,
   DM_TAKES_NO_MORE,
@@ -63,6 +64,15 @@ const TAKE_BACK = "/devices take back <device>";
 
 /** What `/devices` does, the same in a DM and a room. */
 const DEVICES = `List your devices, or take one back: ${TAKE_BACK}`;
+
+/** The commands a person writes in a thread to rename it, and to bring it back once it is archived. */
+const RENAME: ClientCommand = "rename";
+const UNARCHIVE: ClientCommand = "unarchive";
+
+/** What renaming, archiving and bringing back a thread do, the same in a DM and a room. */
+const RENAMES = `Name this thread: /${RENAME} <name>`;
+const ARCHIVES = "Hide this thread from the lists.";
+const UNARCHIVES = "Bring this thread back to the lists.";
 
 /** What `/model` is written with to have the thread follow the agent's model again. */
 export const MODEL_DEFAULT = "default";
@@ -219,8 +229,25 @@ export function noticeText(notice: Notice, agentName: string, self: string): str
       return `More than one device of yours is called ${oneLine(notice.written)}. Name one by its ID, which /devices lists.`;
     case "not-taken-back":
       return `Could not take the device back: ${because({ kind: "gateway" }, notice.problem, self)}.`;
+    case "thread-name":
+      return notice.name === null
+        ? `This thread has no name, so it shows how it starts. To name it, write /${RENAME} and a name.`
+        : `This thread is called "${oneLine(notice.name)}". To rename it, write /${RENAME} and a name.`;
+    case "archived-already":
+      return `This thread is archived already. Write /${UNARCHIVE} to bring it back.`;
+    case "not-archived":
+      return "This thread is not archived.";
+    case "not-changed":
+      return `Could not ${CHANGES[notice.change]}: ${because({ kind: "chat" }, notice.problem, self)}.`;
   }
 }
+
+/** What each change to a thread does, as a sentence says it failed to. */
+const CHANGES: Record<Extract<Notice, { kind: "not-changed" }>["change"], string> = {
+  rename: "rename the thread",
+  archive: "archive the thread",
+  unarchive: "bring the thread back",
+};
 
 /** What `/model` with nothing after it says: the model the thread uses, whose it is, and how to choose another. */
 function modelIs(agent: string, notice: Extract<Notice, { kind: "model-is" }>): string {
@@ -254,6 +281,9 @@ export const reactedBy = (names: string[]): string => names.join(", ");
 /** The emoji on a message and who put each there, on one line, as the terminal says them. */
 export const reactionsLine = (reactions: readonly { emoji: string; by: string }[]): string => reactions.map(({ emoji, by }) => `${emoji} ${by}`).join("  ");
 
+/** What a trigger's line says after the trigger's name, before when it fired. */
+export const FIRED = "fired";
+
 /** What stands before the first message that was new to the person when they opened the thread, on a line of its own. */
 export const NEW_SINCE = "while you were away";
 /** The same in a word, for where it stands inside a rule. */
@@ -266,6 +296,9 @@ export const agentsTitle = (): string => `shrimpy · ${versionLine().join("")}`;
 
 /** What an agent's list shows: everything the agent takes part in, or only what is with the person. */
 export type ListFilter = "everything" | "yours";
+
+/** The row at the foot of a list that opens its archived threads in place, with how many there are. */
+export const archivedRow = (count: number): string => `${ARCHIVED} · ${String(count)}`;
 
 /**
  * The labels over the parts of a list: the agents and the rooms, a room's
@@ -460,11 +493,14 @@ export function commandParts(sentence: string): SaidPart[] {
  * for agents.
  */
 export const CLIENT_COMMAND_LINES = {
+  archive: { dm: ARCHIVES, room: ARCHIVES },
   devices: { dm: DEVICES, room: DEVICES },
+  rename: { dm: RENAMES, room: RENAMES },
   status: {
     dm: "Show what the agent is doing, its model, tokens and cost.",
     room: "Show which agents here are running and working.",
   },
+  unarchive: { dm: UNARCHIVES, room: UNARCHIVES },
 } as const satisfies Record<ClientCommand, { dm: string; room: string }>;
 
 /** The line beside `default` in the list that `/model ` opens: whose model it stands for, and which one that is. */

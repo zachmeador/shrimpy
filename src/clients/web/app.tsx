@@ -10,7 +10,7 @@ import { compareShrimpy, linksWith } from "../../contracts/gateway/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { type Mode, WOOLS } from "../look/index.ts";
 import type { LinkStatus } from "../network/index.ts";
-import { agentEntries, agentNameOf, type ClientState, type Model, type Place, placeOfThread, sidesOf } from "../state/index.ts";
+import { agentEntries, agentNameOf, type ClientState, type Model, type Place, placeKey, placeOfThread, sidesOf, writtenInOpen } from "../state/index.ts";
 import {
   agentsLevel,
   browserLabel,
@@ -58,6 +58,12 @@ interface PageState {
   later: boolean;
   /** The agent whose work is open where several work in a thread. */
   work: string | undefined;
+  /** The open thread's menu is open. */
+  menu: boolean;
+  /** The open thread's name is an input where it stands. */
+  naming: boolean;
+  /** The list whose archived threads are open in place, by `placeKey`. Another list opens with its own shut. */
+  archived: string | undefined;
 }
 
 /** What the person chose last on this device, kept for the next time the page opens. */
@@ -213,6 +219,9 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
       inFull: { toolCalls: false, thinking: false },
       later: false,
       work: undefined,
+      menu: false,
+      naming: false,
+      archived: undefined,
     };
   });
   const [mode, setMode] = useState<Mode>(() => kept("mode", matchMedia("(prefers-color-scheme: light)").matches ? "day" : "dusk", ["dusk", "day"]));
@@ -345,7 +354,16 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
   const go = (route: Route): void => {
     pushing.current = true;
     setPending({ route, patient: false });
-    setPage((before) => ({ ...before, level: levelOf(route), tab: route.kind === "list" ? route.tab : before.tab, file: fileOf(route), later: false, work: undefined }));
+    setPage((before) => ({
+      ...before,
+      level: levelOf(route),
+      tab: route.kind === "list" ? route.tab : before.tab,
+      file: fileOf(route),
+      later: false,
+      work: undefined,
+      menu: false,
+      naming: false,
+    }));
   };
 
   /** Go up a level: Back, when the page came from there. */
@@ -354,7 +372,7 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
     const address = addressOf(up);
     if ((history.state as { up?: string } | null)?.up === address) return history.back();
     setPending({ route: up, patient: false });
-    setPage((before) => ({ ...before, level: levelOf(up), file: fileOf(up), later: false }));
+    setPage((before) => ({ ...before, level: levelOf(up), file: fileOf(up), later: false, menu: false, naming: false }));
   };
 
   const list = model.open.list;
@@ -457,7 +475,10 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
   // and Ctrl+\ folds the lists.
   const keys = useRef<(event: KeyboardEvent) => void>(() => undefined);
   keys.current = (event) => {
-    if (event.key === "Escape" && fold && peek) {
+    if (event.key === "Escape" && page.menu) {
+      event.preventDefault();
+      setPage((before) => ({ ...before, menu: false }));
+    } else if (event.key === "Escape" && fold && peek) {
       event.preventDefault();
       setPeek(false);
     } else if (event.key === "Escape" && page.level > 1) {
@@ -479,6 +500,17 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
     document.addEventListener("keydown", pressed);
     return () => document.removeEventListener("keydown", pressed);
   }, []);
+
+  // A tap anywhere but on the thread's menu, or the button that opens it, shuts the menu.
+  useEffect(() => {
+    if (!page.menu) return;
+    const tapped = (event: PointerEvent): void => {
+      if (event.target instanceof Element && event.target.closest('.menu, [aria-haspopup="menu"]') !== null) return;
+      setPage((before) => ({ ...before, menu: false }));
+    };
+    document.addEventListener("pointerdown", tapped);
+    return () => document.removeEventListener("pointerdown", tapped);
+  }, [page.menu]);
 
   // What is said in a thread scrolls to its newest unless the person has scrolled up to read.
   useLayoutEffect(() => {
@@ -543,15 +575,31 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
         work={page.work}
         later={page.later}
         placeholder={writeTo(thread.who)}
+        menu={page.menu}
+        naming={page.naming}
         composer={{
           drafts,
           draftKey,
           models,
-          submit: (text) => state.write(text),
+          // `/rename` alone turns the name into an input, where the thread can be renamed.
+          submit: (text) => {
+            if (!thread.nameable || writtenInOpen(state.model(), text).do !== "name") return state.write(text);
+            setPage((before) => ({ ...before, menu: false, naming: true }));
+            return Promise.resolve(true);
+          },
           keys: keyHints({ newThread: thread.writable, turnOver: turnable }),
         }}
         back={back}
         turn={turn}
+        toggleMenu={() => setPage((before) => ({ ...before, menu: !before.menu }))}
+        name={(naming, typed) => {
+          setPage((before) => ({ ...before, menu: false, naming }));
+          if (typed !== undefined) void state.rename(typed);
+        }}
+        archive={() => {
+          setPage((before) => ({ ...before, menu: false }));
+          void state.archive(!thread.archived);
+        }}
         join={() => void state.joinRoom()}
         toggleFull={(which) => setPage((before) => ({ ...before, inFull: { ...before.inFull, [which]: !before.inFull[which] } }))}
         toggleLater={() => setPage((before) => ({ ...before, later: !before.later }))}
@@ -634,12 +682,18 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
                   home: <HomeTree key={listAgent} state={state} name={listView.name} current={file} choose={openFile} />,
                 }}
                 filter={page.filter}
+                archivedOpen={list !== undefined && page.archived === placeKey(list)}
                 current={front ? (item?.kind === "thread" ? item.thread : item?.session) : undefined}
                 retry={retryLine}
                 back={back}
                 start={startThread}
                 open={choose}
                 setFilter={(filter) => setPage((before) => ({ ...before, filter }))}
+                toggleArchived={() => {
+                  if (list === undefined) return;
+                  const key = placeKey(list);
+                  setPage((before) => ({ ...before, archived: before.archived === key ? undefined : key }));
+                }}
                 setTab={(tab) =>
                   // A file stays open while its home is on show.
                   setPage((before) => ({ ...before, tab, ...(tab === "home" || before.file === undefined ? {} : { file: undefined, level: 2 }) }))

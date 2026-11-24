@@ -90,7 +90,7 @@ The old row's "output filters" are `when`. A fact that changes while an input wa
 - It counts as new to you, as a message does, and moves the thread up its list. It wakes no agent, is told to no device, doesn't name the thread, and can't be edited, deleted or reacted to.
 - The agent leaves its receipt on the line, as on a message it took up, so the thread shows how the occurrence ended: its reply, that it said nothing, or that it failed and why.
 - An occurrence that no turn runs, such as one whose check notes a breadcrumb, has no line.
-- An agent reading the thread, and `shrimpy read`, see the line as "trigger groceries fired at 14:30". The clients leave it out until they draw it, which [using it](using-it.md) has under Not built yet.
+- An agent reading the thread, and `shrimpy read`, see the line as "trigger groceries fired at 14:30". The clients draw it as [using it](using-it.md) says.
 
 **Decisions**
 

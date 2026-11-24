@@ -1,7 +1,18 @@
 import { activityWords, modelWords, wakeupNote, YOUR_DM } from "../../contracts/agent/index.ts";
-import { agentCommandIn, type Member, type Message, mentionsOf, namer, receiptWords, titleOf } from "../../contracts/chat/index.ts";
+import {
+  agentCommandIn,
+  ARCHIVED,
+  type Member,
+  type Message,
+  mentionsOf,
+  namer,
+  receiptWords,
+  titleOf,
+  type TriggerLine,
+  triggerLabel,
+} from "../../contracts/chat/index.ts";
 import { oneLine, plain } from "../../lib/plain/index.ts";
-import { agentNameOf, agentOfList, type Model, sidesOf, type Status } from "../state/index.ts";
+import { agentNameOf, agentOfList, type Model, openThreadOf, sidesOf, standingOf, type Status } from "../state/index.ts";
 import { type CommandLine, commandLines } from "./commands.ts";
 import { BRIEF, type LevelOptions, lookingAt, OUTPUT_LINES } from "./level.ts";
 import { type Look, lookOf } from "./look.ts";
@@ -32,10 +43,17 @@ import {
   workingLine,
 } from "./words.ts";
 
-/** One message of a thread, as it now stands. */
+/** One message of a thread, as it now stands, or a trigger's line. */
 export interface MessageRow {
   /** The message's ID, which is a key and is never shown. */
   id: string;
+  /**
+   * A message, or a trigger's line, which has the trigger that fired as `who`,
+   * when it fired as `when`, and as `text` what its check printed, or its
+   * prompt where it has no check or the check printed nothing. A line is
+   * neither edited, deleted, a command nor reacted to, and mentions nobody.
+   */
+  kind: "message" | "trigger";
   who: string;
   /** An agent wrote it. */
   agent: boolean;
@@ -126,6 +144,14 @@ export interface ThreadLevel {
   who: string;
   /** What the thread itself is called, as `title` has it after `who`. */
   called: string;
+  /** The thread's own name, which naming it starts from, or nothing while it has none and is called for how it starts. */
+  name: string;
+  /** The thread is archived: it stands apart at the foot of its list, and nothing in it counts as new. */
+  archived: boolean;
+  /** The word that stands beside what the thread is called: that it is archived. */
+  tag: string | undefined;
+  /** The person can rename the thread, and archive it or bring it back: it is started, they write in it, and chat is reached. */
+  nameable: boolean;
   /** How the agent looks, in the person's DM with it. */
   look: Look | undefined;
   /**
@@ -183,8 +209,7 @@ export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel |
   const { place, thread: threadId } = item;
   const here = lookingAt(model, place);
   const live = threadId !== undefined && model.thread?.thread.id === threadId ? model.thread : undefined;
-  const listed = threadId === undefined ? undefined : here.threads.find((thread) => thread.id === threadId);
-  const thread = live?.thread ?? listed;
+  const thread = openThreadOf(model);
   // A thread can be shown before its channel is known, so the messages' authors name members too. The channel's members
   // come last, so theirs are the names used.
   const known = namer([...(model.thread?.messages ?? []).map((message) => message.author), ...(here.channel?.members ?? [])]);
@@ -198,13 +223,8 @@ export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel |
   const who = here.label;
 
   const members = here.channel?.members ?? [];
-  // A trigger's line is left out until the clients draw it, and when it is the first thing new, the message after it is.
-  const held = live?.messages ?? [];
-  const firstAt = held.findIndex((message) => message.id === live?.firstNew);
-  const firstNew = firstAt < 0 ? undefined : held.slice(firstAt).find((message) => message.trigger === null)?.id;
-  const messages = held
-    .filter((message) => message.trigger === null)
-    .map((message) => messageRow(message, { model, names, members, firstNew }, now));
+  const firstNew = live?.firstNew;
+  const messages = (live?.messages ?? []).map((message) => messageRow(message, { model, names, members, firstNew }, now));
   // A session that was working when the agent went away is not working now, whatever its last view says.
   const busy = (agent: string): boolean => model.behind[agent]?.status.busy === true && model.behind[agent].reached;
   const nameOf = (agent: string): string => (known(agent) === agent ? oneLine(agentNameOf(model, agent)) : names(agent));
@@ -233,10 +253,15 @@ export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel |
   const waiting = waitingOf(model, now, !reading);
   const [soonest] = waiting;
   const called = threadCalled(thread === undefined ? threadId : titleOf(thread));
+  const archived = thread?.archived === true;
   return {
     title: threadTitle(who, called),
     who,
     called,
+    name: oneLine(thread?.name ?? ""),
+    archived,
+    tag: archived ? ARCHIVED : undefined,
+    nameable: !reading && thread !== undefined && model.chat.state === "up",
     look: dm ? lookOf(model, place.id) : undefined,
     sub,
     lead,
@@ -248,7 +273,7 @@ export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel |
     waiting,
     cancels: reading || soonest === undefined || waiting.length < 2 ? undefined : stopCancelsAll(waiting.length, dm ? "dm" : "room", dm ? who : soonest.who),
     queued: queuedOf(model),
-    commands: reading ? [] : commandLines(dm ? "dm" : "room"),
+    commands: reading ? [] : commandLines(dm ? "dm" : "room", standingOf(model)),
     readOnly: reading && here.channel !== undefined ? readOnlyLine(here.channel, model.me?.name) : undefined,
     joinable: reading && here.channel?.kind === "room",
     status: model.status === undefined ? undefined : statusBlock(model.status),
@@ -320,10 +345,21 @@ interface RowContext {
   firstNew: string | undefined;
 }
 
-function messageRow(message: Message, { model, names, members, firstNew }: RowContext, now: number): MessageRow {
+/** What each agent did with a message or a trigger's line, where that is worth saying, and whether it failed. */
+function receiptsOf(message: Message, names: (memberId: string) => string): MessageRow["receipts"] {
+  return message.receipts.flatMap((receipt) => {
+    const words = receiptWords(receipt, names(receipt.memberId));
+    return words === undefined ? [] : [{ words, failed: receipt.status === "failed" }];
+  });
+}
+
+function messageRow(message: Message, context: RowContext, now: number): MessageRow {
+  if (message.trigger !== null) return triggerRow(message, message.trigger, context, now);
+  const { model, names, members, firstNew } = context;
   const text = message.deleted ? DELETED : plain(message.text).trimEnd();
   return {
     id: message.id,
+    kind: "message",
     who: oneLine(message.author.name),
     agent: message.author.kind === "agent",
     look: message.author.kind === "agent" ? lookOf(model, message.author.id) : undefined,
@@ -338,10 +374,28 @@ function messageRow(message: Message, { model, names, members, firstNew }: RowCo
           .filter((member) => member.kind === "agent" && message.mentions.includes(member.id))
           .map((member) => ({ name: oneLine(member.name), look: lookOf(model, member.id) })),
     reactions: message.reactions.map((reaction) => ({ emoji: oneLine(reaction.emoji), by: reactedBy(reaction.memberIds.map(names)) })),
-    receipts: message.receipts.flatMap((receipt) => {
-      const words = receiptWords(receipt, names(receipt.memberId));
-      return words === undefined ? [] : [{ words, failed: receipt.status === "failed" }];
-    }),
+    receipts: receiptsOf(message, names),
+    firstNew: message.id === firstNew,
+  };
+}
+
+/** A trigger's line: which trigger fired and when, what it brought, and the receipt the agent left on it. */
+function triggerRow(message: Message, line: TriggerLine, { names, firstNew }: RowContext, now: number): MessageRow {
+  const output = line.output === null ? "" : plain(line.output).trimEnd();
+  return {
+    id: message.id,
+    kind: "trigger",
+    who: triggerLabel(line.name),
+    agent: false,
+    look: undefined,
+    when: whenOf(line.firedAt, now),
+    edited: undefined,
+    deleted: false,
+    text: output.trim() === "" ? plain(line.prompt).trimEnd() : output,
+    command: false,
+    mentions: [],
+    reactions: [],
+    receipts: receiptsOf(message, names),
     firstNew: message.id === firstNew,
   };
 }

@@ -1,8 +1,10 @@
 import { AGENT_COMMANDS, type AgentCommand } from "../../contracts/chat/index.ts";
-import type { Notice } from "./model.ts";
+import { MAX_NAME } from "../../contracts/gateway/index.ts";
+import { cutEnd, singleSpaced } from "../../lib/text/index.ts";
+import { type Model, type Notice, openThreadOf } from "./model.ts";
 
 /** The commands a client acts on itself and posts nowhere, by name, in a DM with an agent and in a room alike. */
-export const CLIENT_COMMANDS = ["devices", "status"] as const;
+export const CLIENT_COMMANDS = ["archive", "devices", "rename", "status", "unarchive"] as const;
 
 /** The name of a command for the client, without its slash. */
 export type ClientCommand = (typeof CLIENT_COMMANDS)[number];
@@ -18,15 +20,35 @@ const _inOneKind: [Extract<AgentCommand, ClientCommand>] extends [never] ? true 
 /** The commands for agents by what each says it does, in a DM and in a room, where a command may have no line for a room. */
 const AGENT_LINES: Record<string, { dm: string; room?: string }> = AGENT_COMMANDS;
 
+/** How the thread written in stands, which decides which commands there are: not started yet, started, or archived. */
+export type Standing = "new" | "live" | "archived";
+
+/** Whether the client's command `name` is offered in a thread that stands as `standing`: a started thread is renamed, and archived or brought back, whichever it isn't. */
+function offeredIn(name: ClientCommand, standing: Standing): boolean {
+  switch (name) {
+    case "rename":
+      return standing !== "new";
+    case "archive":
+      return standing === "live";
+    case "unarchive":
+      return standing === "archived";
+    default:
+      return true;
+  }
+}
+
 /**
  * Every command that can be written in a thread of a DM with an agent, or of a
  * room, with its slash, in order of name: the commands for agents that say what
  * they do there, which are posted for the agents they are for to act on, and
- * the commands for the client, which the client acts on itself.
+ * the commands for the client, which the client acts on itself, of those
+ * offered in a thread that stands as `standing`. With no `standing`, every
+ * command that can be written in a thread of either.
  */
-export function commandNames(where: "dm" | "room"): string[] {
+export function commandNames(where: "dm" | "room", standing?: Standing): string[] {
   const forAgents = Object.entries(AGENT_LINES).flatMap(([name, lines]) => (lines[where] === undefined ? [] : [name]));
-  return [...forAgents, ...CLIENT_COMMANDS].map((name) => `/${name}`).sort((a, b) => a.localeCompare(b));
+  const forClient = CLIENT_COMMANDS.filter((name) => standing === undefined || offeredIn(name, standing));
+  return [...forAgents, ...forClient].map((name) => `/${name}`).sort((a, b) => a.localeCompare(b));
 }
 
 const isClientCommand = (name: string): name is ClientCommand => (CLIENT_COMMANDS as readonly string[]).includes(name);
@@ -44,6 +66,12 @@ export type Written =
   | { do: "take-back"; device: string }
   /** `/model` alone: the client says which model the thread runs on. */
   | { do: "model" }
+  /** `/rename` and a name: the client renames the thread, as it was typed. */
+  | { do: "rename"; name: string }
+  /** `/rename` alone: the client says what the thread is called, or offers to name it where it can. */
+  | { do: "name" }
+  /** `/archive` or `/unarchive`: the client archives the thread, or brings it back. */
+  | { do: "archive"; archived: boolean }
   /** It is posted nowhere, and the text goes back where it was typed. */
   | { do: "refuse"; notice: Notice };
 
@@ -54,12 +82,12 @@ const TAKE_BACK = /^take\s+back\s+(.+)$/isu;
 const SLASH_FIRST = /^\s*\/([\p{L}\p{N}_-]*)(.*)$/su;
 
 /**
- * What a client does with `text`, written in a thread of a DM or of a room.
- * A text whose first character that is not a space is a slash is a command,
- * always, and is never posted as an ordinary message: a command for agents is
- * posted as it was written, a command for the client is acted on and posted
- * nowhere, and a name that is no command there is refused, saying which are, so
- * that nothing is posted by mistake. To start a message with a slash, a person
+ * What a client does with `text`, written in a thread of a DM or of a room
+ * that stands as `standing`. A text whose first character that is not a space
+ * is a slash is a command, always, and is never posted as an ordinary message:
+ * a command for agents is posted as it was written, a command for the client is
+ * acted on and posted nowhere, and a name that is no command there is refused,
+ * saying which are, so that nothing is posted by mistake. To start a message with a slash, a person
  * wraps it in backticks or writes anything before it, as `@scout /stop` does,
  * which is posted and acted on by the agent.
  *
@@ -70,22 +98,23 @@ const SLASH_FIRST = /^\s*\/([\p{L}\p{N}_-]*)(.*)$/su;
  * client, which can see which model the thread runs on, and is not posted.
  * With anything after it, it is posted like any command for agents.
  */
-export function writtenIn(text: string, where: "dm" | "room"): Written {
+export function writtenIn(text: string, where: "dm" | "room", standing: Standing): Written {
   const found = SLASH_FIRST.exec(text);
   if (found === null) return { do: "post" };
   const name = (found[1] ?? "").toLowerCase();
   const rest = (found[2] ?? "").trim();
-  if (isClientCommand(name)) return clientCommand(name, rest);
+  // A thread that is not started yet can't be renamed or archived, so those are no commands there.
+  if (isClientCommand(name) && (standing !== "new" || offeredIn(name, "new"))) return clientCommand(name, rest, standing);
   if (isAgentCommand(name)) {
     if (where === "room" && AGENT_COMMANDS[name].withoutMention === "nobody") return { do: "refuse", notice: { kind: "name-an-agent", command: name } };
     return name === "model" && where === "dm" && rest === "" ? { do: "model" } : { do: "post" };
   }
   const written = /^\s*(\S+)/.exec(text)?.[1] ?? "/";
-  return { do: "refuse", notice: { kind: "no-command", written, commands: commandNames(where) } };
+  return { do: "refuse", notice: { kind: "no-command", written, commands: commandNames(where, standing) } };
 }
 
-/** What a client does with one of its own commands, written with `rest` after it. Each has a case of its own. */
-function clientCommand(name: ClientCommand, rest: string): Written {
+/** What a client does with one of its own commands, written with `rest` after it in a thread that stands as `standing`. Each has a case of its own. */
+function clientCommand(name: ClientCommand, rest: string, standing: Standing): Written {
   switch (name) {
     case "devices": {
       if (rest === "") return { do: "devices" };
@@ -94,5 +123,31 @@ function clientCommand(name: ClientCommand, rest: string): Written {
     }
     case "status":
       return rest === "" ? { do: "status" } : { do: "refuse", notice: { kind: "takes-nothing", command: "/status" } };
+    case "rename":
+      return rest === "" ? { do: "name" } : { do: "rename", name: rest };
+    case "archive":
+    case "unarchive": {
+      const archived = name === "archive";
+      if (rest !== "") return { do: "refuse", notice: { kind: "takes-nothing", command: `/${name}` } };
+      if (archived === (standing === "archived")) return { do: "refuse", notice: { kind: archived ? "archived-already" : "not-archived" } };
+      return { do: "archive", archived };
+    }
   }
+}
+
+/** What a thread is named when `typed` names it: on one line with single spaces, and cut to the longest name chat keeps. Empty names nothing. */
+export const typedName = (typed: string): string => cutEnd(singleSpaced(typed), MAX_NAME).trimEnd();
+
+/** How the open thread stands, for which commands there are. One the client has not heard of from chat yet is taken as started and not archived. */
+export function standingOf(model: Model): Standing {
+  const { item } = model.open;
+  if (item?.kind !== "thread" || item.thread === undefined) return "new";
+  return openThreadOf(model)?.archived === true ? "archived" : "live";
+}
+
+/** What a client does with `text`, written in the open thread, as `writtenIn` has it for where the thread is and how it stands. */
+export function writtenInOpen(model: Model, text: string): Written {
+  const { item } = model.open;
+  if (item?.kind !== "thread") return { do: "post" };
+  return writtenIn(text, item.place.kind === "agent" ? "dm" : "room", standingOf(model));
 }

@@ -132,8 +132,9 @@ const indent = (lines: readonly string[], cells: number): string[] => lines.map(
 /** Runs as one line, cut to `width` with a mark where they were cut. */
 const oneOf = (paint: Paint, runs: readonly Run[], width: number): string => truncateToWidth(paint.runs(runs), Math.max(1, width), "…");
 
-/** What a message says, at a width: that it was deleted, a command as it was written, an agent's Markdown, or a person's words as typed. */
+/** What a message says, at a width: that it was deleted, a command as it was written, an agent's Markdown, or a person's words as typed; or what a trigger's line brought, whole, behind a bar. */
 function saidLines(paint: Paint, prose: Prose, row: MessageRow, width: number): string[] {
+  if (row.kind === "trigger") return wrap(paint, row.text, width - 2, "ink3").map((line) => `${paint.text("▏ ", "line2")}${line}`);
   if (row.deleted) return wrap(paint, row.text, width, "ink3");
   if (row.command) return wrap(paint, row.text, width, role("code"));
   if (row.agent) return prose.lines(paint, row.text, width, row.mentions);
@@ -146,10 +147,12 @@ function saidLines(paint: Paint, prose: Prose, row: MessageRow, width: number): 
  * marked if it was edited, what they said or that it was deleted, the emoji on
  * it, and what came of it where that is worth saying, a failure apart. An
  * agent's words are Markdown, in its pigment's name; a person's are drawn as
- * typed. Each `@name` of an agent is in that agent's pigment.
+ * typed. Each `@name` of an agent is in that agent's pigment. A trigger's line
+ * is drawn the same way, with the trigger in lantern light, and what it
+ * brought shown whole.
  */
 export function messageLines(paint: Paint, prose: Prose, row: MessageRow, width: number): string[] {
-  const who: Style = { tone: row.agent && row.look !== undefined ? row.look.pigment : "ink", bold: true };
+  const who: Style = { tone: row.kind === "trigger" ? role("busy") : row.agent && row.look !== undefined ? row.look.pigment : "ink", bold: true };
   const head: Run[] = [[row.who, who], [`  ${row.when}`, "ink3"]];
   if (row.edited !== undefined) head.push([`  ${row.edited}`, "ink3"]);
   const inner = width - 2;

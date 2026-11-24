@@ -195,9 +195,22 @@ export interface ChannelThreads {
   unread: Record<string, number>;
 }
 
-/** How many messages are new to the person in `channel`, in all its threads. */
+/** How many messages in `thread` are new to the person, with `unread` as its channel counts them. Nothing in an archived thread counts as new. */
+export const unreadOf = (unread: Readonly<Record<string, number>>, thread: Thread): number => (thread.archived ? 0 : (unread[thread.id] ?? 0));
+
+/** How many messages are new to the person in `channel`, in all its threads that are not archived. */
 export const unreadIn = (channel: ChannelThreads | undefined): number =>
-  Object.values(channel?.unread ?? {}).reduce((sum, count) => sum + count, 0);
+  channel === undefined ? 0 : channel.threads.reduce((sum, thread) => sum + unreadOf(channel.unread, thread), 0);
+
+/** The open thread as far as the client knows it: as it is held, or as its channel lists it. Undefined for one not started, or not known yet. */
+export function openThreadOf(model: Model): Thread | undefined {
+  const { item } = model.open;
+  if (item?.kind !== "thread" || item.thread === undefined) return undefined;
+  if (model.thread?.thread.id === item.thread) return model.thread.thread;
+  const { place } = item;
+  const channel = place.kind === "agent" ? model.dms[place.id] : place.kind === "room" ? model.rooms[place.id] : model.readOnly[place.id];
+  return channel?.threads.find((each) => each.id === item.thread);
+}
 
 /**
  * Whether this machine has a home for the agent called `agent`, which is what
@@ -237,7 +250,14 @@ export type Notice =
   | { kind: "no-device"; written: string; devices: string[] }
   /** Several devices of the person's are called `written`, so it names none of them. */
   | { kind: "devices-alike"; written: string }
-  | { kind: "not-taken-back"; problem: Problem };
+  | { kind: "not-taken-back"; problem: Problem }
+  /** `/rename` with nothing after it: what the thread is named, or null while it has no name and shows how it starts. */
+  | { kind: "thread-name"; name: string | null }
+  /** `/archive` in a thread that is archived already, or `/unarchive` in one that is not: nothing was changed. */
+  | { kind: "archived-already" }
+  | { kind: "not-archived" }
+  /** Chat did not rename the thread, archive it or bring it back, as `change` says. */
+  | { kind: "not-changed"; change: "rename" | "archive" | "unarchive"; problem: Problem };
 
 /** An agent in its DM with the person, as `/status` found it. */
 export interface AgentStatus {
@@ -546,7 +566,7 @@ export function partsOf(model: Model, agentId: string): Part[] {
       yours: isYours(place),
       working: workingIn(thread, agentId) || (reached && sessionBehind.get(thread.id)?.working === true),
       at: thread.updatedAt,
-      unread: unread[thread.id] ?? 0,
+      unread: unreadOf(unread, thread),
     });
   };
 

@@ -103,8 +103,11 @@ export function listParts(list: ListLevel): [label: string, rows: Row[]][] {
   ];
 }
 
-/** The rows of a list in the order they are drawn. */
-export const listRows = (list: ListLevel): Row[] => listParts(list).flatMap(([, rows]) => rows);
+/** The rows of a list in the order they are drawn: its parts, then the row of its archived threads, and theirs while `archived` has them open. */
+export function listRows(list: ListLevel, archived: boolean): Row[] {
+  const away = list.archived === undefined ? [] : [list.archived.row, ...(archived ? list.archived.rows : [])];
+  return [...listParts(list).flatMap(([, rows]) => rows), ...away];
+}
 
 /**
  * What a row is told apart by: an ID is only unique among rows of its kind. A
@@ -140,6 +143,8 @@ export interface Frame {
   model: Model;
   levels: Levels;
   filter: ListFilter;
+  /** The archived threads of the open list are open in place at its foot. */
+  archived: boolean;
   inFull: InFull;
   /** The row chosen on the agents and rooms, and on the open list, by `rowKey`. */
   chosen: { agents: string | undefined; list: string | undefined };
@@ -194,7 +199,7 @@ export function screenOf(frame: Frame): Screen {
     return { kind: "thread", ...levels.thread, levels: count, can: { ...can, send: writable(frame) } };
   }
   if (front === "list" && levels.list !== undefined) {
-    return { kind: "threads", ...levels.list, levels: count, can: { ...can, choose: levels.list.rows.length > 0 } };
+    return { kind: "threads", ...levels.list, levels: count, can: { ...can, choose: listRows(levels.list, frame.archived).length > 0 } };
   }
   return { kind: "agents", ...levels.agents, levels: count, can: { ...can, back: false, choose: levels.agents.rows.length > 0 } };
 }

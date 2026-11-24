@@ -26,7 +26,15 @@ export const CONTROLS = {
   join: "join",
   notify: "Tell this device when an agent writes",
   reload: "Reload",
+  rename: "rename",
+  archive: "archive",
+  unarchive: "unarchive",
+  threadMenu: "Rename or archive this thread",
+  threadName: "This thread's name",
 } as const;
+
+/** What the button that opens a thread's menu says it does. */
+export const THREAD_MENU = "Rename or archive";
 
 /** That the gateway runs a newer Shrimpy than this page, `gateway`, which a reload takes. */
 export const pageOutOfDate = (gateway: string): string => `The gateway runs Shrimpy ${oneLine(gateway)}, newer than this page's ${SHRIMPY_VERSION}.`;

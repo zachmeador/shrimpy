@@ -1,7 +1,7 @@
 import { type AgentModels, modelWords } from "../../contracts/agent/index.ts";
 import { AGENT_COMMANDS, type AgentCommand } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
-import { commandNames } from "../state/index.ts";
+import { commandNames, type Standing } from "../state/index.ts";
 import { CLIENT_COMMAND_LINES, defaultModelLine, MODEL_DEFAULT } from "./words.ts";
 
 /** A command the person can write in a thread, with its slash, and what it does where they are. */
@@ -15,12 +15,13 @@ const LINES: Record<string, { dm: string; room?: string }> = { ...AGENT_COMMANDS
 
 /**
  * Every command that can be written in a thread of a DM with an agent, or of a
- * room, in order of name, each with what it does there: the commands for
- * agents, which are posted for the agents they are for to act on, and the
- * commands for the client, which the client acts on itself and posts nowhere.
+ * room, that stands as `standing`, in order of name, each with what it does
+ * there: the commands for agents, which are posted for the agents they are for
+ * to act on, and the commands for the client, which the client acts on itself
+ * and posts nowhere.
  */
-export function commandLines(where: "dm" | "room"): CommandLine[] {
-  return commandNames(where).map((name) => ({ name, line: LINES[name.slice(1)]?.[where] ?? "" }));
+export function commandLines(where: "dm" | "room", standing: Standing): CommandLine[] {
+  return commandNames(where, standing).map((name) => ({ name, line: LINES[name.slice(1)]?.[where] ?? "" }));
 }
 
 /** The command after which a model is written, with its slash. */

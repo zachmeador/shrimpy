@@ -168,6 +168,10 @@ export interface ThreadCalls {
   post(text: string, request: string, signal?: AbortSignal): Promise<Answer<Message>>;
   /** Move the person's read mark up to a message of the thread. A mark only moves forward. */
   markRead(message: string, signal?: AbortSignal): Promise<Answer<null>>;
+  /** Name the thread, as decided on its revision `revision`. */
+  rename(name: string, revision: number, signal?: AbortSignal): Promise<Answer<Thread>>;
+  /** Archive the thread or bring it back, as decided on its revision `revision`. */
+  archive(archived: boolean, revision: number, signal?: AbortSignal): Promise<Answer<Thread>>;
 }
 
 export function holdThread(link: GatewayLink, id: string, changed: () => void): Holding<ThreadShown, ThreadCalls> {
@@ -186,6 +190,8 @@ export function holdThread(link: GatewayLink, id: string, changed: () => void): 
     {
       post: (text, request, signal) => held.post({ text, request }, contextOf(signal)),
       markRead: (message, signal) => held.markRead({ message }, contextOf(signal)),
+      rename: (name, revision, signal) => held.rename({ name, revision }, contextOf(signal)),
+      archive: (archived, revision, signal) => held.archive({ archived, revision }, contextOf(signal)),
     },
     changed,
   );

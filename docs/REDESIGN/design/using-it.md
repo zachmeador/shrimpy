@@ -145,6 +145,13 @@ Three things were agreed for how it is built, so that a companion app can wrap i
 
 Tried on 2026-11-22 in a Chromium browser on the gateway's machine, with real agents on a model on the LAN, at the widths of a desk, a tablet and a phone, at dusk and by day: getting in by an invitation's link, the levels, a thread with a turn as it ran, `/status`, the agent's view, the tabs, and losing the gateway and linking again. After the two were brought in line with their mockups: two agents working in a room's thread, the line before what came while you were away, a mention in its agent's color, and choosing whose view from the picker. The same day you installed it on your iPhone, over a tailnet, and said: "it works well. definitely rough edges to work on". On 2026-11-23 its notifications reached the phone. Untried: Firefox and Safari on a desktop.
 
+**A trigger's line, renaming and archiving in both clients,** built on 2026-11-24 as both mockups draw them. You approved renaming and archiving there on 2026-11-23: "greenlight on the design for archiving/renaming. looks good".
+
+- **A trigger's line** says which trigger fired and when, with the mark for what is new before it when it came while you were away, and the agent's receipt under it. The web client folds it open to what the trigger's check printed, or to its prompt where it has no check or the check printed nothing. The terminal shows the same whole. Chat has had the line since 2026-11-23, as [what an agent does without being asked](7-on-its-own.md) says.
+- **Renaming and archiving** are `/rename <name>`, `/archive` and `/unarchive` in both clients, which post nothing, and the terminal has no key for them. On the web a `⋯` menu in a thread's head has both, and renaming turns the name into an input where it stands: Enter keeps what is typed, and Esc or a tap elsewhere puts the old name back. `/rename` alone does the same on the web, and in the terminal says what the thread is called. Each is decided on the thread's revision as the client saw it, so chat refuses one once the thread has changed, and a note says so in chat's words.
+- **Who may.** A thread you only read, such as a DM between two agents, gets no menu and no input to write the commands in: "agents can manage their own junk". A thread not started yet takes neither, since chat has no thread to change until its first message.
+- **An archived thread** leaves its list for a shut group at its foot, `archived · N`, lit while an agent works in one, which a tap or → opens in place and shuts again. Open, the thread has an `archived` tag by its name, and nothing in it counts as new. A new message brings it back, which chat does.
+
 **The front page of the command line,** decided and built on 2026-10-09. You said that "`shrimpy --help` and the already cluttered cli is annoying me a little bit". It printed 84 lines: all 37 commands, each with its whole usage, and two paragraphs. A front page is for a person, who uses about eight commands. The rest is for agents, who learn it from the skills and from each command's own help.
 
 - `shrimpy --help` prints about twenty lines with no option on them: the commands a person uses, and then a line for each group, under what they are for: agents, a shell, more than one machine. Since 2026-11-14 `shrimpy` leads it alone, and the rest sit under "for scripts and agents", as one command for a person asks.
@@ -224,10 +231,6 @@ What daily use asks for is under Not built yet below.
 
 *A Mac app that wraps the web client,* in Electron, as [the plan's direction](../PLAN.md#direction) has it: the fourth step of the two clients sharing one, above. It waits until you have reviewed the branch: "that can wait until after i review the branch".
 
-*A trigger's line in both clients,* as both mockups draw it: which trigger fired and when, folded open to its prompt or what its check printed in the web client and shown whole in the terminal, with the mark for what is new before it when it came while you were away, and its receipt below it. Chat has had the line since 2026-11-23, as [what an agent does without being asked](7-on-its-own.md) says.
-
-*Renaming and archiving a thread in both clients,* as both mockups draw them since you approved them on 2026-11-23: "greenlight on the design for archiving/renaming. looks good". On the web a `⋯` menu in a thread's head renames it, the name becoming an input where it stands, and archives it or brings it back. Both clients take `/rename <name>`, `/archive` and `/unarchive` as their own commands, posting nothing, and the terminal has no key for them. Archived threads sit in a shut group at the foot of their list. A thread you only read, such as a DM between two agents, gets no menu: "agents can manage their own junk". Chat already checks each rename and archive against the thread's revision, and brings an archived thread back when a new message lands in it.
-
 *What is left of the web client.* The rough edges you found on your iPhone, once they are listed. What its mockup doesn't draw: reacting, editing and deleting, attachments and pictures in a thread, searching, your settings, and paging back through a long thread or session. The rest of the inspector: context, the request a turn sent, and runtime. A companion app can't bring Web Push along, since a web view has no push of its own. It needs Apple's push service: through a relay that holds the app's key, for a build from the App Store, or with your own key on the gateway, for a build you sign. Which of the two, and whether the project runs a relay, is to settle when the companion app comes.
 
 *Using it: what daily use asks for.*
@@ -246,7 +249,7 @@ Under Later in the [order of work](../PLAN.md#order-of-work).
 
 This phase has no fixed scope. Its list comes from use, and its order is yours. The known candidates:
 
-- Thread and session operations: reset, archive, resume, fork, names, search, read and export.
+- Thread and session operations: reset, resume, fork, search, read and export.
 - Chat commands in a thread: `/new`, `/status` and `/help`, for a chat app with no screen of its own. `/stop` is built, and the terminal answers `/status` itself.
 - Reactions, edits and deletes in threads. The chat server has them. The clients need keys for them, and agents need tools: the [message tools](4-conversation.md) row names `react` and an `edit` option on `send_message`, and doesn't yet say how an agent deletes a message of its own.
 - Model selection, defaults, settings, setup and sign-in; status and help come from the service. Signing in is built, once for each folder agents are started in, with `shrimpy login`, as [providers](5-home.md) has it, and `/model` chooses a thread's model. Choosing the model an agent starts with, from the terminal, is still to come.
@@ -275,7 +278,6 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 
 Marked on 2026-10-08. What you dropped is under the list, with why.
 
-- Archive or rename a thread — wanted: "yeah this is needed ux". The chat server does both, and nothing a person uses reaches them.
 - Post to a room from the shell — wanted: "i can think of reasons this is needed. and it's not that complicated".
 - Delete a room — wanted, and new: leaving a room and removing a member can wait "as long as you can delete a room". Nothing deletes one.
 - Search past threads and sessions — wanted as one tool for agents: "probably makes sense to add one agent tool for this".

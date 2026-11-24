@@ -46,6 +46,7 @@ export {
   EMPTY,
   farewellLine,
   FILTERS,
+  FIRED,
   homeNote,
   homeNotRunning,
   homeRoot,

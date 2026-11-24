@@ -22,8 +22,12 @@ export const OUTPUT_LINES = 6;
 export interface Row {
   /** What the state is told when the row is chosen: an agent's member ID, the channel ID of a room or of a channel only read, a thread's ID or the address of a session behind no thread. It is never shown. */
   id: string;
-  /** What choosing it opens: a thread is opened as the conversation it is, and a session as the agent's view of it. */
-  kind: "agent" | "room" | "read-only" | "thread" | "session";
+  /**
+   * What choosing it opens: a thread is opened as the conversation it is, a
+   * session as the agent's view of it, and the row of a list's archived threads
+   * opens them in place, or shuts them, which is the client's own to do.
+   */
+  kind: "agent" | "room" | "read-only" | "thread" | "session" | "archived";
   label: string;
   /** What the label names, on its own: a room's name without the mark its label starts with, and for any other row its label. */
   name: string;

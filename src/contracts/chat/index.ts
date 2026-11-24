@@ -50,6 +50,7 @@ export {
 export { Thread } from "./thread.ts";
 export {
   addToRoom,
+  ARCHIVED,
   channelLabel,
   DM_TAKES_NO_MORE,
   firedWords,
@@ -65,4 +66,5 @@ export {
   taggedTitle,
   threadTags,
   titleOf,
+  triggerLabel,
 } from "./words.ts";

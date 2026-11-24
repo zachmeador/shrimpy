@@ -1,6 +1,6 @@
 import { oneLine, plain } from "../../lib/plain/index.ts";
 import { withoutPeriod } from "../../lib/text/index.ts";
-import { roomLabel } from "../chat/index.ts";
+import { roomLabel, triggerLabel } from "../chat/index.ts";
 import { describeSchedule } from "./schedule.ts";
 import type {
   AnswerEnding,
@@ -59,7 +59,7 @@ export function placeLabel(place: SessionPlace, you?: string): string {
     case "room":
       return roomLabel(place.room);
     case "trigger":
-      return `trigger ${oneLine(place.trigger)}`;
+      return triggerLabel(place.trigger);
   }
 }
 

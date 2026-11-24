@@ -4,14 +4,15 @@
  * with nothing open, a shape pressed into the pane and what to do.
  */
 import { type ComponentChildren, createContext, Fragment } from "preact";
-import { useContext } from "preact/hooks";
+import { useContext, useEffect, useRef } from "preact/hooks";
+import { MAX_NAME } from "../../contracts/gateway/index.ts";
 import type { AgentWork, InFull, MessageRow, SessionLevel, ThreadLevel, Waiting } from "../view/index.ts";
-import { CHECKING_BACK, commandParts, moreWakeups, NEW_SINCE, OUT_OF_DATE_MARK } from "../view/index.ts";
+import { CHECKING_BACK, commandParts, FIRED, moreWakeups, NEW_SINCE, OUT_OF_DATE_MARK } from "../view/index.ts";
 import { Composer, type ComposerProps } from "./composer.tsx";
 import { Glyph, Relief, Sigil } from "./marks.tsx";
 import { Plain, Prose } from "./prose.tsx";
 import { Steps, WorkBlock, WorkRow } from "./work.tsx";
-import { CONTROLS, TURN_OVER } from "./words.ts";
+import { CONTROLS, THREAD_MENU, TURN_OVER } from "./words.ts";
 
 /** The note that offers to reload the page, when the gateway runs a newer Shrimpy than the page. */
 export const ReloadOffer = createContext<string | undefined>(undefined);
@@ -49,15 +50,99 @@ export function Head({ back, children, acts }: { back: () => void; children: Com
   );
 }
 
-/** What is open, as a head names it: who it is with, set apart, then what it is, and whether it may be out of date. */
-export function Title({ who, rest, stale, path }: { who: string; rest: string; stale: boolean; path?: boolean }) {
-  return (
-    <h1>
+/** What is open, as a head names it: who it is with, set apart, then what it is, whether it may be out of date, and the word that marks it. */
+export function Title({ who, rest, stale, path, tag }: { who: string; rest: string; stale: boolean; path?: boolean; tag?: string | undefined }) {
+  const said = (
+    <>
       <b class="who">{who}</b>
       <span class="dot">·</span>
       <span class={path === true ? "rest path" : "rest"}>{rest}</span>
       {stale && <span class="stale-tag">{OUT_OF_DATE_MARK}</span>}
+    </>
+  );
+  if (tag === undefined) return <h1>{said}</h1>;
+  return (
+    <h1 class="tagged">
+      <span class="clip">{said}</span>
+      <span class="tag">{tag}</span>
     </h1>
+  );
+}
+
+/**
+ * The thread's name as an input where it stands, after who the thread is with:
+ * Enter keeps what is typed, and Esc or leaving it puts the old name back.
+ */
+function Naming({ who, name, called, keep, leave }: { who: string; name: string; called: string; keep: (typed: string) => void; leave: () => void }) {
+  const box = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    box.current?.focus();
+    box.current?.select();
+  }, []);
+  return (
+    <h1 class="naming">
+      <b class="who">{who}</b>
+      <span class="dot">·</span>
+      <span class="rename stepbox">
+        <input
+          ref={box}
+          type="text"
+          maxLength={MAX_NAME}
+          enterKeyHint="done"
+          defaultValue={name}
+          placeholder={called}
+          aria-label={CONTROLS.threadName}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.isComposing) {
+              event.preventDefault();
+              keep(event.currentTarget.value);
+            } else if (event.key === "Escape") {
+              // Esc puts the old name back, and goes back no further.
+              event.preventDefault();
+              event.stopPropagation();
+              leave();
+            }
+          }}
+          onBlur={leave}
+        />
+      </span>
+    </h1>
+  );
+}
+
+/** A trigger's line: which trigger fired and when, folded open to what it brought, and the receipt the agent left on it. */
+function Fired({ row }: { row: MessageRow }) {
+  return (
+    <>
+      {row.firstNew && <div class="mark new">{NEW_SINCE}</div>}
+      <details class="trig">
+        <summary>
+          <Glyph name="clock" />
+          <span>
+            <b>{row.who}</b> {FIRED}
+            <span class="dot">·</span>
+            {row.when}
+          </span>
+          <Glyph name="fold" />
+        </summary>
+        <pre>{row.text}</pre>
+      </details>
+      <Receipts row={row} under />
+    </>
+  );
+}
+
+/** What the agents did with a message or a trigger's line, where that is worth saying. */
+function Receipts({ row, under }: { row: MessageRow; under?: boolean }) {
+  return (
+    <>
+      {row.receipts.map(({ words, failed }) => (
+        <p key={words} class={`receipt${failed ? " bad" : ""}${under === true ? " of-trig" : ""}`}>
+          <Glyph name={failed ? "fail" : "bang"} />
+          {words}
+        </p>
+      ))}
+    </>
   );
 }
 
@@ -74,8 +159,9 @@ function Words({ row }: { row: MessageRow }) {
   return row.agent ? <Prose text={row.text} breaks mentions={row.mentions} /> : <Plain text={row.text} mentions={row.mentions} />;
 }
 
-/** A message, after a line of its own where it is the first that was new. */
+/** A message, after a line of its own where it is the first that was new, or a trigger's line. */
 function Message({ row, cont }: { row: MessageRow; cont: boolean }) {
+  if (row.kind === "trigger") return <Fired row={row} />;
   return (
     <>
       {row.firstNew && <div class="mark new">{NEW_SINCE}</div>}
@@ -100,12 +186,7 @@ function Message({ row, cont }: { row: MessageRow; cont: boolean }) {
               ))}
             </div>
           )}
-          {row.receipts.map(({ words, failed }) => (
-            <p key={words} class={failed ? "receipt bad" : "receipt"}>
-              <Glyph name={failed ? "fail" : "bang"} />
-              {words}
-            </p>
-          ))}
+          <Receipts row={row} />
         </div>
       </article>
     </>
@@ -182,8 +263,17 @@ interface ThreadProps {
   later: boolean;
   composer: Omit<ComposerProps, "commands" | "busy" | "placeholder">;
   placeholder: string;
+  /** The thread's menu is open, with renaming and archiving. */
+  menu: boolean;
+  /** The thread's name is an input where it stands. */
+  naming: boolean;
   back: () => void;
   turn: () => void;
+  toggleMenu: () => void;
+  /** Turn the name into an input, or the input back into the name, renaming the thread to `typed` where it is given. */
+  name: (naming: boolean, typed?: string) => void;
+  /** Archive the thread, or bring it back. */
+  archive: () => void;
   /** Join the room the thread is in, which the person only reads. */
   join: () => void;
   toggleFull: (which: keyof InFull) => void;
@@ -192,24 +282,58 @@ interface ThreadProps {
 }
 
 export function ThreadView(props: ThreadProps) {
-  const { thread, dm, inFull } = props;
+  const { thread } = props;
   const open: AgentWork | undefined = thread.works.find((each) => each.agent === props.work) ?? thread.works[0];
   const pigment = thread.look?.pigment;
+  const titles = `titles${pigment === undefined ? "" : ` pg-${pigment}`}`;
+  const turn = thread.turnable || props.turned;
+  // While the name is an input, it stands alone in the head.
+  if (thread.nameable && props.naming) {
+    return (
+      <>
+        <Head back={props.back}>
+          <div class={titles}>
+            <Naming who={thread.who} name={thread.name} called={thread.called} keep={(typed) => props.name(false, typed)} leave={() => props.name(false)} />
+          </div>
+        </Head>
+        <ThreadBody {...props} open={open} />
+      </>
+    );
+  }
   return (
     <>
       <Head
         back={props.back}
         acts={
-          thread.turnable || props.turned ? (
-            <button class="btn turn" type="button" aria-pressed={props.turned} title={TURN_OVER} onClick={props.turn}>
-              <Glyph name="flip" />
-              <span>{CONTROLS.agentsView}</span>
-            </button>
+          turn || thread.nameable ? (
+            <>
+              {turn && (
+                <button class="btn turn" type="button" aria-pressed={props.turned} title={TURN_OVER} onClick={props.turn}>
+                  <Glyph name="flip" />
+                  <span>{CONTROLS.agentsView}</span>
+                </button>
+              )}
+              {thread.nameable && (
+                <button class="ib" type="button" aria-haspopup="menu" aria-expanded={props.menu} title={THREAD_MENU} aria-label={CONTROLS.threadMenu} onClick={props.toggleMenu}>
+                  <Glyph name="more" />
+                </button>
+              )}
+              {thread.nameable && props.menu && (
+                <div class="menu stepbox" role="menu">
+                  <button type="button" role="menuitem" onClick={() => props.name(true)}>
+                    {CONTROLS.rename}
+                  </button>
+                  <button type="button" role="menuitem" onClick={props.archive}>
+                    {thread.archived ? CONTROLS.unarchive : CONTROLS.archive}
+                  </button>
+                </div>
+              )}
+            </>
           ) : undefined
         }
       >
-        <div class={`titles${pigment === undefined ? "" : ` pg-${pigment}`}`}>
-          <Title who={thread.who} rest={thread.called} stale={props.stale} />
+        <div class={titles}>
+          <Title who={thread.who} rest={thread.called} stale={props.stale} tag={thread.tag} />
           {thread.sub.length > 0 && (
             <p class="sub">
               {thread.sub.map((part, at) => (
@@ -222,13 +346,24 @@ export function ThreadView(props: ThreadProps) {
           )}
         </div>
       </Head>
+      <ThreadBody {...props} open={open} />
+    </>
+  );
+}
+
+/** What the open thread says and what is going on in it, under its head: the conversation, each agent's work, the dock and the input. */
+function ThreadBody(props: ThreadProps & { open: AgentWork | undefined }) {
+  const { thread, dm, inFull, open } = props;
+  return (
+    <>
       <div class="body">
         <div class="scroll" data-follow="end">
           <div class="col">
             {thread.lead !== undefined && <p class="earlier">{thread.lead}</p>}
             {thread.messages.map((row, at) => {
               const before = thread.messages[at - 1];
-              return <Message key={row.id} row={row} cont={before !== undefined && before.who === row.who && before.when === row.when && !before.deleted && !row.firstNew} />;
+              const cont = before?.kind === "message" && row.kind === "message" && before.who === row.who && before.when === row.when && !before.deleted && !row.firstNew;
+              return <Message key={row.id} row={row} cont={cont} />;
             })}
             {thread.works.map((each) =>
               each === open ? (

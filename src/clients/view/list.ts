@@ -1,7 +1,7 @@
 import { placeLabel, threadName, YOUR_DM } from "../../contracts/agent/index.ts";
-import { notTalkedTo, threadTags, titleOf } from "../../contracts/chat/index.ts";
+import { ARCHIVED, notTalkedTo, threadTags, titleOf } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
-import { agentEntries, agentNameOf, agentRuns, type Model, type Part, partsOf, type Place } from "../state/index.ts";
+import { agentEntries, agentNameOf, agentRuns, type Model, type Part, partsOf, type Place, unreadOf } from "../state/index.ts";
 import { agentAbout } from "./agents.ts";
 import { type LevelOptions, lookingAt, type Row } from "./level.ts";
 import { type Look, lookOf } from "./look.ts";
@@ -10,6 +10,7 @@ import { whenOf } from "./time.ts";
 import {
   ADMIN_TAG,
   agentFacts,
+  archivedRow,
   type ListFilter,
   membersLine,
   noTriggers,
@@ -28,7 +29,15 @@ import {
 export interface ListLevel {
   /** The list may be out of date: chat is not being reached, or the agent is not, and what it last said is shown. */
   stale: boolean;
+  /** What it lists, but for its archived threads. */
   rows: Row[];
+  /**
+   * The archived threads, which stand apart at the foot of the list, shut
+   * until the person opens them: the row that opens them, which says how many
+   * there are and has someone working while an agent works in one, and theirs.
+   * Undefined while there are none.
+   */
+  archived: { row: Row; rows: Row[] } | undefined;
   /** What to say where the person's threads with the agent would be, while they have none. */
   empty: string | undefined;
   /** Whose list it is, on one line: the agent's name, or the room's or the channel's label. */
@@ -81,22 +90,25 @@ function channelList(model: Model, place: Exclude<Place, { kind: "agent" }>, opt
   const here = lookingAt(model, place);
   const stale = model.chat.state === "down";
   const reading = place.kind === "read-only";
-  const rows: Row[] = here.threads.map((thread) => ({
-    id: thread.id,
-    kind: "thread",
-    label: titleOf(thread),
-    name: titleOf(thread),
-    tags: threadTags(thread),
-    detail: [whenOf(thread.updatedAt, options.now), reading ? READ_ONLY_TAG : undefined].filter((part) => part !== undefined).join(" · "),
-    working: thread.working.length > 0 && !stale,
-    unread: here.unread[thread.id] ?? 0,
-    yours: false,
-    look: undefined,
+  const listed = here.threads.map((thread) => ({
+    archived: thread.archived,
+    row: {
+      id: thread.id,
+      kind: "thread",
+      label: titleOf(thread),
+      name: titleOf(thread),
+      tags: threadTags({ main: thread.main, archived: false }),
+      detail: [whenOf(thread.updatedAt, options.now), reading ? READ_ONLY_TAG : undefined].filter((part) => part !== undefined).join(" · "),
+      working: thread.working.length > 0 && !stale,
+      unread: unreadOf(here.unread, thread),
+      yours: false,
+      look: undefined,
+    } satisfies Row,
   }));
   const members = here.channel?.members ?? [];
   return {
     stale,
-    rows,
+    ...apart(listed),
     // A room always has its main thread, so there is no one to ask the person to start a talk with.
     empty: undefined,
     label: here.label,
@@ -126,9 +138,10 @@ function channelList(model: Model, place: Exclude<Place, { kind: "agent" }>, opt
 function agentList(model: Model, agentId: string, filter: ListFilter, options: LevelOptions): ListLevel {
   const name = agentNameOf(model, agentId);
   const parts = partsOf(model, agentId);
-  const listed = model.sessions !== undefined;
-  const stale = model.chat.state === "down" || (model.agent?.state === "down" && listed);
-  const rows = parts.filter((part) => filter === "everything" || part.yours).map((part) => partRow(part, model.me?.name, options.now, stale, readOnly(model, part)));
+  const said = model.sessions !== undefined;
+  const stale = model.chat.state === "down" || (model.agent?.state === "down" && said);
+  const shown = parts.filter((part) => filter === "everything" || part.yours);
+  const listed = shown.map((part) => ({ archived: part.thread?.archived === true, row: partRow(part, model.me?.name, options.now, stale, readOnly(model, part)) }));
   const refused = model.refusal === undefined ? undefined : { what: "sessions" as const, words: model.refusal };
   const entry = agentEntries(model).find((each) => each.id === agentId);
   const running = entry?.running === true;
@@ -137,7 +150,7 @@ function agentList(model: Model, agentId: string, filter: ListFilter, options: L
   const admins = members.filter((member) => member.kind === "agent" && member.admin && member.id !== agentId).map((member) => member.name);
   return {
     stale,
-    rows,
+    ...apart(listed),
     empty: !parts.some((part) => part.yours) && model.chat.state === "up" ? notTalkedTo(name) : undefined,
     label: oneLine(name),
     name: oneLine(name),
@@ -148,12 +161,22 @@ function agentList(model: Model, agentId: string, filter: ListFilter, options: L
     look: lookOf(model, agentId),
     ofAgent: true,
     off: !running,
-    settled: listed,
-    more: rows.length < parts.length,
+    settled: said,
+    more: shown.length < parts.length,
     startable: running,
     noTriggers: noTriggers(name, admins.sort((a, b) => a.localeCompare(b))),
     notes: notesOf(model, { agent: agentId, watching: false, looking: "sessions", refused, notice: false }, options.self),
   };
+}
+
+/** The rows of a list, the archived threads apart from the rest, under the row that opens them. */
+function apart(listed: readonly { archived: boolean; row: Row }[]): Pick<ListLevel, "rows" | "archived"> {
+  const rows = listed.filter((each) => !each.archived).map((each) => each.row);
+  const away = listed.filter((each) => each.archived).map((each) => each.row);
+  if (away.length === 0) return { rows, archived: undefined };
+  const label = archivedRow(away.length);
+  const row: Row = { id: ARCHIVED, kind: "archived", label, name: label, tags: [], detail: "", working: away.some((each) => each.working), unread: 0, yours: false, look: undefined };
+  return { rows, archived: { row, rows: away } };
 }
 
 /**
@@ -182,9 +205,10 @@ function partRow(part: Part, me: string | undefined, now: number, stale: boolean
   // Chat names a thread. A thread only the agent has said it has is called what the agent knows of it.
   let label = oneLine(part.id);
   let tags: string[] = [];
+  // An archived thread stands apart under the row that says so, which marks it.
   if (part.thread !== undefined) {
     label = titleOf(part.thread);
-    tags = threadTags(part.thread);
+    tags = threadTags({ main: part.thread.main, archived: false });
   } else if (part.place !== null && part.place.kind !== "trigger") {
     const named = threadName(part.place.thread, part.id);
     label = named.label;

@@ -1,14 +1,5 @@
 import type { ModelId, SessionActivity, SessionSummary } from "../../contracts/agent/index.ts";
-import type { Thread } from "../../contracts/chat/index.ts";
-import { agentEntries, agentNameOf, type DevicesStatus, type Model, type Place, type Status, workingIn } from "./model.ts";
-
-/** The thread the person is in, as far as the client knows it: undefined for one that is not started. */
-function threadOf(model: Model, threadId: string | undefined, place: Exclude<Place, { kind: "read-only" }>): Thread | undefined {
-  if (threadId === undefined) return undefined;
-  if (model.thread?.thread.id === threadId) return model.thread.thread;
-  const threads = place.kind === "agent" ? model.dms[place.id]?.threads : model.rooms[place.id]?.threads;
-  return threads?.find((each) => each.id === threadId);
-}
+import { agentEntries, agentNameOf, type DevicesStatus, type Model, openThreadOf, type Status, workingIn } from "./model.ts";
 
 /**
  * What `/status` finds out about the thread the person is in, as it stands in
@@ -27,7 +18,7 @@ export function statusOf(
   if (item?.kind !== "thread") return undefined;
   const { place } = item;
   if (place.kind === "read-only") return undefined;
-  const thread = threadOf(model, item.thread, place);
+  const thread = openThreadOf(model);
   const entries = agentEntries(model);
 
   if (place.kind === "room") {

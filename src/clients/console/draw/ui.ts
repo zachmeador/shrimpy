@@ -15,7 +15,7 @@ import {
   TuiAltScreen,
   VStack,
 } from "@earendil-works/pi-tui";
-import { agentNameOf, type ClientState, type Item, type Open, placeKey } from "../../state/index.ts";
+import { agentNameOf, type ClientState, commandNames, type Item, type Open, placeKey } from "../../state/index.ts";
 import { type ListFilter, modelLines, type Row, windowTitle } from "../../view/index.ts";
 import { commandList } from "./commands.ts";
 import { interrupt } from "./interrupt.ts";
@@ -109,6 +109,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
     model: state.model(),
     levels: levelsOf(state.model(), { now: now(), inFull, filter: "everything" }),
     filter: "everything",
+    archived: false,
     inFull,
     chosen: { agents: undefined, list: undefined },
     running: new Set(),
@@ -142,7 +143,8 @@ export function startDrawing(options: DrawingOptions): Drawing {
       noMatch: (text) => frame.paint.text(text, "ink3"),
     },
   };
-  const editor = new Editor(tui, editorTheme, { paddingX: 1 });
+  // The list of commands shows every command that can be written in a thread at once, as the terminal's mockup draws it.
+  const editor = new Editor(tui, editorTheme, { paddingX: 1, autocompleteMaxVisible: commandNames("dm").length });
 
   // What was typed in each thread that is not open, so that opening another thread doesn't lose or misplace it.
   const drafts = new Map<string, string>();
@@ -217,6 +219,12 @@ export function startDrawing(options: DrawingOptions): Drawing {
     }
     frame.chosen.list = rowKey(row);
     landing = false;
+    // The row of the archived threads opens them in place, and shuts them again.
+    if (row.kind === "archived") {
+      frame.archived = !frame.archived;
+      go("list");
+      return;
+    }
     if (row.kind === "session") state.openSession(row.id);
     else state.openThread(row.id);
     go("item");
@@ -353,6 +361,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
       if (listOpen === undefined && listKey !== undefined) frame.front = item === undefined ? "list" : "item";
       if (listKey !== undefined) frame.chosen.agents = listKey;
       frame.chosen.list = undefined;
+      frame.archived = false;
       landing = openList?.kind === "agent";
     }
     if (opened(itemOpen, item)) frame.front = "item";
@@ -365,7 +374,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
     frame.levels = levelsOf(model, { now: now(), inFull, filter: frame.filter });
     const { agents, list: listLevel, thread: threadLevel } = frame.levels;
     frame.chosen.agents = kept(agents.rows, frame.chosen.agents);
-    const rows = listLevel === undefined ? [] : listRows(listLevel);
+    const rows = listLevel === undefined ? [] : listRows(listLevel, frame.archived);
     frame.chosen.list ??= openedKey(item);
     if (landing && listLevel?.settled === true && rows.length > 0) {
       landing = false;
@@ -403,7 +412,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
   /** The rows of the list the keys are in, as they are drawn, and which of them is chosen. */
   function inFront(): { rows: Row[]; chosen: string | undefined } {
     if (frame.front === "agents") return { rows: frame.levels.agents.rows, chosen: frame.chosen.agents };
-    return { rows: frame.levels.list === undefined ? [] : listRows(frame.levels.list), chosen: frame.chosen.list };
+    return { rows: frame.levels.list === undefined ? [] : listRows(frame.levels.list, frame.archived), chosen: frame.chosen.list };
   }
 
   /** Move the chosen row of the list the keys are in by `by`. */

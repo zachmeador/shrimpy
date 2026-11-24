@@ -164,6 +164,11 @@ body { background: var(--pane); color: var(--ink); font: 400 var(--t-ui)/1.45 va
   color: var(--ink-3);
 }
 .label::after { content: ""; flex: 1; height: 2px; background: var(--line-2); -webkit-mask: var(--d-50) 0 0 / 4px 4px; mask: var(--d-50) 0 0 / 4px 4px; }
+/* The archived threads of a list: a label at its foot that opens them in place. */
+.label.fold { width: calc(100% - 28px); min-height: 30px; margin-top: 8px; margin-bottom: 0; }
+.label.fold:hover { color: var(--ink-2); }
+.label.fold > :is(i, svg) { order: 1; }
+.label.fold[aria-expanded="true"] .px { transform: rotate(90deg); }
 
 .row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: var(--row); padding: 5px 14px; }
 .row:hover, .trow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent); }
@@ -263,8 +268,21 @@ button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent
 /* --- The thread ----------------------------------------------------------- */
 
 .thread { background: var(--pane); }
-.thead { padding-left: 28px; padding-right: 16px; border-bottom: 1px solid var(--line); }
+.thead { position: relative; z-index: 3; padding-left: 28px; padding-right: 16px; border-bottom: 1px solid var(--line); }
 .acts { display: flex; align-items: center; gap: 6px; }
+
+/* A thread's menu, its name as an input where it stands, and the tag of an archived one. */
+.menu { position: absolute; right: 12px; top: calc(100% - 8px); z-index: 4; min-width: 132px; padding: 4px; --fill: var(--raise); --edge: var(--line-2); }
+.menu button { display: block; width: 100%; padding: 5px 10px 6px; font-size: var(--t-small); color: var(--ink-2); }
+.menu button:hover { background: var(--well); color: var(--ink); }
+.titles h1.naming { display: flex; align-items: center; overflow: visible; }
+.rename { flex: 1; min-width: 0; max-width: 30rem; display: flex; padding: 0 9px; --fill: var(--well); --edge: var(--ink-3); }
+.rename input { flex: 1; min-width: 0; height: 30px; padding: 0 0 1px; border: 0; background: transparent; color: var(--ink); font: 500 var(--t-read)/1.3 var(--face); }
+.app .rename input:focus-visible { outline: 0; }
+.rename input::placeholder { color: var(--ink-3); }
+.titles h1.tagged { display: flex; align-items: baseline; }
+.titles h1.tagged .clip { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.titles h1.tagged .tag { flex: none; }
 
 /* What scrolls under the head and the dock leaves through a dither. */
 .thread .body::before, .thread .body::after, .watch .body::before {
@@ -317,6 +335,15 @@ button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent
 .mark::before, .mark::after { content: ""; flex: 1; height: 2px; background: var(--line-2); -webkit-mask: var(--d-50) 0 0 / 4px 4px; mask: var(--d-50) 0 0 / 4px 4px; }
 .mark.new { color: var(--coral-ink); }
 .mark.new::before, .mark.new::after { background: var(--coral); }
+
+/* A trigger's line: which trigger fired and when, folded open to what it brought, with the agent's receipt under it. */
+.trig { margin: 10px 0 2px 36px; font-size: var(--t-small); color: var(--ink-3); }
+.trig summary { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; list-style: none; }
+.trig summary::-webkit-details-marker { display: none; }
+.trig summary b { font-weight: 500; color: var(--ink-2); }
+.trig[open] summary > .px:last-child { transform: rotate(90deg); }
+.trig pre { margin: 7px 0 0; padding-left: 12px; border-left: 2px solid var(--line); font: 400 var(--t-code)/1.5 var(--mono); white-space: pre-wrap; }
+.receipt.of-trig { margin-left: 36px; }
 .earlier { padding-bottom: 8px; font-size: var(--t-small); color: var(--ink-3); }
 
 /* An agent's work in progress: a bar down its left side that moves while it runs. */
@@ -475,7 +502,7 @@ button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent
   .work-row { width: 100%; margin-left: 0; }
   .col, .watch .col { padding: 14px 16px 12px; }
   .msg { column-gap: 10px; }
-  .work { margin-left: 0; }
+  .work, .trig, .receipt.of-trig { margin-left: 0; }
   .dock { padding: 2px 10px calc(8px + var(--safe-bottom, 0px)); }
   .keys { display: none; }
   .send { width: 34px; height: 34px; }

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { type TestContext, test } from "node:test";
 import { lookFromId, parseSigil, PIGMENTS } from "../../contracts/agent/index.ts";
 import { servingAnotherAgent } from "../../contracts/agent/testing/index.ts";
-import type { Thread } from "../../contracts/chat/index.ts";
+import { type Thread, triggerLabel } from "../../contracts/chat/index.ts";
 import type { Speaking } from "../../contracts/chat/testing/index.ts";
 import { linkTestAgent, SHRIMPY_ENTRY } from "../../contracts/gateway/testing/index.ts";
 import { type Child, runChild, startChild, tempDir } from "../../lib/testing/index.ts";
@@ -156,6 +156,67 @@ test("a message shows each emoji with who put it there, a failed receipt apart, 
   );
   assert.equal(withMentions(first.text, first.mentions).filter((part) => typeof part !== "string").length, 1, "the agent named is marked where it is named");
   assert.deepEqual([first.command, stop.command], [false, true]);
+});
+
+test("a trigger's line says which trigger fired and when, with what its check printed or else its prompt, the mark for what is new before it and the receipt on it", { timeout }, async (t) => {
+  const rig = await startRig(t);
+  const scout = await rig.member("scout");
+  const asScout = await rig.asAgent("scout");
+  const thread = await rig.thread("scout", "watch the shopping list");
+  await rig.until((model) => model.open.list?.id === scout.id, "scout's list");
+  rig.state.openThread(thread.id);
+  rig.state.look(true);
+  await rig.until((model) => model.thread?.messages.length === 1 && model.thread.unread === 0, "the thread, read");
+
+  rig.state.look(false);
+  const firedAt = Date.now();
+  const checked = await asScout.fire(thread.id, { trigger: "groceries", firedAt, prompt: "Say what is on the list.", output: "14\n" });
+  await asScout.fire(thread.id, { trigger: "nightly", firedAt, prompt: "Run the snapshot.", output: null });
+  await asScout.leaveReceipt([checked.event], { status: "failed", reply: null, detail: "The model failed." });
+  await rig.until((model) => model.thread?.messages.length === 3 && model.thread.messages[1]?.receipts.length === 1, "both lines, and the receipt");
+  rig.state.look(true);
+  const shown = await rig.until((model) => model.thread?.unread === 0, "the lines, read");
+
+  const [, groceries, nightly] = threadLevel(shown, at)?.messages ?? [];
+  assert.ok(groceries && nightly);
+  assert.deepEqual([groceries.kind, nightly.kind], ["trigger", "trigger"]);
+  assert.deepEqual([groceries.who, nightly.who], [triggerLabel("groceries"), triggerLabel("nightly")]);
+  assert.deepEqual([groceries.text, nightly.text], ["14", "Run the snapshot."], "what the check printed, and the prompt of a trigger with no check");
+  assert.deepEqual(firstNew(shown), [false, true, false], "the first line is the first thing new");
+  assert.deepEqual(
+    groceries.receipts.map((each) => each.failed),
+    [true],
+  );
+});
+
+test("renaming and archiving are the client's own, posting nothing, and an archived thread stands apart at the foot of its list with nothing in it new", { timeout }, async (t) => {
+  const rig = await startRig(t);
+  const scout = await rig.member("scout");
+  const asScout = await rig.asAgent("scout");
+  const thread = await rig.thread("scout", "check the disk");
+  await asScout.post(thread.id, "43% used");
+  await rig.until((model) => model.open.list?.id === scout.id && model.dms[scout.id]?.unread[thread.id] === 1, "scout's list, with the reply new");
+  rig.state.openThread(thread.id);
+  await rig.until((model) => model.thread?.thread.id === thread.id, "the thread");
+
+  assert.equal(await rig.state.write("/rename  the   disk "), true);
+  await rig.until((model) => model.thread?.thread.name === "the disk", "the new name");
+  assert.equal(await rig.state.write("/archive"), true);
+  const archived = await rig.until((model) => listLevel(model, at)?.archived?.rows.length === 1, "the thread among the archived");
+  const list = listLevel(archived, at);
+  assert.ok(!list?.rows.some((row) => row.id === thread.id), "it has left the rest of the list");
+  assert.deepEqual(list?.archived?.rows.map((row) => [row.id, row.label, row.unread]), [[thread.id, "the disk", 0]]);
+  assert.equal(countOn(agentsLevel(archived, at).rows, "agent", scout.id), 0, "nothing in it counts as new");
+  assert.equal(threadLevel(archived, at)?.archived, true);
+
+  assert.equal(await rig.state.write("/unarchive"), true);
+  const back = await rig.until((model) => listLevel(model, at)?.archived === undefined, "the thread back in the list");
+  assert.ok(listLevel(back, at)?.rows.some((row) => row.id === thread.id));
+  assert.deepEqual(
+    back.thread?.messages.map((message) => message.text),
+    ["check the disk", "43% used"],
+    "nothing was posted",
+  );
 });
 
 test("an agent's list that waits on another version of it names the agent and the Shrimpy it runs", { timeout: 30_000 }, async (t) => {

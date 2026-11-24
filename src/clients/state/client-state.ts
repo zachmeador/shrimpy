@@ -15,14 +15,16 @@ import {
   type HomeLookup,
   type Model,
   type Notice,
+  openThreadOf,
   type Place,
   sessionsOpen,
 } from "./model.ts";
 import { createMoves } from "./moves.ts";
+import { createRenaming } from "./renaming.ts";
 import { createSending } from "./sending.ts";
 import { createStore } from "./store.ts";
 import { worked } from "./worked.ts";
-import { writtenIn } from "./written.ts";
+import { writtenInOpen } from "./written.ts";
 
 export interface ClientStateOptions {
   /** How to dial the gateway, which the client hands it: from Node, at its own socket on this machine or at its entry. */
@@ -112,6 +114,15 @@ export interface ClientState {
   write(text: string): Promise<boolean>;
   /** Say something in the open thread, or in a new one, and say whether it was sent. The person's draft is theirs to put back when it was not. */
   send(text: string): Promise<boolean>;
+  /**
+   * Name the open thread what `typed` says, on one line and cut to the longest
+   * name chat keeps, as decided on the thread as the person saw it. An empty
+   * name, or the name it has, changes nothing. What chat refuses, as it does a
+   * thread that changed since, is said in a notice. Posts nothing.
+   */
+  rename(typed: string): Promise<void>;
+  /** Archive the open thread, or bring it back, as `rename` names it. Posts nothing. */
+  archive(archived: boolean): Promise<void>;
   /** Tell the person something that came of what they wrote, in a note that goes away by itself. Posts nothing. */
   note(notice: Notice): void;
   /**
@@ -228,6 +239,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
   const stopLink = link.onChange(() => store.changed());
   const moves = createMoves(store, held, options.startOnLanding === true);
   const sending = createSending(store, held, moves, options.sendMs ?? SEND_MS);
+  const renaming = createRenaming(store, held, options.sendMs ?? SEND_MS);
   const asking = createAsking(store, held, options.now ?? Date.now);
   let closed = false;
   let looking = false;
@@ -345,8 +357,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
       }
     },
     async write(text) {
-      const { item } = store.model().open;
-      const written = item?.kind === "thread" ? writtenIn(text, item.place.kind === "agent" ? "dm" : "room") : ({ do: "post" } as const);
+      const written = writtenInOpen(store.model(), text);
       switch (written.do) {
         case "status":
           void asking.readStatus();
@@ -360,6 +371,15 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
         case "take-back":
           void asking.takeBack(written.device);
           return true;
+        case "rename":
+          void renaming.rename(written.name);
+          return true;
+        case "name":
+          store.say({ kind: "thread-name", name: openThreadOf(store.model())?.name ?? null });
+          return true;
+        case "archive":
+          void renaming.archive(written.archived);
+          return true;
         case "refuse":
           store.say(written.notice);
           return false;
@@ -368,6 +388,8 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
       }
     },
     send: (text) => sending.send(text),
+    rename: (typed) => renaming.rename(typed),
+    archive: (archived) => renaming.archive(archived),
     note: (notice) => store.say(notice),
     readStatus: () => asking.readStatus(),
     readDevices: () => asking.readDevices(),

@@ -9,11 +9,12 @@
  * the session on show whole, read back from where its window starts, what is
  * linked, the person's devices, and the things a person does: open an agent's
  * list, a room's or a channel's they only read, a thread or a session, start a
- * thread, say something, read the status of a thread, list their devices and
- * take one back, ask for the models an agent can use and read the model of a
- * thread's session, look through an agent's home and its triggers, act on what
- * the person writes, which a text that starts with a slash decides, tell the
- * person something about what they wrote, put each agent's view of a thread on
+ * thread, say something, rename a thread and archive it or bring it back, read
+ * the status of a thread, list their devices and take one back, ask for the
+ * models an agent can use and read the model of a thread's session, look
+ * through an agent's home and its triggers, act on what the person writes,
+ * which a text that starts with a slash decides, tell the person something
+ * about what they wrote, put each agent's view of a thread on
  * show in turn and the conversation back, leave. A client says whether the
  * person is looking, and the thread they look at is marked read. Which level is
  * in front, and going back, are each client's own. It makes no room and adds no
@@ -38,6 +39,7 @@ export {
   type Model,
   type Notice,
   type Open,
+  openThreadOf,
   type Part,
   partsOf,
   type Place,
@@ -50,5 +52,6 @@ export {
   sidesOf,
   type Status,
   type ThreadView,
+  unreadOf,
 } from "./model.ts";
-export { type ClientCommand, CLIENT_COMMANDS, commandNames } from "./written.ts";
+export { type ClientCommand, CLIENT_COMMANDS, commandNames, type Standing, standingOf, type Written, writtenInOpen } from "./written.ts";

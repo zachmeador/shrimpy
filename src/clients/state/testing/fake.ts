@@ -47,6 +47,14 @@ export function fakeState(initial: Model): FakeState {
       calls.push(`send ${text}`);
       return Promise.resolve(answers.send);
     },
+    rename(typed) {
+      calls.push(`rename ${typed}`);
+      return Promise.resolve();
+    },
+    archive(archived) {
+      calls.push(archived ? "archive" : "unarchive");
+      return Promise.resolve();
+    },
     note: (notice) => void calls.push(`note ${notice.kind}`),
     readStatus() {
       calls.push("status");

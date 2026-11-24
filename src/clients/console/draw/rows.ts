@@ -137,9 +137,7 @@ export const wide = (width: number): boolean => width >= ONE_LINE;
  */
 export function rowLines(paint: Paint, width: number, parts: RowParts): Line[] {
   const { marks, key, go } = parts;
-  const on: Ground | undefined = (marks.focus ? marks.chosen : marks.open) ? "raise" : undefined;
-  const bar: Run = marks.focus && marks.chosen ? ["▎", role("fresh", true)] : marks.focus && marks.open ? ["▎", "line2"] : [" ", "ink"];
-  const start: Run[] = [bar, [" ", "ink"]];
+  const { on, start } = marking(marks);
   if (wide(width) && parts.detailAt === "edge") {
     return [{ text: spread(paint, [...start, ...parts.name], [...parts.detail, ["  ", "ink"], ...parts.end], width), on, go, key }];
   }
@@ -152,6 +150,13 @@ export function rowLines(paint: Paint, width: number, parts: RowParts): Line[] {
     { text: spread(paint, [...start, ...parts.name], parts.end, width), on, go, key },
     { text: spread(paint, [...start, ...parts.detail], [], width), on, go, key },
   ];
+}
+
+/** How a row is marked: the ground it is raised on, if any, and the bar it starts with, with a space after it. */
+export function marking(marks: Marks): { on: Ground | undefined; start: Run[] } {
+  const on: Ground | undefined = (marks.focus ? marks.chosen : marks.open) ? "raise" : undefined;
+  const bar: Run = marks.focus && marks.chosen ? ["▎", role("fresh", true)] : marks.focus && marks.open ? ["▎", "line2"] : [" ", "ink"];
+  return { on, start: [bar, [" ", "ink"]] };
 }
 
 /** How much is new to the person, and a lantern while someone works: what a row has against its edge. */

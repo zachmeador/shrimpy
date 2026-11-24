@@ -33,11 +33,14 @@ export function receiptWords(receipt: Receipt, who: string): string | undefined 
   }
 }
 
+/** A trigger as it is written where a person or an agent reads its name: "trigger groceries". */
+export const triggerLabel = (name: string): string => `trigger ${oneLine(name)}`;
+
 /**
  * What a trigger's line says, as agents and the commands read it, with `at` the
  * time it fired as the reader writes times: "trigger groceries fired at 14:30".
  */
-export const firedWords = (trigger: string, at: string): string => `trigger ${oneLine(trigger)} fired at ${at}`;
+export const firedWords = (trigger: string, at: string): string => `${triggerLabel(trigger)} fired at ${at}`;
 
 /** Why chat takes whoever asks for nobody: the roster has no member for them. */
 export const ONLY_MEMBERS = "Only the network's members use chat, and the roster has no member for whoever is asking.";
@@ -68,9 +71,12 @@ export function titleOf(thread: Thread): string {
   return oneLine(thread.name ?? thread.preview ?? NO_MESSAGES);
 }
 
+/** The word that marks an archived thread. */
+export const ARCHIVED = "archived";
+
 /** The words that mark a thread: that it is the main thread, and that it is archived. */
 export function threadTags(thread: Pick<Thread, "main" | "archived">): string[] {
-  return [thread.main ? "main" : undefined, thread.archived ? "archived" : undefined].filter((tag) => tag !== undefined);
+  return [thread.main ? "main" : undefined, thread.archived ? ARCHIVED : undefined].filter((tag) => tag !== undefined);
 }
 
 /** What a thread is called, marked when it is the main thread or archived: "deploys [main, archived]". */

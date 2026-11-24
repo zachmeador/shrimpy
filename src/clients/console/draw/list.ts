@@ -1,7 +1,7 @@
 import { dots } from "../../look/index.ts";
 import { FILTERS, type ListFilter, type Row } from "../../view/index.ts";
-import { role, type Run } from "./paint.ts";
-import { hint, isChosen, label, type Line, noteRuns, rowEnd, rowLines, spread, wide, windowed, wrapped } from "./rows.ts";
+import { role, type Run, runsWidth } from "./paint.ts";
+import { hint, isChosen, label, lamp, type Line, marking, noteRuns, rowEnd, rowLines, spread, wide, windowed, wrapped } from "./rows.ts";
 import { type Frame, listParts, openedKey, rowKey } from "./screen.ts";
 import { emptyAgentList, FILTER_KEY, NEW, NEW_THREAD } from "./words.ts";
 
@@ -62,7 +62,7 @@ export function drawList(frame: Frame, width: number, height: number, notes: rea
   if (list.rows.length === 0) {
     const empty = list.empty === undefined ? undefined : list.ofAgent ? emptyAgentList(list.empty, list.name, list.more) : list.empty;
     if (empty !== undefined) lines.push(...wrapped(paint, empty, width, "ink3"));
-    return lines;
+    if (list.archived === undefined) return lines;
   }
 
   const listed: Line[] = [];
@@ -73,7 +73,22 @@ export function drawList(frame: Frame, width: number, height: number, notes: rea
     for (const each of rows) listed.push(...rowOf(frame, width, each, () => actions.open(each)));
   };
   for (const [name, rows] of listParts(list)) part(name, rows);
+  const { archived } = list;
+  if (archived !== undefined) {
+    listed.push({ text: "" }, archivedLine(frame, width, archived.row, () => actions.open(archived.row)));
+    if (frame.archived) for (const each of archived.rows) listed.push(...rowOf(frame, width, each, () => actions.open(each)));
+  }
   return [...lines, ...windowed(listed, Math.max(0, height - lines.length), (line) => line.key === frame.chosen.list)];
+}
+
+/** The row at the foot of a list that opens its archived threads in place, and shuts them: how many, a dotted rule to the edge, and a lantern while an agent works in one. */
+function archivedLine(frame: Frame, width: number, row: Row, go: () => void): Line {
+  const marks = { focus: frame.front === "list", chosen: isChosen(frame.chosen.list, row), open: false };
+  const { on, start } = marking(marks);
+  const said: Run[] = [...start, [row.label, marks.focus && marks.chosen ? "ink2" : "ink3"], [" ", "ink"]];
+  const rule = Math.max(0, width - runsWidth(said) - (row.working ? 3 : 2));
+  const end: Run[] = row.working ? [["▪", lamp(frame.tick)]] : [];
+  return { text: spread(frame.paint, [...said, ["┈".repeat(rule), "line2"]], end, width), on, go, key: rowKey(row) };
 }
 
 /**

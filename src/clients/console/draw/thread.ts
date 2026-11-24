@@ -1,7 +1,7 @@
 import { type Component, type Editor, stripTerminalSequences, type TuiMouseEvent, type TuiMouseEventResult, visibleWidth } from "@earendil-works/pi-tui";
 import { halves, SHRIMP } from "../../look/index.ts";
 import { moreWakeupsListed, OUT_OF_DATE_MARK } from "../../view/index.ts";
-import { type Ground, role, type Run, type Tone } from "./paint.ts";
+import { cutRuns, type Ground, role, type Run, runsWidth, type Tone } from "./paint.ts";
 import { hint, noteRuns, saidRuns, spread } from "./rows.ts";
 import { type Frame, MEASURE, notesFor, sides, writable } from "./screen.ts";
 import { messageLines, type Prose, sessionLines, workLines, wrap } from "./steps.ts";
@@ -58,7 +58,10 @@ export class ThreadHeader implements Component {
     } else if (levels.thread !== undefined && item.kind === "thread") {
       const thread = levels.thread;
       const who: Run = [thread.who, { tone: thread.look?.pigment ?? "ink", bold: true }];
-      lines.push(spread(paint, [[" ", "ink"], who, [" · ", "ink3"], [thread.called, "ink"], ...late], turn, width));
+      // The word that marks the thread stays whole, and what it is called is cut short to leave it room.
+      const tag: Run[] = thread.tag === undefined ? [] : [[" ", "ink"], [` ${thread.tag} `, { tone: "ink3", on: "well" }]];
+      const said = cutRuns([[" ", "ink"], who, [" · ", "ink3"], [thread.called, "ink"], ...late], Math.max(0, width - (turn.length > 0 ? runsWidth(turn) + 2 : 1) - runsWidth(tag)));
+      lines.push(spread(paint, [...said, ...tag], turn, width));
       lines.push(spread(paint, [[" ", "ink"], [thread.sub.join(" · "), "ink3"]], [], width));
     }
     if (turn.length > 0) {
