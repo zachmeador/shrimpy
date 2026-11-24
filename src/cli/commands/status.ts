@@ -27,11 +27,11 @@ import { renderTable } from "./table.ts";
 const status: Command = {
   name: "status",
   usage: "",
-  summary: "List the programs linked to the gateway, and the members on its roster.",
+  summary: "List the gateway and the programs linked to it, and the members on its roster.",
   details:
     "The gateway is this machine's, or, in the shell of an agent that lives apart from it or on a machine that joined " +
-    "as yours, the one that agent or machine joined. The programs are listed by kind, name and version. " +
-    "The members are everyone the gateway knows, people and agents, as shrimpy members lists them: by name and " +
+    "as yours, the one that agent or machine joined. The gateway and the programs are listed by kind, name and " +
+    "version. The members are everyone the gateway knows, people and agents, as shrimpy members lists them: by name and " +
     "kind, with whether each is an admin, whether a program is linked as it, and its ID. A program newer " +
     "than the gateway is marked, and so is this command, on standard error, since the gateway's machine updates first. " +
     "A program the gateway turns away for the release it runs is listed after them, with what to update. It ends with a " +
@@ -95,16 +95,15 @@ async function noGatewayHere(io: Io): Promise<number> {
   return 1;
 }
 
-/** The programs as a table, each one newer than the gateway, which runs `gateway`, followed by a note saying so. */
+/** The gateway, which runs `gateway`, and the programs linked to it as a table, each one newer than the gateway followed by a note saying so. */
 function renderPrograms(programs: readonly Program[], gateway: string): string[] {
-  if (programs.length === 0) return ["Programs:", "No programs are linked."];
-  const rows = programs.map((program) => [program.kind, program.name, program.shrimpy]);
+  const rows = [["gateway", "gateway", gateway], ...programs.map((program) => [program.kind, program.name, program.shrimpy])];
   const [header, ...lines] = renderTable(["kind", "name", "version"], rows);
   const newer = (program: Program | undefined): boolean => program !== undefined && (compareShrimpy(program.shrimpy, gateway) ?? 0) > 0;
   return [
     "Programs:",
     header ?? "",
-    ...lines.map((line, index) => (newer(programs[index]) ? `${line}  (newer than the gateway's ${gateway})` : line)),
+    ...lines.map((line, index) => (newer(programs[index - 1]) ? `${line}  (newer than the gateway's ${gateway})` : line)),
   ];
 }
 

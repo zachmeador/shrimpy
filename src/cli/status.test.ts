@@ -24,6 +24,7 @@ test("status marks a program newer than the gateway with the gateway's version",
   const lines = cli.out.filter((line) => line.includes(newer));
   assert.equal(lines.length, 1);
   assert.ok(lines[0]?.includes("scout") && lines[0].includes(SHRIMPY_VERSION), "the newer agent is named with its version and the gateway's");
+  assert.ok(cli.out.some((line) => line.includes("gateway") && line.includes(SHRIMPY_VERSION) && !line.includes(newer)), "the gateway is listed with its version");
   assert.ok(cli.out.at(-1)?.includes("shrimpy install"), "and it ends with a line on the service, of which this home has none");
 });
 

@@ -128,7 +128,7 @@ The rest are mostly for agents and scripts. `shrimpy <command> --help` explains 
 | Command | What it does |
 |---|---|
 | `up [<agent>...] [--data <dir>] [--listen <host:port>]...` | Start what is missing on this machine and keep it running: the gateway, the chat server and your agents. |
-| `status` | List the programs linked to the gateway, and the members on its roster. |
+| `status` | List the gateway and the programs linked to it, and the members on its roster. |
 | `login [<provider>]` | Sign your Shrimpy folder in to a model provider, for every agent started there. |
 | `run <agent> "<text>" [--thread <id>] [--no-wait]` | Say something to an agent and print its reply. |
 | `agent init <agent> [--model <provider/id>] [--name <name>]` | Create an agent home. Files that already exist are left as they are. |

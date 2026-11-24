@@ -324,7 +324,6 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Falls short in the commands**
 
-- `shrimpy status` lists chat and the agents with their versions, and not the gateway's own.
 - `shrimpy status` lists the person as not reachable, since reachable means only that an agent's program is linked.
 - Commands agents guess don't exist: `shrimpy agent <name>` and `shrimpy sessions <name>`. `shrimpy read '#room'` doesn't print the room's main thread.
 - `shrimpy threads` can't name a DM between two agents, so from a shell its thread's ID comes from `shrimpy sessions list`.
