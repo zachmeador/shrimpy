@@ -133,11 +133,11 @@ export async function reachAgent(sought: Sought): Promise<AgentReached | undefin
  * an agent that lives on another machine or under another account.
  */
 export async function homeOnRoster(name: string): Promise<string | undefined> {
-  const sought = { name };
-  const { client, members } = await asMe(sought);
-  let id: string | undefined;
+  const { client, members } = await asMe({ name });
+  let id: string;
   try {
-    id = memberSought(sought, members)?.id;
+    // A name nobody on the roster has is an error that says so, and never matches a home that has not joined.
+    id = agentNamed(members, name).id;
   } finally {
     await client.close();
   }

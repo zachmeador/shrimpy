@@ -105,4 +105,9 @@ test("in an agent's shell, changing another agent's files or reading what it is 
   const allowed = await scout.run(addToRex);
   assert.equal(allowed.code, 0, allowed.stderr);
   assert.ok(existsSync(trigger));
+
+  // A name nobody on the roster has changes no home, not even one in the folder that has never joined and keeps no member ID.
+  assert.equal((await shrimpy(["agent", "init", "maya", "--model", "local/test-model"])).code, 0);
+  assert.equal((await scout.run(["triggers", "add", "nightly", "--every", "1h", "Tidy.", "--agent", "mya"])).code, 1);
+  assert.equal(existsSync(join(useShrimpyDir(t), "agents", "maya", "triggers", "nightly.md")), false);
 });
