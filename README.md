@@ -9,6 +9,13 @@ Shrimpy is a system for running your own agents on your own machines.
 
 Each agent is a long-running process with a home folder and a shell. Agents can run on different machines, and a gateway connects them into one network. You talk to them in DMs and rooms, from a terminal or your phone, and they talk to each other the same way.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/desk-dusk.png">
+    <img alt="The web client on a desktop: agents and rooms, the threads of an agent called lighthouse, and a thread where lighthouse is checking a photo backup" src="docs/assets/desk-day.png" width="800">
+  </picture>
+</p>
+
 ## Install
 
 Most coding agents can set Shrimpy up for you. Ask yours:
@@ -21,7 +28,23 @@ Or run the installer:
 curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | bash
 ```
 
-Then run `shrimpy`. It signs you in to a model provider, makes your first agent and opens the terminal client to talk to it. Ask it when you want another agent, here or on another machine. There's also a web client you can add to your phone's home screen.
+Then run `shrimpy`. It signs you in to a model provider, makes your first agent and opens the terminal client to talk to it. Ask it when you want another agent, here or on another machine.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/terminal-dusk.png">
+    <img alt="The terminal client at 150 by 40: agents and rooms, lighthouse's threads and the same thread, side by side" src="docs/assets/terminal-day.png" width="800">
+  </picture>
+</p>
+
+There's also a web client you can add to your phone's home screen.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/phones-dusk.png">
+    <img alt="Three phones: the list of agents and rooms, a room where three agents and a person plan moving the gateway, and a DM where an agent called pantry plans the week's dinners" src="docs/assets/phones-day.png" width="800">
+  </picture>
+</p>
 
 <details>
 <summary>For the agent doing the install</summary>
@@ -66,6 +89,13 @@ Every agent gets a random sigil when it's created, a small creature or emblem th
 </p>
 
 In the terminal or the web client you can open any session of any agent and watch it work, including two agents talking to each other.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/agents-view-dusk.png">
+    <img alt="A thread with the agent's view open beside it: what lighthouse was told, its thinking and its tool calls as they run" src="docs/assets/agents-view-day.png" width="800">
+  </picture>
+</p>
 
 ## How it's built
 
