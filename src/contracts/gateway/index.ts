@@ -24,26 +24,31 @@ export {
   refused,
   RefusedSchema,
 } from "./answers.ts";
-export { contextOf, holding, isLost, unlessRefused, valueOf } from "./calls.ts";
+export { contextOf, holding, isLost, isOtherVersion, unlessRefused, valueOf } from "./calls.ts";
 export { type Client } from "./client.ts";
 export {
+  type Answering,
+  compareShrimpy,
   type Hello,
   type HelloAnswer,
   hello,
   HelloRefusedError,
+  linksWith,
+  newerThanGateway,
   notAHello,
-  otherPi,
+  otherRelease,
   readAnswer,
   readHello,
   readVersions,
-  samePi,
   turnAway,
   UnknownAnswerError,
-  versionWarning,
+  type Versions,
+  waitingOnVersion,
   type Welcome,
   welcome,
   type Welcomed,
   type Who,
+  whyTurnedAway,
 } from "./hello.ts";
 export { agent, chat, gateway } from "./hosts.ts";
 export { type Link, readLink, readPageCode, writeLink, writePageLink } from "./link.ts";
@@ -75,6 +80,7 @@ export {
   type Program,
   Roster,
   type RosterEntry,
+  type TurnedAwayProgram,
   type WayIn,
 } from "./roster.ts";
 export { isToken } from "./token.ts";

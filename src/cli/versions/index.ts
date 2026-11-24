@@ -1,7 +1,7 @@
 /**
- * Telling a person that a program they are talking to was not built together
- * with the command they are running. Programs upgrade together, so a mismatch
- * is reported on standard error, and the command carries on. It must not know
- * how a command reaches a program or where its version comes from.
+ * Telling a person that the command they are running is newer than the
+ * gateway it reached. The gateway's machine updates first, so that is reported
+ * on standard error, and the command carries on. It must not know how a
+ * command reaches the gateway.
  */
-export { warnIfVersionDiffers } from "./versions.ts";
+export { warnIfNewerThanGateway } from "./versions.ts";

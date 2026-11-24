@@ -3,7 +3,7 @@ import type { Address } from "../../contracts/gateway/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import type { Io } from "../io/index.ts";
 import { askLocalGateway } from "../talk/index.ts";
-import { warnIfVersionDiffers } from "../versions/index.ts";
+import { warnIfNewerThanGateway } from "../versions/index.ts";
 import { launch, type Started } from "./launch.ts";
 import type { Plan } from "./plan.ts";
 import type { StopWatch } from "./stop.ts";
@@ -21,7 +21,7 @@ export async function startGatewayAndChat(io: Io, here: NonNullable<Plan["here"]
     if (listening.length > 0) io.out(listeningLine(listening, listenKept));
     if (page !== null) io.out(`The gateway serves the web client at ${page}`);
   } else {
-    warnIfVersionDiffers(io, "the gateway", found.version);
+    warnIfNewerThanGateway(io, found.versions.shrimpy);
     io.out("The gateway is already running; using it as it is.");
     if (here.listen !== undefined) io.err(cannotChangeListening(here.listen));
   }
@@ -33,7 +33,6 @@ export async function startGatewayAndChat(io: Io, here: NonNullable<Plan["here"]
     crew.push({ role: "chat", what: "the chat server", program });
     io.out(`Started the chat server (pid ${program.pid}), keeping its data in ${join(here.data, "chat")}.`);
   } else {
-    warnIfVersionDiffers(io, "the chat server", chat.shrimpy);
     io.out("The chat server is already running; using it as it is.");
   }
 }

@@ -5,22 +5,25 @@ import { initHome, saveMembership } from "../contracts/agent/node.ts";
 import { newToken } from "../contracts/gateway/node.ts";
 import { formatAddress } from "../lib/link/index.ts";
 import { useRuntimeDir } from "../lib/testing/index.ts";
+import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { runCli } from "./index.ts";
 import { captureIo, startScriptedAgent, startTalking, untilLinked, useShrimpyDir } from "./testing/index.ts";
 
-test("status names a program whose version differs from the command's", { timeout: 30_000 }, async (t) => {
+test("status marks a program newer than the gateway with the gateway's version", { timeout: 30_000 }, async (t) => {
   useShrimpyDir(t);
   await startTalking(t);
-  await startScriptedAgent(t, { name: "scout", handle: () => ({ status: "silent" }), version: "8.8.8" });
+  const [major = "0", minor = "0"] = SHRIMPY_VERSION.split(".");
+  const newer = `${major}.${Number(minor) + 1}.0`;
+  await startScriptedAgent(t, { name: "scout", handle: () => ({ status: "silent" }), version: newer });
   await untilLinked("agent", "scout");
   const cli = captureIo();
 
   const code = await runCli(["status"], cli.io);
 
   assert.equal(code, 0);
-  const lines = cli.out.filter((line) => line.includes("8.8.8"));
+  const lines = cli.out.filter((line) => line.includes(newer));
   assert.equal(lines.length, 1);
-  assert.ok(lines[0]?.includes("scout"), "the agent of another version is named with its version");
+  assert.ok(lines[0]?.includes("scout") && lines[0].includes(SHRIMPY_VERSION), "the newer agent is named with its version and the gateway's");
   assert.ok(cli.out.at(-1)?.includes("shrimpy install"), "and it ends with a line on the service, of which this home has none");
 });
 

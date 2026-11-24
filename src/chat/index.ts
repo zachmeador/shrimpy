@@ -112,6 +112,7 @@ export async function startChat(options: ChatOptions): Promise<RunningChat> {
     const standing = reportLinking(
       place,
       {
+        self: "the chat server",
         refused: (error) => `Could not link to the gateway: ${error.message}`,
         meanwhile: "The chat server keeps trying, and nobody can reach chat until it is back.",
       },
@@ -122,7 +123,7 @@ export async function startChat(options: ChatOptions): Promise<RunningChat> {
       place,
       who: () => ({ kind: "chat" }),
       signal: stopping.signal,
-      onWelcome: () => standing.welcomed(),
+      onWelcome: (answer) => standing.welcomed(answer),
       onError: (error) => standing.failed(error),
       ...(options.backoff === undefined ? {} : { backoff: options.backoff }),
     });

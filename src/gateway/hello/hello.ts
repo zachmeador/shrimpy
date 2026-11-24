@@ -7,14 +7,13 @@ import {
   type Member,
   nameKey,
   notAHello,
-  otherPi,
+  otherRelease,
   type Principal,
   type Reason,
   readHello,
   readVersions,
   refused,
   type Revocation,
-  samePi,
   turnAway,
   welcome,
   type Who,
@@ -207,17 +206,40 @@ export function greeter(deps: HelloDeps): Greeter {
     return { answer: welcome(found.member, roster.id), take: (linked) => host.accept(linked.link, { principal }, context) };
   };
 
-  /** The hello in `raw`, or what is answered to one on other Pi packages, or to one that can't be read. */
-  const read = (raw: unknown): Hello | Greeted => {
-    // The Pi packages come first, so a program of another release is told what to run where, whatever else its hello says.
+  /**
+   * The program a hello says it is, read leniently since another release may
+   * say it differently, when the gateway can tell which: an agent by a token the
+   * roster knows, or the chat server on the gateway's own socket.
+   */
+  const programIn = (raw: unknown, door: Door | "page"): { kind: "agent"; member: Member } | { kind: "chat" } | undefined => {
+    const who = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>).who : undefined;
+    if (typeof who !== "object" || who === null) return undefined;
+    const { kind, token } = who as Record<string, unknown>;
+    if (kind === "chat") return door === "socket" ? { kind: "chat" } : undefined;
+    if (kind !== "agent" || typeof token !== "string") return undefined;
+    const found = roster.recognize(token);
+    return found?.way.kind === "token" ? { kind: "agent", member: found.member } : undefined;
+  };
+
+  /**
+   * The hello in `raw`, which came in by `door`, or what is answered to one of
+   * a release that can't link with this one, which the roster then lists when
+   * it can tell the program, or to one that can't be read.
+   */
+  const read = (raw: unknown, door: Door | "page"): Hello | Greeted => {
+    // The versions come first, so a program of another release is told what to run where, whatever else its hello says.
     const versions = readVersions(raw);
-    if (versions !== undefined && !samePi(versions.pi)) return away(otherPi(versions, ANSWERING));
-    return readHello(raw) ?? away(notAHello("this gateway"));
+    const other = versions === undefined ? undefined : otherRelease(versions, ANSWERING);
+    if (versions === undefined || other === undefined) return readHello(raw) ?? away(notAHello("this gateway"));
+    const program = programIn(raw, door);
+    if (program?.kind === "agent") programs.turnAway({ kind: "agent", name: program.member.name, member: program.member.id, ...versions });
+    if (program?.kind === "chat") programs.turnAway({ kind: "chat", name: "chat", member: null, ...versions });
+    return away(other);
   };
 
   return {
     greet: (door) => (raw) => {
-      const hello = read(raw);
+      const hello = read(raw, door);
       if ("answer" in hello) return hello;
       const { who } = hello;
       switch (who.kind) {
@@ -232,7 +254,7 @@ export function greeter(deps: HelloDeps): Greeter {
       }
     },
     greetPage: (raw, kept) => {
-      const hello = read(raw);
+      const hello = read(raw, "page");
       return "answer" in hello ? hello : page(hello.who, kept);
     },
     letBrowserIn: (code, label) => {

@@ -3,7 +3,7 @@ import { BACKGROUND_CONTEXT, type Context } from "@earendil-works/chord/context"
 import type { NativeWatchHandle } from "@earendil-works/chord/watch";
 import { AgentPresence } from "../../contracts/agent/index.ts";
 import { ChatPresence } from "../../contracts/chat/index.ts";
-import { agent, chat, type Principal, type Program, type Revocation } from "../../contracts/gateway/index.ts";
+import { agent, chat, type Principal, type Program, type Revocation, type TurnedAwayProgram } from "../../contracts/gateway/index.ts";
 import type { Linked } from "../../lib/link/index.ts";
 
 export interface ProgramsOptions {
@@ -33,6 +33,10 @@ export interface Programs {
   takeChat(shrimpy: string, linked: Linked): void;
   /** The programs linked now, oldest first. */
   list(): Program[];
+  /** The gateway turned `program` away for the release it runs: keep it until it links, or its agent leaves the roster. */
+  turnAway(program: TurnedAwayProgram): void;
+  /** The programs turned away for the release they run, each as it last tried. */
+  turnedAway(): TurnedAwayProgram[];
   /** Whether the gateway's hold of the agent's presence is live. */
   reachable(member: string): boolean;
   /** The roster changed: hold the presence of every agent on it, by its ID. */
@@ -80,6 +84,8 @@ export function createPrograms(options: ProgramsOptions): Programs {
   /** The link each address waits to be resolved to, until its route takes it. */
   const waiting = new Map<string, ProgramLink>();
   const presences = new Map<string, Presence>();
+  /** The programs turned away for their release, by the agent's member ID, or `CHAT`. */
+  const awayNow = new Map<string, TurnedAwayProgram>();
   const refusals = new WeakSet<object>();
   let closed = false;
 
@@ -101,6 +107,7 @@ export function createPrograms(options: ProgramsOptions): Programs {
 
   const take = (id: string, entry: ProgramLink): void => {
     linkedNow.set(id, entry);
+    awayNow.delete(id);
     waiting.set(entry.address.key, entry);
     void entry.linked.closed.then(() => {
       if (linkedNow.get(id) === entry) linkedNow.delete(id);
@@ -146,6 +153,11 @@ export function createPrograms(options: ProgramsOptions): Programs {
       presences.delete(id);
       changed ||= presence.live;
     }
+    for (const id of awayNow.keys()) {
+      if (id === CHAT || wanted.has(id)) continue;
+      awayNow.delete(id);
+      changed = true;
+    }
     for (const id of wanted) {
       if (presences.has(id)) continue;
       presences.set(id, hold(host.hold(AgentPresence, { agent: id }, BACKGROUND_CONTEXT)));
@@ -175,6 +187,13 @@ export function createPrograms(options: ProgramsOptions): Programs {
       take(CHAT, { kind: "chat", member: null, name: CHAT, shrimpy, address: chat(), principal: { kind: "chat" }, linked });
     },
     list: () => [...linkedNow.values()].map(({ kind, name, member, shrimpy }) => ({ kind, name, member, shrimpy })),
+    turnAway(program) {
+      const id = program.member ?? CHAT;
+      if (JSON.stringify(awayNow.get(id)) === JSON.stringify(program)) return;
+      awayNow.set(id, program);
+      options.onChange();
+    },
+    turnedAway: () => [...awayNow.values()],
     reachable: (member) => presences.get(member)?.live ?? false,
     followRoster,
     dropAgent(member) {

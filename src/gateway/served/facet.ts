@@ -50,6 +50,7 @@ export function gatewayFacet(view: View<GatewayView>, workspace: View<WorkspaceF
             you: self.derive([followed], ([current]) => youIn(current, caller)),
             members: self.derive([followed], ([current]) => current.members),
             programs: self.derive([followed], ([current]) => current.programs),
+            turnedAway: self.derive([followed], ([current]) => current.turnedAway),
             ways: self.derive([followed], ([current]) => waysFor(current, caller)),
             invite: async ({ name }) => actions.invite(caller, name),
             inviteDevice: async () => actions.inviteDevice(caller),

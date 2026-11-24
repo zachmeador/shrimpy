@@ -4,6 +4,9 @@
  * the views the clients share.
  */
 
+import { oneLine } from "../../lib/plain/index.ts";
+import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
+
 /** What the page calls itself in a sentence the views say, such as that a program runs another version of Shrimpy. */
 export const SELF = "this page";
 
@@ -22,7 +25,11 @@ export const CONTROLS = {
   hide: "hide",
   join: "join",
   notify: "Tell this device when an agent writes",
+  reload: "Reload",
 } as const;
+
+/** That the gateway runs a newer Shrimpy than this page, `gateway`, which a reload takes. */
+export const pageOutOfDate = (gateway: string): string => `The gateway runs Shrimpy ${oneLine(gateway)}, newer than this page's ${SHRIMPY_VERSION}.`;
 
 /** What the keys under the input do here. The line of keys is made from this, so it names only what they do. */
 interface Can {

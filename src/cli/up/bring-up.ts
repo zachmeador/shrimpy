@@ -1,13 +1,13 @@
 import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
-import { listed } from "../../lib/text/index.ts";
+import { capitalize, listed } from "../../lib/text/index.ts";
 import { allHomes } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { describeEnd } from "../programs/index.ts";
 import { startAgent } from "./agents.ts";
 import { type Follower, follow } from "./follow.ts";
 import { startGatewayAndChat } from "./here.ts";
-import { capitalize, type Started } from "./launch.ts";
+import type { Started } from "./launch.ts";
 import type { Pace } from "./pace.ts";
 import type { Plan } from "./plan.ts";
 import { type StopWatch, stopAll, watchForStop } from "./stop.ts";

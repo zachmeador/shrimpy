@@ -8,7 +8,7 @@ import { gatewayOfItsOwn, homeInFolder, machineFolder, providersPath } from "../
 import type { Io } from "../io/index.ts";
 import { JoinFailedError, joinAsMachine, joinHome } from "../talk/index.ts";
 import { checking, expectArguments, parsing } from "../usage/index.ts";
-import { warnIfVersionDiffers } from "../versions/index.ts";
+import { warnIfNewerThanGateway } from "../versions/index.ts";
 import type { Command } from "./command.ts";
 import { folderDefault } from "./folder-default.ts";
 import { printNext, type Step } from "./next.ts";
@@ -26,7 +26,7 @@ const join: Command = {
       "which it is for, and ends with the fingerprint of the gateway's key: the connection is encrypted, and " +
       "nothing is sent to a gateway whose key doesn't match it. Either way the invitation works once, for fifteen " +
       "minutes, and running this again with the same link is safe while the code is good. It says on standard " +
-      "error whether the gateway runs another version of Shrimpy than this command, and gives up on a gateway that " +
+      "error when the gateway runs an older Shrimpy than this command, and gives up on a gateway that " +
       "does not answer within fifteen seconds.",
     "A link that names an agent, which shrimpy invite <name> printed on the gateway's machine, makes that agent's " +
       "home here: agents/<name> in your Shrimpy folder, which is ~/shrimpy or the folder SHRIMPY_DIR names. If " +
@@ -83,7 +83,7 @@ async function joinAsAgent(io: Io, text: string, { name, address }: Link & { nam
     join: (signal) => joinHome(home, text, { signal }),
   });
 
-  warnIfVersionDiffers(io, "the gateway", joined.gatewayVersion);
+  warnIfNewerThanGateway(io, joined.gatewayVersion);
   io.out(
     replacing
       ? `${name} joined the gateway at ${where}, with a new token and the gateway's current key. Its home is ${home}.`
@@ -121,7 +121,7 @@ async function joinThisMachine(io: Io, link: Link, giveUpMs: number): Promise<nu
     join: (signal) => joinAsMachine(folder, link, { signal }),
   });
 
-  warnIfVersionDiffers(io, "the gateway", joined.gatewayVersion);
+  warnIfNewerThanGateway(io, joined.gatewayVersion);
   io.out(`This machine is ${joined.member.name}'s now, on the gateway at ${where}.`);
   io.out("Open the terminal with: shrimpy");
   return 0;

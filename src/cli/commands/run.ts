@@ -15,7 +15,6 @@ import {
   waitForReceipt,
 } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
-import { warnIfVersionDiffers } from "../versions/index.ts";
 import { CANCELLED, type Command } from "./command.ts";
 
 const run: Command = {
@@ -68,8 +67,7 @@ async function say(io: Io, request: Request): Promise<number> {
     reached = await reachChat(io, signal);
     void reached.client.closed.then(() => lost.abort());
     const agent = agentNamed(reached.members, request.agent);
-    const linked = runningAgent(reached.programs, agent);
-    warnIfVersionDiffers(io, `the agent ${agent.name}`, linked.shrimpy);
+    runningAgent(reached.programs, agent);
 
     const dm = valueOf(await reached.chat.openDm({ member: agent.id }, contextOf(signal)));
     const threadId = await chooseThread(reached, dm, request.thread, signal);

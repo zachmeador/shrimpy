@@ -60,5 +60,3 @@ export async function launch(
   }
 }
 
-/** `text` to start a sentence with: "The chat server". */
-export const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);

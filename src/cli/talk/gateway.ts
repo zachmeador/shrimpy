@@ -8,6 +8,8 @@ import {
   type Program,
   Roster,
   type RosterEntry,
+  type TurnedAwayProgram,
+  type Versions,
 } from "../../contracts/gateway/index.ts";
 import { connectClient, gatewaySocket, UnprovenGatewayError } from "../../contracts/gateway/node.ts";
 import { asError } from "../../lib/errors/index.ts";
@@ -27,12 +29,14 @@ export class GatewayNotRunningError extends Error {
 export interface GatewayView {
   /** Every program linked to it, oldest first. */
   programs: Program[];
+  /** The programs it turned away for the release they run. */
+  turnedAway: TurnedAwayProgram[];
   /** Everyone on the roster, oldest first. */
   members: RosterEntry[];
   /** The member the gateway takes the command for, or null. */
   you: Member | null;
-  /** The version of Shrimpy the gateway runs. */
-  version: string;
+  /** What the gateway runs. */
+  versions: Versions;
 }
 
 /**
@@ -107,7 +111,8 @@ export async function withGatewayAsMe<T>(use: (client: Client, who: Me) => Promi
 export async function viewOf(client: Client, signal?: AbortSignal): Promise<GatewayView> {
   const roster = await client.host.get(Roster, {}, contextOf(signal));
   try {
-    return { programs: roster.programs.value, members: roster.members.value, you: roster.you.value, version: client.version };
+    const { programs, turnedAway, members, you } = roster;
+    return { programs: programs.value, turnedAway: turnedAway.value, members: members.value, you: you.value, versions: client.versions };
   } finally {
     roster.release();
   }

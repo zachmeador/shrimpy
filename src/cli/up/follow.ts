@@ -2,11 +2,12 @@ import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { asError } from "../../lib/errors/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
+import { capitalize } from "../../lib/text/index.ts";
 import { homeConfigFile } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { describeEnd, type Ended } from "../programs/index.ts";
 import { startAgent } from "./agents.ts";
-import { capitalize, type Held, type Started } from "./launch.ts";
+import type { Held, Started } from "./launch.ts";
 import { lengthOf, type Pace } from "./pace.ts";
 
 /** `up` keeping the homes of the folder running. */

@@ -6,7 +6,10 @@
  * day, and what is typed.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
+import { compareShrimpy, linksWith } from "../../contracts/gateway/index.ts";
+import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { type Mode, WOOLS } from "../look/index.ts";
+import type { LinkStatus } from "../network/index.ts";
 import { agentEntries, agentNameOf, type ClientState, type Model, type Place, placeOfThread, sidesOf } from "../state/index.ts";
 import {
   agentsLevel,
@@ -31,9 +34,9 @@ import { FileView, HomeTree, TriggerCards } from "./home.tsx";
 import { Glyph } from "./marks.tsx";
 import { setCount } from "./badge.ts";
 import { askPush, onTapped, type Push, startPush } from "./push.ts";
-import { Empty, SessionView, ThreadView } from "./thread.tsx";
+import { Empty, ReloadOffer, SessionView, ThreadView } from "./thread.tsx";
 import { WatchView } from "./watch.tsx";
-import { CONTROLS, FOLD, keyHints, NEW_THREAD_KEY, SELF, UNFOLD } from "./words.ts";
+import { CONTROLS, FOLD, keyHints, NEW_THREAD_KEY, pageOutOfDate, SELF, UNFOLD } from "./words.ts";
 
 /** When the page next tries to reach the gateway, as the pauses it gives the link say. */
 export interface Retry {
@@ -73,6 +76,31 @@ function keep(name: string, value: string): void {
   } catch {
     // A browser that keeps nothing for the page forgets the choice when it closes.
   }
+}
+
+/** Where the page keeps what the gateway ran when it turned the page away and the page reloaded for it, for the tab's life. */
+const RELOADED_FOR = "shrimpy-reloaded-for";
+
+/**
+ * Reload the page when the gateway turns it away for the release it runs,
+ * since the gateway serves the page of its own release. A gateway that turns
+ * the reloaded page away too is not reloaded for again until it lets the page
+ * in, so a refusal a reload doesn't fix can't loop.
+ */
+function useReloadForRelease(gateway: LinkStatus): void {
+  useEffect(() => {
+    try {
+      if (gateway.state === "up") return sessionStorage.removeItem(RELOADED_FOR);
+      if (gateway.why.kind !== "refused" || linksWith(gateway.why.versions)) return;
+      const theirs = JSON.stringify(gateway.why.versions);
+      if (sessionStorage.getItem(RELOADED_FOR) === theirs) return;
+      sessionStorage.setItem(RELOADED_FOR, theirs);
+    } catch {
+      // A browser that keeps nothing for the page could reload without end, so it shows the refusal instead.
+      return;
+    }
+    location.reload();
+  }, [gateway]);
 }
 
 /**
@@ -174,6 +202,7 @@ const runningOf = (model: Model): Set<string> => new Set(agentEntries(model).fla
 
 export function App({ state, retry, refusal }: { state: ClientState; retry: Retry; refusal: string | undefined }) {
   const model = useModel(state);
+  useReloadForRelease(model.gateway);
   const [page, setPage] = useState<PageState>(() => {
     const route = routeOf(location.pathname);
     return {
@@ -364,12 +393,17 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
   const layout = width < 720 ? "phone" : width < 1100 ? "tablet" : "desk";
   const railShown = layout === "desk" ? !fold || peek : page.level === 1 && (!fold || peek || layout === "phone");
   const listShown = layout === "desk" ? !fold || peek : layout === "tablet" ? (fold ? peek : page.level >= 2) : page.level === 2;
-  const railNotes = [...(refusal === undefined ? [] : [refusal]), ...agents.notes];
-  const shownAbove = new Set([...(railShown ? railNotes : []), ...(listShown ? (listView?.notes ?? []) : [])]);
+  // The gateway serves the page of its own release, so one newer than the page is taken by reloading, on any level.
+  const gatewayRuns = model.listing?.versions?.shrimpy;
+  const outOfDate = gatewayRuns !== undefined && (compareShrimpy(gatewayRuns, SHRIMPY_VERSION) ?? 0) > 0 ? pageOutOfDate(gatewayRuns) : undefined;
+  const everywhere = (notes: string[]): string[] => (outOfDate === undefined ? notes : [outOfDate, ...notes]);
+  const railNotes = everywhere([...(refusal === undefined ? [] : [refusal]), ...agents.notes]);
+  const listRaw = everywhere(listView?.notes ?? []);
+  const shownAbove = new Set([...(railShown ? railNotes : []), ...(listShown ? listRaw : [])]);
   const unsaid = (notes: string[], said: ReadonlySet<string>): string[] => notes.filter((note) => !said.has(note));
-  const listNotes = unsaid(listView?.notes ?? [], railShown ? new Set(railNotes) : new Set());
-  const threadNotes = unsaid(thread?.notes ?? session?.notes ?? [], shownAbove);
-  const watchNotes = unsaid(watching?.notes ?? [], new Set([...shownAbove, ...threadNotes]));
+  const listNotes = unsaid(listRaw, railShown ? new Set(railNotes) : new Set());
+  const threadNotes = unsaid(everywhere(thread?.notes ?? session?.notes ?? []), shownAbove);
+  const watchNotes = unsaid(everywhere(watching?.notes ?? []), new Set([...shownAbove, ...threadNotes]));
 
   /** Put the next agent's view of the thread beside it, or over it on a phone, and after the last take it away. */
   const turn = (): void => {
@@ -536,89 +570,91 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
   }
 
   return (
-    <div
-      class="app"
-      ref={app}
-      data-mode={mode}
-      data-level={String(page.level)}
-      data-turned={String(watching !== undefined)}
-      data-stale={String(stale)}
-      data-fold={String(fold)}
-      data-peek={String(fold && peek)}
-    >
-      <div class="panes" ref={lists}>
-        <aside
-          class="pane rail"
-          {...peeking}
-          onClickCapture={(event) => {
-            // On a touch screen the first tap on the strip brings the lists back, and chooses nothing.
-            if (!fold || peek) return;
-            event.preventDefault();
-            event.stopPropagation();
-            setPeek(true);
-          }}
-        >
-          <Rail
-            agents={agents}
-            running={running}
-            current={page.level >= 2 ? list?.id : undefined}
-            notes={railNotes}
-            retry={retryLine}
-            me={model.me?.name}
-            device={browserLabel(navigator.userAgent)}
-            mode={mode}
-            corner={
-              <button class="ib fold-btn" type="button" aria-pressed={fold} title={fold ? UNFOLD : FOLD} aria-label={fold ? UNFOLD : FOLD} onClick={toggleFold}>
-                <Glyph name="panes" />
-              </button>
-            }
-            footer={
-              push === "ask" ? (
-                <button class="ib" type="button" title={CONTROLS.notify} aria-label={CONTROLS.notify} onClick={() => void askPush().then(setPush, () => setPush("ask"))}>
-                  <Glyph name="bell" />
-                </button>
-              ) : null
-            }
-            choose={choose}
-            toggleMode={() =>
-              setMode((before) => {
-                const next = before === "dusk" ? "day" : "dusk";
-                keep("mode", next);
-                return next;
-              })
-            }
-          />
-        </aside>
-        <section class="pane list" {...peeking}>
-          {listView !== undefined && (
-            <ListView
-              list={{ ...listView, notes: listNotes }}
-              tab={page.tab}
-              tabs={{
-                triggers: <TriggerCards key={listAgent} state={state} name={listView.name} triggers={model.triggers} none={listView.noTriggers} now={now} />,
-                home: <HomeTree key={listAgent} state={state} name={listView.name} current={file} choose={openFile} />,
-              }}
-              filter={page.filter}
-              current={front ? (item?.kind === "thread" ? item.thread : item?.session) : undefined}
+    <ReloadOffer.Provider value={outOfDate}>
+      <div
+        class="app"
+        ref={app}
+        data-mode={mode}
+        data-level={String(page.level)}
+        data-turned={String(watching !== undefined)}
+        data-stale={String(stale)}
+        data-fold={String(fold)}
+        data-peek={String(fold && peek)}
+      >
+        <div class="panes" ref={lists}>
+          <aside
+            class="pane rail"
+            {...peeking}
+            onClickCapture={(event) => {
+              // On a touch screen the first tap on the strip brings the lists back, and chooses nothing.
+              if (!fold || peek) return;
+              event.preventDefault();
+              event.stopPropagation();
+              setPeek(true);
+            }}
+          >
+            <Rail
+              agents={agents}
+              running={running}
+              current={page.level >= 2 ? list?.id : undefined}
+              notes={railNotes}
               retry={retryLine}
-              back={back}
-              start={startThread}
-              open={choose}
-              setFilter={(filter) => setPage((before) => ({ ...before, filter }))}
-              setTab={(tab) =>
-                // A file stays open while its home is on show.
-                setPage((before) => ({ ...before, tab, ...(tab === "home" || before.file === undefined ? {} : { file: undefined, level: 2 }) }))
+              me={model.me?.name}
+              device={browserLabel(navigator.userAgent)}
+              mode={mode}
+              corner={
+                <button class="ib fold-btn" type="button" aria-pressed={fold} title={fold ? UNFOLD : FOLD} aria-label={fold ? UNFOLD : FOLD} onClick={toggleFold}>
+                  <Glyph name="panes" />
+                </button>
+              }
+              footer={
+                push === "ask" ? (
+                  <button class="ib" type="button" title={CONTROLS.notify} aria-label={CONTROLS.notify} onClick={() => void askPush().then(setPush, () => setPush("ask"))}>
+                    <Glyph name="bell" />
+                  </button>
+                ) : null
+              }
+              choose={choose}
+              toggleMode={() =>
+                setMode((before) => {
+                  const next = before === "dusk" ? "day" : "dusk";
+                  keep("mode", next);
+                  return next;
+                })
               }
             />
-          )}
-        </section>
-        <section class="pane thread" onPointerDown={() => setPeek(false)}>
-          {pane}
-        </section>
-        <section class="pane watch" onPointerDown={() => setPeek(false)}>
-          {watching !== undefined && <WatchView session={{ ...watching, notes: watchNotes }} close={back} show={(agent) => state.showView(agent)} retry={retryLine} />}
-        </section>
+          </aside>
+          <section class="pane list" {...peeking}>
+            {listView !== undefined && (
+              <ListView
+                list={{ ...listView, notes: listNotes }}
+                tab={page.tab}
+                tabs={{
+                  triggers: <TriggerCards key={listAgent} state={state} name={listView.name} triggers={model.triggers} none={listView.noTriggers} now={now} />,
+                  home: <HomeTree key={listAgent} state={state} name={listView.name} current={file} choose={openFile} />,
+                }}
+                filter={page.filter}
+                current={front ? (item?.kind === "thread" ? item.thread : item?.session) : undefined}
+                retry={retryLine}
+                back={back}
+                start={startThread}
+                open={choose}
+                setFilter={(filter) => setPage((before) => ({ ...before, filter }))}
+                setTab={(tab) =>
+                  // A file stays open while its home is on show.
+                  setPage((before) => ({ ...before, tab, ...(tab === "home" || before.file === undefined ? {} : { file: undefined, level: 2 }) }))
+                }
+              />
+            )}
+          </section>
+          <section class="pane thread" onPointerDown={() => setPeek(false)}>
+            {pane}
+          </section>
+          <section class="pane watch" onPointerDown={() => setPeek(false)}>
+            {watching !== undefined && <WatchView session={{ ...watching, notes: watchNotes }} close={back} show={(agent) => state.showView(agent)} retry={retryLine} />}
+          </section>
+        </div>
       </div>
-    </div>
+    </ReloadOffer.Provider>
   );
 }

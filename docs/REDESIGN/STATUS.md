@@ -12,7 +12,6 @@ As of 2026-11-23. An item leaves when it is fixed or when the design changes to 
 - The line saying a crash cut a turn short goes only on an answer's receipt: a turn that a crash cut short and that ends with `END`, or is stopped, says nothing of the crash.
 - Pi counts every task that is running when the agent ends uncleanly, not only the one that killed it. A reply or a question's look waits for chat asleep and isn't counted, but a stop has no sleep to wait in: a stop while chat is away waits for chat in place, and five unclean ends before chat is back end it without a receipt. A trigger whose task five unclean ends in a row cut off, as while its check runs, has no task until the agent next reads its files.
 - A turn at Pi's limit may make one more model call or start one more tool before the agent stops it after the restart. The session's status then says `stopped`, since Pi records the stop as an abort, and the receipt says the agent stopped unexpectedly too many times.
-- The commands warn when a program they reach runs another version of Shrimpy, and say that programs are meant to be upgraded together, though [the contracts](design/2-contracts.md) let releases of one major run side by side on the same Pi packages. No test covers the warning.
 - Untried: power loss, a full disk, log damage, and a kill during a tool commit.
 - A save that a crash cuts short leaves a hidden file beside the file it was saving, named for the process, and nothing removes it.
 - The owner lock is untried on network file systems and sandbox mounts.
@@ -23,6 +22,11 @@ As of 2026-11-23. An item leaves when it is fixed or when the design changes to 
 - The chat server's log of events never shrinks, and nothing shows a message's earlier versions.
 - A message waiting behind a turn that Pi's restart limit ended is withdrawn by the stop the agent makes then, so its skipped receipt has no reason. The terminal, `read` and `run` then say that its work was stopped, as if someone had stopped it, and `run` exits 130. Pi records both withdrawals the same way.
 - Each post or read by an agent holds the thread's `Thread` for the call, which brings up to its newest 200 messages each time.
+- What happens when versions meet has run only against stand-ins: a hello that says another version, and an agent's program that serves another build's `Agent`. Every build says `0.0.0`, so no two real programs differ. A hold that waits on an older program has not been seen to bind once that program updates. The page reloading itself and offering a reload haven't run in a browser.
+- The hello and its answer are checked as closed shapes, so a field added to either within a major would make an older program take the frame for one it doesn't know.
+- A program newer than the gateway warns only in its own log, and the roster's versions let the clients and `shrimpy status` say so. A page newer than the gateway, as after the gateway went back a release, is told to update the gateway's machine, where reloading the page would do.
+- The roster lists a program turned away for its release until the gateway restarts, and lists no other refusal. An agent turned away is named only when the roster knows its token.
+- A session that waits on another version is said only on its agent's list and the levels that follow it, so a session behind a thread in a room says nothing when no agent's list is open.
 
 ### Identity and addressing
 

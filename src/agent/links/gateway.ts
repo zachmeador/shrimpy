@@ -109,6 +109,7 @@ export function linkToGateway(options: GatewayLinkOptions): GatewayLink {
   const standing = reportLinking(
     currentPlace,
     {
+      self: `the agent ${name}`,
       refused(error) {
         const advice = adviceFor(error.reason, files, isApart());
         return `Could not join the network: the gateway did not let ${name} in: ${error.message}${advice === undefined ? "" : ` ${advice}`}`;
@@ -139,7 +140,7 @@ export function linkToGateway(options: GatewayLinkOptions): GatewayLink {
     },
     signal: stopping.signal,
     onWelcome(answer) {
-      standing.welcomed();
+      standing.welcomed(answer);
       if (answer.you === null) return;
       you = answer.you;
       const kept = membership.read();

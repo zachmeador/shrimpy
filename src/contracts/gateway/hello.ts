@@ -2,9 +2,10 @@ import { lit, map, nul, obj, str, union } from "@earendil-works/chord";
 import { compile } from "@earendil-works/pi-schema";
 import type { Linked } from "../../lib/link/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
+import { capitalize } from "../../lib/text/index.ts";
 import { PI_PACKAGES, SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { type Reason, ReasonSchema, type Refused } from "./answers.ts";
-import { type Member, MemberSchema } from "./roster.ts";
+import { type Member, MemberSchema, type TurnedAwayProgram } from "./roster.ts";
 
 /** The exact Pi packages a program runs, each at its version. */
 export type PiPackages = Readonly<Record<string, string>>;
@@ -107,14 +108,21 @@ export function readVersions(value: unknown): Versions | undefined {
   return { shrimpy, pi: Object.fromEntries(entries) as PiPackages };
 }
 
-/** The other end turned the hello away: the gateway, or an agent on its home's socket, which takes the same hello. Its message is their words. */
+/**
+ * The other end turned the hello away: the gateway, or an agent on its home's
+ * socket, which takes the same hello. Its message is their words, and
+ * `versions` what the other end runs, which tells whether it was turned away
+ * for the release it runs.
+ */
 export class HelloRefusedError extends Error {
   readonly reason: Reason | null;
+  readonly versions: Versions;
 
-  constructor(words: string, reason: Reason | null) {
+  constructor(words: string, reason: Reason | null, versions: Versions) {
     super(words);
     this.name = "HelloRefusedError";
     this.reason = reason;
+    this.versions = versions;
   }
 }
 
@@ -146,7 +154,7 @@ export function welcomeIn(raw: unknown, linked: Linked, answering?: string): Wel
   if (answer?.kind === "welcome") return { welcome: answer, linked };
   linked.drop();
   if (answer === undefined) throw new UnknownAnswerError(unreadableAnswer(raw, answering));
-  throw new HelloRefusedError(answer.words, answer.reason);
+  throw new HelloRefusedError(answer.words, answer.reason, { shrimpy: answer.shrimpy, pi: answer.pi });
 }
 
 /**
@@ -160,47 +168,144 @@ export function unreadableAnswer(value: unknown, who = "The gateway"): string {
   return `${what} It runs Shrimpy ${theirs.shrimpy} on ${describePi(theirs.pi)}, and this runs Shrimpy ${SHRIMPY_VERSION} on ${describePi(PI_PACKAGES)}.`;
 }
 
-/**
- * The warning a client gives when `what`, such as "the gateway", runs another
- * version of Shrimpy than the client, which names itself as `self`, such as
- * "this command", or nothing when they are the same. Programs are meant to be
- * upgraded together, and a client carries on either way.
- */
-export function versionWarning(what: string, version: string, self: string): string | undefined {
-  if (version === SHRIMPY_VERSION) return undefined;
-  return `Warning: ${oneLine(what)} runs Shrimpy ${oneLine(version)}, but ${self} is ${SHRIMPY_VERSION}. Programs are meant to be upgraded together.`;
-}
+/** What this code runs: its Shrimpy version and its Pi packages. */
+const OURS: Versions = { shrimpy: SHRIMPY_VERSION, pi: PI_PACKAGES };
 
-/** Whether `pi` is exactly the Pi packages this code runs. */
-export function samePi(pi: PiPackages): boolean {
-  const ours = Object.entries(PI_PACKAGES);
-  return Object.keys(pi).length === ours.length && ours.every(([name, version]) => pi[name] === version);
+/**
+ * Whether a program that runs `theirs` links with this code: the same Pi
+ * packages, since Chord's wire changes with them, and the same major of
+ * Shrimpy, since a major may stop serving what the one before it shipped.
+ */
+export function linksWith(theirs: Versions): boolean {
+  return gapBetween(theirs, OURS) === undefined;
 }
 
 /** What whoever answers says to a hello it can't read: `answerer` is what it calls itself, such as "this gateway". */
 export const notAHello = (answerer: string): string =>
   `That isn't a hello ${answerer} knows, so the other end may be another version of Shrimpy, or not Shrimpy at all.`;
 
+/** Who answers a hello and where it runs, as the words for a caller of another release name them: "The gateway", "on the gateway's machine". */
+export type Answering = { who: string; where: string };
+
 /**
- * The words for a caller that runs other Pi packages than this code, said by
- * whoever answers its hello: `who` is what it calls itself, such as "The gateway", and
- * `where` where it runs, such as "on the gateway's machine". They say which
- * side to update, and to what, when the versions tell.
+ * What whoever answers a hello says to a caller that runs `caller` and can't
+ * link with it, or undefined when it can. They say which side to update, and
+ * to what, when the versions tell.
  */
-export function otherPi(caller: Versions, answering: { who: string; where: string }): string {
-  const ours = uniform(PI_PACKAGES);
-  const theirs = uniform(caller.pi);
-  const order = ours === undefined || theirs === undefined ? undefined : compareVersions(theirs, ours);
+export function otherRelease(caller: Versions, answering: Answering): string | undefined {
+  return apart({ name: answering.who, where: answering.where, versions: OURS }, { name: "this", where: "here", versions: caller });
+}
+
+/**
+ * Why the gateway, which runs `gateway`, turned `program` away, or undefined
+ * when they link: which side to update, and to what, when the versions tell.
+ */
+export function whyTurnedAway(program: TurnedAwayProgram, gateway: Versions): string | undefined {
+  const name = program.kind === "chat" ? "the chat server" : `the agent ${oneLine(program.name)}`;
+  const why = apart({ name: "it", where: `where ${name} runs`, versions: program }, { name: "the gateway", where: "on the gateway's machine", versions: gateway });
+  return why === undefined ? undefined : `The gateway turned ${name} away: ${why}`;
+}
+
+/**
+ * What a client that calls itself `self`, such as "this page", says when what
+ * it holds of `what`, such as "the agent scout", waits because `what` serves
+ * another version of it. `version` is the Shrimpy `what` runs, or undefined
+ * when the gateway doesn't say. The words say where to update, and to what.
+ */
+export function waitingOnVersion(what: string, version: string | undefined, self: string): string {
+  const name = oneLine(what);
+  const subject = capitalize(name);
+  if (version === undefined) {
+    return `${subject} runs another release of Shrimpy than ${self}, which runs ${SHRIMPY_VERSION}, and the two disagree on what it shows. Update both to the same release.`;
+  }
+  const order = compareShrimpy(version, SHRIMPY_VERSION);
+  if (order === undefined || order === 0) {
+    return `${subject} runs Shrimpy ${oneLine(version)}, as ${self} does, but another build of it, and the two disagree on what it shows. Update both to the same build.`;
+  }
+  return order < 0
+    ? `${subject} runs Shrimpy ${oneLine(version)}, older than ${self}'s ${SHRIMPY_VERSION}, and can't show what changed since. Update Shrimpy where ${name} runs to ${SHRIMPY_VERSION}.`
+    : `${subject} runs Shrimpy ${oneLine(version)}, newer than ${self}'s ${SHRIMPY_VERSION}, and no longer shows what ${self} asks for. Update Shrimpy here to ${oneLine(version)}.`;
+}
+
+/** One of two programs, as the words for why they don't link name it: who, and where it runs, as in "update Shrimpy here". */
+type Party = { name: string; where: string; versions: Versions };
+
+/** Why `first` and `second` don't link, and which to update to what, or undefined when they link. */
+function apart(first: Party, second: Party): string | undefined {
+  const gap = gapBetween(second.versions, first.versions);
+  if (gap === undefined) return undefined;
+  const runs = (party: Party): string =>
+    `Shrimpy ${oneLine(party.versions.shrimpy)}${gap.pi ? ` on ${describePi(party.versions.pi)}` : ""}`;
+  const why = gap.pi ? "Programs that link need the same Pi packages" : "Releases of different majors don't link";
   const what =
-    order === undefined || order === 0
-      ? `update Shrimpy here or ${answering.where}, so both run the same`
-      : order > 0
-        ? `update Shrimpy ${answering.where} to ${caller.shrimpy}`
-        : `update Shrimpy here to ${SHRIMPY_VERSION}`;
+    gap.order === undefined || gap.order === 0
+      ? `update Shrimpy ${second.where} or ${first.where}, so both run the same`
+      : gap.order > 0
+        ? `update Shrimpy ${first.where} to ${oneLine(second.versions.shrimpy)}`
+        : `update Shrimpy ${second.where} to ${oneLine(first.versions.shrimpy)}`;
+  return `${first.name} runs ${runs(first)}, and ${second.name} runs ${runs(second)}. ${why}: ${what}.`;
+}
+
+/**
+ * Why programs that run `a` and `b` don't link, or undefined when they do:
+ * other Pi packages, which come first since nothing links across them, or
+ * another major. `order` is above 0 when `a` is newer, and undefined when that
+ * can't be told.
+ */
+function gapBetween(a: Versions, b: Versions): { pi: boolean; order: number | undefined } | undefined {
+  if (!samePackages(a.pi, b.pi)) {
+    const [left, right] = [uniform(a.pi), uniform(b.pi)];
+    return { pi: true, order: left === undefined || right === undefined ? undefined : comparePlain(left, right) };
+  }
+  const [left, right] = [readRelease(a.shrimpy), readRelease(b.shrimpy)];
+  if (left !== undefined && right !== undefined && left.major === right.major) return undefined;
+  return { pi: false, order: compareShrimpy(a.shrimpy, b.shrimpy) };
+}
+
+/** Whether `a` and `b` are exactly the same Pi packages. */
+function samePackages(a: PiPackages, b: PiPackages): boolean {
+  const each = Object.entries(a);
+  return Object.keys(b).length === each.length && each.every(([name, version]) => b[name] === version);
+}
+
+/**
+ * The warning that `what`, such as "this command" or "the agent scout", runs
+ * Shrimpy `version`, newer than the gateway's `gateway`, or undefined when it
+ * isn't newer. The gateway serves chat and the roster to everyone, so its
+ * machine updates first, and something newer than it may wait on it.
+ */
+export function newerThanGateway(what: string, version: string, gateway: string): string | undefined {
+  const order = compareShrimpy(version, gateway);
+  if (order === undefined || order <= 0) return undefined;
   return (
-    `${answering.who} runs Shrimpy ${SHRIMPY_VERSION} on ${describePi(PI_PACKAGES)}, and this runs Shrimpy ${caller.shrimpy} ` +
-    `on ${describePi(caller.pi)}. Programs that link need the same Pi packages: ${what}.`
+    `Warning: ${oneLine(what)} runs Shrimpy ${oneLine(version)}, newer than the gateway's ${oneLine(gateway)}. ` +
+    `Update Shrimpy on the gateway's machine to ${oneLine(version)}: it serves chat and the roster, so nothing should be newer than it.`
   );
+}
+
+/** A Shrimpy version as its parts: `1.2.0`, or `1.3.0` and `dev` for a build between releases. */
+type Release = { numbers: string; major: number; build: string | undefined };
+
+function readRelease(version: string): Release | undefined {
+  const parts = /^((\d+)\.\d+\.\d+)(?:-([0-9A-Za-z.-]+))?$/.exec(version);
+  if (parts?.[1] === undefined) return undefined;
+  return { numbers: parts[1], major: Number(parts[2]), build: parts[3] };
+}
+
+/**
+ * How Shrimpy version `a` compares with `b`, or undefined when either isn't a
+ * version: a build between releases, such as `1.3.0-dev`, comes after `1.2.x`
+ * and before `1.3.0`.
+ */
+export function compareShrimpy(a: string, b: string): number | undefined {
+  const [left, right] = [readRelease(a), readRelease(b)];
+  if (left === undefined || right === undefined) return undefined;
+  const numbers = comparePlain(left.numbers, right.numbers) ?? 0;
+  if (numbers !== 0) return numbers;
+  if (left.build === right.build) return 0;
+  if (left.build === undefined) return 1;
+  if (right.build === undefined) return -1;
+  return left.build < right.build ? -1 : 1;
 }
 
 /** The one version every package is at, if they agree. */
@@ -211,13 +316,13 @@ function uniform(pi: PiPackages): string | undefined {
 
 function describePi(pi: PiPackages): string {
   const one = uniform(pi);
-  if (one !== undefined) return `Pi ${one}`;
-  const each = Object.entries(pi).map(([name, version]) => `${name.replace(/^@earendil-works\//, "")} ${version}`);
+  if (one !== undefined) return `Pi ${oneLine(one)}`;
+  const each = Object.entries(pi).map(([name, version]) => `${oneLine(name.replace(/^@earendil-works\//, ""))} ${oneLine(version)}`);
   return each.length === 0 ? "no Pi packages" : each.join(", ");
 }
 
 /** How `a` compares with `b` as plain versions such as `1.5.2`, or undefined when either is something else. */
-function compareVersions(a: string, b: string): number | undefined {
+function comparePlain(a: string, b: string): number | undefined {
   const parse = (version: string): number[] | undefined =>
     /^\d+(\.\d+)*$/.test(version) ? version.split(".").map(Number) : undefined;
   const [left, right] = [parse(a), parse(b)];

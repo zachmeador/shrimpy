@@ -22,6 +22,7 @@ import {
   type Refused,
   Roster,
   type RosterEntry,
+  type TurnedAwayProgram,
   type WayIn,
 } from "../../contracts/gateway/index.ts";
 import { follow } from "./held.ts";
@@ -85,7 +86,7 @@ function followHeld<R extends Reference, V, Calls>(
 }
 
 /** The roster as a client sees it. */
-export type RosterShown = { you: RosterMember | null; members: RosterEntry[]; programs: Program[]; ways: WayIn[] };
+export type RosterShown = { you: RosterMember | null; members: RosterEntry[]; programs: Program[]; turnedAway: TurnedAwayProgram[]; ways: WayIn[] };
 
 export interface RosterCalls {
   /** End a way in at once. */
@@ -96,8 +97,14 @@ export function holdRoster(link: GatewayLink, changed: () => void): Holding<Rost
   const held = link.host.hold(Roster, {}, BACKGROUND_CONTEXT);
   return followHeld(
     held,
-    (roster) => [roster.you, roster.members, roster.programs, roster.ways],
-    (roster) => ({ you: roster.you.value, members: roster.members.value, programs: roster.programs.value, ways: roster.ways.value }),
+    (roster) => [roster.you, roster.members, roster.programs, roster.turnedAway, roster.ways],
+    (roster) => ({
+      you: roster.you.value,
+      members: roster.members.value,
+      programs: roster.programs.value,
+      turnedAway: roster.turnedAway.value,
+      ways: roster.ways.value,
+    }),
     { takeBack: (way, signal) => held.takeBack({ way }, contextOf(signal)) },
     changed,
   );

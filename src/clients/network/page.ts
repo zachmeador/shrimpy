@@ -19,7 +19,9 @@ export function dialPage(url: string, socket?: (url: string) => PageSocket): Dia
       ...(options.backoff === undefined ? {} : { backoff: options.backoff }),
       onError: (error) =>
         options.onError(
-          error instanceof HelloRefusedError ? { kind: "refused", words: error.message } : { kind: "unreachable", message: asError(error).message },
+          error instanceof HelloRefusedError
+            ? { kind: "refused", words: error.message, versions: error.versions }
+            : { kind: "unreachable", message: asError(error).message },
         ),
       async link(attempt) {
         const { welcome, linked } = await helloFromPage(url, options.who(), { signal: attempt, ...(socket === undefined ? {} : { socket }) });

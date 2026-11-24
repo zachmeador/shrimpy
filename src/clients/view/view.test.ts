@@ -3,9 +3,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type TestContext, test } from "node:test";
 import { lookFromId, parseSigil, PIGMENTS } from "../../contracts/agent/index.ts";
+import { servingAnotherAgent } from "../../contracts/agent/testing/index.ts";
 import type { Thread } from "../../contracts/chat/index.ts";
 import type { Speaking } from "../../contracts/chat/testing/index.ts";
-import { SHRIMPY_ENTRY } from "../../contracts/gateway/testing/index.ts";
+import { linkTestAgent, SHRIMPY_ENTRY } from "../../contracts/gateway/testing/index.ts";
 import { type Child, runChild, startChild, tempDir } from "../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { CONNECTING } from "../network/index.ts";
@@ -155,6 +156,15 @@ test("a message shows each emoji with who put it there, a failed receipt apart, 
   );
   assert.equal(withMentions(first.text, first.mentions).filter((part) => typeof part !== "string").length, 1, "the agent named is marked where it is named");
   assert.deepEqual([first.command, stop.command], [false, true]);
+});
+
+test("an agent's list that waits on another version of it names the agent and the Shrimpy it runs", { timeout: 30_000 }, async (t) => {
+  const rig = await startRig(t, { agents: [] });
+  await linkTestAgent(t, "scout", { serving: servingAnotherAgent });
+
+  const waiting = await rig.until((model) => model.agent?.state === "down" && model.agent.why.kind === "other-version", "scout's list to wait on its version");
+  const notes = listLevel(waiting, at)?.notes ?? [];
+  assert.ok(notes.some((note) => note.includes("scout") && note.includes(SHRIMPY_VERSION)), notes.join("\n"));
 });
 
 /** A real agent called crab, made with `agent init` and started as `shrimpy agent serve` starts it, with the model local/test-model. */

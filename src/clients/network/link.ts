@@ -1,6 +1,6 @@
 import { createHost, type Host } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { Principal, Revocation, Welcome, Who } from "../../contracts/gateway/index.ts";
+import type { Principal, Revocation, Versions, Welcome, Who } from "../../contracts/gateway/index.ts";
 import { createListeners } from "../../lib/listeners/index.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
 import { CONNECTING, type LinkStatus, UP, type Why } from "./status.ts";
@@ -42,8 +42,8 @@ export interface GatewayLink {
   /** The client's host, which serves nothing and holds what it is given. What it holds is held again on each new link. */
   readonly host: Host<Principal, Revocation>;
   status(): LinkStatus;
-  /** The Shrimpy version the gateway runs, as it last said. */
-  version(): string | undefined;
+  /** What the gateway runs, as it last said, whether it let the client in or turned it away. */
+  versions(): Versions | undefined;
   /** Tell `listener` each time either of these changes. Returns what stops that. */
   onChange(listener: () => void): () => void;
   /** Stop linking, drop the link and close the host. */
@@ -62,7 +62,7 @@ export async function keepGateway(options: GatewayLinkOptions): Promise<GatewayL
   const changes = createListeners<undefined>(() => undefined);
   const stopping = new AbortController();
   let status: LinkStatus = CONNECTING;
-  let version: string | undefined;
+  let versions: Versions | undefined;
 
   const set = (next: LinkStatus): void => {
     if (JSON.stringify(next) === JSON.stringify(status)) return;
@@ -76,13 +76,14 @@ export async function keepGateway(options: GatewayLinkOptions): Promise<GatewayL
     signal: stopping.signal,
     ...(options.backoff === undefined ? {} : { backoff: options.backoff }),
     onWelcome(answer, closed) {
-      version = answer.shrimpy;
+      versions = { shrimpy: answer.shrimpy, pi: answer.pi };
       set(UP);
       void closed.then(() => {
         if (!stopping.signal.aborted) set({ state: "down", why: { kind: "lost" } });
       });
     },
     onError(why) {
+      if (why.kind === "refused") versions = why.versions;
       // A link that tries again keeps saying it was lost, rather than that it cannot be reached yet.
       if (status.state === "down" && status.why.kind === "lost" && why.kind === "unreachable") return;
       set({ state: "down", why });
@@ -92,7 +93,7 @@ export async function keepGateway(options: GatewayLinkOptions): Promise<GatewayL
   return {
     host,
     status: () => status,
-    version: () => version,
+    versions: () => versions,
     onChange: (listener) => changes.add(() => listener()),
     async close() {
       stopping.abort();

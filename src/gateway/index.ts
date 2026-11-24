@@ -172,6 +172,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
       id: roster.id,
       members: roster.members().map((member) => ({ ...member, reachable: programs.reachable(member.id) })),
       programs: programs.list(),
+      turnedAway: programs.turnedAway(),
       ways: roster.ways(),
     }));
     const entries: Listener[] = [];

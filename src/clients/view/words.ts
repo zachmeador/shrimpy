@@ -31,7 +31,7 @@ import {
   memberNames,
   roomLabel,
 } from "../../contracts/chat/index.ts";
-import { howToStartAgent, NO_CHAT_SERVER, NO_GATEWAY, versionWarning } from "../../contracts/gateway/index.ts";
+import { howToStartAgent, NO_CHAT_SERVER, NO_GATEWAY, newerThanGateway } from "../../contracts/gateway/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { listed, shellWord, upTo, withoutPeriod } from "../../lib/text/index.ts";
 import { localTime } from "../../lib/time/index.ts";
@@ -87,6 +87,7 @@ export function gatewayNote(why: Why, self: string): string | undefined {
       return `Could not reach the gateway: ${oneLine(why.message)}`;
     case "connecting":
     case "not-linked":
+    case "other-version":
       return undefined;
   }
 }
@@ -104,6 +105,7 @@ export function chatNote(why: Why): string | undefined {
     case "not-running":
     case "refused":
     case "unproven":
+    case "other-version":
       return undefined;
   }
 }
@@ -134,6 +136,7 @@ export function agentNote(
     case "not-running":
     case "refused":
     case "unproven":
+    case "other-version":
       return undefined;
   }
 }
@@ -147,8 +150,11 @@ export function refusalNote(looking: "sessions" | "session", agent: string, said
   return looking === "sessions" ? `Could not list the sessions of ${oneLine(agent)}: ${reason}.` : `Could not watch the session: ${reason}.`;
 }
 
-/** A program runs another version of Shrimpy than the client does. `self` is what the client calls itself. */
-export const versionNote = (what: string, version: string, self: string): string | undefined => versionWarning(what, version, self);
+/** That the client, which calls itself `self`, or a program runs Shrimpy `version`, newer than the gateway's `gateway`, if it does. */
+export function newerNote(what: { kind: "self"; self: string } | Exclude<Program, { kind: "gateway" }>, version: string, gateway: string): string | undefined {
+  const named = what.kind === "self" ? what.self : what.kind === "chat" ? CHAT : `the agent ${oneLine(what.name)}`;
+  return newerThanGateway(named, version, gateway);
+}
 
 /** Why something could not be done, as the end of a sentence. `self` is what the client calls itself. */
 function because(program: Program, problem: Problem, self: string): string {
@@ -169,6 +175,8 @@ function because(program: Program, problem: Problem, self: string): string {
       return withoutPeriod(oneLine(problem.down.words));
     case "unreachable":
       return withoutPeriod(oneLine(problem.down.message));
+    case "other-version":
+      return `${who} runs another version of Shrimpy than ${self}`;
   }
 }
 

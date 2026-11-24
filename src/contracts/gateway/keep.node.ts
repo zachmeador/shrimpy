@@ -4,7 +4,8 @@ import { describePlace, keepLink } from "../../lib/link/index.ts";
 import type { DialPlace } from "../../lib/link/node.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
 import { sayHello, UnprovenGatewayError } from "./dial.node.ts";
-import { HelloRefusedError, UnknownAnswerError, type Welcome, type Who } from "./hello.ts";
+import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
+import { HelloRefusedError, newerThanGateway, UnknownAnswerError, type Welcome, type Who } from "./hello.ts";
 import type { Principal, Revocation } from "./principals.ts";
 
 export interface KeepLinkedOptions {
@@ -66,6 +67,8 @@ export function keepLinked(options: KeepLinkedOptions): Promise<void> {
 
 /** What a program says of its link to the gateway in words of its own. */
 export interface LinkWords {
+  /** What the program is called in a warning that it is newer than the gateway, such as "the chat server". */
+  readonly self: string;
   /** Why the gateway turned the program's hello away, from the gateway's words. */
   refused(error: HelloRefusedError): string;
   /**
@@ -78,8 +81,8 @@ export interface LinkWords {
 
 /** Where a program stands with the gateway, as `keepLinked` tells it. */
 export interface LinkReport {
-  /** The gateway let the program in. */
-  welcomed(): void;
+  /** The gateway let the program in, with `welcome`. */
+  welcomed(welcome: Welcome): void;
   /** A hello failed, as `keepLinked`'s `onError` is told. */
   failed(error: unknown): void;
 }
@@ -90,7 +93,8 @@ export interface LinkReport {
  * that it is back, once; and a hello turned away, an answer that can't be read
  * or an entry that didn't prove it is yours, each once until it changes or the
  * gateway lets the program in. An entry that didn't prove itself is out of
- * reach too, so the program says when it is back.
+ * reach too, so the program says when it is back. A gateway older than the
+ * program is told once for each version it runs.
  */
 export function reportLinking(
   place: DialPlace | (() => DialPlace),
@@ -100,16 +104,20 @@ export function reportLinking(
   const where = (): string => describePlace(typeof place === "function" ? place() : place);
   let away = false;
   let reported: string | undefined;
+  let warned: string | undefined;
   const once = (line: string): void => {
     if (line === reported) return;
     reported = line;
     tell(line);
   };
   return {
-    welcomed() {
+    welcomed(welcome) {
       reported = undefined;
       if (away && words.meanwhile !== undefined) tell(`The gateway at ${where()} is back.`);
       away = false;
+      const newer = newerThanGateway(words.self, SHRIMPY_VERSION, welcome.shrimpy);
+      if (newer !== undefined && newer !== warned) tell(newer);
+      warned = newer;
     },
     failed(error) {
       if (error instanceof HelloRefusedError) return once(words.refused(error));

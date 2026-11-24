@@ -1,4 +1,4 @@
-import { arr, bool, method, nul, num, obj, oneOf, remote, type Static, str, union } from "@earendil-works/chord";
+import { arr, bool, map, method, nul, num, obj, oneOf, remote, type Static, str, union } from "@earendil-works/chord";
 import { AddressSchema } from "./address.ts";
 import { answerOf } from "./answers.ts";
 import { gateway } from "./hosts.ts";
@@ -33,6 +33,20 @@ const ProgramSchema = obj({
   shrimpy: str(),
 });
 export type Program = Static<typeof ProgramSchema>;
+
+/**
+ * A program the gateway turned away for the release it runs, the last time it
+ * tried, until it links: an agent, by its member, or the chat server, with the
+ * Shrimpy version and the Pi packages its hello gave.
+ */
+const TurnedAwaySchema = obj({
+  kind: oneOf("agent", "chat"),
+  name: str(),
+  member: union([str(), nul()]),
+  shrimpy: str(),
+  pi: map(str()),
+});
+export type TurnedAwayProgram = Static<typeof TurnedAwaySchema>;
 
 /** A way in that a token opens, for a device of yours or an agent, with a device's label. */
 const WayInSchema = obj({
@@ -86,6 +100,8 @@ export const Roster = remote("shrimpy.gateway.roster", {
         members: arr(RosterEntrySchema),
         /** The programs linked now. */
         programs: arr(ProgramSchema),
+        /** The programs turned away for the release they run, with what each runs, so whoever reads it can say what to update. */
+        turnedAway: arr(TurnedAwaySchema),
         /** Every way in for you, the agents' for an admin, and none for anyone else. */
         ways: arr(WayInSchema),
       },

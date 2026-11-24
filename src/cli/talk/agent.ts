@@ -1,17 +1,20 @@
-import type { Host, Reference } from "@earendil-works/chord";
+import type { Contract, Host, ParamsOf, Reference, RefState } from "@earendil-works/chord";
 import { Agent, Session } from "../../contracts/agent/index.ts";
 import { readMembership } from "../../contracts/agent/node.ts";
 import {
   type Client,
   contextOf,
   holding,
+  isOtherVersion,
   type Member,
   needsAdmin,
   NO_GATEWAY,
   type Principal,
+  type Program,
   type Revocation,
   type RosterEntry,
   unlessRefused,
+  waitingOnVersion,
 } from "../../contracts/gateway/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
@@ -25,13 +28,15 @@ export interface AgentReached {
   /** The address its objects' `agent` param takes: its member ID through the gateway, or `HOME_AGENT` on its home socket. */
   readonly agent: string;
   readonly host: Host<Principal, Revocation>;
+  /** The agent as words name it, such as "the agent scout", and the Shrimpy it runs, when that is known. */
+  readonly named: { what: string; version: string | undefined };
   /** Let go of the agent. Its work goes on. */
   close(): Promise<void>;
 }
 
 /** The agent as a whole, held through `reached` for as long as `work` runs. It is refused as the agent refuses it. */
 export function onAgent<T>(reached: AgentReached, work: (agent: Reference<typeof Agent>) => Promise<T>, signal?: AbortSignal): Promise<T> {
-  return holding(reached.host.get(Agent, { agent: reached.agent }, contextOf(signal)), (agent) => {
+  return holding(fitting(reached, Agent, { agent: reached.agent }, signal), (agent) => {
     unlessRefused(agent.refusal.value);
     return work(agent);
   });
@@ -44,10 +49,41 @@ export function onSession<T>(
   work: (held: Reference<typeof Session>) => Promise<T>,
   signal?: AbortSignal,
 ): Promise<T> {
-  return holding(reached.host.get(Session, { agent: reached.agent, session }, contextOf(signal)), (held) => {
+  return holding(fitting(reached, Session, { agent: reached.agent, session }, signal), (held) => {
     unlessRefused(held.refusal.value);
     return work(held);
   });
+}
+
+/**
+ * The agent's object of `Type` at `params` once it is live, as `get` gives it,
+ * or, as soon as the agent turns out to serve another version of it, an error
+ * that names the agent and the Shrimpy it runs, where `get` would wait for one
+ * of them to be updated.
+ */
+async function fitting<C extends Contract>(reached: AgentReached, Type: C, params: ParamsOf<C>, signal?: AbortSignal): Promise<Reference<C>> {
+  const other = new AbortController();
+  const watching = reached.host.hold(Type, params, contextOf(signal));
+  const look = (state: RefState): void => {
+    if (state.kind === "failed" && isOtherVersion(state.cause.error)) other.abort();
+  };
+  void watching.state.watch(contextOf(signal)).then(
+    (watch) => {
+      look(watch.value);
+      watch.start(async (call) => {
+        if (call.kind === "value") look(call.value);
+      });
+    },
+    () => undefined,
+  );
+  try {
+    return await reached.host.get(Type, params, contextOf(signal === undefined ? other.signal : AbortSignal.any([signal, other.signal])));
+  } catch (error) {
+    if (!other.signal.aborted) throw error;
+    throw new Error(waitingOnVersion(reached.named.what, reached.named.version, "this command"), { cause: error });
+  } finally {
+    watching.release();
+  }
 }
 
 /** An agent to reach through the gateway: the one the roster calls `name`, or the one whose home is at `home`, by the member ID the home keeps. */
@@ -70,7 +106,7 @@ function withoutGateway(sought: Sought, who: Me): string {
  * on the agent `sought` names, and read the roster and which agents are linked.
  * Without a gateway the agent can't be reached, and the error says so.
  */
-async function asMe(sought: Sought): Promise<{ client: Client; members: RosterEntry[]; linked: string[]; you: Member }> {
+async function asMe(sought: Sought): Promise<{ client: Client; members: RosterEntry[]; linked: Program[]; you: Member }> {
   const who = me();
   let client: Client;
   try {
@@ -82,7 +118,7 @@ async function asMe(sought: Sought): Promise<{ client: Client; members: RosterEn
   try {
     const view = await viewOf(client);
     if (view.you === null) throw new Error(`The gateway takes ${who.home === undefined ? "this command" : `the agent at ${who.home}`} for nobody.`);
-    const linked = view.programs.flatMap((program) => (program.kind === "agent" && program.member !== null ? [program.member] : []));
+    const linked = view.programs.filter((program) => program.kind === "agent");
     return { client, members: view.members, linked, you: view.you };
   } catch (error) {
     await client.close();
@@ -115,12 +151,14 @@ export async function reachAgent(sought: Sought): Promise<AgentReached | undefin
   const { client, members, linked, you } = await asMe(sought);
   try {
     const target = memberSought(sought, members);
-    if (target === undefined || !linked.includes(target.id)) {
+    const running = target === undefined ? undefined : linked.findLast((program) => program.member === target.id);
+    if (target === undefined || running === undefined) {
       if (target?.id !== you.id) requireAdmin(you, members, "Acting on another agent");
       await client.close();
       return undefined;
     }
-    return { agent: target.id, host: client.host, close: () => client.close() };
+    const named = { what: `the agent ${target.name}`, version: running.shrimpy };
+    return { agent: target.id, host: client.host, named, close: () => client.close() };
   } catch (error) {
     await client.close();
     throw error;

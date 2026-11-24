@@ -5,7 +5,7 @@ import { hello, HelloRefusedError, readAnswer, Roster } from "../contracts/gatew
 import { newToken } from "../contracts/gateway/node.ts";
 import { dial, type DialPlace } from "../lib/link/node.ts";
 import { until } from "../lib/testing/index.ts";
-import { PI_PACKAGES } from "../lib/version/index.ts";
+import { PI_PACKAGES, SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { connectTestClient, linkTestAgent } from "../contracts/gateway/testing/index.ts";
 import { startGatewayInProcess } from "./testing/index.ts";
 
@@ -31,6 +31,38 @@ test("a hello on other Pi packages is turned away in words that say what each si
   assert.equal(answer.reason, null);
   assert.match(answer.words, /9\.9\.9/);
   assert.deepEqual(answer.pi, PI_PACKAGES, "the answer carries the gateway's own");
+});
+
+test("a hello of another major is turned away in words that name the machine to update and the version to update it to", { timeout }, async (t) => {
+  const gateway = await startGatewayInProcess(t);
+  const later = `${Number(SHRIMPY_VERSION.split(".")[0]) + 1}.0.0`;
+
+  const program = await answerTo({ path: gateway.socket }, { ...hello({ kind: "agent", name: "scout", token: newToken(), roster: null }), shrimpy: later });
+  assert.equal(program.kind, "refused");
+  assert.ok(program.words.includes("gateway's machine") && program.words.includes(later), program.words);
+  assert.equal(program.shrimpy, SHRIMPY_VERSION, "the answer carries the gateway's own version");
+
+  const client = await answerTo({ path: gateway.socket }, { ...hello({ kind: "client", token: null }), shrimpy: later });
+  assert.equal(client.kind, "refused", "a client of another major too");
+});
+
+test("the roster lists an agent turned away for its release, with what it runs, until it links", { timeout }, async (t) => {
+  const gateway = await startGatewayInProcess(t);
+  const place = { path: gateway.socket };
+  const token = newToken();
+  const scout = await linkTestAgent(t, "scout", { place, token });
+  await scout.stop();
+  const you = await connectTestClient(t, place);
+  const roster = await you.host.get(Roster, {}, context);
+  const later = `${Number(SHRIMPY_VERSION.split(".")[0]) + 1}.0.0`;
+
+  const answer = await answerTo(place, { ...hello({ kind: "agent", name: "scout", token, roster: scout.roster }), shrimpy: later });
+  assert.equal(answer.kind, "refused");
+  await until(() => roster.turnedAway.value.length === 1, "the roster to list scout as turned away");
+  assert.deepEqual(roster.turnedAway.value, [{ kind: "agent", name: "scout", member: scout.you.id, shrimpy: later, pi: PI_PACKAGES }]);
+
+  await linkTestAgent(t, "scout", { place, token });
+  await until(() => roster.turnedAway.value.length === 0, "scout to leave the list once it links");
 });
 
 test("a second program for one agent is turned away while the first is linked", { timeout }, async (t) => {

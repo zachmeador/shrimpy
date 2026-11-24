@@ -17,7 +17,8 @@ export async function connectIfRunning(target: Target): Promise<AgentReached | u
   if (shellActingOn(home) !== undefined) return reachAgent({ home });
   try {
     const client = await connectHome(home);
-    return { agent: client.agent, host: client.host, close: () => client.close() };
+    const named = { what: `the agent at ${home}`, version: client.versions.shrimpy };
+    return { agent: client.agent, host: client.host, named, close: () => client.close() };
   } catch (error) {
     if (error instanceof AgentNotRunningError) return undefined;
     throw error;

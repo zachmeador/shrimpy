@@ -1,6 +1,7 @@
+import { capitalize } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
 import { describeEnd } from "../programs/index.ts";
-import { capitalize, type Started } from "./launch.ts";
+import type { Started } from "./launch.ts";
 
 /** Stop requests: a count, a promise for the first, and a signal for the lookups that wait on them. */
 export interface StopWatch {

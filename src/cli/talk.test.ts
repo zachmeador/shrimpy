@@ -4,7 +4,6 @@ import { test } from "node:test";
 import { initHome } from "../contracts/agent/node.ts";
 import { memberNamed, type Speaking } from "../contracts/chat/testing/index.ts";
 import { eventually, until, useRuntimeDir, within } from "../lib/testing/index.ts";
-import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import {
   type Outcome,
   shrimpy,
@@ -221,15 +220,4 @@ test("nothing is posted to an agent that is not linked, and the error says where
   assert.equal(elsewhere.stdout, "");
   assert.doesNotMatch(elsewhere.stderr, /agent serve|shrimpy up/);
   assert.deepEqual(await (await talking.you()).channels(), [], "and nothing was posted for either, not even a DM");
-});
-
-test("a program of another version is named on standard error, and the command carries on", { timeout }, async (t) => {
-  await startTalking(t);
-  await startScriptedAgent(t, { name: "scout", handle: () => answered("hi"), version: "9.9.9" });
-
-  const result = await shrimpy(["run", "scout", "hello"]);
-
-  assert.equal(result.code, 0, result.stderr);
-  assert.equal(result.stdout, "hi\n");
-  assert.ok(result.stderr.includes("9.9.9") && result.stderr.includes(SHRIMPY_VERSION), result.stderr);
 });

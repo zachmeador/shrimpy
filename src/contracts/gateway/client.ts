@@ -1,7 +1,7 @@
 import { createHost, type Host, type HostError } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Linked } from "../../lib/link/index.ts";
-import type { Welcome } from "./hello.ts";
+import type { Versions, Welcome } from "./hello.ts";
 import type { Principal, Revocation } from "./principals.ts";
 import type { Member } from "./roster.ts";
 
@@ -15,8 +15,8 @@ export interface Client {
   readonly host: Host<Principal, Revocation>;
   /** Who the gateway takes the client for. Nobody, on an agent's home socket. */
   readonly you: Member | null;
-  /** The Shrimpy version the other end runs. */
-  readonly version: string;
+  /** What the other end runs. */
+  readonly versions: Versions;
   /** Settles once the link has closed, whoever closed it. Nothing links again by itself. */
   readonly closed: Promise<void>;
   /** Close the host and drop the link at once. Closing twice closes once. */
@@ -39,7 +39,7 @@ export async function clientOver(welcome: Welcome, linked: Linked, options: Clie
   return {
     host,
     you: welcome.you,
-    version: welcome.shrimpy,
+    versions: { shrimpy: welcome.shrimpy, pi: welcome.pi },
     closed: linked.closed,
     close() {
       closing ??= (async () => {

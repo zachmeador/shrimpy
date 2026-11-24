@@ -11,7 +11,7 @@ import type {
   WaitingWakeup,
 } from "../../contracts/agent/index.ts";
 import type { AgentCommand, Channel, Member, Message, Thread } from "../../contracts/chat/index.ts";
-import type { Program, RosterEntry, WayIn } from "../../contracts/gateway/index.ts";
+import type { Program, RosterEntry, TurnedAwayProgram, Versions, WayIn } from "../../contracts/gateway/index.ts";
 import type { LinkStatus, Problem } from "../network/index.ts";
 
 /**
@@ -305,10 +305,13 @@ export interface Model {
   /** The gateway, which says what is linked and who is on the roster. */
   gateway: LinkStatus;
   /**
-   * What it last said, if it has: the programs linked to it, the members, the
-   * person's ways in, devices included, and the version of Shrimpy it runs.
+   * What it last said, if it has: the programs linked to it and those it
+   * turned away for the release they run, the members, the person's ways in,
+   * devices included, and what it runs, once it has said.
    */
-  listing: { programs: Program[]; members: RosterEntry[]; ways: WayIn[]; version: string } | undefined;
+  listing:
+    | { programs: Program[]; turnedAway: TurnedAwayProgram[]; members: RosterEntry[]; ways: WayIn[]; versions: Versions | undefined }
+    | undefined;
   /** The chat server, where threads live. */
   chat: LinkStatus;
   /** The agent whose list is open, once one is. */

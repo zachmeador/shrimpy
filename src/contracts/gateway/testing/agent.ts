@@ -1,5 +1,5 @@
 import type { TestContext } from "node:test";
-import { constant, createHost, defineFacet, type Host, remote, str, unknown } from "@earendil-works/chord";
+import { constant, createHost, defineFacet, type Facet, type Host, remote, str, unknown } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { DialPlace } from "../../../lib/link/node.ts";
 import { backoff } from "../../../lib/retry/index.ts";
@@ -23,6 +23,8 @@ export interface TestAgentOptions {
   roster?: string | null;
   /** Where the gateway is: its socket in the test's runtime directory, unless the test gives its entry with the fingerprint of its key. */
   place?: DialPlace;
+  /** More that it serves, as a stand-in for an agent's program of another build serves its own objects. */
+  serving?: Facet<Principal>;
 }
 
 /** A small agent's program, linked to the gateway as an agent's program is. */
@@ -43,10 +45,10 @@ export interface TestAgent {
 
 /**
  * The host of a small agent's program whose member ID is `id`, at `agent({ id })`,
- * loaded with what it serves: its presence and `Echo`. Whoever makes it links
- * it to the gateway and closes it.
+ * loaded with what it serves: its presence and `Echo`, and whatever `serving`
+ * adds. Whoever makes it links it to the gateway and closes it.
  */
-export async function testAgentHost(id: string): Promise<Host<Principal, Revocation>> {
+export async function testAgentHost(id: string, serving?: Facet<Principal>): Promise<Host<Principal, Revocation>> {
   const host = createHost<Principal, Revocation>({
     address: agent({ id }),
     principal: { kind: "home" },
@@ -57,7 +59,8 @@ export async function testAgentHost(id: string): Promise<Host<Principal, Revocat
     serving.serve(AgentPresence, () => ({ variant: "present", members: {} }));
     serving.serve(Echo, (_params, caller) => ({ variant: "only", members: { caller: constant(caller) } }));
   });
-  await host.load([{ name: "@shrimpy/test-agent", facet }], BACKGROUND_CONTEXT);
+  const more = serving === undefined ? [] : [{ name: "@shrimpy/test-agent-serving", facet: serving }];
+  await host.load([{ name: "@shrimpy/test-agent", facet }, ...more], BACKGROUND_CONTEXT);
   return host;
 }
 
@@ -85,7 +88,7 @@ export async function linkTestAgent(t: TestContext, name: string, options: TestA
       if (answer.you === null) throw new Error("The gateway welcomed an agent as nobody.");
       if (currentHost === undefined || currentId !== answer.you.id) {
         const previous = currentHost;
-        currentHost = await testAgentHost(answer.you.id);
+        currentHost = await testAgentHost(answer.you.id, options.serving);
         currentId = answer.you.id;
         await previous?.close(BACKGROUND_CONTEXT);
       }

@@ -6,13 +6,12 @@ import { type AgentEndpoint, endpointFile, HOME_AGENT } from "../contracts/agent
 import {
   agent,
   notAHello,
-  otherPi,
+  otherRelease,
   type Principal,
   readHello,
   readVersions,
   type Revocation,
   revokedBy,
-  samePi,
   turnAway,
   welcome,
 } from "../contracts/gateway/index.ts";
@@ -75,13 +74,14 @@ export async function createAgentHost(
 /**
  * What the home's socket answers a hello with: a client that shows no token is
  * let in and stamped `home`, since whoever may open the socket is whoever the
- * agent runs as. The Pi packages are compared first, so a client of another
+ * agent runs as. The versions are compared first, so a client of another
  * release is told what to run where, whatever else its hello says.
  */
 function greeter(host: Host<Principal, Revocation>): (raw: unknown) => Greeted {
   return (raw) => {
     const versions = readVersions(raw);
-    if (versions !== undefined && !samePi(versions.pi)) return { answer: turnAway(otherPi(versions, ANSWERING)) };
+    const other = versions === undefined ? undefined : otherRelease(versions, ANSWERING);
+    if (other !== undefined) return { answer: turnAway(other) };
     const hello = readHello(raw);
     if (hello === undefined) {
       return { answer: turnAway(notAHello("this agent")) };

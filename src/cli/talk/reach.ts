@@ -4,7 +4,7 @@ import { type Client, contextOf, NO_CHAT_SERVER, NO_GATEWAY, type Program, type 
 import { asError } from "../../lib/errors/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import type { Io } from "../io/index.ts";
-import { warnIfVersionDiffers } from "../versions/index.ts";
+import { warnIfNewerThanGateway } from "../versions/index.ts";
 import { GatewayNotRunningError, linkAs, viewOf } from "./gateway.ts";
 import { me } from "./me.ts";
 
@@ -34,9 +34,8 @@ export interface Reached {
  * gateway, or this machine, when it joined one as the person's own, reaches over
  * its entry. Nobody says who they are: the gateway decides from the token the
  * command shows, the agent's in its shell and the machine's on a machine that
- * joined, and on this machine's socket with none it is you. A gateway or chat
- * server of another version than this command is named on standard error, and
- * the command carries on. When nothing is running the error says what to start.
+ * joined, and on this machine's socket with none it is you. A gateway older
+ * than this command is named on standard error, and the command carries on. When nothing is running the error says what to start.
  * Aborting `signal` gives up, even on a server that is not answering.
  */
 export async function reachChat(io: Io, signal?: AbortSignal): Promise<Reached> {
@@ -50,12 +49,11 @@ export async function reachChat(io: Io, signal?: AbortSignal): Promise<Reached> 
   }
   try {
     const listing = await viewOf(client, signal);
-    warnIfVersionDiffers(io, "the gateway", listing.version);
+    warnIfNewerThanGateway(io, listing.versions.shrimpy);
     const server = listing.programs.findLast((program) => program.kind === "chat");
     if (server === undefined) {
       throw new Error(who.entry === undefined ? NO_CHAT_SERVER : `No chat server is linked to the gateway at ${formatAddress(who.entry)}.`);
     }
-    warnIfVersionDiffers(io, "the chat server", server.shrimpy);
     let chat: Reference<typeof Chat>;
     try {
       chat = await client.host.get(Chat, {}, contextOf(signal), { readyTimeout: CHAT_MS });

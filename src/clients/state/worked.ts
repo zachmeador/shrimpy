@@ -1,4 +1,4 @@
-import type { AgentShown, GatewayLink } from "../network/index.ts";
+import type { AgentShown, GatewayLink, LinkStatus } from "../network/index.ts";
 import { channelsOf } from "./channels.ts";
 import type { HeldSession, Holdings, OpenThread } from "./holdings.ts";
 import {
@@ -21,8 +21,8 @@ import {
  */
 export function worked(model: Model, held: Holdings, link: GatewayLink): Model {
   const shownRoster = held.roster.shown();
-  const version = link.version() ?? model.listing?.version ?? "";
-  const listing = shownRoster === undefined ? model.listing : { ...shownRoster, version };
+  const versions = link.versions() ?? model.listing?.versions;
+  const listing = shownRoster === undefined ? model.listing : { ...shownRoster, versions };
   const linked = (kind: "chat" | "agent", member?: string): boolean =>
     listing?.programs.some((program) => program.kind === kind && (member === undefined || program.member === member)) ?? false;
   const shownChat = held.chat.shown();
@@ -54,17 +54,29 @@ export function worked(model: Model, held: Holdings, link: GatewayLink): Model {
     if (shown !== undefined) looks[id] = { sigil: shown.sigil, pigment: shown.pigment };
   }
   if (agent !== undefined && agentShown !== undefined) looks[agent.id] = { sigil: agentShown.sigil, pigment: agentShown.pigment };
+  const channels = [...(shownChat?.channels ?? []), ...(shownChat?.readOnlyChannels ?? [])];
+  const chat = waiting(held.chat.status(linked("chat")), [
+    held.thread()?.held.status(linked("chat")),
+    ...channels.map((channel) => held.channel(channel.id)?.status(linked("chat"))),
+  ]);
+  const agentStatus =
+    agent === undefined
+      ? undefined
+      : waiting(
+          agent.held.status(linked("agent", agent.id)),
+          [...held.sessions().values()].filter((session) => session.agent === agent.id).map((session) => session.held.status(linked("agent", agent.id))),
+        );
   return {
     ...model,
     listing,
     open,
     gateway: link.status(),
-    chat: held.chat.status(linked("chat")),
+    chat,
     me: shownChat?.you ?? model.me,
     dms,
     rooms,
     readOnly,
-    agent: agent === undefined ? undefined : agent.held.status(linked("agent", agent.id)),
+    agent: agentStatus,
     sessions: agentShown === undefined || agentShown.refusal !== null ? undefined : agentShown.sessions,
     triggers: agentShown === undefined || agentShown.refusal !== null ? undefined : agentShown.triggers,
     defaultModel: agent?.defaultModel,
@@ -76,6 +88,16 @@ export function worked(model: Model, held: Holdings, link: GatewayLink): Model {
     workingSessions,
     looks,
   };
+}
+
+/**
+ * Where the link to a program stands, from its main object's `status`, or
+ * waiting for another version when any of `others`, more of what is held of
+ * it, waits for that, since a release may change one object and not another.
+ */
+function waiting(status: LinkStatus, others: readonly (LinkStatus | undefined)[]): LinkStatus {
+  const other = others.some((each) => each?.state === "down" && each.why.kind === "other-version");
+  return other ? { state: "down", why: { kind: "other-version" } } : status;
 }
 
 /** What is open, with a room the person read and has since joined theirs: its list, and the place of a thread of it, become the room's. */

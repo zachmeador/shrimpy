@@ -3,7 +3,8 @@
  * is happening now and the input; or a session behind no thread, watched; or,
  * with nothing open, a shape pressed into the pane and what to do.
  */
-import { type ComponentChildren, Fragment } from "preact";
+import { type ComponentChildren, createContext, Fragment } from "preact";
+import { useContext } from "preact/hooks";
 import type { AgentWork, InFull, MessageRow, SessionLevel, ThreadLevel, Waiting } from "../view/index.ts";
 import { CHECKING_BACK, commandParts, moreWakeups, NEW_SINCE, OUT_OF_DATE_MARK } from "../view/index.ts";
 import { Composer, type ComposerProps } from "./composer.tsx";
@@ -12,14 +13,23 @@ import { Plain, Prose } from "./prose.tsx";
 import { Steps, WorkBlock, WorkRow } from "./work.tsx";
 import { CONTROLS, TURN_OVER } from "./words.ts";
 
-/** A note on what is not working, the first with when the page tries again, where it does. */
+/** The note that offers to reload the page, when the gateway runs a newer Shrimpy than the page. */
+export const ReloadOffer = createContext<string | undefined>(undefined);
+
+/** A note on what is not working, the first with when the page tries again, where it does, and the offer to reload with its button. */
 export function Notes({ notes, retry }: { notes: string[]; retry: string | undefined }) {
+  const offer = useContext(ReloadOffer);
   return (
     <>
       {notes.map((note, at) => (
         <p key={note} class="note stepbox">
           {note}
           {at === 0 && retry !== undefined && <span class="retry">{retry}</span>}
+          {note === offer && (
+            <button class="lk reload" type="button" onClick={() => location.reload()}>
+              {CONTROLS.reload}
+            </button>
+          )}
         </p>
       ))}
     </>

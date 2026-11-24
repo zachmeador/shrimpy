@@ -119,6 +119,7 @@ The contracts list three reasons. All three come when connecting, and the agent 
 | `you` | The member the caller is, or null for a program that isn't one | What `signIn` answered |
 | `members` | Everyone on the roster, oldest first, each with whether it is an admin and whether it is reachable | `members` |
 | `programs` | The programs linked now: kind, name, member and the Shrimpy version each gave in its hello | `list` |
+| `turnedAway` | The programs the gateway turned away for the release they run, each with the Shrimpy version and Pi packages its hello gave, until it links: an agent whose token the roster knows, and the chat server on the gateway's socket. A client says from them which machine to update | New on 2026-11-23 |
 | `ways` | Each way in, with its ID, its member and a device's label: all of them for you, the agents' for an admin, and none for anyone else | New, from [identity](3-identity.md) |
 | `invite({ name })` | An invitation for a new agent, or to replace an existing agent's token on its entry. Only you or an admin, refusing the person's name, while the gateway listens on an address | `invite` |
 | `inviteDevice()` | An invitation for a device of yours, with the address of the page's door for a browser. Only you. The device is named for the machine it joins from | `inviteMachine` |
@@ -243,7 +244,7 @@ A release that changes the Pi packages reaches every machine together. Chord kee
 | `{ kind: "client", token }` | A client: you with no token or a device's token, and an agent with its token | Either. With no token, the gateway's socket only |
 | `{ kind: "join", name, token, code, machine }` | `shrimpy join`. The agent `name` (new or existing), or a device of yours when it is null, joins with an invitation, and the gateway closes the connection. `machine` is the joining machine's name, which a device is labelled with | The entry |
 
-**The answer** is `{ kind: "welcome", you, roster }` or `{ kind: "refused", words, reason }`, either one with the gateway's Shrimpy version and its Pi packages. A different set of Pi packages is refused with what to run where, and so is a second program for one agent (`agent_running`) or a second chat server.
+**The answer** is `{ kind: "welcome", you, roster }` or `{ kind: "refused", words, reason }`, either one with the gateway's Shrimpy version and its Pi packages. A different set of Pi packages is refused with what to run where, and so is another major, a second program for one agent (`agent_running`) or a second chat server. A caller newer than the gateway is let in, and says so itself, from the version in the answer.
 
 **Then Chord.** The caller wraps the socket as a Chord link and connects with the gateway as its parent. An agent learns its member ID from `welcome.you.id` and makes its network host at `agent({ id })` before connecting (replacing it if a new roster gives it another ID). The gateway accepts a client's link, stamped with its principal, and takes a program's link as its route.
 
@@ -300,12 +301,7 @@ So every link is a WebSocket, on one machine as well. Every link is untrusted, s
 
 *The rest of the agent's operations,* as daily use asks for them: reset, fork, withdraw, thinking level, defaults, context queries, completion, provider status, delegation and attachments.
 
-*Versions,* as decided on 2026-11-23. By the release:
-
-- Shrimpy says `1.0.0`, and `wip` the next minor with `-dev`. Every build says `0.0.0` today, so the warning about another version never fires.
-- Every contract's version and fingerprint is written down at each release, with a test that fails when one written down for the current major stops being served or changes.
-- The hello refuses another major and warns a caller newer than the gateway. A view that waits on another version names the program and its version, where today it shows as unreachable with Chord's error.
-- The page reloads itself when it is refused for its version, and offers a reload when the gateway is newer. The roster says why it refused a program.
+*Versions,* as decided on 2026-11-23. By the release, Shrimpy says `1.0.0`, and `wip` the next minor with `-dev`. Every contract's version and fingerprint is written down at each release, with a test that fails when one written down for the current major stops being served or changes.
 
 **Built on 2026-10-05**
 

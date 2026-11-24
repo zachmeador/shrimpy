@@ -1,5 +1,5 @@
 import type { RefState } from "@earendil-works/chord";
-import { isLost } from "../../contracts/gateway/index.ts";
+import { isLost, isOtherVersion, type Versions } from "../../contracts/gateway/index.ts";
 import { asError } from "../../lib/errors/index.ts";
 
 /** Why a client has no link to a program, or to the gateway. */
@@ -8,14 +8,16 @@ export type Why =
   | { kind: "connecting" }
   /** Nothing is listening where the gateway should be. */
   | { kind: "not-running" }
-  /** The gateway turned the client away, with its words. */
-  | { kind: "refused"; words: string }
+  /** The gateway turned the client away, with its words and what it runs. */
+  | { kind: "refused"; words: string; versions: Versions }
   /** The gateway's entry didn't prove it is yours, so the client sent it nothing, with the words of why. */
   | { kind: "unproven"; words: string }
   /** The gateway lists no such program as linked. */
   | { kind: "not-linked" }
   /** The program was reached, and the link to it ended. */
   | { kind: "lost" }
+  /** The program is linked, and serves another version of what the client holds of it, so that waits until one of them is updated. */
+  | { kind: "other-version" }
   /** The program is linked, and could not be reached or used for the reason given. */
   | { kind: "unreachable"; message: string };
 
@@ -49,12 +51,14 @@ export function problemOf(error: unknown): Problem {
 /**
  * Where a link to a program stands, from the state of an object a client
  * holds there: up while it is live; not linked when the gateway lists no such
- * program, which `linked` says; lost when it was live before and is not now;
- * and otherwise still being reached, or failing with the words of why.
+ * program, which `linked` says; waiting when the program serves another
+ * version of it; lost when it was live before and is not now; and otherwise
+ * still being reached, or failing with the words of why.
  */
 export function statusOf(state: RefState, linked: boolean, wasUp: boolean): LinkStatus {
   if (state.kind === "live") return UP;
   if (!linked) return { state: "down", why: { kind: "not-linked" } };
+  if (state.kind === "failed" && isOtherVersion(state.cause.error)) return { state: "down", why: { kind: "other-version" } };
   if (state.kind === "failed") return { state: "down", why: { kind: "unreachable", message: state.cause.error.message } };
   return { state: "down", why: wasUp ? { kind: "lost" } : { kind: "connecting" } };
 }
