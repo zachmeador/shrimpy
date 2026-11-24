@@ -44,6 +44,7 @@ function standIn(t: TestContext, platform: NodeJS.Platform, options: { home?: st
     user: "ubuntu",
     uid: 501,
     path: "/opt/node/bin:/usr/bin:/bin",
+    lang: undefined,
     run(command, args) {
       ran.push([command, ...args].join(" "));
       const ok = { code: 0, stdout: "", stderr: "" };
@@ -166,6 +167,7 @@ test("on macOS, install writes and loads a LaunchAgent that runs up, and uninsta
   const text = readFileSync(agent, "utf8");
   for (const word of [...shrimpyCommand(), "up"]) assert.ok(text.includes(`<string>${word}</string>`), `it runs ${word}`);
   assert.ok(text.includes(`<string>${account.path ?? ""}</string>`), "with the PATH of the shell that installed it");
+  assert.match(text, /<key>LANG<\/key>\s*<string>[^<]*UTF-8<\/string>/, "and UTF-8, which launchd doesn't give");
   assert.ok(!text.includes("SHRIMPY_DIR"), "the default folder is not named");
   assert.ok(text.includes("<key>KeepAlive</key>"));
   const log = join(account.home, "Library", "Logs", "shrimpy.log");

@@ -136,6 +136,7 @@ function standInAccount(platform: NodeJS.Platform): { account: Account; ran: str
     user: "ubuntu",
     uid: 501,
     path: "/usr/bin:/bin",
+    lang: undefined,
     run(command, args) {
       ran.push([command, ...args].join(" "));
       if (command === "systemd-run") {
@@ -189,8 +190,8 @@ for (const platform of ["linux", "darwin"] as const) {
     const service = serviceFor(account, folder);
     const other = serviceFor(account, join(tempDir(t, "other"), "shrimpy"));
     assert.ok(service !== undefined && other !== undefined);
-    await put(account, service, { argv: [...runs("0.1.0"), "up"], path: SERVICE_PATH });
-    await put(account, other, { argv: [...runs("0.0.9"), "up"], path: SERVICE_PATH });
+    await put(account, service, { argv: [...runs("0.1.0"), "up"], path: SERVICE_PATH, lang: undefined });
+    await put(account, other, { argv: [...runs("0.0.9"), "up"], path: SERVICE_PATH, lang: undefined });
 
     const before = snapshot(home);
     const asked = ran.length;
@@ -207,10 +208,12 @@ for (const platform of ["linux", "darwin"] as const) {
     assert.equal(await updateShrimpy(updated.io, account, at("0.1.0"), "0.2.0"), 0, updated.err.join("\n"));
     assert.deepEqual(entries(versions), ["0.0.9", "0.1.0", "0.2.0"], "the one it replaced stays, and so does one another service runs");
     assert.ok(readFileSync(join(home, ".local", "bin", "shrimpy"), "utf8").includes(runs("0.2.0")[1] ?? ""), "the command runs the new version");
-    assert.deepEqual(restarts, [{ argv: [...runs("0.2.0"), "install"], variables: { PATH: SERVICE_PATH, [FOLDER_VARIABLE]: folder } }]);
+    // launchd gives a service no language, so a LaunchAgent names one, and the restart keeps it.
+    const language = platform === "darwin" ? { LANG: "C.UTF-8" } : {};
+    assert.deepEqual(restarts, [{ argv: [...runs("0.2.0"), "install"], variables: { PATH: SERVICE_PATH, ...language, [FOLDER_VARIABLE]: folder } }]);
 
     // What the new version's shrimpy install writes, and the other folder's service taken away.
-    await put(account, service, { argv: [...runs("0.2.0"), "up"], path: SERVICE_PATH });
+    await put(account, service, { argv: [...runs("0.2.0"), "up"], path: SERVICE_PATH, lang: undefined });
     rmSync(other.file);
 
     const back = captureIo();

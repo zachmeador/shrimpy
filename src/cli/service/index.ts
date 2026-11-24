@@ -8,6 +8,7 @@
  * one. It must not know what `shrimpy up` starts, or how a command says what it did.
  */
 export { type Account, thisAccount } from "./account.ts";
+export { NotLoggedInError } from "./launchd.ts";
 export { installedPrograms, put, remove, restartApart, stateOf } from "./manage.ts";
 export { type Program, type Service, serviceFor, STOP_SECONDS } from "./service.ts";
 export { disableLingering, enableLingering, keepLingering, lingers } from "./systemd.ts";

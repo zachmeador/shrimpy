@@ -33,6 +33,7 @@ function standInSystemd(t: TestContext, failFirst: boolean): Account {
     user: "ubuntu",
     uid: 501,
     path: process.env.PATH ?? "",
+    lang: undefined,
     run(command, args) {
       const verb = args.find((arg) => !arg.startsWith("-")) ?? "";
       if (command === "loginctl") return Promise.resolve({ ...ok, stdout: "Linger=yes\n" });

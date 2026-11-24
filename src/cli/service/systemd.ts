@@ -56,7 +56,7 @@ export function readUnit(text: string): Program {
   const path = [...text.matchAll(/^Environment=(.*)$/gm)]
     .map(([, value = ""]) => unquoted(value))
     .find((variable) => variable.startsWith("PATH="));
-  return { argv, path: path?.slice("PATH=".length) };
+  return { argv, path: path?.slice("PATH=".length), lang: undefined };
 }
 
 /** `message`, with where the account's own systemd is when what it says is that systemd could not be reached. */

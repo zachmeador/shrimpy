@@ -46,20 +46,27 @@ export interface Program {
   readonly argv: string[];
   /** The PATH it runs with, when there is one to give it. */
   readonly path: string | undefined;
+  /** The LANG it runs with under launchd, when there is one to give it. systemd gives a service the machine's own. */
+  readonly lang: string | undefined;
 }
 
-/** The variables a service runs with: its PATH, and the folder when it isn't the default. */
-export function variablesOf(service: Service, { path }: Program): [string, string][] {
+/** The variables a service runs with: its PATH, its LANG under launchd, and the folder when it isn't the default. */
+export function variablesOf(service: Service, { path, lang }: Program): [string, string][] {
   const variables: [string, string][] = [];
   if (path !== undefined && path !== "") variables.push(["PATH", path]);
+  // launchd gives a service no language, which leaves agents' shells in the C locale, with no UTF-8.
+  if (service.manager === "launchd") variables.push(["LANG", lang === undefined || lang === "" ? "C.UTF-8" : lang]);
   if (!service.plain) variables.push([FOLDER_VARIABLE, service.folder]);
   return variables;
 }
 
-/** Whether the manager has the service running, and the word it used for how it is: `active`, `failed`, `not loaded`. */
+/**
+ * Whether the manager has the service running, and the word it used for how it is, such as `active`, `failed` or
+ * `not loaded`, when that says more than whether it runs.
+ */
 export interface State {
   readonly running: boolean;
-  readonly detail: string;
+  readonly detail: string | undefined;
 }
 
 /**

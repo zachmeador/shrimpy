@@ -15,6 +15,7 @@ import {
   enableLingering,
   keepLingering,
   lingers,
+  NotLoggedInError,
   type Program,
   put,
   remove,
@@ -38,7 +39,8 @@ const install: Command = {
       "~/.config/systemd/user/. On macOS it is a LaunchAgent in ~/Library/LaunchAgents/, and what it prints goes to " +
       "a file in ~/Library/Logs/. It starts again if it fails. It runs this Shrimpy, with the Node and the entry " +
       "point that run this command, and gets the PATH of the shell that runs this, so that an agent's shell finds " +
-      "what yours does. On any other system it says so, and how to run shrimpy up under whatever keeps programs " +
+      "what yours does. On macOS it gets that shell's LANG too, or C.UTF-8 when it has none, since launchd gives a " +
+      "service no language. On any other system it says so, and how to run shrimpy up under whatever keeps programs " +
       "running there.",
     "One folder has one service. The default folder's is called shrimpy. Any other folder gets a name made from " +
       "the folder, and the service is told the folder, so two folders never share one. To install for another " +
@@ -128,7 +130,7 @@ const uninstallCommand = (service: Service): string =>
  */
 export async function installService(io: Io, account: Account): Promise<number> {
   const folder = folderPath();
-  const program: Program = { argv: [...shrimpyCommand(), "up"], path: account.path };
+  const program: Program = { argv: [...shrimpyCommand(), "up"], path: account.path, lang: account.lang };
   const service = serviceFor(account, folder);
   if (service === undefined) throw new Error(noServiceHere(account, program, folder));
 
@@ -152,7 +154,7 @@ export async function installService(io: Io, account: Account): Promise<number> 
   }
 
   const { updated } = await put(account, service, program).catch((error: unknown) => {
-    if (!existsSync(service.file) || !(error instanceof Error)) throw error;
+    if (!existsSync(service.file) || !(error instanceof Error) || error instanceof NotLoggedInError) throw error;
     throw new Error(`${error.message}\n${service.file} is in place. Run shrimpy install again once that works.`, {
       cause: error,
     });
@@ -216,7 +218,8 @@ export async function serviceStatusLine(account: Account): Promise<string | unde
   try {
     const { running, detail } = await stateOf(account, service);
     if (running) return `The service ${service.name} is installed for ${folder} and running.`;
-    return `The service ${service.name} is installed for ${folder} and not running (${detail}). shrimpy install starts it again.`;
+    const how = detail === undefined ? "" : ` (${detail})`;
+    return `The service ${service.name} is installed for ${folder} and not running${how}. shrimpy install starts it again.`;
   } catch (error) {
     return `The service ${service.name} is installed for ${folder}. It could not be asked whether it runs: ${asError(error).message}`;
   }

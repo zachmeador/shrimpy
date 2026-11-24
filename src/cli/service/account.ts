@@ -26,6 +26,8 @@ export interface Account {
   readonly uid: number;
   /** The PATH of the shell that runs the command, which the service is given. */
   readonly path: string | undefined;
+  /** The LANG of the shell that runs the command, which a LaunchAgent is given. */
+  readonly lang: string | undefined;
   /**
    * Run a command of the service manager, as the account, and say how it ended. A command that ends with a failure
    * is an answer. One that can't be run at all rejects.
@@ -75,12 +77,17 @@ function detach(command: string, args: string[], variables: Record<string, strin
 /** The account that runs this command, with the machine's own service manager. */
 export function thisAccount(): Account {
   const { username, uid } = userInfo();
-  return { platform: process.platform, home: homedir(), user: username, uid, path: process.env.PATH, run: execute, detach };
+  const { PATH: path, LANG: lang } = process.env;
+  return { platform: process.platform, home: homedir(), user: username, uid, path, lang, run: execute, detach };
 }
 
 /** Run a command of the service manager, and fail with what it said when it did not end well. */
 export async function runChecked(account: Account, command: string, args: string[]): Promise<Ran> {
-  const answer = await account.run(command, args);
+  return checked(command, args, await account.run(command, args));
+}
+
+/** How a command of the service manager ended, or an error with what it said when it did not end well. */
+export function checked(command: string, args: string[], answer: Ran): Ran {
   if (answer.code === 0) return answer;
   const said = answer.stderr.trim() || answer.stdout.trim();
   const typed = [command, ...args].join(" ");

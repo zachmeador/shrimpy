@@ -1,6 +1,6 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { shellWord } from "../../lib/text/index.ts";
-import { type Account, runChecked } from "./account.ts";
+import { type Account, checked, runChecked } from "./account.ts";
 import { type LaunchdService, type Program, STOP_SECONDS, type State, variablesOf, WRITTEN } from "./service.ts";
 
 const xml = (text: string): string => text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
@@ -25,14 +25,10 @@ export function plist(service: LaunchdService, program: Program): string {
     "  <array>",
     ...program.argv.map((arg) => `    <string>${xml(arg)}</string>`),
     "  </array>",
-    ...(variables.length === 0
-      ? []
-      : [
-          "  <key>EnvironmentVariables</key>",
-          "  <dict>",
-          ...variables.flatMap(([name, value]) => [`    <key>${xml(name)}</key>`, `    <string>${xml(value)}</string>`]),
-          "  </dict>",
-        ]),
+    "  <key>EnvironmentVariables</key>",
+    "  <dict>",
+    ...variables.flatMap(([name, value]) => [`    <key>${xml(name)}</key>`, `    <string>${xml(value)}</string>`]),
+    "  </dict>",
     "  <key>RunAtLoad</key>",
     "  <true/>",
     "  <key>KeepAlive</key>",
@@ -55,10 +51,14 @@ export function plist(service: LaunchdService, program: Program): string {
 /** What a LaunchAgent that `plist` wrote runs. */
 export function readPlist(text: string): Program {
   const strings = /<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/.exec(text)?.[1] ?? "";
-  const path = /<key>PATH<\/key>\s*<string>([\s\S]*?)<\/string>/.exec(text)?.[1];
+  const variable = (name: string): string | undefined => {
+    const value = new RegExp(`<key>${name}</key>\\s*<string>([\\s\\S]*?)</string>`).exec(text)?.[1];
+    return value === undefined ? undefined : unxml(value);
+  };
   return {
     argv: [...strings.matchAll(/<string>([\s\S]*?)<\/string>/g)].map(([, arg = ""]) => unxml(arg)),
-    path: path === undefined ? undefined : unxml(path),
+    path: variable("PATH"),
+    lang: variable("LANG"),
   };
 }
 
@@ -78,8 +78,9 @@ async function printed(account: Account, service: LaunchdService): Promise<strin
 export async function state(account: Account, service: LaunchdService): Promise<State> {
   const said = await printed(account, service);
   if (said === undefined) return { running: false, detail: "not loaded" };
-  const how = /^\s*state = (\S+)/m.exec(said)?.[1] ?? "loaded";
-  return { running: how === "running", detail: how };
+  const how = /^\s*state = (.+)$/m.exec(said)?.[1]?.trim();
+  if (how === "running") return { running: true, detail: how };
+  return { running: false, detail: how === "not running" ? undefined : how };
 }
 
 /** Stop the service and unload it, if launchd has it loaded. */
@@ -96,10 +97,30 @@ export async function stop(account: Account, service: LaunchdService): Promise<v
   }
 }
 
+/**
+ * launchd loads an account's LaunchAgents only while the account is logged in, and loads them by itself at its next
+ * login. So the LaunchAgent is in place, and nothing runs until then.
+ */
+export class NotLoggedInError extends Error {
+  constructor(account: Account, service: LaunchdService) {
+    super(
+      `${account.user} isn't logged in to this Mac's desktop, and a LaunchAgent runs only while its account is. ` +
+        `${service.file} is in place, and launchd starts it when ${account.user} next logs in.`,
+    );
+    this.name = "NotLoggedInError";
+  }
+}
+
 /** Load the LaunchAgent, which starts the program. One that is loaded is stopped and loaded again, so that it runs the file as it is now. */
 export async function start(account: Account, service: LaunchdService): Promise<void> {
   await stop(account, service);
-  await runChecked(account, "launchctl", ["bootstrap", domain(account), service.file]);
+  const bootstrap = ["bootstrap", domain(account), service.file];
+  const loaded = await account.run("launchctl", bootstrap);
+  // The account's graphical domain exists only while it is logged in, and launchctl's own error doesn't say so.
+  if (loaded.code !== 0 && (await account.run("launchctl", ["print", domain(account)])).code !== 0) {
+    throw new NotLoggedInError(account, service);
+  }
+  checked("launchctl", bootstrap, loaded);
 }
 
 /**

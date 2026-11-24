@@ -141,7 +141,7 @@ async function install(io: Io, account: Account, installed: Installed, version: 
     io.out(`No service is installed for ${folder}. To run Shrimpy ${version} there, stop shrimpy up and start it again.`);
     return 0;
   }
-  const see = await restartApart(account, service, { argv: [...commandOf(installed, version), "install"], path: program.path });
+  const see = await restartApart(account, service, { ...program, argv: [...commandOf(installed, version), "install"] });
   io.out(`Restarting the service ${service.name} with Shrimpy ${version}, which stops what it runs for a moment.`);
   io.out(`See how the restart went with: ${see}`);
   return 0;
