@@ -1,13 +1,14 @@
 import { chmodSync, writeFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import { beforeEach, type TestContext } from "node:test";
-import { stopAfter, tempDir } from "../../lib/testing/index.ts";
+import { stopAfter, tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
 
 const given = new WeakMap<TestContext, string>();
 
 /**
- * Give this test a Shrimpy folder of its own, so that nothing it runs reaches
- * a real `~/shrimpy` or the folder the person's own `SHRIMPY_DIR` names. It is
+ * Give this test a Shrimpy folder of its own, and a runtime directory of its
+ * own, so that nothing it runs reaches a real `~/shrimpy`, the folder the
+ * person's own `SHRIMPY_DIR` names, or a running gateway's socket. It is
  * a path that does not exist yet, as the default is on a machine that has not
  * set Shrimpy up, and a command that needs it makes it. Programs the test
  * starts inherit it. Asking again in the same test gives the same one, and the
@@ -16,6 +17,7 @@ const given = new WeakMap<TestContext, string>();
 export function useShrimpyDir(t: TestContext): string {
   const existing = given.get(t);
   if (existing !== undefined) return existing;
+  useRuntimeDir(t);
   const folder = join(tempDir(t, "folder"), "shrimpy");
   given.set(t, folder);
   const saved = process.env.SHRIMPY_DIR;

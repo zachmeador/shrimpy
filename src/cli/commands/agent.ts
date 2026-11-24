@@ -1,12 +1,14 @@
+import { existsSync } from "node:fs";
 import { basename, dirname } from "node:path";
 import { parseArgs } from "node:util";
 import type { HomeAgent } from "../../agent/index.ts";
 import { checkAgentName, modelWords, parseModelChoice } from "../../contracts/agent/index.ts";
-import { initHome, providerPaths, readEndpoint } from "../../contracts/agent/node.ts";
+import { homePaths, initHome, providerPaths, readEndpoint } from "../../contracts/agent/node.ts";
+import { findMember } from "../../contracts/chat/index.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { homeNamed, isPath, newHome, providersPath } from "../folder/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
-import { onAgent } from "../talk/index.ts";
+import { askLocalGateway, onAgent } from "../talk/index.ts";
 import { checking, expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning } from "./connected.ts";
@@ -32,7 +34,9 @@ const init: Command = {
   details:
     "The agent is named for the folder of its home unless --name gives it another name. Without --model it " +
     "names no model, and starts with the one in providers/default-model.json in your Shrimpy folder, which " +
-    `is ~/shrimpy or the folder SHRIMPY_DIR names. ${AN_AGENT}`,
+    "is ~/shrimpy or the folder SHRIMPY_DIR names. A new agent's name is checked against the roster of this " +
+    "machine's gateway, which the agent joins when it first runs, and a name the roster holds is refused. With no " +
+    `gateway running here, the agent is created unchecked. ${AN_AGENT}`,
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({
@@ -47,11 +51,14 @@ const init: Command = {
 
     const home = newHome(given);
     const name = values.name ?? folderName(home);
+    // A home that already describes an agent may be on the roster as itself.
+    const unchecked = existsSync(homePaths(home).config) ? undefined : await checkRoster(name);
     const { paths, created } = initHome(home, { name, ...(model === undefined ? {} : { model }) });
     if (created.length === 0) {
       io.out(`The agent ${name} is already set up in ${paths.root}. Nothing was changed.`);
       return 0;
     }
+    if (unchecked !== undefined) io.err(unchecked);
     // A home in the Shrimpy folder is found by its name, and one anywhere else by its path.
     const named = !isPath(given);
     // Where an agent's model and its access come from: its own files first, then the Shrimpy folder's providers/.
@@ -98,6 +105,31 @@ const init: Command = {
     return 0;
   },
 };
+
+/** How long `agent init` waits for the gateway to say who is on its roster. */
+const ROSTER_WAIT_MS = 5_000;
+
+/**
+ * Refuses `name` when this machine's gateway has a member by it, whatever the case, since the gateway would turn the
+ * agent away when it first runs. Gives what to say instead when the roster couldn't be asked, and the agent is made
+ * unchecked.
+ */
+async function checkRoster(name: string): Promise<string | undefined> {
+  const view = await askLocalGateway(AbortSignal.timeout(ROSTER_WAIT_MS)).catch((error: unknown) => asError(error));
+  if (view instanceof Error) return `The roster couldn't be checked for the name ${name}: ${view.message}`;
+  if (view === undefined) {
+    return (
+      `No gateway is running here, so the name ${name} wasn't checked against the roster. ` +
+      `If the roster already has it, the gateway turns ${name} away when it first runs.`
+    );
+  }
+  const holder = findMember(view.members, name);
+  if (holder === undefined) return undefined;
+  throw new Error(
+    `The name ${name} is taken: it belongs to ${holder.kind === "agent" ? "the agent" : "the person"} ${holder.name} on the roster. ` +
+      "Names are shared by people and agents, whatever the case. Give this agent another with --name. Nothing was created.",
+  );
+}
 
 /** The name an agent gets when `--name` gives none: the name of its home's folder, if an agent can have that name. */
 function folderName(home: string): string {

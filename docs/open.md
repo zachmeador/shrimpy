@@ -101,7 +101,7 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Falls short**
 
-- `agent init` makes a home with a name the roster already holds, and the gateway's refusal shows only in the service's log. `agent status` then says only that the agent isn't running.
+- `agent init` with no gateway running here makes the home unchecked, so a name the roster already holds still shows only in the service's log, and `agent status` says only that the agent isn't running.
 - What every agent is told doesn't say that the `shrimpy` in its shell acts as the agent. One believed it acted as the person (2026-11-22). A program of an agent's own that opens the gateway's socket is taken for the person, as the design has it.
 - The terminal reaches agents by name only, so with the gateway down it can't watch one. The `sessions` commands can, by a home's path.
 - From an agent's shell, `agent init`, `agent serve` and `up` skip the admin check, and `status` lists no admins.

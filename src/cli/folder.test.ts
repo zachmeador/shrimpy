@@ -104,7 +104,8 @@ test("a command whose reader stops reading, as head does, still does its work an
   const [code] = (await once(child, "exit")) as [number | null];
 
   assert.equal(code, 0, complaint);
-  assert.equal(complaint, "");
+  // With no gateway running, init says on standard error that it couldn't check the name, and nothing else.
+  assert.doesNotMatch(complaint, /EPIPE|\n\s+at /);
   assert.ok(existsSync(join(folder, "agents", "scout", "agent.json")), "the home was made all the same");
 });
 
