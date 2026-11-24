@@ -14,9 +14,11 @@ import {
   ABOUT_ANOTHER_AGENT,
   AGENT_OPTION,
   agentToActOn,
+  type AtHome,
+  atHome,
   command,
+  ITS_FILES,
   mayActOn,
-  type Target,
   WHICH_AGENT,
 } from "./which-agent.ts";
 
@@ -38,7 +40,7 @@ const MEANING: Record<WakePolicy, string> = {
  * and carries on, since a name that is nobody's does no harm. Gives the room's
  * name as chat has it when it could be checked, and as it was written when not.
  */
-async function checkRoom(io: Io, target: Target, written: string): Promise<string> {
+async function checkRoom(io: Io, target: AtHome, written: string): Promise<string> {
   const name = roomNameWritten(written).trim();
   const unchecked = { what: `The room ${roomLabel(name)}`, only: "which rooms it is in" };
   const room = await asTheAgent(io, target, unchecked, (reached) => {
@@ -68,11 +70,11 @@ const wake: Command = {
     "The choice is kept in wake.json in the agent's home. A running agent is told to read its files again, and " +
       "one that is not running reads the file when it starts.",
     "",
-    `${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
+    `${WHICH_AGENT} ${ITS_FILES} ${ABOUT_ANOTHER_AGENT}`,
   ].join("\n"),
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
-    const target = agentToActOn(values.agent);
+    const target = await atHome(agentToActOn(values.agent));
     if (positionals.length === 0) {
       await mayActOn(target, "Looking at what wakes another agent");
       return list(io, target);
@@ -92,7 +94,7 @@ const wake: Command = {
 };
 
 /** What the home's wake file sets, one room to a line, and what every other room has. */
-async function list(io: Io, target: Target): Promise<number> {
+async function list(io: Io, target: AtHome): Promise<number> {
   const read = await readWake(loadHome(target.home).paths);
   if (read.kind === "left out") {
     io.err(`${read.leftOut.file} can't be used: ${read.leftOut.reason}. Until it is fixed the agent keeps what it last read.`);

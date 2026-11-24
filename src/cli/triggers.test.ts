@@ -70,7 +70,7 @@ async function servedScout(t: TestContext): Promise<{ home: string; agent: Serve
 test("add writes a file the agent accepts, which a running agent picks up at once", { timeout }, async (t) => {
   const { home, connection } = await servedScout(t);
 
-  const added = await run("triggers", "add", "nightly", "--every", "1h", "Tidy the notes.", "--agent", "scout");
+  const added = await run("triggers", "add", "nightly", "--every", "1h", "Tidy the notes.", "--agent", home);
 
   assert.equal(added.code, 0, added.err);
   const file = join(home, "triggers", "nightly.md");
@@ -88,26 +88,26 @@ test("add writes a file the agent accepts, which a running agent picks up at onc
   assert.ok(added.out.includes(localTime(trigger.next)), `the time the agent has is said:\n${added.out}`);
 
   // Making it again replaces it, and a schedule that changes counts from then.
-  const replaced = await run("triggers", "add", "nightly", "--cron", "0 3 * * *", "--timezone", "Europe/Berlin", "Tidy more.", "--agent", "scout");
+  const replaced = await run("triggers", "add", "nightly", "--cron", "0 3 * * *", "--timezone", "Europe/Berlin", "Tidy more.", "--agent", home);
   assert.equal(replaced.code, 0, replaced.err);
   const [again] = await (await connection()).triggers();
   assert.deepEqual(again?.schedule, { cron: "0 3 * * *", timezone: "Europe/Berlin" });
   assert.ok(replaced.out.includes(localTime(again.next ?? 0)), replaced.out);
-  const listed = await run("triggers", "--agent", "scout");
+  const listed = await run("triggers", "--agent", home);
   assert.equal(listed.code, 0, listed.err);
   assert.ok(listed.out.includes("nightly"), listed.out);
 
   // A check comes with what counts as news and how long it may run, and the agent has it as the file says it.
-  const checked = await run("triggers", "add", "inbox", "--every", "1h", "--check", 'ls inbox | grep -c "new"', "--when", "output", "--timeout", "30s", "Tell me.", "--agent", "scout");
+  const checked = await run("triggers", "add", "inbox", "--every", "1h", "--check", 'ls inbox | grep -c "new"', "--when", "output", "--timeout", "30s", "Tell me.", "--agent", home);
   assert.equal(checked.code, 0, checked.err);
   const check = { command: 'ls inbox | grep -c "new"', when: "output", then: "wake", timeout: "30s" };
   assert.deepEqual(parseTrigger("inbox", readFileSync(join(home, "triggers", "inbox.md"), "utf8")).check, check);
   assert.deepEqual((await (await connection()).trigger("inbox")).check, check);
-  const shown = await run("triggers", "show", "inbox", "--agent", "scout");
+  const shown = await run("triggers", "show", "inbox", "--agent", home);
   assert.ok(shown.out.includes(check.command) && shown.out.includes("30s"), shown.out);
 
   // A trigger that notes what its check finds wakes nobody, so it needs no prompt.
-  const noted = await run("triggers", "add", "stuck", "--every", "1h", "--check", "test -f stuck.lock && echo stuck", "--then", "note", "--agent", "scout");
+  const noted = await run("triggers", "add", "stuck", "--every", "1h", "--check", "test -f stuck.lock && echo stuck", "--then", "note", "--agent", home);
   assert.equal(noted.code, 0, noted.err);
   const stuck = parseTrigger("stuck", readFileSync(join(home, "triggers", "stuck.md"), "utf8"));
   assert.deepEqual([stuck.check?.then, stuck.prompt], ["note", ""]);
@@ -135,63 +135,63 @@ test("a schedule that is wrong is refused with its key and value, and nothing is
     ["a check of more than one line", ["--every", "1h", "--check", "true\nfalse"], "check is one line"],
   ];
   for (const [what, flags, mentions] of refused) {
-    const result = await run("triggers", "add", "nightly", ...flags, "Tidy.", "--agent", "scout");
+    const result = await run("triggers", "add", "nightly", ...flags, "Tidy.", "--agent", home);
     assert.equal(result.code, 2, `${what}: ${result.err}`);
     assert.ok(result.err.includes(mentions), `${what}: ${result.err}`);
   }
-  const named = await run("triggers", "add", "two words", "--every", "1h", "Tidy.", "--agent", "scout");
+  const named = await run("triggers", "add", "two words", "--every", "1h", "Tidy.", "--agent", home);
   assert.equal(named.code, 2);
   assert.ok(named.err.includes("two words"), named.err);
 
   // A command used without saying when, or twice over, or without a prompt, is told so.
-  assert.equal((await run("triggers", "add", "nightly", "Tidy.", "--agent", "scout")).code, 2);
-  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", "--cron", "0 3 * * *", "Tidy.", "--agent", "scout")).code, 2);
-  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", "--agent", "scout")).code, 2);
-  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", " ", "--agent", "scout")).code, 2);
+  assert.equal((await run("triggers", "add", "nightly", "Tidy.", "--agent", home)).code, 2);
+  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", "--cron", "0 3 * * *", "Tidy.", "--agent", home)).code, 2);
+  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", "--agent", home)).code, 2);
+  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", " ", "--agent", home)).code, 2);
 
   assert.deepEqual(existsSync(join(home, "triggers")) ? readdirSync(join(home, "triggers")) : [], [], "no file was written");
 });
 
 test("off, on and remove change the trigger's file, and tell a running agent", { timeout }, async (t) => {
   const { home, agent, connection } = await servedScout(t);
-  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", "Tidy.", "--agent", "scout")).code, 0);
+  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", "Tidy.", "--agent", home)).code, 0);
   const file = join(home, "triggers", "nightly.md");
   const state = async () => {
     const [trigger] = await (await connection()).triggers();
     return [trigger?.on, trigger?.next === null];
   };
 
-  const off = await run("triggers", "off", "nightly", "--agent", "scout");
+  const off = await run("triggers", "off", "nightly", "--agent", home);
   assert.equal(off.code, 0, off.err);
   assert.equal(parseTrigger("nightly", readFileSync(file, "utf8")).enabled, false);
   assert.deepEqual(await state(), [false, true], "the running agent stopped it");
-  assert.equal((await run("triggers", "off", "nightly", "--agent", "scout")).code, 0, "and turning it off again is no error");
-  const on = await run("triggers", "on", "nightly", "--agent", "scout");
+  assert.equal((await run("triggers", "off", "nightly", "--agent", home)).code, 0, "and turning it off again is no error");
+  const on = await run("triggers", "on", "nightly", "--agent", home);
   assert.equal(on.code, 0, on.err);
   assert.deepEqual(await state(), [true, false], "and the running agent has it going again");
   assert.equal(parseTrigger("nightly", readFileSync(file, "utf8")).prompt, "Tidy.", "the rest of the file is as it was");
 
   // With the agent stopped there is nobody to tell. The file changes, and the agent reads it when it starts.
   assert.equal((await agent.stop()).code, 0);
-  const stopped = await run("triggers", "off", "nightly", "--agent", "scout");
+  const stopped = await run("triggers", "off", "nightly", "--agent", home);
   assert.equal(stopped.code, 0, stopped.err);
   assert.equal(parseTrigger("nightly", readFileSync(file, "utf8")).enabled, false);
-  const unasked = await run("triggers", "--agent", "scout");
+  const unasked = await run("triggers", "--agent", home);
   assert.equal(unasked.code, 1, "it can't say when a trigger runs next");
-  assert.match(unasked.err, /agent serve scout/);
+  assert.match(unasked.err, /agent serve \S*scout/);
   assert.ok(unasked.out.includes("nightly") && unasked.out.includes("off"), "but it says what the files say");
-  const refused = await run("triggers", "run", "nightly", "--agent", "scout");
+  const refused = await run("triggers", "run", "nightly", "--agent", home);
   assert.equal(refused.code, 1);
-  assert.match(refused.err, /agent serve scout/);
+  assert.match(refused.err, /agent serve \S*scout/);
 
-  const removed = await run("triggers", "remove", "nightly", "--agent", "scout");
+  const removed = await run("triggers", "remove", "nightly", "--agent", home);
   assert.equal(removed.code, 0, removed.err);
   assert.equal(existsSync(file), false);
-  const missing = await run("triggers", "remove", "nightly", "--agent", "scout");
+  const missing = await run("triggers", "remove", "nightly", "--agent", home);
   assert.equal(missing.code, 1);
 
   // A trigger made with nobody to tell waits for the start, and counts from then.
-  const later = await run("triggers", "add", "later", "--every", "2h", "Tidy later.", "--agent", "scout");
+  const later = await run("triggers", "add", "later", "--every", "2h", "Tidy later.", "--agent", home);
   assert.equal(later.code, 0, later.err);
 
   const restarted = await serve(t, home);
@@ -202,11 +202,11 @@ test("off, on and remove change the trigger's file, and tell a running agent", {
 });
 
 test("run fires a trigger now even when it is off, and show lists the occurrence", { timeout }, async (t) => {
-  const { connection } = await servedScout(t);
-  assert.equal((await run("triggers", "add", "parked", "--every", "1h", "Tidy the notes.", "--agent", "scout")).code, 0);
-  assert.equal((await run("triggers", "off", "parked", "--agent", "scout")).code, 0);
+  const { home, connection } = await servedScout(t);
+  assert.equal((await run("triggers", "add", "parked", "--every", "1h", "Tidy the notes.", "--agent", home)).code, 0);
+  assert.equal((await run("triggers", "off", "parked", "--agent", home)).code, 0);
 
-  const fired = await run("triggers", "run", "parked", "--agent", "scout");
+  const fired = await run("triggers", "run", "parked", "--agent", home);
 
   assert.equal(fired.code, 0, fired.err);
   const held = await connection();
@@ -216,18 +216,18 @@ test("run fires a trigger now even when it is off, and show lists the occurrence
     { what: "the occurrence to be answered", timeoutMs: 30_000 },
   );
   assert.deepEqual([trigger?.on, trigger?.last?.byHand], [false, true]);
-  const shown = await run("triggers", "show", "parked", "--agent", "scout");
+  const shown = await run("triggers", "show", "parked", "--agent", home);
   assert.equal(shown.code, 0, shown.err);
   assert.ok(shown.out.includes("Tidy the notes.") && shown.out.includes("1h"), "its definition is there too");
 
-  const nothing = await run("triggers", "run", "nothing", "--agent", "scout");
+  const nothing = await run("triggers", "run", "nothing", "--agent", home);
   assert.equal(nothing.code, 1);
   assert.ok(nothing.err.includes("parked"), "and an unknown name is answered with the triggers there are");
-  assert.equal((await run("triggers", "show", "nothing", "--agent", "scout")).code, 1);
+  assert.equal((await run("triggers", "show", "nothing", "--agent", home)).code, 1);
 
   // A trigger with a check runs it now, in the background, and the command says how to see how it ended.
-  assert.equal((await run("triggers", "add", "watched", "--every", "1h", "--check", "echo news", "Look.", "--agent", "scout")).code, 0);
-  const started = await run("triggers", "run", "watched", "--agent", "scout");
+  assert.equal((await run("triggers", "add", "watched", "--every", "1h", "--check", "echo news", "Look.", "--agent", home)).code, 0);
+  const started = await run("triggers", "run", "watched", "--agent", home);
   assert.equal(started.code, 0, started.err);
   assert.ok(started.out.includes("triggers show watched"), started.out);
   const checked = await eventually(
@@ -257,7 +257,7 @@ test("the commands act on the agent whose shell they run in, or else need --agen
   assert.ok(unaimed.stderr.includes("--agent") && unaimed.stderr.includes("scout"), `it says what to give, and which agents there are:\n${unaimed.stderr}`);
   assert.equal((await shrimpy(["triggers", "off", "nightly"], elsewhere)).code, 2);
   assert.equal(enabled(), true, "a change to nobody's triggers is not made");
-  const named = await shrimpy(["triggers", "--agent", "scout"], elsewhere);
+  const named = await shrimpy(["triggers", "--agent", home], elsewhere);
   assert.equal(named.code, 0, named.stderr);
   assert.ok(named.stdout.includes("nightly"));
 
@@ -293,7 +293,7 @@ test("add with a thread in the agent's shell writes nothing for a thread the age
 
   // Anyone else can't ask chat as the agent, so the thread is not checked, and the trigger is written all the same.
   const elsewhere = { env: { [AGENT_HOME_VARIABLE]: "" } };
-  const unchecked = await shrimpy(["triggers", "add", "other", "--every", "1h", "--thread", theirs.id, "Write it.", "--agent", "scout"], elsewhere);
+  const unchecked = await shrimpy(["triggers", "add", "other", "--every", "1h", "--thread", theirs.id, "Write it.", "--agent", home], elsewhere);
   assert.equal(unchecked.code, 0, unchecked.stderr);
   assert.equal(parseTrigger("other", readFileSync(join(home, "triggers", "other.md"), "utf8")).thread, theirs.id);
 });

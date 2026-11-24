@@ -186,7 +186,7 @@ test("a program that cannot start ends up with its own words, then stops what wa
 test("up with no arguments starts every agent in the Shrimpy folder, and keeps its data there", { timeout }, async (t) => {
   const model = await startModelServer(t);
   const folder = useShrimpyDir(t);
-  const scout = await agentInFolder(t, model, "scout");
+  await agentInFolder(t, model, "scout");
   await agentInFolder(t, model, "rex");
   // A folder of agents/ with no agent.json in it is not an agent.
   mkdirSync(join(folder, "agents", "notes"));
@@ -197,8 +197,8 @@ test("up with no arguments starts every agent in the Shrimpy folder, and keeps i
 
   const programs = await up.programs();
   assert.equal(programs.length, 4, "the gateway, the chat server and the two agents");
-  const status = JSON.parse((await shrimpy(["agent", "status", "--agent", "scout"])).stdout) as { home: string };
-  assert.equal(status.home, scout, "an agent is reached by its name");
+  const status = JSON.parse((await shrimpy(["agent", "status", "--agent", "scout"])).stdout) as { running: boolean };
+  assert.equal(status.running, true, "an agent is reached by its name");
   assert.equal((await shrimpy(["sessions", "list", "--agent", "rex"])).code, 0, "and so are its sessions");
   assert.ok(existsSync(join(folder, "gateway", "state", "roster.json")), "the gateway keeps its roster in the folder");
   assert.ok(existsSync(join(folder, "chat", "state", "chat.sqlite")), "and the chat server its store");
@@ -280,9 +280,9 @@ test("up starts no gateway or chat server for agents that all belong to a gatewa
 /** Looking and starting again as fast as a test can wait for. */
 const quick: Pace = { lookMs: 100, pauseMs: 100, longestPauseMs: 400, stableMs: 1_000 };
 
-/** The process ID the agent called `agent` answers with, as `shrimpy agent status` says. */
-async function pidOfAgent(agent: string): Promise<number> {
-  return (JSON.parse((await shrimpy(["agent", "status", "--agent", agent])).stdout) as { pid: number }).pid;
+/** The process ID of the agent at `home`, as `shrimpy agent status` says. */
+async function pidOfAgent(home: string): Promise<number> {
+  return (JSON.parse((await shrimpy(["agent", "status", "--agent", home])).stdout) as { pid: number }).pid;
 }
 
 /** Wait until up runs a process at `home` other than `not`, and say which. */
@@ -348,10 +348,10 @@ test("an agent that is killed is started again alone, and a chat server that end
   await up.until(untilLinked("agent", "scout"));
   const said = await shrimpy(["run", "scout", "hi"]);
   assert.equal(said.stdout, "Hello from the test model.\n", said.stderr);
-  assert.equal(await pidOfAgent("scout"), again);
+  assert.equal(await pidOfAgent(scoutHome), again);
   const programs = await up.programs();
   assert.deepEqual(programs.map((program) => program.pid).sort(), [gateway, chat, again, rex].sort(), "nothing else was started");
-  assert.equal(await pidOfAgent("rex"), rex, "rex is the process it was");
+  assert.equal(await pidOfAgent(rexHome), rex, "rex is the process it was");
 
   process.kill(chat, "SIGKILL");
   const finished = await within(30_000, up.finished, "up ending");
@@ -454,13 +454,13 @@ test("an agent someone else started is used as it is, and up starts its own once
   await up.until(untilLinked("chat", "chat"));
 
   assert.deepEqual((await up.programs()).map((program) => program.kind).sort(), ["chat", "gateway"], "only the gateway and the chat server were started");
-  assert.equal(await pidOfAgent("scout"), byHand.listening.pid);
+  assert.equal(await pidOfAgent(home), byHand.listening.pid);
 
   await byHand.stop("SIGKILL");
   const itself = await untilStartedAt(up, home);
 
   assert.notEqual(itself, byHand.listening.pid);
   await up.until(untilLinked("agent", "scout"));
-  assert.equal(await pidOfAgent("scout"), itself);
+  assert.equal(await pidOfAgent(home), itself);
   assert.equal(up.output().code, null);
 });

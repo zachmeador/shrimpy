@@ -5,7 +5,7 @@ import { listed } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
 import { type HeldAgent, onAgent } from "../talk/index.ts";
 import { connectIfRunning, startOne } from "./connected.ts";
-import type { Target } from "./which-agent.ts";
+import type { AtHome } from "./which-agent.ts";
 
 /** How much of each kind an agent reads from its home, which a reload and a preview both count. */
 export type Read = Pick<Reloaded, "soul" | "files" | "skills" | "triggers">;
@@ -38,12 +38,12 @@ export function leftOutLines(leftOut: readonly { file: string; reason: string }[
  */
 export async function toldOfChange(
   io: Io,
-  target: Target,
+  target: AtHome,
   options: { afterStart?: string; then?: (agent: HeldAgent) => Promise<void> } = {},
 ): Promise<void> {
-  const reached = await connectIfRunning(target.home);
+  const reached = await connectIfRunning(target);
   if (reached === undefined) {
-    io.out(`${noAgentAt(target.home)}, so the change takes effect when the agent starts${options.afterStart ?? ""}. ${startOne(target)}`);
+    io.out(`${noAgentAt(target.home)}, so the change takes effect when the agent starts${options.afterStart ?? ""}. ${startOne(target.home)}`);
     return;
   }
   try {

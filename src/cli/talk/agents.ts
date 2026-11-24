@@ -39,7 +39,7 @@ function nobodyCalled(members: readonly Member[], names: string[]): Error {
 }
 
 /** The agent called `name` on the roster. A person called that is an error that says so. */
-export function agentNamed(members: readonly Member[], name: string): Member {
+export function agentNamed<T extends Member>(members: readonly T[], name: string): T {
   const found = memberNamed(members, name);
   if (found.kind !== "agent") throw new Error(`${found.name} is a person, not an agent.`);
   return found;
@@ -55,5 +55,9 @@ export function agentNamed(members: readonly Member[], name: string): Member {
 export function runningAgent(programs: readonly Program[], agent: Member): Program {
   const linked = programs.findLast((program) => program.kind === "agent" && program.member === agent.id);
   if (linked !== undefined) return linked;
-  throw new Error(`The agent ${agent.name} is on the roster but is not running. ${howToStartAgent(agent.name, lookForHome(agent.name))}`);
+  throw new Error(notRunning(agent.name));
 }
+
+/** That the agent called `name` is on the roster and not running, and how to start it: here, or where it lives. */
+export const notRunning = (name: string): string =>
+  `The agent ${name} is on the roster but is not running. ${howToStartAgent(name, lookForHome(name))}`;

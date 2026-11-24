@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cpSync } from "node:fs";
+import { cpSync, existsSync } from "node:fs";
 import { userInfo } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
@@ -21,6 +21,7 @@ import {
   serve,
   shrimpy,
   shrimpyInBackground,
+  startAgentShell,
   startModelServer,
   untilLinked,
 } from "./testing/index.ts";
@@ -243,6 +244,8 @@ test("a shrimpy command in the shell of an agent apart reaches its gateway as th
   ]);
   const roster = await shrimpy(["members"], shell);
   assert.ok(roster.code === 0 && roster.stdout.includes("rex") && roster.stdout.includes("crab"), "and it reads the roster");
+  const status = await shrimpy(["status"], shell);
+  assert.ok(status.code === 0 && status.stdout.includes("rex"), `and shrimpy status lists what runs at its gateway:\n${status.stderr}`);
   assert.equal((await shrimpy(["threads", "rex", "--json"])).stdout.trim(), "[]", "while the person has said nothing to rex");
 
   // Promoted at the gateway, crab may make a room, and it is crab's.
@@ -296,6 +299,38 @@ test("an agent apart is reached through the gateway, by whoever it lets in", { t
   const stopped = await crab.stop();
   assert.equal(stopped.code, 0, stopped.stderr);
   assert.equal(stopped.stderr, "", "a stop says nothing of who was watching it");
+});
+
+test("a command about one agent reaches it by its name on the roster, wherever its home is", { timeout }, async (t) => {
+  const network = await startNetworkOfProcesses(t);
+  const { home } = await homeFromApart(t, network, "crab");
+  await serve(t, home, [], { env: apartEnv(t) });
+  await untilLinked("agent", "crab");
+  const said = await shrimpy(["run", "crab", "hi"]);
+  assert.equal(said.code, 0, said.stderr);
+  const thread = /\b(th_\w+)/.exec(said.stderr)?.[1];
+  assert.ok(thread, said.stderr);
+
+  // The Shrimpy folder of the gateway's machine has no home for crab, and the person reaches it by its name all the same.
+  const listed = await shrimpy(["sessions", "list", "--agent", "crab"]);
+  assert.equal(listed.code, 0, listed.stderr);
+  assert.ok(listed.stdout.includes(thread), listed.stdout);
+  const read = await shrimpy(["sessions", "read", thread, "--json", "--agent", "crab"]);
+  assert.equal(read.code, 0, read.stderr);
+  assert.equal((await shrimpy(["triggers", "--agent", "crab"])).code, 0);
+  // A command that changes the files of crab's home can't, from here, and writes nothing.
+  assert.equal((await shrimpy(["triggers", "add", "nightly", "--every", "1h", "Tidy.", "--agent", "crab"])).code, 1);
+  assert.equal(existsSync(join(home, "triggers", "nightly.md")), false);
+
+  // An agent that is no admin is refused by crab, and let in once it is promoted.
+  const rex = await startAgentShell(t, "rex");
+  const refused = await rex.run(["sessions", "list", "--agent", "crab"]);
+  assert.equal(refused.code, 1, refused.stdout);
+  assert.ok(refused.stderr.includes(userInfo().username), `it says who to ask:\n${refused.stderr}`);
+  await network.person.setAdmin(rex.member.id, true);
+  const admitted = await rex.run(["sessions", "list", "--agent", "crab"]);
+  assert.equal(admitted.code, 0, admitted.stderr);
+  assert.ok(admitted.stdout.includes(thread), admitted.stdout);
 });
 
 test("an agent apart links again by itself when the gateway starts again, and says so", { timeout }, async (t) => {

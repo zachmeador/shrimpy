@@ -13,7 +13,17 @@ import { connectIfRunning } from "./connected.ts";
 import { folderDefault } from "./folder-default.ts";
 import { printNext, type Step } from "./next.ts";
 import { leftOutLines, whatItReads } from "./reloaded.ts";
-import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, AN_AGENT, agentToActOn, mayActOn, WHICH_AGENT } from "./which-agent.ts";
+import {
+  ABOUT_ANOTHER_AGENT,
+  AGENT_OPTION,
+  AN_AGENT,
+  agentToActOn,
+  atHome,
+  ITS_FILES,
+  mayActOn,
+  type Target,
+  WHICH_AGENT,
+} from "./which-agent.ts";
 
 const init: Command = {
   name: "agent init",
@@ -151,30 +161,31 @@ const status: Command = {
   name: "agent status",
   usage: "[--agent <agent>]",
   summary: "Say whether the agent is running, and how to reach it.",
-  details: `Prints one JSON line. Exits 0 if an agent is running and 1 if not. ${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
+  details:
+    "Prints one JSON line: for an agent named on the roster, its name and whether it is running, and for a home on " +
+    "this machine, the home and whether an agent is running there, with its socket and process when one is. Exits 0 " +
+    `if an agent is running and 1 if not. ${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     expectArguments(positionals, []);
-    const { home } = agentToActOn(values.agent);
-
+    const target = agentToActOn(values.agent);
+    const running = await answers(target);
+    const { home } = target;
+    if (home === undefined) io.json({ running, name: target.given });
     // The endpoint file outlives the agent, so only an answer shows that one is there.
-    if (!(await answers(home))) {
-      io.json({ running: false, home });
-      return 1;
-    }
-    io.json({ running: true, home, ...readEndpoint(home) });
-    return 0;
+    else io.json(running ? { running, home, ...readEndpoint(home) } : { running, home });
+    return running ? 0 : 1;
   },
 };
 
 /**
- * Whether an agent answers at `home`. Reaching an agent is never refused, so it
- * is asked for its sessions too, which an agent can refuse another agent's
- * command: a command run in the shell of another agent is told so, and not
- * that the agent is there.
+ * Whether the agent `target` names answers. Reaching an agent is never
+ * refused, so it is asked for its sessions too, which an agent can refuse
+ * another agent's command: a command run in the shell of another agent is told
+ * so, and not that the agent is there.
  */
-async function answers(home: string): Promise<boolean> {
-  const reached = await connectIfRunning(home);
+async function answers(target: Target): Promise<boolean> {
+  const reached = await connectIfRunning(target);
   if (reached === undefined) return false;
   try {
     await onAgent(reached, async () => undefined);
@@ -192,11 +203,11 @@ const context: Command = {
     "Prints the sections the agent's instructions are made of, in order, as a model would get them. It " +
     "reads the files and starts nothing, so it also works while an agent runs there. A running agent looks " +
     "at its files every couple of seconds and reads them again when they change, so it has the same within a " +
-    `few seconds of a change. ${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
+    `few seconds of a change. ${WHICH_AGENT} ${ITS_FILES} ${ABOUT_ANOTHER_AGENT}`,
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     expectArguments(positionals, []);
-    const target = agentToActOn(values.agent);
+    const target = await atHome(agentToActOn(values.agent));
     await mayActOn(target, "Looking at what another agent is told");
     const { home } = target;
 

@@ -173,13 +173,14 @@ export function homeInFolder(name: string): { home: string; exists: boolean } {
 }
 
 /**
- * The agents the Shrimpy folder has, by name, and the folder of `agents/` they
- * are in, for an error that has to say which to name. Nothing is made, and a
- * folder that is someone else's is refused as it is anywhere else.
+ * The homes of the agents the Shrimpy folder has, and the folder of `agents/`
+ * they are in, for a command that has to say which agent to name. Nothing is
+ * made, and a folder that is someone else's is refused as it is anywhere else.
  */
-export function agentsListed(): { where: string; names: string[] } {
+export function agentsListed(): { where: string; homes: string[] } {
   const folder = ownFolder();
-  return { where: join(folder, AGENTS), names: agentsIn(folder) };
+  const where = join(folder, AGENTS);
+  return { where, homes: agentsIn(folder).map((name) => join(where, name)) };
 }
 
 /**
@@ -195,8 +196,7 @@ export function lookForHome(name: string): { found: boolean; where: string } {
 
 /** The homes of every agent in the Shrimpy folder, for `up` when it is told no agents. A folder with none gives an empty list. */
 export function allHomes(): string[] {
-  const folder = ownFolder();
-  return agentsIn(folder).map((name) => join(folder, AGENTS, name));
+  return agentsListed().homes;
 }
 
 /** The error for `up` when there is nothing to start: the folder has no agents, and the error says how to make one, or how to start the gateway for agents elsewhere. */

@@ -4,8 +4,10 @@ import { userInfo } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { AGENT_HOME_VARIABLE } from "../contracts/agent/index.ts";
+import { saveMembership } from "../contracts/agent/node.ts";
 import { memberNamed } from "../contracts/chat/testing/index.ts";
-import { startTestGateway } from "../contracts/gateway/testing/index.ts";
+import { newToken } from "../contracts/gateway/node.ts";
+import { linkTestAgent, startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { useRuntimeDir } from "../lib/testing/index.ts";
 import {
   declareLocalModel,
@@ -41,11 +43,12 @@ test("in an agent's shell, a sessions command about another agent takes an admin
     await untilLinked("agent", name);
   }
   const scout = served.scout?.listening.home ?? "";
+  const rex = served.rex?.listening.home ?? "";
   const inScoutsShell = { env: { [AGENT_HOME_VARIABLE]: scout } };
   // The first agent a roster has is an admin, so scout is made an ordinary agent first.
   await setAdmin(t, (await memberNamed(t, "scout")).id, false);
 
-  // About itself, which is what it is with no --agent, it goes by the home's path, as ever. About rex it goes through the gateway as scout, and rex refuses.
+  // About itself, which is what it is with no --agent, it goes by the home's path, as ever. About rex, by its name, it goes through the gateway as scout, and rex refuses.
   const own = await shrimpy(["sessions", "list"], inScoutsShell);
   assert.equal(own.code, 0, own.stderr);
   const refused = await shrimpy(["sessions", "list", "--agent", "rex"], inScoutsShell);
@@ -59,15 +62,18 @@ test("in an agent's shell, a sessions command about another agent takes an admin
   const admitted = await shrimpy(["sessions", "list", "--agent", "rex"], inScoutsShell);
   assert.equal(admitted.code, 0, admitted.stderr);
   const status = await shrimpy(["agent", "status", "--agent", "rex"], inScoutsShell);
-  assert.equal((JSON.parse(status.stdout) as { pid: number }).pid, served.rex?.listening.pid);
+  assert.equal((JSON.parse(status.stdout) as { running: boolean }).running, true);
+  const byPath = await shrimpy(["agent", "status", "--agent", rex], inScoutsShell);
+  assert.equal((JSON.parse(byPath.stdout) as { pid: number }).pid, served.rex?.listening.pid, "and by its home's path, through the gateway all the same");
 
-  // With no gateway, the other agent can't be reached from an agent's shell, and the commands that go by the home's path still work.
+  // With no gateway, no agent is found by its name, nor another agent from an agent's shell, and the commands that go by the home's path still work.
   await gateway.outage();
-  const down = await shrimpy(["sessions", "list", "--agent", "rex"], inScoutsShell);
-  assert.equal(down.code, 1);
+  assert.equal((await shrimpy(["sessions", "list", "--agent", "rex"], inScoutsShell)).code, 1);
+  assert.equal((await shrimpy(["sessions", "list", "--agent", rex], inScoutsShell)).code, 1);
+  assert.equal((await shrimpy(["sessions", "list", "--agent", "rex"])).code, 1);
   assert.equal((await shrimpy(["sessions", "list"], inScoutsShell)).code, 0, "its own agent does not need it");
-  assert.equal((await shrimpy(["sessions", "list", "--agent", "scout"], inScoutsShell)).code, 0, "even when it is named");
-  assert.equal((await shrimpy(["sessions", "list", "--agent", "rex"])).code, 0, "and neither does a person");
+  assert.equal((await shrimpy(["sessions", "list", "--agent", scout], inScoutsShell)).code, 0, "even when its home is named");
+  assert.equal((await shrimpy(["sessions", "list", "--agent", rex])).code, 0, "and neither does a person, by the home's path");
 });
 
 test("in an agent's shell, changing another agent's files or reading what it is told takes an admin", { timeout }, async (t) => {
@@ -75,6 +81,11 @@ test("in an agent's shell, changing another agent's files or reading what it is 
   const scout = await startAgentShell(t, "scout");
   assert.equal((await shrimpy(["agent", "init", "rex", "--model", "local/test-model"])).code, 0);
   const rexHome = join(useShrimpyDir(t), "agents", "rex");
+  // Rex is on the roster, with its member ID in its home, as an agent that has run is, and nothing runs there.
+  const token = newToken();
+  const joined = await linkTestAgent(t, "rex", { token });
+  await joined.stop();
+  saveMembership(rexHome, { token, memberId: joined.you.id });
   const trigger = join(rexHome, "triggers", "nightly.md");
   const addToRex = ["triggers", "add", "nightly", "--every", "1h", "Tidy.", "--agent", "rex"];
 

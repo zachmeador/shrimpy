@@ -141,7 +141,7 @@ test("a bare shrimpy at a terminal opens the console, to talk, watch the work, s
   const thread = await threadStartedWith("go slow again");
   const [line = ""] = cli.out;
   assert.ok(line.includes(`shrimpy sessions stop ${thread} --agent scout`), line);
-  const stopped = await shrimpy(["sessions", "stop", thread, "--agent", home]);
+  const stopped = await shrimpy(["sessions", "stop", thread, "--agent", "scout"]);
   assert.equal(stopped.code, 0, stopped.stderr);
 });
 

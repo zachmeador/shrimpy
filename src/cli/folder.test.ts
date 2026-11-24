@@ -114,7 +114,7 @@ test("a folder with someone else's files in it is not used until the files are g
   writeFileSync(join(folder, "package.json"), "{}");
 
   // `up` would run until stopped if it had started anything.
-  for (const args of [["agent", "init", "scout", ...modelFlags], ["up"], ["up", "scout"], ["agent", "context", "--agent", "scout"]]) {
+  for (const args of [["agent", "init", "scout", ...modelFlags], ["up"], ["up", "scout"]]) {
     const refused = await run(...args);
     assert.equal(refused.code, 1, args.join(" "));
     assert.match(refused.err, /SHRIMPY_DIR/);
@@ -142,12 +142,10 @@ test("a name with no home behind it lists the agents the folder has, and how to 
 
   for (const name of ["scout", "rex"]) await run("agent", "init", name, ...modelFlags);
   mkdirSync(join(folder, "agents", "notes"));
-  for (const args of [["agent", "status", "--agent", "maya"], ["sessions", "list", "--agent", "maya"], ["up", "maya"]]) {
-    const missing = await run(...args);
-    assert.equal(missing.code, 1, args.join(" "));
-    assert.ok(missing.err.includes("rex") && missing.err.includes("scout") && !missing.err.includes("notes"), "the agents it has, and only those");
-    assert.match(missing.err, /shrimpy agent init maya --model <provider\/id>/);
-  }
+  const missing = await run("up", "maya");
+  assert.equal(missing.code, 1);
+  assert.ok(missing.err.includes("rex") && missing.err.includes("scout") && !missing.err.includes("notes"), "the agents it has, and only those");
+  assert.match(missing.err, /shrimpy agent init maya --model <provider\/id>/);
 
   // A home in the current directory takes ./ to reach, and the message says so.
   const here = tempDir(t, "here");
@@ -156,7 +154,7 @@ test("a name with no home behind it lists the agents the folder has, and how to 
   const before = process.cwd();
   process.chdir(here);
   stopAfter(t, () => process.chdir(before));
-  assert.ok((await run("agent", "status", "--agent", "maya")).err.includes("./maya"));
+  assert.ok((await run("up", "maya")).err.includes("./maya"));
 });
 
 test("a command about one agent acts on the folder's only agent, or the agent whose shell it is in", { timeout: 30_000 }, async (t) => {
@@ -175,7 +173,7 @@ test("a command about one agent acts on the folder's only agent, or the agent wh
   const two = await shrimpy(["agent", "context"], person);
   assert.equal(two.code, 2);
   assert.ok(two.stderr.includes("--agent") && two.stderr.includes("rex") && two.stderr.includes("scout"), `it asks for the flag and lists the agents:\n${two.stderr}`);
-  const named = await shrimpy(["agent", "context", "--agent", "rex"], person);
+  const named = await shrimpy(["agent", "context", "--agent", homeOf("rex")], person);
   assert.equal(named.code, 0, named.stderr);
   assert.ok(named.stdout.includes(homeOf("rex")), named.stdout);
 

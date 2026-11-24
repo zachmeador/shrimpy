@@ -1,7 +1,7 @@
 import { asError } from "../../lib/errors/index.ts";
 import type { Io } from "../io/index.ts";
 import { inOwnShell, type Reached, reachChat } from "../talk/index.ts";
-import type { Target } from "./which-agent.ts";
+import type { AtHome } from "./which-agent.ts";
 
 /** What a check is of, for the sentence that says it was not made: "The room #ops", "which rooms it is in". */
 export interface Unchecked {
@@ -19,7 +19,7 @@ export interface Unchecked {
  * or with chat out of reach, it says that the check was not made and why, and
  * gives undefined, for the command to carry on.
  */
-export async function asTheAgent<T>(io: Io, target: Target, unchecked: Unchecked, check: (reached: Reached) => Promise<T> | T): Promise<T | undefined> {
+export async function asTheAgent<T>(io: Io, target: AtHome, unchecked: Unchecked, check: (reached: Reached) => Promise<T> | T): Promise<T | undefined> {
   if (!inOwnShell(target.home)) {
     const otherwise = unchecked.otherwise === undefined ? "" : ` ${unchecked.otherwise}`;
     io.out(`${unchecked.what} was not checked, because only the agent itself can say ${unchecked.only}, and this command is not run by it.${otherwise}`);

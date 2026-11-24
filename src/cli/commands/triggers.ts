@@ -22,10 +22,13 @@ import { leftOutLines, toldOfChange } from "./reloaded.ts";
 import { renderTrigger, renderTriggerFile, renderTriggerFiles, renderTriggers, when } from "./render-triggers.ts";
 import {
   ABOUT_ANOTHER_AGENT,
+  AGENT_NAMED,
   AGENT_OPTION,
-  AN_AGENT,
   agentToActOn,
+  type AtHome,
+  atHome,
   command,
+  ITS_FILES,
   mayActOn,
   type Target,
   WHICH_AGENT,
@@ -36,6 +39,9 @@ const CHANGE = "Changing another agent's triggers";
 
 /** What the help of each command about one agent's triggers says about which agent that is. */
 const WHICH = `${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`;
+
+/** What the help of each command that changes a trigger's file says about which agent that is. */
+const WHICH_HOME = `${WHICH_AGENT} ${ITS_FILES} ${ABOUT_ANOTHER_AGENT}`;
 
 /** How to make a trigger, for an error that has to say what to do next. */
 const MAKE_ONE = 'triggers add <name> --every 1h "<what to do>"';
@@ -50,10 +56,10 @@ function noTrigger(target: Target, name: string, known: readonly string[]): stri
 }
 
 /** What a command says when a trigger has to be asked of an agent that is not running, which only the files of its home can stand in for. */
-function saysFilesOnly(io: Io, target: Target): void {
+function saysFilesOnly(io: Io, target: AtHome): void {
   io.err(
     `${noAgentAt(target.home)}, so this shows only what its trigger files say, and nothing about ` +
-      `when a trigger runs next or how its last occurrence ended. ${startOne(target)}`,
+      `when a trigger runs next or how its last occurrence ended. ${startOne(target.home)}`,
   );
 }
 
@@ -69,7 +75,7 @@ const triggerList = (agent: HeldAgent) => agent.triggers.value;
 
 /** Run `use` with the agent's triggers, if an agent is running, and let the agent go. */
 async function whileRunning<T>(target: Target, use: (agent: Triggering | undefined) => Promise<T>): Promise<T> {
-  const reached: AgentReached | undefined = await connectIfRunning(target.home);
+  const reached: AgentReached | undefined = await connectIfRunning(target);
   if (reached === undefined) return use(undefined);
   try {
     return await onAgent(reached, (agent) =>
@@ -94,7 +100,7 @@ async function whileRunning<T>(target: Target, use: (agent: Triggering | undefin
  * cannot reach its thread fails and says so. A thread that chat answers for
  * with no channel of the agent's is refused.
  */
-async function checkThread(io: Io, target: Target, thread: string): Promise<void> {
+async function checkThread(io: Io, target: AtHome, thread: string): Promise<void> {
   const unchecked = {
     what: `Thread ${thread}`,
     only: "whether it is in the thread's channel",
@@ -155,7 +161,7 @@ const list: Command = {
     "",
     "With no --agent these commands act on the agent whose shell they run in, and in your own terminal on the only " +
       "agent your Shrimpy folder has. --agent <agent> acts on another, and is needed when the folder has more than " +
-      `one agent. ${AN_AGENT} With no agent running, this shows only what the trigger files say, and exits 1.`,
+      `one agent. ${AGENT_NAMED} With no agent running, this shows only what the trigger files say, and exits 1.`,
     "",
     ABOUT_ANOTHER_AGENT,
   ].join("\n"),
@@ -177,8 +183,9 @@ const list: Command = {
         for (const line of triggers.length === 0 ? [none] : renderTriggers(triggers)) io.out(line);
         return 0;
       }
-      saysFilesOnly(io, target);
-      const { triggers, problems } = await readTriggers(loadHome(target.home).paths);
+      const here = await atHome(target);
+      saysFilesOnly(io, here);
+      const { triggers, problems } = await readTriggers(loadHome(here.home).paths);
       for (const line of triggers.length === 0 ? [none] : renderTriggerFiles(triggers)) io.out(line);
       if (problems.length > 0) io.out(`Left out:\n${leftOutLines(problems).join("\n")}`);
       return 1;
@@ -225,7 +232,7 @@ const add: Command = {
       "A running agent is then told to read its files again, and this says when the trigger runs first. An agent " +
       "that is not running reads the file when it starts, and a new trigger counts from then.",
     "",
-    WHICH,
+    WHICH_HOME,
   ].join("\n"),
   async run(args, io) {
     const { values, positionals } = parsing(() =>
@@ -255,8 +262,6 @@ const add: Command = {
     }
     if (values.every !== undefined && values.cron !== undefined) throw new UsageError("Give --every or --cron, not both.");
     if (prompt.trim() === "" && !notes) throw new UsageError("The prompt is empty. Say what the trigger is to do.");
-    const target = agentToActOn(values.agent);
-    await mayActOn(target, CHANGE);
 
     let draft: ReturnType<typeof draftTrigger>;
     try {
@@ -276,6 +281,9 @@ const add: Command = {
       if (error instanceof TriggerFileError) throw new UsageError(`Nothing was written: ${error.message}.`);
       throw error;
     }
+
+    const target = await atHome(agentToActOn(values.agent));
+    await mayActOn(target, CHANGE);
 
     if (draft.definition.thread !== null) await checkThread(io, target, draft.definition.thread);
     const { file, replaced } = await saveTrigger(target.home, draft);
@@ -322,8 +330,9 @@ const show: Command = {
         for (const line of renderTrigger(await running.trigger(name), Date.now())) io.out(line);
         return 0;
       }
-      saysFilesOnly(io, target);
-      const { triggers, problems } = await readTriggers(loadHome(target.home).paths);
+      const here = await atHome(target);
+      saysFilesOnly(io, here);
+      const { triggers, problems } = await readTriggers(loadHome(here.home).paths);
       const found = triggers.find((trigger) => trigger.name === name);
       if (found !== undefined) {
         for (const line of renderTriggerFile(found)) io.out(line);
@@ -390,14 +399,14 @@ function switching(enabled: boolean): Command {
     summary: enabled ? "Turn a trigger on." : "Turn a trigger off, and keep it.",
     details: enabled
       ? "Takes enabled: false out of the trigger's file, then tells a running agent to read its files again. " +
-        `Its schedule counts from then. An agent that is not running reads the file when it starts. ${WHICH}`
+        `Its schedule counts from then. An agent that is not running reads the file when it starts. ${WHICH_HOME}`
       : "Puts enabled: false in the trigger's file, then tells a running agent to read its files again. A trigger " +
         "that is off never runs on its schedule, but shrimpy triggers run still runs it. An occurrence that is " +
-        `running is not stopped: shrimpy sessions stop does that. ${WHICH}`,
+        `running is not stopped: shrimpy sessions stop does that. ${WHICH_HOME}`,
     async run(args, io) {
       const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
       const [name] = expectArguments(positionals, ["<name>"]);
-      const target = agentToActOn(values.agent);
+      const target = await atHome(agentToActOn(values.agent));
       await mayActOn(target, CHANGE);
 
       const { changed } = await changing(target, name, () => switchTrigger(target.home, name, enabled));
@@ -415,11 +424,11 @@ const remove: Command = {
   details:
     "Deletes the trigger's file, then tells a running agent to read its files again, which ends the trigger. An " +
     "occurrence that is running is not stopped: shrimpy sessions stop does that. The trigger's session, " +
-    `trigger:<name>, stays, so that what it did can still be read. ${WHICH}`,
+    `trigger:<name>, stays, so that what it did can still be read. ${WHICH_HOME}`,
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     const [name] = expectArguments(positionals, ["<name>"]);
-    const target = agentToActOn(values.agent);
+    const target = await atHome(agentToActOn(values.agent));
     await mayActOn(target, CHANGE);
 
     const { file } = await changing(target, name, () => removeTrigger(target.home, name));

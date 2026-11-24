@@ -13,9 +13,12 @@ import {
   type RosterEntry,
   unlessRefused,
 } from "../../contracts/gateway/index.ts";
+import { oneLine } from "../../lib/plain/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
+import { allHomes } from "../folder/index.ts";
+import { agentNamed } from "./agents.ts";
 import { GatewayNotRunningError, linkAs, viewOf } from "./gateway.ts";
-import { me } from "./me.ts";
+import { type Me, me } from "./me.ts";
 
 /** An agent a command reached: the host that holds its objects, and the agent address they are at. */
 export interface AgentReached {
@@ -47,28 +50,51 @@ export function onSession<T>(
   });
 }
 
+/** An agent to reach through the gateway: the one the roster calls `name`, or the one whose home is at `home`, by the member ID the home keeps. */
+export type Sought = { readonly name: string } | { readonly home: string };
+
 /**
- * Link to the gateway as the agent whose shell is at `shell`, which is who a
- * command run there is when it acts on the agent at `home`. Without a gateway
- * such an agent can't be reached at all, and the error says so.
+ * What can't be done without the gateway, to start the error when none runs
+ * here. A name is only on the roster, and a person can reach a home on this
+ * machine by its path instead. In an agent's shell another agent is reached
+ * through the gateway either way.
  */
-async function asTheAgentAt(shell: string, home: string): Promise<{ client: Client; members: RosterEntry[]; linked: string[]; you: Member }> {
+function withoutGateway(sought: Sought, who: Me): string {
+  if ("home" in sought) return `The agent at ${sought.home} can't be reached from an agent's shell without the gateway.`;
+  const byPath = who.home === undefined ? ", and a path to its home reaches it on this machine without one" : "";
+  return `The agent ${oneLine(sought.name)} is found by its name through the gateway${byPath}.`;
+}
+
+/**
+ * Link to the gateway as whoever the command is, which is who it is when it acts
+ * on the agent `sought` names, and read the roster and which agents are linked.
+ * Without a gateway the agent can't be reached, and the error says so.
+ */
+async function asMe(sought: Sought): Promise<{ client: Client; members: RosterEntry[]; linked: string[]; you: Member }> {
+  const who = me();
   let client: Client;
   try {
-    client = await linkAs(me());
+    client = await linkAs(who);
   } catch (error) {
     if (!(error instanceof GatewayNotRunningError)) throw error;
-    throw new Error(`The agent at ${home} can't be reached from an agent's shell without the gateway. ${NO_GATEWAY}`, { cause: error });
+    throw new Error(`${withoutGateway(sought, who)} ${NO_GATEWAY}`, { cause: error });
   }
   try {
     const view = await viewOf(client);
-    if (view.you === null) throw new Error(`The gateway takes the agent at ${shell} for nobody.`);
+    if (view.you === null) throw new Error(`The gateway takes ${who.home === undefined ? "this command" : `the agent at ${who.home}`} for nobody.`);
     const linked = view.programs.flatMap((program) => (program.kind === "agent" && program.member !== null ? [program.member] : []));
     return { client, members: view.members, linked, you: view.you };
   } catch (error) {
     await client.close();
     throw error;
   }
+}
+
+/** The member `sought` names on the roster: by its name, or by the ID its home keeps, which is undefined while the home has never joined. */
+function memberSought(sought: Sought, members: readonly RosterEntry[]): RosterEntry | undefined {
+  if ("name" in sought) return agentNamed(members, sought.name);
+  const id = readMembership(sought.home)?.memberId;
+  return members.find((member) => member.id === id);
 }
 
 /** Refuse unless `you` is an admin, as the roster says now, and name the admins to ask when it is not. `what` starts a sentence. */
@@ -78,19 +104,19 @@ function requireAdmin(you: Member, members: readonly RosterEntry[], what: string
 }
 
 /**
- * Reach the agent that owns `home` by its name through the gateway, as the
- * agent whose shell is at `shell`, which is how one agent reaches another: the
- * agent reached decides what the one that asks may do. Gives undefined when no
- * agent is linked as it, once the roster has said that the one that asks may
- * ask, since no agent is there to refuse it.
+ * Reach the agent `sought` names through the gateway, as whoever the command
+ * is: the agent whose shell it runs in, the person whose machine joined, or you
+ * on the gateway's own socket. The agent reached decides what the one that asks
+ * may do, wherever it runs. Gives undefined when no agent is linked as it, once
+ * the roster has said that the one that asks may ask about another agent, since
+ * no agent is there to refuse it.
  */
-export async function reachAgent(shell: string, home: string): Promise<AgentReached | undefined> {
-  const { client, members, linked, you } = await asTheAgentAt(shell, home);
+export async function reachAgent(sought: Sought): Promise<AgentReached | undefined> {
+  const { client, members, linked, you } = await asMe(sought);
   try {
-    const memberId = readMembership(home)?.memberId;
-    const target = members.find((member) => member.id === memberId);
+    const target = memberSought(sought, members);
     if (target === undefined || !linked.includes(target.id)) {
-      requireAdmin(you, members, "Acting on another agent");
+      if (target?.id !== you.id) requireAdmin(you, members, "Acting on another agent");
       await client.close();
       return undefined;
     }
@@ -102,13 +128,30 @@ export async function reachAgent(shell: string, home: string): Promise<AgentReac
 }
 
 /**
- * Refuse unless the agent whose shell is at `shell` is an admin, as the gateway
- * says now. For what a command does to the files of the agent at `home`, which
- * no agent is there to guard. `what` is what takes an admin, written to start a
- * sentence.
+ * The home in the Shrimpy folder of the agent the roster calls `name`, found by
+ * the member ID each home keeps, or undefined when the folder has none, as for
+ * an agent that lives on another machine or under another account.
  */
-export async function requireAdminFor(shell: string, home: string, what: string): Promise<void> {
-  const { client, members, you } = await asTheAgentAt(shell, home);
+export async function homeOnRoster(name: string): Promise<string | undefined> {
+  const sought = { name };
+  const { client, members } = await asMe(sought);
+  let id: string | undefined;
+  try {
+    id = memberSought(sought, members)?.id;
+  } finally {
+    await client.close();
+  }
+  return allHomes().find((home) => readMembership(home)?.memberId === id);
+}
+
+/**
+ * Refuse unless the agent whose shell this command runs in is an admin, as the
+ * gateway says now. For what a command does to the files of the agent at
+ * `home`, which no agent is there to guard. `what` is what takes an admin,
+ * written to start a sentence.
+ */
+export async function requireAdminFor(home: string, what: string): Promise<void> {
+  const { client, members, you } = await asMe({ home });
   try {
     requireAdmin(you, members, what);
   } finally {

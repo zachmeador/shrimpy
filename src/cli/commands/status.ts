@@ -6,7 +6,7 @@ import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { folderPath } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { thisAccount } from "../service/index.ts";
-import { askLocalGateway } from "../talk/index.ts";
+import { askGateway } from "../talk/index.ts";
 import { planUp } from "../up/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
@@ -19,9 +19,10 @@ import { renderTable } from "./table.ts";
 const status: Command = {
   name: "status",
   usage: "",
-  summary: "List the programs linked to this machine's gateway, and the members on its roster.",
+  summary: "List the programs linked to the gateway, and the members on its roster.",
   details:
-    "The programs are listed by kind, name and version. " +
+    "The gateway is this machine's, or, in the shell of an agent that lives apart from it or on a machine that joined " +
+    "as yours, the one that agent or machine joined. The programs are listed by kind, name and version. " +
     "The members are everyone the gateway knows, people and agents, as shrimpy members lists them: by name and " +
     "kind, with whether each is an admin, whether a program is linked as it, and its ID. A version that " +
     "differs from this command's own is marked, and so is the gateway's, on standard error. It ends with a " +
@@ -32,7 +33,7 @@ const status: Command = {
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     expectArguments(positionals, []);
-    const inspected = await askLocalGateway();
+    const inspected = await askGateway();
     if (inspected === undefined) return noGatewayHere(io);
     const { programs, members, version } = inspected;
     warnIfVersionDiffers(io, "the gateway", version);
