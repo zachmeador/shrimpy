@@ -6,16 +6,13 @@ import {
   lastWords,
   type ModelId,
   modelWords,
-  notRunWords,
   placeLabel,
   placeWords as placeWithThread,
   type QueuedInput,
-  runningTriggerFields,
   type SessionActivity,
   type SessionPlace,
   type SessionStatus,
   type SessionSummary,
-  type TriggerDetail,
   type TriggerSummary,
   usageWords,
   type WaitingWakeup,
@@ -32,7 +29,7 @@ import {
   memberNames,
   roomLabel,
 } from "../../contracts/chat/index.ts";
-import { howToStartAgent, NO_CHAT_SERVER, NO_GATEWAY, newerThanGateway } from "../../contracts/gateway/index.ts";
+import { howToStartAgent, type Machine, NO_CHAT_SERVER, NO_GATEWAY, newerThanGateway } from "../../contracts/gateway/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { listed, shellWord, upTo, withoutPeriod } from "../../lib/text/index.ts";
 import { localTime } from "../../lib/time/index.ts";
@@ -305,31 +302,21 @@ export const versionLine = (): [lead: string, release: string] => [`${SHRIMPY_VE
 
 export const agentsTitle = (): string => `shrimpy · ${versionLine().join("")}`;
 
-/** What an agent's list shows: everything the agent takes part in, or only what is with the person. */
-export type ListFilter = "everything" | "yours";
+/** The two tabs of an agent's list: the person's DM with it, and everything else it takes part in. Each is its own name. */
+export type AgentTab = "chat" | "observe";
+export const AGENT_TABS: readonly AgentTab[] = ["chat", "observe"];
 
 /** The row at the foot of a list that opens its archived threads in place, with how many there are. */
 export const archivedRow = (count: number): string => `${ARCHIVED} · ${String(count)}`;
 
-/**
- * The labels over the parts of a list: the agents and the rooms, a room's
- * threads, and on an agent's list its threads with the person apart from the
- * rest; and the names of an agent's triggers and its home, where a client shows
- * them.
- */
+/** The labels over the parts of a list, the agents and the rooms and a room's threads, and over an agent's triggers and its home on its page. */
 export const LABELS = {
   agents: "agents",
   rooms: "rooms",
   threads: "threads",
-  yours: "your threads",
-  elsewhere: "elsewhere",
   triggers: "triggers",
   home: "home",
 } as const;
-
-/** What each of the two views of an agent's list is called where both are offered. */
-export const FILTERS: Record<ListFilter, string> = { everything: "everything", yours: "yours" };
-
 
 /** What stands where a thread would be while nothing is open: no list, or nothing in the open list. */
 export const PICK_LIST = "Pick an agent or a room.";
@@ -338,13 +325,10 @@ export const PICK_THREAD = "Pick a thread.";
 export const pickOrStart = (key: string): string => `${withoutPeriod(PICK_THREAD)}, or press ${key} to start one.`;
 /** `said`, then how to start a thread, where there is none to pick. `key` is the client's key that starts one, as the client writes it. */
 export const thenStart = (said: string, key: string): string => `${said} Press ${key} to start a thread.`;
-/** What stands where a thread would be while nothing is open on the list of an agent that is not running. */
+/** What an agent's observe tab says while it is empty and the agent is not running. */
 export const notRunning = (agent: string): string => `${oneLine(agent)} is not running.`;
-/** The line under a running agent's name on its list: the model it follows by default, when it has said, and the version of Shrimpy it runs. */
-export const agentFacts = (model: ModelId | undefined, version: string | undefined): string =>
-  [model === undefined ? undefined : modelWords(model), version === undefined ? undefined : `Shrimpy ${oneLine(version)}`]
-    .filter((part) => part !== undefined)
-    .join(" · ");
+/** What an agent's observe tab says while it is empty and the agent runs. */
+export const nothingElse = (agent: string): string => `${oneLine(agent)} takes part in nothing else yet.`;
 
 /** That more wake-ups wait than the one shown. */
 export const moreWakeups = (count: number): string => `${String(count)} more`;
@@ -368,6 +352,8 @@ export const SHOWN = "shown";
 export const behindThread = (place: string, title: string): string => `${place} · ${oneLine(title)}`;
 /** That an agent is not linked to the gateway, wherever it is said in a word. */
 export const NOT_RUNNING = "not running";
+/** That the gateway turned an agent away for the release it runs, as its row says it. */
+export const TURNED_AWAY = "turned away";
 /** Under an agent's view: what the session is doing, how many inputs wait, its model and what it has used. `busy` says it is working. */
 export function sessionFoot(status: SessionStatus, busy: boolean): string {
   const waiting = status.queued.length > 0 ? `${String(status.queued.length)} waiting` : undefined;
@@ -655,9 +641,6 @@ export const writeTo = (who: string): string => `Write to ${oneLine(who)}`;
 /** Over the wake-ups waiting in a thread, when all of them are shown. */
 export const CHECKING_BACK = "checking back here";
 
-/** What stands where a file would be while no file of an agent's home is open. */
-export const PICK_FILE = "Pick a file.";
-
 /** What a folder or a file of an agent's home that has nothing in it shows. */
 export const EMPTY = "(empty)";
 
@@ -669,22 +652,44 @@ export const homeNote = (agent: string, problem: Problem, self: string): string 
 export const noTriggers = (agent: string, admins: string[]): string =>
   `${oneLine(agent)} has no triggers. Ask it to make one${admins.length === 0 ? "" : `, or ask ${listed(admins.map(oneLine), "or")}`}.`;
 
-/** The line over the tree of an agent's home, which names the folder the tree starts at. */
-export const homeRoot = (agent: string): string => `agents/${oneLine(agent)}/`;
+/** What each of an agent's facts is called on its page. */
+export const FACTS = { state: "state", admin: "admin", machine: "machine", model: "model", version: "version", home: "home" } as const;
 
-/** What an agent's home shows while the agent is not running. */
-export const homeNotRunning = (agent: string): string => `${oneLine(agent)} is not running, so its home can't be read.`;
+/** How an agent stands on its page while the gateway turns it away for the release it runs. */
+export const TURNED_AWAY_FOR_RELEASE = "turned away for its release";
 
-/** Why what defines a trigger could not be read. `self` is what the client calls itself. */
-export const triggerNote = (agent: string, problem: Problem, self: string): string =>
-  `Could not read the trigger from ${oneLine(agent)}: ${because({ kind: "agent", name: agent }, problem, self)}.`;
+/** How an agent at work stands on its page: where it is working, as its list says each place. */
+export const workingAt = (places: readonly string[]): string => (places.length === 0 ? "working" : `working · ${listed(places.map(oneLine))}`);
 
-/** What defines a trigger of a running agent, a line each, to go under its heading, with each time as the views say a time. */
-export const triggerLines = (trigger: TriggerDetail, now: number): string[] => runningTriggerFields(trigger, (time) => whenOf(time, now));
+/** Whether an agent is an admin, as its page says it. */
+export const yesNo = (yes: boolean): string => (yes ? "yes" : "no");
 
-/** How a trigger's last occurrence went, under what defines it, or that it has made none. */
-export const lastOccurrence = (trigger: Pick<TriggerSummary, "last" | "lastCheck">, now: number): string =>
-  trigger.last === null ? notRunWords(trigger) : `last ${lastWords(trigger.last, whenOf(trigger.last.firedAt, now))}`;
+/**
+ * What an agent's page says of its machine under the machine's name: the
+ * system, the account the agent runs as, whether the gateway runs there too,
+ * and, while the agent is off, when the gateway last saw it linked.
+ */
+export const machineLine = (machine: Machine, gateways: boolean, lastLinked: string | undefined): string =>
+  [oneLine(machine.system), `user ${oneLine(machine.account)}`, gateways ? "the gateway's machine" : undefined, lastLinked === undefined ? undefined : `last linked at ${lastLinked}`]
+    .filter((part) => part !== undefined)
+    .join(" · ");
+
+/** That an agent's triggers and home can't be read while it is off, and where to start it: on `host`, or as `start` says where that isn't known. */
+export function notLinkedNote(agent: string, host: string | undefined, start: string): string {
+  const said = `${oneLine(agent)} is not linked to the gateway, so its triggers and its home can't be read.`;
+  return host === undefined ? `${said} ${start}` : `${said} It lives on ${oneLine(host)}: start it there.`;
+}
+
+/** The same while the gateway turns the agent away for its release, after `why`, which says what to update. */
+export const turnedAwayNote = (why: string): string => `${why} Until then its triggers and its home can't be read.`;
+
+/** Under a trigger's file on its agent's page: when it runs next, or that it is off, and how its last occurrence went. */
+export function triggerWhen(trigger: Pick<TriggerSummary, "next" | "last" | "lastCheck">, now: number): string {
+  const next = trigger.next === null ? "off" : `next ${whenOf(trigger.next, now)}`;
+  const last =
+    trigger.last !== null ? `last: ${lastWords(trigger.last, whenOf(trigger.last.firedAt, now))}` : trigger.lastCheck === null ? "not run yet" : "no occurrence yet";
+  return `${next} · ${last}`;
+}
 
 /** The platforms a browser's user agent names, the more particular first, since an iPhone's names a Mac and Android's names Linux. */
 const PLATFORMS = ["iPhone", "iPad", "Android", "Mac", "Windows", "Linux"];

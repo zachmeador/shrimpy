@@ -1,5 +1,7 @@
 import type {
   DefaultModel,
+  HomeEntry,
+  HomeFile,
   ModelId,
   Pigment,
   SessionActivity,
@@ -12,7 +14,16 @@ import type {
   WaitingWakeup,
 } from "../../contracts/agent/index.ts";
 import { type AgentCommand, type Channel, type Member, type Message, type Thread } from "../../contracts/chat/index.ts";
-import { compareShrimpy, linksWith, type Program, type RosterEntry, type TurnedAwayProgram, type Versions, type WayIn } from "../../contracts/gateway/index.ts";
+import {
+  compareShrimpy,
+  linksWith,
+  type Machine,
+  type Program,
+  type RosterEntry,
+  type TurnedAwayProgram,
+  type Versions,
+  type WayIn,
+} from "../../contracts/gateway/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import type { LinkStatus, Problem } from "../network/index.ts";
 
@@ -240,8 +251,20 @@ export function openThreadOf(model: Model): Thread | undefined {
  */
 export type HomeLookup = (agent: string) => { found: boolean; where: string };
 
-/** What was read of an agent, such as a file of its home or one of its triggers: its value, or why it could not be read. */
+/** What was read of an agent, such as a file of its home: its value, or why it could not be read. */
 export type AgentRead<T> = { value: T } | { problem: Problem };
+
+/** What was read of an agent's home, each by its path there: the entries of each folder, and each file. */
+export interface HomeRead {
+  folders: Record<string, AgentRead<HomeEntry[]>>;
+  files: Record<string, AgentRead<HomeFile>>;
+}
+
+/** Nothing read of a home yet. */
+export const NOTHING_READ: HomeRead = { folders: {}, files: {} };
+
+/** Where the file of the trigger `name` is in its agent's home. */
+export const triggerFile = (name: string): string => `triggers/${name}.md`;
 
 /** Something that happened a moment ago that the person should know, which goes away by itself. */
 export type Notice =
@@ -350,10 +373,17 @@ export interface Model {
   /**
    * What it last said, if it has: the programs linked to it and those it
    * turned away for the release they run, the members, the person's ways in,
-   * devices included, and what it runs, once it has said.
+   * devices included, what it runs and the machine it runs on, once it has said.
    */
   listing:
-    | { programs: Program[]; turnedAway: TurnedAwayProgram[]; members: RosterEntry[]; ways: WayIn[]; versions: Versions | undefined }
+    | {
+        programs: Program[];
+        turnedAway: TurnedAwayProgram[];
+        members: RosterEntry[];
+        ways: WayIn[];
+        versions: Versions | undefined;
+        machine: Machine | undefined;
+      }
     | undefined;
   /** The chat server, where threads live. */
   chat: LinkStatus;
@@ -381,6 +411,8 @@ export interface Model {
   triggers: TriggerSummary[] | undefined;
   /** The model the agent whose list is open follows by default, as it last said. Undefined until it has, or while it refuses the person. */
   defaultModel: DefaultModel | undefined;
+  /** What was read of the home of the agent whose list is open, as its page asked. What another agent's list read is gone once this one opens. */
+  home: HomeRead;
   /**
    * How each agent that is held shows itself, by its member ID: each agent that
    * is running, and the agent whose list is open. Its sigil and pigment are
@@ -420,6 +452,8 @@ export interface AgentEntry {
   running: boolean;
   /** The version of Shrimpy it runs, when it is running. */
   version: string | undefined;
+  /** What it ran when the gateway turned it away for its release, while it is not running and the gateway lists it so. */
+  away: TurnedAwayProgram | undefined;
   /** Whether it is working in any session, whether in a thread of the person's or elsewhere. */
   working: boolean;
   /** How many sessions it is working in. */
@@ -456,6 +490,10 @@ export function agentEntries(model: Pick<Model, "listing" | "dms" | "workingSess
   for (const program of model.listing?.programs ?? []) {
     if (program.kind === "agent" && program.member !== null) running.set(program.member, program);
   }
+  const away = new Map<string, TurnedAwayProgram>();
+  for (const program of model.listing?.turnedAway ?? []) {
+    if (program.kind === "agent" && program.member !== null) away.set(program.member, program);
+  }
   return (model.listing?.members ?? [])
     .filter((member) => member.kind === "agent")
     .map((member) => {
@@ -471,6 +509,7 @@ export function agentEntries(model: Pick<Model, "listing" | "dms" | "workingSess
         name: member.name,
         running: running.has(member.id),
         version: running.get(member.id)?.shrimpy,
+        away: running.has(member.id) ? undefined : away.get(member.id),
         working: working.size > 0,
         sessions: working.size,
         elsewhere: workingElsewhere(said, dm),

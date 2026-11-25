@@ -1,6 +1,6 @@
 import { createHost, type Host } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { Principal, Revocation, Versions, Welcome, Who } from "../../contracts/gateway/index.ts";
+import type { Machine, Principal, Revocation, Versions, Welcome, Who } from "../../contracts/gateway/index.ts";
 import { createListeners } from "../../lib/listeners/index.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
 import { CONNECTING, type LinkStatus, UP, type Why } from "./status.ts";
@@ -44,6 +44,8 @@ export interface GatewayLink {
   status(): LinkStatus;
   /** What the gateway runs, as it last said, whether it let the client in or turned it away. */
   versions(): Versions | undefined;
+  /** The machine the gateway runs on, as it said when it last let the client in. */
+  machine(): Machine | undefined;
   /** Tell `listener` each time either of these changes. Returns what stops that. */
   onChange(listener: () => void): () => void;
   /** Stop linking, drop the link and close the host. */
@@ -63,6 +65,7 @@ export async function keepGateway(options: GatewayLinkOptions): Promise<GatewayL
   const stopping = new AbortController();
   let status: LinkStatus = CONNECTING;
   let versions: Versions | undefined;
+  let machine: Machine | undefined;
 
   const set = (next: LinkStatus): void => {
     if (JSON.stringify(next) === JSON.stringify(status)) return;
@@ -77,6 +80,7 @@ export async function keepGateway(options: GatewayLinkOptions): Promise<GatewayL
     ...(options.backoff === undefined ? {} : { backoff: options.backoff }),
     onWelcome(answer, closed) {
       versions = { shrimpy: answer.shrimpy, pi: answer.pi };
+      machine = answer.machine;
       set(UP);
       void closed.then(() => {
         if (!stopping.signal.aborted) set({ state: "down", why: { kind: "lost" } });
@@ -94,6 +98,7 @@ export async function keepGateway(options: GatewayLinkOptions): Promise<GatewayL
     host,
     status: () => status,
     versions: () => versions,
+    machine: () => machine,
     onChange: (listener) => changes.add(() => listener()),
     async close() {
       stopping.abort();

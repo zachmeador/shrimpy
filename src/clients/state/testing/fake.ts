@@ -30,6 +30,7 @@ export function fakeState(initial: Model): FakeState {
     selectRoom: (id) => void calls.push(`room ${id}`),
     selectReadOnly: (id) => void calls.push(`read-only ${id}`),
     openThread: (threadId) => void calls.push(`open ${threadId}`),
+    closeItem: () => void calls.push("close"),
     startThread: (place) => void calls.push(place === undefined ? "start" : `start in ${place.kind} ${place.id}`),
     turnOver: () => void calls.push("turn over"),
     showView: (agent) => void calls.push(`show view ${agent}`),
@@ -64,18 +65,9 @@ export function fakeState(initial: Model): FakeState {
     },
     models: () => Promise.resolve(answers.models),
     showModel: () => void calls.push("model"),
-    folder(path) {
-      calls.push(`folder ${path}`);
-      return Promise.resolve({ value: [] });
-    },
-    file(path) {
-      calls.push(`file ${path}`);
-      return Promise.resolve({ value: { kind: "text", text: "" } });
-    },
-    trigger(name) {
-      calls.push(`trigger ${name}`);
-      return Promise.resolve({ problem: { down: { kind: "not-linked" } } });
-    },
+    readFolder: (path) => void calls.push(`folder ${path}`),
+    readFile: (path) => void calls.push(`file ${path}`),
+    readPage: (folders) => void calls.push(`page ${[...folders].join(" ")}`.trimEnd()),
     farewell: () => answers.farewell,
     close() {
       listeners.clear();

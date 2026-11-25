@@ -2,13 +2,17 @@ import { agentEntries, type Item, type Model, type Open, type Place, placeKey, s
 import {
   type AgentsLevel,
   agentsLevel,
+  type AgentTab,
+  type FileLevel,
+  fileLevel,
+  type HomeRow,
   type InFull,
   LABELS,
-  type ListFilter,
   type ListLevel,
   listLevel,
   nothingOpen,
-  type NothingOpen,
+  pageLevel,
+  type PageLevel,
   type Row,
   sessionLevel,
   type SessionLevel,
@@ -54,7 +58,8 @@ export function notesFor(frame: Frame, level: Level): string[] {
   const of = (each: Level): string[] => {
     if (each === "agents") return levels.agents.notes;
     if (each === "list") return levels.list?.notes ?? [];
-    return (model.open.item?.kind === "session" ? levels.session?.notes : levels.thread?.notes) ?? [];
+    if (model.open.item === undefined) return levels.page?.notes ?? [];
+    return (model.open.item.kind === "session" ? levels.session?.notes : levels.thread?.notes) ?? [];
   };
   const said = new Set<string>();
   for (const each of onShow(frame.width(), frame.folded, frame.front)) {
@@ -72,8 +77,12 @@ export interface Levels {
   thread: ThreadLevel | undefined;
   /** The session on show: an agent's view of the open thread, or a session behind no thread. */
   session: SessionLevel | undefined;
-  /** What stands where a thread would be while none is open. */
-  nothing: NothingOpen | undefined;
+  /** The page of the agent whose list is open, which stands where a thread would while none is open. */
+  page: PageLevel | undefined;
+  /** The file of its home open where the page was. */
+  file: FileLevel | undefined;
+  /** What stands where a thread would be while none is open on another list, or none is open. */
+  nothing: string | undefined;
 }
 
 export interface LevelsOptions {
@@ -82,34 +91,57 @@ export interface LevelsOptions {
   /** Whether the console offers `/update`, which puts the gateway's version on this machine. */
   updates: boolean;
   inFull: InFull;
-  filter: ListFilter;
+  tab: AgentTab;
+  home: Home;
 }
 
 export function levelsOf(model: Model, options: LevelsOptions): Levels {
   const at = { now: options.now, self: SELF, updates: options.updates };
+  const { file } = options.home;
   return {
     agents: agentsLevel(model, at),
-    list: listLevel(model, { ...at, filter: options.filter }),
+    list: listLevel(model, { ...at, tab: options.tab }),
     thread: threadLevel(model, { ...at, inFull: options.inFull }),
     session: sessionLevel(model, { ...at, inFull: options.inFull }),
+    page: pageLevel(model, { ...at, opened: options.home.opened }),
+    file: file === undefined ? undefined : fileLevel(model, file, SELF),
     nothing: nothingOpen(model, NEW_THREAD_KEY),
   };
 }
 
-/** The parts of a list as it is drawn, each under its label: on an agent's list, the person's threads with it apart from the rest. */
-export function listParts(list: ListLevel): [label: string, rows: Row[]][] {
-  if (!list.ofAgent) return [[LABELS.threads, list.rows]];
-  return [
-    [LABELS.yours, list.rows.filter((each) => each.yours)],
-    [LABELS.elsewhere, list.rows.filter((each) => !each.yours)],
-  ];
-}
+/** The label over the rows of a list as it is drawn: none on an agent's, whose tabs say what it holds. */
+export const listLabel = (list: ListLevel): string | undefined => (list.ofAgent ? undefined : LABELS.threads);
 
-/** The rows of a list in the order they are drawn: its parts, then the row of its archived threads, and theirs while `archived` has them open. */
+/** The row of an agent's name at the top of its list, which opens its page. */
+export const pageRow = (list: ListLevel): Row => ({
+  id: "page",
+  kind: "page",
+  label: list.name,
+  name: list.name,
+  tags: [],
+  detail: list.about,
+  working: list.working,
+  unread: 0,
+  yours: false,
+  look: list.look,
+});
+
+/**
+ * The rows of a list in the order they are drawn: on an agent's, its name,
+ * which opens its page; then the list's rows, then the row of its archived
+ * threads, and theirs while `archived` has them open.
+ */
 export function listRows(list: ListLevel, archived: boolean): Row[] {
   const away = list.archived === undefined ? [] : [list.archived.row, ...(archived ? list.archived.rows : [])];
-  return [...listParts(list).flatMap(([, rows]) => rows), ...away];
+  return [...(list.ofAgent ? [pageRow(list)] : []), ...list.rows, ...away];
 }
+
+/** The rows of the home on an agent's page that the keys move through: its folders and files, and what is neither. */
+export const homeRows = (page: PageLevel | undefined): HomeRow[] =>
+  page === undefined ? [] : page.home.filter((row) => row.kind === "folder" || row.kind === "file" || row.kind === "other");
+
+/** Whether an agent's page, or a file of its home, is what the thread's pane shows: an agent's list is open with nothing open in it. */
+export const pageShown = (model: Pick<Model, "open">): boolean => model.open.list?.kind === "agent" && model.open.item === undefined;
 
 /**
  * What a row is told apart by: an ID is only unique among rows of its kind. A
@@ -125,6 +157,13 @@ export const placeRow = (frame: Pick<Frame, "levels">, place: Place): Row | unde
 export function openedKey(item: Item | undefined): string | undefined {
   if (item?.kind === "session") return rowKey({ kind: "session", id: item.session });
   return item?.thread === undefined ? undefined : rowKey({ kind: "thread", id: item.thread });
+}
+
+/** What an agent's page has open of its home: the folders open in its tree, the row of the tree chosen, and the file open where the page was, each by its path. */
+export interface Home {
+  opened: Set<string>;
+  chosen: string | undefined;
+  file: string | undefined;
 }
 
 /**
@@ -144,9 +183,12 @@ export interface Frame {
   front: Level;
   model: Model;
   levels: Levels;
-  filter: ListFilter;
   /** The archived threads of the open list are open in place at its foot. */
   archived: boolean;
+  /** The tab on show on an agent's list. */
+  tab: AgentTab;
+  /** What the open agent's page has open of its home. */
+  home: Home;
   inFull: InFull;
   /** The row chosen on the agents and rooms, and on the open list, by `rowKey`. */
   chosen: { agents: string | undefined; list: string | undefined };
@@ -187,6 +229,8 @@ export type Screen = (
   | ({ kind: "threads" } & ListLevel)
   | ({ kind: "thread" } & ThreadLevel)
   | ({ kind: "session" } & SessionLevel)
+  | ({ kind: "page" } & PageLevel)
+  | ({ kind: "file" } & FileLevel)
 ) & { levels: 1 | 2 | 3; can: Can };
 
 /** The level in front as a screen: what it shows and what its keys do there. */
@@ -194,6 +238,10 @@ export function screenOf(frame: Frame): Screen {
   const { levels, front, model } = frame;
   const count = levelsAt(frame.width(), frame.folded);
   const can: Can = { back: front !== "agents", send: false, choose: front !== "item" };
+  if (front === "item" && levels.file !== undefined && pageShown(model)) return { kind: "file", ...levels.file, levels: count, can };
+  if (front === "item" && levels.page !== undefined && pageShown(model)) {
+    return { kind: "page", ...levels.page, levels: count, can: { ...can, choose: homeRows(levels.page).length > 0 } };
+  }
   if (front === "item" && levels.session !== undefined && model.open.item?.kind === "session") {
     return { kind: "session", ...levels.session, levels: count, can };
   }

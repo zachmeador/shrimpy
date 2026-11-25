@@ -22,7 +22,8 @@ import {
 export function worked(model: Model, held: Holdings, link: GatewayLink): Model {
   const shownRoster = held.roster.shown();
   const versions = link.versions() ?? model.listing?.versions;
-  const listing = shownRoster === undefined ? model.listing : { ...shownRoster, versions };
+  const machine = link.machine() ?? model.listing?.machine;
+  const listing = shownRoster === undefined ? model.listing : { ...shownRoster, versions, machine };
   const linked = (kind: "chat" | "agent", member?: string): boolean =>
     listing?.programs.some((program) => program.kind === kind && (member === undefined || program.member === member)) ?? false;
   const shownChat = held.chat.shown();

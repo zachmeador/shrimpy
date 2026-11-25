@@ -5,7 +5,8 @@
  *
  *   /                                      agents and rooms
  *   /agents/<id>, /rooms/<id>, /reading/<id>   a list: an agent's, a room's, a channel only read
- *   …/triggers, …/home                      an agent's other tabs
+ *   …/observe                               an agent's other tab
+ *   …/page                                  an agent's page
  *   …/home/<path>                           a file of its home
  *   …/threads/<id>, …/threads/<id>/view     a thread, and the agent's view of it
  *   …/new                                   a thread not started yet
@@ -13,21 +14,21 @@
  *   /threads/<id>                           a thread by its ID alone, as a notification opens it
  */
 import type { Place } from "../state/index.ts";
+import type { AgentTab } from "../view/index.ts";
 
-/** An agent's tabs. */
-export type Tab = "threads" | "triggers" | "home";
-
-/** What is on show in a list. */
+/** What is on show beside a list. A thread's address doesn't name the tab of an agent's list, since the thread opens the tab that holds it. */
 type Shown =
   /** A thread, or a new one with no ID yet, and whether the agent's view of it is on show. */
   | { kind: "thread"; thread: string | undefined; view: boolean }
   | { kind: "session"; session: string }
-  /** A file of the agent's home, by its path there. */
+  /** The agent's page, which stands where a thread would. */
+  | { kind: "page" }
+  /** A file of the agent's home, by its path there, where its page was. */
   | { kind: "file"; path: string };
 
 export type Route =
   | { kind: "agents" }
-  | { kind: "list"; list: Place; tab: Tab; shown: Shown | undefined }
+  | { kind: "list"; list: Place; tab: AgentTab; shown: Shown | undefined }
   /** A thread whose list is not known yet: the page finds it, and its address becomes the thread's in that list. */
   | { kind: "thread"; thread: string };
 
@@ -41,12 +42,14 @@ export function addressOf(route: Route): string {
   if (route.kind === "thread") return `/threads/${part(route.thread)}`;
   const base = `/${LISTS[route.list.kind]}/${part(route.list.id)}`;
   const { shown } = route;
-  if (shown === undefined) return route.tab === "threads" ? base : `${base}/${route.tab}`;
+  if (shown === undefined) return route.tab === "chat" ? base : `${base}/${route.tab}`;
   switch (shown.kind) {
     case "thread":
       return shown.thread === undefined ? `${base}/new` : `${base}/threads/${part(shown.thread)}${shown.view ? "/view" : ""}`;
     case "session":
       return `${base}/sessions/${part(shown.session)}`;
+    case "page":
+      return `${base}/page`;
     case "file":
       return `${base}/home/${shown.path.split("/").map(part).join("/")}`;
   }
@@ -65,16 +68,14 @@ export function routeOf(address: string): Route {
   const kind = (Object.keys(LISTS) as Place["kind"][]).find((each) => LISTS[each] === first);
   if (kind === undefined || id === undefined) return { kind: "agents" };
   const list: Place = { kind, id };
-  if (step === undefined) return { kind: "list", list, tab: "threads", shown: undefined };
-  if (step === "triggers" && kind === "agent") return { kind: "list", list, tab: "triggers", shown: undefined };
-  if (step === "home" && kind === "agent") {
-    return { kind: "list", list, tab: "home", shown: rest.length === 0 ? undefined : { kind: "file", path: rest.join("/") } };
-  }
-  if (step === "new" && kind !== "read-only") return { kind: "list", list, tab: "threads", shown: { kind: "thread", thread: undefined, view: false } };
+  const chat = { kind: "list", list, tab: "chat" } as const;
+  if (step === undefined) return { ...chat, shown: undefined };
+  if (kind === "agent" && step === "observe") return { ...chat, tab: "observe", shown: undefined };
+  if (kind === "agent" && step === "page") return { ...chat, shown: { kind: "page" } };
+  if (kind === "agent" && step === "home" && rest.length > 0) return { ...chat, shown: { kind: "file", path: rest.join("/") } };
+  if (step === "new" && kind !== "read-only") return { ...chat, shown: { kind: "thread", thread: undefined, view: false } };
   const [named, more] = rest;
-  if (step === "threads" && named !== undefined) {
-    return { kind: "list", list, tab: "threads", shown: { kind: "thread", thread: named, view: more === "view" } };
-  }
-  if (step === "sessions" && named !== undefined && kind === "agent") return { kind: "list", list, tab: "threads", shown: { kind: "session", session: named } };
-  return { kind: "list", list, tab: "threads", shown: undefined };
+  if (step === "threads" && named !== undefined) return { ...chat, shown: { kind: "thread", thread: named, view: more === "view" } };
+  if (step === "sessions" && named !== undefined && kind === "agent") return { ...chat, tab: "observe", shown: { kind: "session", session: named } };
+  return { ...chat, shown: undefined };
 }

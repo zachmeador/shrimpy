@@ -1,4 +1,4 @@
-import { type InFull, thenStart, thinkingShown, toolCallsShown } from "../../view/index.ts";
+import { type InFull, thinkingShown, toolCallsShown } from "../../view/index.ts";
 
 /*
  * Every sentence and label the console shows that names one of its keys or a
@@ -69,7 +69,7 @@ export const ALL_KEYS: readonly (readonly [group: string, keys: readonly Hint[]]
       ["↑ ↓", "choose"],
       ["→", "open what is chosen"],
       ["← esc", "back a level"],
-      ["tab", "the other view: yours, or the agent's"],
+      ["tab", "the other view: chat or observe, or the agent's"],
       ["ctrl+n", "a new thread"],
     ],
   ],
@@ -103,8 +103,8 @@ export const QUIT_AGAIN = "Press Ctrl+C again to quit.";
 export const NEW_THREAD: Hint = ["ctrl+n", "new thread"];
 export const NEW: Hint = ["ctrl+n", "new"];
 
-/** Beside the two views of an agent's list. */
-export const FILTER_KEY = "tab";
+/** Beside the two tabs of an agent's list. */
+export const TABS_KEY = "tab";
 
 /**
  * Beside a thread with agents' views of the session behind it: where Tab goes
@@ -127,12 +127,3 @@ export const LATEST = "↓ latest";
 
 /** The key that starts a thread, as the views' sentences about starting one write it. */
 export const NEW_THREAD_KEY = "Ctrl+N";
-
-/**
- * What an agent's list says when it is empty: `notTalked`, the views' sentence
- * that the person has not talked to the agent yet, then how to start a thread,
- * and, when `more` says the filter leaves something out, how to see everything
- * the agent, `agent` on one line, takes part in.
- */
-export const emptyAgentList = (notTalked: string, agent: string, more: boolean): string =>
-  `${thenStart(notTalked, NEW_THREAD_KEY)}${more ? ` Tab shows everything ${agent} takes part in.` : ""}`;

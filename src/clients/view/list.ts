@@ -1,7 +1,7 @@
 import { placeLabel, threadName, YOUR_DM } from "../../contracts/agent/index.ts";
 import { ARCHIVED, notTalkedTo, threadTags, titleOf } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
-import { agentEntries, agentNameOf, agentRuns, type Model, type Part, partsOf, type Place, unreadOf } from "../state/index.ts";
+import { agentEntries, agentNameOf, type Model, type Part, partsOf, type Place, unreadOf } from "../state/index.ts";
 import { agentAbout } from "./agents.ts";
 import { type LevelOptions, lookingAt, type Row } from "./level.ts";
 import { type Look, lookOf } from "./look.ts";
@@ -9,22 +9,21 @@ import { notesOf } from "./notes.ts";
 import { whenOf } from "./time.ts";
 import {
   ADMIN_TAG,
-  agentFacts,
+  type AgentTab,
   archivedRow,
-  type ListFilter,
   membersLine,
-  noTriggers,
+  nothingElse,
   notRunning,
   PICK_LIST,
   PICK_THREAD,
   pickOrStart,
   READ_ONLY_TAG,
-  thenStart,
 } from "./words.ts";
 
 /**
- * The second level: everything the agent whose list is open takes part in,
- * newest first, or the threads of the open room or channel.
+ * The second level: on an agent's list, the threads of the person's DM with
+ * it, or everything else it takes part in, newest first, as the tab on show
+ * says; or the threads of the open room or channel.
  */
 export interface ListLevel {
   /** The list may be out of date: chat is not being reached, or the agent is not, and what it last said is shown. */
@@ -38,7 +37,7 @@ export interface ListLevel {
    * Undefined while there are none.
    */
   archived: { row: Row; rows: Row[] } | undefined;
-  /** What to say where the person's threads with the agent would be, while they have none. */
+  /** What to say where the rows would be, while there are none: on an agent's list, that the tab on show has nothing. */
   empty: string | undefined;
   /** Whose list it is, on one line: the agent's name, or the room's or the channel's label. */
   label: string;
@@ -53,36 +52,30 @@ export interface ListLevel {
   about: string;
   /** The agent whose list it is works somewhere, and what is shown is not out of date. */
   working: boolean;
-  /** The line under that, of an agent that is running: the model it follows by default and the version of Shrimpy it runs. */
-  facts: string | undefined;
   /** How the agent whose list it is looks. */
   look: Look | undefined;
   /** It is an agent's list, and not a room's or a channel's. */
   ofAgent: boolean;
-  /** It is the list of an agent that is not running, which takes no thread and has no home to read. */
+  /** It is the list of an agent that is not running, which takes no thread. */
   off: boolean;
   /** Everything that will be listed is in: on an agent's list, the agent has said which sessions it has. */
   settled: boolean;
-  /** The filter leaves rows out: an agent's list of only what is with the person has more. */
-  more: boolean;
   /** A thread can be started from it: it is a running agent's, or a room's the person is in. */
   startable: boolean;
-  /** What an agent's triggers show while it has none. */
-  noTriggers: string;
   /** What is not working, or has just gone wrong, most pressing first. */
   notes: string[];
 }
 
 export interface ListOptions extends LevelOptions {
-  /** What an agent's list shows. Everything when this is left out. */
-  filter?: ListFilter;
+  /** The tab on show on an agent's list. Chat when this is left out. */
+  tab?: AgentTab;
 }
 
 /** The open list, as plain text and facts, or none while no list is open. */
 export function listLevel(model: Model, options: ListOptions): ListLevel | undefined {
   const { list } = model.open;
   if (list === undefined) return undefined;
-  return list.kind === "agent" ? agentList(model, list.id, options.filter ?? "everything", options) : channelList(model, list, options);
+  return list.kind === "agent" ? agentList(model, list.id, options.tab ?? "chat", options) : channelList(model, list, options);
 }
 
 /** The threads of a room the person is in, or of a room they only read. */
@@ -117,31 +110,28 @@ function channelList(model: Model, place: Exclude<Place, { kind: "agent" }>, opt
     tag: reading ? READ_ONLY_TAG : undefined,
     about: membersLine(members),
     working: false,
-    facts: undefined,
     look: undefined,
     ofAgent: false,
     off: false,
     settled: true,
-    more: false,
     // A channel the person only reads takes no new thread.
     startable: !reading,
-    noTriggers: "",
     notes: notesOf(model, { agent: undefined, watching: false, looking: undefined, refused: undefined, notice: false }, options.self),
   };
 }
 
 /**
- * An agent's list: everything the agent takes part in, or only what is with the
- * person. What the agent says of its sessions is a part of the list, so it is
- * as stale as the agent is out of reach, and no one is said to work in what is
- * stale.
+ * An agent's list: the threads of the person's DM with it, or everything else
+ * it takes part in. What the agent says of its sessions is a part of the list,
+ * so it is as stale as the agent is out of reach, and no one is said to work in
+ * what is stale. That the agent is not running is its page's to say.
  */
-function agentList(model: Model, agentId: string, filter: ListFilter, options: LevelOptions): ListLevel {
+function agentList(model: Model, agentId: string, tab: AgentTab, options: LevelOptions): ListLevel {
   const name = agentNameOf(model, agentId);
   const parts = partsOf(model, agentId);
   const said = model.sessions !== undefined;
   const stale = model.chat.state === "down" || (model.agent?.state === "down" && said);
-  const shown = parts.filter((part) => filter === "everything" || part.yours);
+  const shown = parts.filter((part) => part.yours === (tab === "chat"));
   const listed = shown.map((part) => ({
     archived: part.thread?.archived === true,
     row: partRow(part, model.me?.name, options.now, stale, readOnly(model, part)),
@@ -149,28 +139,31 @@ function agentList(model: Model, agentId: string, filter: ListFilter, options: L
   const refused = model.refusal === undefined ? undefined : { what: "sessions" as const, words: model.refusal };
   const entry = agentEntries(model).find((each) => each.id === agentId);
   const running = entry?.running === true;
-  // Who is an admin is the roster's to say.
-  const members = model.listing?.members ?? [];
-  const admins = members.filter((member) => member.kind === "agent" && member.admin && member.id !== agentId).map((member) => member.name);
+  const none = tab === "chat" ? notTalkedTo(name) : running ? nothingElse(name) : notRunning(name);
   return {
     stale,
     ...apart(listed),
-    empty: !parts.some((part) => part.yours) && model.chat.state === "up" ? notTalkedTo(name) : undefined,
+    empty: shown.length === 0 && model.chat.state === "up" ? none : undefined,
     label: oneLine(name),
     name: oneLine(name),
-    tag: members.some((member) => member.id === agentId && member.admin) ? ADMIN_TAG : undefined,
+    // Who is an admin is the roster's to say.
+    tag: model.listing?.members.some((member) => member.id === agentId && member.admin) === true ? ADMIN_TAG : undefined,
     about: entry === undefined ? "" : agentAbout(entry, model.me?.name),
     working: entry?.working === true && !stale,
-    facts: running ? agentFacts(model.defaultModel, entry.version) : undefined,
     look: lookOf(model, agentId),
     ofAgent: true,
     off: !running,
     settled: said,
-    more: shown.length < parts.length,
     startable: running,
-    noTriggers: noTriggers(name, admins.sort((a, b) => a.localeCompare(b))),
-    notes: notesOf(model, { agent: agentId, watching: false, looking: "sessions", refused, notice: false }, options.self),
+    notes: notesOf(model, { agent: agentId, watching: false, looking: running ? "sessions" : undefined, refused, notice: false }, options.self),
   };
+}
+
+/** The tab of an agent's list that holds what is open in it: chat for a thread of the person's DM with the agent, and observe for anything else. */
+export function tabHolding(model: Pick<Model, "open">): AgentTab | undefined {
+  const { list, item } = model.open;
+  if (list?.kind !== "agent" || item === undefined) return undefined;
+  return item.kind === "thread" && item.place.kind === "agent" ? "chat" : "observe";
 }
 
 /** The rows of a list, the archived threads apart from the rest, under the row that opens them. */
@@ -195,15 +188,16 @@ function readOnly(model: Model, part: Part): boolean {
 
 /**
  * The row for something an agent takes part in: what it is called, with the
- * words that mark it, then where it is, when it was last active, and that the
- * person only reads it when they are not in it. A session behind no thread is
- * called for where it is, and has no time.
+ * words that mark it, then where it is, but for a thread of the person's DM
+ * with the agent, which is where every thread of its tab is, when it was last
+ * active, and that the person only reads it when they are not in it. A session
+ * behind no thread is called for where it is, and has no time.
  */
 function partRow(part: Part, me: string | undefined, now: number, stale: boolean, reading: boolean): Row {
-  const where = part.yours ? YOUR_DM : part.place === null ? undefined : placeLabel(part.place, me);
+  const where = part.yours || part.place === null ? undefined : placeLabel(part.place, me);
   const working = part.working && !stale;
   if (part.kind === "session") {
-    const label = where ?? oneLine(part.id);
+    const label = part.yours ? YOUR_DM : (where ?? oneLine(part.id));
     return { id: part.id, kind: "session", label, name: label, tags: [], detail: "", working, unread: 0, yours: part.yours, look: undefined };
   }
   // Chat names a thread. A thread only the agent has said it has is called what the agent knows of it.
@@ -232,32 +226,17 @@ function partRow(part: Part, me: string | undefined, now: number, stale: boolean
 }
 
 /**
- * What stands where a thread would be while none is open, and whether a thread
- * can be started there: beside threads to pick, in place of any, or not at
- * all.
- */
-export interface NothingOpen {
-  said: string;
-  start: "beside" | "instead" | "none";
-}
-
-/**
  * What stands where a thread would be while no list is open, or nothing is
- * open in the open one: what to pick, that the list's agent is not running, or
- * that the person has not talked to it yet, with how to start a thread where
- * one can be. `key` is the client's key that starts one, as the client writes
- * it. Undefined while something is open.
+ * open in a room's or a channel's: what to pick, with how to start a thread
+ * where one can be. `key` is the client's key that starts one, as the client
+ * writes it. Undefined while something is open, and on an agent's list, where
+ * its page stands.
  */
-export function nothingOpen(model: Model, key: string): NothingOpen | undefined {
+export function nothingOpen(model: Pick<Model, "open">, key: string): string | undefined {
   const { list, item } = model.open;
   if (item !== undefined) return undefined;
-  if (list === undefined) return { said: PICK_LIST, start: "none" };
+  if (list === undefined) return PICK_LIST;
   // A room the person is in takes a new thread, and a channel they only read takes none.
-  if (list.kind === "read-only") return { said: PICK_THREAD, start: "none" };
-  if (list.kind === "room") return { said: pickOrStart(key), start: "beside" };
-  const name = agentNameOf(model, list.id);
-  if (!agentRuns(model, list.id)) return { said: notRunning(name), start: "none" };
-  return partsOf(model, list.id).some((part) => part.yours)
-    ? { said: pickOrStart(key), start: "beside" }
-    : { said: thenStart(notTalkedTo(name), key), start: "instead" };
+  if (list.kind === "read-only") return PICK_THREAD;
+  return list.kind === "room" ? pickOrStart(key) : undefined;
 }

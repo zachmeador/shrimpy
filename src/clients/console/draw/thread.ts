@@ -2,8 +2,9 @@ import { type Component, type Editor, stripTerminalSequences, type TuiMouseEvent
 import { halves, SHRIMP } from "../../look/index.ts";
 import { moreWakeupsListed, OUT_OF_DATE_MARK } from "../../view/index.ts";
 import { cutRuns, type Ground, role, type Run, runsWidth, type Tone } from "./paint.ts";
+import { fileLines, pageHead, type PageLine, pageLines } from "./page.ts";
 import { hint, noteRuns, saidRuns, spread } from "./rows.ts";
-import { type Frame, MEASURE, notesFor, sides, writable } from "./screen.ts";
+import { type Frame, MEASURE, notesFor, pageShown, sides, writable } from "./screen.ts";
 import { messageLines, type Prose, sessionLines, workLines, wrap } from "./steps.ts";
 import { turnHint } from "./words.ts";
 
@@ -22,11 +23,15 @@ const stale = (frame: Frame): boolean => (viewing(frame) ? frame.levels.session?
 /** How wide what is said is drawn in a pane `width` wide: a cell in from each edge, and no wider than a line that reads well. */
 const measure = (width: number): number => Math.max(1, Math.min(width - 2, MEASURE));
 
+/** Whether the thread's pane shows an agent's page, or a file of its home, in place of a thread. */
+const onPage = (frame: Frame): boolean => pageShown(frame.model) && frame.levels.page !== undefined;
+
 /**
  * The head of the thread's pane: whose conversation it is and what it is
  * called, or whose view and of what, out of date while it may be, with where
- * Tab goes beside it; then who is in it, and a rule. Nothing while no thread or
- * session is open. A click on Tab's hint does what Tab does.
+ * Tab goes beside it; then who is in it, and a rule. Where an agent's page
+ * stands, its head. Nothing while nothing is open in a room's list or a
+ * channel's. A click on Tab's hint does what Tab does.
  */
 export class ThreadHeader implements Component {
   #turn: { from: number; to: number } | undefined;
@@ -46,6 +51,7 @@ export class ThreadHeader implements Component {
     const { item } = model.open;
     const on = threadGround(frame);
     this.#turn = undefined;
+    if (onPage(frame)) return pageHead(frame, width).map((line) => paint.lay(line, width, on));
     if (item === undefined) return [];
     const late: Run[] = stale(frame) ? [[` ${OUT_OF_DATE_MARK}`, role("caution")]] : [];
     const at = sides(model);
@@ -86,22 +92,34 @@ export class ThreadHeader implements Component {
 
 /**
  * What the thread's pane scrolls: what was said and the work going on beside
- * it, an agent's view of it, or a session behind no thread; and while nothing
- * is open, a picture pressed into the pane and what to pick. It fills what the
- * head, the dock and the input leave of the pane, and dims while what it shows
- * may be out of date.
+ * it, an agent's view of it, or a session behind no thread; on an agent's list
+ * with nothing open in it, the agent's page or a file of its home; and while
+ * nothing is open in another list, a picture pressed into the pane and what to
+ * pick. It fills what the head, the dock and the input leave of the pane, and
+ * dims while what it shows may be out of date. A click on a row of the page's
+ * home opens it.
  */
 export class Conversation implements Component {
   readonly #frame: Frame;
   readonly #prose: Prose;
   readonly #beside: (width: number) => number;
+  readonly #open: (path: string) => void;
   // What was said when it was last drawn, which only a change of the state, a key or the width changes: what moves does not.
   #kept: { levels: Frame["levels"]; paint: Frame["paint"]; width: number; lines: string[] } | undefined;
+  // The page's lines as they were last drawn, for a click to find its row, and the keys theirs.
+  #page: PageLine[] = [];
 
-  constructor(frame: Frame, prose: Prose, beside: (width: number) => number) {
+  constructor(frame: Frame, prose: Prose, beside: (width: number) => number, open: (path: string) => void) {
     this.#frame = frame;
     this.#prose = prose;
     this.#beside = beside;
+    this.#open = open;
+  }
+
+  /** Which line of the page, as it was last drawn, the row of the home at `path` is on. */
+  lineOf(path: string): number | undefined {
+    const at = this.#page.findIndex((line) => line.key === path);
+    return at === -1 ? undefined : at;
   }
 
   /** What is said, as lines that are not laid on a ground, for the pane or for the thread printed back on leaving. */
@@ -139,21 +157,41 @@ export class Conversation implements Component {
     const frame = this.#frame;
     const on = threadGround(frame);
     const room = Math.max(1, frame.height() - this.#beside(width));
+    if (onPage(frame)) return this.#onPage(width, room);
+    this.#page = [];
     const lines = frame.model.open.item === undefined ? emptyPane(frame, width, room) : this.said(width);
     while (lines.length < room) lines.push("");
     return lines.map((line) => frame.paint.lay(line, width, on));
   }
 
+  /** The agent's page, or the file of its home open where it was, each line on its own ground, the chosen row of the home raised. */
+  #onPage(width: number, room: number): string[] {
+    const frame = this.#frame;
+    const { paint, levels } = frame;
+    const mx = measure(width);
+    const lines: PageLine[] = levels.file === undefined ? pageLines(frame, mx, this.#open) : fileLines(frame, levels.file, mx);
+    this.#page = lines;
+    const drawn = lines.map((line) => paint.lay(`${paint.runs([line.bar ?? [" ", "ink"]])}${line.text}`, width, line.on ?? "pane"));
+    while (drawn.length < room) drawn.push(paint.lay("", width, "pane"));
+    return drawn;
+  }
+
+  handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
+    if (event.type !== "click" || event.button !== "left") return undefined;
+    const go = this.#page[event.y]?.go;
+    if (go === undefined) return undefined;
+    go(event.x);
+    return { handled: true };
+  }
+
   invalidate(): void {}
 }
 
-/** Where a thread would be while none is open: the open agent's sigil, or the shrimp, pressed into the pane, and what the views say stands there. */
+/** Where a thread would be while none is open, but on an agent's list, where its page stands: the shrimp pressed into the pane, and what the views say stands there. */
 function emptyPane(frame: Frame, width: number, height: number): string[] {
-  const { paint, levels, model } = frame;
-  const agent = model.open.list?.kind === "agent";
-  const art = halves(agent ? (levels.list?.look?.sigil ?? []) : SHRIMP);
-  const nothing = levels.nothing;
-  const said = wrap(paint, nothing?.said ?? "", Math.max(1, width - 4), "ink3");
+  const { paint, levels } = frame;
+  const art = halves(SHRIMP);
+  const said = wrap(paint, levels.nothing ?? "", Math.max(1, width - 4), "ink3");
   const top = Math.max(1, Math.floor((height - art.length - 2 - said.length) / 2));
   const centered = (line: string): string => `${" ".repeat(Math.max(0, Math.floor((width - visibleWidth(line)) / 2)))}${line}`;
   return [

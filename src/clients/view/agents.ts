@@ -5,7 +5,7 @@ import { type AgentEntry, agentEntries, gatewayAhead, type Model, readOnlyEntrie
 import type { LevelOptions, Row } from "./level.ts";
 import { lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
-import { agentDetail, agentsTitle, behindNote, membersLine, NOT_RUNNING, readOnlyDetail } from "./words.ts";
+import { agentDetail, agentsTitle, behindNote, membersLine, NOT_RUNNING, readOnlyDetail, TURNED_AWAY } from "./words.ts";
 
 /** The first level: the agents on the roster, running or not, the rooms the person is in, and the rooms they only read. */
 export interface AgentsLevel {
@@ -30,9 +30,10 @@ export interface AgentsLevel {
   update: string | undefined;
 }
 
-/** How an agent stands, as its row and its list say it: idle or working, and where, or that it is not running. */
+/** How an agent stands, as its row and its list say it: idle or working, and where, or that it is not running, or that the gateway turned it away. */
 export function agentAbout(entry: AgentEntry, me: string | undefined): string {
-  return entry.running ? agentDetail(entry.sessions, entry.elsewhere, me) : NOT_RUNNING;
+  if (entry.running) return agentDetail(entry.sessions, entry.elsewhere, me);
+  return entry.away === undefined ? NOT_RUNNING : TURNED_AWAY;
 }
 
 /** The agents and rooms, as plain text and facts. */

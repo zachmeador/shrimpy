@@ -3,7 +3,7 @@ import { sessionStatus } from "../../../contracts/agent/testing/index.ts";
 import type { Channel, Member, Message, Receipt, Thread } from "../../../contracts/chat/index.ts";
 import type { Program, RosterEntry } from "../../../contracts/gateway/index.ts";
 import { PI_PACKAGES, SHRIMPY_VERSION } from "../../../lib/version/index.ts";
-import type { ChannelThreads, Model, SessionView, ThreadView } from "../index.ts";
+import { type ChannelThreads, type Model, NOTHING_READ, type SessionView, type ThreadView } from "../index.ts";
 
 /** The person, as the roster would have them. */
 export const zach: Member = { id: "mem_1", kind: "person", name: "zach" };
@@ -35,7 +35,7 @@ export function aModel(parts: Partial<Model> = {}): Model {
     me: zach,
     open: { list: undefined, item: undefined },
     gateway: { state: "up" },
-    listing: { programs: [], members: [{ ...zach, admin: true, reachable: false, where: null, lastLinked: null }], ways: [], turnedAway: [], versions: GATEWAY },
+    listing: { programs: [], members: [{ ...zach, admin: true, reachable: false, where: null, lastLinked: null }], ways: [], turnedAway: [], versions: GATEWAY, machine: MACHINE },
     chat: { state: "up" },
     agent: undefined,
     dms: {},
@@ -47,6 +47,7 @@ export function aModel(parts: Partial<Model> = {}): Model {
     sessions: undefined,
     triggers: undefined,
     defaultModel: undefined,
+    home: NOTHING_READ,
     looks: {},
     workingSessions: {},
     refusal: undefined,
@@ -71,7 +72,7 @@ function aRosterAgent(name: string): RosterEntry {
 /** What the gateway lists when `programs` are running: the person, and each agent among them on the roster as reachable. */
 export function aListing(programs: Program[], version = SHRIMPY_VERSION): NonNullable<Model["listing"]> {
   const running = programs.filter((program) => program.kind === "agent").map((program) => aRosterAgent(program.name));
-  return { programs, turnedAway: [], members: [{ ...zach, admin: true, reachable: false, where: null, lastLinked: null }, ...running], ways: [], versions: { ...GATEWAY, shrimpy: version } };
+  return { programs, turnedAway: [], members: [{ ...zach, admin: true, reachable: false, where: null, lastLinked: null }, ...running], ways: [], versions: { ...GATEWAY, shrimpy: version }, machine: MACHINE };
 }
 
 export function aChatServer(version = SHRIMPY_VERSION): Program {
@@ -176,6 +177,7 @@ export function onSession(
       ways: [],
       turnedAway: [],
       versions: GATEWAY,
+      machine: MACHINE,
     },
     agent: { state: "up" },
     sessions: [session],
@@ -196,6 +198,7 @@ export function onThread(agent: string, thread: Thread, view: ThreadView | undef
       ways: [],
       turnedAway: [],
       versions: GATEWAY,
+      machine: MACHINE,
     },
     agent: { state: "up" },
     dms: { [member.id]: aDm(agent, [thread]) },

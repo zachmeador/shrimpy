@@ -26,10 +26,11 @@ export interface Row {
   id: string;
   /**
    * What choosing it opens: a thread is opened as the conversation it is, a
-   * session as the agent's view of it, and the row of a list's archived threads
-   * opens them in place, or shuts them, which is the client's own to do.
+   * session as the agent's view of it, the row of a list's archived threads
+   * opens them in place, or shuts them, and the row of an agent's name at the
+   * top of its list opens its page, which are the client's own to do.
    */
-  kind: "agent" | "room" | "read-only" | "thread" | "session" | "archived";
+  kind: "agent" | "room" | "read-only" | "thread" | "session" | "archived" | "page";
   label: string;
   /** What the label names, on its own: a room's name without the mark its label starts with, and for any other row its label. */
   name: string;

@@ -270,7 +270,6 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Not built**
 
-- An agent page and two views of an agent's threads, for both clients, as their mockups draw them, the [web client's](web-client-mockup.html) and the [terminal's](terminal-mockup.html), which the owner approved on 2026-11-24: chat and observe as tabs, in place of the "everything" and "yours" switch, and the page where a thread would stand while none is open, with how the agent stands, its machine, its model, its version, its triggers and its home. Its machine and model come with 2.0.
 - `/devices invite` in the terminal, which lets another machine of the owner's in.
 - What is left of setting up through `shrimpy`: the terminal's first screen saying when a program is down and being started again, `/` commands for signing in again, and `shrimpy --help` led by `shrimpy` alone, with the rest under "for scripts and agents".
 - Color in what the commands print, as the [terminal mockup](terminal-mockup.html)'s sheet on the commands has it: a name or a command bold, a state in a color and a failure in red, on a terminal that shows color. The plain lines and tables agents read stay.
@@ -297,7 +296,7 @@ Daily use decides what comes after the release. The last order was compaction an
 - A session that `/model` made isn't in the list of sessions until its next message. Two inputs handed to a session before its next answer both say the model changed. An answer that failed doesn't count as the last answer.
 - `/stop` is a message, so with chat down the terminal can't stop an agent. `shrimpy sessions stop` can.
 - A `/stop` with nothing to stop looks ignored, and `@typo /stop` stops every agent in the room.
-- On an agent's screen a trigger's own session has no time and comes last. "With you" means the person's DM with the agent, so a room they are both in shows only under everything.
+- In what an agent's list observes, a trigger's own session has no time and comes last, in both clients.
 - Leaving the terminal, the line about work that goes on names only the person's own threads, and from a thread they only read it says to write `/stop`, which they can't there.
 - The terminal holds every channel the person only reads, with its threads, on every screen: with n agents that can be n(n−1)/2 DMs. A room they only read shows what was said and no agent's work, where a thread opened from an agent's screen shows that agent's.
 - Bare `shrimpy` opens the list of agents and rooms, or the person's threads with the only agent when they're in no room. It doesn't remember their latest thread or start programs on demand.
@@ -315,12 +314,11 @@ Daily use decides what comes after the release. The last order was compaction an
 
 - The button for an agent's view shows once an agent has a session behind the thread, where both mockups have it on every thread with agents in it. The client can't tell a thread with no session from one whose session it hasn't read.
 - A message streaming into a thread has no caret, and chat's contract says nothing of streaming.
-- The line over an agent's home says `agents/<name>/`, which is wrong for a home kept elsewhere.
 - In brief, the page says how many earlier lines of a tool's output are left out, which its mockup doesn't draw.
 - The address of an agent's view names no agent, so reloading it in a room shows whichever agent's session is known first.
 - Esc in an agent's view goes back to the conversation, where the terminal's goes back to the list.
 - Where a thread can be started the page names Ctrl+N on a phone too.
-- A trigger's card holds everything `shrimpy triggers` says of it, which is long at the list's width.
+- An agent's page, in both clients, gives its home's path as the agent's hello said it, where both mockups write the account's home as `~`, and under a trigger's file it says how the last occurrence ended in the contract's word, such as `answered`, where both mockups say what it did, as "woke lighthouse".
 - The page's door serves every file to be fetched afresh, so each load takes about 800 KB.
 - A trigger's line folds open to what the check printed, where its mockup draws the sentence the agent is shown. The receipt under the line, and the note in chat's words when chat refuses a rename or an archive, are in neither mockup.
 - An archived thread that is open stays in its list's shut group, so its row isn't on show until the group is opened.
@@ -345,6 +343,7 @@ Daily use decides what comes after the release. The last order was compaction an
 - In the terminal: a list longer than its pane, an agent on another machine, more than a handful of models, `/model` on a narrow terminal, an agent that doesn't answer when asked for its models, an agent that goes down between changing a model and leaving the receipt, and two inputs handed over at once.
 - The web client in Firefox and Safari on a desktop, and its Content-Security-Policy anywhere but Chromium and the iPhone.
 - A trigger's line, renaming and archiving on an iPhone, in a DM between two agents, and with an agent whose model answers.
+- An agent's page for an agent the gateway turned away for its release, which only a test with the roster's words has drawn.
 - Signing in from a shell, as the setup skill has it, got as far as the link and a pasted address.
 - `shrimpy update` from a real release, and restarting a real Shrimpy service that way on macOS.
 - Setting up through a bare `shrimpy` with a subscription's sign-in, under launchd, and with a person at a real terminal: only the tests have run it, with an API key and a stand-in for systemd.
@@ -354,7 +353,7 @@ Daily use decides what comes after the release. The last order was compaction an
 
 - Setup makes one agent, an admin named `shrimpy` unless the person chooses otherwise, and every new agent's starter `SOUL.md` says it enjoys the shrimp emoji.
 - In a shell that isn't an agent's, when the Shrimpy folder has exactly one agent, a command with no `--agent` acts on that one.
-- On an agent's list, Tab switches between everything and the person's own threads, and Enter opens a row as Right does.
+- On an agent's list, Enter opens a row as Right does.
 - The terminal paints its ground in the web client's dusk or day where it has true color, and keeps the terminal's own ground and sixteen colors where it hasn't.
 - The web client is drawn with Preact in TSX.
 - esbuild bundles the page when the gateway starts, so esbuild is a dependency where it was a development one.

@@ -1,5 +1,5 @@
 import type { Holdings } from "./holdings.ts";
-import { type AgentEntry, agentOfList, type Item, nextSide, type Place, placeKey, placeOf, readOnlyEntries, sidesOf } from "./model.ts";
+import { type AgentEntry, agentOfList, type Item, nextSide, NOTHING_READ, type Place, placeKey, placeOf, readOnlyEntries, sidesOf } from "./model.ts";
 import type { Store } from "./store.ts";
 
 /**
@@ -12,6 +12,8 @@ export interface Moves {
   selectChannel(place: Extract<Place, { kind: "room" | "read-only" }>): void;
   /** Open one of the threads of the open list. */
   open(threadId: string): void;
+  /** Close what is open in the open list. */
+  close(): void;
   /** Start a thread in `place`, or in the open list's own place when none is given. It comes to be with its first message. */
   start(place: Place | undefined): void;
   /** The new thread that is open came to be, as `threadId`, with its first message. */
@@ -43,7 +45,7 @@ export function createMoves(store: Store, held: Holdings, startOnLanding = false
     landed = true;
     const { open } = store.model();
     if (open.list !== undefined && placeKey(open.list) === placeKey(list)) return;
-    store.set({ open: { list, item: undefined }, notice: undefined });
+    store.set({ open: { list, item: undefined }, home: NOTHING_READ, notice: undefined });
   };
 
   const moves: Moves = {
@@ -57,6 +59,11 @@ export function createMoves(store: Store, held: Holdings, startOnLanding = false
       const thread = held.thread();
       if (thread?.id === threadId) thread.told = undefined;
       openItem({ kind: "thread", place: placeOf(model, list, threadId), thread: threadId, side: undefined });
+    },
+    close() {
+      const { list, item } = store.model().open;
+      if (list === undefined || item === undefined) return;
+      store.set({ open: { list, item: undefined }, notice: undefined });
     },
     start(given) {
       const place = given ?? store.model().open.list;

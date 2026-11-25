@@ -14,7 +14,8 @@ import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { CONNECTING } from "../network/index.ts";
 import type { Model } from "../state/index.ts";
 import { aChatServer, aDm, agentMember, aListing, aModel, anAgent, aRoom, aSession, aThread, type Rig, startRig } from "../state/testing/index.ts";
-import { agentsLevel, listLevel, type ListLevel, type Look, type Row, threadLevel, withMentions } from "./index.ts";
+import { agentsLevel, listLevel, type ListLevel, type Look, pageLevel, type Row, threadLevel, withMentions } from "./index.ts";
+import { TURNED_AWAY } from "./words.ts";
 
 /*
  * The views of a client's state against the real gateway and chat server, in processes of their own, with small
@@ -265,24 +266,44 @@ test("an agent's look follows its home's files while it runs, and is worked out 
   await rig.until((model) => looked(model)?.sigil.join() === fromId.sigil.join() && looked(model)?.pigment === fromId.pigment, "the look worked out from crab's member ID");
 });
 
-test("a running agent's list names its default model and its version, follows a change of model, and an agent that stops takes no thread", { timeout: 90_000 }, async (t) => {
+test("a running agent's page names its default model and its version, follows a change of model, and an agent that stops takes no thread", { timeout: 90_000 }, async (t) => {
   const { rig, crab } = await startCrab(t);
   const list = (model: Model): ListLevel | undefined => listLevel(model, at);
+  const facts = (model: Model): string | undefined => pageLevel(model, { ...at, opened: new Set() })?.facts.map((fact) => `${fact.label} ${fact.value}`).join("\n");
 
   // The only agent's list is opened by itself.
-  const named = (facts: string | undefined, id = "test-model"): boolean => facts !== undefined && facts.includes(`local/${id}`) && facts.includes(SHRIMPY_VERSION);
-  const running = await rig.until((model) => named(list(model)?.facts), "crab's model and version");
+  const named = (said: string | undefined, id = "test-model"): boolean => said !== undefined && said.includes(`model local/${id}`) && said.includes(`version ${SHRIMPY_VERSION}`);
+  const running = await rig.until((model) => named(facts(model)), "crab's model and version");
   assert.deepEqual([list(running)?.off, list(running)?.startable], [false, true]);
 
-  // Another client sets crab's model, and the list follows without asking crab again.
+  // Another client sets crab's model, and the page follows without asking crab again.
   const other = await (await rig.gateway()).connect();
   const held = await other.host.get(Agent, { agent: (await rig.member("crab")).id }, BACKGROUND_CONTEXT);
   valueOf(await held.setModel({ model: { provider: "local", id: "other-model" } }, BACKGROUND_CONTEXT));
-  await rig.until((model) => named(list(model)?.facts, "other-model"), "crab's new model on its list");
+  await rig.until((model) => named(facts(model), "other-model"), "crab's new model on its page");
 
   await crab.kill();
   const stopped = await rig.until((model) => list(model)?.off === true, "crab to be said not to run");
-  assert.deepEqual([list(stopped)?.facts, list(stopped)?.startable], [undefined, false]);
+  assert.deepEqual([named(facts(stopped)), list(stopped)?.startable], [false, false]);
+});
+
+test("an agent that is off says on its page where it lives, and one the gateway turned away says which release it runs", () => {
+  const crab = agentMember("crab");
+  const where = { machine: { host: "zachs-mbp", system: "macOS arm64", account: "zach" }, home: "/Users/zach/shrimpy/agents/crab" };
+  const listing = aListing([aChatServer()]);
+  const off = aModel({
+    listing: { ...listing, members: [...listing.members, { ...crab, admin: false, reachable: false, where, lastLinked: Date.now() }] },
+    open: { list: { kind: "agent", id: crab.id }, item: undefined },
+  });
+  const page = (model: Model) => pageLevel(model, { ...at, opened: new Set() });
+  const said = (model: Model): string => JSON.stringify(page(model)?.facts) + (page(model)?.note ?? "");
+  assert.deepEqual([page(off)?.off, page(off)?.triggers, page(off)?.home], [true, undefined, []], "its triggers and home are not read");
+  assert.ok(said(off).includes("zachs-mbp") && page(off)?.note?.includes("zachs-mbp"), "it says which machine it lives on");
+
+  const turnedAway = { kind: "agent" as const, name: "crab", member: crab.id, shrimpy: "1.0.0-rc.1", pi: { "@earendil-works/pi-durable": "0.0.1" } };
+  const away = { ...off, listing: { ...off.listing!, turnedAway: [turnedAway] } };
+  assert.ok(said(away).includes("1.0.0-rc.1") && page(away)?.note?.includes("1.0.0-rc.1"), "the release it runs, and what to update");
+  assert.equal(agentsLevel(away, at).rows.find((row) => row.id === crab.id)?.detail, TURNED_AWAY, "its row says it was turned away");
 });
 
 test("no one is said to work while the gateway is out of reach, whatever chat last marked", () => {
@@ -311,7 +332,7 @@ test("a pinned thread is tagged so, in a room's list and on an agent's", () => {
     sessions: [aSession("th_1", { place: { kind: "room", room: "ops", thread: { name: null } } })],
     open: { list: { kind: "agent", id: scout.id }, item: undefined },
   });
-  assert.deepEqual(listLevel(ofScout, at)?.rows.map((row) => [row.id, row.tags]), [["th_1", [PINNED]]]);
+  assert.deepEqual(listLevel(ofScout, { ...at, tab: "observe" })?.rows.map((row) => [row.id, row.tags]), [["th_1", [PINNED]]]);
 });
 
 test("the terminal's first screen says when this machine is behind the gateway, and a page's never does", () => {

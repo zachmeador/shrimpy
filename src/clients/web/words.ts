@@ -21,7 +21,6 @@ export const CONTROLS = {
   send: "Send",
   commands: "Commands",
   mode: "Switch between dusk and day",
-  listShows: "What the list shows",
   hide: "hide",
   join: "join",
   notify: "Tell this device when an agent writes",
@@ -32,6 +31,12 @@ export const CONTROLS = {
   threadMenu: "Rename or archive this thread",
   threadName: "This thread's name",
 } as const;
+
+/** What the name and sigil at the top of an agent's list do. */
+export const pageOf = (agent: string): string => `Open ${agent}'s page`;
+
+/** What the button that goes back from an agent's page, or a file of its home, says it does. */
+export const backFrom = (to: "threads" | "page", agent: string): string => (to === "threads" ? `Back to ${agent}'s threads` : `Back to ${agent}'s page`);
 
 /** What the button that opens a thread's menu says it does. */
 export const THREAD_MENU = "Rename or archive";

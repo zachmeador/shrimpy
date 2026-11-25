@@ -16,7 +16,7 @@ import {
   VStack,
 } from "@earendil-works/pi-tui";
 import { agentNameOf, type ClientState, commandNames, type Item, type Open, placeKey } from "../../state/index.ts";
-import { type ListFilter, modelLines, type Row, windowTitle } from "../../view/index.ts";
+import { type AgentTab, modelLines, type Row, tabHolding, windowTitle } from "../../view/index.ts";
 import { commandList } from "./commands.ts";
 import { interrupt } from "./interrupt.ts";
 import { KEYS_WIDTH, KeysLine, KeysList } from "./keys.ts";
@@ -27,6 +27,7 @@ import { Pane } from "./rows.ts";
 import {
   draftKeyOf,
   type Frame,
+  homeRows,
   type Level,
   levelsAt,
   levelsOf,
@@ -35,6 +36,8 @@ import {
   notesFor,
   onShow,
   openedKey,
+  pageRow,
+  pageShown,
   RAIL,
   rowKey,
   runningIn,
@@ -105,6 +108,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
   const terminal = options.terminal ?? new ProcessTerminal();
   const trueColor = getTerminalColorMode() === "truecolor";
   const inFull = { toolCalls: false, thinking: false };
+  const home: Frame["home"] = { opened: new Set(), chosen: undefined, file: undefined };
   const frame: Frame = {
     // Where the terminal has true color its ground is dusk until it says its background is light.
     paint: createPaint(trueColor ? "dusk" : "own"),
@@ -114,9 +118,10 @@ export function startDrawing(options: DrawingOptions): Drawing {
     folded: false,
     front: "agents",
     model: state.model(),
-    levels: levelsOf(state.model(), { now: now(), inFull, filter: "everything", updates }),
-    filter: "everything",
+    levels: levelsOf(state.model(), { now: now(), inFull, tab: "chat", home, updates }),
     archived: false,
+    tab: "chat",
+    home,
     inFull,
     chosen: { agents: undefined, list: undefined },
     running: new Set(),
@@ -215,7 +220,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
     if (frame.model.open.item !== undefined) go("item");
   };
 
-  /** Open what a row is: an agent's list or a room's, or a thread or a session in the open list. */
+  /** Open what a row is: an agent's list or a room's, an agent's page, or a thread or a session in the open list. */
   function open(row: Row): void {
     if (row.kind === "agent" || row.kind === "room" || row.kind === "read-only") {
       frame.chosen.agents = rowKey(row);
@@ -227,6 +232,10 @@ export function startDrawing(options: DrawingOptions): Drawing {
     }
     frame.chosen.list = rowKey(row);
     landing = false;
+    if (row.kind === "page") {
+      openPage();
+      return;
+    }
     // The row of the archived threads opens them in place, and shuts them again.
     if (row.kind === "archived") {
       frame.archived = !frame.archived;
@@ -238,17 +247,44 @@ export function startDrawing(options: DrawingOptions): Drawing {
     go("item");
   }
 
-  const setFilter = (filter: ListFilter): void => {
-    frame.filter = filter;
+  /** Put the agent's page where the thread was, and the keys on it, closing what was open in the list. */
+  function openPage(): void {
+    pageChosen = true;
+    state.closeItem();
+    home.file = undefined;
+    go("item");
+  }
+
+  /** Show the tab `tab` of the agent's list, on its first thread. */
+  const setTab = (tab: AgentTab): void => {
+    frame.tab = tab;
+    frame.chosen.list = undefined;
     go("list");
   };
+
+  /** What → does on a row of the agent's home: a folder opens in place, or shuts, and a file opens where the page was. */
+  function openHome(path: string): void {
+    const row = frame.levels.page?.home.find((each) => each.path === path);
+    if (row === undefined) return;
+    home.chosen = path;
+    if (row.kind === "folder") {
+      if (!home.opened.delete(path)) {
+        home.opened.add(path);
+        state.readFolder(path);
+      }
+    } else if (row.kind === "file") {
+      home.file = path;
+      state.readFile(path);
+    }
+    go("item");
+  }
 
   const prose = new Prose();
   const rail = new Pane(frame, "ground", (width, height) => drawRail(frame, width, height, notesFor(frame, "agents"), open), () => go("agents"));
   const list = new Pane(
     frame,
     "list",
-    (width, height) => drawList(frame, width, height, notesFor(frame, "list"), { open, filter: setFilter }),
+    (width, height) => drawList(frame, width, height, notesFor(frame, "list"), { open, tab: setTab }),
     () => {
       if (frame.model.open.list !== undefined) go("list");
     },
@@ -258,7 +294,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
   const cursor = renderFakeCursor("\u0000");
   const [cursorStart = "", cursorEnd = ""] = cursor.split("\u0000");
   const input = new Input(frame, editor, focusItem, { start: cursorStart, end: cursorEnd });
-  const conversation = new Conversation(frame, prose, (width) => header.render(width).length + dock.render(width).length + input.render(width).length);
+  const conversation = new Conversation(frame, prose, (width) => header.render(width).length + dock.render(width).length + input.render(width).length, openHome);
   const scroll = new ScrollView(conversation, { follow: "end", primary: true });
   const thread = new VStack([{ component: header }, { component: scroll, basis: 0, grow: 1, minSize: 1 }, { component: dock }, { component: input }]);
   const divider = (): Component => ({
@@ -357,9 +393,13 @@ export function startDrawing(options: DrawingOptions): Drawing {
   let itemOpen: Item | undefined;
   // An agent's list that is opened starts on the row where the agent is working, once it has said which sessions it has.
   let landing = false;
+  // The person chose the agent's name on its list, which is otherwise chosen only while the list has no thread.
+  let pageChosen = false;
   let focused: Component | null | undefined;
   let title: string | undefined;
   let shown: string | undefined;
+  // The agent, whether it was reached and the triggers the page on show was read for, so that it is read again when it next comes on show, the agent is reached, or a trigger comes or goes.
+  let pageRead: string | undefined;
 
   function update(): void {
     const model = state.model();
@@ -371,34 +411,59 @@ export function startDrawing(options: DrawingOptions): Drawing {
       if (listKey !== undefined) frame.chosen.agents = listKey;
       frame.chosen.list = undefined;
       frame.archived = false;
+      frame.tab = "chat";
+      pageChosen = false;
+      home.opened = new Set();
+      home.chosen = undefined;
+      home.file = undefined;
       landing = openList?.kind === "agent";
     }
-    if (opened(itemOpen, item)) frame.front = "item";
+    if (opened(itemOpen, item)) {
+      frame.front = "item";
+      // A thread opens its agent's list on the tab that holds it.
+      frame.tab = tabHolding(model) ?? frame.tab;
+      home.file = undefined;
+    }
     listOpen = listKey;
     itemOpen = item;
     if (openList === undefined) frame.front = "agents";
-    else if (item === undefined && frame.front === "item") frame.front = "list";
+    // With nothing open in it, an agent's list has its page where the thread was, and the keys can be there.
+    else if (item === undefined && frame.front === "item" && openList.kind !== "agent") frame.front = "list";
 
     frame.running = runningIn(model);
-    frame.levels = levelsOf(model, { now: now(), inFull, filter: frame.filter, updates });
-    const { agents, list: listLevel, thread: threadLevel } = frame.levels;
+    frame.levels = levelsOf(model, { now: now(), inFull, tab: frame.tab, home, updates });
+    const { agents, list: listLevel, thread: threadLevel, page } = frame.levels;
     frame.chosen.agents = kept(agents.rows, frame.chosen.agents);
     const rows = listLevel === undefined ? [] : listRows(listLevel, frame.archived);
-    frame.chosen.list ??= openedKey(item);
+    const nameRow = listLevel?.ofAgent === true ? rowKey(pageRow(listLevel)) : undefined;
+    frame.chosen.list ??= openedKey(item) ?? (pageShown(model) && frame.front === "item" ? nameRow : undefined);
+    // A list starts on its first thread, below the agent's name, and the name is chosen only while there is none, unless the person chose it.
+    const first = rows.find((each) => each.kind !== "page");
+    if (first !== undefined && (frame.chosen.list === undefined || (frame.chosen.list === nameRow && !pageChosen))) frame.chosen.list = rowKey(first);
     if (landing && listLevel?.settled === true && rows.length > 0) {
       landing = false;
-      const busy = rows.find((each) => each.working);
+      const busy = rows.find((each) => each.kind !== "page" && each.working);
       if (busy !== undefined) frame.chosen.list = rowKey(busy);
     }
     frame.chosen.list = kept(rows, frame.chosen.list);
+    const homes = homeRows(page);
+    if (!homes.some((each) => each.path === home.chosen)) home.chosen = homes[0]?.path;
+
+    const pageOn = pageShown(model) && page !== undefined && !page.off && onShow(frame.width(), frame.folded, frame.front).includes("item");
+    const reading = pageOn ? [listKey, model.agent?.state, ...(model.triggers ?? []).map((each) => each.name)].join("\n") : undefined;
+    if (reading !== pageRead) {
+      pageRead = reading;
+      if (reading !== undefined) state.readPage(home.opened);
+    }
 
     // The person is looking at a thread while it is on show, whichever view of it is.
     state.look(item?.kind === "thread" && onShow(frame.width(), frame.folded, frame.front).includes("item"));
-    // Another thread, or another view of one, opens at its end, where what is new is.
-    const showing = item === undefined ? undefined : JSON.stringify(item);
+    // Another thread, or another view of one, opens at its end, where what is new is, and the page and a file of the home at their top.
+    const showing = item === undefined ? (pageShown(model) ? `page ${home.file ?? ""}` : undefined) : JSON.stringify(item);
     if (showing !== shown) {
       shown = showing;
-      scroll.scrollToEnd();
+      if (item === undefined) scroll.scrollToStart();
+      else scroll.scrollToEnd();
     }
     syncDraft(model.open);
     const next = frame.front === "item" && writable(frame) && keys === undefined ? editor : null;
@@ -431,15 +496,48 @@ export function startDrawing(options: DrawingOptions): Drawing {
     const next = rows[Math.max(0, Math.min(rows.length - 1, at + by))];
     if (next === undefined) return;
     if (frame.front === "agents") frame.chosen.agents = rowKey(next);
-    else frame.chosen.list = rowKey(next);
+    else {
+      frame.chosen.list = rowKey(next);
+      pageChosen = next.kind === "page";
+    }
     landing = false;
     update();
   }
 
-  /** Go back a level, from what is open to its list and from a list to the agents and rooms. */
+  /** Go back a level, from a file of an agent's home to its page, from what is open to its list and from a list to the agents and rooms. */
   function back(): void {
-    if (frame.front === "item") go("list");
+    if (frame.front === "item" && pageShown(frame.model) && home.file !== undefined) {
+      home.file = undefined;
+      go("item");
+    } else if (frame.front === "item") go("list");
     else if (frame.front === "list") go("agents");
+  }
+
+  /**
+   * What a key does where the keys are on an agent's page: ← goes back, ↑ ↓
+   * choose a row of its home, and → opens it. Whether the key was one of
+   * these: the others, as PgUp and PgDn are, scroll the page as a thread's.
+   */
+  function onPage(data: string): boolean {
+    if (matchesKey(data, "left")) {
+      back();
+      return true;
+    }
+    const rows = home.file === undefined ? homeRows(frame.levels.page) : [];
+    const at = Math.max(0, rows.findIndex((each) => each.path === home.chosen));
+    if (rows.length === 0) return false;
+    if (matchesKey(data, "up") || matchesKey(data, "down")) {
+      home.chosen = rows[Math.max(0, Math.min(rows.length - 1, at + (matchesKey(data, "up") ? -1 : 1)))]?.path;
+      update();
+      // The chosen row stays on show, as the page scrolls.
+      const line = home.chosen === undefined ? undefined : conversation.lineOf(home.chosen);
+      if (line !== undefined && line < scroll.scrollTop) scroll.scrollTo(line);
+      else if (line !== undefined && line >= scroll.scrollTop + scroll.viewportHeight) scroll.scrollTo(line - scroll.viewportHeight + 1);
+      return true;
+    }
+    if (!matchesKey(data, "right") && !matchesKey(data, "enter")) return false;
+    if (rows[at] !== undefined) openHome(rows[at].path);
+    return true;
   }
 
   /** What a key does where the keys are in a list. */
@@ -452,9 +550,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
       const row = rows.find((each) => rowKey(each) === chosen);
       if (row !== undefined) open(row);
     } else if (matchesKey(data, "left")) back();
-    else if (matchesKey(data, "tab") && frame.front === "list" && frame.levels.list?.ofAgent === true && !frame.levels.list.off) {
-      setFilter(frame.filter === "everything" ? "yours" : "everything");
-    }
+    else if (matchesKey(data, "tab") && frame.front === "list" && frame.levels.list?.ofAgent === true) setTab(frame.tab === "chat" ? "observe" : "chat");
   }
 
   tui.addInputListener((data) => {
@@ -512,6 +608,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
       onList(data);
       return { consume: true };
     }
+    if (pageShown(frame.model)) return onPage(data) ? { consume: true } : undefined;
     if (matchesKey(data, "tab")) {
       // While the editor lists commands, Tab is the editor's: it puts the chosen command in the input.
       if (editor.isShowingAutocomplete()) return undefined;

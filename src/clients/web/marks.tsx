@@ -87,10 +87,15 @@ function tiles(depths: number[][], deep: boolean, gap: number): string {
   return d;
 }
 
-/** A shape pressed into a pane, tone on tone, each tile with a light edge a pixel below it: an agent's sigil, or the wordmark set into a knitted field. */
-export function Relief({ sigil }: { sigil: readonly string[] | undefined }) {
+/**
+ * A shape pressed into a pane, tone on tone, each tile with a light edge a
+ * pixel below it: an agent's sigil, or the wordmark set into a knitted field.
+ * `cell` is how many pixels each of its own is: 10 for a sigil, 6 for the
+ * wordmark, unless it is given.
+ */
+export function Relief({ sigil, cell: given }: { sigil: readonly string[] | undefined; cell?: number }) {
   const depths = sigil === undefined ? woven(WORDMARK, 3) : sigil.map((row, y) => Array.from({ length: row.length }, (_, x) => (on(sigil, x, y) ? 1 : 0)));
-  const cell = sigil === undefined ? 6 : 10;
+  const cell = given ?? (sigil === undefined ? 6 : 10);
   const w = depths[0]?.length ?? 0;
   const h = depths.length;
   const gap = 1 / cell;

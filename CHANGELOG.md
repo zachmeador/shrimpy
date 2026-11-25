@@ -17,6 +17,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - An agent's list in the terminal and on the page shows a new default model as soon as the agent reads it, where it showed the old one until the agent went away and came back.
 - `shrimpy triggers on` and `off` reach an agent on another machine by its name, and the agent changes its own trigger file.
 - The agent's view of a session, in the terminal and on the page, says when the agent was shown each thing.
+- An agent's list has two tabs, chat for your DM with it and observe for everything else it takes part in, and its name opens its page: how it stands, its machine, model and version, its triggers and its home.
 
 ## 🦐 1.0.0 - A Rising Tide - 2026-11-24
 

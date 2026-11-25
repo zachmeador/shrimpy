@@ -220,7 +220,8 @@ body { background: var(--pane); color: var(--ink); font: 400 var(--t-ui)/1.45 va
 .titles h1 .rest { font-weight: 500; }
 .titles h1 .rest.path { font-family: var(--mono); font-size: 13.5px; }
 .dot { padding: 0 0.4em; color: var(--ink-3); font-weight: 400; }
-.facts { padding: 0 14px 10px; font: 400 var(--t-meta)/1.4 var(--mono); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The agent's name and sigil at the top of its list, which open its page. */
+.whois { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer; }
 
 .tabs { flex: none; display: flex; gap: 18px; padding: 0 14px; border-bottom: 1px solid var(--line); }
 .tabs button { position: relative; padding: 6px 0 9px; font-size: var(--t-small); color: var(--ink-3); }
@@ -228,10 +229,7 @@ body { background: var(--pane); color: var(--ink); font: 400 var(--t-ui)/1.45 va
 .tabs button[aria-selected="true"] { color: var(--ink); }
 .tabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--who, var(--ink-2)); }
 
-.filterbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 0; }
-.seg { display: inline-flex; padding: 1px; }
-.seg button { padding: 3px 10px 4px; font: 400 12px/1.3 var(--mono); color: var(--ink-3); }
-.seg button[aria-pressed="true"] { background: var(--raise); color: var(--ink); clip-path: var(--step); }
+.list .tabs + .body .scroll { padding-top: 6px; }
 
 .trow { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-content: center; width: 100%; min-height: calc(var(--row) + 4px); padding: 6px 14px; line-height: 1.3; }
 .t-title { display: flex; align-items: baseline; min-width: 0; font-weight: 500; }
@@ -242,26 +240,38 @@ body { background: var(--pane); color: var(--ink); font: 400 var(--t-ui)/1.45 va
 .t-end { grid-column: 2; grid-row: 1 / span 2; align-self: center; display: flex; align-items: center; gap: 9px; padding-right: 2px; }
 .hint { padding: 12px 14px; font-size: var(--t-small); color: var(--ink-3); }
 
-/* An agent's triggers, each its file, and its home as a tree. */
-.file { margin: 10px 14px 0; padding: 9px 12px 10px; --fill: var(--well); --edge: var(--line); }
+/* --- An agent's page: how it stands, its triggers and its home ------------ */
+
+.page .about { display: flex; align-items: flex-start; gap: 26px; padding-top: 4px; }
+.page .about .relief { flex: none; }
+.page dl { flex: 1; min-width: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 18px; align-items: baseline; margin: 0; }
+.page dt { font: 400 var(--t-meta)/1.4 var(--mono); color: var(--ink-3); }
+.page dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.page dd code { font-size: var(--t-code); }
+.page dd .sub { white-space: normal; }
+.page dd.state { display: flex; align-items: center; gap: 10px; }
+.page dd.busy { color: var(--busy-ink); }
+.page .label { margin: 28px 0 6px; }
+.page .note { margin: 18px 0 0; }
+.page .hint { padding: 4px 0; }
+
+.file { margin: 10px 0 0; padding: 9px 12px 10px; --fill: var(--well); --edge: var(--line); }
 .file h3 { font: 600 var(--t-code)/1.4 var(--mono); overflow-wrap: anywhere; }
 .file pre { margin: 5px 0 0; font: 400 var(--t-code)/1.5 var(--mono); color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
-/* A field that wraps goes on under its value, past its name. */
-.file pre > span { display: block; padding-left: 10ch; text-indent: -10ch; }
+.file pre i { font-style: normal; color: var(--ink-3); }
 .file .last { margin-top: 6px; font-size: var(--t-small); color: var(--ink-3); }
-.tree { padding: 8px 0 12px; font: 400 var(--t-code)/1.4 var(--mono); }
-.tree .root { padding: 4px 14px 6px; color: var(--ink-3); }
+.tree { padding: 2px 0 0; font: 400 var(--t-code)/1.4 var(--mono); }
 .tree .note { font-family: var(--face); }
-.frow { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 28px; margin: 0; padding: 3px 14px 3px calc(14px + var(--depth) * 16px); color: var(--ink-2); }
+.frow { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 28px; margin: 0; padding: 3px 14px 3px calc(8px + var(--depth) * 16px); color: var(--ink-2); }
 button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent); }
-.frow[aria-current="true"] { background: var(--raise); color: var(--ink); }
 .frow .px { color: var(--ink-3); }
 .frow[aria-expanded="true"] .px { transform: rotate(90deg); }
 .frow.dir { color: var(--ink); font-weight: 600; }
 .frow.other { color: var(--ink-3); }
 .frow .slot { flex: none; width: 10px; }
 .frow span:last-child { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tree .none { margin: 0; padding: 3px 14px 3px calc(32px + var(--depth) * 16px); color: var(--ink-3); }
+.tree .none { margin: 0; padding: 3px 14px 3px calc(10px + var(--depth) * 16px); color: var(--ink-3); }
+/* A file of the home, opened where the page was. */
 .filetext { margin: 0; font: 400 var(--t-code)/1.6 var(--mono); color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
 .picture { display: block; max-width: 100%; height: auto; }
 
@@ -494,11 +504,9 @@ button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent
   .trow { padding: 8px 18px; }
   .me { padding-left: 18px; padding-right: 14px; }
   .head { padding-left: 10px; padding-right: 10px; }
-  .facts, .tabs, .filterbar, .hint { padding-left: 18px; padding-right: 18px; }
-  .file { margin-left: 18px; margin-right: 18px; }
-  .tree .root { padding-left: 18px; }
-  .frow { min-height: 40px; padding-left: calc(18px + var(--depth) * 16px); }
-  .tree .none { padding-left: calc(36px + var(--depth) * 16px); }
+  .tabs, .hint { padding-left: 18px; padding-right: 18px; }
+  .page .about { flex-direction: column; gap: 16px; }
+  .frow { min-height: 40px; }
   .work-row { width: 100%; margin-left: 0; }
   .col, .watch .col { padding: 14px 16px 12px; }
   .msg { column-gap: 10px; }

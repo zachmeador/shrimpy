@@ -12,25 +12,27 @@ import { type Mode, WOOLS } from "../look/index.ts";
 import type { LinkStatus } from "../network/index.ts";
 import { agentEntries, agentNameOf, type ClientState, type Model, type Place, placeKey, placeOfThread, sidesOf, writtenInOpen } from "../state/index.ts";
 import {
+  type AgentTab,
   agentsLevel,
   browserLabel,
+  fileLevel,
   type InFull,
-  type ListFilter,
   listLevel,
   modelLines,
   nextTry,
   nothingOpen,
-  PICK_FILE,
+  pageLevel,
   type Row,
   sessionLevel,
+  tabHolding,
   threadLevel,
   windowTitle,
   writeTo,
 } from "../view/index.ts";
-import { addressOf, type Route, routeOf, type Tab } from "./address.ts";
+import { addressOf, type Route, routeOf } from "./address.ts";
 import { ListView } from "./list.tsx";
+import { FileView, PageView } from "./page.tsx";
 import { Rail } from "./rail.tsx";
-import { FileView, HomeTree, TriggerCards } from "./home.tsx";
 import { Glyph } from "./marks.tsx";
 import { setCount } from "./badge.ts";
 import { askPush, onTapped, type Push, startPush } from "./push.ts";
@@ -49,10 +51,14 @@ export interface Retry {
 interface PageState {
   /** Which level is in front: agents and rooms, the open list, or what is open in it. */
   level: 1 | 2 | 3;
-  tab: Tab;
-  /** The file of the agent's home open in the thread's place, by its path there. */
+  /** The tab on show of an agent's list. */
+  tab: AgentTab;
+  /** The agent's page is in front, where a thread would be: on a phone it has a level of its own. */
+  onPage: boolean;
+  /** The file of the agent's home open where its page was, by its path there. */
   file: string | undefined;
-  filter: ListFilter;
+  /** The folders open in the tree of the agent's home, by their paths there, and whose home it is. */
+  opened: { agent: string | undefined; folders: ReadonlySet<string> };
   inFull: InFull;
   /** Every wake-up of the thread is on show, not only the soonest. */
   later: boolean;
@@ -163,7 +169,8 @@ const samePlace = (a: Place | undefined, b: Place | undefined): boolean => a?.ki
 function routeNow(model: Model, page: PageState): Route {
   const { list, item } = model.open;
   if (page.level === 1 || list === undefined) return { kind: "agents" };
-  if (page.level === 3 && page.file !== undefined && list.kind === "agent") return { kind: "list", list, tab: "home", shown: { kind: "file", path: page.file } };
+  if (page.level === 3 && page.file !== undefined && list.kind === "agent") return { kind: "list", list, tab: page.tab, shown: { kind: "file", path: page.file } };
+  if (page.level === 3 && page.onPage && list.kind === "agent") return { kind: "list", list, tab: page.tab, shown: { kind: "page" } };
   if (page.level === 2 || item === undefined) return { kind: "list", list, tab: page.tab, shown: undefined };
   if (item.kind === "session") return { kind: "list", list, tab: page.tab, shown: { kind: "session", session: item.session } };
   return { kind: "list", list, tab: page.tab, shown: { kind: "thread", thread: item.thread, view: item.side !== undefined } };
@@ -172,6 +179,30 @@ function routeNow(model: Model, page: PageState): Route {
 /** The file a route opens, if it opens one. */
 const fileOf = (route: Route): string | undefined => (route.kind === "list" && route.shown?.kind === "file" ? route.shown.path : undefined);
 
+/** Whether a route opens an agent's page. */
+const pageIn = (route: Route): boolean => route.kind === "list" && route.shown?.kind === "page";
+
+/** The folders a file is in, from the home's top down: "a", then "a/b", for "a/b/c.md". */
+const foldersOf = (path: string | undefined): string[] =>
+  (path ?? "")
+    .split("/")
+    .slice(0, -1)
+    .map((_, at, parts) => parts.slice(0, at + 1).join("/"));
+
+/** What a route puts in front of the page's own state: its level, the tab, the page or the file, and the folders that file is in, open. */
+function frontOf(route: Route, before: PageState): Pick<PageState, "level" | "tab" | "onPage" | "file" | "opened"> {
+  const file = fileOf(route);
+  const agent = route.kind === "list" && route.list.kind === "agent" ? route.list.id : before.opened.agent;
+  const kept = agent === before.opened.agent ? before.opened.folders : new Set<string>();
+  return {
+    level: levelOf(route),
+    tab: route.kind === "list" ? route.tab : before.tab,
+    onPage: pageIn(route),
+    file,
+    opened: { agent, folders: file === undefined ? kept : new Set([...kept, ...foldersOf(file)]) },
+  };
+}
+
 /** The level a route puts in front. */
 function levelOf(route: Route): PageState["level"] {
   if (route.kind === "agents") return 1;
@@ -179,12 +210,13 @@ function levelOf(route: Route): PageState["level"] {
   return route.shown === undefined ? 2 : 3;
 }
 
-/** The route one level up from `route`: from the agent's view to the conversation, from a thread to its list, from a list to agents and rooms. */
+/** The route one level up from `route`: from the agent's view to the conversation, from a file of an agent's home to its page, from a thread or the page to its list, from a list to agents and rooms. */
 function upFrom(route: Route): Route {
   if (route.kind !== "list") return { kind: "agents" };
   const { shown } = route;
   if (shown === undefined) return { kind: "agents" };
   if (shown.kind === "thread" && shown.view) return { ...route, shown: { ...shown, view: false } };
+  if (shown.kind === "file") return { ...route, shown: { kind: "page" } };
   return { ...route, shown: undefined };
 }
 
@@ -211,11 +243,12 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
   useReloadForRelease(model.gateway);
   const [page, setPage] = useState<PageState>(() => {
     const route = routeOf(location.pathname);
-    return {
-      level: levelOf(route),
-      tab: route.kind === "list" ? route.tab : "threads",
-      file: fileOf(route),
-      filter: "everything",
+    const start: PageState = {
+      level: 1,
+      tab: "chat",
+      onPage: false,
+      file: undefined,
+      opened: { agent: undefined, folders: new Set() },
       inFull: { toolCalls: false, thinking: false },
       later: false,
       work: undefined,
@@ -223,6 +256,7 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
       naming: false,
       archived: undefined,
     };
+    return { ...start, ...frontOf(route, start) };
   });
   const [mode, setMode] = useState<Mode>(() => kept("mode", matchMedia("(prefers-color-scheme: light)").matches ? "day" : "dusk", ["dusk", "day"]));
   // The two lists folded into a strip of sigils, and brought back over the thread for a moment.
@@ -262,6 +296,11 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
       else state.selectReadOnly(list.id);
     }
     const { item } = state.model().open;
+    // The agent's page, and a file of its home, stand where a thread would while none is open.
+    if (shown?.kind === "page" || shown?.kind === "file") {
+      if (item !== undefined) state.closeItem();
+      return true;
+    }
     if (shown?.kind === "session") {
       if (item?.kind !== "session" || item.session !== shown.session) state.openSession(shown.session);
       return true;
@@ -300,7 +339,7 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
       const list = placeOfThread(state.model(), route.thread);
       if (list === undefined && patient) return;
       if (list === undefined) setPage((before) => ({ ...before, level: 1 }));
-      else if (!settle({ kind: "list", list, tab: "threads", shown: { kind: "thread", thread: route.thread, view: false } }, !patient)) return;
+      else if (!settle({ kind: "list", list, tab: "chat", shown: { kind: "thread", thread: route.thread, view: false } }, !patient)) return;
     } else if (route.kind === "list" && !settle(route, !patient)) {
       return;
     }
@@ -312,7 +351,7 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
     const popped = (): void => {
       const route = routeOf(location.pathname);
       setPending({ route, patient: true });
-      setPage((before) => ({ ...before, level: levelOf(route), tab: route.kind === "list" ? route.tab : before.tab, file: fileOf(route) }));
+      setPage((before) => ({ ...before, ...frontOf(route, before) }));
     };
     addEventListener("popstate", popped);
     return () => removeEventListener("popstate", popped);
@@ -341,8 +380,15 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
   const tapped = useRef<(thread: string) => void>(() => undefined);
   useEffect(() => onTapped((thread) => tapped.current(thread)), []);
 
+  // A thread opens its agent's list on the tab that holds it.
+  const holding = tabHolding(model);
+  const opening = JSON.stringify(model.open.item?.kind === "thread" ? model.open.item.thread : model.open.item?.kind === "session" ? model.open.item.session : null);
+  useEffect(() => {
+    if (holding !== undefined) setPage((before) => (before.tab === holding ? before : { ...before, tab: holding }));
+  }, [opening]);
+
   // The person is looking at a thread while it is in front and the page is on show.
-  const looking = visible && page.level === 3 && page.file === undefined && model.open.item?.kind === "thread";
+  const looking = visible && page.level === 3 && page.file === undefined && !page.onPage && model.open.item?.kind === "thread";
   useEffect(() => state.look(looking), [state, looking]);
 
   useLayoutEffect(() => {
@@ -356,9 +402,7 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
     setPending({ route, patient: false });
     setPage((before) => ({
       ...before,
-      level: levelOf(route),
-      tab: route.kind === "list" ? route.tab : before.tab,
-      file: fileOf(route),
+      ...frontOf(route, before),
       later: false,
       work: undefined,
       menu: false,
@@ -372,7 +416,7 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
     const address = addressOf(up);
     if ((history.state as { up?: string } | null)?.up === address) return history.back();
     setPending({ route: up, patient: false });
-    setPage((before) => ({ ...before, level: levelOf(up), file: fileOf(up), later: false, menu: false, naming: false }));
+    setPage((before) => ({ ...before, ...frontOf(up, before), later: false, menu: false, naming: false }));
   };
 
   const list = model.open.list;
@@ -380,7 +424,7 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
   const startThread = (): void => {
     const place = page.level === 3 && item?.kind === "thread" ? item.place : list;
     if (place === undefined || place.kind === "read-only") return;
-    go({ kind: "list", list: list ?? place, tab: "threads", shown: { kind: "thread", thread: undefined, view: false } });
+    go({ kind: "list", list: list ?? place, tab: "chat", shown: { kind: "thread", thread: undefined, view: false } });
     state.startThread(place);
   };
 
@@ -392,14 +436,21 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
   useEffect(() => {
     document.title = windowTitle(workingAgents, agents.unread);
   }, [workingAgents, agents.unread]);
-  const listView = page.level >= 2 ? listLevel(model, { ...at, filter: page.filter }) : undefined;
+  const listView = page.level >= 2 ? listLevel(model, { ...at, tab: page.tab }) : undefined;
   const file = page.level === 3 && list?.kind === "agent" ? page.file : undefined;
-  const front = page.level === 3 && file === undefined;
+  // An agent's page stands where a thread would while none is in front.
+  const onPage = page.level >= 2 && list?.kind === "agent" && file === undefined && (page.level === 2 || page.onPage || item === undefined);
+  const front = page.level === 3 && file === undefined && !onPage;
   const thread = front ? threadLevel(model, { ...at, inFull: page.inFull, outputLines: OUTPUT_LINES }) : undefined;
   const session = front && item?.kind === "session" ? sessionLevel(model, { ...at, inFull: { toolCalls: true, thinking: true } }) : undefined;
   const running = useMemo(() => runningOf(model), [model]);
   const listAgent = list?.kind === "agent" ? list.id : undefined;
   const retryLine = stale && nextAt !== undefined && nextAt > now ? nextTry(Math.ceil((nextAt - now) / 1000)) : undefined;
+
+  const shownFile = file === undefined ? undefined : fileLevel(model, file, SELF);
+  // The folders open in the tree of the home of the agent whose list is open, which another agent's list leaves shut.
+  const folders = page.opened.agent === listAgent ? page.opened.folders : new Set<string>();
+  const shownPage = onPage ? pageLevel(model, { ...at, opened: folders }) : undefined;
 
   const turnable = thread?.turnable === true;
   const turned = front && item?.kind === "thread" && item.side !== undefined;
@@ -420,7 +471,7 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
   const shownAbove = new Set([...(railShown ? railNotes : []), ...(listShown ? listRaw : [])]);
   const unsaid = (notes: string[], said: ReadonlySet<string>): string[] => notes.filter((note) => !said.has(note));
   const listNotes = unsaid(listRaw, railShown ? new Set(railNotes) : new Set());
-  const threadNotes = unsaid(everywhere(thread?.notes ?? session?.notes ?? []), shownAbove);
+  const threadNotes = unsaid(everywhere(thread?.notes ?? session?.notes ?? shownPage?.notes ?? []), shownAbove);
   const watchNotes = unsaid(everywhere(watching?.notes ?? []), new Set([...shownAbove, ...threadNotes]));
 
   /** Put the next agent's view of the thread beside it, or over it on a phone, and after the last take it away. */
@@ -533,7 +584,7 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
     const { kind } = row;
     // A list chosen from the strip stays over the thread, for a thread to be chosen from it.
     setPeek(fold && opensList(kind));
-    if (opensList(kind)) go({ kind: "list", list: { kind, id: row.id }, tab: "threads", shown: undefined });
+    if (opensList(kind)) go({ kind: "list", list: { kind, id: row.id }, tab: "chat", shown: undefined });
     else if (list !== undefined && row.kind === "session") go({ kind: "list", list, tab: page.tab, shown: { kind: "session", session: row.id } });
     else if (list !== undefined) {
       go({ kind: "list", list, tab: page.tab, shown: { kind: "thread", thread: row.id, view: false } });
@@ -555,13 +606,42 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
     [state, dmAgent],
   );
 
+  const openPage = (): void => {
+    if (list?.kind === "agent") go({ kind: "list", list, tab: page.tab, shown: { kind: "page" } });
+  };
   const openFile = (path: string): void => {
-    if (list?.kind === "agent") go({ kind: "list", list, tab: "home", shown: { kind: "file", path } });
+    if (list?.kind === "agent") go({ kind: "list", list, tab: page.tab, shown: { kind: "file", path } });
+  };
+  /** Open a folder of the agent's home in place, reading what is in it, or shut it. */
+  const toggleFolder = (path: string): void => {
+    const next = new Set(folders);
+    if (!next.delete(path)) {
+      next.add(path);
+      state.readFolder(path);
+    }
+    setPage((before) => ({ ...before, opened: { agent: listAgent, folders: next } }));
   };
 
   let pane;
-  if (file !== undefined && listView !== undefined) {
-    pane = <FileView key={`${listAgent ?? ""}\n${file}`} state={state} name={listView.name} look={listView.look} path={file} back={back} />;
+  if (shownFile !== undefined) {
+    pane = <FileView key={`${listAgent ?? ""}\n${shownFile.path}`} state={state} file={shownFile} reached={model.agent?.state === "up"} back={back} />;
+  } else if (shownPage !== undefined) {
+    pane = (
+      <PageView
+        key={listAgent}
+        state={state}
+        page={{ ...shownPage, notes: threadNotes }}
+        opened={folders}
+        startable={listView?.startable === true}
+        small={layout === "phone"}
+        reached={model.agent?.state === "up"}
+        retry={retryLine}
+        back={back}
+        start={startThread}
+        toggle={toggleFolder}
+        choose={openFile}
+      />
+    );
   } else if (front && item?.kind === "thread" && thread !== undefined) {
     const draftKey = `${JSON.stringify(item.place)}\n${item.thread ?? "new"}`;
     pane = (
@@ -611,11 +691,7 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
     pane = <SessionView session={{ ...session, notes: threadNotes }} back={back} retry={retryLine} />;
   } else {
     // Nothing is open in the thread's place, whatever the state still holds open behind the list in front.
-    const nothing = nothingOpen({ ...model, open: { ...model.open, item: undefined } }, NEW_THREAD_KEY);
-    // Beside a running agent's home, what stands there is a file to pick.
-    const file = nothing !== undefined && nothing.start !== "none" && page.tab === "home" && listView?.ofAgent === true;
-    const words = file ? PICK_FILE : (nothing?.said ?? "");
-    pane = <Empty sigil={listView?.ofAgent === true ? listView.look?.sigil : undefined} words={words} />;
+    pane = <Empty words={nothingOpen({ open: { list: page.level === 1 ? undefined : list, item: undefined } }, NEW_THREAD_KEY) ?? ""} />;
   }
 
   return (
@@ -678,27 +754,19 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
               <ListView
                 list={{ ...listView, notes: listNotes }}
                 tab={page.tab}
-                tabs={{
-                  triggers: <TriggerCards key={listAgent} state={state} name={listView.name} triggers={model.triggers} none={listView.noTriggers} now={now} />,
-                  home: <HomeTree key={listAgent} state={state} name={listView.name} current={file} choose={openFile} />,
-                }}
-                filter={page.filter}
                 archivedOpen={list !== undefined && page.archived === placeKey(list)}
                 current={front ? (item?.kind === "thread" ? item.thread : item?.session) : undefined}
                 retry={retryLine}
                 back={back}
                 start={startThread}
                 open={choose}
-                setFilter={(filter) => setPage((before) => ({ ...before, filter }))}
+                page={openPage}
                 toggleArchived={() => {
                   if (list === undefined) return;
                   const key = placeKey(list);
                   setPage((before) => ({ ...before, archived: before.archived === key ? undefined : key }));
                 }}
-                setTab={(tab) =>
-                  // A file stays open while its home is on show.
-                  setPage((before) => ({ ...before, tab, ...(tab === "home" || before.file === undefined ? {} : { file: undefined, level: 2 }) }))
-                }
+                setTab={(tab) => setPage((before) => ({ ...before, tab }))}
               />
             )}
           </section>

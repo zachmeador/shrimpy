@@ -90,6 +90,9 @@ function start(t: TestContext, model: Model, size: { columns?: number; rows?: nu
 /** What was posted, of everything the drawing asked of the state. */
 const sent = (state: FakeState): string[] => state.calls.filter((call) => call.startsWith("send "));
 
+/** What the drawing asked of the state, but for reading an agent's home for its page. */
+const asked = (state: FakeState): string[] => state.calls.filter((call) => !/^(page|folder|file)\b/.test(call));
+
 /** Whether a line of the level furthest right holds `text` and nothing else. */
 const shows = (lines: string[], text: string): boolean => lines.some((line) => line.split("│").at(-1)?.trim() === text);
 
@@ -139,7 +142,7 @@ test("Right and Enter open what is chosen, a level at a time, and Left goes back
   assert.equal(screen()?.kind, "threads");
   terminal.type(DOWN);
   terminal.type(ENTER);
-  assert.deepEqual(state.calls.at(-1), "open th_1", "enter opens a row as right does, here the second");
+  assert.deepEqual(asked(state).at(-1), "open th_1", "enter opens a row as right does, here the second");
   state.show(inThread("th_1"));
   assert.equal(screen()?.kind, "thread");
 
@@ -153,7 +156,7 @@ test("Right and Enter open what is chosen, a level at a time, and Left goes back
   terminal.type(RIGHT);
   assert.equal(screen()?.kind, "threads", "the list opened is the one that was open, with what was open in it");
   terminal.type(RIGHT);
-  assert.equal(state.calls.at(-1), "open th_1", "and the row chosen is the one that was open");
+  assert.equal(asked(state).at(-1), "open th_1", "and the row chosen is the one that was open");
 });
 
 test("Left moves through what is typed in a thread before it goes back, and what was typed stays with its thread", (t) => {
@@ -198,16 +201,16 @@ test("Esc goes back from a thread whatever is typed, and what was typed is there
   assert.deepEqual(sent(state), [], "and nothing was sent");
 });
 
-test("Tab is the other view of where you are: everything or yours on an agent's list, and in a thread each agent's view in turn", (t) => {
+test("Tab is the other view of where you are: chat or observe on an agent's list, and in a thread each agent's view in turn", (t) => {
   const rooms = { ch_2: aRoom("ops", ["scout", "mechanic"], [aThread("th_9", { preview: "the bench", channelId: "ch_2" })]) };
   const elsewhere = aSession("th_9", { place: { kind: "room", room: "ops", thread: { name: "the bench" } } });
   const { terminal, state, lines, screen } = start(t, scoutsList({ rooms, sessions: [elsewhere] }), { columns: 100 });
   const drawn = (): string => lines().join("\n");
-  assert.ok(drawn().includes("the bench"), "everything the agent takes part in");
+  assert.ok(!drawn().includes("the bench") && drawn().includes("Rotate the logs"), "the person's threads with the agent");
   terminal.type(TAB);
-  assert.ok(!drawn().includes("the bench") && drawn().includes("Rotate the logs"), "only the person's threads with it");
+  assert.ok(drawn().includes("the bench") && !drawn().includes("Rotate the logs"), "everything else it takes part in");
   terminal.type(TAB);
-  assert.ok(drawn().includes("the bench"), "and everything again");
+  assert.ok(!drawn().includes("the bench"), "and the person's again");
 
   // In a thread of the room, Tab puts each agent's view of the session behind it on show in turn, and the conversation back.
   const room = { kind: "room" as const, id: "ch_2" };
@@ -809,7 +812,35 @@ test("an image a session was shown, or a tool gave back, is named by its media t
   assert.ok(drawn().includes("image/png") && drawn().includes("image/jpeg"), drawn());
 });
 
-test("a trigger's own session is on the agent's list, which opens on it while it works, and takes no input", (t) => {
+test("an agent's name opens its page, whose home the arrows walk, and Left goes back to the page, then to the list", (t) => {
+  const entries = (...names: string[]) => names.map((name) => ({ name, kind: name.includes(".") ? ("file" as const) : ("folder" as const), size: name.includes(".") ? 40 : null }));
+  const top = { value: entries("SOUL.md", "agent.json", "context", "state", "triggers") };
+  const home = (parts: Partial<Model["home"]> = {}): Model => scoutsList({ home: { folders: { "": top }, files: {}, ...parts } });
+  const { terminal, state, drawn, screen } = start(t, home());
+  terminal.type(UP);
+  terminal.type(RIGHT);
+  assert.equal(screen()?.kind, "page", "the name is the list's first row, and opens the page");
+  assert.ok(asked(state).includes("close"), "with nothing open in the list");
+  assert.ok(drawn().includes("SOUL.md") && drawn().includes("context/") && !drawn().includes("agent.json") && !drawn().includes("state/"), "the home as the page lists it");
+
+  terminal.type(DOWN);
+  terminal.type(RIGHT);
+  assert.equal(state.calls.at(-1), "folder context", "a folder opens in place, and is read");
+  state.show(home({ folders: { "": top, context: { value: entries("backups.md") } } }));
+  terminal.type(DOWN);
+  terminal.type(RIGHT);
+  assert.ok(state.calls.includes("file context/backups.md"), "a file opens where the page was");
+  state.show(home({ folders: { "": top, context: { value: entries("backups.md") } }, files: { "context/backups.md": { value: { kind: "text", text: "Snapshots nightly." } } } }));
+  assert.equal(screen()?.kind, "file");
+  assert.ok(drawn().includes("Snapshots nightly."));
+
+  terminal.type(LEFT);
+  assert.equal(screen()?.kind, "page", "left goes back to the page");
+  terminal.type(LEFT);
+  assert.equal(screen()?.kind, "threads", "and from it to the list");
+});
+
+test("a trigger's own session is in what an agent's list observes, and takes no input", (t) => {
   const nightly = aSession("trigger:nightly", { place: { kind: "trigger", trigger: "nightly" }, working: true });
   const disk = aThread("th_a", { preview: "check the disk", updatedAt: at(14, 5) });
   const list = aModel({
@@ -820,10 +851,12 @@ test("a trigger's own session is on the agent's list, which opens on it while it
     sessions: [nightly],
   });
   const { terminal, state, drawn, screen } = start(t, list, { columns: 100 });
-  assert.ok(drawn().includes("check the disk") && drawn().includes("nightly"), "the trigger's session is a row beside the person's thread");
+  assert.ok(drawn().includes("check the disk") && !drawn().includes("trigger nightly"), "the person's thread with the agent");
+  terminal.type(TAB);
+  assert.ok(!drawn().includes("check the disk") && drawn().includes("trigger nightly"), "and the trigger's session in what it observes");
 
   terminal.type(ENTER);
-  assert.deepEqual(state.calls, ["watch trigger:nightly"], "the row that is working was the one chosen");
+  assert.deepEqual(asked(state), ["watch trigger:nightly"], "the session was the one chosen");
   state.show(onSession("scout", nightly, workingView([userItem("It is 02:00."), toolItem("bash", { args: { command: "df -h" } })], { kind: "tool", name: "bash" })));
   assert.match(drawn(), /df -h/);
   terminal.type("hello");
@@ -832,10 +865,10 @@ test("a trigger's own session is on the agent's list, which opens on it while it
   assert.doesNotMatch(drawn(), /\/stop/, "and so no way to stop the work is offered");
   terminal.type(LEFT);
   assert.equal(screen()?.kind, "threads", "left went back");
-  assert.deepEqual(state.calls, ["watch trigger:nightly"], "and nothing was sent");
+  assert.deepEqual(asked(state), ["watch trigger:nightly"], "and nothing was sent");
   state.show(list);
   terminal.type(ENTER);
-  assert.equal(state.calls.at(-1), "watch trigger:nightly", "coming back to the list is not opening it again: the choice stayed where it was");
+  assert.equal(asked(state).at(-1), "watch trigger:nightly", "coming back to the list is not opening it again: the choice stayed where it was");
 });
 
 test("/devices lists the person's devices, and /devices take back ends a device's link", { timeout: 30_000 }, async (t) => {
@@ -968,15 +1001,12 @@ test("the first screen marks a room the person only reads, and an agent's list h
   terminal.type(DOWN);
   terminal.type(RIGHT);
   await rig.until(agentListOpen(), "scout's list");
-  await seen("the backup finished");
-  assert.ok(rowOf("check the disk") !== "" && !rowOf("check the disk").includes("mechanic"), "its thread with the person");
-  assert.ok(rowOf("the backup finished").includes("mechanic"), "its DM with mechanic, which says who it is with");
-
-  terminal.type(TAB);
-  await until(() => rowOf("the backup finished") === "", "the list to narrow to the person's threads");
-  assert.ok(rowOf("check the disk") !== "");
+  await seen("check the disk");
+  assert.ok(!rowOf("check the disk").includes("mechanic") && rowOf("the backup finished") === "", "its thread with the person, in chat");
   terminal.type(TAB);
   await seen("the backup finished");
+  assert.ok(rowOf("the backup finished").includes("mechanic"), "its DM with mechanic, in what it observes, which says who it is with");
+  assert.equal(rowOf("check the disk"), "", "and not the person's thread");
 
   // A thread of a room the person is in takes what they type, from here as from the room, and Left comes back here.
   rig.state.openThread(home.thread.id);
@@ -993,6 +1023,7 @@ test("the first screen marks a room the person only reads, and an agent's list h
   terminal.type(UP);
   terminal.type(RIGHT);
   await rig.until(agentListOpen(mechanicMember.id), "mechanic's list");
+  terminal.type(TAB);
   await seen("the backup finished");
   assert.ok(rowOf("the backup finished").includes("scout"));
 });
@@ -1002,6 +1033,7 @@ test("a thread of a DM between two agents shows what both said, and takes no inp
   terminal.type(DOWN);
   terminal.type(RIGHT);
   await rig.until(agentListOpen(), "scout's list");
+  terminal.type(TAB);
   await seen("the backup finished");
 
   rig.state.openThread(dm.thread.id);

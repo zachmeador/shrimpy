@@ -1,14 +1,14 @@
 /*
- * The second level: everything one agent takes part in, your threads with it
- * apart from the rest, or the threads of a room or of a channel only read.
+ * The second level: an agent's list, the threads of your DM with it or
+ * everything else it takes part in, as its tabs say, or the threads of a room
+ * or of a channel only read.
  */
 import type { ComponentChildren } from "preact";
-import type { ListFilter, ListLevel, Row } from "../view/index.ts";
-import { FILTERS, homeNotRunning, LABELS, thenStart } from "../view/index.ts";
+import type { AgentTab, ListLevel, Row } from "../view/index.ts";
+import { AGENT_TABS, LABELS, thenStart } from "../view/index.ts";
 import { Fleck, Glyph, Lamp, Sigil } from "./marks.tsx";
 import { Notes } from "./thread.tsx";
-import type { Tab } from "./address.ts";
-import { CONTROLS, NEW_THREAD, NEW_THREAD_KEY } from "./words.ts";
+import { CONTROLS, NEW_THREAD, NEW_THREAD_KEY, pageOf } from "./words.ts";
 
 function ThreadRow({ row, current, open }: { row: Row; current: boolean; open: () => void }) {
   return (
@@ -21,7 +21,7 @@ function ThreadRow({ row, current, open }: { row: Row; current: boolean; open: (
           </span>
         ))}
       </span>
-      <span class="t-sub">{row.detail}</span>
+      {row.detail !== "" && <span class="t-sub">{row.detail}</span>}
       <span class="t-end">
         {row.unread > 0 && <span class="count">{row.unread}</span>}
         {row.unread > 0 && <Fleck />}
@@ -48,10 +48,8 @@ function Archived({ archived, open, toggle, rows }: { archived: ListLevel["archi
 
 interface ListProps {
   list: ListLevel;
-  /** An agent's tab on show, and what its triggers and home tabs hold. */
-  tab: Tab;
-  tabs: { triggers: ComponentChildren; home: ComponentChildren };
-  filter: ListFilter;
+  /** An agent's tab on show. */
+  tab: AgentTab;
   /** The archived threads are open in place at the foot of the list. */
   archivedOpen: boolean;
   /** The row that is open, by what opens it. */
@@ -60,80 +58,56 @@ interface ListProps {
   back: () => void;
   start: () => void;
   open: (row: Row) => void;
-  setFilter: (filter: ListFilter) => void;
-  setTab: (tab: Tab) => void;
+  /** Open the agent's page, from its name or sigil. */
+  page: () => void;
+  setTab: (tab: AgentTab) => void;
   toggleArchived: () => void;
 }
-
-const TABS: readonly Tab[] = ["threads", "triggers", "home"];
-const SHOWS: readonly ListFilter[] = ["everything", "yours"];
 
 export function ListView(props: ListProps) {
   const { list } = props;
   const rows = (each: Row[]) =>
     each.map((row) => <ThreadRow key={row.id} row={row} current={row.id === props.current} open={() => props.open(row)} />);
-  const yours = list.rows.filter((row) => row.yours);
-  const elsewhere = list.rows.filter((row) => !row.yours);
   const pigment = list.look === undefined ? "" : ` pg-${list.look.pigment}`;
-  const archived = <Archived archived={list.archived} open={props.archivedOpen} toggle={props.toggleArchived} rows={rows} />;
-  let body: ComponentChildren;
-  if (list.ofAgent && props.tab === "home" && list.off) body = <p class="note stepbox">{homeNotRunning(list.name)}</p>;
-  else if (list.ofAgent && props.tab !== "threads") body = props.tabs[props.tab];
-  else if (list.ofAgent) {
-    body = (
-      <>
-        <div class="filterbar">
-          <div class="seg stepbox" role="group" aria-label={CONTROLS.listShows}>
-            {SHOWS.map((each) => (
-              <button key={each} type="button" aria-pressed={props.filter === each} onClick={() => props.setFilter(each)}>
-                {FILTERS[each]}
-              </button>
-            ))}
-          </div>
-        </div>
-        {yours.length > 0 && <h2 class="label">{LABELS.yours}</h2>}
-        {rows(yours)}
-        {list.empty !== undefined && <p class="hint">{list.startable ? thenStart(list.empty, NEW_THREAD_KEY) : list.empty}</p>}
-        {elsewhere.length > 0 && <h2 class="label">{LABELS.elsewhere}</h2>}
-        {rows(elsewhere)}
-        {archived}
-      </>
-    );
-  } else {
-    body = (
-      <>
-        <h2 class="label">{LABELS.threads}</h2>
-        {rows(list.rows)}
-        {archived}
-      </>
-    );
-  }
+  const titles = (
+    <div class="titles">
+      <h1>
+        {list.name}
+        {list.tag !== undefined && <span class="tag">{list.tag}</span>}
+      </h1>
+      <p class={`sub${list.working ? " busy" : ""}`}>{list.about}</p>
+    </div>
+  );
+  const empty = list.empty === undefined ? undefined : list.ofAgent && list.startable && props.tab === "chat" ? thenStart(list.empty, NEW_THREAD_KEY) : list.empty;
   return (
     <>
       <header class={`head${pigment}`}>
         <button class="ib only-narrow" type="button" aria-label={CONTROLS.backToAgents} onClick={props.back}>
           <Glyph name="back" />
         </button>
-        {list.ofAgent ? <Sigil look={list.look} size="s36" off={list.off} /> : <span class="hash big">#</span>}
-        <div class="titles">
-          <h1>
-            {list.name}
-            {list.tag !== undefined && <span class="tag">{list.tag}</span>}
-          </h1>
-          <p class={`sub${list.working ? " busy" : ""}`}>{list.about}</p>
-        </div>
+        {list.ofAgent ? (
+          // The agent's name and sigil open its page, which is how a phone gets to it.
+          <button class="whois" type="button" title={pageOf(list.name)} aria-label={pageOf(list.name)} onClick={props.page}>
+            <Sigil look={list.look} size="s36" off={list.off} />
+            {titles}
+          </button>
+        ) : (
+          <>
+            <span class="hash big">#</span>
+            {titles}
+          </>
+        )}
         {list.startable && (
           <button class="ib" type="button" title={NEW_THREAD} aria-label={NEW_THREAD} onClick={props.start}>
             <Glyph name="plus" />
           </button>
         )}
       </header>
-      {list.facts !== undefined && <p class="facts">{list.facts}</p>}
       {list.ofAgent && (
         <nav class={`tabs${pigment}`} role="tablist">
-          {TABS.map((each) => (
+          {AGENT_TABS.map((each) => (
             <button key={each} type="button" role="tab" aria-selected={props.tab === each} onClick={() => props.setTab(each)}>
-              {LABELS[each]}
+              {each}
             </button>
           ))}
         </nav>
@@ -141,7 +115,10 @@ export function ListView(props: ListProps) {
       <div class="body">
         <div class="scroll">
           <Notes notes={list.notes} retry={props.retry} />
-          {body}
+          {!list.ofAgent && <h2 class="label">{LABELS.threads}</h2>}
+          {rows(list.rows)}
+          {empty !== undefined && <p class="hint">{empty}</p>}
+          <Archived archived={list.archived} open={props.archivedOpen} toggle={props.toggleArchived} rows={rows} />
         </div>
       </div>
     </>

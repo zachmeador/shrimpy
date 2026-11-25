@@ -1,4 +1,4 @@
-import type { AgentModel, HomeEntry, HomeFile, TriggerDetail } from "../../contracts/agent/index.ts";
+import type { AgentModel } from "../../contracts/agent/index.ts";
 import type { Message } from "../../contracts/chat/index.ts";
 import { type Answer, valueOf } from "../../contracts/gateway/index.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
@@ -14,11 +14,14 @@ import {
   gatewayAhead,
   type AgentRead,
   type HomeLookup,
+  type HomeRead,
   type Model,
+  NOTHING_READ,
   type Notice,
   openThreadOf,
   type Place,
   sessionsOpen,
+  triggerFile,
 } from "./model.ts";
 import { createMoves } from "./moves.ts";
 import { createRenaming } from "./renaming.ts";
@@ -76,6 +79,8 @@ export interface ClientState {
    * channel the person is not in is only read.
    */
   openThread(threadId: string): void;
+  /** Close what is open in the open list, so that nothing is: on an agent's list, its page stands in the thread's place. */
+  closeItem(): void;
   /**
    * Start a thread in `place`, the person's DM with an agent or a room they are
    * in, or with the agent or in the room whose list is open when none is given.
@@ -166,15 +171,20 @@ export interface ClientState {
    */
   showModel(): void;
   /**
-   * The entries of a folder of the home of the agent whose list is open, by
-   * the folder's path there, "" for the home itself, or why they could not be
-   * read. Nothing in the home is changed.
+   * Read the entries of a folder of the home of the agent whose list is open,
+   * by the folder's path there, "" for the home itself, into the model's
+   * `home`, with why they could not be read where they couldn't. Nothing in
+   * the home is changed.
    */
-  folder(path: string): Promise<AgentRead<HomeEntry[]>>;
-  /** A file of the home of the agent whose list is open, by its path there, as text or an image, or why it could not be read. */
-  file(path: string): Promise<AgentRead<HomeFile>>;
-  /** One trigger of the agent whose list is open, by name, with what defines it, or why it could not be read. */
-  trigger(name: string): Promise<AgentRead<TriggerDetail>>;
+  readFolder(path: string): void;
+  /** Read a file of the home of the agent whose list is open, by its path there, as text or an image, into the model's `home` as `readFolder` does. */
+  readFile(path: string): void;
+  /**
+   * Read again what the page of the agent whose list is open shows of its
+   * home: the home itself, the folders in `folders`, and the file of each
+   * trigger the agent has said it has.
+   */
+  readPage(folders: Iterable<string>): void;
 
   /** The work that goes on if the client is left now, if there is any. */
   farewell(): Farewell | undefined;
@@ -204,6 +214,7 @@ const startingModel = (homes: HomeLookup | undefined): Model => ({
   sessions: undefined,
   triggers: undefined,
   defaultModel: undefined,
+  home: NOTHING_READ,
   looks: {},
   workingSessions: {},
   refusal: undefined,
@@ -308,6 +319,30 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
   }
 
   /**
+   * Ask the agent whose list is open for a part of its home, and keep what it
+   * says in the model's `home` with `keep`, while that agent's list is still
+   * the one open.
+   */
+  function readHome<T>(ask: (calls: AgentCalls, signal: AbortSignal) => Promise<Answer<T>>, keep: (home: HomeRead, read: AgentRead<T>) => HomeRead): void {
+    const agent = agentOfList(store.model().open);
+    void askAgent(ask).then((read) => {
+      if (agentOfList(store.model().open) !== agent) return;
+      store.set({ home: keep(store.model().home, read) });
+    });
+  }
+
+  const readFolder = (path: string): void =>
+    readHome(
+      (calls, signal) => calls.folder(path, signal),
+      (home, read) => ({ ...home, folders: { ...home.folders, [path]: read } }),
+    );
+  const readFile = (path: string): void =>
+    readHome(
+      (calls, signal) => calls.file(path, signal),
+      (home, read) => ({ ...home, files: { ...home.files, [path]: read } }),
+    );
+
+  /**
    * What follows from the model as it now stands: a thread that can't be had
    * says so, once each time it is opened; the thread the person is looking at
    * is marked read; the person is taken to the only agent there is; each agent
@@ -335,6 +370,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
     selectRoom: (id) => moves.selectChannel({ kind: "room", id }),
     selectReadOnly: (id) => moves.selectChannel({ kind: "read-only", id }),
     openThread: (threadId) => moves.open(threadId),
+    closeItem: () => moves.close(),
     startThread: (place) => sending.startThread(place),
     turnOver: () => moves.turnOver(),
     showView: (agent) => moves.showView(agent),
@@ -407,9 +443,12 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
     takeBack: (written) => asking.takeBack(written),
     models: () => asking.models(),
     showModel: () => asking.showModel(),
-    folder: (path) => askAgent((calls, signal) => calls.folder(path, signal)),
-    file: (path) => askAgent((calls, signal) => calls.file(path, signal)),
-    trigger: (name) => askAgent((calls, signal) => calls.trigger(name, signal)),
+    readFolder,
+    readFile,
+    readPage(folders) {
+      for (const path of new Set(["", ...folders])) readFolder(path);
+      for (const trigger of store.model().triggers ?? []) readFile(triggerFile(trigger.name));
+    },
     farewell: () => farewellOf(store.model()),
     async close() {
       if (closed) return;

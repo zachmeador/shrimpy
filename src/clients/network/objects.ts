@@ -11,7 +11,6 @@ import {
   type SessionPage,
   type SessionStatus,
   type SessionSummary,
-  type TriggerDetail,
   type TriggerSummary,
 } from "../../contracts/agent/index.ts";
 import { Channel, Chat, type Member, type Message, Thread } from "../../contracts/chat/index.ts";
@@ -213,8 +212,6 @@ export interface AgentCalls {
   folder(path: string, signal?: AbortSignal): Promise<Answer<HomeEntry[]>>;
   /** A file of its home, by its path there, as text or an image. */
   file(path: string, signal?: AbortSignal): Promise<Answer<HomeFile>>;
-  /** One of its triggers, by name, with what defines it and its latest occurrences. */
-  trigger(name: string, signal?: AbortSignal): Promise<Answer<TriggerDetail>>;
 }
 
 export function holdAgent(link: GatewayLink, id: string, changed: () => void): Holding<AgentShown, AgentCalls> {
@@ -234,7 +231,6 @@ export function holdAgent(link: GatewayLink, id: string, changed: () => void): H
       models: (signal) => held.models(contextOf(signal)),
       folder: (path, signal) => held.folder({ path }, contextOf(signal)),
       file: (path, signal) => held.file({ path }, contextOf(signal)),
-      trigger: (name, signal) => held.trigger({ name }, contextOf(signal)),
     },
     changed,
   );

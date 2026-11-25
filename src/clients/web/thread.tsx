@@ -37,11 +37,26 @@ export function Notes({ notes, retry }: { notes: string[]; retry: string | undef
   );
 }
 
-/** The head of the third level: the way back on a narrow page, what is open, and what can be done with it. */
-export function Head({ back, children, acts }: { back: () => void; children: ComponentChildren; acts?: ComponentChildren }) {
+/**
+ * The head of the third level: the way back, on a narrow page or `always`, and
+ * what it says it goes back to, what is open, and what can be done with it.
+ */
+export function Head({
+  back,
+  backLabel = CONTROLS.back,
+  always = false,
+  children,
+  acts,
+}: {
+  back: () => void;
+  backLabel?: string;
+  always?: boolean;
+  children: ComponentChildren;
+  acts?: ComponentChildren;
+}) {
   return (
     <header class="head thead">
-      <button class="ib only-narrow" type="button" aria-label={CONTROLS.back} onClick={back}>
+      <button class={always ? "ib" : "ib only-narrow"} type="button" aria-label={backLabel} onClick={back}>
         <Glyph name="back" />
       </button>
       {children}
@@ -453,11 +468,11 @@ export function SessionView({ session, back, retry }: { session: SessionLevel; b
   );
 }
 
-/** The thread's pane with nothing open in it: a shape pressed into it, and what to do. */
-export function Empty({ sigil, words }: { sigil: readonly string[] | undefined; words: string }) {
+/** The thread's pane with nothing open in it and no agent's page to show: the wordmark pressed into it, and what to do. */
+export function Empty({ words }: { words: string }) {
   return (
     <div class="empty">
-      <Relief sigil={sigil} />
+      <Relief sigil={undefined} />
       <p>{words}</p>
     </div>
   );
