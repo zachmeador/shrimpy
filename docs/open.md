@@ -270,6 +270,7 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Not built**
 
+- An agent page and two views of an agent's threads, which the owner asked for on 2026-11-24, for both clients. The views are chat and observe, as tabs, in place of the "everything" and "yours" switch. The page stands where a thread would while none is open, with how the agent stands, its machine, its model and its version, so the list's header loses its line of facts. Perhaps the home tab moves there too, as a viewer of the agent's home. Mockups come first. Showing the machine takes the next versions of the hello and the roster.
 - `/devices invite` in the terminal, which lets another machine of the owner's in.
 - What is left of setting up through `shrimpy`: the terminal's first screen saying when a program is down and being started again, `/` commands for signing in again, and `shrimpy --help` led by `shrimpy` alone, with the rest under "for scripts and agents".
 - Color in what the commands print, as the [terminal mockup](terminal-mockup.html)'s sheet on the commands has it: a name or a command bold, a state in a color and a failure in red, on a terminal that shows color. The plain lines and tables agents read stay.
