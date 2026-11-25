@@ -60,6 +60,9 @@ function stored<T>(row: EventRow, column: string, value: T | null): T {
   return value;
 }
 
+/** The members a post or an edit mentioned when it was written. */
+const saidMentions = (row: EventRow): string[] => JSON.parse(stored(row, "mentions", row.said_mentions)) as string[];
+
 function toEvent(row: EventRow): ChatEvent {
   const base = {
     id: row.id,
@@ -75,18 +78,15 @@ function toEvent(row: EventRow): ChatEvent {
       mentions: JSON.parse(row.mentions) as string[],
       deleted: row.deleted === 1,
       preview: row.preview,
+      attachments: [],
     },
     receipts: parseReceipts(row.receipts),
   };
   switch (row.kind) {
     case "posted":
+      return { ...base, kind: row.kind, text: row.text ?? "", mentions: saidMentions(row), attachments: [] };
     case "edited":
-      return {
-        ...base,
-        kind: row.kind,
-        text: row.text ?? "",
-        mentions: JSON.parse(stored(row, "mentions", row.said_mentions)) as string[],
-      };
+      return { ...base, kind: row.kind, text: row.text ?? "", mentions: saidMentions(row) };
     case "deleted":
       return { ...base, kind: row.kind };
     case "fired":

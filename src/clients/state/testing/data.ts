@@ -114,6 +114,7 @@ export function aMessage(id: string, author: Member, text: string, parts: Partia
     threadId: "th_1",
     author,
     text,
+    attachments: [],
     sentAt: 0,
     editedAt: null,
     deleted: false,

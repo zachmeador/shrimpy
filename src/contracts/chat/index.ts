@@ -36,6 +36,7 @@ export { findDm, findMember, findRoom, namer } from "./lookups.ts";
 export { mentions, mentionsOf } from "./mentions.ts";
 export { ChatPresence } from "./presence.ts";
 export {
+  type Attachment,
   type ChatEvent,
   type LeftReceipt,
   MAX_MESSAGE_LENGTH,

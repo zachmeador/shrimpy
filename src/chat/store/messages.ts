@@ -66,6 +66,7 @@ const toMessage = (row: MessageRow): Message => ({
   threadId: row.thread_id,
   author: { id: row.author_id, kind: row.author_kind, name: row.author_name },
   text: row.text,
+  attachments: [],
   sentAt: row.sent_at,
   editedAt: row.edited_at,
   deleted: row.deleted === 1,

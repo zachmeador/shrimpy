@@ -76,6 +76,21 @@ export const MAX_TRIGGER_LINE_LENGTH = 2_000;
 const TriggerLineSchema = obj({ name: str(), firedAt: num(), prompt: str(), output: union([str(), nul()]) });
 export type TriggerLine = Static<typeof TriggerLineSchema>;
 
+/**
+ * A file that came with a message: its ID, the name it was sent with, its media
+ * type, its size in bytes, and for a picture its width and height in pixels, so
+ * a client can lay it out before the bytes arrive, or null for anything else.
+ */
+const AttachmentSchema = obj({
+  id: str(),
+  name: str(),
+  mediaType: str(),
+  size: int(),
+  width: union([int(), nul()]),
+  height: union([int(), nul()]),
+});
+export type Attachment = Static<typeof AttachmentSchema>;
+
 /** One emoji on a message, and the members who put it there, in the order they did. */
 const ReactionSchema = obj({ emoji: str(), memberIds: arr(str()) });
 export type Reaction = Static<typeof ReactionSchema>;
@@ -102,6 +117,8 @@ export const MessageSchema = obj({
   author: MemberSchema,
   /** What it says now: its latest edit, or nothing once it is deleted. */
   text: str(),
+  /** The files that came with it, in the order they were sent, or none once it is deleted. Chat takes no files yet, so it has none. */
+  attachments: arr(AttachmentSchema),
   sentAt: num(),
   /** When it was last edited, or null if it never was. */
   editedAt: union([num(), nul()]),
@@ -142,6 +159,8 @@ const MessageRefSchema = obj({
   deleted: bool(),
   /** The start of its text on one line, or nothing once it is deleted. */
   preview: str(),
+  /** The files that came with it, as the message has them. */
+  attachments: arr(AttachmentSchema),
 });
 export type MessageRef = Static<typeof MessageRefSchema>;
 
@@ -173,7 +192,7 @@ const EVENT_BASE = {
  * of these, and a message is what they add up to. An event carries what it
  * added: the text of a post or an edit and the members it mentioned, the emoji
  * of a reaction, the receipt of an agent, the trigger that fired for a trigger's
- * line. Once a message is deleted, its posts and edits carry no text: a delete
+ * line, and the files a post came with. Once a message is deleted, its posts and edits carry no text: a delete
  * takes the text out of the log too. A `fired` event makes a trigger's line, as
  * a post makes a message.
  *
@@ -189,7 +208,7 @@ const EVENT_BASE = {
  * always empty.
  */
 export const ChatEventSchema = union([
-  obj({ ...EVENT_BASE, kind: lit("posted"), text: str(), mentions: arr(str()) }),
+  obj({ ...EVENT_BASE, kind: lit("posted"), text: str(), mentions: arr(str()), attachments: arr(AttachmentSchema) }),
   obj({ ...EVENT_BASE, kind: lit("edited"), text: str(), mentions: arr(str()) }),
   obj({ ...EVENT_BASE, kind: lit("deleted") }),
   obj({ ...EVENT_BASE, kind: lit("reacted"), emoji: str() }),

@@ -37,10 +37,11 @@ function anEvent({
     at: 2000,
     actor,
     receipts,
-    message: { id: "msg_1", channelId: "ch_1", threadId: "th_1", author, sentAt: 1000, mentions, deleted, preview: "Shall I deploy it now?" },
+    message: { id: "msg_1", channelId: "ch_1", threadId: "th_1", author, sentAt: 1000, mentions, deleted, preview: "Shall I deploy it now?", attachments: [] },
   };
   switch (kind) {
     case "posted":
+      return { ...base, kind, text: "hello", mentions, attachments: [] };
     case "edited":
       return { ...base, kind, text: "hello", mentions };
     case "deleted":
