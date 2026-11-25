@@ -1,7 +1,7 @@
 import type { TestContext } from "node:test";
 import type { Reference } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { Chat, type ChatEvent, Thread } from "../../contracts/chat/index.ts";
+import { Chat, type ChatEvent } from "../../contracts/chat/index.ts";
 import { contextOf, hello, isLost, readAnswer, valueOf } from "../../contracts/gateway/index.ts";
 import { gatewaySocket, newToken, thisMachine } from "../../contracts/gateway/node.ts";
 import { linkTestAgent, testAgentHost } from "../../contracts/gateway/testing/index.ts";
@@ -122,13 +122,7 @@ export async function startScriptedAgent(t: TestContext, options: ScriptedAgentO
       if (outcome === undefined) return;
       const reply =
         outcome.status === "answered"
-          ? await host.get(Thread, { thread: threadId }, asking).then(async (thread) => {
-              try {
-                return valueOf(await thread.post({ text: outcome.text, request: `${self.id}-reply-${post.id}` }, asking));
-              } finally {
-                thread.release();
-              }
-            })
+          ? valueOf(await chat.post({ thread: threadId, text: outcome.text, request: `${self.id}-reply-${post.id}` }, asking))
           : undefined;
       valueOf(
         await chat.leaveReceipt(

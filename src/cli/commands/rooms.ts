@@ -92,9 +92,7 @@ const roomsAdd: Command = {
       const room = roomNamed([...chat.channels.value, ...chat.readOnlyChannels.value], written);
       const members = membersNamed(reached.members, named);
       const there = new Set(room.members.map((member) => member.id));
-      await onChannel(reached.client, room.id, async (held) =>
-        valueOf(await held.addMembers({ members: members.map((member) => member.id) }, contextOf())),
-      );
+      valueOf(await chat.addMembers({ channel: room.id, members: members.map((member) => member.id) }, contextOf()));
       const newcomers = members.filter((member) => !there.has(member.id));
       const before = members.filter((member) => there.has(member.id));
       if (newcomers.length === 0) {

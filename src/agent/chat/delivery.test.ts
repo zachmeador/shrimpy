@@ -29,6 +29,29 @@ test("a reply is posted once however often telling goes wrong and is tried again
   );
 });
 
+test("the agent posts, reads, starts a thread and shows a trigger's line holding only Chat", { timeout }, async (t) => {
+  const rig = await startChatRig(t);
+  const said = await rig.say("hello");
+
+  while ((await rig.delivery.tell(rig.outstanding(said), { kind: "answered", answer: "1", text: "Hi." }, never)) === "later") continue;
+  const line = { name: "backups", firedAt: 1_700_000_000_000, prompt: "Check the backups.", output: null };
+  const { side, read } = await rig.link.use(async ({ chat }, signal) => {
+    const made = await chat.createThread(said.channelId, "backups", signal);
+    await chat.triggerFired(made.id, line, "line-1", signal);
+    return { side: made, read: await chat.read(said.threadId, null, 10, signal) };
+  }, never);
+
+  assert.deepEqual(
+    read.map((message) => message.text),
+    ["hello", "Hi."],
+  );
+  assert.deepEqual(
+    (await rig.said(side.id)).map((message) => message.trigger?.name),
+    ["backups"],
+  );
+  assert.deepEqual(rig.asked, ["shrimpy.chat"], "and never a thread or a channel");
+});
+
 test("a reply that chat refuses for good is not posted again, and the event gets a failed receipt", { timeout }, async (t) => {
   const rig = await startChatRig(t);
   const said = await rig.say("hello");

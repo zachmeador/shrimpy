@@ -1,5 +1,5 @@
-import { arr, int, map, method, nul, obj, oneOf, remote, type Static, str, union } from "@earendil-works/chord";
-import { answerOf, chat, RefusedSchema } from "../gateway/index.ts";
+import { arr, int, map, nul, obj, oneOf, remote, type Static, str, union } from "@earendil-works/chord";
+import { chat, RefusedSchema } from "../gateway/index.ts";
 import { MemberSchema } from "./shapes.ts";
 import { ThreadSchema } from "./thread.ts";
 
@@ -29,14 +29,13 @@ export type Channel = Static<typeof ChannelSchema>;
 
 /**
  * One channel as the caller sees it, at `chat()`: the channel and its threads,
- * kept live, how many messages in each are new to you, and what a member does
- * with it.
+ * kept live, and how many messages in each are new to you. It is what a client
+ * holds to show a channel. What a member does in it goes to `Chat`.
  *
  * `refusal` is null, or why the caller can't have this channel, and then the
- * rest of its state is empty and every method answers with that refusal. An
- * agent has only its own channels, and to an agent a channel that doesn't exist
- * and one it isn't in look the same. You read every channel, and a write in one
- * you aren't in is refused, but for adding members.
+ * rest of its state is empty. An agent has only its own channels, and to an
+ * agent a channel that doesn't exist and one it isn't in look the same. You
+ * read every channel.
  */
 export const Channel = remote("shrimpy.chat.channel", {
   version: 3,
@@ -57,18 +56,6 @@ export const Channel = remote("shrimpy.chat.channel", {
          * their sum. Null for an agent, which keeps no read marks.
          */
         unread: union([map(int()), nul()]),
-      },
-      methods: {
-        /** A new thread, named or not. */
-        createThread: method(obj({ name: union([str(), nul()]) }), answerOf(ThreadSchema)),
-        /**
-         * Adds 1 to 200 members of the roster to a room, answering with the
-         * room as it now stands. Only an admin, in a room it is in, and you in
-         * any room, yourself included, which is how you walk into one. A member
-         * who is added is offered the room's events from then on, never what
-         * came before. A DM takes no one.
-         */
-        addMembers: method(obj({ members: arr(str()) }), answerOf(ChannelSchema)),
       },
     },
   },

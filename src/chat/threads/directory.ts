@@ -85,7 +85,8 @@ function roomOf(tx: Transaction, caller: Member, channelId: string): ChannelReco
  * room, yourself included. Whoever is added is offered the room's events from
  * then on, and one who is in already stays as they are.
  */
-export function addMembers(deps: ChatDeps, caller: Member, channelId: string, memberIds: unknown): Channel {
+export function addMembers(deps: ChatDeps, caller: Member, channel: unknown, memberIds: unknown): Channel {
+  const channelId = identifier(channel, "channel");
   const ids = identifiers(memberIds, "members", MAX_MEMBERS);
   // Someone who is not in the room is refused as if there were none, before being told it takes an admin.
   deps.store.transaction((tx) => roomOf(tx, caller, channelId));
@@ -100,7 +101,8 @@ export function addMembers(deps: ChatDeps, caller: Member, channelId: string, me
   });
 }
 
-export function createThread(deps: ChatDeps, caller: Member, channelId: string, name: unknown): Thread {
+export function createThread(deps: ChatDeps, caller: Member, channel: unknown, name: unknown): Thread {
+  const channelId = identifier(channel, "channel");
   const title = name === null ? null : label(name, "The thread's name");
   return deps.store.transaction((tx) => {
     visibleChannel(tx, caller, channelId);
@@ -122,7 +124,8 @@ function unchangedSince(tx: Transaction, caller: Member, threadId: string, revis
 }
 
 /** Name a thread, as decided on its revision `revision`. Naming it what it is called already changes nothing. */
-export function renameThread(deps: ChatDeps, caller: Member, threadId: string, name: unknown, revision: unknown): Thread {
+export function renameThread(deps: ChatDeps, caller: Member, thread: unknown, name: unknown, revision: unknown): Thread {
+  const threadId = identifier(thread, "thread");
   const title = label(name, "The thread's name");
   const seen = whole(revision, "revision", 0);
   return deps.store.transaction((tx) => {
@@ -136,7 +139,8 @@ export function renameThread(deps: ChatDeps, caller: Member, threadId: string, n
  * Archiving hides a thread from lists; it stays readable, and a new message in
  * it brings it back.
  */
-export function archiveThread(deps: ChatDeps, caller: Member, threadId: string, archived: unknown, revision: unknown): Thread {
+export function archiveThread(deps: ChatDeps, caller: Member, thread: unknown, archived: unknown, revision: unknown): Thread {
+  const threadId = identifier(thread, "thread");
   const hidden = flag(archived, "archived");
   const seen = whole(revision, "revision", 0);
   return deps.store.transaction((tx) => {

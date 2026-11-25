@@ -57,7 +57,7 @@ export function createSending(store: Store, held: Holdings, moves: Moves, sendMs
     const threadId = open ?? (started?.place === placeKey(place) ? started.threadId : undefined);
     if (threadId !== undefined) return threadId;
     const channelId = await channelOf(place, signal);
-    const made = await held.onChannel(channelId, async (channel) => valueOf(await channel.calls.createThread(null, signal)).id);
+    const made = valueOf(await held.chat.calls.createThread(channelId, null, signal)).id;
     started = { place: placeKey(place), threadId: made };
     return made;
   }
@@ -83,7 +83,7 @@ export function createSending(store: Store, held: Holdings, moves: Moves, sendMs
         const threadId = await threadIn(place, item.thread, answered);
         const requestId = pending?.threadId === threadId && pending.text === text ? pending.requestId : crypto.randomUUID();
         pending = { threadId, text, requestId };
-        await held.onThread(threadId, async (thread) => valueOf(await thread.calls.post(text, requestId, answered)));
+        valueOf(await held.chat.calls.post(threadId, text, requestId, answered));
         pending = undefined;
         // A message that is sent ends what `/status` read.
         store.endStatus();

@@ -62,7 +62,7 @@ async function wholeThread(reached: Reached, threadId: string): Promise<{ thread
     let messages = held.messages.value;
     let remaining = held.earlier.value;
     while (remaining > 0 && messages[0] !== undefined) {
-      const earlier = valueOf(await held.read({ before: messages[0].seq, limit: PAGE }, contextOf()));
+      const earlier = valueOf(await reached.chat.read({ thread: threadId, before: messages[0].seq, limit: PAGE }, contextOf()));
       if (earlier.length === 0) break;
       messages = [...earlier, ...messages];
       remaining -= earlier.length;

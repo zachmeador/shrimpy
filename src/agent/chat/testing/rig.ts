@@ -1,5 +1,7 @@
 import type { TestContext } from "node:test";
+import type { Host } from "@earendil-works/chord";
 import type { Message } from "../../../contracts/chat/index.ts";
+import type { Principal, Revocation } from "../../../contracts/gateway/index.ts";
 import { stopAfter, useRuntimeDir } from "../../../lib/testing/index.ts";
 import type { Outstanding } from "../../inputs/index.ts";
 import { type ChatCalls, type ChatLink, openChatLink } from "../../links/index.ts";
@@ -28,6 +30,8 @@ export interface ChatRig extends Talk {
   readonly faults: Faults;
   /** What the link and the delivery reported. */
   readonly errors: Error[];
+  /** The names of the objects the link asked for, in order, such as "shrimpy.chat". */
+  readonly asked: string[];
   /** The event a message of yours made, as the agent would have taken it up. */
   outstanding(message: Message): Outstanding;
 }
@@ -44,10 +48,11 @@ export async function startChatRig(t: TestContext, options: Pick<DeliveryOptions
   const scout = await chat.agent(SCOUT);
   const talk = await talkTo(t, SCOUT);
   const errors: Error[] = [];
+  const asked: string[] = [];
   const faults = planFaults();
 
   const link = openChatLink((error) => errors.push(error), (calls) => faulty(calls, faults));
-  link.follow(scout.host);
+  link.follow(noting(scout.host, asked));
   const delivery = createDelivery({
     recordsId: "rec_test",
     onError: (error) => errors.push(error),
@@ -65,6 +70,7 @@ export async function startChatRig(t: TestContext, options: Pick<DeliveryOptions
     delivery,
     faults: faults.faults,
     errors,
+    asked,
     outstanding: (message) => ({
       event: { kind: "posted", id: message.event, seq: message.seq, author: message.author.name, sentAt: message.sentAt, text: message.text },
       threadId: message.threadId,
@@ -74,6 +80,22 @@ export async function startChatRig(t: TestContext, options: Pick<DeliveryOptions
       missed: [],
     }),
   };
+}
+
+/** `host`, noting in `asked` the name of each object it is asked to get or hold. */
+function noting(host: Host<Principal, Revocation>, asked: string[]): Host<Principal, Revocation> {
+  return new Proxy(host, {
+    get(target, key) {
+      const value: unknown = Reflect.get(target, key, target);
+      if (typeof value !== "function") return value;
+      const method = value as (...args: unknown[]) => unknown;
+      if (key !== "get" && key !== "hold") return method.bind(target);
+      return (type: { readonly name: string }, ...rest: unknown[]): unknown => {
+        asked.push(type.name);
+        return method.call(target, type, ...rest);
+      };
+    },
+  });
 }
 
 interface FaultPlan {

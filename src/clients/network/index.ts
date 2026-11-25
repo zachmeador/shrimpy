@@ -15,7 +15,6 @@ export { type Dial, type DialOptions, type GatewayLink, keepGateway } from "./li
 export {
   type AgentCalls,
   type AgentShown,
-  type ChannelCalls,
   type ChannelShown,
   type ChatCalls,
   type ChatShown,
@@ -30,7 +29,6 @@ export {
   type RosterShown,
   type SessionCalls,
   type SessionShown,
-  type ThreadCalls,
   type ThreadShown,
 } from "./objects.ts";
 export { dialPage } from "./page.ts";

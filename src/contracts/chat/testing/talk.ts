@@ -3,10 +3,10 @@ import type { TestContext } from "node:test";
 import type { Reference } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { eventually } from "../../../lib/testing/index.ts";
-import { type Answer, type Client, valueOf } from "../../gateway/index.ts";
+import { type Client, valueOf } from "../../gateway/index.ts";
 import { startTestGateway } from "../../gateway/testing/index.ts";
-import type { ChatEvent, Member, Message, Receipt, Thread } from "../index.ts";
-import { memberNamed, onChannel, onChat, onThread } from "./speaking.ts";
+import type { Chat, ChatEvent, Member, Message, Receipt, Thread } from "../index.ts";
+import { memberNamed, onChannel, onChat } from "./speaking.ts";
 
 const context = BACKGROUND_CONTEXT;
 
@@ -81,8 +81,10 @@ export async function talkTo(t: TestContext, agentName: string): Promise<Talk> {
   const thread = await onChannel(first, dm.id, (held) => held.threads.value.find((candidate) => candidate.main));
   if (thread === undefined) throw new Error(`The DM ${dm.id} has no main thread`);
 
-  const said = async (threadId = thread.id): Promise<Message[]> =>
-    onThread(await connection(), threadId, async (held) => valueOf(await held.read({ before: null, limit: 200 }, context)));
+  /** What `ask` asks of chat, as you, linked again if need be. */
+  const asking = async <T>(ask: (chat: Reference<typeof Chat>) => Promise<T>): Promise<T> => onChat(await connection(), ask);
+  const said = (threadId = thread.id): Promise<Message[]> =>
+    asking(async (held) => valueOf(await held.read({ thread: threadId, before: null, limit: 200 }, context)));
   const working = async (threadId = thread.id): Promise<string[]> =>
     onChannel(await connection(), dm.id, (held) => {
       const found = held.threads.value.find((candidate) => candidate.id === threadId);
@@ -97,27 +99,22 @@ export async function talkTo(t: TestContext, agentName: string): Promise<Talk> {
       (found) => found !== undefined,
       { what: `a receipt on the event ${eventId}`, timeoutMs },
     ) as Promise<Receipt>;
-  const inThread = async (threadId: string, work: (held: Reference<typeof Thread>) => Promise<Answer<Message>>) =>
-    onThread(await connection(), threadId, async (held) => valueOf(await work(held)));
   return {
     me,
     partner,
     thread,
-    async newThread(name) {
-      return onChannel(await connection(), dm.id, async (held) => valueOf(await held.createThread({ name: name ?? null }, context)));
-    },
-    say: (text, threadId = thread.id) => inThread(threadId, (held) => held.post({ text, request: randomUUID() }, context)),
-    edit: (message, text) => inThread(message.threadId, (held) => held.edit({ message: message.id, text, request: randomUUID() }, context)),
-    remove: (message) => inThread(message.threadId, (held) => held.delete({ message: message.id, request: randomUUID() }, context)),
-    react: (message, emoji) => inThread(message.threadId, (held) => held.react({ message: message.id, emoji, request: randomUUID() }, context)),
-    unreact: (message, emoji) =>
-      inThread(message.threadId, (held) => held.unreact({ message: message.id, emoji, request: randomUUID() }, context)),
+    newThread: (name) => asking(async (held) => valueOf(await held.createThread({ channel: dm.id, name: name ?? null }, context))),
+    say: (text, threadId = thread.id) => asking(async (held) => valueOf(await held.post({ thread: threadId, text, request: randomUUID() }, context))),
+    edit: (message, text) => asking(async (held) => valueOf(await held.edit({ message: message.id, text, request: randomUUID() }, context))),
+    remove: (message) => asking(async (held) => valueOf(await held.delete({ message: message.id, request: randomUUID() }, context))),
+    react: (message, emoji) => asking(async (held) => valueOf(await held.react({ message: message.id, emoji, request: randomUUID() }, context))),
+    unreact: (message, emoji) => asking(async (held) => valueOf(await held.unreact({ message: message.id, emoji, request: randomUUID() }, context))),
     said,
     async replies(threadId) {
       return (await said(threadId)).filter((message) => message.author.id === partner.id && message.trigger === null);
     },
     async events() {
-      const events = await onChat(await connection(), async (held) => valueOf(await held.events({ after: 0, limit: 200 }, context)));
+      const events = await asking(async (held) => valueOf(await held.events({ after: 0, limit: 200 }, context)));
       return events.filter((event) => event.message.channelId === dm.id);
     },
     working,

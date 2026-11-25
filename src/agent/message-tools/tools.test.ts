@@ -6,7 +6,7 @@ import { Chat } from "../../contracts/chat/index.ts";
 import { until } from "../../lib/testing/index.ts";
 import { standing, written } from "../inputs/index.ts";
 import { callingTools, startAgentRig } from "../testing/index.ts";
-import { onChannel, onThread, valueOf } from "../../contracts/chat/testing/index.ts";
+import { onChannel, valueOf } from "../../contracts/chat/testing/index.ts";
 
 const timeout = 30_000;
 
@@ -149,9 +149,7 @@ test("an agent starts a DM with a member it has never talked to, by name, and sa
   assert.equal(channel.name, "scout", "the mechanic sees a DM with the agent");
   const started = await onChannel(mechanic, channel.id, (held) => held.threads.value.find((thread) => !thread.main));
   assert.ok(started);
-  const [sent, ...others] = await onThread(mechanic, started.id, async (held) =>
-    valueOf(await held.read({ before: null, limit: 10 }, BACKGROUND_CONTEXT)),
-  );
+  const [sent, ...others] = valueOf(await theirs.read({ thread: started.id, before: null, limit: 10 }, BACKGROUND_CONTEXT));
   assert.deepEqual(others, []);
   assert.equal(sent?.text, "The build is red.");
   assert.equal(sent.author.id, rig.partner.id);

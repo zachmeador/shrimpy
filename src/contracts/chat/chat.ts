@@ -1,14 +1,29 @@
-import { arr, bool, int, method, nul, obj, remote, str, union } from "@earendil-works/chord";
+import { arr, bool, int, method, nul, num, obj, opt, remote, str, union } from "@earendil-works/chord";
 import { answerOf, chat } from "../gateway/index.ts";
 import { ChannelSchema } from "./channel.ts";
-import { ChatEventSchema, LeftReceiptSchema, MemberSchema } from "./shapes.ts";
+import { ChatEventSchema, LeftReceiptSchema, MemberSchema, MessageSchema } from "./shapes.ts";
+import { ThreadSchema } from "./thread.ts";
 
 /**
  * The caller as a member of chat, at `chat()`: whom chat takes it for, its
  * channels and the ones it only reads, and where its feed ends, all kept live,
- * with what a member does across channels. The relay says who is asking, so
- * nobody comes in first. A program that is no member gets nothing here, and its
- * calls are refused.
+ * with everything a member does in chat, each naming the channel, thread or
+ * message it acts on. The relay says who is asking, so nobody comes in first. A
+ * program that is no member gets nothing here, and its calls are refused.
+ *
+ * A member writes only in the channels it is in. You read every channel, and a
+ * write in one you aren't in is refused, but for adding members. An agent has
+ * only its own channels, and to an agent a channel, thread or message that
+ * doesn't exist and one it can't reach look the same.
+ *
+ * Each change to a message carries a request ID, as a post does, and its first
+ * use wins: a retry from the same member answers with the message as it now
+ * stands and changes nothing, so a replayed old change can't undo a newer one,
+ * and the same ID asking for anything else is refused. A rename, an archive or
+ * a pin names the thread's revision it was decided on, and is refused once the
+ * thread has moved on from it, so that a stale retry can't undo a later
+ * decision. A thread that already is what it asks is answered as it stands,
+ * whatever revision it names, so a retry whose answer was lost goes through.
  */
 export const Chat = remote("shrimpy.chat", {
   version: 2,
@@ -72,6 +87,74 @@ export const Chat = remote("shrimpy.chat", {
          * characters, and no other room has it, whatever the case.
          */
         createRoom: method(obj({ name: str(), members: arr(str()) }), answerOf(ChannelSchema)),
+        /** A new thread in a channel, named or not. */
+        createThread: method(obj({ channel: str(), name: union([str(), nul()]) }), answerOf(ThreadSchema)),
+        /**
+         * Adds 1 to 200 members of the roster to a room, answering with the
+         * room as it now stands. Only an admin, in a room it is in, and you in
+         * any room, yourself included, which is how you walk into one. A member
+         * who is added is offered the room's events from then on, never what
+         * came before. A DM takes no one.
+         */
+        addMembers: method(obj({ channel: str(), members: arr(str()) }), answerOf(ChannelSchema)),
+        /**
+         * Up to `limit` messages of a thread older than the position `before`,
+         * or the newest when it is null, oldest first. A page of very long ones
+         * holds fewer.
+         */
+        read: method(obj({ thread: str(), before: union([int(), nul()]), limit: int() }), answerOf(arr(MessageSchema))),
+        /**
+         * Posts a message of at most `MAX_MESSAGE_LENGTH` characters in a
+         * thread. A request ID's first use wins: a retry from the same member
+         * answers with the first message as it now stands, even if it was
+         * edited or deleted since, and the same ID with another thread or text
+         * is refused. The message records the members its text mentions. A
+         * message sent with `quiet` is never told to you on your devices.
+         */
+        post: method(obj({ thread: str(), text: str(), request: str(), quiet: opt(bool()) }), answerOf(MessageSchema)),
+        /**
+         * Changes what one of the caller's messages says, and which members it
+         * mentions. A deleted message can't be edited. Editing to the text it
+         * has changes nothing and adds no event.
+         */
+        edit: method(obj({ message: str(), text: str(), request: str() }), answerOf(MessageSchema)),
+        /**
+         * Deletes one of the caller's messages. It keeps its place and loses
+         * its text, its reactions and the text its earlier events carried.
+         * Deleting it again changes nothing.
+         */
+        delete: method(obj({ message: str(), request: str() }), answerOf(MessageSchema)),
+        /** Puts one emoji on a message. The same emoji twice is one reaction. A deleted message takes none. */
+        react: method(obj({ message: str(), emoji: str(), request: str() }), answerOf(MessageSchema)),
+        /** Takes the caller's emoji off a message. Taking one that isn't there changes nothing. */
+        unreact: method(obj({ message: str(), emoji: str(), request: str() }), answerOf(MessageSchema)),
+        /** Names a thread, answering with it as it now stands. Naming it what it is called already changes nothing. */
+        rename: method(obj({ thread: str(), name: str(), revision: int() }), answerOf(ThreadSchema)),
+        /**
+         * Archives a thread, which hides it from lists and leaves it readable,
+         * or brings it back, answering with it as it now stands. Asking for
+         * what it is already changes nothing. A new message in an archived
+         * thread, or a trigger's line, brings it back too.
+         */
+        archive: method(obj({ thread: str(), archived: bool(), revision: int() }), answerOf(ThreadSchema)),
+        /**
+         * Moves your read mark in a message's thread up to that message, such
+         * as the newest one on show. A mark only moves forward, so a message at
+         * or before it changes nothing. Only you keep read marks, and an agent
+         * is refused.
+         */
+        markRead: method(obj({ message: str() }), answerOf(nul())),
+        /**
+         * Shows in a thread that one of the caller's triggers fired, as a line,
+         * answering with it. Only an agent has triggers. `prompt` and `output`
+         * are at most `MAX_TRIGGER_LINE_LENGTH` characters, and `output` is null
+         * for a trigger with no check. A request ID's first use wins, as for a
+         * post.
+         */
+        triggerFired: method(
+          obj({ thread: str(), trigger: str(), firedAt: num(), prompt: str(), output: union([str(), nul()]), request: str() }),
+          answerOf(MessageSchema),
+        ),
       },
     },
   },

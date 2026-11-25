@@ -81,30 +81,17 @@ export function visibleThread(
   return found;
 }
 
-/**
- * A message in `threadId`, a thread of a channel the caller reads, with that
- * channel. A message in another thread is unknown here.
- */
-export function readableMessage(
-  tx: Transaction,
-  caller: Member,
-  threadId: string,
-  messageId: string,
-): { message: Message; channel: ChannelRecord } {
-  const { channel } = readableThread(tx, caller, threadId);
+/** A message in a channel the caller reads, with that channel. */
+export function readableMessage(tx: Transaction, caller: Member, messageId: string): { message: Message; channel: ChannelRecord } {
   const message = tx.message(messageId);
-  if (message?.threadId !== threadId) refuse(`Unknown message: ${messageId}`);
+  const channel = message === undefined ? undefined : tx.channel(message.channelId);
+  if (message === undefined || channel === undefined || !mayRead(channel, caller)) refuse(`Unknown message: ${messageId}`);
   return { message, channel };
 }
 
-/** A message in `threadId`, a thread of a channel the caller is in, with that channel. */
-export function visibleMessage(
-  tx: Transaction,
-  caller: Member,
-  threadId: string,
-  messageId: string,
-): { message: Message; channel: ChannelRecord } {
-  const found = readableMessage(tx, caller, threadId, messageId);
+/** A message in a channel the caller is in, with that channel. */
+export function visibleMessage(tx: Transaction, caller: Member, messageId: string): { message: Message; channel: ChannelRecord } {
+  const found = readableMessage(tx, caller, messageId);
   requireMember(found.channel, caller);
   return found;
 }

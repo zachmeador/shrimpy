@@ -29,8 +29,8 @@ import { follow } from "./held.ts";
 import type { GatewayLink } from "./link.ts";
 import { type LinkStatus, statusOf } from "./status.ts";
 
-/** One object a client holds through its link, followed until it is let go. */
-export interface Holding<V, Calls> {
+/** One object a client holds through its link, followed until it is let go. A view of a channel or a thread has no calls. */
+export interface Holding<V, Calls = undefined> {
   /** What it shows now, or undefined while it has never had values. */
   shown(): V | undefined;
   /** Where the link to it stands, given whether the gateway lists the program that serves it as linked. */
@@ -116,6 +116,18 @@ export type ChatShown = { you: Member | null; channels: Channel[]; readOnlyChann
 export interface ChatCalls {
   /** The DM with a member, made on first use. */
   openDm(member: string, signal?: AbortSignal): Promise<Answer<Channel>>;
+  /** A new thread in a channel, named or not. */
+  createThread(channel: string, name: string | null, signal?: AbortSignal): Promise<Answer<Thread>>;
+  /** Adds members of the roster to a room, by their member IDs, answering with the room as it now stands. */
+  addMembers(channel: string, members: string[], signal?: AbortSignal): Promise<Answer<Channel>>;
+  /** Post a message in a thread. A request ID's first use wins. */
+  post(thread: string, text: string, request: string, signal?: AbortSignal): Promise<Answer<Message>>;
+  /** Move the person's read mark in a message's thread up to that message. A mark only moves forward. */
+  markRead(message: string, signal?: AbortSignal): Promise<Answer<null>>;
+  /** Name a thread, as decided on its revision `revision`. */
+  rename(thread: string, name: string, revision: number, signal?: AbortSignal): Promise<Answer<Thread>>;
+  /** Archive a thread or bring it back, as decided on its revision `revision`. */
+  archive(thread: string, archived: boolean, revision: number, signal?: AbortSignal): Promise<Answer<Thread>>;
 }
 
 export function holdChat(link: GatewayLink, changed: () => void): Holding<ChatShown, ChatCalls> {
@@ -124,7 +136,15 @@ export function holdChat(link: GatewayLink, changed: () => void): Holding<ChatSh
     held,
     (chat) => [chat.you, chat.channels, chat.readOnlyChannels],
     (chat) => ({ you: chat.you.value, channels: chat.channels.value, readOnlyChannels: chat.readOnlyChannels.value }),
-    { openDm: (member, signal) => held.openDm({ member }, contextOf(signal)) },
+    {
+      openDm: (member, signal) => held.openDm({ member }, contextOf(signal)),
+      createThread: (channel, name, signal) => held.createThread({ channel, name }, contextOf(signal)),
+      addMembers: (channel, members, signal) => held.addMembers({ channel, members }, contextOf(signal)),
+      post: (thread, text, request, signal) => held.post({ thread, text, request }, contextOf(signal)),
+      markRead: (message, signal) => held.markRead({ message }, contextOf(signal)),
+      rename: (thread, name, revision, signal) => held.rename({ thread, name, revision }, contextOf(signal)),
+      archive: (thread, archived, revision, signal) => held.archive({ thread, archived, revision }, contextOf(signal)),
+    },
     changed,
   );
 }
@@ -132,23 +152,13 @@ export function holdChat(link: GatewayLink, changed: () => void): Holding<ChatSh
 /** A channel as a client sees it, with how many messages in each of its threads are new to the person, by the thread's ID. */
 export type ChannelShown = { refusal: Refused | null; channel: Channel | null; threads: Thread[]; unread: Record<string, number> | null };
 
-export interface ChannelCalls {
-  /** A new thread, named or not. */
-  createThread(name: string | null, signal?: AbortSignal): Promise<Answer<Thread>>;
-  /** Adds members of the roster to a room, by their member IDs, answering with the room as it now stands. */
-  addMembers(members: string[], signal?: AbortSignal): Promise<Answer<Channel>>;
-}
-
-export function holdChannel(link: GatewayLink, id: string, changed: () => void): Holding<ChannelShown, ChannelCalls> {
+export function holdChannel(link: GatewayLink, id: string, changed: () => void): Holding<ChannelShown> {
   const held = link.host.hold(Channel, { channel: id }, BACKGROUND_CONTEXT);
   return followHeld(
     held,
     (channel) => [channel.refusal, channel.channel, channel.threads, channel.unread],
     (channel) => ({ refusal: channel.refusal.value, channel: channel.channel.value, threads: channel.threads.value, unread: channel.unread.value }),
-    {
-      createThread: (name, signal) => held.createThread({ name }, contextOf(signal)),
-      addMembers: (members, signal) => held.addMembers({ members }, contextOf(signal)),
-    },
+    undefined,
     changed,
   );
 }
@@ -163,18 +173,7 @@ export type ThreadShown = {
   unread: number | null;
 };
 
-export interface ThreadCalls {
-  /** Post a message. A request ID's first use wins. */
-  post(text: string, request: string, signal?: AbortSignal): Promise<Answer<Message>>;
-  /** Move the person's read mark up to a message of the thread. A mark only moves forward. */
-  markRead(message: string, signal?: AbortSignal): Promise<Answer<null>>;
-  /** Name the thread, as decided on its revision `revision`. */
-  rename(name: string, revision: number, signal?: AbortSignal): Promise<Answer<Thread>>;
-  /** Archive the thread or bring it back, as decided on its revision `revision`. */
-  archive(archived: boolean, revision: number, signal?: AbortSignal): Promise<Answer<Thread>>;
-}
-
-export function holdThread(link: GatewayLink, id: string, changed: () => void): Holding<ThreadShown, ThreadCalls> {
+export function holdThread(link: GatewayLink, id: string, changed: () => void): Holding<ThreadShown> {
   const held = link.host.hold(Thread, { thread: id }, BACKGROUND_CONTEXT);
   return followHeld(
     held,
@@ -187,12 +186,7 @@ export function holdThread(link: GatewayLink, id: string, changed: () => void): 
       readOnly: thread.readOnly.value,
       unread: thread.unread.value,
     }),
-    {
-      post: (text, request, signal) => held.post({ text, request }, contextOf(signal)),
-      markRead: (message, signal) => held.markRead({ message }, contextOf(signal)),
-      rename: (name, revision, signal) => held.rename({ name, revision }, contextOf(signal)),
-      archive: (archived, revision, signal) => held.archive({ archived, revision }, contextOf(signal)),
-    },
+    undefined,
     changed,
   );
 }

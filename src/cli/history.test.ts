@@ -196,8 +196,8 @@ test("read shows each message as it now stands, by its ID", { timeout }, async (
 
   const before = await read();
   assert.ok(lineOf(before, asked).includes(asked.author.name) && lineOf(before, reply).includes(reply.author.name));
-  const { editedAt } = await you.edit(thread, asked.id, "second draft");
-  await you.react(thread, reply.id, THUMBS_UP);
+  const { editedAt } = await you.edit(asked.id, "second draft");
+  await you.react(reply.id, THUMBS_UP);
 
   const edited = await read();
   assert.ok(edited.some((line) => line.trim() === "second draft"));
@@ -205,8 +205,8 @@ test("read shows each message as it now stands, by its ID", { timeout }, async (
   assert.ok(editedAt !== null && lineOf(edited, asked).includes(localTime(editedAt)), "with when it was edited");
   assert.ok(edited.some((line) => line.trim() === `${THUMBS_UP} ${you.me.name}`));
 
-  await you.unreact(thread, reply.id, THUMBS_UP);
-  await you.delete(thread, asked.id);
+  await you.unreact(reply.id, THUMBS_UP);
+  await you.delete(asked.id);
 
   const deleted = await read();
   assert.notEqual(lineOf(deleted, asked), "", "a deleted message is still listed");

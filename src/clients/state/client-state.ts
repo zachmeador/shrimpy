@@ -288,7 +288,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
     const failed = (): void => {
       if (thread.marked === newest.id) thread.marked = undefined;
     };
-    void thread.held.calls.markRead(newest.id).then((answer) => {
+    void held.chat.calls.markRead(newest.id).then((answer) => {
       if (answer.kind !== "done") failed();
     }, failed);
   }
@@ -359,7 +359,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
       try {
         if (model.chat.state === "down") throw new Down(model.chat.why);
         const answered = AbortSignal.timeout(options.sendMs ?? SEND_MS);
-        await held.onChannel(room.id, async (channel) => valueOf(await channel.calls.addMembers([me], answered)));
+        valueOf(await held.chat.calls.addMembers(room.id, [me], answered));
       } catch (error) {
         store.say({ kind: "not-joined", problem: problemOf(error) });
       }

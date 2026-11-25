@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { Channel, Chat, Thread } from "../contracts/chat/index.ts";
+import { Chat, Thread } from "../contracts/chat/index.ts";
 import { backoff } from "../lib/retry/index.ts";
 import { countedBackoff, stopAfter, until } from "../lib/testing/index.ts";
 import { ChatRunningError, startChat } from "./index.ts";
@@ -14,12 +14,13 @@ test("a second chat server is refused, and holds wait while chat is away and bin
   const chat = await startChatInProcess(t);
   const you = await chat.person();
   const scout = await chat.agent("scout");
-  const dm = valueOf(await (await you.host.get(Chat, {}, context)).openDm({ member: scout.you.id }, context));
-  const [main] = (await you.host.get(Channel, { channel: dm.id }, context)).threads.value;
-  assert.ok(main);
-  const thread = you.host.hold(Thread, { thread: main.id }, context);
+  const yours = you.host.hold(Chat, {}, context);
+  await until(() => yours.state.value.kind === "live", "your hold of chat to bind");
+  const dm = valueOf(await yours.openDm({ member: scout.you.id }, context));
+  const made = valueOf(await yours.createThread({ channel: dm.id, name: null }, context));
+  const thread = you.host.hold(Thread, { thread: made.id }, context);
   await until(() => thread.state.value.kind === "live", "your hold of the thread to bind");
-  valueOf(await thread.post({ text: "Before the restart.", request: "you-1" }, context));
+  valueOf(await yours.post({ thread: made.id, text: "Before the restart.", request: "you-1" }, context));
 
   await assert.rejects(startChat({ dataDir: chat.dataDir }), ChatRunningError);
   assert.equal(thread.state.value.kind, "live");
@@ -32,7 +33,8 @@ test("a second chat server is refused, and holds wait while chat is away and bin
   await until(() => thread.state.value.kind === "live", "your hold to bind again once chat is back");
   await until(() => thread.messages.value.length === 1, "the thread to show what was said");
   assert.equal(thread.messages.value[0]?.text, "Before the restart.");
-  valueOf(await thread.post({ text: "After it.", request: "you-2" }, context));
+  await until(() => yours.state.value.kind === "live", "your hold of chat to bind again too");
+  valueOf(await yours.post({ thread: made.id, text: "After it.", request: "you-2" }, context));
 });
 
 test("while the gateway is away the chat server says so once, and once again when it is back", { timeout }, async (t) => {

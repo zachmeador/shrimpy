@@ -75,7 +75,7 @@ async function say(io: Io, request: Request): Promise<number> {
     unlessRefused(held.refusal.value);
     whenFailed(held, () => lost.abort());
     progress = { stage: "sending" };
-    const message = valueOf(await held.post({ text: request.text, request: randomUUID() }, contextOf(signal)));
+    const message = valueOf(await reached.chat.post({ thread: threadId, text: request.text, request: randomUUID() }, contextOf(signal)));
     progress = { stage: "waiting", thread: threadId };
     if (!request.wait) {
       io.out(`Posted ${message.id} in thread ${threadId}. Read it with: shrimpy read ${threadId}`);
@@ -115,7 +115,7 @@ async function chooseThread(reached: Reached, dm: Channel, id: string | undefine
     reached.client,
     dm.id,
     async (channel) => {
-      if (id === undefined) return valueOf(await channel.createThread({ name: null }, contextOf(signal))).id;
+      if (id === undefined) return valueOf(await reached.chat.createThread({ channel: dm.id, name: null }, contextOf(signal))).id;
       if (!channel.threads.value.some((thread) => thread.id === id)) {
         throw new Error(`There is no thread ${id} in your DM with ${dm.name}. List yours with: shrimpy threads ${dm.name}`);
       }

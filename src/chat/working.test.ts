@@ -12,10 +12,10 @@ test("a working mark shows in the thread until it is cleared, or until the hold 
   const chat = await startChatInProcess(t);
   const you = await chat.person();
   const scout = await chat.agent("scout");
-  const dm = valueOf(await (await you.host.get(Chat, {}, context)).openDm({ member: scout.you.id }, context));
+  const yours = await you.host.get(Chat, {}, context);
+  const dm = valueOf(await yours.openDm({ member: scout.you.id }, context));
+  const main = valueOf(await yours.createThread({ channel: dm.id, name: null }, context));
   const channel = await you.host.get(Channel, { channel: dm.id }, context);
-  const [main] = channel.threads.value;
-  assert.ok(main);
   const watching = await you.host.get(Thread, { thread: main.id }, context);
   const working = (): string[] => watching.thread.value?.working.map((mark) => mark.memberId) ?? [];
   const scouts = await scout.host.get(Chat, {}, context);
@@ -34,7 +34,7 @@ test("a working mark shows in the thread until it is cleared, or until the hold 
   assert.equal((await shell.host.get(Chat, {}, context)).you.value?.id, scout.you.id);
   await shell.close();
   // Anything the drop changed would reach you before the answer to this does.
-  valueOf(await watching.read({ before: null, limit: 1 }, context));
+  valueOf(await yours.read({ thread: main.id, before: null, limit: 1 }, context));
   assert.deepEqual(working(), [scout.you.id]);
 
   // And the program's link dropping clears its mark, though another shell still holds Chat as scout.

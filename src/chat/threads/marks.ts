@@ -12,15 +12,15 @@ import type { ChatDeps } from "./deps.ts";
 export const keepsMarks = (caller: Member): boolean => caller.kind === "person";
 
 /**
- * Move the caller's read mark up to a message in a thread it reads, whether or
- * not it is in the channel. A mark only moves forward, so a message at or
- * before it changes nothing.
+ * Move the caller's read mark in a message's thread up to that message, in a
+ * channel it reads, whether or not it is in it. A mark only moves forward, so
+ * a message at or before it changes nothing.
  */
-export function markRead(deps: ChatDeps, caller: Member, threadId: string, messageId: unknown): null {
+export function markRead(deps: ChatDeps, caller: Member, messageId: unknown): null {
   if (!keepsMarks(caller)) refuse("Only a person keeps read marks.");
   const id = identifier(messageId, "message");
   deps.store.transaction((tx) => {
-    const { message } = readableMessage(tx, caller, threadId, id);
+    const { message } = readableMessage(tx, caller, id);
     tx.markRead(caller.id, message);
   });
   return null;

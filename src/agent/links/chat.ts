@@ -7,7 +7,7 @@ import {
   type LeftReceipt,
   type Member,
   type Message,
-  Thread,
+  type Thread,
   type TriggerLine,
 } from "../../contracts/chat/index.ts";
 import {
@@ -22,10 +22,11 @@ import { createListeners, type Listeners, untilAborted, untilHeard } from "../..
 import { isRefusal } from "../../lib/refusal/index.ts";
 
 /**
- * What the agent does in chat, over the `Chat` it holds and the channels and
- * threads it asks for. Every call that takes a signal ends when it aborts. What
- * chat refuses, a call throws as a `Refusal` with chat's words; anything else
- * thrown is a failure, such as the link dropping while the call was out.
+ * What the agent does in chat, over the `Chat` it holds, and the channels it
+ * asks for to list their threads. Every call that takes a signal ends when it
+ * aborts. What chat refuses, a call throws as a `Refusal` with chat's words;
+ * anything else thrown is a failure, such as the link dropping while the call
+ * was out.
  */
 export interface ChatCalls {
   /** The chat store's ID, made with it and never changed. */
@@ -102,28 +103,19 @@ export function callSignal(live: LiveChat, context: Context): AbortSignal {
 }
 
 /**
- * The calls over the `Chat` that `host` holds, asking `host` for a channel's or
- * a thread's object as a call needs one. `moved` hears each new head.
+ * The calls over the `Chat` that `host` holds, asking `host` for a channel's
+ * object to list its threads. `moved` hears each new head.
  */
 function callsOver(host: Host<Principal, Revocation>, chat: Held<typeof Chat>, moved: Listeners<undefined>): ChatCalls {
-  /** Run `work` on the object `get` gives, held for as long as it runs. */
-  async function on<T, O extends { release(): void }>(
-    get: (context: Context) => Promise<O>,
-    signal: AbortSignal,
-    work: (held: O, context: Context) => Promise<T>,
-  ): Promise<T> {
-    const context = contextOf(signal);
-    const held = await get(context);
+  /** Run `work` on the channel `id`, held for as long as it runs. */
+  async function onChannel<T>(id: string, signal: AbortSignal, work: (held: Reference<typeof Channel>) => T): Promise<T> {
+    const held = await host.get(Channel, { channel: id }, contextOf(signal));
     try {
-      return await work(held, context);
+      return work(held);
     } finally {
       held.release();
     }
   }
-  const channel = <T>(id: string, signal: AbortSignal, work: (held: Reference<typeof Channel>, context: Context) => Promise<T>) =>
-    on((context) => host.get(Channel, { channel: id }, context), signal, work);
-  const thread = <T>(id: string, signal: AbortSignal, work: (held: Reference<typeof Thread>, context: Context) => Promise<T>) =>
-    on((context) => host.get(Thread, { thread: id }, context), signal, work);
 
   return {
     store: () => chat.store.value,
@@ -152,18 +144,22 @@ function callsOver(host: Host<Principal, Revocation>, chat: Held<typeof Chat>, m
       return valueOf(await chat.openDm({ member }, contextOf(signal)));
     },
     threads: (id, signal) =>
-      channel(id, signal, async (held) => {
+      onChannel(id, signal, (held) => {
         unlessRefused(held.refusal.value);
         return held.threads.value;
       }),
-    createThread: (id, name, signal) =>
-      channel(id, signal, async (held, context) => valueOf(await held.createThread({ name }, context))),
-    post: (id, text, request, signal, quiet = false) =>
-      thread(id, signal, async (held, context) => valueOf(await held.post({ text, request, quiet }, context))),
-    read: (id, before, limit, signal) =>
-      thread(id, signal, async (held, context) => valueOf(await held.read({ before, limit }, context))),
-    triggerFired: (id, { name, firedAt, prompt, output }, request, signal) =>
-      thread(id, signal, async (held, context) => valueOf(await held.triggerFired({ trigger: name, firedAt, prompt, output, request }, context))),
+    async createThread(channel, name, signal) {
+      return valueOf(await chat.createThread({ channel, name }, contextOf(signal)));
+    },
+    async post(thread, text, request, signal, quiet = false) {
+      return valueOf(await chat.post({ thread, text, request, quiet }, contextOf(signal)));
+    },
+    async read(thread, before, limit, signal) {
+      return valueOf(await chat.read({ thread, before, limit }, contextOf(signal)));
+    },
+    async triggerFired(thread, { name, firedAt, prompt, output }, request, signal) {
+      return valueOf(await chat.triggerFired({ thread, trigger: name, firedAt, prompt, output, request }, contextOf(signal)));
+    },
   };
 }
 

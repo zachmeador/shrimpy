@@ -1,5 +1,5 @@
 import type { Member, Message } from "../../contracts/chat/index.ts";
-import { fitAnswer, MAX_PAGE, messageText, triggerLine, whole } from "../input/index.ts";
+import { fitAnswer, identifier, MAX_PAGE, messageText, triggerLine, whole } from "../input/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { cutEnd, singleSpaced } from "../../lib/text/index.ts";
 import { readableThread, visibleThread } from "./access.ts";
@@ -18,8 +18,8 @@ export function previewOf(text: string): string {
  * Post to a thread, once for each request ID, as `once` says. A new message
  * that isn't `quiet` may be worth telling you.
  */
-export function post(deps: ChatDeps, caller: Member, threadId: string, text: unknown, requestId: unknown, quiet = false): Message {
-  const id = threadId;
+export function post(deps: ChatDeps, caller: Member, threadId: unknown, text: unknown, requestId: unknown, quiet = false): Message {
+  const id = identifier(threadId, "thread");
   const body = messageText(text);
   const request = requestOf(requestId, id, body);
   const posted = deps.store.transaction((tx) =>
@@ -47,11 +47,12 @@ export function post(deps: ChatDeps, caller: Member, threadId: string, text: unk
 export function triggerFired(
   deps: ChatDeps,
   caller: Member,
-  threadId: string,
+  thread: unknown,
   fired: { trigger: unknown; firedAt: unknown; prompt: unknown; output: unknown },
   requestId: unknown,
 ): Message {
   if (caller.kind !== "agent") refuse("Only an agent has triggers.");
+  const threadId = identifier(thread, "thread");
   const line = triggerLine(fired);
   const request = requestOf(requestId, "fired", threadId, JSON.stringify(line));
   return deps.store.transaction(
@@ -67,11 +68,11 @@ export function triggerFired(
 export function readMessages(
   deps: ChatDeps,
   caller: Member,
-  threadId: string,
+  threadId: unknown,
   beforeSeq: unknown,
   limit: unknown,
 ): Message[] {
-  const id = threadId;
+  const id = identifier(threadId, "thread");
   const before = beforeSeq === null ? null : whole(beforeSeq, "before", 0);
   const count = Math.min(whole(limit, "limit", 1), MAX_PAGE);
   return deps.store.transaction((tx) => {

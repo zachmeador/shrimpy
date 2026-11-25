@@ -8,7 +8,7 @@ import { startTestPushService } from "../../contracts/gateway/testing/index.ts";
 import { until } from "../../lib/testing/index.ts";
 
 import { startToolRig } from "./testing/index.ts";
-import { onChannel, onChat, onThread, valueOf } from "../../contracts/chat/testing/index.ts";
+import { onChannel, onChat, valueOf } from "../../contracts/chat/testing/index.ts";
 
 const timeout = 15_000;
 
@@ -98,14 +98,14 @@ test("a session behind a DM posts in a room it is in, in its main thread or anot
   const context = BACKGROUND_CONTEXT;
   const ops = await onChat(person, async (held) => valueOf(await held.createRoom({ name: "Ops", members: [rig.partner.id] }, context)));
   const closed = await onChat(person, async (held) => valueOf(await held.createRoom({ name: "Closed", members: [] }, context)));
-  const poem = await onChannel(person, ops.id, async (held) => valueOf(await held.createThread({ name: "Poem" }, context)));
+  const poem = await onChat(person, async (held) => valueOf(await held.createThread({ channel: ops.id, name: "Poem" }, context)));
   const mainOf = async (channelId: string): Promise<string> => {
     const main = await onChannel(person, channelId, (held) => held.threads.value.find((thread) => thread.main));
     assert.ok(main);
     return main.id;
   };
   const said = async (threadId: string): Promise<string[]> =>
-    saidByScout(rig, await onThread(person, threadId, async (held) => valueOf(await held.read({ before: null, limit: 10 }, context))));
+    saidByScout(rig, await onChat(person, async (held) => valueOf(await held.read({ thread: threadId, before: null, limit: 10 }, context))));
 
   const toRoom = await rig.call("send_message", { text: "To the room.", to: "#OPS" }, { callId: "room" });
   const toThread = await rig.call("send_message", { text: "To the thread.", to: "#ops/POEM" }, { callId: "thread" });

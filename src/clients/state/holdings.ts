@@ -2,7 +2,6 @@ import type { ModelId, SessionItem } from "../../contracts/agent/index.ts";
 import {
   type AgentCalls,
   type AgentShown,
-  type ChannelCalls,
   type ChannelShown,
   type ChatCalls,
   type ChatShown,
@@ -18,7 +17,6 @@ import {
   type RosterShown,
   type SessionCalls,
   type SessionShown,
-  type ThreadCalls,
   type ThreadShown,
 } from "../network/index.ts";
 
@@ -31,7 +29,7 @@ import {
  */
 export interface OpenThread {
   readonly id: string;
-  readonly held: Holding<ThreadShown, ThreadCalls>;
+  readonly held: Holding<ThreadShown>;
   told: string | undefined;
   marked: string | undefined;
   met: boolean;
@@ -69,7 +67,7 @@ export interface Holdings {
   readonly roster: Holding<RosterShown, RosterCalls>;
   readonly chat: Holding<ChatShown, ChatCalls>;
   /** The channel `id`, held for its threads while chat lists it to the person. */
-  channel(id: string): Holding<ChannelShown, ChannelCalls> | undefined;
+  channel(id: string): Holding<ChannelShown> | undefined;
   /** The agent whose list is open. */
   agent(): HeldAgent | undefined;
   /** Each running agent, by its member ID, held for what it is working in. */
@@ -87,10 +85,6 @@ export interface Holdings {
   useThread(id: string | undefined): void;
   /** Hold the session at `address` of each agent in `agents`, by member ID, and let go of every other, or of every one with no address. */
   useSessions(address: string | undefined, agents: ReadonlySet<string>): void;
-  /** Run `work` on the channel `id`: as it is held, or held for as long as `work` runs. */
-  onChannel<T>(id: string, work: (channel: Holding<ChannelShown, ChannelCalls>) => Promise<T>): Promise<T>;
-  /** Run `work` on the thread `id`: the open thread's hold when it is that one, or a hold for as long as `work` runs. */
-  onThread<T>(id: string, work: (thread: Holding<ThreadShown, ThreadCalls>) => Promise<T>): Promise<T>;
   /** Let go of everything held. */
   release(): void;
 }
@@ -105,20 +99,11 @@ function keepOnly<V, C>(held: Map<string, Holding<V, C>>, wanted: ReadonlySet<st
   for (const key of wanted) if (!held.has(key)) held.set(key, hold(key));
 }
 
-/** Run `work` on an object held for as long as it runs. */
-async function borrowing<V, C, T>(held: Holding<V, C>, work: (held: Holding<V, C>) => Promise<T>): Promise<T> {
-  try {
-    return await work(held);
-  } finally {
-    held.release();
-  }
-}
-
 /** Hold the roster and chat through `link`, and the rest as the client asks. `changed` is told of each change of what is held. */
 export function createHoldings(link: GatewayLink, changed: () => void): Holdings {
   const roster = holdRoster(link, changed);
   const chat = holdChat(link, changed);
-  const channels = new Map<string, Holding<ChannelShown, ChannelCalls>>();
+  const channels = new Map<string, Holding<ChannelShown>>();
   const rollCall = new Map<string, Holding<AgentShown, AgentCalls>>();
   const sessions = new Map<string, HeldSession>();
   let selected: HeldAgent | undefined;
@@ -158,13 +143,6 @@ export function createHoldings(link: GatewayLink, changed: () => void): Holdings
       for (const agent of agents) {
         if (!sessions.has(agent)) sessions.set(agent, { agent, address, held: holdSession(link, agent, address, changed), older: undefined, reading: undefined });
       }
-    },
-    onChannel(id, work) {
-      const held = channels.get(id);
-      return held === undefined ? borrowing(holdChannel(link, id, () => undefined), work) : work(held);
-    },
-    onThread(id, work) {
-      return thread?.id === id ? work(thread.held) : borrowing(holdThread(link, id, () => undefined), work);
     },
     release() {
       for (const held of rollCall.values()) held.release();

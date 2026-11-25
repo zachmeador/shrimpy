@@ -19,21 +19,14 @@ function onlyAuthor(caller: Member, message: Message, doing: string): void {
  * already says that. Which members the message mentions is worked out again
  * from the new text.
  */
-export function editMessage(
-  deps: ChatDeps,
-  caller: Member,
-  threadId: string,
-  messageId: unknown,
-  text: unknown,
-  requestId: unknown,
-): Message {
+export function editMessage(deps: ChatDeps, caller: Member, messageId: unknown, text: unknown, requestId: unknown): Message {
   const id = identifier(messageId, "message");
   const body = messageText(text);
-  const request = requestOf(requestId, "edit", threadId, id, body);
+  const request = requestOf(requestId, "edit", id, body);
   return deps.store.transaction(
     (tx) =>
       once(tx, caller, request, () => {
-        const { message, channel } = visibleMessage(tx, caller, threadId, id);
+        const { message, channel } = visibleMessage(tx, caller, id);
         onlyAuthor(caller, message, "edit");
         if (message.deleted) refuse("That message was deleted, so it can't be edited.");
         return tx.editMessage(message, {
@@ -48,13 +41,13 @@ export function editMessage(
 }
 
 /** Delete a message, as its author, once for each request ID. Deleting one that is deleted already changes nothing. */
-export function deleteMessage(deps: ChatDeps, caller: Member, threadId: string, messageId: unknown, requestId: unknown): Message {
+export function deleteMessage(deps: ChatDeps, caller: Member, messageId: unknown, requestId: unknown): Message {
   const id = identifier(messageId, "message");
-  const request = requestOf(requestId, "delete", threadId, id);
+  const request = requestOf(requestId, "delete", id);
   return deps.store.transaction(
     (tx) =>
       once(tx, caller, request, () => {
-        const { message } = visibleMessage(tx, caller, threadId, id);
+        const { message } = visibleMessage(tx, caller, id);
         onlyAuthor(caller, message, "delete");
         return tx.deleteMessage(message, caller.id, deps.now());
       }).message,

@@ -180,6 +180,18 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
             answer(() => setWorking(deps, holderFor(ctx.incarnation), caller(), thread, working)),
           openDm: async ({ member }) => answer(() => openDm(deps, caller(), member)),
           createRoom: async ({ name, members }) => answer(() => createRoom(deps, caller(), name, members)),
+          createThread: async ({ channel, name }) => answer(() => createThread(deps, caller(), channel, name)),
+          addMembers: async ({ channel, members }) => answer(() => addMembers(deps, caller(), channel, members)),
+          read: async ({ thread, before, limit }) => answer(() => readMessages(deps, caller(), thread, before, limit)),
+          post: async ({ thread, text, request, quiet }) => answer(() => post(deps, caller(), thread, text, request, quiet === true)),
+          edit: async ({ message, text, request }) => answer(() => editMessage(deps, caller(), message, text, request)),
+          delete: async ({ message, request }) => answer(() => deleteMessage(deps, caller(), message, request)),
+          react: async ({ message, emoji, request }) => answer(() => react(deps, caller(), message, emoji, request)),
+          unreact: async ({ message, emoji, request }) => answer(() => unreact(deps, caller(), message, emoji, request)),
+          rename: async ({ thread, name, revision }) => answer(() => renameThread(deps, caller(), thread, name, revision)),
+          archive: async ({ thread, archived, revision }) => answer(() => archiveThread(deps, caller(), thread, archived, revision)),
+          markRead: async ({ message }) => answer(() => markRead(deps, caller(), message)),
+          triggerFired: async ({ thread, request, ...fired }) => answer(() => triggerFired(deps, caller(), thread, fired, request)),
         },
       };
     });
@@ -195,7 +207,6 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
             (threadId, last) => last.threads.some((thread) => thread.id === threadId),
           ),
         );
-        const caller = (): Member => callerOf(principal);
         return {
           variant: "all",
           members: {
@@ -203,8 +214,6 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
             channel: self.derive([state], ([view]) => view.channel),
             threads: self.derive([state], ([view]) => view.threads),
             unread: self.derive([state], ([view]) => view.unread),
-            createThread: async ({ name }) => answer(() => createThread(deps, caller(), channelId, name)),
-            addMembers: async ({ members }) => answer(() => addMembers(deps, caller(), channelId, members)),
           },
         };
       },
@@ -225,7 +234,6 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
             (marked) => marked === threadId,
           ),
         );
-        const caller = (): Member => callerOf(principal);
         return {
           variant: "all",
           members: {
@@ -235,16 +243,6 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
             earlier: self.derive([state], ([view]) => view.earlier),
             readOnly: self.derive([state], ([view]) => view.readOnly),
             unread: self.derive([state], ([view]) => view.unread),
-            read: async ({ before, limit }) => answer(() => readMessages(deps, caller(), threadId, before, limit)),
-            post: async ({ text, request, quiet }) => answer(() => post(deps, caller(), threadId, text, request, quiet === true)),
-            edit: async ({ message, text, request }) => answer(() => editMessage(deps, caller(), threadId, message, text, request)),
-            delete: async ({ message, request }) => answer(() => deleteMessage(deps, caller(), threadId, message, request)),
-            react: async ({ message, emoji, request }) => answer(() => react(deps, caller(), threadId, message, emoji, request)),
-            unreact: async ({ message, emoji, request }) => answer(() => unreact(deps, caller(), threadId, message, emoji, request)),
-            rename: async ({ name, revision }) => answer(() => renameThread(deps, caller(), threadId, name, revision)),
-            archive: async ({ archived, revision }) => answer(() => archiveThread(deps, caller(), threadId, archived, revision)),
-            markRead: async ({ message }) => answer(() => markRead(deps, caller(), threadId, message)),
-            triggerFired: async ({ request, ...fired }) => answer(() => triggerFired(deps, caller(), threadId, fired, request)),
           },
         };
       },

@@ -39,10 +39,10 @@ test("you read a channel you are not in, with its thread read-only and a post th
   const scouts = await scout.host.get(Chat, {}, context);
 
   const room = valueOf(await scouts.createRoom({ name: "Ops", members: [maya.you.id] }, context));
-  const [main] = (await scout.host.get(Channel, { channel: room.id }, context)).threads.value;
-  assert.ok(main);
-  const thread = await maya.host.get(Thread, { thread: main.id }, context);
-  valueOf(await thread.post({ text: "Disk is at 91%.", request: "maya-1" }, context));
+  const [first] = (await scout.host.get(Channel, { channel: room.id }, context)).threads.value;
+  assert.ok(first);
+  const thread = first.id;
+  valueOf(await (await maya.host.get(Chat, {}, context)).post({ thread, text: "Disk is at 91%.", request: "maya-1" }, context));
 
   const yours = await you.host.get(Chat, {}, context);
   assert.deepEqual(yours.channels.value, []);
@@ -50,32 +50,31 @@ test("you read a channel you are not in, with its thread read-only and a post th
     yours.readOnlyChannels.value.map((channel) => channel.id),
     [room.id],
   );
-  const reading = await you.host.get(Thread, { thread: main.id }, context);
+  const reading = await you.host.get(Thread, { thread }, context);
   assert.equal(reading.refusal.value, null);
   assert.equal(reading.readOnly.value, true);
   assert.deepEqual(
     reading.messages.value.map((message) => message.text),
     ["Disk is at 91%."],
   );
-  refusalOf(await reading.post({ text: "Can I join?", request: "you-1" }, context));
+  refusalOf(await yours.post({ thread, text: "Can I join?", request: "you-1" }, context));
   assert.equal(reading.messages.value.length, 1, "the refused post wrote nothing");
 
   // An agent that is not in the room can't have it at all, until it is added.
   const rex = await chat.agent("rex");
-  const outside = await rex.host.get(Thread, { thread: main.id }, context);
+  const outside = await rex.host.get(Thread, { thread }, context);
   assert.notEqual(outside.refusal.value, null);
   assert.equal(outside.thread.value, null);
   assert.deepEqual(outside.messages.value, []);
-  valueOf(await (await scout.host.get(Channel, { channel: room.id }, context)).addMembers({ members: [rex.you.id] }, context));
+  valueOf(await scouts.addMembers({ channel: room.id, members: [rex.you.id] }, context));
   await until(() => outside.refusal.value === null, "rex's hold of the thread to have it once rex is in the room");
   assert.equal(outside.messages.value.length, 1);
   assert.equal(outside.readOnly.value, false);
 
   // Adding yourself makes the room yours, and the same hold can write in it.
-  const channel = await you.host.get(Channel, { channel: room.id }, context);
-  valueOf(await channel.addMembers({ members: [you.you?.id ?? ""] }, context));
+  valueOf(await yours.addMembers({ channel: room.id, members: [you.you?.id ?? ""] }, context));
   await until(() => !reading.readOnly.value, "the thread to stop being read-only");
-  valueOf(await reading.post({ text: "Thanks for the update.", request: "you-2" }, context));
+  valueOf(await yours.post({ thread, text: "Thanks for the update.", request: "you-2" }, context));
   await until(() => yours.channels.value.length === 1, "the room to become one of your channels");
   assert.deepEqual(yours.readOnlyChannels.value, []);
 });
@@ -87,10 +86,9 @@ test("a person renamed in settings.json is the same member, named so in the chan
   const yours = await you.host.get(Chat, {}, context);
   const scouts = await scout.host.get(Chat, {}, context);
   const dm = valueOf(await yours.openDm({ member: scout.you.id }, context));
-  const [main] = (await you.host.get(Channel, { channel: dm.id }, context)).threads.value;
-  assert.ok(main);
-  const watching = await scout.host.get(Thread, { thread: main.id }, context);
-  valueOf(await (await you.host.get(Thread, { thread: main.id }, context)).post({ text: "Hello.", request: "you-1" }, context));
+  const thread = valueOf(await yours.createThread({ channel: dm.id, name: null }, context));
+  const watching = await scout.host.get(Thread, { thread: thread.id }, context);
+  valueOf(await yours.post({ thread: thread.id, text: "Hello.", request: "you-1" }, context));
 
   mkdirSync(chat.gateway.folder, { recursive: true });
   writeFileSync(join(chat.gateway.folder, "settings.json"), JSON.stringify({ name: "zachary" }));

@@ -1,9 +1,10 @@
 /**
  * The chat contract: what any member, you or an agent, may ask of the chat
  * server, as Chord objects at `chat()`. `Chat` is the caller as a member, with
- * its channels and its feed; `Channel` is one channel and its threads; `Thread`
- * is one thread and its messages; `ChatPresence` is the chat server being
- * there, which the gateway holds. Every reference is live, so a client follows
+ * its channels and its feed, and everything a member does, by ID; `Channel` is
+ * one channel and its threads, and `Thread` one thread and its messages, which
+ * a client holds to show them; `ChatPresence` is the chat server being there,
+ * which the gateway holds. Every reference is live, so a client follows
  * by holding, and nothing polls. Channels, DMs and rooms, and their threads are
  * the shared record of what was said: a log of events (posted, edited,
  * deleted, reacted, receipted) and the messages they add up to. A member writes

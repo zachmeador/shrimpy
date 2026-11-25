@@ -136,8 +136,8 @@ test("a message shows each emoji with who put it there, a failed receipt apart, 
   const thread = await rig.thread("scout", "@scout is the disk full?");
   const [asked] = await you.read(thread.id, null, 10);
   assert.ok(asked);
-  await you.react(thread.id, asked.id, "👍");
-  await asScout.react(thread.id, asked.id, "👀");
+  await you.react(asked.id, "👍");
+  await asScout.react(asked.id, "👀");
   await asScout.leaveReceipt([asked.event], { status: "failed", reply: null, detail: "The model failed." });
   await you.post(thread.id, "/stop");
   await rig.until((model) => model.open.list?.id === scout.id, "scout's list");

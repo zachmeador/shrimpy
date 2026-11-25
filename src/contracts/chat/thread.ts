@@ -1,5 +1,5 @@
-import { arr, bool, int, method, nul, num, obj, opt, remote, type Static, str, union } from "@earendil-works/chord";
-import { answerOf, chat, RefusedSchema } from "../gateway/index.ts";
+import { arr, bool, int, nul, num, obj, remote, type Static, str, union } from "@earendil-works/chord";
+import { chat, RefusedSchema } from "../gateway/index.ts";
 import { MessageSchema, WorkingSchema } from "./shapes.ts";
 
 /** One conversation inside a channel, as a record. Every channel has a main thread. */
@@ -17,7 +17,7 @@ export const ThreadSchema = obj({
    */
   preview: union([str(), nul()]),
   archived: bool(),
-  /** How many times the thread has been renamed, archived or brought back, from 0. `Thread`'s `rename` and `archive` name it. */
+  /** How many times the thread has been renamed, archived or brought back, from 0. `Chat`'s `rename` and `archive` name it. */
   revision: int(),
   /**
    * When the thread last got a message, or was made if it has none, in
@@ -36,29 +36,20 @@ export type Thread = Static<typeof ThreadSchema>;
 
 /**
  * One thread as the caller sees it, at `chat()`: its newest messages, kept
- * live, older ones a page at a time, how many are new to you, and what a member
- * does in it. Holding it is what attaching to a thread was.
+ * live, and how many are new to you. It is what a client holds to show a
+ * thread, and holding it is what attaching to a thread was. What a member does
+ * in it, reading older messages included, goes to `Chat`.
  *
  * `refusal` is null, or why the caller can't have this thread, and then the
- * rest of its state is empty and every method answers with that refusal. An
- * agent has only the threads of its own channels, and to an agent a thread that
- * doesn't exist and one in a channel it isn't in look the same. You read every
- * thread, and in a channel you aren't in, `readOnly` is true and every write is
- * refused.
+ * rest of its state is empty. An agent has only the threads of its own
+ * channels, and to an agent a thread that doesn't exist and one in a channel it
+ * isn't in look the same. You read every thread, and in a channel you aren't
+ * in, `readOnly` is true.
  *
  * Chat keeps a read mark for you in each thread: the last message you have seen
  * there, which a client moves while the thread is on show. Every client of
  * yours counts from the same mark. A message that stays new to you for a few
  * seconds can be told to you on your devices.
- *
- * Each change to a message carries a request ID, as a post does, and its
- * first use wins: a retry from the same member answers with the message as it
- * now stands and changes nothing, so a replayed old change can't undo a newer
- * one, and the same ID asking for anything else is refused. A rename or an
- * archive names the thread's revision it was decided on, and is refused once
- * the thread has moved on from it, so that a stale retry can't undo a later
- * decision. A thread that already is what it asks is answered as it stands,
- * whatever revision it names, so a retry whose answer was lost goes through.
  */
 export const Thread = remote("shrimpy.chat.thread", {
   version: 4,
@@ -73,7 +64,7 @@ export const Thread = remote("shrimpy.chat.thread", {
         thread: union([ThreadSchema, nul()]),
         /** Its newest messages, oldest first: at most 200, and fewer when they are very long. */
         messages: arr(MessageSchema),
-        /** How many older messages there are, which `read` gives. */
+        /** How many older messages there are, which `Chat`'s `read` gives. */
         earlier: int(),
         /** Whether the caller only reads it, as you read a channel you aren't in. */
         readOnly: bool(),
@@ -84,60 +75,6 @@ export const Thread = remote("shrimpy.chat.thread", {
          * since its place in its feed says what it has taken.
          */
         unread: union([int(), nul()]),
-      },
-      methods: {
-        /** Up to `limit` messages older than the position `before`, or the newest when it is null, oldest first. A page of very long ones holds fewer. */
-        read: method(obj({ before: union([int(), nul()]), limit: int() }), answerOf(arr(MessageSchema))),
-        /**
-         * Posts a message of at most `MAX_MESSAGE_LENGTH` characters. A request
-         * ID's first use wins: a retry from the same member answers with the
-         * first message as it now stands, even if it was edited or deleted
-         * since, and the same ID with another thread or text is refused. The
-         * message records the members its text mentions. A message sent with
-         * `quiet` is never told to you on your devices.
-         */
-        post: method(obj({ text: str(), request: str(), quiet: opt(bool()) }), answerOf(MessageSchema)),
-        /**
-         * Changes what one of the caller's messages in this thread says, and
-         * which members it mentions. A deleted message can't be edited. Editing
-         * to the text it has changes nothing and adds no event.
-         */
-        edit: method(obj({ message: str(), text: str(), request: str() }), answerOf(MessageSchema)),
-        /**
-         * Deletes one of the caller's messages in this thread. It keeps its
-         * place and loses its text, its reactions and the text its earlier
-         * events carried. Deleting it again changes nothing.
-         */
-        delete: method(obj({ message: str(), request: str() }), answerOf(MessageSchema)),
-        /** Puts one emoji on a message in this thread. The same emoji twice is one reaction. A deleted message takes none. */
-        react: method(obj({ message: str(), emoji: str(), request: str() }), answerOf(MessageSchema)),
-        /** Takes the caller's emoji off a message in this thread. Taking one that isn't there changes nothing. */
-        unreact: method(obj({ message: str(), emoji: str(), request: str() }), answerOf(MessageSchema)),
-        /** Names the thread, answering with it as it now stands. Naming it what it is called already changes nothing. */
-        rename: method(obj({ name: str(), revision: int() }), answerOf(ThreadSchema)),
-        /**
-         * Archives the thread, which hides it from lists and leaves it readable,
-         * or brings it back, answering with it as it now stands. Asking for
-         * what it is already changes nothing. A new message in an archived
-         * thread, or a trigger's line, brings it back too.
-         */
-        archive: method(obj({ archived: bool(), revision: int() }), answerOf(ThreadSchema)),
-        /**
-         * Moves your read mark up to a message in this thread, such as the newest
-         * one on show. A mark only moves forward, so a message at or before it
-         * changes nothing. Only you keep read marks, and an agent is refused.
-         */
-        markRead: method(obj({ message: str() }), answerOf(nul())),
-        /**
-         * Shows in this thread that one of the caller's triggers fired, as a line,
-         * answering with it. Only an agent has triggers. `prompt` and `output` are
-         * at most `MAX_TRIGGER_LINE_LENGTH` characters, and `output` is null for a
-         * trigger with no check. A request ID's first use wins, as for a post.
-         */
-        triggerFired: method(
-          obj({ trigger: str(), firedAt: num(), prompt: str(), output: union([str(), nul()]), request: str() }),
-          answerOf(MessageSchema),
-        ),
       },
     },
   },

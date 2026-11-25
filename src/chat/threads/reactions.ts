@@ -10,14 +10,14 @@ import { once, requestOf } from "./requests.ts";
  * request ID. A message that was deleted takes none, and one the caller
  * already put there stays as it is.
  */
-export function react(deps: ChatDeps, caller: Member, threadId: string, messageId: unknown, emoji: unknown, requestId: unknown): Message {
+export function react(deps: ChatDeps, caller: Member, messageId: unknown, emoji: unknown, requestId: unknown): Message {
   const id = identifier(messageId, "message");
   const reaction = checkEmoji(emoji, "emoji");
-  const request = requestOf(requestId, "react", threadId, id, reaction);
+  const request = requestOf(requestId, "react", id, reaction);
   return deps.store.transaction(
     (tx) =>
       once(tx, caller, request, () => {
-        const { message } = visibleMessage(tx, caller, threadId, id);
+        const { message } = visibleMessage(tx, caller, id);
         if (message.deleted) refuse("That message was deleted, so it takes no reactions.");
         if (message.trigger !== null) refuse("A trigger's line takes no reactions.");
         return tx.addReaction(message, caller.id, reaction, deps.now());
@@ -26,14 +26,14 @@ export function react(deps: ChatDeps, caller: Member, threadId: string, messageI
 }
 
 /** Take back the caller's emoji, once for each request ID. Taking back one that is not there changes nothing. */
-export function unreact(deps: ChatDeps, caller: Member, threadId: string, messageId: unknown, emoji: unknown, requestId: unknown): Message {
+export function unreact(deps: ChatDeps, caller: Member, messageId: unknown, emoji: unknown, requestId: unknown): Message {
   const id = identifier(messageId, "message");
   const reaction = checkEmoji(emoji, "emoji");
-  const request = requestOf(requestId, "unreact", threadId, id, reaction);
+  const request = requestOf(requestId, "unreact", id, reaction);
   return deps.store.transaction(
     (tx) =>
       once(tx, caller, request, () => {
-        const { message } = visibleMessage(tx, caller, threadId, id);
+        const { message } = visibleMessage(tx, caller, id);
         return tx.removeReaction(message, caller.id, reaction, deps.now());
       }).message,
   );

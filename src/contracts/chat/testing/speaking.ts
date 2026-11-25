@@ -4,7 +4,7 @@ import type { Host, Reference } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { untilHeard } from "../../../lib/listeners/index.ts";
 import { eventually, stopAfter } from "../../../lib/testing/index.ts";
-import { type Answer, holding, type Principal, type Revocation, Roster, valueOf } from "../../gateway/index.ts";
+import { holding, type Principal, type Revocation, Roster, valueOf } from "../../gateway/index.ts";
 import { linkTestAgent, startTestGateway, type TestAgent } from "../../gateway/testing/index.ts";
 import { Channel, Chat, type ChatEvent, type LeftReceipt, type Member, type Message, Thread, type TriggerLine } from "../index.ts";
 
@@ -31,10 +31,10 @@ export interface Speaking {
   openDm(member: string): Promise<Channel>;
   createRoom(name: string, members: string[]): Promise<Channel>;
   addMembers(channel: string, members: string[]): Promise<Channel>;
-  edit(thread: string, message: string, text: string, request?: string): Promise<Message>;
-  delete(thread: string, message: string, request?: string): Promise<Message>;
-  react(thread: string, message: string, emoji: string, request?: string): Promise<Message>;
-  unreact(thread: string, message: string, emoji: string, request?: string): Promise<Message>;
+  edit(message: string, text: string, request?: string): Promise<Message>;
+  delete(message: string, request?: string): Promise<Message>;
+  react(message: string, emoji: string, request?: string): Promise<Message>;
+  unreact(message: string, emoji: string, request?: string): Promise<Message>;
   /** Archive a thread, or bring it back, at the revision it is at. */
   archive(thread: string, archived: boolean): Promise<Thread>;
   /** Show in a thread that one of the member's triggers fired, as a line. Only an agent has triggers. */
@@ -82,8 +82,6 @@ export async function speakingAs(t: TestContext, holder: Holder): Promise<Speaki
   const chat = await holder.host.get(Chat, {}, context);
   stopAfter(t, () => chat.release());
   const me = await knownAs(chat);
-  const inThread = (thread: string, work: (held: Reference<typeof Thread>) => Promise<Answer<Message>>) =>
-    onThread(holder, thread, async (held) => valueOf(await work(held)));
   // A call's answer comes after every change chat made before it, so what chat shows is caught up once one is answered.
   const caughtUp = async (): Promise<void> => {
     valueOf(await chat.events({ after: chat.head.value, limit: 1 }, context));
@@ -100,19 +98,21 @@ export async function speakingAs(t: TestContext, holder: Holder): Promise<Speaki
     },
     head: () => chat.head.value,
     threads: (channel) => onChannel(holder, channel, (held) => held.threads.value),
-    read: (thread, before, limit) => onThread(holder, thread, async (held) => valueOf(await held.read({ before, limit }, context))),
-    post: (thread, text, request = randomUUID()) => inThread(thread, (held) => held.post({ text, request }, context)),
-    createThread: (channel, name) => onChannel(holder, channel, async (held) => valueOf(await held.createThread({ name }, context))),
+    read: async (thread, before, limit) => valueOf(await chat.read({ thread, before, limit }, context)),
+    post: async (thread, text, request = randomUUID()) => valueOf(await chat.post({ thread, text, request }, context)),
+    createThread: async (channel, name) => valueOf(await chat.createThread({ channel, name }, context)),
     openDm: async (member) => valueOf(await chat.openDm({ member }, context)),
     createRoom: async (name, members) => valueOf(await chat.createRoom({ name, members }, context)),
-    addMembers: (channel, members) => onChannel(holder, channel, async (held) => valueOf(await held.addMembers({ members }, context))),
-    edit: (thread, message, text, request = randomUUID()) => inThread(thread, (held) => held.edit({ message, text, request }, context)),
-    delete: (thread, message, request = randomUUID()) => inThread(thread, (held) => held.delete({ message, request }, context)),
-    react: (thread, message, emoji, request = randomUUID()) => inThread(thread, (held) => held.react({ message, emoji, request }, context)),
-    unreact: (thread, message, emoji, request = randomUUID()) => inThread(thread, (held) => held.unreact({ message, emoji, request }, context)),
-    archive: (thread, archived) =>
-      onThread(holder, thread, async (held) => valueOf(await held.archive({ archived, revision: held.thread.value?.revision ?? 0 }, context))),
-    fire: (thread, line) => inThread(thread, (held) => held.triggerFired({ ...line, request: randomUUID() }, context)),
+    addMembers: async (channel, members) => valueOf(await chat.addMembers({ channel, members }, context)),
+    edit: async (message, text, request = randomUUID()) => valueOf(await chat.edit({ message, text, request }, context)),
+    delete: async (message, request = randomUUID()) => valueOf(await chat.delete({ message, request }, context)),
+    react: async (message, emoji, request = randomUUID()) => valueOf(await chat.react({ message, emoji, request }, context)),
+    unreact: async (message, emoji, request = randomUUID()) => valueOf(await chat.unreact({ message, emoji, request }, context)),
+    archive: async (thread, archived) => {
+      const revision = await onThread(holder, thread, (held) => held.thread.value?.revision ?? 0);
+      return valueOf(await chat.archive({ thread, archived, revision }, context));
+    },
+    fire: async (thread, line) => valueOf(await chat.triggerFired({ thread, ...line, request: randomUUID() }, context)),
     events: async (after, limit) => valueOf(await chat.events({ after, limit }, context)),
     async leaveReceipt(events, receipt) {
       valueOf(await chat.leaveReceipt({ events, receipt }, context));
