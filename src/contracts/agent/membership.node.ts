@@ -27,6 +27,12 @@ export function readMembership(home: string): Membership | undefined {
     pending.done();
     joining = { token: pendingToken, gateway: pendingGateway };
   }
+  const gone = root.optionalObject("removed");
+  let removed: Membership["removed"];
+  if (gone !== undefined) {
+    removed = { at: gone.number("at"), words: gone.text("words") };
+    gone.done();
+  }
   root.done();
   return {
     token,
@@ -34,6 +40,7 @@ export function readMembership(home: string): Membership | undefined {
     ...(rosterId === undefined ? {} : { rosterId }),
     ...(gateway === undefined ? {} : { gateway }),
     ...(joining === undefined ? {} : { joining }),
+    ...(removed === undefined ? {} : { removed }),
   };
 }
 

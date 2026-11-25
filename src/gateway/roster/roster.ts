@@ -16,7 +16,7 @@ import {
 import { newId } from "../../lib/ids/index.ts";
 import { listed } from "../../lib/text/index.ts";
 import type { WebPushPlace } from "../push/index.ts";
-import { type DeviceRecord, type MemberRecord, ROSTER_FORMAT, readRoster, rosterFile, writeRoster } from "./file.ts";
+import { type DeviceRecord, type MemberRecord, ROSTER_FORMAT, type RemovedRecord, readRoster, rosterFile, writeRoster } from "./file.ts";
 
 const TOKEN_RULE = "A token is 32 to 200 letters, digits, hyphens or underscores, such as 32 random bytes in base64url.";
 
@@ -24,6 +24,13 @@ const TOKEN_RULE = "A token is 32 to 200 letters, digits, hyphens or underscores
 export interface Recognized {
   readonly member: Member;
   readonly way: Extract<Way, { kind: "device" | "token" }>;
+}
+
+/** An agent removed from the roster: its ID, the name it had, and when, in milliseconds since the epoch. */
+export interface Removed {
+  readonly id: string;
+  readonly name: string;
+  readonly removedAt: number;
 }
 
 /**
@@ -63,9 +70,12 @@ export interface Roster {
   rename(id: string, name: string): Answer<Member>;
   /**
    * Remove an agent from the roster, ending its ways in and freeing its name;
-   * a later agent taking the name gets a fresh ID. A person cannot be removed.
+   * a later agent taking the name gets a fresh ID. The roster keeps its ID,
+   * the name it had, its token's hash and when. A person cannot be removed.
    */
   remove(id: string): Answer<Member>;
+  /** The removed agent whose token was `token` when it was removed, if one was. */
+  removedWith(token: string): Removed | undefined;
   /**
    * Who an invitation for `name` would let in: a new agent (`member: null`)
    * when nobody has the name, or an existing agent (`member: id`, with its
@@ -117,13 +127,15 @@ export function openRoster(dataDir: string, firstName: string, format = ROSTER_F
   const loaded = readRoster(dataDir, format);
   const rosterId = loaded?.id ?? newId("ros");
   let records = loaded?.members ?? [];
-  const seenNames = new Map<string, string>();
+  let removed: RemovedRecord[] = loaded?.removed ?? [];
+  // A removed agent's ID is never used again, and its name is free.
   const seenIds = new Set<string>();
+  for (const { id } of [...records, ...removed]) {
+    if (seenIds.has(id)) throw new Error(`${file} uses the member ID ${id} more than once. Member IDs are unique.`);
+    seenIds.add(id);
+  }
+  const seenNames = new Map<string, string>();
   for (const record of records) {
-    if (seenIds.has(record.id)) {
-      throw new Error(`${file} uses the member ID ${record.id} more than once. Member IDs are unique.`);
-    }
-    seenIds.add(record.id);
     const clash = seenNames.get(nameKey(record.name));
     if (clash !== undefined) {
       throw new Error(`${file} gives the name "${record.name}" to ${clash} and to ${record.id}. Names are unique, whatever the case.`);
@@ -140,18 +152,20 @@ export function openRoster(dataDir: string, firstName: string, format = ROSTER_F
   }
   const listeners = new Set<() => void>();
 
-  const save = (next: MemberRecord[]): void => {
-    writeRoster(file, { id: rosterId, members: next }, format.current);
+  const save = (next: MemberRecord[], nextRemoved = removed): void => {
+    writeRoster(file, { id: rosterId, members: next, removed: nextRemoved }, format.current);
     records = next;
+    removed = nextRemoved;
     for (const listener of [...listeners]) listener();
   };
 
   const replace = (changed: MemberRecord): void => save(records.map((record) => (record.id === changed.id ? changed : record)));
 
-  /** Mint a member ID not in use on the roster. */
+  /** Mint a member ID that no member has, and no removed agent had. */
   const mintMemberId = (): string => {
+    const used = (id: string): boolean => records.some((record) => record.id === id) || removed.some((record) => record.id === id);
     let id = newId("mem");
-    while (records.some((record) => record.id === id)) id = newId("mem");
+    while (used(id)) id = newId("mem");
     return id;
   };
 
@@ -296,8 +310,18 @@ export function openRoster(dataDir: string, firstName: string, format = ROSTER_F
       const current = records.find((record) => record.id === id);
       if (current === undefined) return refused(noMember(id));
       if (current.kind === "person") return refused(`${current.name} is a person, and a gateway always has its one person.`);
-      save(records.filter((record) => record.id !== id));
+      const { tokenHash } = current.recognizedBy;
+      const gone: RemovedRecord = { id, name: current.name, ...(tokenHash === undefined ? {} : { tokenHash }), removedAt: Date.now() };
+      save(
+        records.filter((record) => record.id !== id),
+        [...removed, gone],
+      );
       return done(publicly(current));
+    },
+    removedWith(token) {
+      const hash = hashOf(token);
+      const gone = removed.find((record) => record.tokenHash === hash);
+      return gone === undefined ? undefined : { id: gone.id, name: gone.name, removedAt: gone.removedAt };
     },
     canInvite(name) {
       const label = fitName(name);

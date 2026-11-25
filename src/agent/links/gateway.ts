@@ -1,5 +1,5 @@
 import type { Host } from "@earendil-works/chord";
-import { type Membership, unknownTokenAdvice } from "../../contracts/agent/index.ts";
+import { type Membership, removedAdvice, unknownTokenAdvice } from "../../contracts/agent/index.ts";
 import {
   type Entry,
   HelloRefusedError,
@@ -44,6 +44,8 @@ export interface GatewayLinkOptions {
   onError(error: Error): void;
   /** Told what the gateway runs each time it turns the agent away, so that an agent behind it can follow it. */
   follow?(gateway: Versions): void;
+  /** Told, with the gateway's words, that the gateway turned the agent away as removed from the roster, after which the agent links no more. */
+  removed?(words: string): void;
   /** The pauses between hellos. Tests shorten them. */
   backoff?: Backoff;
 }
@@ -79,6 +81,8 @@ function adviceFor(reason: string | null, files: HomeFiles, apart: boolean): str
           ? `give it another name in ${files.name}, get a new invitation for that name and join with it: shrimpy join <link>`
           : `give it another name in ${files.name} and start it again.`)
       );
+    case "removed":
+      return `So it stops its triggers and turns, and links no more. ${removedAdvice(files.membership, apart)}`;
     default:
       return undefined;
   }
@@ -96,7 +100,8 @@ function adviceFor(reason: string | null, files: HomeFiles, apart: boolean): str
  * None of it delays or fails anything: the gateway may start after the agent,
  * and the agent finds it again each time it comes back. A refusal is told once,
  * with what to do about it when the gateway names the case, and is told again
- * only if it changes or the agent has been let in since. An agent apart says
+ * only if it changes or the agent has been let in since. Turned away as
+ * removed, the agent links no more, and says so. An agent apart says
  * once that it can't reach the gateway, however long that lasts, and once that
  * it is back. It says hello only to the key it kept, so an entry that doesn't
  * prove it is the agent's gateway is told once, sent nothing, and tried again,
@@ -159,7 +164,10 @@ export function linkToGateway(options: GatewayLinkOptions): GatewayLink {
     },
     onError(error) {
       standing.failed(error);
-      if (error instanceof HelloRefusedError) options.follow?.(error.versions);
+      if (!(error instanceof HelloRefusedError)) return;
+      if (error.reason !== "removed") return options.follow?.(error.versions);
+      stopping.abort();
+      options.removed?.(error.message);
     },
     ...(options.backoff === undefined ? {} : { backoff: options.backoff }),
   });

@@ -22,6 +22,7 @@ import {
 } from "../../contracts/gateway/index.ts";
 import { newToken } from "../../contracts/gateway/node.ts";
 import type { Greeted } from "../../lib/link/node.ts";
+import { localTime } from "../../lib/time/index.ts";
 import type { Invitations } from "../invitations/index.ts";
 import type { Programs } from "../programs/index.ts";
 import type { Roster } from "../roster/index.ts";
@@ -94,6 +95,16 @@ export function greeter(deps: HelloDeps): Greeter {
     "unknown_token",
   );
 
+  /** The removed agent whose token `token` was, turned away as removed, or undefined when it wasn't one. */
+  const removedAway = (token: string): Greeted | undefined => {
+    const gone = roster.removedWith(token);
+    if (gone === undefined) return undefined;
+    return away(
+      `The agent "${gone.name}" was removed from the roster at ${localTime(gone.removedAt)}. A new invitation for it brings it back, as a new member.`,
+      "removed",
+    );
+  };
+
   const running = (member: Member): Greeted =>
     away(
       `The agent "${member.name}" is linked already, and this shows its token, so the gateway takes it for a second copy of the same agent.`,
@@ -109,7 +120,7 @@ export function greeter(deps: HelloDeps): Greeter {
       principal = { kind: "person", member: you.id, way: { kind: "socket" } };
     } else {
       const found = roster.recognize(token);
-      if (found === undefined) return unknownToken;
+      if (found === undefined) return removedAway(token) ?? unknownToken;
       you = found.member;
       principal = { kind: you.kind, member: you.id, way: found.way };
     }
@@ -119,6 +130,8 @@ export function greeter(deps: HelloDeps): Greeter {
   const agentProgram = (who: Extract<Who, { kind: "agent" }>, shrimpy: string, door: Door): Greeted => {
     const found = roster.recognize(who.token);
     if (found?.way.kind === "device") return away(NOT_A_PROGRAM);
+    const gone = found === undefined ? removedAway(who.token) : undefined;
+    if (gone !== undefined) return gone;
     // A token this roster doesn't know is refused over the entry, and also on the gateway's socket when the home already
     // belonged to this roster (its token was taken back or replaced, or the agent was removed).
     if (found === undefined && (door !== "socket" || who.roster === roster.id)) return unknownToken;

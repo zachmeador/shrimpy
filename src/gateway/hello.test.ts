@@ -171,10 +171,12 @@ test("an agent beside the gateway whose token was taken back is refused as unkno
   const duplicate = await answerTo(place, hello({ kind: "agent", name: "scout", token: newToken(), roster: null }));
   assert.equal(duplicate.kind === "refused" ? duplicate.reason : duplicate.kind, "name_taken");
 
-  // After removal, presenting this roster's ID does not silently recreate the removed agent.
+  // After removal, its token is turned away as removed, whatever roster it names, and the agent isn't made again.
   assert.equal((await roster.remove({ member: scout.you.id }, context)).kind, "done");
-  const removed = await answerTo(place, hello({ kind: "agent", name: "scout", token: replacementToken, roster: scout.roster }));
-  assert.equal(removed.kind === "refused" ? removed.reason : removed.kind, "unknown_token");
+  for (const named of [scout.roster, null]) {
+    const removed = await answerTo(place, hello({ kind: "agent", name: "scout", token: replacementToken, roster: named }));
+    assert.equal(removed.kind === "refused" ? removed.reason : removed.kind, "removed");
+  }
   assert.equal(roster.members.value.some((member) => member.name === "scout"), false);
 
   // Presenting a different roster ID (such as after the gateway's roster was wiped and recreated) joins the fresh roster.

@@ -18,7 +18,7 @@ export function upCommand(pace: Pace = PACE): Command {
         "what the service that shrimpy install sets up runs. An agent made later starts by itself, and one that " +
         "ends is started again, after a pause that grows while it keeps failing. An agent that can't start is " +
         "said once, and tried again after the same pauses or at once when its agent.json changes. An agent whose " +
-        "home is taken away is stopped.",
+        "home is taken away is stopped, and one the gateway removed from the roster isn't started until it is let in again.",
       "With agents named, it starts only those, and stops everything if one of them ends.",
       "Whatever already runs is used as it is and left running. Agents that joined a gateway elsewhere with " +
         "shrimpy join start with no gateway or chat server here, and you talk to them from that gateway's machine.",

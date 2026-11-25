@@ -3,8 +3,8 @@ import { listed } from "../../lib/text/index.ts";
 
 /**
  * The cases a reader acts on differently, so a refusal names them and nobody
- * reads its words to tell. All three come when connecting, and the agent and
- * the CLI answer each with advice about the home's files. A refusal carries
+ * reads its words to tell. All of them come when connecting, and the agent
+ * and the CLI answer each with advice about the home's files. A refusal carries
  * any string as its reason, so a release of the major can add one without
  * changing a contract: these are the ones this release writes, and a reader
  * acts on those it knows and shows the words for any other.
@@ -15,7 +15,9 @@ export type Reason =
   /** The gateway doesn't know the token, as when the roster was replaced. */
   | "unknown_token"
   /** A program is linked as the agent already, so this one would be a second body for it: a copy of its home. */
-  | "agent_running";
+  | "agent_running"
+  /** The token was an agent's that was removed from the roster, which stops it. */
+  | "removed";
 
 /** A no on purpose: words for a person that say what to do, and a reason when the case has one, which may be one this release doesn't know. */
 export type Refused = { kind: "refused"; words: string; reason: string | null };

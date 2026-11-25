@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -94,6 +95,46 @@ test("a roster of an older version is refused and left as it is", { timeout }, a
     assert.equal(readFileSync(file, "utf8"), old);
     assert.equal(existsSync(join(dataDir, "state", "key.pem")), false);
   }
+});
+
+test("a roster 1.0.0 wrote is copied aside and brought up to date, and every member keeps its ID and its way in", { timeout }, async (t) => {
+  const dataDir = tempDir(t, "gateway-data");
+  const file = join(dataDir, "state", "roster.json");
+  const token = newToken();
+  const deviceToken = newToken();
+  const hashOf = (shown: string): string => `sha256:${createHash("sha256").update(shown).digest("hex")}`;
+  // As 1.0.0 writes it.
+  const written = `${JSON.stringify(
+    {
+      version: 3,
+      id: "ros_from1point0",
+      members: [
+        { id: "mem_you", kind: "person", name: "zach", recognizedBy: { machines: [{ tokenHash: hashOf(deviceToken), label: "laptop" }] } },
+        { id: "mem_scout", kind: "agent", name: "scout", admin: true, recognizedBy: { tokenHash: hashOf(token) } },
+      ],
+    },
+    null,
+    2,
+  )}\n`;
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, written);
+
+  const gateway = await startGatewayInProcess(t, { dataDir, account: "zach" });
+  assert.equal(readFileSync(migrationCopy(file), "utf8"), written, "the copy is the roster as 1.0.0 left it");
+  const place = { path: gateway.socket };
+  const scout = await linkTestAgent(t, "scout", { place, token, roster: "ros_from1point0" });
+  assert.deepEqual([scout.you.id, scout.you.admin, scout.roster], ["mem_scout", true, "ros_from1point0"]);
+  const device = await connectTestClient(t, place, deviceToken);
+  assert.equal(device.you?.id, "mem_you");
+
+  // What 2.0 added to the file works on it: a removed agent's token is turned away as removed.
+  const roster = await device.host.get(Roster, {}, context);
+  assert.equal((await roster.remove({ member: "mem_scout" }, context)).kind, "done");
+  await scout.stop();
+  await assert.rejects(
+    connectTestClient(t, place, token),
+    (error) => error instanceof HelloRefusedError && error.reason === "removed",
+  );
 });
 
 test("the next release copies the roster aside and migrates it, and this one then refuses it, naming the copy, until the copy is put back", (t) => {
@@ -221,14 +262,14 @@ test("removing an agent revokes its link, withdraws its invitations, frees its n
   assert.equal(yours.ways.value.some((way) => way.member === scout.you.id), false);
   assert.equal(yours.programs.value.some((program) => program.member === scout.you.id), false);
 
-  // The pending invitation was withdrawn and the old token is refused.
+  // The pending invitation was withdrawn and the old token is turned away as removed.
   await assert.rejects(
     sayHello(entry, { kind: "join", name: "scout", token: newToken(), code: pending.value.code, machine: "box" }),
     HelloRefusedError,
   );
   await assert.rejects(
     connectTestClient(t, entry, scoutToken),
-    (error) => error instanceof HelloRefusedError && error.reason === "unknown_token",
+    (error) => error instanceof HelloRefusedError && error.reason === "removed",
   );
 
   // A new agent can take the freed name and gets a fresh member ID.

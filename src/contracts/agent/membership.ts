@@ -1,3 +1,4 @@
+import { localTime } from "../../lib/time/index.ts";
 import type { Entry } from "../gateway/index.ts";
 
 /** A join that was tried and has not heard the gateway's answer yet, so retrying with the same link shows the same token. */
@@ -42,6 +43,18 @@ export interface Membership {
   gateway?: Entry;
   /** A pending join whose answer has not arrived yet, kept apart so a failed join leaves an existing membership intact. */
   joining?: JoiningMembership;
+  /**
+   * That the gateway turned the agent away as removed from the roster, so the
+   * agent doesn't start or link again until it is let in again, which writes
+   * a membership without it.
+   */
+  removed?: Removal;
+}
+
+/** When the gateway turned the agent away as removed, in milliseconds since the epoch, and the gateway's words. */
+export interface Removal {
+  at: number;
+  words: string;
 }
 
 /** Where a home keeps its membership, inside the home. */
@@ -70,4 +83,23 @@ export function unknownTokenAdvice(file: string, apart: boolean): string {
   return apart
     ? `Get a new invitation and run shrimpy join <link> here to give this agent a new token (replacing ${file}).`
     : `Delete ${file} so this agent makes a new token, or move its home out of the Shrimpy folder if it was removed.`;
+}
+
+/**
+ * How the agent whose membership `file` keeps is let in again after it was
+ * removed, as a new member: apart from the gateway, with a new invitation;
+ * beside it, by deleting `file`, so it makes a new token and joins again.
+ */
+export function removedAdvice(file: string, apart: boolean): string {
+  return apart
+    ? `To let it in again, as a new member, get a new invitation and run shrimpy join <link> here.`
+    : `To let it in again, as a new member, delete ${file} and start it again.`;
+}
+
+/** Why the agent `name`, whose membership `file` keeps `removal`, doesn't start, and how it is let in again. */
+export function removedAtStart(name: string, file: string, removal: Removal, apart: boolean): string {
+  return (
+    `The gateway turned the agent ${name} away at ${localTime(removal.at)}: ${removal.words} ` +
+    `So it doesn't start. ${removedAdvice(file, apart)}`
+  );
 }

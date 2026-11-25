@@ -29,7 +29,16 @@ export { checkAgentName, parseModelChoice, sameModel } from "./agent-config.ts";
 export { AGENT_RUNTIME_DIR, type AgentEndpoint, endpointFile, HOME_AGENT } from "./endpoint.ts";
 export { failureWords } from "./failures.ts";
 export { frontmatter, NO_FRONTMATTER } from "./frontmatter.ts";
-export { AGENT_HOME_VARIABLE, type JoiningMembership, type Membership, membershipFile, unknownTokenAdvice } from "./membership.ts";
+export {
+  AGENT_HOME_VARIABLE,
+  type JoiningMembership,
+  type Membership,
+  membershipFile,
+  type Removal,
+  removedAdvice,
+  removedAtStart,
+  unknownTokenAdvice,
+} from "./membership.ts";
 export { AgentPresence } from "./presence.ts";
 export { delayMs, delayText, describeSchedule, normalizeDelay, sameSchedule } from "./schedule.ts";
 export { MAX_READ, Session } from "./session.ts";

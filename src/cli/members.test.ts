@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { networkInterfaces, userInfo } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { readMembership } from "../contracts/agent/node.ts";
 import { hello, type HelloAnswer, type Link, readAnswer, readLink } from "../contracts/gateway/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
@@ -15,6 +16,7 @@ import {
   launchUp,
   type OnTheRoster,
   onTheRoster,
+  serve,
   shrimpy,
   startAgentShell,
   startModelServer,
@@ -123,6 +125,30 @@ test("an admin removes an agent that up runs: up stops it, its home leaves agent
   assert.equal((await shrimpy(["members", "remove", "rex"])).code, 0);
   assert.deepEqual(await onRosterNow(), [person]);
   assert.ok(existsSync(rex.home));
+});
+
+test("an agent the gateway turns away as removed stops by itself, notes it in its home, and doesn't start again", { timeout }, async (t) => {
+  await startTestGateway(t);
+  const roster = await onTheRoster(t);
+  assert.equal((await shrimpy(["agent", "init", "scout", "--model", "local/test-model"])).code, 0);
+  const home = join(useShrimpyDir(t), "agents", "scout");
+  // Nothing here asks the model anything.
+  declareLocalModel(home, { url: "http://127.0.0.1:9/v1", model: "test-model" });
+  const served = await serve(t, home);
+  const scout = await untilLinked("agent", "scout");
+
+  await roster.remove(scout.member ?? "");
+  await until(() => served.output().code !== null, "the agent to stop by itself", 30_000);
+  assert.equal(served.output().code, 0, served.output().stderr);
+  assert.ok(readMembership(home)?.removed !== undefined, "its home notes the removal");
+
+  const status = await shrimpy(["agent", "status", "--agent", home]);
+  assert.equal(status.code, 1);
+  assert.ok((JSON.parse(status.stdout) as { removed?: unknown }).removed !== undefined, status.stdout);
+
+  const again = await shrimpy(["agent", "serve", home]);
+  assert.equal(again.code, 1, "it doesn't start again");
+  assert.ok(!(await roster.members()).some((member) => member.name === "scout"), "and it is not on the roster");
 });
 
 test("invite prints a line for each address the gateway listens on, whose code lets the agent in", { timeout }, async (t) => {

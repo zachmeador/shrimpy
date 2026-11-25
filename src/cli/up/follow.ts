@@ -6,7 +6,7 @@ import { capitalize } from "../../lib/text/index.ts";
 import { homeConfigFile } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { describeEnd, type Ended } from "../programs/index.ts";
-import { startAgent } from "./agents.ts";
+import { removedHere, startAgent } from "./agents.ts";
 import type { Held, Started } from "./launch.ts";
 import { lengthOf, type Pace } from "./pace.ts";
 
@@ -65,8 +65,10 @@ interface Following extends FollowOptions {
  * started that ends by itself is started again alone, after a pause that grows
  * while it keeps failing. A home whose agent can't start is said once, whatever
  * it comes to, and tried again after the same pauses, and at once when its
- * agent.json changes. The agent of a home that is taken away is stopped. An
- * agent that someone else started is used as it is until it ends.
+ * agent.json changes. The agent of a home that is taken away is stopped. A
+ * home that notes the gateway removed its agent is said once and left alone
+ * until it no longer does. An agent that someone else started is used as it
+ * is until it ends.
  */
 export function follow(options: FollowOptions): Follower {
   const following: Following = { ...options, kept: new Map(), working: new Set(), closed: false, unreadable: undefined };
@@ -149,6 +151,12 @@ async function start(following: Following, home: Kept, changed: boolean): Promis
   const held: Held = [];
   try {
     const attempt = await startAgent(io, home.home, held);
+    if (attempt.removed === true) {
+      // Looked at again each time, so it starts once it is let in again.
+      if (attempt.line !== home.failure) io.out(attempt.line);
+      home.failure = attempt.line;
+      return;
+    }
     const agent = attempt.started;
     if (agent === undefined) {
       if (home.borrowed === undefined) io.out(attempt.line);
@@ -175,6 +183,12 @@ function lost(following: Following, home: Kept, agent: Started, ended: Ended): v
   if (following.closed || home.agent !== agent) return;
   home.agent = undefined;
   leave(following, agent);
+  const removed = removedHere(home.home);
+  if (removed !== undefined) {
+    io.out(removed);
+    home.failure = removed;
+    return;
+  }
   if (Date.now() - (agent.startedAt ?? 0) >= pace.stableMs) home.pauses.reset();
   const pause = home.pauses.next();
   home.notBefore = Date.now() + pause;

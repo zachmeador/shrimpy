@@ -12,9 +12,10 @@
  * are beyond who it is told they are, or anything about the chat server and the
  * gateway beyond their contracts.
  */
-import type { AgentEndpoint } from "../contracts/agent/index.ts";
+import { type AgentEndpoint, removedAtStart } from "../contracts/agent/index.ts";
 import { loadHome, readMembership, readTriggers } from "../contracts/agent/node.ts";
 import { createLiveRoster } from "../contracts/gateway/index.ts";
+import { asError } from "../lib/errors/index.ts";
 import { followFiles } from "../lib/files/node.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { createAdmissions } from "./chat/durable.ts";
@@ -95,6 +96,12 @@ export interface RunningAgent {
    * Unfinished work resumes at the next start.
    */
   close(options?: CloseOptions): Promise<void>;
+  /**
+   * Settles once the gateway has turned the agent away as removed from the
+   * roster, and the agent has stopped by itself, as `close` with `now` stops
+   * it, so that its triggers and turns call its model no more.
+   */
+  readonly removed: Promise<void>;
 }
 
 /** An agent started from its home. */
@@ -125,6 +132,11 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     // The tools ask for the link to chat when they run, and say chat is unreachable without one. The tasks wait for the
     // link `join` gives them.
     let joined: Joined | undefined;
+    let close: RunningAgent["close"] | undefined;
+    let stoppedForRemoval = (): void => undefined;
+    const removed = new Promise<void>((resolve) => {
+      stoppedForRemoval = resolve;
+    });
     const chat = () => joined?.chat();
     const roster = createLiveRoster(report);
     const members = () => roster.now()?.members;
@@ -235,6 +247,11 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
             working: createWorking(host.harness),
             delivery,
             ...(options.shrimpy === undefined ? {} : { shrimpy: options.shrimpy }),
+            onRemoved() {
+              void (close?.({ now: true }) ?? Promise.resolve())
+                .catch((error: unknown) => report(asError(error)))
+                .finally(stoppedForRemoval);
+            },
             onError: report,
           },
           options.join,
@@ -243,7 +260,8 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       const refuseInput = (): void => {
         takingInput = false;
       };
-      return { endpoint: server.endpoint, close: stopper({ host, server, joined, following: keepingUp, refuseInput }) };
+      close = stopper({ host, server, joined, following: keepingUp, refuseInput });
+      return { endpoint: server.endpoint, close, removed };
     } catch (error) {
       await server.close();
       throw error;
@@ -272,7 +290,8 @@ function reporter(options: AgentOptions): (error: Error) => void {
  * that name them change. Its instructions come from the files of the home, and
  * it reads them again whenever they change. A home that names a gateway address in its
  * membership, as one does that joined from apart, links to the gateway there,
- * with its token, and reaches chat through it. Reading `agent.json` takes no lock and changes
+ * with its token, and reaches chat through it. A home whose membership notes
+ * that the gateway turned the agent away as removed doesn't start. Reading `agent.json` takes no lock and changes
  * nothing, so a home that does not load, or a model that is missing or cannot
  * be used, fails before the agent claims the home. `shrimpy` is the program and arguments that run Shrimpy, which the agent's
  * shell finds as the `shrimpy` command. `providers` is the `providers/`
@@ -286,6 +305,10 @@ export async function startHomeAgent(
   options: { shrimpy?: readonly string[]; providers?: string; lookEveryMs?: number } = {},
 ): Promise<HomeAgent> {
   const loaded = loadHome(home);
+  const membership = readMembership(loaded.paths.root);
+  if (membership?.removed !== undefined) {
+    throw new Error(removedAtStart(loaded.name, loaded.paths.member, membership.removed, membership.gateway !== undefined));
+  }
   const runtime = await buildModels({
     modelsFile: loaded.paths.models,
     authFile: loaded.paths.auth,
@@ -297,7 +320,7 @@ export async function startHomeAgent(
       return model === undefined ? undefined : { provider: model.provider, modelId: model.id };
     },
   });
-  const gateway = readMembership(loaded.paths.root)?.gateway;
+  const gateway = membership?.gateway;
   const agent = await startAgent({
     home: loaded.paths.root,
     name: loaded.name,

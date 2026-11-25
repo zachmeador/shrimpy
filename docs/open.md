@@ -18,7 +18,6 @@ The owner agreed on 2026-11-24, hours after 1.0.0, to a 2.0 that gets the contra
 - A DM has no main thread: `openDm` makes none, and chat's migration clears it and drops the empty ones.
 - Every write goes through `Chat` by ID, and `Channel` and `Thread` become views, so an agent's post no longer brings up to 200 messages.
 - `Agent` gains its default model as state, and `setModel` and `switchTrigger`, which change the agent's own files when asked. Adding and removing triggers stays with the agent's own tools.
-- The roster keeps removed agents, and an agent refused as `removed` stops its triggers and model calls.
 - A session's items carry a time, and a device's label comes from the hello's machine.
 - Before it ships, chat's and the roster's migrations run on copies of the owner's and Kathleen's data, and an agent apart follows its gateway across the major.
 

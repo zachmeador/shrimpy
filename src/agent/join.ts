@@ -3,6 +3,7 @@ import type { Facet, Host } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { readMembership, saveMembership } from "../contracts/agent/node.ts";
 import type { Entry, LiveRoster, Principal, Revocation } from "../contracts/gateway/index.ts";
+import { asError } from "../lib/errors/index.ts";
 import type { Backoff } from "../lib/retry/index.ts";
 import { type Admissions, type ChatDelivery, markWorking, readFeed, type Wakes } from "./chat/index.ts";
 import { homePaths } from "./home/index.ts";
@@ -71,6 +72,8 @@ export interface Participant {
    * Without it the agent doesn't follow.
    */
   shrimpy?: readonly string[];
+  /** Told that the gateway turned the agent away as removed, once its home notes it. */
+  onRemoved: () => void;
   onError: (error: Error) => void;
 }
 
@@ -81,7 +84,8 @@ export interface Participant {
  * chat brings that wake the agent. Who the agent is comes from the gateway and
  * from nothing the agent says. None of it delays the agent's start or stops its sessions working: the
  * gateway and chat may not be there yet, or go away, and the agent finds them
- * again.
+ * again. Turned away as removed, the agent notes it in its home's membership,
+ * so that it doesn't start or link again until it is let in again.
  */
 export function join(participant: Participant, options: JoinOptions): Joined {
   const { name, facet, roster, workspace, admissions, wakes, working, delivery, onError } = participant;
@@ -116,6 +120,16 @@ export function join(participant: Participant, options: JoinOptions): Joined {
     files: { name: paths.config, membership: paths.member },
     onError,
     ...(participant.shrimpy === undefined ? {} : { follow: followGateway(participant.shrimpy, (line) => onError(new Error(line))) }),
+    removed(words) {
+      // A home moved away while the agent runs, as `shrimpy members remove` moves one, keeps nothing more.
+      try {
+        const kept = readMembership(paths.root);
+        if (kept !== undefined && existsSync(paths.root)) saveMembership(paths.root, { ...kept, removed: { at: Date.now(), words } });
+      } catch (error) {
+        onError(asError(error));
+      }
+      participant.onRemoved();
+    },
     ...(options.apart === undefined ? {} : { apart: options.apart }),
     ...(backoff === undefined ? {} : { backoff: backoff() }),
   });

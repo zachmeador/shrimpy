@@ -3,9 +3,10 @@ import { basename, dirname } from "node:path";
 import { parseArgs } from "node:util";
 import type { HomeAgent } from "../../agent/index.ts";
 import { checkAgentName, modelWords, parseModelChoice } from "../../contracts/agent/index.ts";
-import { homePaths, initHome, providerPaths, readEndpoint } from "../../contracts/agent/node.ts";
+import { homePaths, initHome, providerPaths, readEndpoint, readMembership } from "../../contracts/agent/node.ts";
 import { findMember } from "../../contracts/chat/index.ts";
 import { asError } from "../../lib/errors/index.ts";
+import { localTime } from "../../lib/time/index.ts";
 import { homeNamed, isPath, newHome, providersPath } from "../folder/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
 import { askLocalGateway, onAgent } from "../talk/index.ts";
@@ -153,7 +154,9 @@ const serve: Command = {
     "model server or a sign-in, it takes from providers/ in your Shrimpy folder, which is ~/shrimpy or the " +
     "folder SHRIMPY_DIR names. SIGTERM or Ctrl+C stops it: it stops taking input, gives " +
     "running turns up to five seconds to finish, then closes, and work that did not finish resumes at the " +
-    `next start. --now skips the wait, and so does a second signal during it. ${AN_AGENT}`,
+    "next start. --now skips the wait, and so does a second signal during it. An agent the gateway turns away " +
+    "as removed from the roster stops by itself, notes it in its home's state/member.json, and doesn't start " +
+    `again until it is let in again. ${AN_AGENT}`,
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({ args, options: { now: { type: "boolean" } }, allowPositionals: true }),
@@ -180,7 +183,8 @@ const serve: Command = {
       const { startHomeAgent } = await import("../../agent/index.ts");
       agent = await startHomeAgent(home, { shrimpy: shrimpyCommand(), providers: providersPath() });
       io.json({ event: "listening", home: agent.home, ...agent.endpoint });
-      await requested;
+      // An agent the gateway turns away as removed stops by itself, and has said why.
+      await Promise.race([requested, agent.removed]);
       await agent.close({ now: values.now === true });
       return 0;
     } finally {
@@ -195,7 +199,8 @@ const status: Command = {
   summary: "Say whether the agent is running, and how to reach it.",
   details:
     "Prints one JSON line: for an agent named on the roster, its name and whether it is running, and for a home on " +
-    "this machine, the home and whether an agent is running there, with its socket and process when one is. Exits 0 " +
+    "this machine, the home and whether an agent is running there, with its socket and process when one is, and " +
+    "when the gateway turned it away as removed, if it did. Exits 0 " +
     `if an agent is running and 1 if not. ${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
@@ -203,9 +208,14 @@ const status: Command = {
     const target = agentToActOn(values.agent);
     const running = await answers(target);
     const { home } = target;
-    if (home === undefined) io.json({ running, name: target.given });
+    if (home === undefined) {
+      io.json({ running, name: target.given });
+      return running ? 0 : 1;
+    }
+    const removal = readMembership(home)?.removed;
+    const removed = removal === undefined ? {} : { removed: { at: localTime(removal.at), words: removal.words } };
     // The endpoint file outlives the agent, so only an answer shows that one is there.
-    else io.json(running ? { running, home, ...readEndpoint(home) } : { running, home });
+    io.json(running ? { running, home, ...removed, ...readEndpoint(home) } : { running, home, ...removed });
     return running ? 0 : 1;
   },
 };

@@ -9,6 +9,8 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - `shrimpy status` lists the gateway's version beside chat's and the agents'.
 - `shrimpy agent init` refuses a name your gateway's roster already holds, where the agent used to be turned away when it first ran.
 - `shrimpy members remove <name>` removes an agent, and moves its home in your Shrimpy folder to `removed/`.
+- An agent removed from the roster stops when its gateway turns it away, wherever it runs, and doesn't start again until it's let in again as a new member.
+- The gateway brings a roster from 1.0.0 up to date when it starts, and keeps a copy of the old one beside it, in `gateway/state/`.
 
 ## 🦐 1.0.0 - A Rising Tide - 2026-11-24
 

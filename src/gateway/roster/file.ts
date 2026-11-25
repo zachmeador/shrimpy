@@ -29,10 +29,23 @@ export type MemberRecord =
   | { id: string; kind: "person"; name: string; recognizedBy: { machines?: DeviceRecord[] } }
   | { id: string; kind: "agent"; name: string; admin: boolean; recognizedBy: { tokenHash?: string } };
 
-/** The roster as kept in its file: its own ID and active members, oldest first. */
+/**
+ * An agent removed from the roster: its ID, which is never used again, the
+ * name it had, which is free, the hash of the token it had then, if it had
+ * one, so that a hello showing it is told the agent was removed, and when.
+ */
+export interface RemovedRecord {
+  id: string;
+  name: string;
+  tokenHash?: string;
+  removedAt: number;
+}
+
+/** The roster as kept in its file: its own ID, its members, oldest first, and the agents removed from it, in the order they were. */
 export interface RosterFile {
   id: string;
   members: MemberRecord[];
+  removed: RemovedRecord[];
 }
 
 /** A change to the file: what turns the file at the version before into one at `version`. */
@@ -40,8 +53,11 @@ export interface RosterStep extends Step {
   migrate(file: Record<string, unknown>): Record<string, unknown>;
 }
 
+/** 2.0.0: the roster keeps the agents removed from it. */
+const KEEPS_REMOVED: RosterStep = { version: 4, migrate: (file) => ({ ...file, removed: [] }) };
+
 /** This release's format of the file. */
-export const ROSTER_FORMAT: StoreFormat<RosterStep> = { current: 3, oldest: 3, steps: [] };
+export const ROSTER_FORMAT: StoreFormat<RosterStep> = { current: 4, oldest: 3, steps: [KEEPS_REMOVED] };
 
 /** Where the roster is kept inside the gateway's data directory. */
 export const rosterFile = (dataDir: string): string => join(dataDir, "state", "roster.json");
@@ -76,8 +92,18 @@ export function readRoster(dataDir: string, format = ROSTER_FORMAT): RosterFile 
   }
   const id = root.string("id");
   const members = root.objects("members").map(parseMember);
+  const removed = root.objects("removed").map(parseRemoved);
   root.done();
-  return { id, members };
+  return { id, members, removed };
+}
+
+function parseRemoved(entry: ConfigObject): RemovedRecord {
+  const id = entry.string("id");
+  const name = entry.string("name");
+  const tokenHash = entry.optionalString("tokenHash");
+  const removedAt = entry.number("removedAt");
+  entry.done();
+  return { id, name, ...(tokenHash === undefined ? {} : { tokenHash }), removedAt };
 }
 
 function parseMember(entry: ConfigObject): MemberRecord {
@@ -117,7 +143,7 @@ function parseDevice(entry: ConfigObject): DeviceRecord {
 /** Write the roster whole, so that nobody reads half of it and a power cut leaves the old one or the new, readable only by its owner. */
 export function writeRoster(file: string, roster: RosterFile, version: number): void {
   mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-  saveFile(file, formatted({ version, id: roster.id, members: roster.members }), { mode: 0o600 });
+  saveFile(file, formatted({ version, id: roster.id, members: roster.members, removed: roster.removed }), { mode: 0o600 });
 }
 
 const formatted = (json: object): string => `${JSON.stringify(json, null, 2)}\n`;

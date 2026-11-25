@@ -16,7 +16,8 @@ export type Who =
    * An agent's program. `name` names it only when it first joins. On the
    * gateway's socket, a token the gateway doesn't know joins it unless `roster`
    * matches this roster's ID, in which case its token was taken back or
-   * replaced, or the agent was removed, and it is turned away as unknown.
+   * replaced, and it is turned away as unknown. The token of an agent that was
+   * removed is turned away as removed, wherever it is shown.
    */
   | { kind: "agent"; name: string; token: string; roster: string | null }
   /** The chat server, which shows no token, on the gateway's socket. */
