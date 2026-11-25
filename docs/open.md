@@ -21,7 +21,7 @@ The owner agreed on 2026-11-24, hours after 1.0.0, to a 2.0 that gets the contra
 - `Agent` gains its default model as state, and `setModel` and `switchTrigger`, which change the agent's own files when asked. Adding and removing triggers stays with the agent's own tools.
 - The roster keeps removed agents, and an agent refused as `removed` stops its triggers and model calls.
 - A session's items carry a time, and a device's label comes from the hello's machine.
-- Before it, evolve is tried once on a branch, since the rules for 2.x rest on what it costs. Before it ships, chat's and the roster's migrations run on copies of the owner's and Kathleen's data, and an agent apart follows its gateway across the major.
+- Before it ships, chat's and the roster's migrations run on copies of the owner's and Kathleen's data, and an agent apart follows its gateway across the major.
 
 ## The release
 
@@ -76,6 +76,7 @@ Daily use decides what comes after the release. The last order was compaction an
 **Not built**
 
 - The rest of the agent's operations, as members of `Agent` and `Session`, as daily use asks for them: withdraw, thinking level, defaults, context queries, completion against the agent's files, provider status, delegation and attachments.
+- Clients holding a lagging agent's `Agent` and `Session` at the versions its release served, from `released.json`. A client at a newer version waits on an older agent with `contract_mismatch`, even for members the older version has, and agents update after the gateway's machine. The evolve trial of 2026-11-24 found it, and it's needed by the first time either contract evolves in 2.x.
 
 **Falls short**
 
