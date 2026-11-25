@@ -42,8 +42,8 @@ export const AgentModelsSchema = obj({
 });
 export type AgentModels = Static<typeof AgentModelsSchema>;
 
-/** Which thread of a channel: its main one, and its name if it has one. */
-const ThreadPlaceSchema = obj({ main: bool(), name: union([str(), nul()]) });
+/** Which thread of a channel: its name, if it has one. */
+const ThreadPlaceSchema = obj({ name: union([str(), nul()]) });
 export type ThreadPlace = Static<typeof ThreadPlaceSchema>;
 
 /**

@@ -48,7 +48,11 @@ export const Channel = remote("shrimpy.chat.channel", {
         refusal: union([RefusedSchema, nul()]),
         /** The channel: its kind, name and members. */
         channel: union([ChannelSchema, nul()]),
-        /** Its threads, archived ones too, the most recently updated first, each with who is working in it. */
+        /**
+         * Its threads, archived ones too, each with who is working in it: the
+         * pinned ones first, oldest pin first, and then the most recently
+         * updated first.
+         */
         threads: arr(ThreadSchema),
         /**
          * How many messages are new to you in each of its threads, by the thread's

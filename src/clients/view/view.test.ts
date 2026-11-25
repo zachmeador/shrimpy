@@ -4,14 +4,14 @@ import { join } from "node:path";
 import { type TestContext, test } from "node:test";
 import { lookFromId, parseSigil, PIGMENTS } from "../../contracts/agent/index.ts";
 import { servingAnotherAgent } from "../../contracts/agent/testing/index.ts";
-import { type Thread, triggerLabel } from "../../contracts/chat/index.ts";
+import { PINNED, type Thread, triggerLabel } from "../../contracts/chat/index.ts";
 import type { Speaking } from "../../contracts/chat/testing/index.ts";
 import { linkTestAgent, SHRIMPY_ENTRY } from "../../contracts/gateway/testing/index.ts";
 import { type Child, runChild, startChild, tempDir } from "../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { CONNECTING } from "../network/index.ts";
 import type { Model } from "../state/index.ts";
-import { aChatServer, aDm, agentMember, aListing, aModel, anAgent, aRoom, aThread, type Rig, startRig } from "../state/testing/index.ts";
+import { aChatServer, aDm, agentMember, aListing, aModel, anAgent, aRoom, aSession, aThread, type Rig, startRig } from "../state/testing/index.ts";
 import { agentsLevel, listLevel, type ListLevel, type Look, type Row, threadLevel, withMentions } from "./index.ts";
 
 /*
@@ -23,10 +23,10 @@ import { agentsLevel, listLevel, type ListLevel, type Look, type Row, threadLeve
 const timeout = 30_000;
 const at = { now: Date.now(), self: "this test" };
 
-/** The main thread of a channel, as the person reads it. */
-async function mainOf(you: Speaking, channelId: string): Promise<Thread> {
-  const found = (await you.threads(channelId)).find((each) => each.main);
-  assert.ok(found, `${channelId} has a main thread`);
+/** The thread a room is made with, which is pinned, as the person reads it. */
+async function pinnedOf(you: Speaking, channelId: string): Promise<Thread> {
+  const [found] = await you.threads(channelId);
+  assert.ok(found?.pinned !== null && found !== undefined, `${channelId} has a pinned thread`);
   return found;
 }
 
@@ -50,10 +50,10 @@ test("what is new to the person is counted on each thread, each agent and room, 
   await asScout.post(logs.id, "quiet");
   await asMechanic.post(backup.id, "done");
   const home = await you.createRoom("home", [scout.id]);
-  await asScout.post((await mainOf(you, home.id)).id, "dinner at 7");
+  await asScout.post((await pinnedOf(you, home.id)).id, "dinner at 7");
   // A room the person only reads counts on its own row, and is left out of all.
   const lab = await asScout.createRoom("lab", [mechanic.id]);
-  await asMechanic.post((await mainOf(you, lab.id)).id, "the bench is free");
+  await asMechanic.post((await pinnedOf(you, lab.id)).id, "the bench is free");
 
   const counted = await rig.until((model) => countOn(agentsLevel(model, at).rows, "read-only", lab.id) === 1 && agentsLevel(model, at).unread === 5, "the counts");
   const { rows, unread } = agentsLevel(counted, at);
@@ -289,21 +289,21 @@ test("no one is said to work while the gateway is out of reach, whatever chat la
   assert.deepEqual([opened?.working, opened?.rows.map((row) => row.working)], [false, [false]]);
 });
 
-test("a DM's main thread is left off an agent's list while it is empty, and listed untagged once an agent at 1.0.0 posts in it; a room's keeps its tag", () => {
+test("a pinned thread is tagged so, in a room's list and on an agent's", () => {
   const scout = agentMember("scout");
-  const side = aThread("th_2", { preview: "the build", updatedAt: 2 });
-  const main = aThread("th_1", { main: true, updatedAt: 1 });
-  const rowsOf = (dmMain: Thread): [string, string[]][] | undefined =>
-    listLevel(
-      aModel({ listing: aListing([anAgent("scout"), aChatServer()]), dms: { [scout.id]: aDm("scout", [side, dmMain]) }, open: { list: { kind: "agent", id: scout.id }, item: undefined } }),
-      at,
-    )?.rows.map((row) => [row.id, row.tags]);
+  const pinned = aThread("th_1", { pinned: 1, channelId: "ch_2", updatedAt: 1 });
+  const room = aRoom("ops", ["scout"], [pinned, aThread("th_2", { channelId: "ch_2", updatedAt: 2 })]);
+  const tagsOf = (open: Model["open"]): string[][] | undefined =>
+    listLevel(aModel({ listing: aListing([anAgent("scout"), aChatServer()]), rooms: { ch_2: room }, open }), at)?.rows.map((row) => row.tags);
 
-  assert.deepEqual(rowsOf(main), [["th_2", []]]);
-  assert.deepEqual(rowsOf({ ...main, preview: "Build report: green." }), [["th_2", []], ["th_1", []]]);
-  const room = aRoom("ops", ["scout"], [aThread("th_3", { main: true, channelId: "ch_2", preview: "morning" })]);
-  const roomRows = listLevel(aModel({ rooms: { ch_2: room }, open: { list: { kind: "room", id: "ch_2" }, item: undefined } }), at)?.rows;
-  assert.deepEqual(roomRows?.map((row) => row.tags), [["main"]]);
+  assert.deepEqual(tagsOf({ list: { kind: "room", id: "ch_2" }, item: undefined }), [[PINNED], []]);
+  const ofScout = aModel({
+    listing: aListing([anAgent("scout"), aChatServer()]),
+    rooms: { ch_2: room },
+    sessions: [aSession("th_1", { place: { kind: "room", room: "ops", thread: { name: null } } })],
+    open: { list: { kind: "agent", id: scout.id }, item: undefined },
+  });
+  assert.deepEqual(listLevel(ofScout, at)?.rows.map((row) => [row.id, row.tags]), [["th_1", [PINNED]]]);
 });
 
 test("the terminal's first screen says when this machine is behind the gateway, and a page's never does", () => {

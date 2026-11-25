@@ -200,7 +200,7 @@ test("Esc goes back from a thread whatever is typed, and what was typed is there
 
 test("Tab is the other view of where you are: everything or yours on an agent's list, and in a thread each agent's view in turn", (t) => {
   const rooms = { ch_2: aRoom("ops", ["scout", "mechanic"], [aThread("th_9", { preview: "the bench", channelId: "ch_2" })]) };
-  const elsewhere = aSession("th_9", { place: { kind: "room", room: "ops", thread: { main: false, name: "the bench" } } });
+  const elsewhere = aSession("th_9", { place: { kind: "room", room: "ops", thread: { name: "the bench" } } });
   const { terminal, state, lines, screen } = start(t, scoutsList({ rooms, sessions: [elsewhere] }), { columns: 100 });
   const drawn = (): string => lines().join("\n");
   assert.ok(drawn().includes("the bench"), "everything the agent takes part in");
@@ -588,7 +588,7 @@ test("nothing drawn is wider than the terminal, however narrow or wide, whatever
   };
   fits();
 
-  const place = { kind: "room" as const, room: "日本語のとても長い部屋", thread: { main: false, name: "averyveryveryverylongthreadnamewithoutanyspacesatall".repeat(2) } };
+  const place = { kind: "room" as const, room: "日本語のとても長い部屋", thread: { name: "averyveryveryverylongthreadnamewithoutanyspacesatall".repeat(2) } };
   const sessions = [aSession("th_2", { place, working: true })];
   const agent = { kind: "agent" as const, id: scout.id };
   state.show({ ...model, open: { list: agent, item: undefined }, sessions });
@@ -612,9 +612,9 @@ test("text from other members and from tools can't reach the terminal, wherever 
   const thread = aThread("th_1", { name: `Name${hostile}`, preview: `Preview${hostile}`, working: [{ memberId: scout.id, since: now }] });
   const others = [agentMember(`lurker${hostile}`), agentMember(`mechanic${hostile}`)];
   const sessions = [
-    aSession("th_9", { place: { kind: "dm", with: { name: `mechanic${hostile}`, kind: "agent" }, thread: { main: false, name: `thread${hostile}` } } }),
+    aSession("th_9", { place: { kind: "dm", with: { name: `mechanic${hostile}`, kind: "agent" }, thread: { name: `thread${hostile}` } } }),
     aSession(`trigger:${hostile}`, { place: { kind: "trigger", trigger: `nightly${hostile}` }, working: true }),
-    aSession(`th_2${hostile}`, { place: { kind: "room", room: `ops${hostile}`, thread: { main: true, name: null } }, working: true }),
+    aSession(`th_2${hostile}`, { place: { kind: "room", room: `ops${hostile}`, thread: { name: null } }, working: true }),
   ];
   const work = workingView(
     [
@@ -915,14 +915,14 @@ async function amongOthers(t: TestContext) {
   const asMechanic = await rig.asAgent("mechanic");
   const dmChannel = await asScout.openDm(mechanic.id);
   const labRoom = await asScout.createRoom("lab", [mechanic.id]);
-  const main = async (channelId: string) => {
-    const found = (await you.threads(channelId)).find((each) => each.main);
+  const first = async (channelId: string) => {
+    const [found] = await you.threads(channelId);
     assert.ok(found);
     return found;
   };
-  const home = { channel: homeRoom, thread: await main(homeRoom.id) };
-  const dm = { channel: dmChannel, thread: await main(dmChannel.id) };
-  const lab = { channel: labRoom, thread: await main(labRoom.id) };
+  const home = { channel: homeRoom, thread: await first(homeRoom.id) };
+  const dm = { channel: dmChannel, thread: await asScout.createThread(dmChannel.id, null) };
+  const lab = { channel: labRoom, thread: await first(labRoom.id) };
   await asScout.post(dm.thread.id, "the backup finished");
   await asMechanic.post(dm.thread.id, "thanks, I checked it");
   await asMechanic.post(lab.thread.id, "the bench is free");
@@ -1047,7 +1047,7 @@ test("a thread of a room the person only reads takes no input, and shows what is
   terminal.type(LEFT);
   assert.equal(screen()?.kind, "threads", "left goes back as everywhere");
   await asScout.setWorking(lab.thread.id, true);
-  // The room's main thread is its only one, and so the row chosen.
+  // The room's pinned thread is its only one, and so the row chosen.
   terminal.type(RIGHT);
   await rig.until((model) => model.thread?.thread.id === lab.thread.id && model.thread.thread.working.length > 0, "the work to show");
   assert.doesNotMatch(drawn(), /\/stop/, "no way to stop the work is offered, which the person can't write");

@@ -1,5 +1,5 @@
 import { placeLabel, threadName, YOUR_DM } from "../../contracts/agent/index.ts";
-import { ARCHIVED, type Channel, isListed, notTalkedTo, threadTags, titleOf } from "../../contracts/chat/index.ts";
+import { ARCHIVED, notTalkedTo, threadTags, titleOf } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { agentEntries, agentNameOf, agentRuns, type Model, type Part, partsOf, type Place, unreadOf } from "../state/index.ts";
 import { agentAbout } from "./agents.ts";
@@ -90,15 +90,15 @@ function channelList(model: Model, place: Exclude<Place, { kind: "agent" }>, opt
   const here = lookingAt(model, place);
   const stale = model.chat.state === "down";
   const reading = place.kind === "read-only";
-  const kind = here.channel?.kind ?? "room";
-  const listed = here.threads.filter((thread) => isListed(thread, kind)).map((thread) => ({
+  // As chat lists them: the pinned ones first.
+  const listed = here.threads.map((thread) => ({
     archived: thread.archived,
     row: {
       id: thread.id,
       kind: "thread",
       label: titleOf(thread),
       name: titleOf(thread),
-      tags: threadTags({ main: thread.main, archived: false }, kind),
+      tags: threadTags({ pinned: thread.pinned, archived: false }),
       detail: [whenOf(thread.updatedAt, options.now), reading ? READ_ONLY_TAG : undefined].filter((part) => part !== undefined).join(" · "),
       working: thread.working.length > 0 && !stale,
       unread: unreadOf(here.unread, thread),
@@ -110,7 +110,7 @@ function channelList(model: Model, place: Exclude<Place, { kind: "agent" }>, opt
   return {
     stale,
     ...apart(listed),
-    // A room always has its main thread, so there is no one to ask the person to start a talk with.
+    // A room is made with a thread, so there is no one to ask the person to start a talk with.
     empty: undefined,
     label: here.label,
     name: oneLine(here.name),
@@ -144,7 +144,7 @@ function agentList(model: Model, agentId: string, filter: ListFilter, options: L
   const shown = parts.filter((part) => filter === "everything" || part.yours);
   const listed = shown.map((part) => ({
     archived: part.thread?.archived === true,
-    row: partRow(part, model.me?.name, options.now, stale, readOnly(model, part), part.thread === undefined ? undefined : channelKind(model, part.thread.channelId)),
+    row: partRow(part, model.me?.name, options.now, stale, readOnly(model, part)),
   }));
   const refused = model.refusal === undefined ? undefined : { what: "sessions" as const, words: model.refusal };
   const entry = agentEntries(model).find((each) => each.id === agentId);
@@ -193,19 +193,13 @@ function readOnly(model: Model, part: Part): boolean {
   return part.place?.kind === "dm" && part.place.with.kind === "agent";
 }
 
-/** The kind of the channel `channelId`, as chat lists it to the person: one of their DMs or rooms, or a channel they only read. */
-function channelKind(model: Model, channelId: string): Channel["kind"] | undefined {
-  return [...Object.values(model.dms), ...Object.values(model.rooms), ...Object.values(model.readOnly)].find((each) => each.channel.id === channelId)?.channel.kind;
-}
-
 /**
  * The row for something an agent takes part in: what it is called, with the
  * words that mark it, then where it is, when it was last active, and that the
  * person only reads it when they are not in it. A session behind no thread is
- * called for where it is, and has no time. `kind` is the kind of the channel of
- * a thread chat lists.
+ * called for where it is, and has no time.
  */
-function partRow(part: Part, me: string | undefined, now: number, stale: boolean, reading: boolean, kind: Channel["kind"] | undefined): Row {
+function partRow(part: Part, me: string | undefined, now: number, stale: boolean, reading: boolean): Row {
   const where = part.yours ? YOUR_DM : part.place === null ? undefined : placeLabel(part.place, me);
   const working = part.working && !stale;
   if (part.kind === "session") {
@@ -218,11 +212,9 @@ function partRow(part: Part, me: string | undefined, now: number, stale: boolean
   // An archived thread stands apart under the row that says so, which marks it.
   if (part.thread !== undefined) {
     label = titleOf(part.thread);
-    tags = kind === undefined ? [] : threadTags({ main: part.thread.main, archived: false }, kind);
+    tags = threadTags({ pinned: part.thread.pinned, archived: false });
   } else if (part.place !== null && part.place.kind !== "trigger") {
-    const named = threadName(part.place, part.id);
-    label = named.label;
-    tags = named.named ? threadTags({ main: part.place.thread.main, archived: false }, part.place.kind) : [];
+    label = threadName(part.place, part.id).label;
   }
   const when = part.at === undefined ? undefined : whenOf(part.at, now);
   return {

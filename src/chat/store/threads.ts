@@ -6,15 +6,15 @@ import type { Sql } from "./sql.ts";
 type ThreadRow = {
   id: string;
   channel_id: string;
-  main: number;
   name: string | null;
   preview: string | null;
   archived: number;
+  pinned: number | null;
   revision: number;
   updated_at: number;
 };
 
-const COLUMNS = "id, channel_id, main, name, preview, archived, revision, updated_at";
+const COLUMNS = "id, channel_id, name, preview, archived, pinned, revision, updated_at";
 
 /** A thread as stored. Who is working in it lives in memory, never in the store. */
 export type ThreadRecord = Omit<Thread, "working">;
@@ -22,10 +22,10 @@ export type ThreadRecord = Omit<Thread, "working">;
 const toThread = (row: ThreadRow): ThreadRecord => ({
   id: row.id,
   channelId: row.channel_id,
-  main: row.main === 1,
   name: row.name,
   preview: row.preview,
   archived: row.archived === 1,
+  pinned: row.pinned,
   revision: row.revision,
   updatedAt: row.updated_at,
 });
@@ -33,32 +33,36 @@ const toThread = (row: ThreadRow): ThreadRecord => ({
 export interface ThreadOperations {
   thread(id: string): ThreadRecord | undefined;
   /**
-   * A channel's threads, the most recently updated first. Threads updated in the
-   * same millisecond go in the order of their newest messages.
+   * A channel's threads: the pinned ones first, oldest pin first, and then the
+   * most recently updated first. Threads updated in the same millisecond go in
+   * the order of their newest messages.
    */
   threadsIn(channelId: string): ThreadRecord[];
-  /** Start a side thread. */
+  /** Start a thread. */
   addThread(channelId: string, name: string | null, now: number): ThreadRecord;
   /** Name a thread, which takes it to its next revision. A thread that has the name already stays as it is. */
   renameThread(id: string, name: string): ThreadRecord;
   /** Archive a thread or bring it back, which takes it to its next revision. A thread that is that already stays as it is. */
   archiveThread(id: string, archived: boolean): ThreadRecord;
+  /**
+   * Pin a thread as at `at`, or unpin it with null, which takes it to its next
+   * revision. A thread that is that already stays as it is, and a pinned one
+   * keeps when it was pinned.
+   */
+  pinThread(id: string, at: number | null): ThreadRecord;
   /** How many messages the thread holds. */
   messageCount(id: string): number;
 }
 
-/** Create a thread's row. A channel's main thread is made with the channel. */
-export function insertThread(
-  sql: Sql,
-  thread: { channelId: string; name: string | null; main: boolean; now: number },
-): string {
+/** Create a thread's row, pinned at `pinned` or not. A room's first thread is made with the room. */
+export function insertThread(sql: Sql, thread: { channelId: string; name: string | null; pinned: number | null; now: number }): string {
   const id = newId("th");
   sql.run(
-    "INSERT INTO threads (id, channel_id, main, name, updated_at) VALUES (?, ?, ?, ?, ?)",
+    "INSERT INTO threads (id, channel_id, name, pinned, updated_at) VALUES (?, ?, ?, ?, ?)",
     id,
     thread.channelId,
-    thread.main ? 1 : 0,
     thread.name,
+    thread.pinned,
     thread.now,
   );
   return id;
@@ -127,13 +131,13 @@ export function threadOperations(sql: Sql, report: ReportChange): ThreadOperatio
     threadsIn(channelId) {
       const rows = sql.all(
         `SELECT ${COLUMNS} FROM threads WHERE channel_id = ?
-         ORDER BY updated_at DESC, last_seq DESC, rowid DESC`,
+         ORDER BY pinned IS NULL, pinned, updated_at DESC, last_seq DESC, rowid DESC`,
         channelId,
       ) as ThreadRow[];
       return rows.map(toThread);
     },
     addThread(channelId, name, now) {
-      const id = insertThread(sql, { channelId, name, main: false, now });
+      const id = insertThread(sql, { channelId, name, pinned: null, now });
       report({ kind: "thread", channelId, threadId: id });
       return get(id);
     },
@@ -146,6 +150,12 @@ export function threadOperations(sql: Sql, report: ReportChange): ThreadOperatio
     archiveThread(id, archived) {
       const flag = archived ? 1 : 0;
       const changed = sql.run("UPDATE threads SET archived = ?, revision = revision + 1 WHERE id = ? AND archived <> ?", flag, id, flag);
+      const thread = get(id);
+      if (changed > 0) report({ kind: "thread", channelId: thread.channelId, threadId: id });
+      return thread;
+    },
+    pinThread(id, at) {
+      const changed = sql.run("UPDATE threads SET pinned = ?, revision = revision + 1 WHERE id = ? AND (pinned IS NULL) <> (? IS NULL)", at, id, at);
       const thread = get(id);
       if (changed > 0) report({ kind: "thread", channelId: thread.channelId, threadId: id });
       return thread;

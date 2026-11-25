@@ -46,11 +46,12 @@ test("an admin agent makes a room from its shell, adds the person, and both list
   const threads = await shrimpy(["threads", "#ops", "--json"]);
   assert.equal(threads.code, 0, threads.stderr);
   assert.deepEqual(
-    (JSON.parse(threads.stdout) as Thread[]).map((thread) => [thread.id, thread.name, thread.main]),
+    (JSON.parse(threads.stdout) as Thread[]).map((thread) => [thread.id, thread.name, thread.pinned !== null]),
     [
-      [side.id, "Backups", false],
       [main.id, null, true],
+      [side.id, "Backups", false],
     ],
+    "the room's pinned thread first, though the other is newer",
   );
   assert.equal((await rex.run(["threads", "#Ops"])).code, 0, "the agent lists them as itself");
 

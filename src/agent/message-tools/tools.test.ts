@@ -147,8 +147,9 @@ test("an agent starts a DM with a member it has never talked to, by name, and sa
   const [channel] = theirs.channels.value;
   assert.ok(channel);
   assert.equal(channel.name, "scout", "the mechanic sees a DM with the agent");
-  const started = await onChannel(mechanic, channel.id, (held) => held.threads.value.find((thread) => !thread.main));
+  const [started, ...more] = await onChannel(mechanic, channel.id, (held) => held.threads.value);
   assert.ok(started);
+  assert.deepEqual(more, [], "the DM is made with no thread of its own");
   const [sent, ...others] = valueOf(await theirs.read({ thread: started.id, before: null, limit: 10 }, BACKGROUND_CONTEXT));
   assert.deepEqual(others, []);
   assert.equal(sent?.text, "The build is red.");

@@ -3,14 +3,13 @@ import { test } from "node:test";
 import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
 import { ANSWER_BYTES } from "../input/index.ts";
 import { agent, openTestDeps, person } from "../testing/index.ts";
-import { channelView, openDm, post, threadView } from "./index.ts";
+import { createThread, openDm, post, threadView } from "./index.ts";
 
 test("a thread of very long messages shows the newest that fit one part, and counts the rest", (t) => {
   const { deps, clock, know } = openTestDeps(t);
   const zach = know(person("Zach"));
   const dm = openDm(deps, zach, know(agent("Shrimpy")).id);
-  const [main] = channelView(deps, zach, dm.id).threads;
-  assert.ok(main);
+  const main = createThread(deps, zach, dm.id, null);
   const posted = 30;
   for (let number = 1; number <= posted; number++) {
     clock.advance();

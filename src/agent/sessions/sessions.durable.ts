@@ -314,7 +314,7 @@ function placeSeen(session: SessionRecord): SessionPlace | null {
   if (session.channelId === null) return { kind: "trigger", trigger: session.trigger };
   const { place } = session;
   if (place === undefined) return null;
-  const thread = { main: place.thread.main, name: place.thread.name };
+  const thread = { name: place.thread.name };
   if (place.kind === "dm") return { kind: "dm", with: { name: place.with.name, kind: place.with.kind }, thread };
   return { kind: "room", room: place.room, thread };
 }

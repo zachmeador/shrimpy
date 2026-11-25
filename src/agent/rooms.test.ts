@@ -56,15 +56,15 @@ test("an agent that mentioned another is woken once by the answer, though it doe
   const answering = talking(() => ({ final: "Stanza 2." }));
   const scout = await startAgentRig(t, { script: asking.script });
   const bob = await startAgentRig(t, { name: "bob", chat: scout.chat, script: answering.script });
-  const { person, main } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.partner]);
+  const { person, pinned } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.partner]);
 
   await scout.say("Ask bob in #Ops which stanza he takes.");
 
-  const [question, reply] = await messagesWhen(person, main.id, (messages) => messages.length >= 2, "the question and bob's answer");
+  const [question, reply] = await messagesWhen(person, pinned.id, (messages) => messages.length >= 2, "the question and bob's answer");
   assert.ok(question && reply);
   assert.deepEqual([question.author.id, reply.author.id, reply.mentions], [scout.partner.id, bob.partner.id, []], "bob answered without mentioning scout");
   assert.equal((await scout.receiptOn(reply, PATIENT)).status, "answered");
-  const thanks = (await person.read(main.id, null, 10)).find((message) => message.text === "Thanks, stanza 2 is yours.");
+  const thanks = (await person.read(pinned.id, null, 10)).find((message) => message.text === "Thanks, stanza 2 is yours.");
   assert.ok(thanks);
   assert.deepEqual(thanks.mentions, [], "the reply to an answer mentions nobody, so it wakes nobody");
 
@@ -88,8 +88,7 @@ test("in a DM an answer is taken up once, by its reply and not again by its rece
 
   const [channel] = await eventually(() => bob.channels(), (channels) => channels.length > 0, { what: "scout's DM with bob" });
   assert.ok(channel);
-  const started = await eventually(() => bob.threads(channel.id), (threads) => threads.some((thread) => !thread.main), { what: "the thread scout started" });
-  const dm = started.find((thread) => !thread.main);
+  const [dm] = await eventually(() => bob.threads(channel.id), (threads) => threads.length > 0, { what: "the thread scout started" });
   assert.ok(dm);
   const [question] = await messagesWhen(bob, dm.id, (messages) => messages.length > 0, "scout's question");
   assert.ok(question);
@@ -121,14 +120,14 @@ test("one reply that answers two messages from two members wakes each of them th
   const scout = await startAgentRig(t, { script: scoutAsks.script });
   const maya = await startAgentRig(t, { name: "maya", chat: scout.chat, script: mayaAsks.script });
   const bob = await speakingAs(t, await scout.chat.agent("bob"));
-  const { person, main } = await roomWith(t, scout.chat, "Ops", [scout.partner, maya.partner, bob.me]);
+  const { person, pinned } = await roomWith(t, scout.chat, "Ops", [scout.partner, maya.partner, bob.me]);
   await scout.say("Ask bob in #Ops which key.");
   await maya.say("Ask bob in #Ops which tempo.");
-  const [keyQuestion, tempoQuestion] = await messagesWhen(person, main.id, (messages) => messages.length >= 2, "both questions");
+  const [keyQuestion, tempoQuestion] = await messagesWhen(person, pinned.id, (messages) => messages.length >= 2, "both questions");
   assert.ok(keyQuestion && tempoQuestion);
 
   // Bob was busy, so one reply answers both, and both questions get the one receipt each, in one call.
-  const reply = await bob.post(main.id, "Key of C, tempo 90.", "bob-1");
+  const reply = await bob.post(pinned.id, "Key of C, tempo 90.", "bob-1");
   await bob.leaveReceipt([keyQuestion.event, tempoQuestion.event], { status: "answered", reply: reply.id, detail: null });
 
   await Promise.all([scout.receiptOn(reply, PATIENT), maya.receiptOn(reply, PATIENT)]);
@@ -152,11 +151,11 @@ test("a fresh start passes over an answer it has dealt with, and over the rest o
   );
   const first = await startAgentRig(t, { script: asking.script });
   const bob = await speakingAs(t, await first.chat.agent("bob"));
-  const { person, main } = await roomWith(t, first.chat, "Ops", [first.partner, bob.me]);
+  const { person, pinned } = await roomWith(t, first.chat, "Ops", [first.partner, bob.me]);
   await first.say("Ask bob in #Ops which stanza he takes.");
-  const [question] = await messagesWhen(person, main.id, (messages) => messages.length >= 1, "scout's question");
+  const [question] = await messagesWhen(person, pinned.id, (messages) => messages.length >= 1, "scout's question");
   assert.ok(question);
-  const reply = await answer(bob, main.id, "Stanza 2.", [question.event], "bob-1");
+  const reply = await answer(bob, pinned.id, "Stanza 2.", [question.event], "bob-1");
   await first.receiptOn(reply, PATIENT);
   await first.agent.close();
   // The agent's records are gone and the chat server's are not: it reads the log from the start.
@@ -168,7 +167,7 @@ test("a fresh start passes over an answer it has dealt with, and over the rest o
   await second.receiptOn(await second.say("Are you there?"), PATIENT);
 
   assert.equal(loggedRequests(first.home).length - asked, 1, "the model was asked for the new message and nothing from before");
-  const inRoom = (await person.read(main.id, null, 20)).filter((message) => message.author.id === first.partner.id);
+  const inRoom = (await person.read(pinned.id, null, 20)).filter((message) => message.author.id === first.partner.id);
   assert.deepEqual(inRoom.map((message) => message.text), ["@bob, which stanza will you take?", "Thanks."], "and said nothing again in the room");
 });
 
@@ -176,31 +175,31 @@ test("an agent woken in a room is shown what was said since it last looked, then
   const model = talking(() => ({ final: "Seen." }));
   const scout = await startAgentRig(t, { script: model.script });
   const bob = await speakingAs(t, await scout.chat.agent("bob"));
-  const { person, main } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.me]);
+  const { person, pinned } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.me]);
 
   // Bob talks and does not mention scout, so it is not woken until the person does.
-  await bob.post(main.id, "I'll take stanza 2.", "bob-1");
-  await bob.post(main.id, "Which key are we in?", "bob-2");
-  await scout.receiptOn(await person.post(main.id, "@scout, where are we?", "person-1"), PATIENT);
+  await bob.post(pinned.id, "I'll take stanza 2.", "bob-1");
+  await bob.post(pinned.id, "Which key are we in?", "bob-2");
+  await scout.receiptOn(await person.post(pinned.id, "@scout, where are we?", "person-1"), PATIENT);
   const first = model.shown[0] ?? "";
   const [stanza, key, woke] = ["I'll take stanza 2.", "Which key are we in?", "@scout, where are we?"].map((text) => first.indexOf(text));
   assert.ok(stanza !== undefined && key !== undefined && woke !== undefined && 0 < stanza && stanza < key && key < woke, `oldest first, then the message that woke it:\n${first}`);
 
   // What it was shown is not shown again.
-  await bob.post(main.id, "Never mind, it is C.", "bob-3");
-  await scout.receiptOn(await person.post(main.id, "@scout, and now?", "person-2"), PATIENT);
+  await bob.post(pinned.id, "Never mind, it is C.", "bob-3");
+  await scout.receiptOn(await person.post(pinned.id, "@scout, and now?", "person-2"), PATIENT);
   const second = model.shown[1] ?? "";
   assert.ok(second.includes("Never mind, it is C."));
   assert.ok(!second.includes("stanza 2") && !second.includes("Which key"), second);
 
   // A backlog that is longer than the model is shown keeps the newest, says how many are left out and how to read them.
-  for (let n = 1; n <= 30; n++) await bob.post(main.id, `${String(n).padStart(2, "0")} ${"x".repeat(900)}`, `long-${String(n)}`);
-  await scout.receiptOn(await person.post(main.id, "@scout, catch up.", "person-3"), PATIENT);
+  for (let n = 1; n <= 30; n++) await bob.post(pinned.id, `${String(n).padStart(2, "0")} ${"x".repeat(900)}`, `long-${String(n)}`);
+  await scout.receiptOn(await person.post(pinned.id, "@scout, catch up.", "person-3"), PATIENT);
   const third = model.shown[2] ?? "";
   assert.ok(third.length < 22_000, `${String(third.length)} characters`);
   const numbered = [...third.matchAll(/^(\d\d) x+/gm)].map((found) => Number(found[1]));
   assert.equal(numbered.at(-1), 30, "the newest is kept");
-  const oldest = (await person.read(main.id, null, 200)).find((message) => message.text.startsWith(`${String(numbered[0]).padStart(2, "0")} x`));
+  const oldest = (await person.read(pinned.id, null, 200)).find((message) => message.text.startsWith(`${String(numbered[0]).padStart(2, "0")} x`));
   assert.ok(oldest);
   // The line that says how to read the rest names read_messages' argument, and how many are left out.
   const pointer = third.split("\n").find((line) => line.includes(`before: ${String(oldest.seq)}`)) ?? "";
@@ -213,13 +212,13 @@ test("what the model reads of a message in a room says who it was for, and in a 
   const scout = await startAgentRig(t, { script: model.script });
   const bob = await speakingAs(t, await scout.chat.agent("bob"));
   const maya = await speakingAs(t, await scout.chat.agent("maya"));
-  const { person, main } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.me, maya.me]);
+  const { person, pinned } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.me, maya.me]);
 
-  const toMaya = await bob.post(main.id, "@maya, the disk is full.", "bob-1");
-  const aloud = await bob.post(main.id, "Thinking aloud.", "bob-2");
-  const both = await person.post(main.id, "@scout and @bob: is it urgent?", "person-1");
+  const toMaya = await bob.post(pinned.id, "@maya, the disk is full.", "bob-1");
+  const aloud = await bob.post(pinned.id, "Thinking aloud.", "bob-2");
+  const both = await person.post(pinned.id, "@scout and @bob: is it urgent?", "person-1");
   await scout.receiptOn(both, PATIENT);
-  const everyone = await person.post(main.id, "@all: status, please.", "person-2");
+  const everyone = await person.post(pinned.id, "@all: status, please.", "person-2");
   await scout.receiptOn(everyone, PATIENT);
   const direct = await scout.say("A word in private.");
   await scout.receiptOn(direct, PATIENT);
@@ -245,31 +244,31 @@ test("an input tells the model where it is, and the list of sessions says the sa
   const scout = await startAgentRig(t, { script: model.script });
   const bob = await speakingAs(t, await scout.chat.agent("bob"));
   const maya = await speakingAs(t, await scout.chat.agent("maya"));
-  const { person, room: ops, main } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.me]);
+  const { person, room: ops, pinned } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.me]);
   const connection = await scout.connect();
 
   await scout.receiptOn(await scout.say("Hello in private."), PATIENT);
   const side = await scout.newThread("Budget");
   await scout.receiptOn(await scout.say("A side matter.", side.id), PATIENT);
-  await scout.receiptOn(await person.post(main.id, "@scout, hello in the room.", "person-1"), PATIENT);
+  await scout.receiptOn(await person.post(pinned.id, "@scout, hello in the room.", "person-1"), PATIENT);
   await person.addMembers(ops.id, [maya.me.id]);
-  await scout.receiptOn(await person.post(main.id, "@scout, and now?", "person-2"), PATIENT);
+  await scout.receiptOn(await person.post(pinned.id, "@scout, and now?", "person-2"), PATIENT);
 
   // What opens each input is its first paragraph, before the message.
   const [dm = "", aside = "", room = "", later = ""] = model.shown.map((shown) => shown.split("\n\n")[0] ?? "");
   const isDm = (opening: string): boolean => /\bDM\b/.test(opening);
   assert.ok(isDm(dm) && dm.includes(person.me.name) && dm.includes(`Thread ${scout.thread.id}`), dm);
   assert.ok(isDm(aside) && aside.includes("Budget") && aside.includes(`Thread ${side.id}`), aside);
-  assert.ok(room.includes("Ops") && room.includes(person.me.name) && /bob[^.]*agent/.test(room) && room.includes(`Thread ${main.id}`), room);
+  assert.ok(room.includes("Ops") && room.includes(person.me.name) && /bob[^.]*agent/.test(room) && room.includes(`Thread ${pinned.id}`), room);
   assert.ok(!isDm(room) && !dm.includes("Ops"), "a room is not a DM");
   assert.ok(!room.includes("maya") && later.includes("maya"), `a member added to the room, and not mentioned, is named by the next input there:\n${later}`);
 
   const where = (await connection.sessions()).map((session) => [session.threadId, session.place]);
   const withPerson = { name: person.me.name, kind: "person" };
   assert.deepEqual(where, [
-    [scout.thread.id, { kind: "dm", with: withPerson, thread: { main: true, name: null } }],
-    [side.id, { kind: "dm", with: withPerson, thread: { main: false, name: "Budget" } }],
-    [main.id, { kind: "room", room: "Ops", thread: { main: true, name: null } }],
+    [scout.thread.id, { kind: "dm", with: withPerson, thread: { name: null } }],
+    [side.id, { kind: "dm", with: withPerson, thread: { name: "Budget" } }],
+    [pinned.id, { kind: "room", room: "Ops", thread: { name: null } }],
   ]);
   assert.deepEqual(scout.reports, []);
 });
@@ -278,14 +277,14 @@ test("a person's post that mentions nobody wakes every agent in a room, until ag
   const model = talking(() => ({ final: "Seen." }));
   const scout = await startAgentRig(t, { script: model.script });
   const bob = await speakingAs(t, await scout.chat.agent("bob"));
-  const { person, main } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.me]);
+  const { person, pinned } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.me]);
   const agent = await scout.connect();
   let posts = 0;
-  const post = (who: Speaking, text: string): Promise<Message> => who.post(main.id, text, `post-${String(++posts)}`);
+  const post = (who: Speaking, text: string): Promise<Message> => who.post(pinned.id, text, `post-${String(++posts)}`);
   /** The turns the room has woken the agent for. A message in the DM, which no policy touches, shows it is past what came before. */
   const roomTurns = async (): Promise<string[]> => {
     await scout.receiptOn(await scout.say("Are you still there?"), PATIENT);
-    return model.shown.filter((shown) => shown.includes(`Thread ${main.id}`));
+    return model.shown.filter((shown) => shown.includes(`Thread ${pinned.id}`));
   };
   /** Choose a policy for the room in the home's agent.json, by the room's name in another case, and tell the agent to read it. */
   const choose = async (policy: WakePolicy): Promise<{ file: string; reason: string }[]> => {

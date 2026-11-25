@@ -27,7 +27,7 @@ async function run(...args: string[]) {
 interface ServedHome {
   home: string;
   model: ModelServer;
-  /** The ID of the main thread of Zach's DM with the agent. */
+  /** The ID of the thread of Zach's DM with the agent that Zach talks in. */
   threadId: string;
   /** Zach says something in the thread, and the message is returned once the agent has left its receipt on it. */
   ask: (text: string) => Promise<Message>;

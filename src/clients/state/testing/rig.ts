@@ -37,8 +37,8 @@ export interface Rig {
   asAgent(agent: string): Promise<Speaking>;
   /** An agent as the roster has it. */
   member(agent: string): Promise<Member>;
-  /** The person's DM with an agent, made if need be: its channel and its main thread. */
-  dm(agent: string): Promise<{ channelId: string; main: Thread }>;
+  /** The ID of the person's DM with an agent, made if need be. */
+  dm(agent: string): Promise<string>;
   /** A thread in the person's DM with an agent, made as if the person had started it, with a first message. */
   thread(agent: string, firstMessage: string): Promise<Thread>;
 }
@@ -91,14 +91,11 @@ export async function startRig(t: TestContext, options: RigOptions = {}): Promis
     member: (agent) => memberNamed(t, agent),
     async dm(agent) {
       const you = await rig.person();
-      const channel = await you.openDm((await rig.member(agent)).id);
-      const main = (await you.threads(channel.id)).find((each) => each.main);
-      if (main === undefined) throw new Error(`The DM ${channel.id} has no main thread.`);
-      return { channelId: channel.id, main };
+      return (await you.openDm((await rig.member(agent)).id)).id;
     },
     async thread(agent, firstMessage) {
       const you = await rig.person();
-      const made = await you.createThread((await rig.dm(agent)).channelId, null);
+      const made = await you.createThread(await rig.dm(agent), null);
       await you.post(made.id, firstMessage);
       return made;
     },

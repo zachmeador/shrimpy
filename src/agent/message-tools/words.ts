@@ -3,7 +3,7 @@
  * for, what its arguments mean, and what it answers. Nothing else in this
  * module writes words for the model.
  */
-import { type Channel, roomLabel, taggedTitle, type Thread } from "../../contracts/chat/index.ts";
+import { roomLabel, taggedTitle, type Thread } from "../../contracts/chat/index.ts";
 
 /** The argument that names a place: where `send_message` posts, and what `read_messages` reads. */
 export type PlaceArgument = "to" | "from";
@@ -15,7 +15,8 @@ export const SEND_DESCRIPTION =
 export const SEND_TEXT = "The message to post.";
 export const SEND_TO =
   "Where to post it: @name to start a new thread with that person or agent, in your DM with them, which is started " +
-  "if you have none; @name/thread for one of your threads with them; #room for a room you are in; or #room/thread " +
+  "if you have none; @name/thread for one of your threads with them; #room for the first pinned thread of a room you " +
+  "are in; or #room/thread " +
   "for one of its threads. Give a thread by its ID or its name. Leave it out to post to this thread. Start a thread " +
   "only for something new, and make its first line say what it is about, since a thread is called by how it starts.";
 export const SEND_QUIET =
@@ -27,9 +28,9 @@ export const READ_DESCRIPTION =
   "have lost their text, and reactions are listed. Use it to see what was said earlier, in this thread, " +
   "in another of your threads or in a room.";
 export const READ_FROM =
-  "Which thread to read: @name/thread for one of your threads with that person or agent; #room for a room you are " +
-  "in; or #room/thread for one of its threads. Give a thread by its ID or its name. Leave it out to read this " +
-  "thread. @name alone lists your threads with them.";
+  "Which thread to read: @name/thread for one of your threads with that person or agent; #room for the first pinned " +
+  "thread of a room you are in; or #room/thread for one of its threads. Give a thread by its ID or its name. Leave it " +
+  "out to read this thread. @name alone lists your threads with them.";
 export const READ_LIMIT = "How many messages to read. 20 if you leave it out, and at most 100.";
 export const READ_BEFORE =
   "A number from an earlier result: read only the messages before it. The result says which number to use.";
@@ -52,33 +53,37 @@ export function badPlace(argument: PlaceArgument): string {
   if (argument === "to") {
     return (
       "to should be @name, such as @maya, the name of a person or an agent, to start a thread with them; " +
-      "@name/thread for one of your threads with them; #room, such as #ops, for a room you are in; or " +
-      "#room/thread for one of its threads. Leave it out to post to this thread."
+      "@name/thread for one of your threads with them; #room, such as #ops, for the first pinned thread of a room " +
+      "you are in; or #room/thread for one of its threads. Leave it out to post to this thread."
     );
   }
   return (
     "from should be @name/thread for one of your threads with a person or an agent, by its ID or its name; #room, " +
-    "such as #ops, for a room you are in; or #room/thread for one of its threads. Leave it out to read this thread."
+    "such as #ops, for the first pinned thread of a room you are in; or #room/thread for one of its threads. Leave " +
+    "it out to read this thread."
   );
 }
 
 /** Threads named in one list at most. The rest are counted. */
 const MOST_LISTED = 20;
 
-/** Threads of a channel of `kind` as someone who has to pick one reads them: each by its ID and what it is called, the first `MOST_LISTED`, and how many more. */
-function listOf(threads: readonly Thread[], kind: Channel["kind"]): string {
-  const named = threads.slice(0, MOST_LISTED).map((thread) => `${thread.id} (${taggedTitle(thread, kind)})`);
+/** Threads as someone who has to pick one reads them: each by its ID and what it is called, the first `MOST_LISTED`, and how many more. */
+function listOf(threads: readonly Thread[]): string {
+  const named = threads.slice(0, MOST_LISTED).map((thread) => `${thread.id} (${taggedTitle(thread)})`);
   const rest = threads.length - named.length;
   return rest > 0 ? `${named.join(", ")}, and ${String(rest)} more` : named.join(", ");
 }
 
+/** How a channel's threads are listed, before the list. */
+const ITS_THREADS = "Its threads, the pinned ones first and then the most recently active:";
+
 /** `where` is "#ops" or "your DM with maya". */
-export function noSuchThread(where: string, thread: string, threads: readonly Thread[], kind: Channel["kind"]): string {
-  return `There is no thread called ${thread} in ${where}. Its threads, the most recently active first: ${listOf(threads, kind)}.`;
+export function noSuchThread(where: string, thread: string, threads: readonly Thread[]): string {
+  return `There is no thread called ${thread} in ${where}. ${ITS_THREADS} ${listOf(threads)}.`;
 }
 
-export function manyThreads(where: string, thread: string, threads: readonly Thread[], kind: Channel["kind"]): string {
-  return `More than one thread of ${where} is called ${thread}: ${listOf(threads, kind)}. Give its ID instead.`;
+export function manyThreads(where: string, thread: string, threads: readonly Thread[]): string {
+  return `More than one thread of ${where} is called ${thread}: ${listOf(threads)}. Give its ID instead.`;
 }
 
 /** That `@name` alone is no thread to read, and the threads of the DM with them. */
@@ -86,8 +91,15 @@ export function whichDmThread(name: string, threads: readonly Thread[]): string 
   if (threads.length === 0) return `There is nothing to read in your DM with ${name} yet.`;
   return (
     `Your DM with ${name} has a thread for each conversation, so say which to read with from: "@${name}/thread", ` +
-    `by its ID or its name. Its threads, the most recently active first: ${listOf(threads, "dm")}.`
+    `by its ID or its name. ${ITS_THREADS} ${listOf(threads)}.`
   );
+}
+
+/** That the room called `name` has no pinned thread for `#room` alone to mean, and its threads. */
+export function whichRoomThread(name: string, threads: readonly Thread[], argument: PlaceArgument): string {
+  const room = roomLabel(name);
+  if (threads.length === 0) return `${room} has no threads, so ${nowhere(argument)}.`;
+  return `${room} has no pinned thread, so say which with ${argument}: "${room}/thread", by its ID or its name. ${ITS_THREADS} ${listOf(threads)}.`;
 }
 
 const nowhere = (argument: PlaceArgument): string =>
@@ -118,8 +130,6 @@ export function noThreadHere(argument: PlaceArgument): string {
         "starts a thread with them, @name/thread for one of your threads with them, or #room."
     : "This session is not in a thread, so there is no thread to read by default. Say which with from: @name/thread or #room.";
 }
-
-export const noMainThread = (label: string): string => `${label} has no main thread to use.`;
 
 // How chat answered.
 

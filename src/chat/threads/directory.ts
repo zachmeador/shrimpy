@@ -3,7 +3,7 @@ import { noMember } from "../../contracts/gateway/index.ts";
 import { flag, identifier, identifiers, label, MAX_MEMBERS, whole } from "../input/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import type { ChannelRecord, ThreadRecord, Transaction } from "../store/index.ts";
-import { isMember, readableChannel, readsOthers, requireAdmin, visibleChannel, visibleThread } from "./access.ts";
+import { isMember, readableChannel, readableThread, readsOthers, requireAdmin, visibleChannel, visibleThread } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
 import { withWorking } from "./working.ts";
 
@@ -27,17 +27,14 @@ function onRoster(deps: ChatDeps, id: string): Member {
   return deps.identity.member(id) ?? refuse(noMember(id));
 }
 
-/**
- * The DM between the caller and another member of the roster, made on first
- * use together with its main thread.
- */
+/** The DM between the caller and another member of the roster, made on first use, with no thread. */
 export function openDm(deps: ChatDeps, caller: Member, otherId: unknown): Channel {
   const id = identifier(otherId, "member");
   if (id === caller.id) refuse("A DM needs someone besides yourself.");
   const other = onRoster(deps, id);
   return deps.store.transaction((tx) => {
     tx.saveMember(other);
-    const channel = tx.directChannel(caller.id, other.id) ?? tx.createDirectChannel(caller, other, deps.now());
+    const channel = tx.directChannel(caller.id, other.id) ?? tx.createDirectChannel(caller, other);
     return toChannel(channel, caller);
   });
 }
@@ -52,8 +49,8 @@ function membersOf(deps: ChatDeps, caller: Member, ids: string[]): Member[] {
 }
 
 /**
- * Make a room, with the caller and the members given in it, and its main
- * thread. Only an admin may. The name is a name for display, and no other room
+ * Make a room, with the caller and the members given in it, and one thread,
+ * pinned. Only an admin may. The name is a name for display, and no other room
  * has it, whatever the case. Everything is checked before anything is made.
  */
 export function createRoom(deps: ChatDeps, caller: Member, name: unknown, memberIds: unknown): Channel {
@@ -113,11 +110,11 @@ export function createThread(deps: ChatDeps, caller: Member, channel: unknown, n
 /**
  * Refuse a change the caller decided on the thread's revision `revision` once
  * the thread has moved on from it, so that a stale retry can't undo a later
- * rename or archive. A thread that already is what the caller asks, by `holds`,
- * is let through, so a retry whose first answer was lost is answered with it.
+ * rename, archive or pin. A thread that already is what the caller asks, by
+ * `holds`, is let through, so a retry whose first answer was lost is answered
+ * with it.
  */
-function unchangedSince(tx: Transaction, caller: Member, threadId: string, revision: number, holds: (thread: ThreadRecord) => boolean): void {
-  const { thread } = visibleThread(tx, caller, threadId);
+function unchangedSince(thread: ThreadRecord, revision: number, holds: (thread: ThreadRecord) => boolean): void {
   if (thread.revision !== revision && !holds(thread)) {
     refuse(`The thread has changed since revision ${String(revision)}, and is at revision ${String(thread.revision)}. Look at it again first.`);
   }
@@ -129,7 +126,7 @@ export function renameThread(deps: ChatDeps, caller: Member, thread: unknown, na
   const title = label(name, "The thread's name");
   const seen = whole(revision, "revision", 0);
   return deps.store.transaction((tx) => {
-    unchangedSince(tx, caller, threadId, seen, (thread) => thread.name === title);
+    unchangedSince(visibleThread(tx, caller, threadId).thread, seen, (thread) => thread.name === title);
     return withWorking(tx.renameThread(threadId, title), deps.working);
   });
 }
@@ -144,8 +141,24 @@ export function archiveThread(deps: ChatDeps, caller: Member, thread: unknown, a
   const hidden = flag(archived, "archived");
   const seen = whole(revision, "revision", 0);
   return deps.store.transaction((tx) => {
-    unchangedSince(tx, caller, threadId, seen, (thread) => thread.archived === hidden);
+    unchangedSince(visibleThread(tx, caller, threadId).thread, seen, (thread) => thread.archived === hidden);
     return withWorking(tx.archiveThread(threadId, hidden), deps.working);
+  });
+}
+
+/**
+ * Pin a thread in its channel or unpin it, as decided on its revision
+ * `revision`. A member pins in a channel it is in, and you in any channel, as
+ * you add members to any room. A thread pinned already keeps when it was.
+ */
+export function pinThread(deps: ChatDeps, caller: Member, thread: unknown, pinned: unknown, revision: unknown): Thread {
+  const threadId = identifier(thread, "thread");
+  const pin = flag(pinned, "pinned");
+  const seen = whole(revision, "revision", 0);
+  return deps.store.transaction((tx) => {
+    const found = readsOthers(caller) ? readableThread(tx, caller, threadId) : visibleThread(tx, caller, threadId);
+    unchangedSince(found.thread, seen, (each) => (each.pinned !== null) === pin);
+    return withWorking(tx.pinThread(threadId, pin ? deps.now() : null), deps.working);
   });
 }
 

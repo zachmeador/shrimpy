@@ -68,19 +68,17 @@ function whereIs({ threadId, channelId }: { threadId: string; channelId: string 
 
 /**
  * A place as the model reads it: a thread of the agent's DM with a person or an
- * agent, by name, or a room, by name, and who else is in it, each with whether
- * they are a person or an agent. A thread of a room that is not its main one
- * says so, and a thread with a name says it.
+ * agent, by name, or of a room, by name, and who else is in it, each with
+ * whether they are a person or an agent. A thread with a name says it.
  */
 function inWords(place: Place): string {
-  const { main, name } = place.thread;
-  const called = name === null ? undefined : `the thread "${name}" of `;
-  if (place.kind === "dm") return `You are in ${called ?? "a thread of "}your DM with ${place.with.name}, ${aKind(place.with.kind)}.`;
-  const side = main ? "" : (called ?? "a side thread of ");
+  const { name } = place.thread;
+  const thread = name === null ? "a thread of " : `the thread "${name}" of `;
+  if (place.kind === "dm") return `You are in ${thread}your DM with ${place.with.name}, ${aKind(place.with.kind)}.`;
   const others = place.others.map((other) => `${other.name} (${aKind(other.kind)})`);
   if (place.more !== undefined) others.push(`${String(place.more)} more`);
   const who = others.length === 0 ? "Nobody else is in it." : `Also in it: ${listed(others)}.`;
-  return `You are in ${side}the room ${roomLabel(place.room)}. ${who}`;
+  return `You are in ${thread}the room ${roomLabel(place.room)}. ${who}`;
 }
 
 const aKind = (kind: "person" | "agent"): string => (kind === "person" ? "a person" : "an agent");

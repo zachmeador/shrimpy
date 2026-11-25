@@ -13,8 +13,6 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 The owner agreed on 2026-11-24, hours after 1.0.0, to a 2.0 that gets the contracts' shape right while two setups run Shrimpy, and to each of its proposal's five choices. The proposal is kept outside the repo, and `AGENTS-PRIVATE.md` says where. What is left of it to build:
 
 - A message carries its attachments, an empty list until the bytes come in 2.x, in pieces through chat.
-- Pins belong to the channel, and a room's main thread becomes its first pin, so `main` leaves the contracts.
-- A DM has no main thread: `openDm` makes none, and chat's migration clears it and drops the empty ones.
 - `Agent` gains its default model as state, and `setModel` and `switchTrigger`, which change the agent's own files when asked. Adding and removing triggers stays with the agent's own tools.
 - A session's items carry a time.
 - Before it ships, chat's and the roster's migrations run on copies of the owner's and Kathleen's data, and an agent apart follows its gateway across the major.
@@ -128,7 +126,7 @@ Daily use decides what comes after the release. The last order was compaction an
 - Whether Pi's public `submit(tx, draft)` makes the handover of an input one commit, keeping the feed's order.
 - Attachments, as both mockups draw them, the [web client's](web-client-mockup.html) and the [terminal's](terminal-mockup.html). Each travels with its message, the chat server keeps it with the thread, and it is copied into the agent's home, in `attachments/` with a folder for each day, when the message is offered. A message carries up to 25 MB, and the copy into a home has the same limit. An image goes to the model with its message. Clipboard files and images attach to a message, on Ctrl+V in the terminal, which is to be checked against Pi's own key. A click opens one, and no key does. How an agent attaches a file of its own isn't drawn, and `send_message` can't attach one yet. None of it is built.
 - Notifications that tell only the devices the person isn't using; quiet hours, and silencing a thread or a room; every message of a room, where today only those that name the person count.
-- Pinning in the clients and by agents. 2.0 gives chat the pin, the channel's, and a room's main thread becomes its first. How the clients show and set pins isn't drawn, and how an agent pins and whether it is told to post in pinned threads wait with the tool questions.
+- Pinning in the clients and by agents. Chat has the channel's pin, and the clients show it as a tag. How the clients set pins isn't drawn, and how an agent pins and whether it is told to post in pinned threads wait with the tool questions.
 - The chat provider interface, kept as an idea: a provider posts for the people it maps, keyed by the outside message's ID, reads its bound threads from its own cursor, reports delivery as pending, delivered, failed or uncertain, moves attachments, sees who is working, and edits or deletes for a person it maps. A fake provider is its reference and proves nothing outside-app-specific leaks into the shared layer, a reaction and an edit cross a bridge both ways, and a feature the outside app lacks is left out. No outside chat app is planned.
 - The proof that goes with it: two homes talking in a channel with no provider, on real models including a small local one, winding down instead of going round in circles, with mentions and broadcast, sender restrictions, the final text as the reply and `END` for silence, last-active addressing, and accepted versus delivered status. If instructions can't stop a loop, that goes to the owner before any mechanism is added.
 - Proofs through a real chat app, if one is written: a message typed in another client mirrored into it, a reset between admission and retry, duplicate and batched updates, offline periods, first start, late replies, long formatted output, quiet notices, photos, documents, voice notes and video, and a lost send acknowledgment.
@@ -334,7 +332,7 @@ Daily use decides what comes after the release. The last order was compaction an
 **Falls short in the commands**
 
 - `shrimpy status` lists the person as not reachable, since reachable means only that an agent's program is linked.
-- Commands agents guess don't exist: `shrimpy agent <name>` and `shrimpy sessions <name>`. `shrimpy read '#room'` doesn't print the room's main thread.
+- Commands agents guess don't exist: `shrimpy agent <name>` and `shrimpy sessions <name>`. `shrimpy read '#room'` doesn't print the room's pinned thread.
 - `shrimpy threads` can't name a DM between two agents, so from a shell its thread's ID comes from `shrimpy sessions list`.
 - `shrimpy update`'s preview calls going from a release candidate to its release a patch.
 - `shrimpy sessions list`, and the triggers' rows on an agent's screen, are in the order the agent made them, which the contract doesn't promise.

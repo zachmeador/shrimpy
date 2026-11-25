@@ -8,7 +8,7 @@ const at = { now: Date.now(), self: "this test" };
 test("the agent's view of a thread says where it is, what the session is doing with which model and at what cost, and whose views there are", () => {
   const [scout, lurker] = ["scout", "lurker"].map(agentMember);
   assert.ok(scout && lurker);
-  const main = aThread("th_1", { main: true, name: "general", channelId: "ch_2" });
+  const main = aThread("th_1", { pinned: 1, name: "general", channelId: "ch_2" });
   const room = { kind: "room" as const, id: "ch_2" };
   const busy = workingView([], { kind: "tool", name: "bash" });
   busy.status.queued.push({ when: "next_turn", text: "and the logs" });
@@ -23,7 +23,7 @@ test("the agent's view of a thread says where it is, what the session is doing w
 
   const view = sessionLevel(model, at);
   assert.ok(view);
-  for (const fact of ["#ops", "main"]) assert.ok(view.watching.includes(fact), fact);
+  for (const fact of ["#ops", "general"]) assert.ok(view.watching.includes(fact), fact);
   for (const fact of ["bash", "1 waiting", "local/small", "48,210", "1,902"]) assert.ok(view.foot?.includes(fact), fact);
   assert.deepEqual(
     view.sides.map((side) => side.agent),

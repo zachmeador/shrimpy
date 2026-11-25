@@ -73,8 +73,7 @@ export function sessionLevel(model: Model, options: SessionOptions): SessionLeve
     const threadId = item.thread;
     const thread = (model.thread?.thread.id === threadId ? model.thread.thread : undefined) ?? here.threads.find((each) => each.id === threadId);
     const where = placeFor(model, item.place, here, item.side);
-    const roomMain = thread?.main === true && item.place.kind !== "agent" && here.channel?.kind === "room";
-    const watching = watchingWords(behindThread(where, roomMain, thread === undefined ? threadId : titleOf(thread)));
+    const watching = watchingWords(behindThread(where, thread === undefined ? threadId : titleOf(thread)));
     return sessionOf(model, item.side, threadId, model.behind[item.side], { watching, turned: true, refused: undefined }, options);
   }
   return undefined;
@@ -87,7 +86,7 @@ function placeFor(model: Model, place: Place, here: Looking, viewer: string): st
   if (channel?.kind !== "dm") return here.label;
   const other = channel.members.find((member) => member.id !== viewer);
   if (other === undefined) return here.label;
-  return placeLabel({ kind: "dm", with: { name: other.name, kind: other.kind }, thread: { main: false, name: null } }, model.me?.name);
+  return placeLabel({ kind: "dm", with: { name: other.name, kind: other.kind }, thread: { name: null } }, model.me?.name);
 }
 
 /** A session as `agentId` sees it, by its address, with what `frame` says of where it is on show. */

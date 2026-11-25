@@ -157,8 +157,8 @@ export type CameBack = { question: Asked; result: QuestionResult };
 /** Someone in a channel, as the model is told of them: a name, and whether they are a person or an agent. */
 export type Named = { name: string; kind: "person" | "agent" };
 
-/** Which thread of a channel: its main one, and its name if it has one. */
-type Which = { main: boolean; name: string | null };
+/** Which thread of a channel: its name, if it has one. */
+type Which = { name: string | null };
 
 /**
  * Where a thread is, as chat said when the agent last took something up there,

@@ -142,7 +142,7 @@ function askable(roster: readonly RosterEntry[] | undefined, name: string, self:
  */
 async function emptyThread(chat: ChatCalls, channelId: string, name: string, signal: AbortSignal): Promise<string | undefined> {
   const threads = await chat.threads(channelId, signal);
-  return threads.find((thread) => !thread.main && thread.name === name && thread.preview === null)?.id;
+  return threads.find((thread) => thread.name === name && thread.preview === null)?.id;
 }
 
 /** The tool that asks another agent, as an extension to install in the engine's registry. */

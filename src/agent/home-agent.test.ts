@@ -516,7 +516,7 @@ test("/model in a thread sets its model from the next request, and /model defaul
   assert.ok(aloneLine?.text.includes("local/llama") && aloneLine.text.includes("local/qwen"), "with nothing after it, it says which model the thread runs on and which is the agent's default");
 
   await person.askIn(side.id, "hello");
-  await person.ask("in the main thread");
+  await person.ask("in the first thread");
   assert.deepEqual(named(), ["llama", "qwen"], "the thread runs on that model, and the agent's other thread on its own");
   assert.doesNotMatch(shown(0), /local\//, "a session that had never answered is told nothing of its model");
 
@@ -564,12 +564,12 @@ test("in a room /model is for the agents it names, or every agent with @all", { 
   await startAt(t, bob.root);
   const toScout = await talkToAgent(t, "scout");
   const toBob = await talkToAgent(t, "bob");
-  const { person, main } = await roomWith(t, chat, "Ops", [toScout.partner, toBob.partner]);
+  const { person, pinned } = await roomWith(t, chat, "Ops", [toScout.partner, toBob.partner]);
   const members = { scout: toScout.partner.id, bob: toBob.partner.id };
-  const say = (text: string): Promise<Message> => person.post(main.id, text, randomUUID());
+  const say = (text: string): Promise<Message> => person.post(pinned.id, text, randomUUID());
   /** The receipt `agent` has left on a message, if it has left one. */
   const receiptOf = async (agent: keyof typeof members, message: Message): Promise<Receipt | undefined> =>
-    (await person.read(main.id, null, 200)).find((each) => each.id === message.id)?.receipts.find((receipt) => receipt.memberId === members[agent]);
+    (await person.read(pinned.id, null, 200)).find((each) => each.id === message.id)?.receipts.find((receipt) => receipt.memberId === members[agent]);
   const answered = (agent: keyof typeof members, message: Message): Promise<Receipt | undefined> =>
     eventually(() => receiptOf(agent, message), (found) => found !== undefined, { what: `${agent}'s receipt` });
   /** The models each agent's requests named, by the key that tells their homes apart. */
@@ -590,7 +590,7 @@ test("in a room /model is for the agents it names, or every agent with @all", { 
   await Promise.all([answered("scout", again), answered("bob", again)]);
   assert.deepEqual([named("key-scout"), named("key-bob")], [["llama", "mistral"], ["qwen", "mistral"]]);
 
-  const lines = (await person.read(main.id, null, 200)).filter((message) => message.author.kind === "agent" && message.text !== "Ok");
+  const lines = (await person.read(pinned.id, null, 200)).filter((message) => message.author.kind === "agent" && message.text !== "Ok");
   assert.deepEqual(lines.map((message) => message.author.id).sort(), [members.bob, members.scout, members.scout].sort(), "scout said a line for each command it was named in, and bob for the one that named everyone");
 
   // A /model that names nobody is for nobody: no agent acts on it, and no model reads it as text.

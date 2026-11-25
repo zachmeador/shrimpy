@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { ChordError } from "@earendil-works/chord";
+import { ChordError, type Reference } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { Roster } from "../../contracts/gateway/index.ts";
+import type { Chat } from "../../contracts/chat/index.ts";
+import { type Answer, Roster } from "../../contracts/gateway/index.ts";
 import { startTestPushService } from "../../contracts/gateway/testing/index.ts";
 import { until } from "../../lib/testing/index.ts";
 
@@ -92,39 +93,42 @@ test("a text posted in parts says how far it got when chat goes away part of the
   assert.equal(saidByScout(rig, await rig.said()).length, 1);
 });
 
-test("a session behind a DM posts in a room it is in, in its main thread or another, and is refused a room it is not in", { timeout }, async (t) => {
+test("#room posts in the room's first pinned thread, #room/thread in any, and a room with no pin or that the agent isn't in is refused", { timeout }, async (t) => {
   const rig = await startToolRig(t);
   const person = await rig.chat.person();
   const context = BACKGROUND_CONTEXT;
-  const ops = await onChat(person, async (held) => valueOf(await held.createRoom({ name: "Ops", members: [rig.partner.id] }, context)));
-  const closed = await onChat(person, async (held) => valueOf(await held.createRoom({ name: "Closed", members: [] }, context)));
-  const poem = await onChat(person, async (held) => valueOf(await held.createThread({ channel: ops.id, name: "Poem" }, context)));
-  const mainOf = async (channelId: string): Promise<string> => {
-    const main = await onChannel(person, channelId, (held) => held.threads.value.find((thread) => thread.main));
-    assert.ok(main);
-    return main.id;
-  };
+  const asking = <T>(ask: (chat: Reference<typeof Chat>) => Promise<Answer<T>>): Promise<T> => onChat(person, async (held) => valueOf(await ask(held)));
+  const ops = await asking((chat) => chat.createRoom({ name: "Ops", members: [rig.partner.id] }, context));
+  await asking((chat) => chat.createRoom({ name: "Closed", members: [] }, context));
+  const [first] = await onChannel(person, ops.id, (held) => held.threads.value);
+  assert.ok(first);
+  const poem = await asking((chat) => chat.createThread({ channel: ops.id, name: "Poem" }, context));
+  const pinnedPoem = await asking((chat) => chat.pin({ thread: poem.id, pinned: true, revision: poem.revision }, context));
   const said = async (threadId: string): Promise<string[]> =>
-    saidByScout(rig, await onChat(person, async (held) => valueOf(await held.read({ thread: threadId, before: null, limit: 10 }, context))));
+    saidByScout(rig, await asking((chat) => chat.read({ thread: threadId, before: null, limit: 10 }, context)));
 
   const toRoom = await rig.call("send_message", { text: "To the room.", to: "#OPS" }, { callId: "room" });
   const toThread = await rig.call("send_message", { text: "To the thread.", to: "#ops/POEM" }, { callId: "thread" });
-  const refused = await rig.call("send_message", { text: "Let me in.", to: "#Closed" }, { callId: "closed" });
+  const closed = await rig.call("send_message", { text: "Let me in.", to: "#Closed" }, { callId: "closed" });
   const read = await rig.call("read_messages", { from: `#Ops/${poem.id}` });
+  await asking((chat) => chat.pin({ thread: first.id, pinned: false, revision: first.revision }, context));
+  const toNextPin = await rig.call("send_message", { text: "To the next pin.", to: "#ops" }, { callId: "next" });
+  await asking((chat) => chat.pin({ thread: poem.id, pinned: false, revision: pinnedPoem.revision }, context));
+  const unpinned = await rig.call("send_message", { text: "To nowhere.", to: "#ops" }, { callId: "none" });
 
-  assert.deepEqual([toRoom.isError, toThread.isError, refused.isError], [false, false, true]);
-  assert.deepEqual(await said(await mainOf(ops.id)), ["To the room."]);
-  assert.deepEqual(await said(poem.id), ["To the thread."]);
-  assert.deepEqual(await said(await mainOf(closed.id)), [], "and nothing went to the room it is not in");
-  assert.match(refused.text, /not in a room called #Closed\. The rooms you are in: #Ops\./);
+  assert.deepEqual([toRoom, toThread, closed, toNextPin, unpinned].map((call) => call.isError), [false, false, true, false, true]);
+  assert.deepEqual(await said(first.id), ["To the room."], "the oldest pin");
+  assert.deepEqual(await said(poem.id), ["To the thread.", "To the next pin."]);
+  assert.match(closed.text, /not in a room called #Closed\. The rooms you are in: #Ops\./);
+  assert.ok(unpinned.text.includes(first.id) && unpinned.text.includes(poem.id), "a room with no pin is refused with its threads");
   assert.ok(read.text.includes("To the thread."), "the thread can be read the same way");
   assert.deepEqual(saidByScout(rig, await rig.said()), [], "none of it went to the DM the session is behind");
 });
 
-test("@name starts a thread and names it, @name/thread posts in one, and a DM's main thread an agent at 1.0.0 posted in is one of them", { timeout }, async (t) => {
+test("@name starts a thread and names it, and @name/thread posts in any of the DM's threads", { timeout }, async (t) => {
   const rig = await startToolRig(t);
   const me = `@${rig.me.name}`;
-  await rig.postAsScout("Posted where an agent at 1.0.0 posts.");
+  await rig.postAsScout("Posted in the thread you started.");
 
   const first = await rig.call("send_message", { text: "Build report\nAll green.", to: me }, { callId: "first" });
   const second = await rig.call("send_message", { text: "Disk report\nThe NAS is at 81%.", to: me }, { callId: "second" });
@@ -141,11 +145,11 @@ test("@name starts a thread and names it, @name/thread posts in one, and a DM's 
   const old = await rig.call("send_message", { text: "And here.", to: `${me}/${rig.thread.id}` }, { callId: "old" });
   assert.deepEqual([again.isError, old.isError], [false, false]);
   assert.deepEqual(saidByScout(rig, await rig.said(build)), ["Build report\nAll green.", "Still green."]);
-  assert.deepEqual(saidByScout(rig, await rig.said()), ["Posted where an agent at 1.0.0 posts.", "And here."]);
+  assert.deepEqual(saidByScout(rig, await rig.said()), ["Posted in the thread you started.", "And here."]);
 
   const which = await rig.call("read_messages", { from: me });
   assert.equal(which.isError, true, "there is no one thread to read");
-  for (const named of [build, disk, rig.thread.id, "Build report", "Disk report", "Posted where"]) assert.ok(which.text.includes(named), named);
+  for (const named of [build, disk, rig.thread.id, "Build report", "Disk report", "Posted in"]) assert.ok(which.text.includes(named), named);
   const read = await rig.call("read_messages", { from: `${me}/${disk}` });
   assert.ok(read.text.includes("The NAS is at 81%."), read.text);
 });

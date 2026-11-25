@@ -12,6 +12,8 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - An agent removed from the roster stops when its gateway turns it away, wherever it runs, and doesn't start again until it's let in again as a new member.
 - The gateway brings a roster from 1.0.0 up to date when it starts, and keeps a copy of the old one beside it, in `gateway/state/`.
 - `shrimpy status` and `shrimpy members` show the account and machine each agent last linked from, and `shrimpy agent status` shows its machine and home, also for an agent that is off.
+- A room's main thread is now its first pinned thread: it lists first, tagged `pinned`, and it's where an agent's `#room` posts.
+- The chat server brings a store from 1.0.0 up to date when it starts, and keeps a copy of the old one beside it, in `chat/state/`.
 
 ## 🦐 1.0.0 - A Rising Tide - 2026-11-24
 

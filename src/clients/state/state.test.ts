@@ -145,7 +145,7 @@ test("in a room a command for nobody is posted only with an agent named before i
   const scout = await rig.member("scout");
   const you = await rig.person();
   const room = await you.createRoom("ops", [scout.id]);
-  const main = (await you.threads(room.id)).find((each) => each.main);
+  const [main] = await you.threads(room.id);
   assert.ok(main);
   await rig.until((model) => model.rooms[room.id] !== undefined, "the room");
   rig.state.selectRoom(room.id);

@@ -28,7 +28,7 @@ const rooms: Command = {
       const listing = await Promise.all(
         mine.map(async (room) => ({
           room,
-          // A room is as new as its newest thread, and every room has a main thread.
+          // A room is as new as its newest thread, and a room is made with a thread, which is never deleted.
           updatedAt: Math.max(...(await onChannel(reached.client, room.id, (held) => held.threads.value)).map((thread) => thread.updatedAt)),
         })),
       );

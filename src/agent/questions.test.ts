@@ -38,7 +38,7 @@ interface DmThread {
 }
 
 /**
- * `viewer`'s DM with `other`: its main thread, the thread a question made, found by
+ * `viewer`'s DM with `other`: its threads, the thread a question made, found by
  * its name, which is how the question starts, and everything said in all of them.
  */
 async function dmOf(viewer: Speaking, other: string) {
@@ -50,14 +50,12 @@ async function dmOf(viewer: Speaking, other: string) {
   const threads = (): Promise<readonly Thread[]> => viewer.threads(channel?.id ?? "");
   const within = (thread: Thread): DmThread => ({ threadId: thread.id, messages: () => viewer.read(thread.id, null, 100) });
   return {
-    async main(): Promise<DmThread> {
-      const main = (await threads()).find((thread) => thread.main);
-      assert.ok(main);
-      return within(main);
+    async ids(): Promise<string[]> {
+      return (await threads()).map((thread) => thread.id);
     },
     async thread(name: string): Promise<DmThread> {
       const found = await eventually(
-        async () => (await threads()).find((thread) => !thread.main && thread.name === name),
+        async () => (await threads()).find((thread) => thread.name === name),
         (thread) => thread !== undefined,
         { what: `the thread called ${name} in ${viewer.me.name}'s DM with ${other}` },
       );
@@ -225,7 +223,7 @@ test("scout is killed after it asked and before maya answered: when it is back t
   assert.equal((await talk.replies()).length, 2, "and nothing came twice");
   assert.equal(loggedRequests(home).length, 3, "the two requests of the turn that asked, and one for the answer");
   assert.equal((await asked.messages()).length, 2, "scout posted the question and nothing else in its thread");
-  assert.deepEqual(await (await dm.main()).messages(), [], "and nothing in the DM's main thread");
+  assert.deepEqual(await dm.ids(), [asked.threadId], "and no other thread in the DM");
 });
 
 test("a person can't be asked, and a sixth open question is refused, without posting anything", { timeout }, async (t) => {
@@ -317,12 +315,12 @@ test("two agents each with a question open to the other each get the other's ans
   await maya.untilIdle();
   assert.equal(scoutModel.shown.length, 3, "scout was woken by the person, by maya's question and by maya's answer");
   assert.equal(mayaModel.shown.length, 3, "and maya by the person, by scout's question and by scout's answer");
-  // Each took the other's question up in a session of its own, behind the thread the question made, and none in the DM's main thread.
+  // Each took the other's question up in a session of its own, behind the thread the question made.
   const threadsWithAgents = async (rig: typeof scout): Promise<unknown[]> =>
     (await (await rig.connect()).sessions()).flatMap((session) =>
       session.place?.kind === "dm" && session.place.with.kind === "agent" ? [session.place.thread] : [],
     );
-  assert.deepEqual(await threadsWithAgents(scout), [{ main: false, name: "Which key are we in?" }]);
-  assert.deepEqual(await threadsWithAgents(maya), [{ main: false, name: "Which stanza will you take?" }]);
+  assert.deepEqual(await threadsWithAgents(scout), [{ name: "Which key are we in?" }]);
+  assert.deepEqual(await threadsWithAgents(maya), [{ name: "Which stanza will you take?" }]);
   assert.deepEqual([scout.reports, maya.reports], [[], []]);
 });

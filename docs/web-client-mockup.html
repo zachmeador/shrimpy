@@ -1044,7 +1044,7 @@ body:not([data-view="live"]) .live { display: none; }
           <li><b>An archived thread leaves its list for a group at the foot of it,</b> shut until you open it, with a lantern while an agent works in one. Open, the thread has a tag by its name and nothing else differs. Nothing in it counts as new.</li>
           <li><b>A message brings an archived thread back.</b> Chat doesn't do that yet: an archived thread takes a message and stays archived, so what an agent wrote there later would not be seen.</li>
           <li><b>Neither leaves a line in the thread.</b> A new name shows where the name is, and an agent reads it with its next input.</li>
-          <li><b>Who gets the menu is chat's to say.</b> Only a channel's members rename or archive, so a thread you only read has none. A room's main thread has it like any other. A trigger's own session is behind no thread, and has none.</li>
+          <li><b>Who gets the menu is chat's to say.</b> Only a channel's members rename or archive, so a thread you only read has none. A pinned thread has it like any other. A trigger's own session is behind no thread, and has none.</li>
         </ol>
         <h3 style="margin-top:18px">Drawn on 2026-11-24, and not built</h3>
         <ol start="16">
@@ -1602,7 +1602,7 @@ const AWAY = { shrimpy: '1.0.0-rc.1', pi: 'Pi 1.5.2', gateway: 'Pi 1.6.0' };
 const awayWords = (a) => `The gateway turned the agent ${a} away: it runs Shrimpy ${AWAY.shrimpy} on ${AWAY.pi}, and the gateway runs Shrimpy ${VERSION} on ${AWAY.gateway}. Programs that link need the same Pi packages: update Shrimpy where the agent ${a} runs to ${VERSION}.`;
 
 const ROOMS = {
-  ops: { members: ['you', 'lighthouse', 'scout', 'shrimpy'], threads: ['ops-window', 'ops-deploy', 'ops-router', 'ops-main'] },
+  ops: { members: ['you', 'lighthouse', 'scout', 'shrimpy'], threads: ['ops-main', 'ops-window', 'ops-deploy', 'ops-router'] },
   house: { members: ['you', 'pantry', 'shrimpy'], threads: ['house-main'] },
   'reef-notes': { members: ['crab', 'scout'], threads: ['reef-main'] },
 };
@@ -1739,7 +1739,7 @@ const THREADS = {
     ],
   },
   'ops-main': {
-    place: { kind: 'room', room: 'ops' }, main: true, when: 'Nov 18 20:11',
+    place: { kind: 'room', room: 'ops' }, pinned: true, when: 'Nov 18 20:11',
     messages: [
       { who: 'you', at: 'Nov 18 20:10', html: `<p>this room is for the machines. keep it short in here</p>` },
       { who: 'shrimpy', at: 'Nov 18 20:11', html: `<p>Short it is. 🦐</p>` },
@@ -1832,13 +1832,13 @@ const THREADS = {
     },
   },
   'house-main': {
-    place: { kind: 'room', room: 'house' }, main: true, when: 'Nov 20 18:02',
+    place: { kind: 'room', room: 'house' }, pinned: true, when: 'Nov 20 18:02',
     messages: [
       { who: 'pantry', at: 'Nov 20 18:02', html: `<p>Dinner tonight is the leek thing. It takes 40 minutes, so start by 6:45 to eat at 7:30.</p>`, reactions: [{ emoji: '👍', by: [ME] }] },
     ],
   },
   'reef-main': {
-    place: { kind: 'room', room: 'reef-notes' }, main: true, when: 'Nov 20 23:52',
+    place: { kind: 'room', room: 'reef-notes' }, pinned: true, when: 'Nov 20 23:52',
     messages: [
       { who: 'scout', at: 'Nov 20 23:50', html: `<p>${at('crab')} do you still have the tide table for the week? I want it beside the camera log.</p>` },
       { who: 'crab', at: 'Nov 20 23:52', html: `<p>Yes. It is in <code>vault/tides/2026-11.md</code>. High water on Saturday is at 07:41 and 20:03.</p>` },
@@ -2068,6 +2068,8 @@ function mount(host, kind, mode, route, flags = {}) {
     return !m ? null : m.html ? plain(m.html) : m.files[0].name;
   };
   const titleOf = (th) => th.title ?? (th.place.kind === 'trigger' ? `trigger ${th.place.trigger}` : firstText(th)) ?? '(no messages yet)';
+  // A new thread of a room goes after its pinned ones, which chat lists first.
+  const afterPins = (threads, id) => { const at = threads.findIndex((t) => !db[t].pinned); threads.splice(at < 0 ? threads.length : at, 0, id); };
   const youAreIn = (th) => th.place.kind === 'dm' || (th.place.kind === 'room' && rooms[th.place.room].members.includes('you'));
   /** Chat lets a channel's members rename and archive its threads, and no one else. */
   const yoursToName = (th) => Boolean(th) && youAreIn(th) && !s.stale;
@@ -2152,7 +2154,7 @@ function mount(host, kind, mode, route, flags = {}) {
     const where = !viewer || th.place.kind === 'trigger' ? '' : placeFor(th, viewer);
     const only = !youAreIn(th) && th.place.kind !== 'trigger';
     return `<button class="trow${th.unread ? ' unread' : ''}" data-go="thread:${id}" aria-current="${s.thread === id}">
-      <span class="t-title"><span>${esc(titleOf(th))}</span>${th.main ? '<span class="tag">main</span>' : ''}</span>
+      <span class="t-title"><span>${esc(titleOf(th))}</span>${th.pinned ? '<span class="tag">pinned</span>' : ''}</span>
       <span class="t-sub">${where ? `${where}<span class="dot">·</span>` : ''}${th.when}${only ? '<span class="dot">·</span>read-only' : ''}</span>
       <span class="t-end">${th.unread ? `<span class="count">${th.unread}</span><i class="fleck"></i>` : ''}${busy ? '<i class="lamp"></i>' : ''}</span></button>`;
   }
@@ -2357,7 +2359,7 @@ function mount(host, kind, mode, route, flags = {}) {
     const steps = given ? [...given] : [];
     if (!given && th.messages) {
       const where = th.place.kind === 'room'
-        ? `You are in ${th.main ? '' : `the thread "${titleOf(th)}" of `}the room #${th.place.room}. Also in it: ${listed(rooms[th.place.room].members.filter((m) => m !== a).map((m) => `${nameOf(m)} (${m === 'you' ? 'a person' : 'an agent'})`))}.`
+        ? `You are in ${th.title ? `the thread "${th.title}" of ` : 'a thread of '}the room #${th.place.room}. Also in it: ${listed(rooms[th.place.room].members.filter((m) => m !== a).map((m) => `${nameOf(m)} (${m === 'you' ? 'a person' : 'an agent'})`))}.`
         : `You are in ${th.title ? `the thread "${th.title}" of ` : 'a thread of '}your DM with ${th.place.kind === 'dm' ? `${ME}, a person` : `${th.place.a === a ? th.place.b : th.place.a}, an agent`}.`;
       let first = true;
       const blind = !seesPictures(th.model || AGENTS[a].model);
@@ -2474,7 +2476,7 @@ function mount(host, kind, mode, route, flags = {}) {
     const all = agentsIn(th);
     const a = all.includes(s.watching) ? s.watching : s.place && s.place.kind === 'agent' && all.includes(s.place.id) ? s.place.id : workingIn(th)[0] || all[0];
     const A = AGENTS[a];
-    const where = `${placeFor(th, a)} · ${th.main ? 'main' : esc(titleOf(th))}`;
+    const where = `${placeFor(th, a)} · ${esc(titleOf(th))}`;
     const picker = all.length > 1 ? `<div class="picker" role="group" aria-label="Whose view">${all.map((x) => `<button data-go="watch:${x}" aria-pressed="${x === a}" title="${nameOf(x)}">${sigil(x)}</button>`).join('')}</div>` : '';
     const steps = sessionOf(th, a);
     const work = th.work && th.work[a];
@@ -2772,7 +2774,7 @@ function mount(host, kind, mode, route, flags = {}) {
     if (!s.place) return;
     const id = `new-${++s.fresh}`;
     if (s.place.kind === 'agent') { db[id] = { place: { kind: 'dm', agent: s.place.id }, when: 'now', messages: [] }; lists[s.place.id].yours.unshift(id); s.tab = 'chat'; }
-    else { db[id] = { place: { kind: 'room', room: s.place.id }, when: 'now', messages: [] }; rooms[s.place.id].threads.unshift(id); }
+    else { db[id] = { place: { kind: 'room', room: s.place.id }, when: 'now', messages: [] }; afterPins(rooms[s.place.id].threads, id); }
     s.thread = id;
     s.level = 3;
     s.turned = false;

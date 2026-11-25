@@ -72,7 +72,7 @@ function heldAnswers(): { script: Script; asked(): number; answer(): void; relea
 /** Where the person talks to the agent, which is the thread of a DM or of a room, and how they mention it there: by name, or to everyone. */
 const PLACES: { name: string; mention: string; open(t: TestContext, rig: AgentRig): Promise<string> }[] = [
   { name: "a DM", mention: `@${SCOUT}`, open: (_t, rig) => Promise.resolve(rig.thread.id) },
-  { name: "a room", mention: "@all", open: async (t, rig) => (await roomWith(t, rig.chat, "Ops", [rig.partner])).main.id },
+  { name: "a room", mention: "@all", open: async (t, rig) => (await roomWith(t, rig.chat, "Ops", [rig.partner])).pinned.id },
 ];
 
 /**
@@ -150,9 +150,9 @@ test("an agent's message that mentions the agent, sent while a turn runs, waits 
   const { script, asked } = twoSteps();
   const rig = await startAgentRig(t, { script });
   const bob = await speakingAs(t, await rig.chat.agent("bob"));
-  const { main } = await roomWith(t, rig.chat, "Ops", [rig.partner, bob.me]);
+  const { pinned } = await roomWith(t, rig.chat, "Ops", [rig.partner, bob.me]);
 
-  const waited = await sayWhileTurnRuns(rig, asked, main.id, async () => [await bob.post(main.id, `@${SCOUT}, one more thing`, "bob-1")]);
+  const waited = await sayWhileTurnRuns(rig, asked, pinned.id, async () => [await bob.post(pinned.id, `@${SCOUT}, one more thing`, "bob-1")]);
 
   assertWaitedForNextTurn(rig, asked, waited);
 });

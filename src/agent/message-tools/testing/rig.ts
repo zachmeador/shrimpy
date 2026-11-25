@@ -29,7 +29,7 @@ export interface ToolRun {
 export interface ToolRig extends Talk {
   /** The real chat server and gateway the tools work against. */
   readonly chat: ChatServer;
-  /** Scout posts in the main thread of the DM, as the agent does over the link the tools use. */
+  /** Scout posts in the thread of the DM you talk in, as the agent does over the link the tools use. */
   postAsScout(text: string): Promise<void>;
   /** The chat the tools use is lost. */
   lose(): void;
@@ -82,7 +82,7 @@ export async function startToolRig(t: TestContext, options: ToolRigOptions = {})
     return found;
   };
 
-  // The engine's number for the session, and the one document that says it is behind the main thread of the DM.
+  // The engine's number for the session, and the one document that says it is behind the thread you talk in.
   const sessions = { [talk.thread.id]: { conversationId: 1, channelId: talk.thread.channelId, unacted: [], cancelled: [], missed: [], shown: {} } };
   const memos: Memos = new Map();
   return {

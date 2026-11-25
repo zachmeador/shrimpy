@@ -12,9 +12,10 @@ import { ThreadSchema } from "./thread.ts";
  * program that is no member gets nothing here, and its calls are refused.
  *
  * A member writes only in the channels it is in. You read every channel, and a
- * write in one you aren't in is refused, but for adding members. An agent has
- * only its own channels, and to an agent a channel, thread or message that
- * doesn't exist and one it can't reach look the same.
+ * write in one you aren't in is refused, but for adding members and pinning,
+ * which you do in any channel. An agent has only its own channels, and to an
+ * agent a channel, thread or message that doesn't exist and one it can't reach
+ * look the same.
  *
  * Each change to a message carries a request ID, as a post does, and its first
  * use wins: a retry from the same member answers with the message as it now
@@ -79,12 +80,16 @@ export const Chat = remote("shrimpy.chat", {
          * as when its link drops, so a member that crashes never looks busy.
          */
         setWorking: method(obj({ thread: str(), working: bool() }), answerOf(nul())),
-        /** The DM between the caller and a member of the roster, made on first use. */
+        /**
+         * The DM between the caller and a member of the roster, made on first
+         * use. It is made with no thread: a conversation starts with
+         * `createThread`.
+         */
         openDm: method(obj({ member: str() }), answerOf(ChannelSchema)),
         /**
          * Makes a room with the caller and up to 200 members of the roster in
-         * it, and its main thread. Only an admin. A name is one line of 1 to 200
-         * characters, and no other room has it, whatever the case.
+         * it, and one thread, pinned. Only an admin. A name is one line of 1 to
+         * 200 characters, and no other room has it, whatever the case.
          */
         createRoom: method(obj({ name: str(), members: arr(str()) }), answerOf(ChannelSchema)),
         /** A new thread in a channel, named or not. */
@@ -137,6 +142,13 @@ export const Chat = remote("shrimpy.chat", {
          * thread, or a trigger's line, brings it back too.
          */
         archive: method(obj({ thread: str(), archived: bool(), revision: int() }), answerOf(ThreadSchema)),
+        /**
+         * Pins a thread in its channel, or unpins it, answering with it as it
+         * now stands. The pin is the channel's, for every member. Asking for
+         * what it is already changes nothing, and a pinned thread keeps when it
+         * was pinned.
+         */
+        pin: method(obj({ thread: str(), pinned: bool(), revision: int() }), answerOf(ThreadSchema)),
         /**
          * Moves your read mark in a message's thread up to that message, such
          * as the newest one on show. A mark only moves forward, so a message at

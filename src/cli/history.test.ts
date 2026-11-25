@@ -45,9 +45,8 @@ test("threads lists your threads with an agent, the most recently updated first,
 
   assert.equal(result.code, 0, result.stderr);
   const threads = JSON.parse(result.stdout) as Thread[];
-  assert.deepEqual(threads.map((thread) => thread.preview), ["two", "one", null], "a thread with no name shows its first message");
-  assert.deepEqual(threads.map((thread) => thread.main), [false, false, true]);
-  assert.deepEqual(threads.map((thread) => thread.archived), [false, true, false]);
+  assert.deepEqual(threads.map((thread) => thread.preview), ["two", "one"], "a thread with no name shows its first message");
+  assert.deepEqual(threads.map((thread) => thread.archived), [false, true]);
 });
 
 test("threads says who is working in a thread right now, and stops saying so when they are done", { timeout }, async (t) => {
@@ -129,8 +128,7 @@ test("read shows a thread of a DM between two agents, which the person is not in
   const scout = await enterAsAgent(t, "scout");
   const maya = await enterAsAgent(t, "maya");
   const dm = await scout.openDm(maya.me.id);
-  const [main] = await scout.threads(dm.id);
-  assert.ok(main);
+  const main = await scout.createThread(dm.id, null);
   await scout.post(main.id, "Is the disk full?", "scout-1");
   await maya.post(main.id, "Nearly.", "maya-1");
 
@@ -151,8 +149,7 @@ test("read prints what another member wrote with nothing a terminal would act on
   const scout = await enterAsAgent(t, "scout");
   const maya = await enterAsAgent(t, "maya");
   const dm = await scout.openDm(maya.me.id);
-  const [main] = await scout.threads(dm.id);
-  assert.ok(main);
+  const main = await scout.createThread(dm.id, null);
   const text = "\u001b]0;not your title\u0007\u001b[31mred\u001b[0m, \u001b]52;c;cHduZWQ=\u0007a carriage\rreturn and ‮turned";
   await scout.post(main.id, text, "scout-1");
 
@@ -217,8 +214,7 @@ test("read goes back through a thread that is longer than the live view holds", 
   const talking = await startTalking(t);
   const connection = await talking.you();
   const dm = await connection.openDm((await joinRoster(t, "scout")).id);
-  const [main] = await connection.threads(dm.id);
-  const thread = main?.id ?? "";
+  const thread = (await connection.createThread(dm.id, null)).id;
   for (let n = 0; n < 450; n++) await connection.post(thread, `message ${n}`, `request-${n}`);
 
   const result = await shrimpy(["read", thread, "--json"]);

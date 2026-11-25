@@ -276,9 +276,9 @@ test("add with a thread in the agent's shell writes nothing for a thread the age
   saveMembership(home, { token });
   const scout = await memberNamed(t, "scout");
   const maya = await joinRoster(t, "maya");
-  const [mine] = await you.threads((await you.openDm(scout.id)).id);
-  const [theirs] = await you.threads((await you.openDm(maya.id)).id);
-  assert.ok(mine && theirs, "the person can see both threads, and only one is the agent's");
+  // The person is in both threads, and only one is the agent's.
+  const mine = await you.createThread((await you.openDm(scout.id)).id, null);
+  const theirs = await you.createThread((await you.openDm(maya.id)).id, null);
   const inShell = { env: { [AGENT_HOME_VARIABLE]: home } };
   const file = join(home, "triggers", "report.md");
 

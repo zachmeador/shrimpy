@@ -36,11 +36,11 @@ export interface ChannelOperations {
   channelsWithout(memberId: string): ChannelRecord[];
   /** The DM between two members, in either order. */
   directChannel(first: string, second: string): ChannelRecord | undefined;
-  /** Open a DM between two members already on record, with its main thread. */
-  createDirectChannel(first: Member, second: Member, now: number): ChannelRecord;
+  /** Open a DM between two members already on record. It has no thread yet. */
+  createDirectChannel(first: Member, second: Member): ChannelRecord;
   /** The room called `name`, whatever the case, if there is one. It is any room, whether or not the caller is in it. */
   roomNamed(name: string): ChannelRecord | undefined;
-  /** Make a room with its main thread, with members already on record in it. No other room may have its name. */
+  /** Make a room with one thread, pinned, with members already on record in it. No other room may have its name. */
   createRoom(name: string, members: Member[], now: number): ChannelRecord;
   /** Put members already on record in a channel. One that is in already stays as it is. */
   addToChannel(channelId: string, members: Member[]): ChannelRecord;
@@ -113,7 +113,7 @@ export function channelOperations(sql: Sql, report: ReportChange): ChannelOperat
         | undefined;
       return row === undefined ? undefined : channel(row.id);
     },
-    createDirectChannel(first, second, now) {
+    createDirectChannel(first, second) {
       const id = newId("ch");
       sql.run(
         "INSERT INTO channels (id, kind, name, direct_key) VALUES (?, 'dm', NULL, ?)",
@@ -121,7 +121,6 @@ export function channelOperations(sql: Sql, report: ReportChange): ChannelOperat
         directKey(first.id, second.id),
       );
       for (const member of [first, second]) join(sql, id, member.id);
-      insertThread(sql, { channelId: id, name: null, main: true, now });
       report({ kind: "channel", channelId: id });
       return stored(id);
     },
@@ -134,7 +133,7 @@ export function channelOperations(sql: Sql, report: ReportChange): ChannelOperat
       // No two rooms share a name in the form names are compared in.
       sql.run("INSERT INTO channels (id, kind, name, room_key) VALUES (?, 'room', ?, ?)", id, name, nameKey(name));
       for (const member of members) join(sql, id, member.id);
-      insertThread(sql, { channelId: id, name: null, main: true, now });
+      insertThread(sql, { channelId: id, name: null, pinned: now, now });
       report({ kind: "channel", channelId: id });
       return stored(id);
     },

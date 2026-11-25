@@ -10,7 +10,7 @@ import type {
   TurnFailure,
   WaitingWakeup,
 } from "../../contracts/agent/index.ts";
-import { type AgentCommand, type Channel, isListed, type Member, type Message, type Thread } from "../../contracts/chat/index.ts";
+import { type AgentCommand, type Channel, type Member, type Message, type Thread } from "../../contracts/chat/index.ts";
 import { compareShrimpy, linksWith, type Program, type RosterEntry, type TurnedAwayProgram, type Versions, type WayIn } from "../../contracts/gateway/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import type { LinkStatus, Problem } from "../network/index.ts";
@@ -550,7 +550,7 @@ export interface Part {
 
 /** Where a thread of `channel` is, for the agent `agentId`, as the agent says a session's place. */
 function placeIn(channel: Channel, thread: Thread, agentId: string | undefined): SessionPlace {
-  const place = { main: thread.main, name: thread.name };
+  const place = { name: thread.name };
   if (channel.kind === "room") return { kind: "room", room: channel.name, thread: place };
   const other = channel.members.find((member) => member.id !== agentId);
   return { kind: "dm", with: { name: other?.name ?? channel.name, kind: other?.kind ?? "person" }, thread: place };
@@ -593,11 +593,7 @@ export function partsOf(model: Model, agentId: string): Part[] {
   };
 
   const addThreads = (channel: ChannelThreads): void => {
-    for (const thread of channel.threads) {
-      // A DM's main thread with nothing in it is left out, and so is any session behind it.
-      if (isListed(thread, channel.channel.kind)) addThread(channel, thread);
-      else have.add(thread.id);
-    }
+    for (const thread of channel.threads) addThread(channel, thread);
   };
 
   if (dm !== undefined) addThreads(dm);

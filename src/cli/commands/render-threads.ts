@@ -21,7 +21,7 @@ export function renderThreads(threads: Thread[], channel: Channel): string[] {
     thread.id,
     localTime(thread.updatedAt),
     thread.working.map((mark) => nameOf(mark.memberId)).join(", "),
-    taggedTitle(thread, channel.kind),
+    taggedTitle(thread),
   ]);
   return renderTable(["thread", "updated", "working", "name"], rows);
 }
@@ -43,7 +43,7 @@ function bodyOf(message: Message): string {
  */
 export function renderThread(thread: Thread, messages: Message[], channel: Channel, you: Member): string[] {
   const nameOf = namer(channel.members);
-  const lines = [`Thread ${thread.id} in ${channelLabel(channel, you.id)}: ${taggedTitle(thread, channel.kind)}`];
+  const lines = [`Thread ${thread.id} in ${channelLabel(channel, you.id)}: ${taggedTitle(thread)}`];
   if (messages.length === 0) lines.push("", NO_MESSAGES);
   for (const message of messages) {
     const edited = message.editedAt === null || message.deleted ? "" : `  edited ${localTime(message.editedAt)}`;

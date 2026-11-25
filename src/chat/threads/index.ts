@@ -13,7 +13,7 @@
  */
 export { answer } from "./answer.ts";
 export type { ChatDeps, Notifier } from "./deps.ts";
-export { addMembers, archiveThread, createRoom, createThread, openDm, renameThread, setWorking } from "./directory.ts";
+export { addMembers, archiveThread, createRoom, createThread, openDm, pinThread, renameThread, setWorking } from "./directory.ts";
 export { deleteMessage, editMessage } from "./edits.ts";
 export { markRead } from "./marks.ts";
 export { post, readMessages, triggerFired } from "./messages.ts";

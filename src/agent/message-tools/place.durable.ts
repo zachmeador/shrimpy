@@ -1,6 +1,6 @@
 import type { Context } from "@earendil-works/chord/context";
 import type { DocumentReader } from "@earendil-works/pi-durable";
-import { type Channel, findDm, findRoom, isListed, type Member, notInRoom, roomLabel, type Thread } from "../../contracts/chat/index.ts";
+import { type Channel, findDm, findRoom, type Member, notInRoom, roomLabel, type Thread } from "../../contracts/chat/index.ts";
 import { nameKey, type RosterEntry } from "../../contracts/gateway/index.ts";
 import { type ChatCalls, type Named, nameOnRoster } from "../links/index.ts";
 import { threadOfSession } from "../records/durable.ts";
@@ -51,8 +51,8 @@ export interface Find {
  * roster, made with the DM if there is none yet, when posting; reading it is
  * refused with the DM's threads, since there is no one thread to read.
  * `@name/thread` is one of that DM's threads, and `#room/thread` one of a
- * room's, by its name or its ID. `#room` is the main thread of a room the agent
- * is in.
+ * room's, by its name or its ID. `#room` is the first pinned thread of a room
+ * the agent is in, and is refused with the room's threads when it has none.
  */
 export async function placeOf(find: Find): Promise<Place | Unusable> {
   const { argument, value } = find;
@@ -84,16 +84,16 @@ async function dmPlace(find: Find, written: string, current: string | undefined)
   }
   const channel = findDm(find.chat.channels(), member.id);
   if (channel === undefined) return { problem: words.noDmYet(member.name, argument) };
-  const threads = (await find.chat.threads(channel.id, find.signal)).filter((each) => isListed(each, "dm"));
+  const threads = await find.chat.threads(channel.id, find.signal);
   if (thread === "") return { problem: words.whichDmThread(member.name, threads) };
   const where = words.dmWith(member.name);
   const found = threadCalled(threads, thread);
-  if (found === undefined) return { problem: words.noSuchThread(where, thread, threads, "dm") };
-  if (Array.isArray(found)) return { problem: words.manyThreads(where, thread, found, "dm") };
+  if (found === undefined) return { problem: words.noSuchThread(where, thread, threads) };
+  if (Array.isArray(found)) return { problem: words.manyThreads(where, thread, found) };
   return { threadId: found.id, label: words.dmThreadLabel(member.name, found.id), here: found.id === current };
 }
 
-/** The main thread of a room the agent is in, or one of its threads when `written` goes on after the room's name with a slash. */
+/** The first pinned thread of a room the agent is in, or one of its threads when `written` goes on after the room's name with a slash. */
 async function roomPlace(find: Find, written: string, current: string | undefined): Promise<Place | Unusable> {
   const rooms = find.chat.channels().filter((channel) => channel.kind === "room");
   const found = roomAndThread(rooms, written);
@@ -104,15 +104,15 @@ async function roomPlace(find: Find, written: string, current: string | undefine
   const threads = await find.chat.threads(room.id, find.signal);
 
   if (thread === "") {
-    const main = threads.find((candidate) => candidate.main);
-    const label = words.theRoom(room.name);
-    if (main === undefined) return { problem: words.noMainThread(label) };
-    return { threadId: main.id, label, here: main.id === current };
+    // Chat lists the pinned threads first, oldest pin first.
+    const pinned = threads.find((candidate) => candidate.pinned !== null);
+    if (pinned === undefined) return { problem: words.whichRoomThread(room.name, threads, find.argument) };
+    return { threadId: pinned.id, label: words.theRoom(room.name), here: pinned.id === current };
   }
   const where = roomLabel(room.name);
   const only = threadCalled(threads, thread);
-  if (only === undefined) return { problem: words.noSuchThread(where, thread, threads, "room") };
-  if (Array.isArray(only)) return { problem: words.manyThreads(where, thread, only, "room") };
+  if (only === undefined) return { problem: words.noSuchThread(where, thread, threads) };
+  if (Array.isArray(only)) return { problem: words.manyThreads(where, thread, only) };
   return { threadId: only.id, label: words.roomThreadLabel(nameOf(only), room.name), here: only.id === current };
 }
 

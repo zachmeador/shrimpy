@@ -83,10 +83,10 @@ export function aThread(id: string, parts: Partial<Thread> = {}): Thread {
   return {
     id,
     channelId: "ch_1",
-    main: false,
     name: null,
     preview: null,
     archived: false,
+    pinned: null,
     revision: 0,
     updatedAt: 0,
     working: [],

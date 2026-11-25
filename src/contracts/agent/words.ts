@@ -65,25 +65,15 @@ export function placeLabel(place: SessionPlace, you?: string): string {
 /** A session's place that is a thread of a channel. */
 type InChannel = Exclude<SessionPlace, { kind: "trigger" }>;
 
-/** Whether a thread is a room's main thread, which is the only one marked as main: a DM's is an ordinary thread. */
-const roomMain = (place: InChannel): boolean => place.kind === "room" && place.thread.main;
-
-/** A thread of a session's place: by its name, marked when it is a room's main one, or "main", or by its address when it has no name. */
-export function threadLabel(place: InChannel, address: string): string {
-  const name = threadName(place, address);
-  return roomMain(place) && name.named ? `${name.label} [main]` : name.label;
-}
-
-/** A thread of a session's place by its name, or "main" for a room's main thread, or by its address when it has no name; and whether it has a name. */
+/** A thread of a session's place by its name, or by its address when it has no name; and whether it has a name. */
 export function threadName(place: InChannel, address: string): { label: string; named: boolean } {
   const name = place.thread.name === null ? "" : oneLine(place.thread.name);
-  if (name !== "") return { label: name, named: true };
-  return { label: roomMain(place) ? "main" : `thread ${oneLine(address)}`, named: false };
+  return name === "" ? { label: `thread ${oneLine(address)}`, named: false } : { label: name, named: true };
 }
 
-/** Where a session is, with which thread of it: "DM with mechanic · thread thr_1", "#ops · main", "#ops · deploys" or "trigger nightly". */
+/** Where a session is, with which thread of it: "DM with mechanic · thread thr_1", "#ops · deploys" or "trigger nightly". */
 export function placeWords(place: SessionPlace, address: string, you?: string): string {
-  return place.kind === "trigger" ? placeLabel(place, you) : `${placeLabel(place, you)} · ${threadLabel(place, address)}`;
+  return place.kind === "trigger" ? placeLabel(place, you) : `${placeLabel(place, you)} · ${threadName(place, address).label}`;
 }
 
 /** How a tool call stands: "waiting", "running", "done", "failed" or "interrupted, not run again". */

@@ -16,11 +16,11 @@ export interface Talk {
   readonly me: Member;
   /** The agent you talk to, as the roster has it. */
   readonly partner: Member;
-  /** The main thread of the DM. */
+  /** The thread of the DM you talk in, which you started. */
   readonly thread: Thread;
   /** Start a side thread in the DM. */
   newThread(name?: string): Promise<Thread>;
-  /** Say something in a thread, the DM's main thread unless another is given. */
+  /** Say something in a thread, the one you talk in unless another is given. */
   say(text: string, threadId?: string): Promise<Message>;
   /** Change what a message of yours says. */
   edit(message: Message, text: string): Promise<Message>;
@@ -48,10 +48,15 @@ export interface Talk {
   receiptFor(event: ChatEvent, timeoutMs?: number): Promise<Receipt>;
 }
 
+/** The thread each test talks to each agent in, by the agent's member ID. */
+const talkedIn = new WeakMap<TestContext, Map<string, string>>();
+
 /**
- * You, in your DM with the agent called `agentName` on the chat server, made if
- * need be once the agent has joined the test gateway's roster. You link to the
- * gateway again by yourself when it has been away.
+ * You, in a thread of your DM with the agent called `agentName` on the chat
+ * server, made if need be once the agent has joined the test gateway's roster.
+ * It is the thread the test talked to the agent in before, as before the agent
+ * started again, while chat still has it, and otherwise one you start. You
+ * link to the gateway again by yourself when it has been away.
  */
 export async function talkTo(t: TestContext, agentName: string): Promise<Talk> {
   let linked: Promise<Client> | undefined;
@@ -78,8 +83,11 @@ export async function talkTo(t: TestContext, agentName: string): Promise<Talk> {
   if (first.you === null) throw new Error("The gateway took the person's client for nobody.");
   const me: Member = { id: first.you.id, kind: first.you.kind, name: first.you.name };
   const dm = await onChat(first, async (held) => valueOf(await held.openDm({ member: partner.id }, context)));
-  const thread = await onChannel(first, dm.id, (held) => held.threads.value.find((candidate) => candidate.main));
-  if (thread === undefined) throw new Error(`The DM ${dm.id} has no main thread`);
+  const known = talkedIn.get(t) ?? new Map<string, string>();
+  talkedIn.set(t, known);
+  const before = await onChannel(first, dm.id, (held) => held.threads.value.find((each) => each.id === known.get(partner.id)));
+  const thread = before ?? (await onChat(first, async (held) => valueOf(await held.createThread({ channel: dm.id, name: null }, context))));
+  known.set(partner.id, thread.id);
 
   /** What `ask` asks of chat, as you, linked again if need be. */
   const asking = async <T>(ask: (chat: Reference<typeof Chat>) => Promise<T>): Promise<T> => onChat(await connection(), ask);

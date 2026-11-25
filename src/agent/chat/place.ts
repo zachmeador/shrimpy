@@ -24,7 +24,7 @@ const named = ({ name, kind }: Member): Named => ({ name, kind });
  * a DM that has no one but the agent in it.
  */
 export function describePlace(self: Member, channel: Channel, thread: Thread): Place | undefined {
-  const there = { main: thread.main, name: thread.name };
+  const there = { name: thread.name };
   const others = channel.members.filter((member) => member.id !== self.id).sort((a, b) => a.name.localeCompare(b.name));
   if (channel.kind === "dm") {
     const [other] = others;

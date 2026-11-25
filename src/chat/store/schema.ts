@@ -1,7 +1,7 @@
 import type { Step, StoreFormat } from "../../lib/migration/node.ts";
 
 /** The tables' version, kept in the store's `user_version`. */
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
 
 /**
  * A change to the tables: the SQL that brings a store from the version before
@@ -39,9 +39,10 @@ export interface ChatFormat extends StoreFormat<ChatStep> {
  * `reactions` keeps the emoji that stand. A failed receipt always has a
  * detail, a skipped or answered one may, and no other has one.
  *
- * A thread's `revision` counts the renames and archives that changed it, and
- * the messages that brought it back from the archive, so that a rename or an
- * archive can name the revision it was decided on.
+ * A thread's `revision` counts the renames, archives and pins that changed it,
+ * and the messages that brought it back from the archive, so that a rename, an
+ * archive or a pin can name the revision it was decided on. `pinned` is when
+ * it was pinned in its channel, or null.
  *
  * A DM is found by its `direct_key`, the two members' IDs in order, and a room
  * by its `room_key`, its name in lower case, which no other room has. A member
@@ -94,17 +95,16 @@ CREATE INDEX memberships_by_member ON memberships (member_id, channel_id);
 CREATE TABLE threads (
   id TEXT NOT NULL PRIMARY KEY,
   channel_id TEXT NOT NULL REFERENCES channels (id),
-  main INTEGER NOT NULL CHECK (main IN (0, 1)),
   name TEXT,
   archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
   revision INTEGER NOT NULL DEFAULT 0,
   preview TEXT,
   message_count INTEGER NOT NULL DEFAULT 0,
   last_seq INTEGER NOT NULL DEFAULT 0,
-  updated_at INTEGER NOT NULL
+  updated_at INTEGER NOT NULL,
+  pinned INTEGER
 ) STRICT;
 CREATE INDEX threads_by_channel ON threads (channel_id, updated_at DESC, last_seq DESC);
-CREATE UNIQUE INDEX one_main_thread_per_channel ON threads (channel_id) WHERE main = 1;
 
 CREATE TABLE events (
   seq INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -193,5 +193,24 @@ CREATE TABLE read_marks (
 ) STRICT, WITHOUT ROWID;
 `;
 
-/** This release's format, which a change to `SCHEMA` changes. */
-export const CHAT_FORMAT: ChatFormat = { schema: SCHEMA, current: SCHEMA_VERSION, oldest: SCHEMA_VERSION, steps: [] };
+/**
+ * 2.0.0: a thread has no `main`, and may be pinned. A room's main thread
+ * becomes its first pin, pinned when the store is migrated. A DM's main thread
+ * that holds nothing, with no message and no name, goes, and any other is an
+ * ordinary thread.
+ */
+const PINS: ChatStep = {
+  version: 11,
+  statements: [
+    "ALTER TABLE threads ADD COLUMN pinned INTEGER",
+    `UPDATE threads SET pinned = CAST(unixepoch('subsec') * 1000 AS INTEGER)
+      WHERE main = 1 AND channel_id IN (SELECT id FROM channels WHERE kind = 'room')`,
+    `DELETE FROM threads
+      WHERE main = 1 AND name IS NULL AND message_count = 0 AND channel_id IN (SELECT id FROM channels WHERE kind = 'dm')`,
+    "DROP INDEX one_main_thread_per_channel",
+    "ALTER TABLE threads DROP COLUMN main",
+  ],
+};
+
+/** This release's format, which a change to `SCHEMA` changes. A store from 1.0.0 is at version 10. */
+export const CHAT_FORMAT: ChatFormat = { schema: SCHEMA, current: SCHEMA_VERSION, oldest: 10, steps: [PINS] };

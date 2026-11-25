@@ -78,8 +78,8 @@ test("/stop in a room stops every agent there when it mentions nobody, and only 
   const bobModel = streaming();
   const scout = await startAgentRig(t, { script: scoutModel.script, tokensPerSecond: SLOWLY });
   const bob = await startAgentRig(t, { name: "bob", chat: scout.chat, script: bobModel.script, tokensPerSecond: SLOWLY });
-  const { main } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.partner]);
-  const say = (text: string): Promise<Message> => scout.say(text, main.id);
+  const { pinned } = await roomWith(t, scout.chat, "Ops", [scout.partner, bob.partner]);
+  const say = (text: string): Promise<Message> => scout.say(text, pinned.id);
   /** Say something that mentions nobody, which wakes both, and wait until the model has been asked about it for the `turn`th time by each. */
   const startBoth = async (text: string, turn: number): Promise<Message> => {
     const message = await say(text);
@@ -92,7 +92,7 @@ test("/stop in a room stops every agent there when it mentions nobody, and only 
   ]);
   /** What each agent left on a message, by name. */
   const receiptsOn = async (message: Message): Promise<Record<string, string>> => {
-    const found = (await scout.said(main.id)).find((candidate) => candidate.id === message.id);
+    const found = (await scout.said(pinned.id)).find((candidate) => candidate.id === message.id);
     return Object.fromEntries((found?.receipts ?? []).map((receipt) => [names.get(receipt.memberId) ?? receipt.memberId, receipt.status]));
   };
 
@@ -123,13 +123,13 @@ test("/stop in a room stops every agent there when it mentions nobody, and only 
 test("a room that wakes the agent for nothing does not turn /stop away", { timeout }, async (t) => {
   const model = streaming();
   const rig = await startAgentRig(t, { script: model.script, tokensPerSecond: SLOWLY });
-  const { main } = await roomWith(t, rig.chat, "Ops", [rig.partner]);
-  const working = await rig.say("get started", main.id);
+  const { pinned } = await roomWith(t, rig.chat, "Ops", [rig.partner]);
+  const working = await rig.say("get started", pinned.id);
   await until(() => model.asked.length === 1, "the turn to be at work");
   saveWake(rig.home, "ops", "none");
   assert.deepEqual((await (await rig.connect()).reload()).leftOut, []);
 
-  const command = await rig.say("/stop", main.id);
+  const command = await rig.say("/stop", pinned.id);
 
   assert.equal((await rig.receiptOn(working)).status, "stopped");
   assert.equal((await rig.receiptOn(command)).status, "silent");
@@ -140,12 +140,12 @@ test("an agent's message that says /stop is only text, and stops nothing", { tim
   const model = streaming(lines(10));
   const rig = await startAgentRig(t, { script: model.script, tokensPerSecond: 200 });
   const bob = await speakingAs(t, await rig.chat.agent("bob"));
-  const { main } = await roomWith(t, rig.chat, "Ops", [rig.partner, bob.me]);
-  const working = await rig.say("get started", main.id);
+  const { pinned } = await roomWith(t, rig.chat, "Ops", [rig.partner, bob.me]);
+  const working = await rig.say("get started", pinned.id);
   await until(() => model.asked.length === 1, "the first turn to be at work");
 
-  await bob.post(main.id, "/stop", "bob-1");
-  const mention = await bob.post(main.id, `@${SCOUT} /stop`, "bob-2");
+  await bob.post(pinned.id, "/stop", "bob-1");
+  const mention = await bob.post(pinned.id, `@${SCOUT} /stop`, "bob-2");
 
   assert.equal((await rig.receiptOn(working)).status, "answered", "the turn went on to its end");
   assert.equal((await rig.receiptOn(mention)).status, "answered", "and the message was answered like any other");

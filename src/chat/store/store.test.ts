@@ -5,20 +5,19 @@ import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import type { Member } from "../../contracts/chat/index.ts";
 import { migrationCopy } from "../../lib/migration/node.ts";
-import { tempDir } from "../../lib/testing/index.ts";
-import { agent, openTestStore, person, reportToStderr } from "../testing/index.ts";
+import { stopAfter, tempDir } from "../../lib/testing/index.ts";
+import { agent, openTestStore, person, reportToStderr, writeStoreOf } from "../testing/index.ts";
 import { type ChannelRecord, type Change, CHAT_FORMAT, type ChatFormat, openStore, type Store, type Transaction } from "./index.ts";
 
-function openDm(tx: Transaction, first: Member, second: Member, now = 1000): ChannelRecord {
+function openDm(tx: Transaction, first: Member, second: Member): ChannelRecord {
   tx.saveMember(first);
   tx.saveMember(second);
-  return tx.createDirectChannel(first, second, now);
+  return tx.createDirectChannel(first, second);
 }
 
-function mainThread(tx: Transaction, channelId: string): string {
-  const main = tx.threadsIn(channelId).find((thread) => thread.main);
-  if (main === undefined) throw new Error("no main thread");
-  return main.id;
+/** A thread of a new DM between `first` and `second`, made at `now`. */
+function threadOfDm(tx: Transaction, first: Member, second: Member, now = 1000): string {
+  return tx.addThread(openDm(tx, first, second).id, null, now).id;
 }
 
 function post(tx: Transaction, threadId: string, author: Member, text: string, sentAt = 2000) {
@@ -36,8 +35,8 @@ test("threads updated in the same millisecond are listed in the order of their m
   const { store } = openTestStore(t);
   const zach = person("Zach");
   store.transaction((tx) => {
-    const channel = openDm(tx, zach, agent("Shrimpy"), 1000);
-    const main = mainThread(tx, channel.id);
+    const channel = openDm(tx, zach, agent("Shrimpy"));
+    const main = tx.addThread(channel.id, null, 1000).id;
     const side = tx.addThread(channel.id, "side", 1000).id;
 
     post(tx, side, zach, "first", 5000);
@@ -58,8 +57,7 @@ test("threads updated in the same millisecond are listed in the order of their m
 test("an older clock reading does not make a thread look older", (t) => {
   const { store } = openTestStore(t);
   store.transaction((tx) => {
-    const channel = openDm(tx, person("Zach"), agent("Shrimpy"), 1000);
-    const threadId = mainThread(tx, channel.id);
+    const threadId = threadOfDm(tx, person("Zach"), agent("Shrimpy"));
     post(tx, threadId, person("Zach"), "later", 5000);
     post(tx, threadId, person("Zach"), "earlier", 4000);
 
@@ -76,8 +74,7 @@ test("a transaction that fails leaves nothing behind and tells nobody", (t) => {
   assert.throws(
     () =>
       store.transaction((tx) => {
-        const channel = openDm(tx, zach, agent("Shrimpy"));
-        post(tx, mainThread(tx, channel.id), zach, "never kept");
+        post(tx, threadOfDm(tx, zach, agent("Shrimpy")), zach, "never kept");
         throw new Error("changed my mind");
       }),
     /changed my mind/,
@@ -135,9 +132,9 @@ test("the next release copies a store aside and migrates it, and this one then r
   };
   const today = openStore(dataDir, { onError });
   const threadId = today.transaction((tx) => {
-    const main = mainThread(tx, openDm(tx, zach, agent("Shrimpy")).id);
-    post(tx, main, zach, "said before the update");
-    return main;
+    const thread = threadOfDm(tx, zach, agent("Shrimpy"));
+    post(tx, thread, zach, "said before the update");
+    return thread;
   });
   today.close();
 
@@ -160,4 +157,48 @@ test("the next release copies a store aside and migrates it, and this one then r
   const back = openStore(dataDir, { onError });
   assert.deepEqual(texts(back, threadId), ["said before the update"]);
   back.close();
+});
+
+test("a store as 1.0.0 wrote it is copied aside and migrated: each room's main thread is its first pin, and a DM's empty main thread goes", (t) => {
+  const dataDir = tempDir(t, "chat-1.0.0");
+  const file = writeStoreOf(dataDir, "1.0.0");
+  const store = openStore(dataDir, { onError: reportToStderr });
+  stopAfter(t, () => store.close());
+
+  // The copy is the store as 1.0.0 left it, and says which threads were main.
+  const copy = new DatabaseSync(migrationCopy(file), { readOnly: true });
+  const before = copy.prepare("SELECT id, channel_id, main FROM threads").all() as { id: string; channel_id: string; main: number }[];
+  assert.equal((copy.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 10);
+  copy.close();
+  const mainOf = (channelId: string): string | undefined => before.find((thread) => thread.channel_id === channelId && thread.main === 1)?.id;
+
+  store.transaction((tx) => {
+    const room = (name: string): ChannelRecord => tx.roomNamed(name) ?? assert.fail(`no room ${name}`);
+    const dm = (first: string, second: string): ChannelRecord => tx.directChannel(first, second) ?? assert.fail(`no DM of ${first} and ${second}`);
+    const shape = (channel: ChannelRecord): [string, boolean][] => tx.threadsIn(channel.id).map((thread) => [thread.id, thread.pinned !== null]);
+    const others = (channel: ChannelRecord): string[] => before.filter((thread) => thread.channel_id === channel.id && thread.main === 0).map((thread) => thread.id);
+
+    const ops = room("ops");
+    const [incidents] = others(ops);
+    assert.deepEqual(shape(ops), [[mainOf(ops.id), true], [incidents, false]], "pinned first, though the other thread is newer");
+    const quiet = room("quiet");
+    assert.deepEqual(shape(quiet), [[mainOf(quiet.id), true]], "a room's main thread is pinned though it holds nothing");
+
+    const withScout = dm("mem_zach", "mem_scout");
+    const talk = mainOf(withScout.id) ?? "";
+    assert.deepEqual(shape(withScout).toSorted(), [[talk, false], ...others(withScout).map((id): [string, boolean] => [id, false])].toSorted());
+    const [asked, answer] = tx.messagesIn(talk, null, 10);
+    assert.deepEqual([asked?.text, answer?.text], ["How full is the disk?", "91%, mostly old logs."]);
+    assert.deepEqual([asked?.receipts.length, answer?.reactions.length, tx.unreadIn("mem_zach", talk)], [1, 1, 0], "with its receipt, reaction and read mark");
+
+    const withCrab = dm("mem_zach", "mem_crab");
+    assert.deepEqual(shape(withCrab), others(withCrab).map((id) => [id, false]), "the DM's empty main thread is gone");
+    const between = dm("mem_scout", "mem_crab");
+    assert.deepEqual(tx.threadsIn(between.id).map((thread) => thread.name), ["plans"], "and one with a name stays");
+  });
+  assert.equal(
+    store.transaction((tx) => tx.addThread(tx.roomNamed("quiet")?.id ?? "", "plans", 3000).pinned),
+    null,
+    "and the store takes new threads",
+  );
 });

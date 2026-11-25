@@ -71,27 +71,21 @@ export function titleOf(thread: Thread): string {
   return oneLine(thread.name ?? thread.preview ?? NO_MESSAGES);
 }
 
+/** The word that marks a thread pinned in its channel. */
+export const PINNED = "pinned";
+
 /** The word that marks an archived thread. */
 export const ARCHIVED = "archived";
 
-/**
- * The words that mark a thread of a channel of `kind`: that it is a room's main
- * thread, and that it is archived. A DM's main thread is an ordinary thread to
- * agents and clients: chat still makes one, since agents at 1.0.0 post there.
- */
-export function threadTags(thread: Pick<Thread, "main" | "archived">, kind: Channel["kind"]): string[] {
-  return [thread.main && kind === "room" ? "main" : undefined, thread.archived ? ARCHIVED : undefined].filter((tag) => tag !== undefined);
+/** The words that mark a thread: that it is pinned in its channel, and that it is archived. */
+export function threadTags(thread: Pick<Thread, "pinned" | "archived">): string[] {
+  return [thread.pinned === null ? undefined : PINNED, thread.archived ? ARCHIVED : undefined].filter((tag) => tag !== undefined);
 }
 
-/** What a thread of a channel of `kind` is called, marked when it is a room's main thread or archived: "deploys [main, archived]". */
-export function taggedTitle(thread: Thread, kind: Channel["kind"]): string {
-  const tags = threadTags(thread, kind);
+/** What a thread is called, marked when it is pinned or archived: "deploys [pinned, archived]". */
+export function taggedTitle(thread: Thread): string {
+  const tags = threadTags(thread);
   return tags.length === 0 ? titleOf(thread) : `${titleOf(thread)} [${tags.join(", ")}]`;
-}
-
-/** Whether a list of a channel's threads shows `thread`: every thread, but a DM's main thread while it has nothing to be called by. */
-export function isListed(thread: Pick<Thread, "main" | "name" | "preview">, kind: Channel["kind"]): boolean {
-  return !(kind === "dm" && thread.main && thread.name === null && thread.preview === null);
 }
 
 /** A room as it is written wherever a person or an agent reads its name: "#ops". */

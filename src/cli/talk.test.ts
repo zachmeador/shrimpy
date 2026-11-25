@@ -56,8 +56,11 @@ test("run posts to a new thread, prints the agent's reply, and puts the thread's
   const thread = startedThread(result.stderr);
   const you = await talking.you();
   const { threads } = await scoutsThreads(you);
-  assert.equal(threads.length, 2, "the DM has its main thread and the new one");
-  assert.ok(threads.some((candidate) => candidate.id === thread && !candidate.main));
+  assert.deepEqual(
+    threads.map((candidate) => candidate.id),
+    [thread],
+    "the DM has the new thread and no other",
+  );
   const [asked, reply] = await you.read(thread, null, 10);
   assert.ok(asked && reply);
   assert.equal(asked.text, "what is in my inbox?");
@@ -118,7 +121,7 @@ test("--thread continues a thread, and a thread that is not in your DM with the 
     "second",
     "ack: second",
   ]);
-  assert.equal((await scoutsThreads(you)).threads.length, 2, "no new thread was made");
+  assert.equal((await scoutsThreads(you)).threads.length, 1, "no new thread was made");
   assert.equal(nowhere.code, 1);
   assert.equal(nowhere.stdout, "");
   assert.equal(agent.offered.length, 2, "and the agent was offered nothing");

@@ -183,7 +183,7 @@ test("a trigger with a thread runs in the session behind it, or fails its occurr
   assert.deepEqual([made?.threadId, made?.channelId], [side.id, rig.thread.channelId]);
   assert.deepEqual(
     made?.place,
-    { kind: "dm", with: { name: rig.me.name, kind: "person" }, thread: { main: false, name: "Reports" } },
+    { kind: "dm", with: { name: rig.me.name, kind: "person" }, thread: { name: "Reports" } },
     "and it knows where that is, which the first occurrence asked chat",
   );
   const [first] = (await rig.replies(side.id)).map((reply) => reply.text);

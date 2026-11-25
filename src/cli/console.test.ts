@@ -214,6 +214,8 @@ test("a thread of a room is read, written in and watched like one of a DM", { ti
   terminal.type(DOWN);
   terminal.type(ENTER);
   await seen(terminal, "the disk", "the room's threads");
+  // The room's pinned thread lists first.
+  terminal.type(DOWN);
   terminal.type(ENTER);
 
   // What the person writes is posted in the room's thread, and the agent that is offered it is seen working.
@@ -237,7 +239,7 @@ test("a thread of a room is read, written in and watched like one of a DM", { ti
   terminal.type("and the backups?");
   terminal.type(ENTER);
   const [side] = await eventually(
-    async () => (await you.threads(room.id)).filter((thread) => !thread.main && thread.id !== disk.id),
+    async () => (await you.threads(room.id)).filter((thread) => thread.pinned === null && thread.id !== disk.id),
     (threads) => threads.length === 1,
     { what: "another thread in the room" },
   );

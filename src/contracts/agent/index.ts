@@ -61,7 +61,6 @@ export {
   placeLabel,
   placeWords,
   runningTriggerFields,
-  threadLabel,
   threadName,
   toolStatusWords,
   type TriggerDefined,

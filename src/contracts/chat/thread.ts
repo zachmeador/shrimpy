@@ -2,11 +2,10 @@ import { arr, bool, int, nul, num, obj, remote, type Static, str, union } from "
 import { chat, RefusedSchema } from "../gateway/index.ts";
 import { MessageSchema, WorkingSchema } from "./shapes.ts";
 
-/** One conversation inside a channel, as a record. Every channel has a main thread. */
+/** One conversation inside a channel, as a record. */
 export const ThreadSchema = obj({
   id: str(),
   channelId: str(),
-  main: bool(),
   /** Null until someone names it; show `preview` instead. */
   name: union([str(), nul()]),
   /**
@@ -17,7 +16,16 @@ export const ThreadSchema = obj({
    */
   preview: union([str(), nul()]),
   archived: bool(),
-  /** How many times the thread has been renamed, archived or brought back, from 0. `Chat`'s `rename` and `archive` name it. */
+  /**
+   * When the thread was pinned in its channel, in milliseconds since the
+   * epoch, or null. A pin is the channel's, so every member sees it, and a
+   * channel lists its pinned threads first, oldest pin first.
+   */
+  pinned: union([num(), nul()]),
+  /**
+   * How many times the thread has been renamed, archived, brought back, pinned
+   * or unpinned, from 0. `Chat`'s `rename`, `archive` and `pin` name it.
+   */
   revision: int(),
   /**
    * When the thread last got a message, or was made if it has none, in
