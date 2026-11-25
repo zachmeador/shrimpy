@@ -8,17 +8,8 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 - Files copied into the owner's homes from the read-only archive kept read-only modes, in two homes, a `vault/.git` among them. Agents hit `EACCES` and worked around it with `chmod`. Making them writable is a one-time change to the owner's data, and should touch only what came from the archive, since some agents make their own files read-only on purpose.
 - Whom a push service is told to write to about the gateway. As built it is the address of the page's door, which on a tailnet holds the tailnet's name. It could be an address the owner sets, such as an email, or nobody. Apple's service turns away a contact that isn't a URL or a mailto address and took the page's address. Whether it takes a notification that names nobody is untried.
 
-## 2.0
-
-The owner agreed on 2026-11-24, hours after 1.0.0, to a 2.0 that gets the contracts' shape right while two setups run Shrimpy, and to each of its proposal's five choices. The proposal is kept outside the repo, and `AGENTS-PRIVATE.md` says where. What is left of it to build:
-
-- Before it ships, an agent apart follows its gateway across the major. A turned-away agent runs `shrimpy update` with the gateway's version, which installs from that version's tag on GitHub, so this needs the gateway on a tagged release, such as a release candidate. Rehearsed on 2026-11-25 against a 2.0.0-dev gateway, a 1.0.0 agent was turned away in words that said what to do, ran `shrimpy update 2.0.0-dev` and found no such release.
-- Before it reaches a setup in use, each trigger there that is on, has no thread and tells someone with `send_message` gets a thread with `--thread`, or each run starts a new one. Its agent can do that when asked, and `AGENTS-PRIVATE.md` says which triggers.
-
 ## The release
 
-- Version 1.0.0, A Rising Tide: Shrimpy says `1.0.0`, `nightly` says the next minor with `-dev`, and the release writes the contracts it serves in `src/contracts/released.json`.
-- A release candidate, tagged as a prerelease, that an admin agent updates everywhere to 1.0.0, which proves the tagged update.
 - A fixture of each store at 1.0.0 and at each release after it, and a test that opens every fixture of this major and the last.
 - Choosing the model an agent starts with, from the terminal.
 - Moving over from old Shrimpy. Nothing is built. Meant to be: fresh homes, and credentials set up by hand; each agent reads what it wants from the old workspace, and nothing converts transcripts, tasks, manifests or clocks; triggers and chat providers start off until reviewed, and an old poller stops before a new one starts on the same bot; the old workspace is never changed; a newer database is never opened with an older binary.
@@ -60,7 +51,6 @@ Daily use decides what comes after the release. The last order was compaction an
 - Running between two accounts of one machine, and an agent on macOS joined to a gateway elsewhere.
 - Power loss, a full disk, log damage, and a kill during a tool commit.
 - The lock an agent takes on its home, on network file systems and sandbox mounts.
-- Migrating a setup in use: 2.0's steps for chat and the roster have run only in the tests and on copies of both setups' data, where they came out as designed (2026-11-25).
 
 ## The contracts
 
@@ -82,7 +72,7 @@ Daily use decides what comes after the release. The last order was compaction an
 **Untried**
 
 - A hold that waits on an older program, seen to bind once that program updates. The page reloading itself, and offering a reload, in a browser. Two releases of different majors met for real on 2026-11-24, and the gateway turned the older one away in the right words.
-- An agent following its gateway after a release that changes the Pi packages or the major, and the terminal's `/update`, for real: only stand-ins have run. The update skill has run for real, from 1.0.0-rc.1 to 1.0.0 across two machines.
+- An agent following its gateway after a release that changes the Pi packages, and the terminal's `/update`, for real: only stand-ins have run. An agent on another machine followed its gateway across the major for real, from 1.0.0 to 2.0.0 on 2026-11-25, and the update skill has run for real at 1.0.0 and at 2.0.0.
 
 **Open question**
 
