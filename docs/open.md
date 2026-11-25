@@ -12,7 +12,8 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 
 The owner agreed on 2026-11-24, hours after 1.0.0, to a 2.0 that gets the contracts' shape right while two setups run Shrimpy, and to each of its proposal's five choices. The proposal is kept outside the repo, and `AGENTS-PRIVATE.md` says where. What is left of it to build:
 
-- Before it ships, chat's and the roster's migrations run on copies of the owner's and Kathleen's data, and an agent apart follows its gateway across the major.
+- Before it ships, chat's and the roster's migrations run on copies of the data of each setup in use, and an agent apart follows its gateway across the major.
+- Before it reaches a setup in use, each trigger there that is on, has no thread and tells someone with `send_message` gets a thread with `--thread`, or each run starts a new one. Its agent can do that when asked, and `AGENTS-PRIVATE.md` says which triggers.
 
 ## The release
 
@@ -31,7 +32,6 @@ The owner agreed on 2026-11-24, hours after 1.0.0, to a 2.0 that gets the contra
 - Measuring against old Shrimpy at `574bb2c`: the code and dependencies deleted, and resource use at startup, idle and under load. Old Shrimpy there has 45,536 lines in `src/` and `extensions/`, 3,099 in `web/` and 27,026 in `test/`.
 - The gate: if client and framework complexity outweigh what the runtime saves, revise before going live, and the docs describe only what the release implements.
 - Rewriting old Shrimpy's eleven idea docs for the new Shrimpy. They wait unchanged in the owner's journal.
-- Before 1.1 reaches a setup in use, each trigger there that tells someone something with `send_message` to `@name` gets a thread with `--thread`, or every run starts a new thread: the owner's triggers, and Kathleen's 17. Each agent can point its own when asked.
 
 ## Next
 
