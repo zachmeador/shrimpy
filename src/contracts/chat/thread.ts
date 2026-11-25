@@ -61,7 +61,7 @@ export type Thread = Static<typeof ThreadSchema>;
  * whatever revision it names, so a retry whose answer was lost goes through.
  */
 export const Thread = remote("shrimpy.chat.thread", {
-  version: 3,
+  version: 4,
   params: { thread: str() },
   hostAddress: () => chat(),
   variants: {

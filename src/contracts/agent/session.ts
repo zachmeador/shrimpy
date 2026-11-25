@@ -19,7 +19,7 @@ export const MAX_READ = 200;
  * promotion, shows at once.
  */
 export const Session = remote("shrimpy.agent.session", {
-  version: 1,
+  version: 2,
   params: { agent: str(), session: str() },
   hostAddress: ({ agent: id }) => agent({ id }),
   variants: {

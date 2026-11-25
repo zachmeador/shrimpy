@@ -2,14 +2,9 @@ import { int, method, nul, obj, remote, type Static, str, union } from "@earendi
 import { compile } from "@earendil-works/pi-schema";
 import { answerOf } from "./answers.ts";
 import { gateway } from "./hosts.ts";
+import { openObject } from "./open.ts";
 
-/**
- * Something to tell you on your devices, finished by the chat server: who
- * wrote, the room when it was in one, the line to show, the thread to open and
- * how much is new to you in all. The gateway sends it as it is, as JSON,
- * encrypted for each device.
- */
-export const NotificationSchema = obj({
+const NOTIFICATION = {
   /** Who wrote, by name: the author of a message, or the agent whose receipt says a message of yours failed. */
   from: str(),
   /** The room it was in, by name, or null for a DM. */
@@ -20,10 +15,18 @@ export const NotificationSchema = obj({
   thread: str(),
   /** How many messages are new to you in all, across the threads of your DMs and rooms, for the count on an app's icon. */
   unread: int(),
-});
+};
+
+/**
+ * Something to tell you on your devices, finished by the chat server: who
+ * wrote, the room when it was in one, the line to show, the thread to open and
+ * how much is new to you in all. The gateway sends it as it is, as JSON,
+ * encrypted for each device.
+ */
+export const NotificationSchema = obj(NOTIFICATION);
 export type Notification = Static<typeof NotificationSchema>;
 
-const checkNotification = compile(NotificationSchema).check;
+const checkNotification = compile(openObject(NOTIFICATION)).check;
 
 /** A `Notification` from `value`, which a push carried as JSON, or undefined when it isn't one. */
 export function readNotification(value: unknown): Notification | undefined {
@@ -37,7 +40,7 @@ export function readNotification(value: unknown): Notification | undefined {
  * hand it anything.
  */
 export const Notifications = remote("shrimpy.gateway.notifications", {
-  version: 1,
+  version: 2,
   params: {},
   hostAddress: () => gateway(),
   variants: {

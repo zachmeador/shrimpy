@@ -1,11 +1,11 @@
-import { lit, map, nul, obj, str, union } from "@earendil-works/chord";
-import { compile } from "@earendil-works/pi-schema";
+import { compile, lit, map, nul, str, union } from "@earendil-works/pi-schema";
 import type { Linked } from "../../lib/link/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { capitalize } from "../../lib/text/index.ts";
 import { PI_PACKAGES, SHRIMPY_VERSION } from "../../lib/version/index.ts";
-import { type Reason, ReasonSchema, type Refused } from "./answers.ts";
-import { type Member, MemberSchema, type TurnedAwayProgram } from "./roster.ts";
+import type { Reason, Refused } from "./answers.ts";
+import { openObject } from "./open.ts";
+import { type Member, ON_THE_ROSTER, type TurnedAwayProgram } from "./roster.ts";
 
 /** The exact Pi packages a program runs, each at its version. */
 export type PiPackages = Readonly<Record<string, string>>;
@@ -47,20 +47,20 @@ export type HelloAnswer = Welcome | TurnedAway;
 
 const PiSchema = map(str());
 
-const HelloSchema = obj({
+const HelloSchema = openObject({
   shrimpy: str(),
   pi: PiSchema,
   who: union([
-    obj({ kind: lit("agent"), name: str(), token: str(), roster: union([str(), nul()]) }),
-    obj({ kind: lit("chat") }),
-    obj({ kind: lit("client"), token: union([str(), nul()]) }),
-    obj({ kind: lit("join"), name: union([str(), nul()]), token: str(), code: str(), machine: str() }),
+    openObject({ kind: lit("agent"), name: str(), token: str(), roster: union([str(), nul()]) }),
+    openObject({ kind: lit("chat") }),
+    openObject({ kind: lit("client"), token: union([str(), nul()]) }),
+    openObject({ kind: lit("join"), name: union([str(), nul()]), token: str(), code: str(), machine: str() }),
   ]),
 });
 
 const AnswerSchema = union([
-  obj({ kind: lit("welcome"), you: union([MemberSchema, nul()]), roster: union([str(), nul()]), shrimpy: str(), pi: PiSchema }),
-  obj({ kind: lit("refused"), words: str(), reason: union([ReasonSchema, nul()]), shrimpy: str(), pi: PiSchema }),
+  openObject({ kind: lit("welcome"), you: union([openObject(ON_THE_ROSTER), nul()]), roster: union([str(), nul()]), shrimpy: str(), pi: PiSchema }),
+  openObject({ kind: lit("refused"), words: str(), reason: union([str(), nul()]), shrimpy: str(), pi: PiSchema }),
 ]);
 
 const checkHello = compile(HelloSchema).check;
@@ -115,10 +115,11 @@ export function readVersions(value: unknown): Versions | undefined {
  * for the release it runs.
  */
 export class HelloRefusedError extends Error {
-  readonly reason: Reason | null;
+  /** One of `Reason`, which a reader acts on, one a later release of the major added, or null. */
+  readonly reason: string | null;
   readonly versions: Versions;
 
-  constructor(words: string, reason: Reason | null, versions: Versions) {
+  constructor(words: string, reason: string | null, versions: Versions) {
     super(words);
     this.name = "HelloRefusedError";
     this.reason = reason;
@@ -186,6 +187,24 @@ export const notAHello = (answerer: string): string =>
 
 /** Who answers a hello and where it runs, as the words for a caller of another release name them: "The gateway", "on the gateway's machine". */
 export type Answering = { who: string; where: string };
+
+/**
+ * What whoever answers says to a caller that links with it, runs `caller`, and
+ * said a hello it can't read: one that asks for something added in a later
+ * release of the major, such as a new kind of caller. The words say which side
+ * to update, and to what.
+ */
+export function unservedHello(caller: Versions, answering: Answering): string {
+  const theirs = oneLine(caller.shrimpy);
+  const order = compareShrimpy(caller.shrimpy, SHRIMPY_VERSION);
+  const what =
+    order === undefined || order === 0
+      ? `update Shrimpy ${answering.where} or here, so both run the same build`
+      : order > 0
+        ? `update Shrimpy ${answering.where} to ${theirs}`
+        : `update Shrimpy here to ${SHRIMPY_VERSION}`;
+  return `${answering.who} doesn't serve what this hello asks for. It runs Shrimpy ${SHRIMPY_VERSION}, and this runs Shrimpy ${theirs}: ${what}.`;
+}
 
 /**
  * What whoever answers a hello says to a caller that runs `caller` and can't

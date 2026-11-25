@@ -11,10 +11,12 @@ import {
   type Principal,
   type Reason,
   readHello,
+  type Refused,
   readVersions,
   refused,
   type Revocation,
   turnAway,
+  unservedHello,
   welcome,
   type Who,
 } from "../../contracts/gateway/index.ts";
@@ -84,6 +86,9 @@ export function greeter(deps: HelloDeps): Greeter {
 
   const away = (words: string, reason: Reason | null = null): Greeted => ({ answer: turnAway(words, reason) });
 
+  /** A refusal from the roster, passed on as the answer with its reason. */
+  const passOn = (refusal: Refused): Greeted => ({ answer: { ...turnAway(refusal.words), reason: refusal.reason } });
+
   const unknownToken = away(
     "The gateway doesn't know that token. It may have been taken back, or belong to a roster that was replaced.",
     "unknown_token",
@@ -129,7 +134,7 @@ export function greeter(deps: HelloDeps): Greeter {
         .members()
         .find((each) => each.kind === "agent" && nameKey(each.name) === nameKey(who.name) && !ways.some((way) => way.member === each.id));
       const made = tokenless === undefined ? roster.join(who.name, who.token) : roster.replaceToken(tokenless.id, who.token);
-      if (made.kind === "refused") return away(made.words, made.reason);
+      if (made.kind === "refused") return passOn(made);
       member = "member" in made.value ? made.value.member : made.value;
     }
     const way = roster.recognize(who.token)?.way;
@@ -163,7 +168,7 @@ export function greeter(deps: HelloDeps): Greeter {
       if (known?.way.kind === "device") return { answer: welcome(known.member, roster.id) };
       if (known !== undefined) return away("That token is an agent's, and a token belongs to one member.");
       const joined = letDeviceIn(who.code, who.token, who.machine);
-      return joined.kind === "refused" ? away(joined.words, joined.reason) : { answer: welcome(joined.value, roster.id) };
+      return joined.kind === "refused" ? passOn(joined) : { answer: welcome(joined.value, roster.id) };
     }
     if (known?.way.kind === "device") return away(NOT_A_PROGRAM);
     // An agent that never heard its answer joins again with the same token and is the same member.
@@ -181,7 +186,7 @@ export function greeter(deps: HelloDeps): Greeter {
     }
     if (invited.member !== null) {
       const replaced = roster.replaceToken(invited.member, who.token);
-      if (replaced.kind === "refused") return away(replaced.words, replaced.reason);
+      if (replaced.kind === "refused") return passOn(replaced);
       invited.spend();
       const { member, replacedWay } = replaced.value;
       if (replacedWay !== undefined) {
@@ -191,7 +196,7 @@ export function greeter(deps: HelloDeps): Greeter {
       return { answer: welcome(member, roster.id) };
     }
     const joined = roster.join(invited.name, who.token);
-    if (joined.kind === "refused") return away(joined.words, joined.reason);
+    if (joined.kind === "refused") return passOn(joined);
     invited.spend();
     return { answer: welcome(joined.value, roster.id) };
   };
@@ -224,13 +229,16 @@ export function greeter(deps: HelloDeps): Greeter {
   /**
    * The hello in `raw`, which came in by `door`, or what is answered to one of
    * a release that can't link with this one, which the roster then lists when
-   * it can tell the program, or to one that can't be read.
+   * it can tell the program, or to one that can't be read: from a later release
+   * of the major, that asks for something this one doesn't serve, or from
+   * something that isn't Shrimpy.
    */
   const read = (raw: unknown, door: Door | "page"): Hello | Greeted => {
     // The versions come first, so a program of another release is told what to run where, whatever else its hello says.
     const versions = readVersions(raw);
     const other = versions === undefined ? undefined : otherRelease(versions, ANSWERING);
-    if (versions === undefined || other === undefined) return readHello(raw) ?? away(notAHello("this gateway"));
+    if (versions === undefined) return away(notAHello("this gateway"));
+    if (other === undefined) return readHello(raw) ?? away(unservedHello(versions, ANSWERING));
     const program = programIn(raw, door);
     if (program?.kind === "agent") programs.turnAway({ kind: "agent", name: program.member.name, member: program.member.id, ...versions });
     if (program?.kind === "chat") programs.turnAway({ kind: "chat", name: "chat", member: null, ...versions });
@@ -260,7 +268,7 @@ export function greeter(deps: HelloDeps): Greeter {
     letBrowserIn: (code, label) => {
       const token = newToken();
       const joined = letDeviceIn(code, token, label);
-      return joined.kind === "refused" ? { answer: turnAway(joined.words, joined.reason) } : { answer: welcome(joined.value, roster.id), token };
+      return joined.kind === "refused" ? { answer: { ...turnAway(joined.words), reason: joined.reason } } : { answer: welcome(joined.value, roster.id), token };
     },
   };
 }

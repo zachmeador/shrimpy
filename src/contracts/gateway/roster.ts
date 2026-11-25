@@ -11,7 +11,8 @@ import { gateway } from "./hosts.ts";
  */
 export const MEMBER_FIELDS = { id: str(), kind: oneOf("person", "agent"), name: str() };
 
-const ON_THE_ROSTER = { ...MEMBER_FIELDS, admin: bool() };
+/** A member's fields with whether it is an admin, as the roster lists it and a welcome names it. */
+export const ON_THE_ROSTER = { ...MEMBER_FIELDS, admin: bool() };
 
 /**
  * Someone on the network, you or an agent, with whether it is an admin. Every
@@ -86,7 +87,7 @@ export const noMember = (id: string): string => `There is no member ${id} on the
  * roster live, so a promotion, a rename or a member arriving shows at once.
  */
 export const Roster = remote("shrimpy.gateway.roster", {
-  version: 2,
+  version: 3,
   params: {},
   hostAddress: () => gateway(),
   variants: {

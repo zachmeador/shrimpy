@@ -10,9 +10,8 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 
 ## 2.0
 
-The owner agreed on 2026-11-24, hours after 1.0.0, to a 2.0 that gets the contracts' shape right while two setups run Shrimpy, and to each of its proposal's five choices. The proposal is kept outside the repo, and `AGENTS-PRIVATE.md` says where. Nothing of it is built.
+The owner agreed on 2026-11-24, hours after 1.0.0, to a 2.0 that gets the contracts' shape right while two setups run Shrimpy, and to each of its proposal's five choices. The proposal is kept outside the repo, and `AGENTS-PRIVATE.md` says where. What is left of it to build:
 
-- Programs read the hello, its answer, the requests at the page's door and the push payload with unknown fields ignored, and a refusal's reason is any string, so neither needs a major again. The hello is the first frame on every link to the gateway, which checks it as an exact shape today, and the page's door is the HTTPS server the gateway runs for the web client.
 - The hello says where a program runs, by its machine's name, system and account, and an agent's hello names its home. The roster keeps where each agent last linked from and when, so an agent that is off still says where it lives.
 - A message carries its attachments, an empty list until the bytes come in 2.x, in pieces through chat.
 - Pins belong to the channel, and a room's main thread becomes its first pin, so `main` leaves the contracts.

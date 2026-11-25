@@ -11,7 +11,7 @@ import { ChatEventSchema, LeftReceiptSchema, MemberSchema } from "./shapes.ts";
  * calls are refused.
  */
 export const Chat = remote("shrimpy.chat", {
-  version: 1,
+  version: 2,
   params: {},
   hostAddress: () => chat(),
   variants: {

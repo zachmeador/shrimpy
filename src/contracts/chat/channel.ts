@@ -39,7 +39,7 @@ export type Channel = Static<typeof ChannelSchema>;
  * you aren't in is refused, but for adding members.
  */
 export const Channel = remote("shrimpy.chat.channel", {
-  version: 2,
+  version: 3,
   params: { channel: str() },
   hostAddress: () => chat(),
   variants: {

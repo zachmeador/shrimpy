@@ -46,6 +46,36 @@ test("a hello of another major is turned away in words that name the machine to 
   assert.equal(client.kind, "refused", "a client of another major too");
 });
 
+test("a 1.0.0 program is turned away in an answer 1.0.0 reads, whose words name the version to update it to", { timeout }, async (t) => {
+  const gateway = await startGatewayInProcess(t);
+  // A hello as 1.0.0 says it.
+  const said = { shrimpy: "1.0.0", pi: PI_PACKAGES, who: { kind: "agent", name: "scout", token: newToken(), roster: null } };
+
+  const { answer, linked } = await dial({ path: gateway.socket }, said as Parameters<typeof dial>[1]);
+  linked.drop();
+
+  // 1.0.0 reads an answer with these fields and no others, and a refusal's reason only when it is one 1.0.0 knows.
+  assert.deepEqual(Object.keys(answer as object).sort(), ["kind", "pi", "reason", "shrimpy", "words"]);
+  const read = readAnswer(answer);
+  assert.ok(read?.kind === "refused" && read.reason === null);
+  assert.ok(read.words.includes(SHRIMPY_VERSION), read.words);
+});
+
+test("a hello of a later release of the major is read past what it adds, and one that asks for what the gateway doesn't serve is told what to update", { timeout }, async (t) => {
+  const gateway = await startGatewayInProcess(t);
+  const [major, minor] = SHRIMPY_VERSION.split(".");
+  const later = `${major ?? ""}.${Number(minor) + 1}.0`;
+  const place = { path: gateway.socket };
+
+  const client = hello({ kind: "client", token: null });
+  const added = await answerTo(place, { ...client, shrimpy: later, said: "later", who: { ...client.who, also: true } });
+  assert.equal(added.kind, "welcome", added.kind === "refused" ? added.words : "");
+
+  const unserved = await answerTo(place, { ...client, shrimpy: later, who: { kind: "from-a-later-release" } });
+  assert.equal(unserved.kind, "refused");
+  assert.ok(unserved.words.includes(later) && unserved.words.includes(SHRIMPY_VERSION), unserved.words);
+});
+
 test("the roster lists an agent turned away for its release, with what it runs, until it links", { timeout }, async (t) => {
   const gateway = await startGatewayInProcess(t);
   const place = { path: gateway.socket };

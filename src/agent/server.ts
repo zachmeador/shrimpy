@@ -13,6 +13,7 @@ import {
   type Revocation,
   revokedBy,
   turnAway,
+  unservedHello,
   welcome,
 } from "../contracts/gateway/index.ts";
 import { asError } from "../lib/errors/index.ts";
@@ -80,12 +81,11 @@ export async function createAgentHost(
 function greeter(host: Host<Principal, Revocation>): (raw: unknown) => Greeted {
   return (raw) => {
     const versions = readVersions(raw);
-    const other = versions === undefined ? undefined : otherRelease(versions, ANSWERING);
+    if (versions === undefined) return { answer: turnAway(notAHello("this agent")) };
+    const other = otherRelease(versions, ANSWERING);
     if (other !== undefined) return { answer: turnAway(other) };
     const hello = readHello(raw);
-    if (hello === undefined) {
-      return { answer: turnAway(notAHello("this agent")) };
-    }
+    if (hello === undefined) return { answer: turnAway(unservedHello(versions, ANSWERING)) };
     if (hello.who.kind !== "client" || hello.who.token !== null) {
       return { answer: turnAway("An agent's own socket takes a client that shows no token. Anything else links to the gateway.") };
     }

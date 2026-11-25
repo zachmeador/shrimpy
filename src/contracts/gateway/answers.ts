@@ -1,10 +1,13 @@
-import { lit, nul, obj, oneOf, type Schema, str, union } from "@earendil-works/chord";
+import { lit, nul, obj, type Schema, str, union } from "@earendil-works/chord";
 import { listed } from "../../lib/text/index.ts";
 
 /**
- * The cases a client acts on differently, so a refusal names them and nobody
+ * The cases a reader acts on differently, so a refusal names them and nobody
  * reads its words to tell. All three come when connecting, and the agent and
- * the CLI answer each with advice about the home's files.
+ * the CLI answer each with advice about the home's files. A refusal carries
+ * any string as its reason, so a release of the major can add one without
+ * changing a contract: these are the ones this release writes, and a reader
+ * acts on those it knows and shows the words for any other.
  */
 export type Reason =
   /** The name is another member's. */
@@ -14,8 +17,8 @@ export type Reason =
   /** A program is linked as the agent already, so this one would be a second body for it: a copy of its home. */
   | "agent_running";
 
-/** A no on purpose: words for a person that say what to do, and the reason when the contract lists the case. */
-export type Refused = { kind: "refused"; words: string; reason: Reason | null };
+/** A no on purpose: words for a person that say what to do, and a reason when the case has one, which may be one this release doesn't know. */
+export type Refused = { kind: "refused"; words: string; reason: string | null };
 
 /** What a method answers: what it did, or a refusal. Chord's own errors stay for real failures. */
 export type Answer<T> = { kind: "done"; value: T } | Refused;
@@ -28,9 +31,7 @@ export function refused(words: string, reason: Reason | null = null): Refused {
   return { kind: "refused", words, reason };
 }
 
-export const ReasonSchema = oneOf("name_taken", "unknown_token", "agent_running");
-
-export const RefusedSchema = obj({ kind: lit("refused"), words: str(), reason: union([ReasonSchema, nul()]) });
+export const RefusedSchema = obj({ kind: lit("refused"), words: str(), reason: union([str(), nul()]) });
 
 /** The schema of a method's answer whose value is `value`. */
 export function answerOf<T>(value: Schema<T>) {

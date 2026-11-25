@@ -1,7 +1,7 @@
-import { nul, num, obj, opt, str, union } from "@earendil-works/chord";
-import { compile } from "@earendil-works/pi-schema";
+import { compile, nul, num, opt, str, union } from "@earendil-works/pi-schema";
 import { dialFromPage, type PageSocket } from "../../lib/link/index.ts";
 import { hello, type Welcomed, welcomeIn, type Who } from "./hello.ts";
+import { openObject } from "./open.ts";
 
 /**
  * A file of the web client's page, as the gateway serves it at the page's
@@ -29,7 +29,7 @@ export const PAGE_LINK = "/link";
  */
 export type PageJoin = { code: string; label: string };
 
-const checkJoin = compile(obj({ code: str(), label: str() })).check;
+const checkJoin = compile(openObject({ code: str(), label: str() })).check;
 
 /** A `PageJoin` from `value`, which arrived as JSON from anyone, or undefined when it isn't one. */
 export function readPageJoin(value: unknown): PageJoin | undefined {
@@ -56,7 +56,7 @@ export type PagePushKey = { key: string };
 export type PagePush = { endpoint: string; expirationTime?: number | null; keys: { p256dh: string; auth: string } };
 
 const checkPush = compile(
-  obj({ endpoint: str(), expirationTime: opt(union([num(), nul()])), keys: obj({ p256dh: str(), auth: str() }) }),
+  openObject({ endpoint: str(), expirationTime: opt(union([num(), nul()])), keys: openObject({ p256dh: str(), auth: str() }) }),
 ).check;
 
 /** A key on P-256, uncompressed, in base64url: 65 bytes, the first of them 4. Padding is left off, or not. */

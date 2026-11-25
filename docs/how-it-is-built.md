@@ -14,6 +14,18 @@ The clients, in `clients/`, and the `shrimpy` command, in `cli/`, use the progra
 
 Programs never import each other, because they run apart: an agent can be on another machine, under another account, or on another release of the same major. They share only `src/contracts/` and `src/lib/`. The contracts are Chord objects, which a caller holds live through the gateway or on an agent's own socket, and they carry Shrimpy's own shapes and never Pi's, so a Pi upgrade changes the agent without touching a client. `lib/` holds helpers that know nothing of Shrimpy's domain.
 
+## Growing a contract within a major
+
+Programs of one major link, and an agent on another machine may run an older release of it than the gateway, so within a major a contract only grows in ways an older program still follows. `src/contracts/released.json` records what each release served, and `src/cli/contracts.test.ts` holds each of those declarations from the real programs.
+
+- **Outside Chord, add an optional field.** The hello and its answer, the requests at the page's door and the push payload are read with fields a release doesn't know ignored, so a field added within the major is optional. A hello that asks for something a program doesn't serve, such as a kind of caller added later, is refused with both versions and which side to update.
+- **A refusal's reason is any string.** `Reason` lists the ones this release writes. A reader acts on those it knows and shows the words for any other, so a new reason changes no contract.
+- **Open a list only where an older reader has a fallback.** A reason has its words. A member's kind has none, since a client must know what a member is to draw or address it, so a third kind is a major.
+- **Grow a Chord contract by adding a member.** Every change is a new version, made with Chord's `evolve` from the declaration the last release shipped, which stays in the contracts test. An added state member or method needs no mapping, but it costs one `accepts` entry per older version beside the provider's `serve`, and only the contracts test notices a missing one, as a timeout. A changed member needs a mapping for each older version, which the types ask for. Mappings go straight from the current version to each older one, so a member changed twice in a major combines both changes in each mapping. A shape many members share, such as the refusal, changes through one helper used in each.
+- **Params and the set of variants are fixed for the major,** since changing either starts a history that older callers can't bind.
+- **The gateway's machine updates first, and agents lag.** Chat and the page update with the gateway, so the callers of the gateway's and chat's contracts are the same age or older, and mappings cover them. `Agent` and `Session` are served by agents, which can be older than the clients that hold them, and a client at a newer version waits on an older agent with `contract_mismatch`.
+- **A major drops the declarations of the one before,** and a contract whose shape changes in it still takes the next version, so a version names one shape.
+
 ## Words
 
 | Word | Means |

@@ -30,7 +30,7 @@ export const MAX_IMAGE_BYTES = 10_000_000;
  * roster, so a promotion shows at once.
  */
 export const Agent = remote("shrimpy.agent", {
-  version: 2,
+  version: 3,
   params: { agent: str() },
   hostAddress: ({ agent: id }) => agent({ id }),
   variants: {

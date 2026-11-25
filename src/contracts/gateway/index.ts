@@ -43,6 +43,7 @@ export {
   releaseStep,
   turnAway,
   UnknownAnswerError,
+  unservedHello,
   type Versions,
   waitingOnVersion,
   type Welcome,

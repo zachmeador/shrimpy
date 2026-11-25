@@ -5,7 +5,6 @@ import {
   HelloRefusedError,
   type Member,
   type Principal,
-  type Reason,
   type Revocation,
   type Versions,
 } from "../../contracts/gateway/index.ts";
@@ -63,10 +62,11 @@ type HomeFiles = GatewayLinkOptions["files"];
 /**
  * What to do about a refusal from the gateway, in the paths of this home. The
  * gateway says what happened and knows nothing of the files, so this is the
- * agent's to say. A refusal the gateway did not name gets no advice. An agent
- * apart can only be let in again by an invitation.
+ * agent's to say. A refusal with no reason, or one this release doesn't know,
+ * gets no advice, and its words stand alone. An agent apart can only be let in
+ * again by an invitation.
  */
-function adviceFor(reason: Reason | null, files: HomeFiles, apart: boolean): string | undefined {
+function adviceFor(reason: string | null, files: HomeFiles, apart: boolean): string | undefined {
   switch (reason) {
     case "name_taken":
       return `Change the name in ${files.name} and start the agent again.`;
@@ -79,7 +79,7 @@ function adviceFor(reason: Reason | null, files: HomeFiles, apart: boolean): str
           ? `give it another name in ${files.name}, get a new invitation for that name and join with it: shrimpy join <link>`
           : `give it another name in ${files.name} and start it again.`)
       );
-    case null:
+    default:
       return undefined;
   }
 }
