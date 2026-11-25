@@ -1,6 +1,6 @@
 import type { Channel, Member, Message } from "../../contracts/chat/index.ts";
 import { cutEnd } from "../../lib/text/index.ts";
-import { type Backlog, type Fired, type Said, written } from "../inputs/index.ts";
+import { attachedOf, type Backlog, type Fired, type Said, written } from "../inputs/index.ts";
 import type { ChatCalls } from "../links/index.ts";
 import { audienceOf } from "./audience.ts";
 
@@ -80,7 +80,7 @@ export function backlogOf(unseen: readonly Message[], more: boolean, self: Membe
   return { messages: shown, cut: index + (more ? 1 : 0), ...(more ? { atLeast: true as const } : {}) };
 }
 
-/** A message as the model reads one that arrives: in a room with who it was for, and when it was edited if it was. A trigger's line says which trigger fired and when. */
+/** A message as the model reads one that arrives: with the files that came with it, in a room with who it was for, and when it was edited if it was. A trigger's line says which trigger fired and when. */
 function said(message: Message, self: Member, channel: Channel): Said | Fired {
   if (message.trigger !== null) {
     return { kind: "fired", id: message.event, seq: message.seq, trigger: message.trigger.name, firedAt: message.trigger.firedAt };
@@ -92,6 +92,7 @@ function said(message: Message, self: Member, channel: Channel): Said | Fired {
     author: message.author.name,
     sentAt: message.sentAt,
     text: message.text,
+    ...attachedOf(message.attachments),
     ...(channel.kind === "room" ? { to: audienceOf(self, message.author, message.mentions, channel) } : {}),
     ...(message.editedAt === null ? {} : { editedAt: message.editedAt }),
   };

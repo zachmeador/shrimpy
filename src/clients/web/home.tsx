@@ -7,9 +7,10 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { type HomeEntry, type HomeFile, type TriggerDetail, triggerHeading, type TriggerSummary } from "../../contracts/agent/index.ts";
+import { sizeWords } from "../../lib/text/index.ts";
 import type { AgentRead, ClientState } from "../state/index.ts";
 import type { Look } from "../view/index.ts";
-import { EMPTY, homeNote, homeRoot, lastOccurrence, sizeWords, triggerLines, triggerNote } from "../view/index.ts";
+import { EMPTY, homeNote, homeRoot, lastOccurrence, triggerLines, triggerNote } from "../view/index.ts";
 import { Glyph } from "./marks.tsx";
 import { Prose } from "./prose.tsx";
 import { Head, Title } from "./thread.tsx";

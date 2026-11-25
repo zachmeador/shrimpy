@@ -9,6 +9,8 @@
  */
 export { endingOf, readFinalText } from "./ending.ts";
 export {
+  attachedOf,
+  type Attached,
   type Audience,
   type Backlog,
   type Breadcrumb,

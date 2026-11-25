@@ -1,6 +1,6 @@
 import type { WakePolicy } from "../../contracts/agent/index.ts";
 import type { Channel, ChatEvent, Member } from "../../contracts/chat/index.ts";
-import type { ChatInput, Snapshot } from "../inputs/index.ts";
+import { attachedOf, type ChatInput, type Snapshot } from "../inputs/index.ts";
 
 /** What the agent takes up of an event, with where it came from. */
 export type Taken = Omit<ChatInput, "earlier" | "cancelled" | "missed" | "breadcrumbs">;
@@ -83,7 +83,7 @@ export function wakingOf(self: Member, event: ChatEvent, policy: WakePolicy, whe
   switch (event.kind) {
     case "posted":
       if (!wakesAsPost(event.mentions)) return undefined;
-      return taken({ kind: "posted", id, seq, author: message.author.name, sentAt: message.sentAt, text: event.text });
+      return taken({ kind: "posted", id, seq, author: message.author.name, sentAt: message.sentAt, text: event.text, ...attachedOf(event.attachments) });
     case "edited":
       if (!wakesAsPost(event.mentions)) return undefined;
       return taken({

@@ -67,7 +67,6 @@ export {
   reactionsLine,
   READ_ONLY_TAG,
   type SaidPart,
-  sizeWords,
   SOMETHING_NEW,
   thenStart,
   thinkingShown,

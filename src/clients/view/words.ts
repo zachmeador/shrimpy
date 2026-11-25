@@ -661,13 +661,6 @@ export const PICK_FILE = "Pick a file.";
 /** What a folder or a file of an agent's home that has nothing in it shows. */
 export const EMPTY = "(empty)";
 
-/** A file's size as a person reads it. */
-export function sizeWords(bytes: number): string {
-  if (bytes < 1000) return `${String(bytes)} B`;
-  if (bytes < 1_000_000) return `${(bytes / 1000).toFixed(1)} kB`;
-  return `${(bytes / 1_000_000).toFixed(1)} MB`;
-}
-
 /** Why a folder or a file of an agent's home could not be read. `self` is what the client calls itself. */
 export const homeNote = (agent: string, problem: Problem, self: string): string =>
   `Could not read the home of ${oneLine(agent)}: ${because({ kind: "agent", name: agent }, problem, self)}.`;

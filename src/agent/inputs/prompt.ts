@@ -1,9 +1,11 @@
 import { modelWords } from "../../contracts/agent/index.ts";
 import { firedWords, type Message, roomLabel } from "../../contracts/chat/index.ts";
-import { listed, singleSpaced } from "../../lib/text/index.ts";
+import { oneLine } from "../../lib/plain/index.ts";
+import { listed, singleSpaced, sizeWords } from "../../lib/text/index.ts";
 import { howLong, localTime } from "../../lib/time/index.ts";
 import {
   type Asked,
+  type Attached,
   type Audience,
   type Backlog,
   type Breadcrumbs,
@@ -244,7 +246,8 @@ export function written(event: Snapshot | Fired): string {
     case "posted": {
       const edited = event.editedAt === undefined ? "" : `, and edited it at ${localTime(event.editedAt)}`;
       const cut = event.clipped === true ? `\n(The rest of this message is cut here. To read all of it, call read_messages with before: ${event.seq + 1} and limit: 1.)` : "";
-      return `${event.author} wrote at ${localTime(event.sentAt)}${edited}${forWhom(event.to)}:\n${event.text}${cut}`;
+      const files = (event.attachments ?? []).map((file) => `\n${attachedWords(file)}`).join("");
+      return `${event.author} wrote at ${localTime(event.sentAt)}${edited}${forWhom(event.to)}:\n${event.text}${cut}${files}`;
     }
     case "edited":
       return `${event.author} edited their message from ${localTime(event.sentAt)} at ${localTime(event.at)}. It now reads${forWhom(event.to)}:\n${event.text}`;
@@ -255,17 +258,21 @@ export function written(event: Snapshot | Fired): string {
   }
 }
 
+/** A file that came with a message, on a line of its own: its name, its media type and its size. */
+const attachedWords = ({ name, mediaType, size }: Attached): string => `Attached: ${oneLine(name)} (${oneLine(mediaType)}, ${sizeWords(size)})`;
+
 /**
  * A message as it now stands, for the model to read back: who wrote it and
- * when, what it says, whether it was edited or deleted, and who reacted with
- * what, or for a trigger's line which trigger fired and when. `nameOf` says
- * what a member is called.
+ * when, what it says and the files that came with it, whether it was edited or
+ * deleted, and who reacted with what, or for a trigger's line which trigger
+ * fired and when. `nameOf` says what a member is called.
  */
 export function standing(message: Message, nameOf: (memberId: string) => string): string {
   if (message.trigger !== null) return firedWords(message.trigger.name, localTime(message.trigger.firedAt));
   const sent = `${message.author.name} wrote at ${localTime(message.sentAt)}`;
   if (message.deleted) return `${sent}, and deleted it.`;
   const lines = [message.editedAt === null ? `${sent}:` : `${sent}, and edited it at ${localTime(message.editedAt)}:`, message.text];
+  lines.push(...message.attachments.map(attachedWords));
   if (message.reactions.length > 0) {
     const reactions = message.reactions.map((reaction) => `${reaction.emoji} by ${listed(reaction.memberIds.map(nameOf))}`);
     lines.push(`Reactions: ${reactions.join(", ")}`);

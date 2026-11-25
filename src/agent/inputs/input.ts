@@ -1,4 +1,5 @@
 import type { ModelId } from "../../contracts/agent/index.ts";
+import type { Attachment } from "../../contracts/chat/index.ts";
 
 /**
  * What an input is, in Shrimpy's own terms: a chat event, a wake-up the agent
@@ -19,6 +20,14 @@ export type Audience = {
   everyone: boolean;
 };
 
+/** A file that came with a message, as the model is told of it: its name, its media type and its size in bytes. */
+export type Attached = { name: string; mediaType: string; size: number };
+
+/** What a posted message's snapshot keeps of the files that came with it: nothing when none did. */
+export function attachedOf(attachments: readonly Attachment[]): { attachments?: Attached[] } {
+  return attachments.length === 0 ? {} : { attachments: attachments.map(({ name, mediaType, size }) => ({ name, mediaType, size })) };
+}
+
 /**
  * A chat event as it was written, kept so the model can be shown it later. The
  * agent admits events, not messages: what it takes up is a post, an edit, a
@@ -36,6 +45,8 @@ export type Snapshot =
       author: string;
       sentAt: number;
       text: string;
+      /** The files that came with it, in the order they were sent. Absent when none did. */
+      attachments?: Attached[];
       /** In a room, who it was for. A DM has none: every message in it is for the other member. */
       to?: Audience;
       /** When it was last edited, for a message that is shown as it now stands. */
