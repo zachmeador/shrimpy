@@ -12,7 +12,7 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 
 The owner agreed on 2026-11-24, hours after 1.0.0, to a 2.0 that gets the contracts' shape right while two setups run Shrimpy, and to each of its proposal's five choices. The proposal is kept outside the repo, and `AGENTS-PRIVATE.md` says where. What is left of it to build:
 
-- Before it ships, chat's and the roster's migrations run on copies of the data of each setup in use, and an agent apart follows its gateway across the major.
+- Before it ships, an agent apart follows its gateway across the major. A turned-away agent runs `shrimpy update` with the gateway's version, which installs from that version's tag on GitHub, so this needs the gateway on a tagged release, such as a release candidate. Rehearsed on 2026-11-25 against a 2.0.0-dev gateway, a 1.0.0 agent was turned away in words that said what to do, ran `shrimpy update 2.0.0-dev` and found no such release.
 - Before it reaches a setup in use, each trigger there that is on, has no thread and tells someone with `send_message` gets a thread with `--thread`, or each run starts a new one. Its agent can do that when asked, and `AGENTS-PRIVATE.md` says which triggers.
 
 ## The release
@@ -60,7 +60,7 @@ Daily use decides what comes after the release. The last order was compaction an
 - Running between two accounts of one machine, and an agent on macOS joined to a gateway elsewhere.
 - Power loss, a full disk, log damage, and a kill during a tool commit.
 - The lock an agent takes on its home, on network file systems and sandbox mounts.
-- Migrating stored data for real: only the tests have done it, with steps they make up.
+- Migrating a setup in use: 2.0's steps for chat and the roster have run only in the tests and on copies of both setups' data, where they came out as designed (2026-11-25).
 
 ## The contracts
 
