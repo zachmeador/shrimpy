@@ -67,9 +67,9 @@ export interface Participant {
   /** What the tasks that follow the events tell chat with. It is given the agent's way to chat. */
   delivery: ChatDelivery;
   /**
-   * The program and arguments that run this Shrimpy, with which an agent its
-   * gateway turns away for its release runs `shrimpy update` to follow it.
-   * Without it the agent doesn't follow.
+   * The program and arguments that run this Shrimpy, with which the agent runs
+   * `shrimpy update` to follow its gateway to a newer release. Without it the
+   * agent doesn't follow.
    */
   shrimpy?: readonly string[];
   /** Told that the gateway turned the agent away as removed, once its home notes it. */

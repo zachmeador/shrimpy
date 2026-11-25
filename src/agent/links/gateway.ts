@@ -1,13 +1,6 @@
 import type { Host } from "@earendil-works/chord";
 import { type Membership, removedAdvice, unknownTokenAdvice } from "../../contracts/agent/index.ts";
-import {
-  type Entry,
-  HelloRefusedError,
-  type Member,
-  type Principal,
-  type Revocation,
-  type Versions,
-} from "../../contracts/gateway/index.ts";
+import { type Entry, HelloRefusedError, type Member, type Principal, type Revocation } from "../../contracts/gateway/index.ts";
 import { gatewaySocket, keepLinked, newToken, reportLinking } from "../../contracts/gateway/node.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
 
@@ -44,8 +37,8 @@ export interface GatewayLinkOptions {
    * is back.
    */
   onError(error: Error): void;
-  /** Told what the gateway runs each time it turns the agent away, so that an agent behind it can follow it. */
-  follow?(gateway: Versions): void;
+  /** Told the Shrimpy version the gateway runs each time it welcomes the agent or turns it away, so that an agent behind it can follow it. */
+  follow?(version: string): void;
   /** Told, with the gateway's words, that the gateway turned the agent away as removed from the roster, after which the agent links no more. */
   removed?(words: string): void;
   /** The pauses between hellos. Tests shorten them. */
@@ -152,6 +145,7 @@ export function linkToGateway(options: GatewayLinkOptions): GatewayLink {
     signal: stopping.signal,
     onWelcome(answer) {
       standing.welcomed(answer);
+      options.follow?.(answer.shrimpy);
       if (answer.you === null) return;
       you = answer.you;
       const kept = membership.read();
@@ -167,7 +161,7 @@ export function linkToGateway(options: GatewayLinkOptions): GatewayLink {
     onError(error) {
       standing.failed(error);
       if (!(error instanceof HelloRefusedError)) return;
-      if (error.reason !== "removed") return options.follow?.(error.versions);
+      if (error.reason !== "removed") return options.follow?.(error.versions.shrimpy);
       stopping.abort();
       options.removed?.(error.message);
     },

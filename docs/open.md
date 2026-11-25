@@ -39,6 +39,7 @@ Daily use decides what comes after the release. The last order was compaction an
 
 - `up`'s start lines name whichever agent started first in "Talk to an agent with", and repeat the line about `listen.json`, at every start of the service.
 - A service that `shrimpy update` installs from an agent's shell has `~/.local/bin` once more in its `PATH` with each update, since it copies the shell's `PATH`.
+- When several agents of one machine follow their gateway at once, all but the first log that their update failed, since the first holds the install's lock. Its restart brings them all up on the new version.
 - A turn that a crash cut short says so only on an answer's receipt. One that ends with `END`, or is stopped, says nothing of the crash.
 - Pi counts every task running at an unclean end, not only the one that killed it. A stop while chat is away waits for chat in place, so five unclean ends before chat is back end it without a receipt.
 - A trigger whose task five unclean ends in a row cut off, as while its check runs, has no task until the agent next reads its files.
@@ -57,7 +58,6 @@ Daily use decides what comes after the release. The last order was compaction an
 **Not built**
 
 - The rest of the agent's operations, as members of `Agent` and `Session`, as daily use asks for them: withdraw, thinking level, defaults, context queries, completion against the agent's files, provider status, delegation and attachments.
-- Clients holding a lagging agent's `Agent` and `Session` at the versions its release served, from `released.json`. A client at a newer version waits on an older agent with `contract_mismatch`, even for members the older version has, and agents update after the gateway's machine. The evolve trial of 2026-11-24 found it, and it's needed by the first time either contract evolves in 2.x.
 
 **Falls short**
 
@@ -72,7 +72,7 @@ Daily use decides what comes after the release. The last order was compaction an
 **Untried**
 
 - A hold that waits on an older program, seen to bind once that program updates. The page reloading itself, and offering a reload, in a browser. Two releases of different majors met for real on 2026-11-24, and the gateway turned the older one away in the right words.
-- An agent following its gateway after a release that changes the Pi packages, and the terminal's `/update`, for real: only stand-ins have run. An agent on another machine followed its gateway across the major for real, from 1.0.0 to 2.0.0 on 2026-11-25, and the update skill has run for real at 1.0.0 and at 2.0.0.
+- An agent following its gateway after a release that changes the Pi packages, or within a major, and the terminal's `/update`, for real: only stand-ins have run. Following within a major needs an agent on a release that has it, so the first chance is a candidate of the next 2.x minor and its release. An agent on another machine followed its gateway across the major for real, from 1.0.0 to 2.0.0 on 2026-11-25, and the update skill has run for real at 1.0.0 and at 2.0.0.
 
 **Open question**
 
@@ -246,6 +246,7 @@ Daily use decides what comes after the release. The last order was compaction an
 - A check's standard error goes to a file in `state/runtime/checks/`, since Pi hands output and errors over as one stream.
 - A second run of a trigger by hand, while the first one's check runs, starts a second check. `triggers show` has no row for a check run by hand until it ends.
 - A wake-up that fails or is given up has no receipt, and is reported on standard error.
+- An agent that follows its gateway to a new release says so in no thread, and a turn that the restart pauses isn't told why.
 
 **Untried**
 

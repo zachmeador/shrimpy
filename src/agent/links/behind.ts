@@ -1,28 +1,26 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import { compareShrimpy, linksWith, type Versions } from "../../contracts/gateway/index.ts";
+import { compareShrimpy } from "../../contracts/gateway/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 
 /**
- * What an agent does when its gateway turns it away: when the gateway runs a
- * newer release that this code can't link with, after a release that changed
- * the Pi packages or the major, nothing can reach the agent to ask it to
- * update, so it runs `shrimpy update` with the gateway's version itself. That
- * installs the version and restarts the service, this agent with it. From a
- * checkout `shrimpy update` refuses, and says how to update instead. It is
- * tried once for each version the gateway runs, and never for a version past
- * the gateway's. `shrimpy` is the program and arguments that run this
- * Shrimpy, and `tell` hears what came of it, a line at a time.
+ * Follow the gateway to each newer release, since the gateway's machine updates
+ * first: when the gateway's welcome or refusal says it runs a newer version than
+ * this agent, the agent runs `shrimpy update` with that version, which installs
+ * it and restarts the service, this agent with it. It is tried once for each
+ * version, and not for a build between releases, such as `2.1.0-dev` from a
+ * checkout, which no release has. From a checkout `shrimpy update` refuses, and
+ * says how to update instead. `shrimpy` is the program and arguments that run
+ * this Shrimpy, and `tell` hears what came of it, a line at a time.
  */
-export function followGateway(shrimpy: readonly string[], tell: (line: string) => void): (gateway: Versions) => void {
+export function followGateway(shrimpy: readonly string[], tell: (line: string) => void): (version: string) => void {
   const tried = new Set<string>();
-  return (gateway) => {
-    const version = gateway.shrimpy;
-    if (linksWith(gateway) || (compareShrimpy(version, SHRIMPY_VERSION) ?? 0) <= 0 || tried.has(version)) return;
+  return (version) => {
+    if ((compareShrimpy(version, SHRIMPY_VERSION) ?? 0) <= 0 || version.endsWith("-dev") || tried.has(version)) return;
     tried.add(version);
     const shown = `shrimpy update ${oneLine(version)}`;
-    tell(`The gateway runs Shrimpy ${oneLine(version)}, which this agent's ${SHRIMPY_VERSION} can't link with, so it runs ${shown}.`);
+    tell(`The gateway runs Shrimpy ${oneLine(version)}, newer than this agent's ${SHRIMPY_VERSION}, so it runs ${shown}.`);
     const [program, ...args] = shrimpy;
     if (program === undefined) return;
     const child = spawn(program, [...args, "update", version], { stdio: ["ignore", "pipe", "pipe"] });

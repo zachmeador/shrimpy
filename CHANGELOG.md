@@ -5,6 +5,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 ## Unreleased
 
 - The page installed on an iPhone's home screen reaches the bottom of the screen, where it left a strip under the composer.
+- An agent on another machine that runs from an install now installs its gateway's release by itself at every update.
 
 ## 🦐 2.0.0 - A Rising Tide - 2026-11-25
 
