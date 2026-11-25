@@ -8,6 +8,21 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 - Files copied into the owner's homes from the read-only archive kept read-only modes: 726 in career's home, `vault/.git` among them, and 4 in SCREAMO's. Agents hit `EACCES` and worked around it with `chmod`. Making them writable is a one-time change to the owner's data, and should touch only what came from the archive, since career and nervous-bob make some of their own files read-only on purpose.
 - Whom a push service is told to write to about the gateway. As built it is the address of the page's door, which on a tailnet holds the tailnet's name. It could be an address the owner sets, such as an email, or nobody. Apple's service turns away a contact that isn't a URL or a mailto address and took the page's address. Whether it takes a notification that names nobody is untried.
 
+## 2.0
+
+The owner agreed on 2026-11-24, hours after 1.0.0, to a 2.0 that gets the contracts' shape right while two setups run Shrimpy, and to each of its proposal's five choices. The proposal is kept outside the repo, and `AGENTS-PRIVATE.md` says where. Nothing of it is built.
+
+- Programs read the hello, its answer, the requests at the page's door and the push payload with unknown fields ignored, and a refusal's reason is any string, so neither needs a major again. The hello is the first frame on every link to the gateway, which checks it as an exact shape today, and the page's door is the HTTPS server the gateway runs for the web client.
+- The hello says where a program runs, by its machine's name, system and account, and an agent's hello names its home. The roster keeps where each agent last linked from and when, so an agent that is off still says where it lives.
+- A message carries its attachments, an empty list until the bytes come in 2.x, in pieces through chat.
+- Pins belong to the channel, and a room's main thread becomes its first pin, so `main` leaves the contracts.
+- A DM has no main thread: `openDm` makes none, and chat's migration clears it and drops the empty ones.
+- Every write goes through `Chat` by ID, and `Channel` and `Thread` become views, so an agent's post no longer brings up to 200 messages.
+- `Agent` gains its default model as state, and `setModel` and `switchTrigger`, which change the agent's own files when asked. Adding and removing triggers stays with the agent's own tools.
+- The roster keeps removed agents, and an agent refused as `removed` stops its triggers and model calls.
+- A session's items carry a time, and a device's label comes from the hello's machine.
+- Before it, evolve is tried once on a branch, since the rules for 2.x rest on what it costs. Before it ships, chat's and the roster's migrations run on copies of the owner's and Kathleen's data, and an agent apart follows its gateway across the major.
+
 ## The release
 
 - Version 1.0.0, A Rising Tide: Shrimpy says `1.0.0`, `nightly` says the next minor with `-dev`, and the release writes the contracts it serves in `src/contracts/released.json`.
@@ -68,9 +83,6 @@ Daily use decides what comes after the release. The last order was compaction an
 - Only a message's author edits or deletes it, so a chat provider acting for a person it maps can't.
 - Chat's log of events never shrinks, and nothing shows a message's earlier versions.
 - A message waiting behind a turn that Pi's restart limit ended is withdrawn by the agent's stop, so its skipped receipt has no reason. The terminal, `read` and `run` say its work was stopped as if someone had, and `run` exits 130.
-- Each post or read by an agent holds the thread's `Thread`, which brings up to its newest 200 messages each time.
-- The hello and its answer are checked as closed shapes, so a field added to either within a major would make an older program take the frame for one it doesn't know.
-- The push payload and the requests at the page's door are read as closed shapes too, so a field added to either within a major breaks the older side.
 - A program newer than the gateway warns only in its own log, though the roster's versions let the clients and `shrimpy status` say so. A page newer than the gateway is told to update the gateway's machine, where reloading the page would do.
 - The roster lists a program turned away for its release until the gateway restarts, and lists no other refusal. A turned-away agent is named only when the roster knows its token.
 - A session that waits on another version says so only on its agent's list and the levels after it, so one behind a room's thread says nothing when no agent's list is open.
@@ -79,10 +91,6 @@ Daily use decides what comes after the release. The last order was compaction an
 
 - A hold that waits on an older program, seen to bind once that program updates. The page reloading itself, and offering a reload, in a browser. Two releases of different majors met for real on 2026-11-24, and the gateway turned the older one away in the right words.
 - An agent following its gateway after a release that changes the Pi packages or the major, and the terminal's `/update`, for real: only stand-ins have run. The update skill has run for real, from 1.0.0-rc.1 to 1.0.0 across two machines.
-
-**At the next major**
-
-- Chat stops making a main thread in each DM. Until then it makes one, since an agent at 1.0.0 posts there, though agents and clients from 1.1 don't use it.
 
 **Open question**
 
@@ -109,7 +117,6 @@ Daily use decides what comes after the release. The last order was compaction an
 - From an agent's shell, `agent init`, `agent serve` and `up` skip the admin check, and `status` lists no admins.
 - A removed agent's DM with the person leaves the clients with the agent's row, and `shrimpy threads <name>` no longer finds it, so its threads are read only by ID, with `shrimpy read`. Its DMs with other agents stay under them, and its rooms keep listing it as a member.
 - The person's DM with a removed agent stays open to writing, though nothing will answer there.
-- A removed agent on another machine runs on there, its triggers and model calls too, until its home is moved out of `agents/`. It is told the gateway doesn't know its token and to get a new invitation, not that it may have been removed.
 - The gateway ends a removed agent's links before it answers, so an agent can't remove itself, and `shrimpy members remove` refuses it.
 
 **The owner's to strike**
@@ -124,7 +131,7 @@ Daily use decides what comes after the release. The last order was compaction an
 - Whether Pi's public `submit(tx, draft)` makes the handover of an input one commit, keeping the feed's order.
 - Attachments, as both mockups draw them, the [web client's](web-client-mockup.html) and the [terminal's](terminal-mockup.html). Each travels with its message, the chat server keeps it with the thread, and it is copied into the agent's home, in `attachments/` with a folder for each day, when the message is offered. A message carries up to 25 MB, and the copy into a home has the same limit. An image goes to the model with its message. Clipboard files and images attach to a message, on Ctrl+V in the terminal, which is to be checked against Pi's own key. A click opens one, and no key does. How an agent attaches a file of its own isn't drawn, and `send_message` can't attach one yet. None of it is built.
 - Notifications that tell only the devices the person isn't using; quiet hours, and silencing a thread or a room; every message of a room, where today only those that name the person count.
-- Pinned threads in DMs and rooms, which the owner wants (2026-11-24): a thread kept at the top of its channel's list, such as one for a long-running topic. Open: whether a pin is the person's own or the channel's, whether agents take pinned threads as the ones to post in, and whether a room's main thread becomes its first pinned thread, so rooms could drop main at the next major too. Pins kept by chat would take the thread contract's next version.
+- Pinning in the clients and by agents. 2.0 gives chat the pin, the channel's, and a room's main thread becomes its first. How the clients show and set pins isn't drawn, and how an agent pins and whether it is told to post in pinned threads wait with the tool questions.
 - The chat provider interface, kept as an idea: a provider posts for the people it maps, keyed by the outside message's ID, reads its bound threads from its own cursor, reports delivery as pending, delivered, failed or uncertain, moves attachments, sees who is working, and edits or deletes for a person it maps. A fake provider is its reference and proves nothing outside-app-specific leaks into the shared layer, a reaction and an edit cross a bridge both ways, and a feature the outside app lacks is left out. No outside chat app is planned.
 - The proof that goes with it: two homes talking in a channel with no provider, on real models including a small local one, winding down instead of going round in circles, with mentions and broadcast, sender restrictions, the final text as the reply and `END` for silence, last-active addressing, and accepted versus delivered status. If instructions can't stop a loop, that goes to the owner before any mechanism is added.
 - Proofs through a real chat app, if one is written: a message typed in another client mirrored into it, a reset between admission and retry, duplicate and batched updates, offline periods, first start, late replies, long formatted output, quiet notices, photos, documents, voice notes and video, and a lost send acknowledgment.
@@ -209,7 +216,7 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Falls short**
 
-- Nothing says which machine an agent runs on: `shrimpy status` and `agent status` show no host, so an agent looking for another asked it. Nothing records an agent's machine, so saying it takes the next versions of the hello and the roster.
+- Nothing says which machine an agent runs on: `shrimpy status` and `agent status` show no host, so an agent looking for another asked it. Nothing records an agent's machine until 2.0.
 - `--listen` given to `up` while a gateway runs only warns.
 - On a machine whose agents belong to a gateway elsewhere and that hasn't joined as the owner's, a command names those agents only by their homes' paths.
 - A folder that has joined as the owner's and also holds agents of no gateway is at odds with itself: `up` starts a gateway and a chat server for them, and the commands that talk reach the gateway elsewhere. The terminal still says "this machine's gateway".
@@ -272,7 +279,7 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Not built**
 
-- An agent page and two views of an agent's threads, which the owner asked for on 2026-11-24, for both clients. Both mockups draw them, the [web client's](web-client-mockup.html) and the [terminal's](terminal-mockup.html), for the owner to review: chat and observe as tabs, in place of the "everything" and "yours" switch, and the page where a thread would stand while none is open, with how the agent stands, its machine, its model, its version, its triggers and its home. Showing the machine takes the next versions of the hello and the roster.
+- An agent page and two views of an agent's threads, for both clients, as their mockups draw them, the [web client's](web-client-mockup.html) and the [terminal's](terminal-mockup.html), which the owner approved on 2026-11-24: chat and observe as tabs, in place of the "everything" and "yours" switch, and the page where a thread would stand while none is open, with how the agent stands, its machine, its model, its version, its triggers and its home. Its machine and model come with 2.0.
 - `/devices invite` in the terminal, which lets another machine of the owner's in.
 - What is left of setting up through `shrimpy`: the terminal's first screen saying when a program is down and being started again, `/` commands for signing in again, and `shrimpy --help` led by `shrimpy` alone, with the rest under "for scripts and agents".
 - Color in what the commands print, as the [terminal mockup](terminal-mockup.html)'s sheet on the commands has it: a name or a command bold, a state in a color and a failure in red, on a terminal that shows color. The plain lines and tables agents read stay.
