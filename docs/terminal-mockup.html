@@ -186,15 +186,35 @@ html[data-view="live"] body { overflow: hidden; }
     </div>
   </section>
 
+  <section class="sheet" id="agent-page">
+    <h2><span>07</span>An agent's page</h2>
+    <p class="cap">An agent's list holds only conversations, in two tabs that Tab switches: chat is your DM with the agent, and observe is everything else it takes part in. Its name is the list's first row, and → opens its page: how the agent stands, where it runs, its triggers and its home. Where there is room, the page stands beside the list while no thread is open.</p>
+    <div class="fit">
+      <div class="unit"><div class="win term" data-cols="150" data-rows="40" data-mode="dusk" data-route="agent:lighthouse" data-at="page"></div></div>
+    </div>
+    <p class="cap">At 80 columns the page takes the screen, as a thread does. On it the arrows move through the home: → opens a folder in place, or a file where the page was, and ← goes back.</p>
+    <div class="fit">
+      <div class="unit"><div class="win term" data-cols="80" data-rows="30" data-mode="dusk" data-route="agent:lighthouse" data-page="1"></div></div>
+      <div class="unit"><div class="win term" data-cols="80" data-rows="30" data-mode="day" data-route="agent:pantry" data-file="lists/saturday.md"></div></div>
+    </div>
+    <p class="cap">In observe a thread says where it is: a room, a DM with another agent, or a trigger's own session. A thread opens its agent's list on the tab that holds it. An agent the gateway turned away for its release says so on its page, and what to update.</p>
+    <div class="fit">
+      <div class="unit"><div class="win term" data-cols="112" data-rows="30" data-mode="day" data-route="agent:lighthouse/thread:lh-nightly" data-level="2"></div></div>
+    </div>
+    <div class="fit">
+      <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route="agent:crab" data-page="1" data-away="crab"></div></div>
+    </div>
+  </section>
+
   <section class="sheet">
-    <h2><span>07</span>When things are not fine</h2>
+    <h2><span>08</span>When things are not fine</h2>
     <p class="cap">A view with no connection goes dim under its note, a thread you only read says so where the input would be, and with no gateway the first screen is how to start one. The notes about a lost connection and a missing gateway are the terminal's sentences as they are today. The others are the shorter ones from the web mockup.</p>
     <div class="fit">
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route="agent:lighthouse/thread:lh-main" data-stale="1"></div></div>
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route="agent:scout/thread:lh-scout-q"></div></div>
     </div>
     <div class="fit">
-      <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="day" data-route="agent:crab"></div></div>
+      <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="day" data-route="agent:crab" data-page="1"></div></div>
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="day" data-route="" data-down="1"></div></div>
     </div>
     <p class="cap">On a machine whose Shrimpy is older than the gateway's, the first screen says so. <code>/update</code>, written in any thread, leaves the screen, runs <code>shrimpy update</code> with the gateway's version and opens the terminal again on it. After a release that changes the Pi packages or the major, the gateway turns the terminal away and no thread opens, so the first screen offers the same update, and Enter starts it. A page comes from the gateway, so it has none of this.</p>
@@ -208,7 +228,7 @@ html[data-view="live"] body { overflow: hidden; }
   </section>
 
   <section class="sheet">
-    <h2><span>08</span>On the terminal's own colors</h2>
+    <h2><span>09</span>On the terminal's own colors</h2>
     <p class="cap">Where a terminal has no true color, the client paints no ground: it draws on the terminal's own, in its sixteen colors. The layout and the marks are the same.</p>
     <div class="fit">
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="own" data-route="agent:lighthouse/thread:lh-backup"></div></div>
@@ -217,7 +237,7 @@ html[data-view="live"] body { overflow: hidden; }
   </section>
 
   <section class="sheet">
-    <h2><span>09</span>The commands</h2>
+    <h2><span>10</span>The commands</h2>
     <p class="cap">The commands print plain lines and tables, which agents read, and those stay as they are. On a terminal that shows color, three things are added: a name or a command to run is bold, a state has a color, and what failed is red.</p>
     <div class="fit">
       <div class="unit"><div class="win shell" data-cols="84" data-rows="24" data-show="help"></div></div>
@@ -229,7 +249,7 @@ html[data-view="live"] body { overflow: hidden; }
   </section>
 
   <section class="sheet">
-    <h2><span>10</span>What it is made of</h2>
+    <h2><span>11</span>What it is made of</h2>
     <p class="cap">The web client's stitch is two pixels. Here it is the cell, and the dot of a braille cell. A sigil is written once, as twelve lines of twelve, and each client draws it its own way.</p>
     <div class="fit">
       <div class="unit"><div class="win made" data-cols="108" data-rows="33" data-mode="dusk"></div></div>
@@ -254,18 +274,18 @@ html[data-view="live"] body { overflow: hidden; }
   </section>
 
   <section class="sheet">
-    <h2><span>11</span>What this changes, and what it leaves open</h2>
+    <h2><span>12</span>What this changes, and what it leaves open</h2>
     <p class="cap">The terminal was built to this mockup on 2026-11-22. The first card is where the mockup differed from the terminal as it was until then, written before it was built, with what you said of each. <a href="open.md">The open list</a> has where the terminal still differs from these sheets.</p>
     <div class="grid2">
       <div class="card">
         <h3>Changed here</h3>
         <ol>
           <li><b>The whole screen.</b> Today the client draws into the terminal's scrollback. Here it takes the alternate screen, so lists can stay on show and the input stays at the bottom. The plan had this as later, and you took it: "all of the agent cli apps are moving to whole screen, as well as pi. so that's fine". Leaving prints the open thread back where the terminal was.</li>
-          <li><b>The arrows move you.</b> Your words: "left arrow instead of esc. right arrow for enter", and in an input, left "would only leave the session if there's no text to traverse in the box". So → goes in and ← goes out. In a thread ← moves through what is typed, and goes back a level from its start. What was typed stays with the thread. Esc still goes back, from anywhere and whatever is typed: "yep keep esc for back", 2026-11-22. With the list of keys or the list of commands open, it closes that first. Two things follow that you didn't say, and are yours to strike: the choice between everything and yours moved from ← → to Tab, and Enter still opens a row as → does.</li>
+          <li><b>The arrows move you.</b> Your words: "left arrow instead of esc. right arrow for enter", and in an input, left "would only leave the session if there's no text to traverse in the box". So → goes in and ← goes out. In a thread ← moves through what is typed, and goes back a level from its start. What was typed stays with the thread. Esc still goes back, from anywhere and whatever is typed: "yep keep esc for back", 2026-11-22. With the list of keys or the list of commands open, it closes that first. Two things follow that you didn't say, and are yours to strike: the choice between an agent's two views moved from ← → to Tab, and Enter still opens a row as → does.</li>
           <li><b>Scrolling is the client's.</b> PgUp, PgDn and the wheel scroll the pane they are in, a drag selects and copies, and Ctrl+Shift+F searches. All three are pi-tui's. The plan left scrolling keys for later because the scrollback had them.</li>
           <li><b>The levels sit side by side</b> where there is room, and Ctrl+\ puts them back to one at a time. The web mockup folds its lists on the same key.</li>
           <li><b>Where a key is named.</b> The plan's fourth rule has every key on the last line, and you called that line crowded. Here a key is named beside what it acts on, the last line has the keys that move, and Ctrl+G lists them all. You kept Ctrl+G, and Ctrl+\ for one level at a time: "sure, those key combos can stay".</li>
-          <li><b>Tab is the other view of where you are.</b> On an agent's list it is everything or yours. In a thread it turns the thread over to the agent's view, and in a room it goes through each agent's view and back.</li>
+          <li><b>Tab is the other view of where you are.</b> On an agent's list it is chat or observe, which were everything and yours until 2026-11-24. In a thread it turns the thread over to the agent's view, and in a room it goes through each agent's view and back.</li>
           <li><b>The input stays under the agent's view,</b> so you can write a message in the thread while you watch. On 2026-10-05 you had decided that view was for watching only, with no input, and you took this over it: "yep, a big improvement. love it". A command written there works as it does from the conversation, <code>/stop</code> included. A trigger's own session still has no input.</li>
           <li><b>Each agent has a pigment and a sigil.</b> Today every agent is one color. Of the sigil you said: "i actually really like this if the sigil is defined once and rendered for cli/web". So a sigil is one bitmap of twelve by twelve, and each client draws it: pixels on the web, dots and half blocks here. It is in the agent's <code>agent.json</code>, made at random when the agent is made: "an agent is always free to change its sigil".</li>
           <li><b>The ground is painted</b> where the terminal has true color, and is the terminal's own where it hasn't. You liked both and said "your call". It is one choice in the client, and easy to turn the other way.</li>
@@ -292,13 +312,20 @@ html[data-view="live"] body { overflow: hidden; }
           <li><b>A click opens a picture or a file</b> in the machine's own viewer, and no key does, which you took on 2026-11-24.</li>
           <li><b>A message carries up to 25 MB,</b> and a file is copied into an agent's home up to the same 25 MB, one number for both. The agent finds it in <code>attachments/</code>, with a folder for each day. You said yes to both on 2026-11-24.</li>
         </ul>
+        <h3 style="margin-top:18px">An agent's page, drawn on 2026-11-24 and not built</h3>
+        <ul>
+          <li><b>An agent's list has two tabs, chat and observe,</b> in place of the everything and yours switch and its two groups, as you asked on 2026-11-24, and Tab switches them as it did the switch. Chat is your DM with the agent, and its threads don't say where they are. Observe is everything else it takes part in: its DMs with other agents, its threads in rooms and its triggers' own sessions. A thread opens the list on the tab that holds it.</li>
+          <li><b>The agent's name is the first row of its list,</b> and → or a click opens its page. Where there is room the page stands beside the list while no thread is open, in place of "Pick a thread", and at 80 columns it takes the screen as a thread does. The line of facts under the name is gone. Ctrl+N still starts a thread from either.</li>
+          <li><b>The page says how the agent stands, whether it is an admin, its machine, its model, its version and where its home is,</b> beside its sigil. The machine is drawn as if it were known: showing it takes new versions of the hello and the roster, as the web mockup's notes say.</li>
+          <li><b>Its triggers and its home are on the page,</b> as in the web mockup. On the page ↑ ↓ choose a part of the home, → opens a folder in place or a file where the page was, and ← goes back to the page, then to the list.</li>
+          <li><b>An agent that is off, or that the gateway turned away for its release, says so on its page.</b> The note that was in its list, with the commands to start it, is gone: the page says which machine it lives on.</li>
+        </ul>
       </div>
       <div class="card">
         <h3>Not drawn yet</h3>
         <ul>
           <li>The first run: signing in, naming an agent, the service.</li>
           <li>Reacting, editing and deleting.</li>
-          <li>Triggers and an agent's home, which the web mockup has as tabs.</li>
           <li>Signing in from the terminal, and <code>/thinking</code>.</li>
           <li>A list longer than the screen, and the search panel.</li>
           <li>Opening where you left off.</li>
@@ -884,6 +911,16 @@ const AGENTS = {
 };
 const ORDER = ['shrimpy', 'lighthouse', 'scout', 'pantry', 'crab'];
 
+/* Where each agent runs, as a hello would say it. Nothing records this today. */
+const HOMEBOX = { host: 'homebox', system: 'Linux x86_64', user: 'shrimpy', gateway: true };
+const MACHINES = {
+  shrimpy: HOMEBOX, lighthouse: HOMEBOX, scout: HOMEBOX, pantry: HOMEBOX,
+  crab: { host: 'zachs-mbp', system: 'macOS arm64', user: 'zach', linked: '01:12' },
+};
+/* An agent the gateway turns away for the release it runs, in the frames that ask for one, and what it ran. */
+const AWAY = { shrimpy: '1.0.0-rc.1', pi: 'Pi 1.5.2', gateway: 'Pi 1.6.0' };
+const awayWords = (a) => `The gateway turned the agent ${a} away: it runs Shrimpy ${AWAY.shrimpy} on ${AWAY.pi}, and the gateway runs Shrimpy ${VERSION} on ${AWAY.gateway}. Programs that link need the same Pi packages: update Shrimpy where the agent ${a} runs to ${VERSION}.`;
+
 const ROOMS = {
   ops: { members: ['you', 'lighthouse', 'scout', 'shrimpy'], threads: ['ops-window', 'ops-deploy', 'ops-router', 'ops-main'] },
   house: { members: ['you', 'pantry', 'shrimpy'], threads: ['house-main'] },
@@ -1127,10 +1164,60 @@ const TRIGGERS = {
     { name: 'nightly', next: '03:00', front: 'cron: "0 3 * * *"', body: 'Run the nightly photo snapshot and both checks. Say nothing unless something is wrong.', last: 'woke lighthouse at 03:00' },
     { name: 'disk-space', next: '17:00', front: 'every: 1h\ncheck: df -h /mnt/nas | tail -1\nthen: note', body: '', last: 'noted at 03:20' },
   ],
+  scout: [
+    { name: 'papers', next: '18:00', front: 'every: 6h\ncheck: ls vault/inbox | wc -l', body: 'Something new is in vault/inbox. Read it, file it, and say what it was in one line.', last: 'quiet at 12:00' },
+  ],
   pantry: [
     { name: 'groceries', next: 'Nov 28 14:30', front: 'cron: "30 14 * * 6"\ncheck: grep -c . lists/saturday.md\nthread: th_51c7', body: 'Say what is on the list for Saturday, and what on it is new.', last: 'woke pantry at 14:30' },
   ],
 };
+
+/* What an agent's home holds beyond what every home has, as the web mockup has it. A string is a file's text, and an object is a folder. */
+const HOMES = {
+  shrimpy: {
+    'SOUL.md': `Be direct, calm and useful. Do what you are asked when it is clear, and ask one short question when it isn't. Say plainly when you don't know something or can't do it.\n\nCheck with the person before anything you can't undo, such as deleting files or sending a message for them.\n\nAnswer as briefly as the question allows. You enjoy the shrimp emoji 🦐.\n`,
+    'context/': { 'agents.md': `# Agents here\n\n- lighthouse: backups and the NAS. Made on Nov 20.\n- scout: looks things up and keeps what it read in its vault.\n- pantry: meals and the shopping list.\n- crab: lives on another machine, which sleeps at night.\n` },
+  },
+  lighthouse: {
+    'SOUL.md': `Be calm and brief. Say what you checked and what you found, then stop.\n\nSpeak up when something is off. When nothing is, one line is enough.\n\nCheck with zach before anything you can't undo, such as pruning outside the retention rule.\n`,
+    'context/': {
+      'backups.md': `# Backups\n\n- Photos: ~/Pictures to the NAS with restic, nightly at 03:00. The repository is /mnt/nas/photos.\n- Retention: 14 daily and 12 monthly snapshots. Prune only under this rule.\n- Offsite: rclone sync nas:photos offsite:photos, each night after the snapshot.\n- After any change to the repository, restore one file and compare it.\n`,
+      'machines.md': `# Machines\n\n- The NAS sleeps when idle and wakes for the nightly run. Its pool is /mnt/nas.\n- The gateway listens on 7447.\n`,
+    },
+    'skills/': { 'restic/': { 'SKILL.md': `---\nname: restic\ndescription: Use when checking, restoring or pruning the photo backups.\n---\n\n# Restic\n\nList snapshots with restic -r /mnt/nas/photos snapshots, and check the repository with restic check.\n\nTo prove a restore, restore one file into a temp folder and compare checksums. Delete the copy after.\n` } },
+    'vault/': { 'backups/': { '2026-11.md': `# November 2026\n\n- Nov 19: the nightly run was skipped, the drive was 96% full. Pruned under the retention rule, back to 81%.\n- Nov 21: 212 photos added. Restoring 2019/08/IMG_4417.heic matched the original.\n- Nov 21: the offsite copy is two days behind.\n` } },
+    'breadcrumbs/': { 'disk-space.md': `/mnt/nas is at 81%.\n` },
+  },
+  scout: {
+    'SOUL.md': `Find things out and say where you read them. Keep what is worth keeping in your vault.\n\nPrefer a short answer with its source to a long one without.\n`,
+    'vault/': {
+      'door-screen/': {
+        'door-frame-2.stl': { binary: 'a 3D model', size: '1.8 MB' },
+        'driver-board-datasheet.pdf': { binary: 'a PDF', size: '1.2 MB' },
+        'life.png': { pic: 'life', size: '38 kB' },
+        'life.py': `"""Months a memory LCD lasts on a battery, by how often it redraws."""\n`,
+      },
+      'inbox/': {},
+      'notes/': { 'setup.md': `# Setup\n\n- Model server: lan, on the LAN.\n- The gateway listens on 7447.\n- The chat server and the gateway run on the same machine.\n` },
+      'screens.md': `# Small screens\n\n- Memory LCD, 2.7 inch, 400 x 240, 1-bit. Fast to redraw, holds a picture on almost no power.\n- E-paper, 4.2 inch, 400 x 300, 1-bit or four grays. Slow to redraw, easy to read in sun.\n`,
+    },
+    'attachments/': { '2026-11-21/': {
+      'door-frame.stl': { binary: 'a 3D model', size: '1.8 MB' },
+      'driver-board.png': { pic: 'driver-board', size: '182 kB' },
+      'module-back.jpg': { pic: 'module-back', size: '2.2 MB' },
+      'module-front.jpg': { pic: 'module-front', size: '2.4 MB' },
+    } },
+  },
+  pantry: {
+    'SOUL.md': `Plan meals for two and keep the shopping list. No shellfish.\n\nUse what is in the house before buying. Say what a plan uses up.\n`,
+    'context/': { 'kitchen.md': `# Kitchen\n\n- Two adults. One night out a week.\n- No shellfish.\n- Shopping is on Saturday.\n` },
+    'vault/': { 'weeks/': { '2026-11-23.md': `# Week of Nov 23\n\n- Mon: squash and sage risotto\n- Tue: black bean tacos with quick pickled onion\n- Wed: out\n- Thu: miso soup, rice, and the last of the squash, roasted\n- Fri: pasta with whatever is left\n` } },
+    'lists/': { 'saturday.md': `- sage\n- white miso\n- arborio rice\n- black beans\n- corn tortillas\n- limes\n- scallions\n- firm tofu\n- short-grain rice\n- parmesan\n- spaghetti\n- canned tomatoes\n- vegetable stock\n- olive oil\n` },
+  },
+};
+/** The parts of a home an agent's page lists: the ones every home has, then the folders the agent made. */
+const homeParts = (a) => ({ 'SOUL.md': '', 'context/': {}, 'skills/': {}, 'vault/': {}, 'breadcrumbs/': {}, ...(HOMES[a] || {}) });
+const fileAt = (a, path) => (path.match(/[^/]+\/?/g) || []).reduce((dir, part) => (dir ? dir[part] : undefined), homeParts(a));
 
 const ARCHIVE = 'Hide this thread from the lists.';
 const RENAME = 'Name this thread: /rename <name>';
@@ -1230,7 +1317,7 @@ const KEYS = [
   ['↑ ↓', 'choose'],
   ['→', 'open what is chosen'],
   ['← esc', 'back a level'],
-  ['tab', 'the other view: yours, or the agent\'s'],
+  ['tab', 'the other view: chat or observe, or the agent\'s'],
   ['ctrl+n', 'a new thread'],
   ['in a thread'],
   ['enter', 'send what is typed'],
@@ -1257,7 +1344,8 @@ const SCRIPT = {
 function term(win, o) {
   const db = structuredClone(THREADS), lists = structuredClone(LISTS), rooms = structuredClone(ROOMS);
   const s = {
-    mode: o.mode, cols: o.cols, rows: o.rows, level: 1, place: null, thread: null, cur: [0, 0, 0], filter: 'everything',
+    mode: o.mode, cols: o.cols, rows: o.rows, level: 1, place: null, thread: null, cur: [0, 0, 0], tab: 'chat',
+    onPage: false, pcur: 0, file: null, dirs: new Set(),
     side: Number(o.side) || 0, fold: Boolean(o.fold), keys: Boolean(o.keys), full: { tools: Boolean(o.full), thinking: Boolean(o.full) },
     input: '', caret: 0, slash: null, notice: null, status: null, scroll: 0, armed: false, stale: Boolean(o.stale), down: Boolean(o.down || o.refused), clock: 22, made: 0,
     arch: Boolean(o.arch), behind: o.behind || null, refused: o.refused || null,
@@ -1267,6 +1355,14 @@ function term(win, o) {
     const [k, v] = part.split(':');
     if (k === 'thread') { s.thread = v; s.level = 3; } else { s.place = { kind: k, id: v }; s.level = 2; }
   }
+  /* A thread opens its agent's list on the tab that holds it, and a frame can open an agent's page or a file in its home. */
+  if (s.thread && s.place && s.place.kind === 'agent' && !LISTS[s.place.id].yours.includes(s.thread)) s.tab = 'observe';
+  if ((o.page || o.file) && s.place) { s.level = 3; s.onPage = true; }
+  if (o.file) {
+    s.file = o.file;
+    o.file.split('/').slice(0, -1).reduce((base, part) => { s.dirs.add(`${base}${part}/`); return `${base}${part}/`; }, '');
+  }
+  const away = o.away || null;
   const draft = o.draft && s.thread ? DRAFTS[o.draft] : null;
   if (draft) {
     const th = db[s.thread];
@@ -1326,12 +1422,21 @@ function term(win, o) {
     return `trigger ${p.trigger}`;
   };
   const agentDetail = (a) => {
+    if (a === away) return { text: 'turned away', busy: false };
     if (!AGENTS[a].running) return { text: 'not running', busy: false };
     const all = Object.values(db).filter((th) => th.work && th.work[a]);
     if (!all.length) return { text: 'idle', busy: false };
     const elsewhere = all.filter((th) => !(th.place.kind === 'dm' && th.place.agent === a));
     if (!elsewhere.length) return { text: 'working', busy: true };
     return { text: `working · ${all.length === 1 ? placeFor(elsewhere[0], a) : `${all.length} sessions`}`, busy: true };
+  };
+  /** How an agent stands, as its page says it: where it works, by name, where its row has only a count. */
+  const standing = (a) => {
+    if (a === away) return { text: 'turned away for its release', busy: false };
+    const d = agentDetail(a);
+    if (!d.busy || s.stale) return d;
+    const where = [...new Set(Object.values(db).filter((th) => th.work && th.work[a]).map((th) => placeFor(th, a)))];
+    return { text: `working · ${listed(where)}`, busy: true };
   };
   const live = (ids) => ids.filter((id) => !db[id].archived);
   const shelved = (ids) => ids.filter((id) => db[id].archived);
@@ -1351,17 +1456,36 @@ function term(win, o) {
     if (!p) return [];
     if (p.kind === 'room') return rooms[p.id].threads;
     if (!AGENTS[p.id].running) return [];
-    return [...lists[p.id].yours, ...(s.filter === 'everything' ? lists[p.id].elsewhere : [])];
+    return s.tab === 'chat' ? lists[p.id].yours : lists[p.id].elsewhere;
   };
-  /** The rows the keys move through: the threads, then the row of the archived ones, then those while it is open. */
+  /** The rows the keys move through: an agent's name, which opens its page, the threads, then the row of the archived ones, then those while it is open. */
   const listRows = () => {
-    const all = inList(), away = shelved(all), row = (t) => `thread:${t}`;
-    return [...live(all).map(row), ...(away.length ? ['arch'] : []), ...(s.arch ? away.map(row) : [])];
+    const all = inList(), shut = shelved(all), row = (t) => `thread:${t}`;
+    const head = s.place && s.place.kind === 'agent' ? ['page'] : [];
+    return [...head, ...live(all).map(row), ...(shut.length ? ['arch'] : []), ...(s.arch ? shut.map(row) : [])];
   };
   const seat = () => {
     s.cur[1] = Math.max(0, railRows().indexOf(s.place ? `${s.place.kind}:${s.place.id}` : ''));
-    s.cur[2] = Math.max(0, listRows().indexOf(`thread:${s.thread}`));
+    const rows = listRows(), at = rows.indexOf(`thread:${s.thread}`);
+    s.cur[2] = at >= 0 ? at : s.onPage ? 0 : Math.max(0, rows.findIndex((r) => r !== 'page'));
   };
+  /** The rows of the home on an agent's page: its parts, and what is in the folders that are open. `sel` counts the ones the keys move through. */
+  const homeRows = () => {
+    const out = [];
+    let sel = 0;
+    const walk = (dir, base, depth) => {
+      const names = Object.keys(dir);
+      if (!names.length && depth) out.push({ none: true, depth });
+      for (const name of names) {
+        const path = base + name, isDir = name.endsWith('/');
+        out.push({ name, path, depth, dir: isDir, sel: sel++, go: `${isDir ? 'dir' : 'file'}:${path}` });
+        if (isDir && s.dirs.has(path)) walk(dir[name], path, depth + 1);
+      }
+    };
+    walk(homeParts(s.place.id), '', 0);
+    return out;
+  };
+  const linkedAgent = (a) => AGENTS[a].running && a !== away;
   seat();
   if (o.level) s.level = Number(o.level);
   if (o.at) s.cur[2] = Math.max(0, listRows().indexOf(o.at));
@@ -1455,7 +1579,7 @@ function term(win, o) {
     const th = db[id], wide = w >= 64, hgt = wide ? 1 : 2;
     const busy = workingIn(th).length > 0;
     mark(x, y, w, hgt, focus, s.cur[2] === i, s.thread === id);
-    const meta = [viewer ? placeFor(th, viewer) : null, th.when, th.place.kind === 'between' ? 'read-only' : null].filter(Boolean).join(' · ');
+    const meta = [viewer && th.place.kind !== 'trigger' ? placeFor(th, viewer) : null, th.when, th.place.kind === 'between' ? 'read-only' : null].filter(Boolean).join(' · ');
     const end = [...(th.unread ? [[`${th.unread} ▪ `, { f: 'coral' }]] : []), busy ? ['▪', { f: lamp() }] : [' ', {}]];
     const room = w - 4 - segW(end) - (th.main ? 7 : 0) - (wide ? wd(meta) + 3 : 0);
     const at = g.text(x + 2, y, cut(titleOf(th), room), th.unread ? BOLD : INK);
@@ -1495,33 +1619,30 @@ function term(win, o) {
       return;
     }
     const a = p.id, A = AGENTS[a], d = agentDetail(a);
+    /* The name is the list's first row: → or a click opens the agent's page, which stands beside the list while no thread is open. */
+    mark(x, y, w, 3, focus, s.cur[2] === 0, !s.thread && (s.level === 3 || (!s.fold && s.cols >= TWO)));
+    hit(x, y, w, 3, 'page');
     SIGIL[a].forEach((ln, j) => g.text(x + 1, y + j, ln, { f: A.running ? Pig(a) : 'line2' }));
     g.text(x + 9, y, A.name, A.running ? { f: pig(a), b: 1 } : { f: 'ink3', b: 1 });
     if (A.running) right(x, y, w, w >= 64 ? [['ctrl+n', INK2], [' new thread', DIM]] : [['ctrl+n', INK2], [' new', DIM]]);
     g.text(x + 9, y + 1, cut(d.text, w - 10), d.busy && !s.stale ? BUSY : DIM);
-    if (A.running) g.text(x + 9, y + 2, cut(`${A.model} · Shrimpy ${VERSION}`, w - 10), DIM);
     y += 4;
-    if (!A.running) {
-      note(x, y, w, [[`${A.name} is not running. Start it with: `, SAND], [`shrimpy agent serve ${a}`, { f: 'ink', b: 1 }], [', or start everything with: ', SAND], ['shrimpy up', { f: 'ink', b: 1 }]]);
-      return;
-    }
     const on = { f: 'ink', bg: 'raise' };
-    g.segs(x + 1, y, [[' everything ', s.filter === 'everything' ? on : DIM], [' yours ', s.filter === 'yours' ? on : DIM], ['  ', {}], ['tab', INK2]], x + w - 1);
-    hit(x + 1, y, 12, 1, 'filter:everything');
-    hit(x + 13, y, 7, 1, 'filter:yours');
+    g.segs(x + 1, y, [[' chat ', s.tab === 'chat' ? on : DIM], [' observe ', s.tab === 'observe' ? on : DIM], ['  ', {}], ['tab', INK2]], x + w - 1);
+    hit(x + 1, y, 6, 1, 'tab:chat');
+    hit(x + 7, y, 9, 1, 'tab:observe');
     y += 2;
-    const mine = lists[a];
-    if (!mine.yours.length && (s.filter === 'yours' || !mine.elsewhere.length)) {
-      note(x, y, w, [[`You have not talked to ${A.name} yet. Press Ctrl+N to start a thread.${mine.elsewhere.length ? ` Tab shows everything ${A.name} takes part in.` : ''}`, DIM]]);
+    /* Chat is your DM with the agent, so its threads don't say where they are. Observe is everything else the agent takes part in. */
+    const chat = s.tab === 'chat', ids = inList(), viewer = chat ? null : a;
+    if (!ids.length) {
+      const none = chat ? `You have not talked to ${A.name} yet.${A.running ? ' Press Ctrl+N to start a thread.' : ''}`
+        : A.running ? `${A.name} takes part in nothing else yet.` : `${A.name} is not running.`;
+      note(x, y, w, [[none, DIM]]);
       return;
     }
-    for (const [name, ids] of [['your threads', live(mine.yours)], ['elsewhere', s.filter === 'everything' ? live(mine.elsewhere) : []]]) {
-      if (!ids.length) continue;
-      y = label(x, y, w, name);
-      for (const t of ids) y = threadRow(x, y, w, t, i++, focus, a);
-      y += 1;
-    }
-    shelf(x, y, w, i, focus, shelved(inList()), a);
+    i = 1;
+    for (const t of live(ids)) y = threadRow(x, y, w, t, i++, focus, viewer);
+    shelf(x, y + 1, w, i, focus, shelved(ids), viewer);
   }
 
   /* ---- a thread: what was said, the work, and the dock ---- */
@@ -1743,21 +1864,103 @@ function term(win, o) {
   }
 
   function drawEmpty(x, w, h) {
-    const agent = s.place && s.place.kind === 'agent' ? s.place.id : null;
-    const art = halves(BITS[agent ? AGENTS[agent].sigil : 'shrimp']);
-    const words = !s.place ? 'Pick an agent or a room.'
-      : !agent ? 'Pick a thread.'
-      : !AGENTS[agent].running ? `${agent} is not running.`
-      : lists[agent].yours.length ? 'Pick a thread, or press Ctrl+N to start one.'
-      : `You have not talked to ${agent} yet. Press Ctrl+N to start a thread.`;
+    const art = halves(BITS.shrimp);
+    const words = !s.place ? 'Pick an agent or a room.' : 'Pick a thread.';
     const y = Math.max(1, Math.floor((h - 9) / 2));
     art.forEach((ln, i) => g.text(x + Math.floor((w - 12) / 2), y + i, ln, { f: 'press' }));
     const say = cut(words, w - 4);
     g.text(x + Math.floor((w - wd(say)) / 2), y + 8, say, DIM);
   }
 
-  function drawThread(x, w, h) {
+  /* ---- an agent's page, where a thread would be while none is open ---- */
+
+  const ruleLine = (text, mx) => ({ s: [[text, DIM], [` ${'┈'.repeat(Math.max(0, mx - wd(text) - 1))}`, { f: 'line2' }]] });
+
+  /** The page as lines: how the agent stands beside its sigil, then its triggers and its home. */
+  function pageLines(a, mx) {
+    const A = AGENTS[a], M = MACHINES[a], st = standing(a), linked = linkedAgent(a);
+    const machine = [M.system, `user ${M.user}`, M.gateway ? `the gateway's machine` : '', !linked && a !== away && M.linked ? `last linked at ${M.linked}` : ''].filter(Boolean).join(' · ');
+    const facts = [
+      ['state', [[st.text, st.busy ? BUSY : INK], ...(st.busy ? [['  ▪', { f: lamp() }]] : [])]],
+      ['admin', [[A.admin ? 'yes' : 'no', INK]]],
+      ['machine', [[M.host, INK]]],
+      ['', [[machine, DIM]]],
+      ...(linked ? [['model', [[A.model, INK]]]] : []),
+      ...(linked || a === away ? [['version', [[a === away ? AWAY.shrimpy : VERSION, INK]]]] : []),
+      ['home', [[`~/shrimpy/agents/${A.name}`, INK]]],
+    ];
+    const art = mx >= 62 ? halves(BITS[A.sigil]) : [];
+    const out = [{ s: [] }];
+    for (let j = 0; j < Math.max(art.length, facts.length); j++) {
+      const [k, v] = facts[j] || ['', []];
+      out.push({ s: [...(art.length ? [[(art[j] || '').padEnd(12), { f: 'press' }], ['   ', {}]] : []), [k.padEnd(9), DIM], ...v], one: true });
+    }
+    out.push({ s: [] });
+    if (!linked) {
+      const say = a === away ? `${awayWords(a)} Until then its triggers and its home can't be read.`
+        : `${A.name} is not linked to the gateway, so its triggers and its home can't be read. It lives on ${M.host}: start it there.`;
+      for (const ln of wrap([[say, SAND]], mx)) out.push({ s: ln });
+      return out;
+    }
+    out.push(ruleLine('triggers', mx));
+    const all = TRIGGERS[a] || [];
+    if (!all.length) out.push({ s: [[`${A.name} has no triggers. Ask it to make one, or ask ${AGENTS.shrimpy.name}.`, DIM]], one: true }, { s: [] });
+    for (const t of all) {
+      const bar = ['▏ ', { f: 'line2' }];
+      out.push({ s: [[`triggers/${t.name}.md`, BOLD]], right: [[`next ${t.next} · last: ${t.last}`, DIM]] });
+      for (const ln of t.front.split('\n')) out.push({ s: [bar, [ln, DIM]], one: true });
+      if (t.body) for (const ln of wrap([[t.body, INK2]], mx - 2)) out.push({ s: [bar, ...ln] });
+      out.push({ s: [] });
+    }
+    out.push(ruleLine('home', mx));
+    for (const r of homeRows()) {
+      if (r.none) { out.push({ s: [[`${'  '.repeat(r.depth)}  (empty)`, DIM]] }); continue; }
+      const open = r.dir && s.dirs.has(r.path);
+      out.push({ s: [['  '.repeat(r.depth), {}], [r.dir ? (open ? '▾ ' : '▸ ') : '  ', DIM], [r.name, r.dir ? BOLD : INK2]], sel: r.sel, go: r.go, path: r.path, one: true });
+    }
+    return out;
+  }
+
+  function drawPage(x, w, h, focus) {
+    const a = s.place.id, A = AGENTS[a];
+    g.fill(x, 0, w, h, 'pane');
+    const mx = Math.min(w - 2, MEASURE);
+    g.text(x + 1, 0, A.name, A.running ? { f: pig(a), b: 1 } : { f: 'ink3', b: 1 });
+    if (A.running) right(x, 0, w, [['ctrl+n', INK2], [' new thread', DIM]]);
+    g.text(x, 1, '─'.repeat(w), { f: 'line' });
+    const top = 2, fits = h - top, lines = pageLines(a, mx);
+    /* The page reads from its top. The wheel and PgDn go down it, and the chosen row stays in view. */
+    let start = Math.max(0, Math.min(lines.length - fits, -s.scroll));
+    const at = lines.findIndex((ln) => ln.sel === s.pcur);
+    if (focus && at >= 0) start = at >= start + fits ? at - fits + 1 : at < start ? at : start;
+    s.scroll = -start;
+    lines.slice(start, start + fits).forEach((ln, i) => {
+      if (ln.sel !== undefined) mark(x, top + i, w, 1, focus, s.pcur === ln.sel, s.file === ln.path);
+      blit(x, top + i, mx + 2, ln);
+    });
+  }
+
+  /** A file of the home, opened where the page was. */
+  function drawFile(x, w, h) {
+    const a = s.place.id, f = fileAt(a, s.file), name = s.file.split('/').at(-1);
+    g.fill(x, 0, w, h, 'pane');
+    const mx = Math.min(w - 2, MEASURE);
+    g.segs(x + 1, 0, cutSegs([[a, { f: pig(a), b: 1 }], [' · ', DIM], [s.file, INK]], w - 2), x + w - 1);
+    const size = typeof f === 'string' ? bytes(new TextEncoder().encode(f).length) : f.size;
+    g.text(x + 1, 1, size, DIM);
+    g.text(x, 2, '─'.repeat(w), { f: 'line' });
+    const lines = typeof f === 'string' ? [{ s: [] }, ...para(f, INK2, mx).map((ln) => ({ s: ln }))]
+      : f.pic ? [{ s: [] }, ...filesLines([{ name, size: f.size, pic: f.pic }], mx)]
+      : [{ s: [] }, { s: [[`${name} is ${f.binary}. It is not shown as text.`, DIM]] }];
+    const fits = h - 3;
+    const start = Math.max(0, Math.min(lines.length - fits, -s.scroll));
+    s.scroll = -start;
+    lines.slice(start, start + fits).forEach((ln, i) => blit(x, 3 + i, mx + 2, asLine(ln)));
+  }
+
+  function drawThread(x, w, h, focus) {
     const th = thread();
+    if (!th && s.place && s.place.kind === 'agent') { if (s.file) drawFile(x, w, h); else drawPage(x, w, h, focus); return; }
     const trig = Boolean(th) && th.place.kind === 'trigger';
     const all = th && !trig ? viewers(th) : [];
     s.side = Math.min(s.side, all.length);
@@ -1815,6 +2018,7 @@ function term(win, o) {
     /* Left crosses what is typed before it goes back, so with something typed the line names the key that goes back at once. */
     const keys = s.keys ? [['esc', 'close']]
       : s.level === 3 && canWrite(th) ? [['enter', 'send'], ['/', 'commands'], [s.input ? 'esc' : '←', 'back']]
+      : s.level === 3 && !th && !s.file && s.place && s.place.kind === 'agent' && linkedAgent(s.place.id) ? [['↑↓', 'choose'], ['→', 'open'], ['←', 'back']]
       : s.level === 3 ? [['←', 'back']]
       : s.refused ? [['enter', 'update this machine']]
       : s.down ? []
@@ -1864,7 +2068,7 @@ function term(win, o) {
     paneAt.forEach((p, i) => {
       if (p.name === 'rail') drawRail(p.x, p.w, h, focus === 'rail' && !s.keys);
       else if (p.name === 'list') drawList(p.x, p.w, h, focus === 'list' && !s.keys);
-      else drawThread(p.x, p.w, h);
+      else drawThread(p.x, p.w, h, focus === 'thread' && !s.keys);
       if (i) for (let y = 0; y < h; y++) g.text(p.x - 1, y, '│', { f: 'line' });
     });
     drawKeysLine();
@@ -1991,7 +2195,7 @@ function term(win, o) {
     if (!p || (p.kind === 'agent' && !AGENTS[p.id].running) || (p.kind === 'room' && !rooms[p.id].members.includes('you'))) return;
     const id = `new-${++s.made}`;
     db[id] = { place: p.kind === 'agent' ? { kind: 'dm', agent: p.id } : { kind: 'room', room: p.id }, when: 'now', messages: [] };
-    if (p.kind === 'agent') lists[p.id].yours.unshift(id); else rooms[p.id].threads.unshift(id);
+    if (p.kind === 'agent') { lists[p.id].yours.unshift(id); s.tab = 'chat'; } else rooms[p.id].threads.unshift(id);
     go(`thread:${id}`);
   }
 
@@ -2006,16 +2210,26 @@ function term(win, o) {
     const cut2 = action.indexOf(':');
     const [k, v] = cut2 < 0 ? [action, ''] : [action.slice(0, cut2), action.slice(cut2 + 1)];
     if (k === 'agent' || k === 'room') {
-      if (!s.place || s.place.kind !== k || s.place.id !== v) { keep(); s.thread = null; s.input = ''; s.caret = 0; s.filter = 'everything'; s.side = 0; s.arch = false; }
+      if (!s.place || s.place.kind !== k || s.place.id !== v) { keep(); s.thread = s.file = null; s.input = ''; s.caret = 0; s.tab = 'chat'; s.side = 0; s.arch = false; s.onPage = false; s.pcur = 0; s.dirs = new Set(); }
       s.place = { kind: k, id: v };
       s.level = 2;
       seat();
     } else if (k === 'thread') {
       if (s.thread !== v) { keep(); s.input = drafts[v] || ''; s.caret = [...s.input].length; }
-      s.thread = v; s.level = 3; s.scroll = 0; s.notice = s.status = null; s.slash = null;
+      s.thread = v; s.file = null; s.onPage = false; s.level = 3; s.scroll = 0; s.notice = s.status = null; s.slash = null;
       if (db[v].unread) db[v].unread = 0;
       seat();
-    } else if (k === 'filter') { s.filter = v; s.cur[2] = Math.min(s.cur[2], Math.max(0, listRows().length - 1)); s.level = 2; }
+    } else if (k === 'page') {
+      keep();
+      s.thread = s.file = null; s.onPage = true; s.level = 3; s.scroll = 0; s.input = ''; s.caret = 0; s.slash = null;
+      seat();
+    } else if (k === 'dir' || k === 'file') {
+      if (k === 'dir' && !s.dirs.delete(v)) s.dirs.add(v);
+      if (k === 'file') { s.file = v; s.scroll = 0; }
+      const row = homeRows().find((r) => r.path === v);
+      s.level = 3; s.pcur = row ? row.sel : 0;
+    }
+    else if (k === 'tab') { s.tab = v; s.cur[2] = Math.min(s.cur[2], Math.max(0, listRows().length - 1)); s.level = 2; }
     else if (k === 'side') { const th = thread(); if (th && th.place.kind !== 'trigger') { s.side = (s.side + 1) % (viewers(th).length + 1); s.scroll = 0; } }
     else if (k === 'end') s.scroll = 0;
     else if (k === 'cmd') { s.input = `/${v}`; s.slash = { names: [v], at: 0 }; send(); }
@@ -2026,7 +2240,11 @@ function term(win, o) {
 
   /** What is typed in a thread stays with it while another is open. */
   function keep() { if (s.thread) drafts[s.thread] = s.input; }
-  function out() { if (s.level > 1) { s.level -= 1; seat(); } }
+  /** Back a level: from a file of the home to the agent's page, and from anything else to the level before it. */
+  function out() {
+    if (s.file) { s.file = null; s.scroll = 0; return; }
+    if (s.level > 1) { s.level -= 1; seat(); }
+  }
   function edit(from, count, text = '') {
     const typed = [...s.input];
     typed.splice(from, count, ...text);
@@ -2063,12 +2281,22 @@ function term(win, o) {
       if (k === 'ArrowDown' || k === 'ArrowUp') s.cur[s.level] = Math.max(0, Math.min(rows.length - 1, s.cur[s.level] + (k === 'ArrowDown' ? 1 : -1)));
       else if (k === 'ArrowRight' || k === 'Enter') { if (rows[s.cur[s.level]]) go(rows[s.cur[s.level]]); }
       else if (k === 'ArrowLeft') out();
-      else if (k === 'Tab' && s.level === 2 && s.place.kind === 'agent' && AGENTS[s.place.id].running) go(`filter:${s.filter === 'everything' ? 'yours' : 'everything'}`);
+      else if (k === 'Tab' && s.level === 2 && s.place.kind === 'agent') go(`tab:${s.tab === 'chat' ? 'observe' : 'chat'}`);
       else return false;
       return true;
     }
     const th = thread();
-    if (!th) return false;
+    /* On an agent's page the keys move through its home: → opens a folder in place, or a file where the page was. */
+    if (!th) {
+      if (!s.place || s.place.kind !== 'agent') return false;
+      if (k === 'ArrowLeft') { out(); return true; }
+      if (s.file || !linkedAgent(s.place.id)) return false;
+      const rows = homeRows().filter((r) => !r.none);
+      if (k === 'ArrowDown' || k === 'ArrowUp') s.pcur = Math.max(0, Math.min(rows.length - 1, s.pcur + (k === 'ArrowDown' ? 1 : -1)));
+      else if (k === 'ArrowRight' || k === 'Enter') { if (rows[s.pcur]) go(rows[s.pcur].go); }
+      else return false;
+      return true;
+    }
     const typed = [...s.input].length;
     if (k === 'Tab') {
       if (s.slash) { s.input = `/${s.slash.names[s.slash.at]} `; s.caret = [...s.input].length; s.slash = null; } else go('side');
@@ -2103,7 +2331,7 @@ function term(win, o) {
       const pane = paneAt.find((p) => cx >= p.x && cx < p.x + p.w);
       if (pane && pane.name === 'rail') s.level = 1;
       else if (pane && pane.name === 'list' && s.place) s.level = 2;
-      else if (pane && pane.name === 'thread' && s.thread) s.level = 3;
+      else if (pane && pane.name === 'thread' && (s.thread || (s.place && s.place.kind === 'agent'))) s.level = 3;
     }
     draw();
   });
