@@ -1,4 +1,5 @@
 import type {
+  DefaultModel,
   ModelId,
   Pigment,
   SessionActivity,
@@ -296,8 +297,8 @@ export interface AgentStatus {
   /**
    * What the thread's session said of itself. Undefined when the agent was not
    * reached or has no session there. `own` says that its model was given to it
-   * and is not the agent's default, which `defaultModel` is when the agent was
-   * asked, and it is only asked when the model is the session's own. `failure`
+   * and is not the agent's default, which `defaultModel` is once the agent has
+   * said it. `failure`
    * is why its last turn ended without an answer, and `wakeups` are the
    * wake-ups it waits on, the soonest first.
    */
@@ -378,8 +379,8 @@ export interface Model {
   sessions: SessionSummary[] | undefined;
   /** The triggers of the agent whose list is open, in order of name, as it runs them now. Undefined until it has said. */
   triggers: TriggerSummary[] | undefined;
-  /** The model the agent whose list is open follows by default, once it has said while reached. */
-  defaultModel: ModelId | undefined;
+  /** The model the agent whose list is open follows by default, as it last said. Undefined until it has, or while it refuses the person. */
+  defaultModel: DefaultModel | undefined;
   /**
    * How each agent that is held shows itself, by its member ID: each agent that
    * is running, and the agent whose list is open. Its sigil and pigment are

@@ -1,6 +1,6 @@
 import { defineFacet, type Facet, type FollowAttach } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT, type Context } from "@earendil-works/chord/context";
-import { Agent, AgentPresence, type Reloaded, Session, type SessionPage } from "../contracts/agent/index.ts";
+import { Agent, AgentPresence, type ModelId, type Reloaded, Session, type SessionPage } from "../contracts/agent/index.ts";
 import { type Answer, done, type LiveRoster, type Principal, type Refused, refused } from "../contracts/gateway/index.ts";
 import { follow } from "../lib/follow/index.ts";
 import { isRefusal, refuse } from "../lib/refusal/index.ts";
@@ -20,6 +20,12 @@ export interface ServedParts {
   paths: HomePaths;
   /** Read the home's instructions, context files, skills, triggers and agent.json again. */
   reload(): Promise<Reloaded>;
+  /**
+   * Name `model` in the home's agent.json, or take the model out for null, once
+   * the agent can use it, then read the home again. Refused, with the file left
+   * as it was, when it can't.
+   */
+  setModel(model: ModelId | null): Promise<Reloaded>;
   /** The roster as the agent holds it, which says who a member is and whether it is an admin. */
   roster: LiveRoster;
   /** Whether new work may still be started: it may not once the agent is stopping. */
@@ -88,6 +94,9 @@ export function agentFacet(parts: ServedParts): Facet<Principal> {
             triggers: self.derive([refusal, standing], ([no, list]) => (no === null ? list : [])),
             sigil: self.follow(look.sigil),
             pigment: self.follow(look.pigment),
+            model: self.derive([refusal, self.follow(sessions.homeModel)], ([no, home]) =>
+              no === null ? { provider: home.model.provider, id: home.model.modelId, fromHome: home.fromHome } : null,
+            ),
             models: async (ctx) =>
               answering(async () => {
                 await allow(principal, "watch", ctx);
@@ -109,6 +118,11 @@ export function agentFacet(parts: ServedParts): Facet<Principal> {
                 await allow(principal, "administer", ctx);
                 return parts.reload();
               }),
+            setModel: async ({ model }, ctx) =>
+              answering(async () => {
+                await allow(principal, "control", ctx);
+                return parts.setModel(model);
+              }),
             folder: async ({ path }, ctx) =>
               answering(async () => {
                 await allow(principal, "watch", ctx);
@@ -128,7 +142,7 @@ export function agentFacet(parts: ServedParts): Facet<Principal> {
       const allowed = self.follow(watching(principal));
       const shown = self.derive(
         [self.follow(sessions.view(address)), self.follow(sessions.wakeups(address)), self.follow(sessions.homeModel)],
-        ([view, wakeups, home]) => shownOf(view, wakeups, home),
+        ([view, wakeups, home]) => shownOf(view, wakeups, home.model),
       );
       const refusal = self.derive([allowed, shown], ([no, view]) =>
         no ?? (view.made ? null : refused(noSessionYet(address))),

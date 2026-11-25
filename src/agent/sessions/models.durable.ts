@@ -1,6 +1,6 @@
 import type { Api, Model, Models } from "@earendil-works/pi-ai";
 import type { ModelRef } from "@earendil-works/pi-durable";
-import { type AgentModels, modelWords } from "../../contracts/agent/index.ts";
+import { type AgentModel, modelWords } from "../../contracts/agent/index.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { compare } from "../../lib/files/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
@@ -25,15 +25,12 @@ async function usable(models: Models): Promise<readonly Model<Api>[]> {
   }
 }
 
-/** The models the agent can use now, by provider and then ID, and the model its sessions follow by default. */
-export async function listModels(models: Models, home: ModelRef): Promise<AgentModels> {
+/** The models the agent can use now, by provider and then ID. */
+export async function listModels(models: Models): Promise<AgentModel[]> {
   const found = await usable(models);
-  return {
-    models: found
-      .map(({ provider, id, name }) => ({ provider, id, name }))
-      .sort((a, b) => compare(a.provider, b.provider) || compare(a.id, b.id)),
-    default: { provider: home.provider, id: home.modelId },
-  };
+  return found
+    .map(({ provider, id, name }) => ({ provider, id, name }))
+    .sort((a, b) => compare(a.provider, b.provider) || compare(a.id, b.id));
 }
 
 /** Refuse `wanted` unless the agent can use it now, saying which models it can. */

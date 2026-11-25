@@ -12,11 +12,12 @@
  * are beyond who it is told they are, or anything about the chat server and the
  * gateway beyond their contracts.
  */
-import { type AgentEndpoint, removedAtStart } from "../contracts/agent/index.ts";
-import { loadHome, readMembership, readTriggers } from "../contracts/agent/node.ts";
+import { type AgentEndpoint, type ModelId, removedAtStart } from "../contracts/agent/index.ts";
+import { loadHome, readMembership, readTriggers, saveModel } from "../contracts/agent/node.ts";
 import { createLiveRoster } from "../contracts/gateway/index.ts";
 import { asError } from "../lib/errors/index.ts";
 import { followFiles } from "../lib/files/node.ts";
+import { isRefusal, refuse } from "../lib/refusal/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { createAdmissions } from "./chat/durable.ts";
 import { channelOfThread, createDelivery, createWakes } from "./chat/index.ts";
@@ -62,6 +63,14 @@ export interface AgentOptions extends HostOptions {
   name: string;
   /** The model every session follows, which is the home's. It is set again at every start, and a reload can change it. */
   model: SessionDefaults["model"];
+  /** Whether the home's agent.json names `model`, as against the folder's default-model.json. Without it, it does. */
+  modelFromHome?: boolean;
+  /**
+   * Name a model in the home's agent.json, or take it out for null, once the
+   * agent can use it, refusing it otherwise and leaving the file as it was. A
+   * reading of the home follows. Without it, a caller's `setModel` is refused.
+   */
+  setModel?: (model: ModelId | null) => Promise<void>;
   /**
    * Read again the model the home starts with and the model servers its files
    * declare, for a reload. Without it a reload leaves both as they are.
@@ -142,7 +151,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     const members = () => roster.now()?.members;
     const breadcrumbs = () => readBreadcrumbs(paths);
     const messageLimit = options.join?.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit };
-    const sessions = createSessions(host.harness, { model: options.model, cwd: host.home }, options.models);
+    const sessions = createSessions(host.harness, { model: options.model, cwd: host.home }, options.models, options.modelFromHome);
     const delivery = createDelivery({ recordsId, onError: report, ...messageLimit });
     const turn = turnTask({ delivery, onError: report });
     const wakeups = createWakeups(turn.task, { onError: report, breadcrumbs });
@@ -217,6 +226,11 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       look,
       paths,
       reload: () => keeping.reload(),
+      async setModel(model) {
+        if (options.setModel === undefined) refuse("This agent's model is set where it was started, and can't be changed while it runs.");
+        await options.setModel(model);
+        return keeping.reload();
+      },
       roster,
       takingInput: () => takingInput,
     });
@@ -326,6 +340,18 @@ export async function startHomeAgent(
     name: loaded.name,
     models: runtime.models,
     model: runtime.model,
+    modelFromHome: runtime.fromHome,
+    async setModel(model) {
+      try {
+        const wanted = model === null ? runtime.folderDefault() : { provider: model.provider, modelId: model.id };
+        if (wanted === undefined) refuse(NO_FOLDER_DEFAULT);
+        await requireModel(runtime.models, wanted);
+        saveModel(loaded.paths.root, model);
+      } catch (error) {
+        if (isRefusal(error)) throw error;
+        refuse(`Nothing was changed: ${asError(error).message}`);
+      }
+    },
     reloadModels: () => runtime.reload(),
     modelFiles: runtime.files,
     homeFile: loaded.paths.config,
@@ -335,6 +361,10 @@ export async function startHomeAgent(
   });
   return { ...agent, name: loaded.name, home: loaded.paths.root };
 }
+
+/** Why a home's agent.json keeps its model when asked to take it out. */
+const NO_FOLDER_DEFAULT =
+  "Nothing was changed: without a model in agent.json the agent would follow the folder's default model, and the folder has none.";
 
 /** What a home would give an agent: what it would be told, and how many triggers it would run. */
 export interface HomePreview extends ContextPreview {

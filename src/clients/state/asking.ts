@@ -1,8 +1,7 @@
-import type { AgentModels } from "../../contracts/agent/index.ts";
+import type { AgentModel } from "../../contracts/agent/index.ts";
 import { nameKey, valueOf } from "../../contracts/gateway/index.ts";
 import { type AgentCalls, type AgentShown, Down, type Holding, problemOf } from "../network/index.ts";
 import type { Holdings } from "./holdings.ts";
-import type { Notice } from "./model.ts";
 import { devicesOf, statusOf } from "./status.ts";
 import type { Store } from "./store.ts";
 
@@ -15,25 +14,23 @@ const TAKE_BACK_MS = 10_000;
 
 /** What the person asks in a thread that the client answers itself: `/status`, `/devices` and taking a device back, and the models of the thread's agent. */
 export interface Asking {
-  readStatus(): Promise<void>;
+  readStatus(): void;
   readDevices(): void;
   takeBack(written: string): Promise<void>;
-  models(): Promise<AgentModels | undefined>;
-  showModel(): Promise<void>;
-  /** Ask the agent whose list is open which model it follows by default, once each time it is reached, for its list to say. */
-  learnDefault(): void;
+  models(): Promise<AgentModel[] | undefined>;
+  showModel(): void;
 }
 
 export function createAsking(store: Store, held: Holdings, clock: () => number): Asking {
   // The models an agent said it can use, and when. A clock that only goes forward keeps them, so a changed system time cannot.
-  let kept: { agent: string; at: number; models: AgentModels } | undefined;
+  let kept: { agent: string; at: number; models: AgentModel[] } | undefined;
 
   /**
    * The models the agent held as `agent` can use: what it said in the last few
    * seconds, or else what it says when asked. Undefined when it says nothing
    * in time, or refuses; that is not kept, so the next key asks again.
    */
-  async function modelsOf(name: string, agent: Holding<AgentShown, AgentCalls>): Promise<AgentModels | undefined> {
+  async function modelsOf(name: string, agent: Holding<AgentShown, AgentCalls>): Promise<AgentModel[] | undefined> {
     if (kept?.agent === name && performance.now() - kept.at < MODELS_KEPT_MS) return kept.models;
     const waiting = AbortSignal.timeout(MODELS_WAIT_MS);
     const answer = await agent.calls.models(waiting).catch(() => undefined);
@@ -43,19 +40,13 @@ export function createAsking(store: Store, held: Holdings, clock: () => number):
   }
 
   return {
-    async readStatus() {
+    readStatus() {
       const model = store.model();
       const { item } = model.open;
       if (item?.kind !== "thread") return;
-      const current = store.readingStatus();
-      const selected = held.agent();
-      const asking = item.place.kind === "agent" && selected !== undefined && model.agent?.state === "up" ? selected : undefined;
-      // The agent is asked which model is its default, when the thread's is not that one. It may not answer.
-      const own = asking !== undefined && model.behind[asking.id]?.status.ownModel === true;
-      const models = own ? await modelsOf(asking.id, asking.held) : undefined;
-      const now = store.model();
-      const sessions = asking === undefined ? undefined : now.sessions;
-      if (current()) store.set({ status: statusOf(now, sessions, clock(), models?.default) });
+      const asking = item.place.kind === "agent" && held.agent() !== undefined && model.agent?.state === "up";
+      store.readingStatus();
+      store.set({ status: statusOf(model, asking ? model.sessions : undefined, clock()) });
     },
 
     readDevices() {
@@ -104,47 +95,19 @@ export function createAsking(store: Store, held: Holdings, clock: () => number):
       return modelsOf(asking.id, asking.held);
     },
 
-    async showModel() {
+    showModel() {
       const model = store.model();
       const { item } = model.open;
       const asking = held.agent();
       // A room's thread has no one agent whose model this could be, even when it was opened from an agent's list.
       if (item?.kind !== "thread" || item.place.kind !== "agent" || asking === undefined) return;
-      const { thread: threadId } = item;
-      // What is open changes while the agent is asked. What the agent said is for the thread it was asked in.
-      const stillHere = (): boolean => {
-        const now = store.model().open.item;
-        return held.agent() === asking && now?.kind === "thread" && now.thread === threadId;
-      };
-      const tell = (notice: Notice): void => {
-        if (stillHere()) store.say(notice);
-      };
-
       const status = model.agent;
-      if (status?.state === "down") return tell({ kind: "model-not-shown", problem: { down: status.why } });
-      const view = threadId === undefined ? undefined : model.behind[asking.id];
-      if (view === undefined) return tell({ kind: "model-unstarted", defaultModel: (await modelsOf(asking.id, asking.held))?.default });
+      if (status?.state === "down") return store.say({ kind: "model-not-shown", problem: { down: status.why } });
+      const view = item.thread === undefined ? undefined : model.behind[asking.id];
+      if (view === undefined) return store.say({ kind: "model-unstarted", defaultModel: model.defaultModel });
       const { model: used, ownModel } = view.status;
-      // The default is worth asking for when the thread's model is not it.
-      const defaultModel = ownModel ? (await modelsOf(asking.id, asking.held))?.default : undefined;
-      tell({ kind: "model-is", model: used, own: ownModel, defaultModel });
-    },
-
-    learnDefault() {
-      const agent = held.agent();
-      if (agent === undefined) return;
-      // An agent that comes back may have been started with another default.
-      if (store.model().agent?.state !== "up") {
-        agent.asked = false;
-        return;
-      }
-      if (agent.asked) return;
-      agent.asked = true;
-      void modelsOf(agent.id, agent.held).then((models) => {
-        if (models === undefined) return;
-        agent.defaultModel = models.default;
-        store.changed();
-      });
+      // The default is worth saying when the thread's model is not it.
+      store.say({ kind: "model-is", model: used, own: ownModel, defaultModel: ownModel ? model.defaultModel : undefined });
     },
   };
 }

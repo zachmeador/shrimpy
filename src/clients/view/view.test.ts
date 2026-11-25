@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type TestContext, test } from "node:test";
-import { lookFromId, parseSigil, PIGMENTS } from "../../contracts/agent/index.ts";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { Agent, lookFromId, parseSigil, PIGMENTS } from "../../contracts/agent/index.ts";
 import { servingAnotherAgent } from "../../contracts/agent/testing/index.ts";
 import { PINNED, type Thread, triggerLabel } from "../../contracts/chat/index.ts";
 import type { Speaking } from "../../contracts/chat/testing/index.ts";
+import { valueOf } from "../../contracts/gateway/index.ts";
 import { linkTestAgent, SHRIMPY_ENTRY } from "../../contracts/gateway/testing/index.ts";
 import { type Child, runChild, startChild, tempDir } from "../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
@@ -228,7 +230,7 @@ test("an agent's list that waits on another version of it names the agent and th
   assert.ok(notes.some((note) => note.includes("scout") && note.includes(SHRIMPY_VERSION)), notes.join("\n"));
 });
 
-/** A real agent called crab, made with `agent init` and started as `shrimpy agent serve` starts it, with the model local/test-model. */
+/** A real agent called crab, made with `agent init` and started as `shrimpy agent serve` starts it, with the model local/test-model, and local/other-model beside it. */
 async function startCrab(t: TestContext): Promise<{ rig: Rig; home: string; crab: Child<unknown> }> {
   const rig = await startRig(t, { agents: [] });
   const home = join(tempDir(t, "crab-home"), "crab");
@@ -238,7 +240,7 @@ async function startCrab(t: TestContext): Promise<{ rig: Rig; home: string; crab
   assert.equal(made.code, 0, made.stderr);
   // The agent starts only with its model's provider declared. Nothing here asks the model anything.
   const model = { id: "test-model", reasoning: true, contextWindow: 262_144, maxTokens: 65_536 };
-  const local = { baseUrl: "http://127.0.0.1:9/v1", api: "openai-completions", apiKey: "local", models: [model] };
+  const local = { baseUrl: "http://127.0.0.1:9/v1", api: "openai-completions", apiKey: "local", models: [model, { ...model, id: "other-model" }] };
   writeFileSync(join(home, "state", "pi", "models.json"), JSON.stringify({ providers: { local } }));
   const crab = await startChild(t, { file: SHRIMPY_ENTRY, args: ["agent", "serve", home], env });
   return { rig, home, crab };
@@ -263,14 +265,20 @@ test("an agent's look follows its home's files while it runs, and is worked out 
   await rig.until((model) => looked(model)?.sigil.join() === fromId.sigil.join() && looked(model)?.pigment === fromId.pigment, "the look worked out from crab's member ID");
 });
 
-test("a running agent's list names its default model and its version, and an agent that stops takes no thread", { timeout: 90_000 }, async (t) => {
+test("a running agent's list names its default model and its version, follows a change of model, and an agent that stops takes no thread", { timeout: 90_000 }, async (t) => {
   const { rig, crab } = await startCrab(t);
   const list = (model: Model): ListLevel | undefined => listLevel(model, at);
 
   // The only agent's list is opened by itself.
-  const named = (facts: string | undefined): boolean => facts !== undefined && facts.includes("local/test-model") && facts.includes(SHRIMPY_VERSION);
+  const named = (facts: string | undefined, id = "test-model"): boolean => facts !== undefined && facts.includes(`local/${id}`) && facts.includes(SHRIMPY_VERSION);
   const running = await rig.until((model) => named(list(model)?.facts), "crab's model and version");
   assert.deepEqual([list(running)?.off, list(running)?.startable], [false, true]);
+
+  // Another client sets crab's model, and the list follows without asking crab again.
+  const other = await (await rig.gateway()).connect();
+  const held = await other.host.get(Agent, { agent: (await rig.member("crab")).id }, BACKGROUND_CONTEXT);
+  valueOf(await held.setModel({ model: { provider: "local", id: "other-model" } }, BACKGROUND_CONTEXT));
+  await rig.until((model) => named(list(model)?.facts, "other-model"), "crab's new model on its list");
 
   await crab.kill();
   const stopped = await rig.until((model) => list(model)?.off === true, "crab to be said not to run");

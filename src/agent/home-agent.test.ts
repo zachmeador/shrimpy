@@ -4,12 +4,13 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, w
 import { dirname, join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { type AgentModels, parseModelChoice, parseSigil, PIGMENTS } from "../contracts/agent/index.ts";
-import { initHome, loadHome, readMembership, saveMembership } from "../contracts/agent/node.ts";
+import { type AgentModel, parseModelChoice, parseSigil, PIGMENTS } from "../contracts/agent/index.ts";
+import { initHome, loadHome, providerPaths, readMembership, saveDefaultModel, saveMembership } from "../contracts/agent/node.ts";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
 import { type Program, Roster, type RosterEntry, valueOf } from "../contracts/gateway/index.ts";
 import { newToken, sayHello, thisMachine } from "../contracts/gateway/node.ts";
 import { linkTestAgent, startTestGateway, type TestGateway } from "../contracts/gateway/testing/index.ts";
+import { isRefusal } from "../lib/refusal/index.ts";
 import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { homePaths } from "./home/index.ts";
@@ -107,7 +108,7 @@ const nameModel = (paths: ReturnType<typeof newHome>, provider: string, id: stri
 const LOOK = 25;
 
 /** Start the home's agent. It is stopped when the test ends. */
-async function startAt(t: TestContext, home: string, options: { lookEveryMs?: number } = {}) {
+async function startAt(t: TestContext, home: string, options: { lookEveryMs?: number; providers?: string } = {}) {
   return closeAfter(t, await startHomeAgent(home, options));
 }
 
@@ -477,19 +478,59 @@ test("an agent says which models it can use now and which one its sessions follo
   await startAt(t, paths.root);
   const connection = await connectAgent(t, paths.root);
   t.after(() => connection.close());
-  const providers = ({ models }: AgentModels): string[] => [...new Set(models.map((model) => model.provider))];
+  const providers = (models: AgentModel[]): string[] => [...new Set(models.map((model) => model.provider))];
 
   const listed = await connection.models();
   assert.deepEqual(
-    listed.models.filter((model) => model.provider === "local").map(({ id, name }) => [id, name]),
+    listed.filter((model) => model.provider === "local").map(({ id, name }) => [id, name]),
     [["llama", "llama"], ["mistral", "Mistral Small"], ["qwen", "qwen"]],
   );
   assert.deepEqual(providers(listed), ["groq", "local"], "a key makes its provider's models usable, and no other provider's");
-  assert.deepEqual(listed.default, { provider: "local", id: "qwen" });
+  assert.deepEqual(connection.model(), { provider: "local", id: "qwen", fromHome: true });
 
   // A key added since the agent started counts at once.
   writeFileSync(paths.auth, JSON.stringify({ groq: { type: "api_key", key: "gsk-test" }, anthropic: { type: "api_key", key: "sk-test" } }));
   assert.deepEqual(providers(await connection.models()), ["anthropic", "groq", "local"]);
+});
+
+test("setModel names a model in agent.json or takes it out, the agent follows at once, and one it can't use leaves the file alone", { timeout }, async (t) => {
+  const paths = newHome(t, { local: several });
+  const folder = tempDir(t, "providers");
+  saveDefaultModel(providerPaths(folder).defaultModel, { provider: "local", id: "mistral" });
+  await startAt(t, paths.root, { providers: folder });
+  const connection = await connectAgent(t, paths.root);
+  t.after(() => connection.close());
+  const shows = (provider: string, id: string, fromHome: boolean) =>
+    eventually(() => connection.model(), (model) => model?.provider === provider && model.id === id && model.fromHome === fromHome, {
+      what: `the agent to follow ${provider}/${id}${fromHome ? " from agent.json" : ""}`,
+    });
+
+  // A model the agent can't use is refused, and agent.json is left as it was.
+  const written = readFileSync(paths.config, "utf8");
+  await assert.rejects(connection.setModel({ provider: "local", id: "missing" }), isRefusal);
+  await assert.rejects(connection.setModel({ provider: "nowhere", id: "qwen" }), isRefusal);
+  assert.equal(readFileSync(paths.config, "utf8"), written);
+
+  // One it can use is named there, followed at once, and said as a reload says it.
+  const named = await connection.setModel({ provider: "local", id: "llama" });
+  assert.deepEqual([named.model, named.changedFrom], [{ provider: "local", id: "llama" }, { provider: "local", id: "qwen" }]);
+  assert.deepEqual(loadHome(paths.root).model, { provider: "local", id: "llama" });
+  await shows("local", "llama", true);
+
+  // Null takes it out, and the agent follows the folder's default.
+  assert.deepEqual((await connection.setModel(null)).model, { provider: "local", id: "mistral" });
+  assert.equal(loadHome(paths.root).model, undefined);
+  await shows("local", "mistral", false);
+
+  // Naming the folder's own default changes only where it is named.
+  assert.equal((await connection.setModel({ provider: "local", id: "mistral" })).changedFrom, null);
+  await shows("local", "mistral", true);
+
+  // With no default in the folder, the model stays in agent.json.
+  rmSync(providerPaths(folder).defaultModel);
+  const kept = readFileSync(paths.config, "utf8");
+  await assert.rejects(connection.setModel(null), isRefusal);
+  assert.equal(readFileSync(paths.config, "utf8"), kept);
 });
 
 test("/model in a thread sets its model from the next request, and /model default follows the agent's again", { timeout }, async (t) => {

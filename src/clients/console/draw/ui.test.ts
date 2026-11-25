@@ -380,10 +380,11 @@ test("/status shows a block for the person alone, which goes once a message is s
 
 const SMALL = { provider: "local", id: "small-model" };
 const BIG = { provider: "local", id: "big-model" };
-const TWO_MODELS = { models: [{ ...BIG, name: "Big Model" }, { ...SMALL, name: "Small Model" }], default: SMALL };
+const TWO_MODELS = [{ ...BIG, name: "Big Model" }, { ...SMALL, name: "Small Model" }];
+const ON_SMALL = { defaultModel: { ...SMALL, fromHome: true } };
 
 test("/model and a space lists default and the agent's models, and choosing one posts the command", async (t) => {
-  const { terminal, state, drawn } = start(t, conversation());
+  const { terminal, state, drawn } = start(t, { ...conversation(), ...ON_SMALL });
   state.answers.models = TWO_MODELS;
 
   terminal.type("/model");
@@ -402,7 +403,11 @@ test("/model and a space lists default and the agent's models, and choosing one 
 
 test("a model can be chosen in a thread not started yet", async (t) => {
   const dm = { kind: "agent" as const, id: scout.id };
-  const unstarted = aModel({ open: { list: dm, item: { kind: "thread", place: dm, thread: undefined, side: undefined } }, listing: aListing([anAgent("scout"), aChatServer()]) });
+  const unstarted = aModel({
+    open: { list: dm, item: { kind: "thread", place: dm, thread: undefined, side: undefined } },
+    listing: aListing([anAgent("scout"), aChatServer()]),
+    ...ON_SMALL,
+  });
   const { terminal, state, drawn } = start(t, unstarted);
   state.answers.models = TWO_MODELS;
 
@@ -413,7 +418,7 @@ test("a model can be chosen in a thread not started yet", async (t) => {
 });
 
 test("a model typed whole and followed at once by Enter is the model chosen", async (t) => {
-  const { terminal, state, drawn } = start(t, conversation());
+  const { terminal, state, drawn } = start(t, { ...conversation(), ...ON_SMALL });
   state.answers.models = TWO_MODELS;
 
   terminal.type("/model ");
@@ -712,8 +717,8 @@ test("text from other members and from tools can't reach the terminal, wherever 
   });
   for (const notice of notices) show({ ...model, notice });
   // The list `/model` opens has what the agent calls its models.
-  show({ ...model, notice: undefined });
-  state.answers.models = { models: [{ ...used, name: `Gemma${hostile}` }], default: used };
+  show({ ...model, notice: undefined, defaultModel: { ...used, fromHome: false } });
+  state.answers.models = [{ ...used, name: `Gemma${hostile}` }];
   terminal.type("/model ");
   await until(() => visible(drawing.render()).join("\n").includes("Gemma"), "the list of models");
   drawn.push(...drawing.render());

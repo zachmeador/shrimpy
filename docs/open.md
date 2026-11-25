@@ -13,7 +13,7 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 
 The owner agreed on 2026-11-24, hours after 1.0.0, to a 2.0 that gets the contracts' shape right while two setups run Shrimpy, and to each of its proposal's five choices. The proposal is kept outside the repo, and `AGENTS-PRIVATE.md` says where. What is left of it to build:
 
-- `Agent` gains its default model as state, and `setModel` and `switchTrigger`, which change the agent's own files when asked. Adding and removing triggers stays with the agent's own tools.
+- `Agent` gains `switchTrigger`, which turns a trigger on or off in the agent's own files when asked, as `setModel` names its model. Adding and removing triggers stays with the agent's own tools.
 - A session's items carry a time.
 - Before it ships, chat's and the roster's migrations run on copies of the owner's and Kathleen's data, and an agent apart follows its gateway across the major.
 
@@ -175,7 +175,7 @@ Daily use decides what comes after the release. The last order was compaction an
 - Nothing prunes the finished task each event leaves in the agent's records, or a wake-up's finished sleeper, and each `check_back` scans the session's sleepers.
 - A `triggers/` folder that exists and can't be listed ends every trigger.
 - Each change to a context note costs every session one miss of the prompt cache. A file whose permissions change is read again.
-- The models an agent says it can use are those Pi lists as available, which checks more than the start does, so the home's own model can be missing from the list.
+- The models an agent says it can use are those Pi lists as available, which checks more than the start does, so the home's own model can be missing from the list, and `setModel` can refuse a model the agent would start with.
 - The gateway takes a `context/` it can't find for an empty one, so a Shrimpy folder on a share that drops for a moment empties every agent's copy of the workspace context until it is back.
 - When `shrimpy login` asks for a model it lists every model the provider has, whether or not the account can use it.
 - A sign-in renewed at the provider and not saved, because the process died between, is lost. An `auth.json` that is a symbolic link becomes a plain file at the first renewal. A Shrimpy folder that `agent init` makes isn't private to its account, where one the sign-in makes is.
@@ -310,7 +310,6 @@ Daily use decides what comes after the release. The last order was compaction an
 - The corners of the list of keys take the ground of the level under their column, not of a chosen row or the input under them.
 - A mention in an agent's Markdown is marked with two characters that take no room, and what follows it inside bold, a heading or a quote loses that style.
 - A command inside a sentence is set apart by finding it, so a room's name with a comma in it is set apart only up to the comma.
-- An agent's list shows its version alone until the agent has said its default model, and asks again only after the agent has gone and come back.
 - The tide and the lanterns move only while an agent works, where the mockup moves them always.
 - The thread printed back on leaving keeps the spaces its Markdown was padded with, and nothing is printed back when no thread is open.
 - The terminal calls the person's DM with an agent "your DM", where `shrimpy sessions list` says "DM with" and their name.

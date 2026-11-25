@@ -2,7 +2,8 @@ import type { RefState } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
   Agent,
-  type AgentModels,
+  type AgentModel,
+  type DefaultModel,
   type HomeEntry,
   type HomeFile,
   type Pigment,
@@ -193,7 +194,8 @@ export function holdThread(link: GatewayLink, id: string, changed: () => void): 
 
 /**
  * An agent as a client sees it: whether it lets the person watch it, its
- * sessions and its triggers, and how it looks, which every caller sees.
+ * sessions, its triggers and its default model, and how it looks, which every
+ * caller sees.
  */
 export type AgentShown = {
   refusal: Refused | null;
@@ -201,11 +203,12 @@ export type AgentShown = {
   triggers: TriggerSummary[];
   sigil: string[] | null;
   pigment: Pigment | null;
+  model: DefaultModel | null;
 };
 
 export interface AgentCalls {
-  /** The models the agent can use now, and the one its sessions follow. */
-  models(signal?: AbortSignal): Promise<Answer<AgentModels>>;
+  /** The models the agent can use now. */
+  models(signal?: AbortSignal): Promise<Answer<AgentModel[]>>;
   /** The entries of a folder of its home, by the folder's path there, "" for the home itself. */
   folder(path: string, signal?: AbortSignal): Promise<Answer<HomeEntry[]>>;
   /** A file of its home, by its path there, as text or an image. */
@@ -218,13 +221,14 @@ export function holdAgent(link: GatewayLink, id: string, changed: () => void): H
   const held = link.host.hold(Agent, { agent: id }, BACKGROUND_CONTEXT);
   return followHeld(
     held,
-    (agent) => [agent.refusal, agent.sessions, agent.triggers, agent.sigil, agent.pigment],
+    (agent) => [agent.refusal, agent.sessions, agent.triggers, agent.sigil, agent.pigment, agent.model],
     (agent) => ({
       refusal: agent.refusal.value,
       sessions: agent.sessions.value,
       triggers: agent.triggers.value,
       sigil: agent.sigil.value,
       pigment: agent.pigment.value,
+      model: agent.model.value,
     }),
     {
       models: (signal) => held.models(contextOf(signal)),

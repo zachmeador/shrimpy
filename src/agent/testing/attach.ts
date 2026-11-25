@@ -4,7 +4,9 @@ import type { Host, Reference } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
   Agent,
-  type AgentModels,
+  type AgentModel,
+  type DefaultModel,
+  type ModelId,
   type HomeEntry,
   type HomeFile,
   type Occurrence,
@@ -57,7 +59,10 @@ export interface AgentConnection {
   sessions(): Promise<SessionSummary[]>;
   /** Hold a session by its address, refused when the agent has not made it or the caller may not watch it. */
   attach(session: string): Promise<SessionHandle>;
-  models(): Promise<AgentModels>;
+  models(): Promise<AgentModel[]>;
+  /** The model its sessions follow by default, as the agent says it now, or null when the caller may not watch it. */
+  model(): DefaultModel | null;
+  setModel(model: ModelId | null): Promise<Reloaded>;
   triggers(): Promise<TriggerSummary[]>;
   trigger(name: string): Promise<TriggerDetail>;
   fire(name: string): Promise<Occurrence>;
@@ -132,6 +137,8 @@ export async function holdAgent(host: Host<Principal, Revocation>, agent: string
     },
     attach: (address) => holdSession(host, agent, address),
     models: async () => valueOf(await held.models(context)),
+    model: () => held.model.value,
+    setModel: async (model) => valueOf(await held.setModel({ model }, context)),
     async triggers() {
       allowed();
       return held.triggers.value;

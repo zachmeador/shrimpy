@@ -80,7 +80,7 @@ export interface HomeParts {
   context: Pick<HomeContext, "reload">;
   triggers: Pick<Triggers, "reload">;
   wakes: Pick<Wakes, "replace">;
-  sessions: Pick<Sessions, "defaults" | "followModel">;
+  sessions: Pick<Sessions, "defaults" | "fromHome" | "followModel">;
   /** Where the sigil and the pigment the home names are kept. */
   look: Pick<KeptLook, "now" | "take">;
   /** Read again the model the home starts with and the model servers its files declare. Without it, both stay as they are. */
@@ -130,15 +130,20 @@ function configOf(home: string): LoadedHome | undefined {
   }
 }
 
-/** Read the model the home names again, and have every session follow it when it is another. */
+/**
+ * Read the model the home names again, and have every session follow it when it
+ * is another, or when it is named somewhere else: in agent.json where it was the
+ * folder's default, or the other way round.
+ */
 async function followModel(parts: HomeParts): Promise<{ changedFrom: Reloaded["changedFrom"]; leftOut: LeftOut[] }> {
   const found = await parts.reloadModels?.();
   if (found === undefined) return { changedFrom: null, leftOut: [] };
   const leftOut = found.leftOut.map(({ file, reason }) => ({ file: shownIn(parts.home, file), reason }));
+  if (found.model === undefined) return { changedFrom: null, leftOut };
   const before = parts.sessions.defaults.model;
-  if (found.model === undefined || (found.model.provider === before.provider && found.model.modelId === before.modelId)) {
-    return { changedFrom: null, leftOut };
+  const same = found.model.provider === before.provider && found.model.modelId === before.modelId;
+  if (!same || found.fromHome !== parts.sessions.fromHome()) {
+    await parts.sessions.followModel({ model: found.model, fromHome: found.fromHome });
   }
-  await parts.sessions.followModel(found.model);
-  return { changedFrom: { provider: before.provider, id: before.modelId }, leftOut };
+  return { changedFrom: same ? null : { provider: before.provider, id: before.modelId }, leftOut };
 }

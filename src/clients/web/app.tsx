@@ -549,7 +549,8 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
         ? undefined
         : async () => {
             const found = await state.models();
-            return found === undefined ? undefined : modelLines(found, agentNameOf(state.model(), dmAgent));
+            const { defaultModel } = state.model();
+            return found === undefined || defaultModel === undefined ? undefined : modelLines(found, defaultModel, agentNameOf(state.model(), dmAgent));
           },
     [state, dmAgent],
   );

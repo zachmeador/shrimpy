@@ -17,7 +17,7 @@ import {
   type WatchEnd,
 } from "@earendil-works/pi-durable";
 import type {
-  AgentModels,
+  AgentModel,
   SessionPage,
   SessionPlace,
   SessionStatus,
@@ -46,6 +46,9 @@ export type SessionShown = { made: boolean; window: SessionPage; status: Session
 
 const NOT_MADE: SessionShown = { made: false, window: { items: [], before: null }, status: null };
 
+/** The model the sessions follow by default, and whether the home's agent.json names it or it is the folder's default. */
+export type HomeModel = { readonly model: ModelRef; readonly fromHome: boolean };
+
 /** What a caller is told of a session the agent has not made yet. */
 export const noSessionYet = (address: string): string => `This agent has no session for ${address} yet.`;
 
@@ -72,8 +75,8 @@ export interface Sessions {
   view(address: string): FollowAttach<ConversationView | null>;
   /** The wake-ups the session with this address waits on, the soonest first, kept live. */
   wakeups(address: string): FollowAttach<Wakeup[]>;
-  /** The model the sessions follow by default, which is the home's, kept live. */
-  readonly homeModel: FollowAttach<ModelRef>;
+  /** The model the sessions follow by default, which is the home's, and where it is named, kept live. */
+  readonly homeModel: FollowAttach<HomeModel>;
   /** The items of up to `limit` entries of a session from the entry `before` back, and the entry just before those. */
   read(address: string, before: number, limit: number, context: Context): Promise<SessionPage>;
   /** Put input into a session, joining its work or starting a turn. A request ID's first use wins. */
@@ -82,14 +85,20 @@ export interface Sessions {
   wait(address: string, submission: number, context: Context): Promise<Settlement>;
   /** Stop a session's work, as a person's `/stop` in its thread does. */
   stop(address: string, context: Context): Promise<void>;
-  /** The models the agent can use now, and the one its sessions follow by default, which is the home's. */
-  models(): Promise<AgentModels>;
+  /** The models the agent can use now. */
+  models(): Promise<AgentModel[]>;
   /** What a session is made with: the home's model as it is now, and the directory its tools work in. */
   readonly defaults: SessionDefaults;
+  /** Whether the home's agent.json names that model now, as against the folder's default. */
+  fromHome(): boolean;
   /** Make every session follow the home's model and working directory, as a new session does from the start, whatever model it was given. */
   applyDefaults(): Promise<void>;
-  /** The home names `model` now: every session follows it from its next request, and if that fails, they keep the one they followed. */
-  followModel(model: ModelRef): Promise<void>;
+  /**
+   * The home names `home.model` now: every session follows it from its next
+   * request, and if that fails, they keep the one they followed. Whoever follows
+   * the home's model hears of it, and of a change in where it is named alone.
+   */
+  followModel(home: HomeModel): Promise<void>;
 }
 
 /** Whether a commit changed which sessions there are, or where one is, or started or ended a turn. */
@@ -106,11 +115,12 @@ function changesSessions(publication: CommitPublication): boolean {
   return publication.changes.some((change) => change.type === "document" && change.record.kind === SessionsDoc.definition.kind);
 }
 
-export function createSessions(harness: Harness, start: SessionDefaults, models: Models): Sessions {
-  let homeModel = start.model;
+/** The agent's sessions. `fromHome` says whether the home's agent.json names `start.model`, which it does unless told otherwise. */
+export function createSessions(harness: Harness, start: SessionDefaults, models: Models, fromHome = true): Sessions {
+  let homeModel: HomeModel = { model: start.model, fromHome };
   const defaults: SessionDefaults = {
     get model() {
-      return homeModel;
+      return homeModel.model;
     },
     cwd: start.cwd,
   };
@@ -241,7 +251,7 @@ export function createSessions(harness: Harness, start: SessionDefaults, models:
     },
 
     homeModel: follow({
-      read: () => defaults.model,
+      read: () => homeModel,
       watch(changed) {
         homeChanged.add(changed);
         return () => homeChanged.delete(changed);
@@ -285,20 +295,24 @@ export function createSessions(harness: Harness, start: SessionDefaults, models:
       await stopWork(harness, await conversationOf(address, at), at);
     },
 
-    models: () => listModels(models, defaults.model),
+    models: () => listModels(models),
 
     defaults,
 
+    fromHome: () => homeModel.fromHome,
+
     applyDefaults,
 
-    async followModel(model) {
+    async followModel(home) {
       const before = homeModel;
-      homeModel = model;
-      try {
-        await applyDefaults();
-      } catch (error) {
-        homeModel = before;
-        throw error;
+      homeModel = home;
+      if (home.model.provider !== before.model.provider || home.model.modelId !== before.model.modelId) {
+        try {
+          await applyDefaults();
+        } catch (error) {
+          homeModel = before;
+          throw error;
+        }
       }
       for (const changed of homeChanged) changed();
     },

@@ -200,7 +200,8 @@ export function startDrawing(options: DrawingOptions): Drawing {
         const { item } = model.open;
         if (item?.kind !== "thread" || item.place.kind !== "agent") return undefined;
         const models = await state.models();
-        return models === undefined ? undefined : modelLines(models, agentNameOf(model, item.place.id));
+        const { defaultModel } = state.model();
+        return models === undefined || defaultModel === undefined ? undefined : modelLines(models, defaultModel, agentNameOf(model, item.place.id));
       },
     }),
   );

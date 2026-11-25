@@ -1,4 +1,4 @@
-import type { AgentModels, HomeEntry, HomeFile, TriggerDetail } from "../../contracts/agent/index.ts";
+import type { AgentModel, HomeEntry, HomeFile, TriggerDetail } from "../../contracts/agent/index.ts";
 import type { Message } from "../../contracts/chat/index.ts";
 import { type Answer, valueOf } from "../../contracts/gateway/index.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
@@ -141,7 +141,7 @@ export interface ClientState {
    * person alone, until they send a message or leave the thread, and reading
    * again replaces it. Posts nothing.
    */
-  readStatus(): Promise<void>;
+  readStatus(): void;
   /** Read what `/devices` shows: the person's devices, each with its label and ID, kept in the model as `/status` is. Posts nothing. */
   readDevices(): void;
   /**
@@ -151,13 +151,12 @@ export interface ClientState {
    */
   takeBack(written: string): Promise<void>;
   /**
-   * The models the agent of the open DM thread can use now, and the one its
-   * sessions follow by default, for the list that `/model ` opens. What the
-   * agent said is kept for ten seconds, so that a list narrowed by typing does
-   * not ask at every key. Undefined when there is no such agent, it is not
-   * reached, or it does not answer in a few seconds.
+   * The models the agent of the open DM thread can use now, for the list that
+   * `/model ` opens. What the agent said is kept for ten seconds, so that a list
+   * narrowed by typing does not ask at every key. Undefined when there is no such
+   * agent, it is not reached, or it does not answer in a few seconds.
    */
-  models(): Promise<AgentModels | undefined>;
+  models(): Promise<AgentModel[] | undefined>;
   /**
    * `/model` with nothing after it in the open DM thread: say in a notice which
    * model the thread's session uses and whether that is its own, or, for a thread
@@ -165,7 +164,7 @@ export interface ClientState {
    * thread starts on it. Choosing another is a message, `/model` and a model, which
    * the agent acts on. Posts nothing.
    */
-  showModel(): Promise<void>;
+  showModel(): void;
   /**
    * The entries of a folder of the home of the agent whose list is open, by
    * the folder's path there, "" for the home itself, or why they could not be
@@ -311,8 +310,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
   /**
    * What follows from the model as it now stands: a thread that can't be had
    * says so, once each time it is opened; the thread the person is looking at
-   * is marked read; the agent whose list is open is asked which model it
-   * follows by default; the person is taken to the only agent there is; each agent
+   * is marked read; the person is taken to the only agent there is; each agent
    * that is running is held for what it is working in; and the session on show
    * whole is read back.
    */
@@ -324,7 +322,6 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
       store.say({ kind: "not-opened", problem: { said: refusal.words } });
     }
     markRead();
-    asking.learnDefault();
     const entries = agentEntries(store.model());
     moves.land(entries);
     held.callRoll(new Set(entries.filter((entry) => entry.running).map((entry) => entry.id)));
@@ -368,10 +365,10 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
       const written = writtenInOpen(store.model(), text, options.update !== undefined);
       switch (written.do) {
         case "status":
-          void asking.readStatus();
+          asking.readStatus();
           return true;
         case "model":
-          void asking.showModel();
+          asking.showModel();
           return true;
         case "devices":
           asking.readDevices();

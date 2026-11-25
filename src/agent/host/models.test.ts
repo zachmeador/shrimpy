@@ -271,7 +271,7 @@ test("a reload sets the servers the models.json files declare now", async (t) =>
 
   const moved = { ...qwen, baseUrl: "http://moved.invalid/v1", models: [...qwen.models, other] };
   writeFileSync(files.modelsFile, JSON.stringify({ providers: { local: moved, extra: qwen } }));
-  assert.deepEqual(await runtime.reload(), { model: { provider: "local", modelId: "qwen" }, leftOut: [] });
+  assert.deepEqual(await runtime.reload(), { model: { provider: "local", modelId: "qwen" }, fromHome: true, leftOut: [] });
   await ask(runtime.models, "extra", "qwen");
   await ask(runtime.models, "local", "other");
 
@@ -297,6 +297,7 @@ test("a reload names a model it can't use as the start would, and keeps what it 
   assert.ok(refusal instanceof ModelSetupError);
   assert.deepEqual(await runtime.reload(), {
     model: undefined,
+    fromHome: false,
     leftOut: [{ file: files.configFile, reason: refusal.message }],
   });
 

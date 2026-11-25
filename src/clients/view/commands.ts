@@ -1,4 +1,4 @@
-import { type AgentModels, modelWords } from "../../contracts/agent/index.ts";
+import { type AgentModel, type ModelId, modelWords } from "../../contracts/agent/index.ts";
 import { AGENT_COMMANDS, type AgentCommand } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { commandNames, type Standing } from "../state/index.ts";
@@ -87,9 +87,9 @@ export interface ModelLine {
  * `default`, which comes first and says which model it stands for: the model
  * each is written as, and the name the agent has for it.
  */
-export function modelLines(models: AgentModels, agent: string): ModelLine[] {
+export function modelLines(models: readonly AgentModel[], defaultModel: ModelId, agent: string): ModelLine[] {
   return [
-    { value: MODEL_DEFAULT, line: defaultModelLine(agent, models.default) },
-    ...models.models.map((model) => ({ value: modelWords(model), line: oneLine(model.name) })),
+    { value: MODEL_DEFAULT, line: defaultModelLine(agent, defaultModel) },
+    ...models.map((model) => ({ value: modelWords(model), line: oneLine(model.name) })),
   ];
 }

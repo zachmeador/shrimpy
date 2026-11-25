@@ -1,19 +1,13 @@
-import type { ModelId, SessionActivity, SessionSummary } from "../../contracts/agent/index.ts";
+import type { SessionActivity, SessionSummary } from "../../contracts/agent/index.ts";
 import { agentEntries, agentNameOf, type DevicesStatus, type Model, openThreadOf, type Status, workingIn } from "./model.ts";
 
 /**
  * What `/status` finds out about the thread the person is in, as it stands in
- * the model now, with `sessions` as the agent listed them when it was asked,
- * if it could be, and `defaultModel` as it said when it was asked: the agent in
- * a DM, or the agents of a room. Nothing is found out for a person who is in no
- * thread, or in a thread of a channel they only read.
+ * the model now, with `sessions` as the agent listed them when it was asked, if
+ * it could be: the agent in a DM, or the agents of a room. Nothing is found out
+ * for a person who is in no thread, or in a thread of a channel they only read.
  */
-export function statusOf(
-  model: Model,
-  sessions: SessionSummary[] | undefined,
-  at: number,
-  defaultModel?: ModelId,
-): Status | undefined {
+export function statusOf(model: Model, sessions: SessionSummary[] | undefined, at: number): Status | undefined {
   const { item } = model.open;
   if (item?.kind !== "thread") return undefined;
   const { place } = item;
@@ -65,7 +59,7 @@ export function statusOf(
               queued: view.status.queued.length,
               model: view.status.model,
               own: view.status.ownModel,
-              defaultModel,
+              defaultModel: model.defaultModel,
               usage: view.status.usage,
               failure: view.status.failure,
               wakeups: view.status.wakeups,

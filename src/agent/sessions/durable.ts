@@ -16,4 +16,4 @@
  */
 export { requireModel } from "./models.durable.ts";
 export { stopWork } from "./service.durable.ts";
-export { createSessions, noSessionYet, type Sessions, shownOf } from "./sessions.durable.ts";
+export { createSessions, type HomeModel, noSessionYet, type Sessions, shownOf } from "./sessions.durable.ts";

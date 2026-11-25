@@ -23,24 +23,24 @@ export const HomeFileSchema = union([
 export type HomeFile = Static<typeof HomeFileSchema>;
 
 /** A model by the provider that serves it and the ID that provider knows it by. */
-const ModelIdSchema = obj({ provider: str(), id: str() });
+export const ModelIdSchema = obj({ provider: str(), id: str() });
 export type ModelId = Static<typeof ModelIdSchema>;
 
-/** A model the agent can use: where it is served, the ID that server knows it by, and the name Pi has for it. */
-const AgentModelSchema = obj({ provider: str(), id: str(), name: str() });
-export type AgentModel = Static<typeof AgentModelSchema>;
-
-/** The models an agent can use now, and the one its sessions follow by default. */
-export const AgentModelsSchema = obj({
-  /** In order of provider, then ID. */
-  models: arr(AgentModelSchema),
-  /**
-   * The model the agent's home names, which a session follows until it is given
-   * another. It is missing from `models` when the agent can't use it now.
-   */
-  default: ModelIdSchema,
+/**
+ * The model an agent's sessions follow by default, until one is given another:
+ * the one its `agent.json` names, or else the folder's default model.
+ */
+export const DefaultModelSchema = obj({
+  provider: str(),
+  id: str(),
+  /** Whether `agent.json` names it. When it doesn't, the agent follows the folder's default model. */
+  fromHome: bool(),
 });
-export type AgentModels = Static<typeof AgentModelsSchema>;
+export type DefaultModel = Static<typeof DefaultModelSchema>;
+
+/** A model the agent can use: where it is served, the ID that server knows it by, and the name Pi has for it. */
+export const AgentModelSchema = obj({ provider: str(), id: str(), name: str() });
+export type AgentModel = Static<typeof AgentModelSchema>;
 
 /** Which thread of a channel: its name, if it has one. */
 const ThreadPlaceSchema = obj({ name: union([str(), nul()]) });

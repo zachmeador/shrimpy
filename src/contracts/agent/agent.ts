@@ -1,8 +1,10 @@
 import { arr, method, nul, obj, remote, str, union } from "@earendil-works/chord";
 import { agent, answerOf, RefusedSchema } from "../gateway/index.ts";
 import {
-  AgentModelsSchema,
+  AgentModelSchema,
+  DefaultModelSchema,
   HomeEntrySchema,
+  ModelIdSchema,
   HomeFileSchema,
   OccurrenceSchema,
   PigmentSchema,
@@ -20,11 +22,15 @@ export const MAX_IMAGE_BYTES = 10_000_000;
 
 /**
  * One agent as the caller sees it, at `agent({ id: agent })`: its sessions,
- * its triggers and how it looks, kept live, what a client does with the agent
- * as a whole, and its home's files, to look at and never to change.
+ * its triggers, its default model and how it looks, kept live, what a client
+ * does with the agent as a whole, and its home's files, to look at. Through
+ * this contract the agent changes its own files only as `setModel` asks, by
+ * naming a model in its `agent.json` or taking it out. Everything else in the
+ * home it changes with its own tools and shell.
  *
  * `refusal` is null, or why the caller may not watch this agent, and then its
- * sessions and triggers are empty and every method answers with that refusal.
+ * sessions and triggers are empty, its model is null and every method answers
+ * with that refusal.
  * Its sigil and pigment show to every caller. You, the agent itself, an admin
  * and a client on the agent's home socket may watch it. It follows the live
  * roster, so a promotion shows at once.
@@ -55,15 +61,21 @@ export const Agent = remote("shrimpy.agent", {
         sigil: union([arr(str()), nul()]),
         /** The color its sigil is drawn in, as its `agent.json` names it, or null when it names none. */
         pigment: union([PigmentSchema, nul()]),
+        /**
+         * The model its sessions follow by default, which a session follows
+         * until it is given another, as the agent last read it from its home.
+         */
+        model: union([DefaultModelSchema, nul()]),
       },
       methods: {
         /**
-         * The models the agent can use now, each by provider and ID with the
-         * name Pi has for it, and the model its sessions follow by default. A
-         * model can be used when Pi's model runtime can reach it with the keys
-         * and sign-ins the agent has and the servers its files declare.
+         * The models the agent can use now, in order of provider and then ID,
+         * each with the name Pi has for it. A model can be used when Pi's model
+         * runtime can reach it with the keys and sign-ins the agent has and the
+         * servers its files declare. The default model is missing from the list
+         * when the agent can't use it now.
          */
-        models: method(undefined, answerOf(AgentModelsSchema)),
+        models: method(undefined, answerOf(arr(AgentModelSchema))),
         /** One trigger with its definition and its most recent occurrences, newest first. */
         trigger: method(obj({ name: str() }), answerOf(TriggerDetailSchema)),
         /**
@@ -81,6 +93,15 @@ export const Agent = remote("shrimpy.agent", {
          * that can't be used is left out and named in the answer.
          */
         reload: method(undefined, answerOf(ReloadedSchema)),
+        /**
+         * Names `model` in the home's `agent.json`, or takes the model out of it
+         * for null, so that the agent follows the folder's default model, then
+         * reads the home again and answers as `reload` does. A model the agent
+         * can't use now is refused, and so is null when the folder has no
+         * default model or the agent can't use it, and then the file is left
+         * as it was.
+         */
+        setModel: method(obj({ model: union([ModelIdSchema, nul()]) }), answerOf(ReloadedSchema)),
         /**
          * The entries of a folder of the home, in order of name. `path` is where
          * the folder is in the home, with `/` between folders, and `""` is the

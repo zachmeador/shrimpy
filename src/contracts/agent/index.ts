@@ -1,7 +1,7 @@
 /**
  * The agent's contract: what any client may ask of a running agent, as Chord
  * objects at `agent({ id })`. `Agent` is the agent as a whole, with its
- * sessions, its triggers, how it looks and its home's files to look at;
+ * sessions, its triggers, its default model, how it looks and its home's files to look at;
  * `Session` is one session, a window over its
  * history and control over its work; `AgentPresence` is the agent being there,
  * which the gateway holds. Every reference is live, so a client follows by
@@ -73,9 +73,10 @@ export {
   YOUR_DM,
 } from "./words.ts";
 export {
-  type AgentModels,
+  type AgentModel,
   type AnswerEnding,
   type Check,
+  type DefaultModel,
   type HomeEntry,
   type HomeFile,
   type ModelId,

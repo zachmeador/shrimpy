@@ -43,6 +43,8 @@ export interface ModelRuntimeOptions {
 export interface ModelReload {
   /** The model the home starts with now, when it can be used. Without one the agent keeps the model it had. */
   readonly model: ModelRef | undefined;
+  /** Whether the home's agent.json names that model, as against the folder's default-model.json. False with no model. */
+  readonly fromHome: boolean;
   /** The files that could not be used, and the one that names the model when that can't be used, each with why. */
   readonly leftOut: readonly LeftOut[];
 }
@@ -51,6 +53,10 @@ export interface ModelReload {
 export interface ModelRuntime {
   readonly models: Models;
   readonly model: ModelRef;
+  /** Whether the home's agent.json names `model`, as against the folder's default-model.json. */
+  readonly fromHome: boolean;
+  /** The model the folder's default-model.json names, read now, or undefined when the agent was told of no folder or the file names none. */
+  folderDefault(): ModelRef | undefined;
   /**
    * The files `reload` reads: the home's agent.json, the models.json files and
    * the folder's default-model.json. An agent that looks at them can tell when a
@@ -101,15 +107,17 @@ interface Start {
 
 const EXAMPLE_MODEL = '{"provider": "local", "id": "qwen3.8-27b"}';
 
+/** The model the folder's default-model.json names, or undefined with no folder or none named there. */
+function folderDefault(folder: ProviderPaths | undefined): ModelRef | undefined {
+  const fallback = folder === undefined ? undefined : readDefaultModel(folder.defaultModel);
+  return fallback === undefined ? undefined : { provider: fallback.provider, modelId: fallback.id };
+}
+
 /** The model its agent.json names, or else the folder's default. With neither the agent has none, and the error says what to do. */
 function startingModel(configFile: string, named: ModelRef | undefined, folder: ProviderPaths | undefined): Start {
   if (named !== undefined) return { model: named, file: configFile };
-  if (folder !== undefined) {
-    const fallback = readDefaultModel(folder.defaultModel);
-    if (fallback !== undefined) {
-      return { model: { provider: fallback.provider, modelId: fallback.id }, file: folder.defaultModel };
-    }
-  }
+  const fallback = folderDefault(folder);
+  if (fallback !== undefined && folder !== undefined) return { model: fallback, file: folder.defaultModel };
   const explained = `Name one in ${configFile}, as "model": ${EXAMPLE_MODEL}`;
   throw new ModelSetupError(
     folder === undefined
@@ -200,6 +208,8 @@ export async function buildModels(options: ModelRuntimeOptions): Promise<ModelRu
   return {
     models,
     model: start.model,
+    fromHome: start.file === options.configFile,
+    folderDefault: () => folderDefault(folder),
     files: [options.configFile, ...files.models, ...(folder === undefined ? [] : [folder.defaultModel])],
     async reload() {
       const leftOut: LeftOut[] = [];
@@ -219,10 +229,10 @@ export async function buildModels(options: ModelRuntimeOptions): Promise<ModelRu
         starting = startingModel(options.configFile, named(), folder);
         await credentials.list();
         await requireUsable(models, starting, declared, files);
-        return { model: starting.model, leftOut };
+        return { model: starting.model, fromHome: starting.file === options.configFile, leftOut };
       } catch (error) {
         leftOut.push(leftOutOf(error, starting?.file ?? options.configFile, known));
-        return { model: undefined, leftOut };
+        return { model: undefined, fromHome: false, leftOut };
       }
     },
   };
