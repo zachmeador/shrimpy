@@ -42,6 +42,8 @@
 .pg-you { --who: var(--ink-2); --who-ink: var(--ink); }
 
 html, body, #shrimpy { height: 100%; margin: 0; }
+/* Installed on an iPhone's home screen, 100% stops short of the screen by the status bar's height. lvh is the whole screen there, and in a browser tab it would run under the toolbar. */
+@media (display-mode: standalone) { html { height: 100lvh; } }
 body { background: var(--pane); color: var(--ink); font: 400 var(--t-ui)/1.45 var(--face); overflow: hidden; }
 
 /* ==========================================================================

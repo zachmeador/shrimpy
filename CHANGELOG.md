@@ -2,6 +2,10 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
+## Unreleased
+
+- The page installed on an iPhone's home screen reaches the bottom of the screen, where it left a strip under the composer.
+
 ## 🦐 2.0.0 - A Rising Tide - 2026-11-25
 
 - 2.0 doesn't link with 1.0: update the gateway's machine first, and agents on other machines that run from an install update themselves to its version.
