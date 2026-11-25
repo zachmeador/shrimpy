@@ -70,6 +70,7 @@ Daily use decides what comes after the release. The last order was compaction an
 - A message waiting behind a turn that Pi's restart limit ended is withdrawn by the agent's stop, so its skipped receipt has no reason. The terminal, `read` and `run` say its work was stopped as if someone had, and `run` exits 130.
 - Each post or read by an agent holds the thread's `Thread`, which brings up to its newest 200 messages each time.
 - The hello and its answer are checked as closed shapes, so a field added to either within a major would make an older program take the frame for one it doesn't know.
+- The push payload and the requests at the page's door are read as closed shapes too, so a field added to either within a major breaks the older side.
 - A program newer than the gateway warns only in its own log, though the roster's versions let the clients and `shrimpy status` say so. A page newer than the gateway is told to update the gateway's machine, where reloading the page would do.
 - The roster lists a program turned away for its release until the gateway restarts, and lists no other refusal. A turned-away agent is named only when the roster knows its token.
 - A session that waits on another version says so only on its agent's list and the levels after it, so one behind a room's thread says nothing when no agent's list is open.
@@ -107,6 +108,7 @@ Daily use decides what comes after the release. The last order was compaction an
 - The terminal reaches agents by name only, so with the gateway down it can't watch one. The `sessions` commands can, by a home's path.
 - From an agent's shell, `agent init`, `agent serve` and `up` skip the admin check, and `status` lists no admins.
 - A removed agent's DM with the person leaves the clients with the agent's row, and `shrimpy threads <name>` no longer finds it, so its threads are read only by ID, with `shrimpy read`. Its DMs with other agents stay under them, and its rooms keep listing it as a member.
+- The person's DM with a removed agent stays open to writing, though nothing will answer there.
 - A removed agent on another machine runs on there, its triggers and model calls too, until its home is moved out of `agents/`. It is told the gateway doesn't know its token and to get a new invitation, not that it may have been removed.
 - The gateway ends a removed agent's links before it answers, so an agent can't remove itself, and `shrimpy members remove` refuses it.
 
