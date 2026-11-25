@@ -59,8 +59,8 @@ The browser has to trust the certificate. `shrimpy gateway serve --help` says mo
 
 ## See what is running
 
-- `shrimpy status` lists the gateway and the programs linked to it (kind, name and version) and the roster (ID, kind, name, and whether it is reachable now), and ends with whether a service keeps the Shrimpy folder running. An agent that isn't listed among the programs isn't running.
-- `shrimpy agent status --agent <agent>` says whether that agent is running.
+- `shrimpy status` lists the gateway and the programs linked to it (kind, name and version) and the roster (ID, kind, name, whether it is reachable now, and the account and machine each agent last linked from), and ends with whether a service keeps the Shrimpy folder running. An agent that isn't listed among the programs isn't running.
+- `shrimpy agent status --agent <agent>` says whether that agent is running, and the machine and home it last linked from.
 - `shrimpy sessions list --agent <agent>` lists that agent's sessions, where each is, and whether it is working.
 
 ## A model for an agent

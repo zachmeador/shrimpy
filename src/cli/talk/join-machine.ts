@@ -1,4 +1,3 @@
-import { hostname } from "node:os";
 import { type Entry, type Link, machineFile } from "../../contracts/gateway/index.ts";
 import { newToken, readMachine, saveMachine } from "../../contracts/gateway/node.ts";
 import { formatAddress } from "../../lib/link/index.ts";
@@ -7,8 +6,6 @@ import { type Joined, joinedAlready, joinGateway } from "./join.ts";
 export interface JoinAsMachineOptions {
   /** Abort to give up on a gateway that does not answer. */
   signal?: AbortSignal;
-  /** What the device is labelled on the roster: the machine's name if not given. */
-  machine?: string;
 }
 
 /**
@@ -42,7 +39,7 @@ export async function joinAsMachine(folder: string, link: Link, options: JoinAsM
   const token = same ? saved.token : newToken();
   saveMachine(folder, { token, gateway });
 
-  const who = { kind: "join", name: null, token, code: link.code, machine: options.machine ?? hostname() } as const;
+  const who = { kind: "join", name: null, token, code: link.code } as const;
   const joined = await joinGateway(gateway, who, "this machine", options.signal);
   saveMachine(folder, { token, gateway, member: { id: joined.member.id, name: joined.member.name } });
   return joined;

@@ -18,7 +18,7 @@ export const ADMIN =
 const members: Command = {
   name: "members",
   usage: "",
-  summary: "List the roster: each member's kind, whether it is an admin, and whether a program is running as it.",
+  summary: "List the roster: each member's kind, whether it is an admin, whether a program is running as it, and where an agent last linked from.",
   details: `${ADMIN} Members are listed oldest first, each with its ID. Exits 1 if no gateway is running.`,
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));

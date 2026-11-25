@@ -12,13 +12,12 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 
 The owner agreed on 2026-11-24, hours after 1.0.0, to a 2.0 that gets the contracts' shape right while two setups run Shrimpy, and to each of its proposal's five choices. The proposal is kept outside the repo, and `AGENTS-PRIVATE.md` says where. What is left of it to build:
 
-- The hello says where a program runs, by its machine's name, system and account, and an agent's hello names its home. The roster keeps where each agent last linked from and when, so an agent that is off still says where it lives.
 - A message carries its attachments, an empty list until the bytes come in 2.x, in pieces through chat.
 - Pins belong to the channel, and a room's main thread becomes its first pin, so `main` leaves the contracts.
 - A DM has no main thread: `openDm` makes none, and chat's migration clears it and drops the empty ones.
 - Every write goes through `Chat` by ID, and `Channel` and `Thread` become views, so an agent's post no longer brings up to 200 messages.
 - `Agent` gains its default model as state, and `setModel` and `switchTrigger`, which change the agent's own files when asked. Adding and removing triggers stays with the agent's own tools.
-- A session's items carry a time, and a device's label comes from the hello's machine.
+- A session's items carry a time.
 - Before it ships, chat's and the roster's migrations run on copies of the owner's and Kathleen's data, and an agent apart follows its gateway across the major.
 
 ## The release
@@ -215,7 +214,6 @@ Daily use decides what comes after the release. The last order was compaction an
 
 **Falls short**
 
-- Nothing says which machine an agent runs on: `shrimpy status` and `agent status` show no host, so an agent looking for another asked it. Nothing records an agent's machine until 2.0.
 - `--listen` given to `up` while a gateway runs only warns.
 - On a machine whose agents belong to a gateway elsewhere and that hasn't joined as the owner's, a command names those agents only by their homes' paths.
 - A folder that has joined as the owner's and also holds agents of no gateway is at odds with itself: `up` starts a gateway and a chat server for them, and the commands that talk reach the gateway elsewhere. The terminal still says "this machine's gateway".

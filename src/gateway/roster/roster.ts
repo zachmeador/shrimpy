@@ -12,6 +12,7 @@ import {
   refused,
   type Way,
   type WayIn,
+  type Where,
 } from "../../contracts/gateway/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { listed } from "../../lib/text/index.ts";
@@ -98,6 +99,15 @@ export interface Roster {
   webPushPlaces(): { way: string; place: WebPushPlace }[];
   /** Forget where the device of the way `id` is told things, if it is still `endpoint`. */
   forgetWebPush(id: string, endpoint: string): void;
+  /**
+   * Keep where the agent `id` lives, as the hello of the link it began at `at`
+   * said, so that an agent that is off still says where it lives.
+   */
+  linked(id: string, where: Where, at: number): void;
+  /** The agent `id`'s link ended at `at`. */
+  unlinked(id: string, at: number): void;
+  /** Where the agent `id` lives and when it was last linked, as far as the roster knows: none of either for a person. */
+  placeOf(id: string): { where: Where | null; lastLinked: number | null };
   /** Hear of every change, after it is written. */
   onChange(listener: () => void): () => void;
 }
@@ -372,6 +382,19 @@ export function openRoster(dataDir: string, firstName: string, format = ROSTER_F
         const { webPush: _forgotten, ...rest } = device;
         return rest;
       });
+    },
+    linked(id, where, at) {
+      const current = records.find((record) => record.id === id);
+      if (current?.kind === "agent") replace({ ...current, where, lastLinked: at });
+    },
+    unlinked(id, at) {
+      const current = records.find((record) => record.id === id);
+      if (current?.kind === "agent") replace({ ...current, lastLinked: at });
+    },
+    placeOf(id) {
+      const current = records.find((record) => record.id === id);
+      if (current?.kind !== "agent") return { where: null, lastLinked: null };
+      return { where: current.where ?? null, lastLinked: current.lastLinked ?? null };
     },
     onChange(listener) {
       listeners.add(listener);

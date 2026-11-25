@@ -40,6 +40,7 @@ async function agentAt(t: TestContext, home: string, name: string, membership?: 
       return host;
     },
     name,
+    home,
     ...(apart === undefined ? {} : { apart }),
     membership: {
       read: () => kept,

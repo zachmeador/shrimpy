@@ -103,6 +103,6 @@ export interface PageHelloOptions {
  * cookie it keeps for the link, which the browser sends by itself.
  */
 export async function helloFromPage(url: string, who: Who, options: PageHelloOptions = {}): Promise<Welcomed> {
-  const { answer, linked } = await dialFromPage(url, hello(who), options);
+  const { answer, linked } = await dialFromPage(url, hello(who, null), options);
   return welcomeIn(answer, linked);
 }

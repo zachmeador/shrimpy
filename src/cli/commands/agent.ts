@@ -5,11 +5,12 @@ import type { HomeAgent } from "../../agent/index.ts";
 import { checkAgentName, modelWords, parseModelChoice } from "../../contracts/agent/index.ts";
 import { homePaths, initHome, providerPaths, readEndpoint, readMembership } from "../../contracts/agent/node.ts";
 import { findMember } from "../../contracts/chat/index.ts";
+import { thisMachine } from "../../contracts/gateway/node.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { homeNamed, isPath, newHome, providersPath } from "../folder/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
-import { askLocalGateway, onAgent } from "../talk/index.ts";
+import { askGateway, askLocalGateway, onAgent } from "../talk/index.ts";
 import { checking, expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning } from "./connected.ts";
@@ -198,8 +199,9 @@ const status: Command = {
   usage: "[--agent <agent>]",
   summary: "Say whether the agent is running, and how to reach it.",
   details:
-    "Prints one JSON line: for an agent named on the roster, its name and whether it is running, and for a home on " +
-    "this machine, the home and whether an agent is running there, with its socket and process when one is, and " +
+    "Prints one JSON line: for an agent named on the roster, its name, whether it is running, the machine and the " +
+    "home its latest link came from, and when the gateway last saw it linked; for a home on this machine, the " +
+    "home, this machine, and whether an agent is running there, with its socket and process when one is, and " +
     "when the gateway turned it away as removed, if it did. Exits 0 " +
     `if an agent is running and 1 if not. ${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
   async run(args, io) {
@@ -209,13 +211,23 @@ const status: Command = {
     const running = await answers(target);
     const { home } = target;
     if (home === undefined) {
-      io.json({ running, name: target.given });
+      const entry = findMember((await askGateway())?.members ?? [], target.given);
+      const where = entry?.where ?? null;
+      const lastLinked = entry?.lastLinked ?? null;
+      io.json({
+        running,
+        name: target.given,
+        machine: where?.machine ?? null,
+        home: where?.home ?? null,
+        lastLinked: lastLinked === null ? null : localTime(lastLinked),
+      });
       return running ? 0 : 1;
     }
     const removal = readMembership(home)?.removed;
     const removed = removal === undefined ? {} : { removed: { at: localTime(removal.at), words: removal.words } };
+    const here = { running, home, machine: thisMachine(), ...removed };
     // The endpoint file outlives the agent, so only an answer shows that one is there.
-    io.json(running ? { running, home, ...removed, ...readEndpoint(home) } : { running, home, ...removed });
+    io.json(running ? { ...here, ...readEndpoint(home) } : here);
     return running ? 0 : 1;
   },
 };

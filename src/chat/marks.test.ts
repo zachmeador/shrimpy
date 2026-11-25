@@ -66,7 +66,7 @@ test("when one client of yours moves a read mark, another of yours, on a device,
   assert.ok(address);
   const entry = { ...address, fingerprint: invitation.fingerprint };
   const token = newToken();
-  const joined = await sayHello(entry, { kind: "join", name: null, token, code: invitation.code, machine: "phone" });
+  const joined = await sayHello(entry, { kind: "join", name: null, token, code: invitation.code });
   joined.linked.drop();
   const phone = await connectTestClient(t, entry, token);
 

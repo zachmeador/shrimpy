@@ -32,7 +32,8 @@ const status: Command = {
     "The gateway is this machine's, or, in the shell of an agent that lives apart from it or on a machine that joined " +
     "as yours, the one that agent or machine joined. The gateway and the programs are listed by kind, name and " +
     "version. The members are everyone the gateway knows, people and agents, as shrimpy members lists them: by name and " +
-    "kind, with whether each is an admin, whether a program is linked as it, and its ID. A program newer " +
+    "kind, with whether each is an admin, whether a program is linked as it, the account and machine an agent last " +
+    "linked from, and its ID. A program newer " +
     "than the gateway is marked, and so is this command, on standard error, since the gateway's machine updates first. " +
     "A program the gateway turns away for the release it runs is listed after them, with what to update. It ends with a " +
     "line that says whether a service is installed for your Shrimpy folder, which shrimpy install sets up, " +

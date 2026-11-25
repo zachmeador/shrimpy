@@ -1,6 +1,7 @@
 import { formatAddress } from "../../lib/link/index.ts";
 import { dial, type Dialed, type DialPlace, OtherKeyError } from "../../lib/link/node.ts";
 import { type Hello, hello, type Welcomed, welcomeIn, type Who } from "./hello.ts";
+import { thisMachine } from "./where.node.ts";
 
 /**
  * The gateway's entry did not prove it is yours: the key there has another
@@ -22,17 +23,17 @@ export interface SayHelloOptions {
 }
 
 /**
- * Say the hello at `place` as `who`, and read the answer: every link to the
- * gateway, on its own socket or at its entry, or to an agent on its home's
- * socket, and every join, starts here. At the entry the hello goes only to the
- * key whose fingerprint the place has: a key with another is an
- * `UnprovenGatewayError`, and nothing is sent. A hello the other end turns
+ * Say the hello at `place` as `who`, from this machine, and read the answer:
+ * every link to the gateway, on its own socket or at its entry, or to an agent
+ * on its home's socket, and every join, starts here. At the entry the hello
+ * goes only to the key whose fingerprint the place has: a key with another is
+ * an `UnprovenGatewayError`, and nothing is sent. A hello the other end turns
  * away is a `HelloRefusedError`, and an answer this code can't read is an
  * `UnknownAnswerError`; either way the link is dropped. What dialing throws, as
  * it does when nothing listens there, is passed on as it is.
  */
 export async function sayHello(place: DialPlace, who: Who, options: SayHelloOptions = {}): Promise<Welcomed> {
-  const { answer, linked } = await dialProven(place, hello(who), options.signal);
+  const { answer, linked } = await dialProven(place, hello(who, thisMachine()), options.signal);
   return welcomeIn(answer, linked, options.answering);
 }
 

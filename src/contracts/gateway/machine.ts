@@ -5,7 +5,7 @@ import type { Entry } from "./address.ts";
  * that person from then on, and so that a `shrimpy` command run there reaches
  * the gateway as them.
  */
-export interface Machine {
+export interface MachineMembership {
   /**
    * What the gateway recognizes the machine by. The machine makes it and keeps
    * it before it asks to join, so that a join whose answer never arrived can

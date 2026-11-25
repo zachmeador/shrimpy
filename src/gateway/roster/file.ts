@@ -4,6 +4,7 @@ import { saveFile } from "../../lib/files/node.ts";
 import { type ConfigObject, parseConfig } from "../../lib/json-config/index.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
 import { beforeOpening, type Step, type StoreFormat } from "../../lib/migration/node.ts";
+import type { Where } from "../../contracts/gateway/index.ts";
 import type { WebPushPlace } from "../push/index.ts";
 
 /**
@@ -23,11 +24,13 @@ export interface DeviceRecord {
  * own socket you show no token, and elsewhere you are recognized by each of
  * your devices' tokens. An agent is recognized by its token, until it is taken
  * back. Only a hash of a token is kept. Every person is an admin and the file
- * does not say so; an agent's record says whether it is one.
+ * does not say so; an agent's record says whether it is one. An agent's record
+ * keeps where its latest hello came from and when the gateway last saw it
+ * linked, once it has linked.
  */
 export type MemberRecord =
   | { id: string; kind: "person"; name: string; recognizedBy: { machines?: DeviceRecord[] } }
-  | { id: string; kind: "agent"; name: string; admin: boolean; recognizedBy: { tokenHash?: string } };
+  | { id: string; kind: "agent"; name: string; admin: boolean; recognizedBy: { tokenHash?: string }; where?: Where; lastLinked?: number };
 
 /**
  * An agent removed from the roster: its ID, which is never used again, the
@@ -53,11 +56,11 @@ export interface RosterStep extends Step {
   migrate(file: Record<string, unknown>): Record<string, unknown>;
 }
 
-/** 2.0.0: the roster keeps the agents removed from it. */
-const KEEPS_REMOVED: RosterStep = { version: 4, migrate: (file) => ({ ...file, removed: [] }) };
+/** 2.0.0 keeps the agents removed from the roster, and where each agent links from and when, which it says at its next hello. */
+const TO_2_0: RosterStep = { version: 4, migrate: (file) => ({ ...file, removed: [] }) };
 
 /** This release's format of the file. */
-export const ROSTER_FORMAT: StoreFormat<RosterStep> = { current: 4, oldest: 3, steps: [KEEPS_REMOVED] };
+export const ROSTER_FORMAT: StoreFormat<RosterStep> = { current: 4, oldest: 3, steps: [TO_2_0] };
 
 /** Where the roster is kept inside the gateway's data directory. */
 export const rosterFile = (dataDir: string): string => join(dataDir, "state", "roster.json");
@@ -115,18 +118,38 @@ function parseMember(entry: ConfigObject): MemberRecord {
   const tokenHash = by.optionalString("tokenHash");
   const machines = by.optionalObjects("machines")?.map(parseDevice);
   by.done();
+  const where = kind === "agent" ? parseWhere(entry.optionalObject("where")) : undefined;
+  const lastLinked = kind === "agent" ? entry.optionalNumber("lastLinked") : undefined;
   entry.done();
   if (kind === "person" && tokenHash === undefined) {
     return { id, kind, name, recognizedBy: machines === undefined ? {} : { machines } };
   }
   if (kind === "agent" && machines === undefined) {
     if (admin === undefined) throw entry.problem("admin", "is required for an agent");
-    return { id, kind, name, admin, recognizedBy: tokenHash === undefined ? {} : { tokenHash } };
+    return {
+      id,
+      kind,
+      name,
+      admin,
+      recognizedBy: tokenHash === undefined ? {} : { tokenHash },
+      ...(where === undefined ? {} : { where }),
+      ...(lastLinked === undefined ? {} : { lastLinked }),
+    };
   }
   throw entry.problem(
     "recognizedBy",
     `must be machines or nothing for a person, and a tokenHash or nothing for an agent, and this is the ${kind} ${name}`,
   );
+}
+
+function parseWhere(entry: ConfigObject | undefined): Where | undefined {
+  if (entry === undefined) return undefined;
+  const at = entry.object("machine");
+  const machine = { host: at.text("host"), system: at.text("system"), account: at.text("account") };
+  at.done();
+  const home = entry.string("home");
+  entry.done();
+  return { machine, home };
 }
 
 function parseDevice(entry: ConfigObject): DeviceRecord {

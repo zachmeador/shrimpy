@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { readMembership } from "../contracts/agent/node.ts";
 import { hello, type HelloAnswer, type Link, readAnswer, readLink } from "../contracts/gateway/index.ts";
-import { newToken } from "../contracts/gateway/node.ts";
+import { newToken, thisMachine } from "../contracts/gateway/node.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { dial } from "../lib/link/node.ts";
 import { until, useRuntimeDir } from "../lib/testing/index.ts";
@@ -49,7 +49,7 @@ async function refusalOf(asked: () => Promise<unknown>): Promise<string> {
 
 /** Join the gateway `link` sends to with its code, as `shrimpy join` does, and say what it answered. */
 async function joinWith({ name, address, code, fingerprint }: Link): Promise<HelloAnswer | undefined> {
-  const said = hello({ kind: "join", name, token: newToken(), code, machine: "elsewhere" });
+  const said = hello({ kind: "join", name, token: newToken(), code }, thisMachine());
   const { answer, linked } = await dial({ ...address, fingerprint }, said);
   linked.drop();
   return readAnswer(answer);

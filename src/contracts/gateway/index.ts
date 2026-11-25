@@ -7,8 +7,8 @@
  * what to tell you on your devices, `WorkspaceContext`, the notes every agent
  * is shown, the rule for a name and how names are
  * compared, the invitation's link and the page's, with what a machine of yours
- * keeps, the page's door as the page sees it, with where a browser is told
- * things, and the page's link to it, and what every client tells a person to
+ * keeps, where a program runs, the page's door as the page sees it, with where
+ * a browser is told things, and the page's link to it, and what every client tells a person to
  * start when the gateway, the chat server or an agent isn't linked. It must not
  * know what the programs say to each other through the gateway. This door is
  * safe for browsers; `node.ts` adds linking from Node.
@@ -55,7 +55,7 @@ export {
 export { agent, chat, gateway } from "./hosts.ts";
 export { type Link, readLink, readPageCode, writeLink, writePageLink } from "./link.ts";
 export { createLiveRoster, type LiveRoster, type RosterNow } from "./live-roster.ts";
-export { type Machine, MACHINE_FILE, machineFile } from "./machine.ts";
+export { MACHINE_FILE, type MachineMembership, machineFile } from "./machine.ts";
 export { fitName, MAX_NAME, NAME_RULE, nameKey } from "./names.ts";
 export { type Notification, Notifications, readNotification } from "./notifications.ts";
 export {
@@ -86,5 +86,6 @@ export {
   type WayIn,
 } from "./roster.ts";
 export { isToken } from "./token.ts";
+export { type Machine, type Where } from "./where.ts";
 export { GATEWAY_NOT_RUNNING, howToStartAgent, NO_AGENT_YET, NO_CHAT_SERVER, NO_GATEWAY } from "./words.ts";
 export { WorkspaceContext, type WorkspaceFile } from "./workspace.ts";

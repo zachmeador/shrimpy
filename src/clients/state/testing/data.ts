@@ -26,13 +26,16 @@ export function agentMember(name: string): Member {
   return found;
 }
 
+/** The machine every program in a model runs on. */
+const MACHINE = { host: "shrimpy", system: "Linux x64", account: "shrimpy" };
+
 /** A model with nothing wrong and nothing on it: nothing open, every link up, no agents. */
 export function aModel(parts: Partial<Model> = {}): Model {
   return {
     me: zach,
     open: { list: undefined, item: undefined },
     gateway: { state: "up" },
-    listing: { programs: [], members: [{ ...zach, admin: true, reachable: false }], ways: [], turnedAway: [], versions: GATEWAY },
+    listing: { programs: [], members: [{ ...zach, admin: true, reachable: false, where: null, lastLinked: null }], ways: [], turnedAway: [], versions: GATEWAY },
     chat: { state: "up" },
     agent: undefined,
     dms: {},
@@ -57,22 +60,22 @@ export function aModel(parts: Partial<Model> = {}): Model {
 
 /** An agent as the gateway lists it when it is linked. */
 export function anAgent(name: string, version = SHRIMPY_VERSION): Program {
-  return { kind: "agent", name, member: agentMember(name).id, shrimpy: version };
+  return { kind: "agent", name, member: agentMember(name).id, shrimpy: version, machine: MACHINE };
 }
 
 /** An agent as the roster lists it when it is running. */
 function aRosterAgent(name: string): RosterEntry {
-  return { ...agentMember(name), admin: false, reachable: true };
+  return { ...agentMember(name), admin: false, reachable: true, where: { machine: MACHINE, home: `/home/shrimpy/agents/${name}` }, lastLinked: null };
 }
 
 /** What the gateway lists when `programs` are running: the person, and each agent among them on the roster as reachable. */
 export function aListing(programs: Program[], version = SHRIMPY_VERSION): NonNullable<Model["listing"]> {
   const running = programs.filter((program) => program.kind === "agent").map((program) => aRosterAgent(program.name));
-  return { programs, turnedAway: [], members: [{ ...zach, admin: true, reachable: false }, ...running], ways: [], versions: { ...GATEWAY, shrimpy: version } };
+  return { programs, turnedAway: [], members: [{ ...zach, admin: true, reachable: false, where: null, lastLinked: null }, ...running], ways: [], versions: { ...GATEWAY, shrimpy: version } };
 }
 
 export function aChatServer(version = SHRIMPY_VERSION): Program {
-  return { kind: "chat", name: "chat", member: null, shrimpy: version };
+  return { kind: "chat", name: "chat", member: null, shrimpy: version, machine: MACHINE };
 }
 
 /** A thread, with the fields a test cares about; the rest are plain. */
@@ -168,7 +171,7 @@ export function onSession(
     open: { list, item: { kind: "session", agent: member.id, session: session.id } },
     listing: {
       programs: [anAgent(agent), aChatServer()],
-      members: [{ ...zach, admin: true, reachable: false }, aRosterAgent(agent)],
+      members: [{ ...zach, admin: true, reachable: false, where: null, lastLinked: null }, aRosterAgent(agent)],
       ways: [],
       turnedAway: [],
       versions: GATEWAY,
@@ -188,7 +191,7 @@ export function onThread(agent: string, thread: Thread, view: ThreadView | undef
     open: { list: place, item: { kind: "thread", place, thread: thread.id, side: undefined } },
     listing: {
       programs: [anAgent(agent), aChatServer()],
-      members: [{ ...zach, admin: true, reachable: false }, aRosterAgent(agent)],
+      members: [{ ...zach, admin: true, reachable: false, where: null, lastLinked: null }, aRosterAgent(agent)],
       ways: [],
       turnedAway: [],
       versions: GATEWAY,

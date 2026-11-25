@@ -29,6 +29,7 @@ import {
   keepListenAddresses,
   keptListenAddresses,
   listenAddressesFile,
+  thisMachine,
 } from "../contracts/gateway/node.ts";
 import { opening } from "../lib/closing/index.ts";
 import { asError } from "../lib/errors/index.ts";
@@ -153,6 +154,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
       host,
       agents: () => roster.members().filter((member) => member.kind === "agent"),
       onChange: () => view.changed(),
+      unlinked: (member) => roster.unlinked(member, Date.now()),
       context,
     });
     open.add(() => programs.close());
@@ -170,7 +172,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     }
     const view = createView(() => ({
       id: roster.id,
-      members: roster.members().map((member) => ({ ...member, reachable: programs.reachable(member.id) })),
+      members: roster.members().map((member) => ({ ...member, reachable: programs.reachable(member.id), ...roster.placeOf(member.id) })),
       programs: programs.list(),
       turnedAway: programs.turnedAway(),
       ways: roster.ways(),
@@ -203,7 +205,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
       view.changed();
     });
 
-    const { greet, greetPage, letBrowserIn } = greeter({ roster, programs, invitations, host, context });
+    const { greet, greetPage, letBrowserIn } = greeter({ roster, programs, invitations, host, machine: thisMachine(), context });
     // The lock is held, so a socket left at the path belongs to a gateway that is gone.
     rmSync(socket, { force: true });
     const own = await listen({ path: socket }, greet("socket"), { onError });

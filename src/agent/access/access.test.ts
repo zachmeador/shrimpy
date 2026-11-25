@@ -6,7 +6,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { makeSigil, Session } from "../../contracts/agent/index.ts";
 import { connectHome, readEndpoint, readMembership } from "../../contracts/agent/node.ts";
 import { hello, readAnswer, Roster } from "../../contracts/gateway/index.ts";
-import { newToken } from "../../contracts/gateway/node.ts";
+import { newToken, thisMachine } from "../../contracts/gateway/node.ts";
 import { dial } from "../../lib/link/node.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { until } from "../../lib/testing/index.ts";
@@ -126,14 +126,14 @@ test("the home's own socket turns away a client of other Pi packages, and one th
   const rig = await startAgentRig(t);
   const endpoint = readEndpoint(rig.home);
   assert.ok(endpoint !== undefined);
-  const greeting = { ...hello({ kind: "client", token: null }), pi: { "@earendil-works/pi-durable": "0.9.0" } };
+  const greeting = { ...hello({ kind: "client", token: null }, thisMachine()), pi: { "@earendil-works/pi-durable": "0.9.0" } };
   const other = await dial({ path: endpoint.socket }, greeting);
   other.linked.drop();
   const answer = readAnswer(other.answer);
   assert.equal(answer?.kind, "refused");
   assert.ok(answer.words.includes("0.9.0"), answer.words);
 
-  const token = await dial({ path: endpoint.socket }, hello({ kind: "client", token: newToken() }));
+  const token = await dial({ path: endpoint.socket }, hello({ kind: "client", token: newToken() }, thisMachine()));
   token.linked.drop();
   assert.equal(readAnswer(token.answer)?.kind, "refused");
 });

@@ -109,6 +109,7 @@ export function join(participant: Participant, options: JoinOptions): Joined {
   const gateway = linkToGateway({
     serve,
     name,
+    home: paths.root,
     membership: {
       read: () => readMembership(paths.root),
       save(membership) {

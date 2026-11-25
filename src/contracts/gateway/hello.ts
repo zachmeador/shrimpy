@@ -6,6 +6,7 @@ import { PI_PACKAGES, SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import type { Reason, Refused } from "./answers.ts";
 import { openObject } from "./open.ts";
 import { type Member, ON_THE_ROSTER, type TurnedAwayProgram } from "./roster.ts";
+import { MACHINE_FIELDS, type Machine } from "./where.ts";
 
 /** The exact Pi packages a program runs, each at its version. */
 export type PiPackages = Readonly<Record<string, string>>;
@@ -17,9 +18,10 @@ export type Who =
    * gateway's socket, a token the gateway doesn't know joins it unless `roster`
    * matches this roster's ID, in which case its token was taken back or
    * replaced, and it is turned away as unknown. The token of an agent that was
-   * removed is turned away as removed, wherever it is shown.
+   * removed is turned away as removed, wherever it is shown. `home` is its
+   * home's path on the machine it runs on.
    */
-  | { kind: "agent"; name: string; token: string; roster: string | null }
+  | { kind: "agent"; name: string; token: string; roster: string | null; home: string }
   /** The chat server, which shows no token, on the gateway's socket. */
   | { kind: "chat" }
   /**
@@ -29,16 +31,23 @@ export type Who =
   | { kind: "client"; token: string | null }
   /**
    * Joining with an invitation, over the gateway's entry: the agent `name`, or
-   * a device of yours when it is null, labelled with `machine`, the joining
-   * machine's name. The connection closes after the answer.
+   * a device of yours when it is null, labelled with the name of the machine
+   * the hello says it runs on. The connection closes after the answer.
    */
-  | { kind: "join"; name: string | null; token: string; code: string; machine: string };
+  | { kind: "join"; name: string | null; token: string; code: string };
 
-/** The first frame a caller sends, before any of Chord's: its Shrimpy version, its Pi packages and who it is. */
-export type Hello = { shrimpy: string; pi: PiPackages; who: Who };
+/**
+ * The first frame a caller sends, before any of Chord's: its Shrimpy version,
+ * its Pi packages, where it runs, or null from a browser, and who it is.
+ */
+export type Hello = { shrimpy: string; pi: PiPackages; machine: Machine | null; who: Who };
 
-/** The gateway lets the caller in, as `you` (or nobody for a program that isn't a member), with its roster's ID (null on an agent's home socket). */
-export type Welcome = { kind: "welcome"; you: Member | null; roster: string | null; shrimpy: string; pi: PiPackages };
+/**
+ * The gateway lets the caller in, as `you` (or nobody for a program that isn't
+ * a member), with its roster's ID (null on an agent's home socket), and says
+ * where it runs, as an agent does on its home's socket.
+ */
+export type Welcome = { kind: "welcome"; you: Member | null; roster: string | null; shrimpy: string; pi: PiPackages; machine: Machine };
 
 /** The gateway turns the caller away, and closes the connection. */
 export type TurnedAway = Refused & { shrimpy: string; pi: PiPackages };
@@ -48,33 +57,43 @@ export type HelloAnswer = Welcome | TurnedAway;
 
 const PiSchema = map(str());
 
+const OpenMachineSchema = openObject(MACHINE_FIELDS);
+
 const HelloSchema = openObject({
   shrimpy: str(),
   pi: PiSchema,
+  machine: union([OpenMachineSchema, nul()]),
   who: union([
-    openObject({ kind: lit("agent"), name: str(), token: str(), roster: union([str(), nul()]) }),
+    openObject({ kind: lit("agent"), name: str(), token: str(), roster: union([str(), nul()]), home: str() }),
     openObject({ kind: lit("chat") }),
     openObject({ kind: lit("client"), token: union([str(), nul()]) }),
-    openObject({ kind: lit("join"), name: union([str(), nul()]), token: str(), code: str(), machine: str() }),
+    openObject({ kind: lit("join"), name: union([str(), nul()]), token: str(), code: str() }),
   ]),
 });
 
 const AnswerSchema = union([
-  openObject({ kind: lit("welcome"), you: union([openObject(ON_THE_ROSTER), nul()]), roster: union([str(), nul()]), shrimpy: str(), pi: PiSchema }),
+  openObject({
+    kind: lit("welcome"),
+    you: union([openObject(ON_THE_ROSTER), nul()]),
+    roster: union([str(), nul()]),
+    shrimpy: str(),
+    pi: PiSchema,
+    machine: OpenMachineSchema,
+  }),
   openObject({ kind: lit("refused"), words: str(), reason: union([str(), nul()]), shrimpy: str(), pi: PiSchema }),
 ]);
 
 const checkHello = compile(HelloSchema).check;
 const checkAnswer = compile(AnswerSchema).check;
 
-/** This code's hello, as `who`. */
-export function hello(who: Who): Hello {
-  return { shrimpy: SHRIMPY_VERSION, pi: PI_PACKAGES, who };
+/** This code's hello, as `who`, from `machine`, or from a browser with none. */
+export function hello(who: Who, machine: Machine | null): Hello {
+  return { shrimpy: SHRIMPY_VERSION, pi: PI_PACKAGES, machine, who };
 }
 
-/** This code's welcome, for `you`, on the roster `roster` (null when there is no roster, as on an agent's home socket). */
-export function welcome(you: Member | null, roster: string | null = null): Welcome {
-  return { kind: "welcome", you, roster, shrimpy: SHRIMPY_VERSION, pi: PI_PACKAGES };
+/** This code's welcome, for `you`, on the roster `roster` (null when there is no roster, as on an agent's home socket), from `machine`. */
+export function welcome(you: Member | null, roster: string | null, machine: Machine): Welcome {
+  return { kind: "welcome", you, roster, shrimpy: SHRIMPY_VERSION, pi: PI_PACKAGES, machine };
 }
 
 /** This code's refusal of a hello. */

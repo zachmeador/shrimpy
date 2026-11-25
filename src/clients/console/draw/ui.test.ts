@@ -847,7 +847,7 @@ test("/devices lists the person's devices, and /devices take back ends a device'
   const { code, fingerprint } = invited.value;
   const entry = { ...address, fingerprint };
   const token = newToken();
-  const joined = await sayHello(entry, { kind: "join", name: null, token, code, machine: hostname() });
+  const joined = await sayHello(entry, { kind: "join", name: null, token, code });
   joined.linked.drop();
   const device = await connectClient({ place: entry, token });
   stopAfter(t, () => device.close());

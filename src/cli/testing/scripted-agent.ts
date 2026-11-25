@@ -3,7 +3,7 @@ import type { Reference } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Chat, type ChatEvent, Thread } from "../../contracts/chat/index.ts";
 import { contextOf, hello, isLost, readAnswer, valueOf } from "../../contracts/gateway/index.ts";
-import { gatewaySocket, newToken } from "../../contracts/gateway/node.ts";
+import { gatewaySocket, newToken, thisMachine } from "../../contracts/gateway/node.ts";
 import { linkTestAgent, testAgentHost } from "../../contracts/gateway/testing/index.ts";
 import { keepLink } from "../../lib/link/index.ts";
 import { dial } from "../../lib/link/node.ts";
@@ -83,7 +83,7 @@ export async function startScriptedAgent(t: TestContext, options: ScriptedAgentO
     async link(signal) {
       // Its own hello, since it gives the version the test asks for.
       const said = {
-        ...hello({ kind: "agent", name: options.name, token, roster: rosterId }),
+        ...hello({ kind: "agent", name: options.name, token, roster: rosterId, home: `/home/${options.name}` }, thisMachine()),
         shrimpy: options.version ?? SHRIMPY_VERSION,
       };
       const { answer: raw, linked } = await dial({ path: gatewaySocket() }, said, { signal });

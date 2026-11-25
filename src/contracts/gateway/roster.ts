@@ -2,6 +2,7 @@ import { arr, bool, map, method, nul, num, obj, oneOf, remote, type Static, str,
 import { AddressSchema } from "./address.ts";
 import { answerOf } from "./answers.ts";
 import { gateway } from "./hosts.ts";
+import { MachineSchema, WhereSchema } from "./where.ts";
 
 /**
  * What every contract names a member by: its ID, minted once and never
@@ -22,16 +23,23 @@ export const ON_THE_ROSTER = { ...MEMBER_FIELDS, admin: bool() };
 export const MemberSchema = obj(ON_THE_ROSTER);
 export type Member = Static<typeof MemberSchema>;
 
-/** A member as the roster lists it, with whether it is reachable: an agent whose program is linked and answering. */
-const RosterEntrySchema = obj({ ...ON_THE_ROSTER, reachable: bool() });
+/**
+ * A member as the roster lists it, with whether it is reachable: an agent
+ * whose program is linked and answering. An agent also has where it lives, as
+ * its latest hello said, and when the gateway last saw it linked: when its
+ * latest link ended, or, while one lasts, when it began. Both are null for a
+ * person, and for an agent that hasn't linked since its gateway ran 2.0.
+ */
+const RosterEntrySchema = obj({ ...ON_THE_ROSTER, reachable: bool(), where: union([WhereSchema, nul()]), lastLinked: union([num(), nul()]) });
 export type RosterEntry = Static<typeof RosterEntrySchema>;
 
-/** A program linked to the gateway now, with the Shrimpy version its hello gave. The chat server is no member. */
+/** A program linked to the gateway now, with the Shrimpy version its hello gave and the machine it runs on. The chat server is no member. */
 const ProgramSchema = obj({
   kind: oneOf("agent", "chat"),
   name: str(),
   member: union([str(), nul()]),
   shrimpy: str(),
+  machine: MachineSchema,
 });
 export type Program = Static<typeof ProgramSchema>;
 

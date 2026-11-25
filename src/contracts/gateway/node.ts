@@ -5,8 +5,8 @@
  * program stands with the gateway told once each time it changes; the file in
  * which a machine of yours keeps its place as one of your devices; the
  * addresses the gateway keeps for its entry, and the check that an address is
- * one another machine can use; and making a token. Browser code must not
- * import this file.
+ * one another machine can use; making a token; and where this program runs.
+ * Browser code must not import this file.
  */
 export { connectClient, type ConnectOptions } from "./connect.node.ts";
 export { sayHello, UnprovenGatewayError } from "./dial.node.ts";
@@ -20,3 +20,4 @@ export {
 export { readMachine, saveMachine } from "./machine.node.ts";
 export { gatewaySocket } from "./socket.node.ts";
 export { newToken } from "./token.node.ts";
+export { thisMachine } from "./where.node.ts";

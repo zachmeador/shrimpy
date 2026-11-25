@@ -23,6 +23,8 @@ export interface GatewayLinkOptions {
   serve(memberId: string): Promise<Host<Principal, Revocation>>;
   /** The agent's name, from `agent.json`, used when it first joins a roster. */
   name: string;
+  /** The home's path, which the hello says, so the roster knows where the agent lives. */
+  home: string;
   /**
    * Where the gateway's entry is, when the agent is apart from the gateway,
    * with the fingerprint of the gateway's key that the agent checks it
@@ -145,7 +147,7 @@ export function linkToGateway(options: GatewayLinkOptions): GatewayLink {
     place: currentPlace,
     who: () => {
       const saved = currentMembership();
-      return { kind: "agent", name, token: saved.token, roster: saved.rosterId ?? null };
+      return { kind: "agent", name, token: saved.token, roster: saved.rosterId ?? null, home: options.home };
     },
     signal: stopping.signal,
     onWelcome(answer) {

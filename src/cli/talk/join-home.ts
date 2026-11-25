@@ -1,4 +1,3 @@
-import { hostname } from "node:os";
 import type { Membership } from "../../contracts/agent/index.ts";
 import { loadHome, readMembership, saveMembership } from "../../contracts/agent/node.ts";
 import { type Entry, HelloRefusedError, nameKey, readLink } from "../../contracts/gateway/index.ts";
@@ -51,7 +50,7 @@ export async function joinHome(home: string, link: string, options: JoinHomeOpti
     saveMembership(paths.root, pending);
   }
 
-  const who = { kind: "join", name: invitation.name, token, code: invitation.code, machine: hostname() } as const;
+  const who = { kind: "join", name: invitation.name, token, code: invitation.code } as const;
   let joined: Joined;
   try {
     joined = await joinGateway(gateway, who, invitation.name, options.signal);

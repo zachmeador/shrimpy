@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { readMembership } from "../contracts/agent/node.ts";
 import { hello, readAnswer, readLink, writeLink } from "../contracts/gateway/index.ts";
-import { newToken } from "../contracts/gateway/node.ts";
+import { newToken, thisMachine } from "../contracts/gateway/node.ts";
 import { dial } from "../lib/link/node.ts";
 import { tempDir, until } from "../lib/testing/index.ts";
 import {
@@ -99,7 +99,7 @@ test("a line pasted again where another folder used it is refused, and no second
   assert.equal(first.code, 0, first.stderr);
 
   // What the gateway says to a code that is used up, as another connection hears it.
-  const said = hello({ kind: "join", name: "crab", token: newToken(), code, machine: "elsewhere" });
+  const said = hello({ kind: "join", name: "crab", token: newToken(), code }, thisMachine());
   const { answer, linked } = await dial({ ...address, fingerprint }, said);
   linked.drop();
   const turned = readAnswer(answer);

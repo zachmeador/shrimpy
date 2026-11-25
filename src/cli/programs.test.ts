@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { startTestChat } from "../contracts/chat/testing/index.ts";
 import type { Program } from "../contracts/gateway/index.ts";
+import { thisMachine } from "../contracts/gateway/node.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { eventually, tempDir, within } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
@@ -26,7 +27,7 @@ async function linkedWithChat(t: TestContext): Promise<Program[]> {
   );
 }
 
-const CHAT = { kind: "chat", name: "chat", member: null, shrimpy: SHRIMPY_VERSION };
+const CHAT = { kind: "chat", name: "chat", member: null, shrimpy: SHRIMPY_VERSION, machine: thisMachine() };
 
 test("the chat server links to the gateway once both run, with its version", { timeout }, async (t) => {
   await startTestGateway(t);

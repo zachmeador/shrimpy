@@ -95,7 +95,7 @@ export async function linkTestAgent(t: TestContext, name: string, options: TestA
       return currentHost;
     },
     place: options.place ?? { path: gatewaySocket() },
-    who: () => ({ kind: "agent", name, token, roster: rosterId }),
+    who: () => ({ kind: "agent", name, token, roster: rosterId, home: `/home/${name}` }),
     signal: stopping.signal,
     backoff: backoff({ firstMs: 5, maxMs: 50 }),
     onWelcome: (answer) => {

@@ -157,7 +157,7 @@ The rest are mostly for agents and scripts. `shrimpy <command> --help` explains 
 | `update [<version>]` | Say what the latest release would change here, or install a version here and restart the service with it. |
 | `invite [<name>]` | Invite an agent that will live elsewhere, or with no name a machine or a browser of yours, and print the line to run there or the link to open. |
 | `join <link>` | With the link of an invitation, make an agent here that joins a gateway elsewhere, or make this machine one of yours. |
-| `members` | List the roster: each member's kind, whether it is an admin, and whether a program is running as it. |
+| `members` | List the roster: each member's kind, whether it is an admin, whether a program is running as it, and where an agent last linked from. |
 | `members promote <name>` | Make an agent an admin. |
 | `members demote <name>` | Make an admin agent an ordinary agent again. |
 | `members remove <name>` | Remove an agent: take it off the roster, and move its home in your Shrimpy folder to removed/. |

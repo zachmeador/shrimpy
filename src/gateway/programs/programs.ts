@@ -3,7 +3,7 @@ import { BACKGROUND_CONTEXT, type Context } from "@earendil-works/chord/context"
 import type { NativeWatchHandle } from "@earendil-works/chord/watch";
 import { AgentPresence } from "../../contracts/agent/index.ts";
 import { ChatPresence } from "../../contracts/chat/index.ts";
-import { agent, chat, type Principal, type Program, type Revocation, type TurnedAwayProgram } from "../../contracts/gateway/index.ts";
+import { agent, chat, type Machine, type Principal, type Program, type Revocation, type TurnedAwayProgram } from "../../contracts/gateway/index.ts";
 import type { Linked } from "../../lib/link/index.ts";
 
 export interface ProgramsOptions {
@@ -12,6 +12,8 @@ export interface ProgramsOptions {
   agents(): readonly { readonly id: string; readonly name: string }[];
   /** Told when the programs linked, or whether an agent is reachable, changed. */
   onChange(): void;
+  /** Told when an agent's link ends, by itself, by being dropped, or because the gateway closes. */
+  unlinked(member: string): void;
   /** The parent of the routes' work, ended when the gateway closes. */
   readonly context: Context;
 }
@@ -27,10 +29,10 @@ export interface Programs {
   agentLinked(member: string): boolean;
   /** Whether a chat server is linked now. */
   chatLinked(): boolean;
-  /** Take the link of the agent `principal` is, whose hello was welcomed, as the route to it while it lasts. */
-  takeAgent(principal: Extract<Principal, { kind: "agent" }>, name: string, shrimpy: string, linked: Linked): void;
-  /** Take the chat server's link, whose hello was welcomed, as the route to it while it lasts. */
-  takeChat(shrimpy: string, linked: Linked): void;
+  /** Take the link of the agent `principal` is, whose hello from `machine` was welcomed, as the route to it while it lasts. */
+  takeAgent(principal: Extract<Principal, { kind: "agent" }>, name: string, shrimpy: string, machine: Machine, linked: Linked): void;
+  /** Take the chat server's link, whose hello from `machine` was welcomed, as the route to it while it lasts. */
+  takeChat(shrimpy: string, machine: Machine, linked: Linked): void;
   /** The programs linked now, oldest first. */
   list(): Program[];
   /** The gateway turned `program` away for the release it runs: keep it until it links, or its agent leaves the roster. */
@@ -55,6 +57,7 @@ interface ProgramLink {
   readonly member: string | null;
   readonly name: string;
   readonly shrimpy: string;
+  readonly machine: Machine;
   readonly address: Address;
   readonly principal: Principal;
   readonly linked: Linked;
@@ -110,9 +113,12 @@ export function createPrograms(options: ProgramsOptions): Programs {
     awayNow.delete(id);
     waiting.set(entry.address.key, entry);
     void entry.linked.closed.then(() => {
-      if (linkedNow.get(id) === entry) linkedNow.delete(id);
       if (waiting.get(entry.address.key) === entry) waiting.delete(entry.address.key);
-      if (!closed) options.onChange();
+      if (linkedNow.get(id) !== entry) return;
+      linkedNow.delete(id);
+      if (closed) return;
+      if (entry.kind === "agent") options.unlinked(id);
+      options.onChange();
     });
     if (entry.kind === "chat") chats.retry(chat());
     else agents.retry(agent({ id }));
@@ -172,21 +178,22 @@ export function createPrograms(options: ProgramsOptions): Programs {
     },
     agentLinked: (member) => linkedNow.has(member),
     chatLinked: () => linkedNow.has(CHAT),
-    takeAgent(principal, name, shrimpy, linked) {
+    takeAgent(principal, name, shrimpy, machine, linked) {
       take(principal.member, {
         kind: "agent",
         member: principal.member,
         name,
         shrimpy,
+        machine,
         address: agent({ id: principal.member }),
         principal,
         linked,
       });
     },
-    takeChat(shrimpy, linked) {
-      take(CHAT, { kind: "chat", member: null, name: CHAT, shrimpy, address: chat(), principal: { kind: "chat" }, linked });
+    takeChat(shrimpy, machine, linked) {
+      take(CHAT, { kind: "chat", member: null, name: CHAT, shrimpy, machine, address: chat(), principal: { kind: "chat" }, linked });
     },
-    list: () => [...linkedNow.values()].map(({ kind, name, member, shrimpy }) => ({ kind, name, member, shrimpy })),
+    list: () => [...linkedNow.values()].map(({ kind, name, member, shrimpy, machine }) => ({ kind, name, member, shrimpy, machine })),
     turnAway(program) {
       const id = program.member ?? CHAT;
       if (JSON.stringify(awayNow.get(id)) === JSON.stringify(program)) return;
@@ -204,7 +211,10 @@ export function createPrograms(options: ProgramsOptions): Programs {
       closed = true;
       for (const presence of presences.values()) release(presence);
       presences.clear();
-      for (const entry of linkedNow.values()) entry.linked.drop();
+      for (const [id, entry] of linkedNow) {
+        if (entry.kind === "agent") options.unlinked(id);
+        entry.linked.drop();
+      }
     },
   };
 }

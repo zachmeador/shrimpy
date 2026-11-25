@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { hello, HelloRefusedError, readAnswer, Roster } from "../contracts/gateway/index.ts";
-import { newToken } from "../contracts/gateway/node.ts";
+import { newToken, thisMachine } from "../contracts/gateway/node.ts";
 import { dial, type DialPlace } from "../lib/link/node.ts";
 import { until } from "../lib/testing/index.ts";
 import { PI_PACKAGES, SHRIMPY_VERSION } from "../lib/version/index.ts";
@@ -37,12 +37,12 @@ test("a hello of another major is turned away in words that name the machine to 
   const gateway = await startGatewayInProcess(t);
   const later = `${Number(SHRIMPY_VERSION.split(".")[0]) + 1}.0.0`;
 
-  const program = await answerTo({ path: gateway.socket }, { ...hello({ kind: "agent", name: "scout", token: newToken(), roster: null }), shrimpy: later });
+  const program = await answerTo({ path: gateway.socket }, { ...hello({ kind: "agent", name: "scout", token: newToken(), roster: null, home: "/home/scout" }, thisMachine()), shrimpy: later });
   assert.equal(program.kind, "refused");
   assert.ok(program.words.includes("gateway's machine") && program.words.includes(later), program.words);
   assert.equal(program.shrimpy, SHRIMPY_VERSION, "the answer carries the gateway's own version");
 
-  const client = await answerTo({ path: gateway.socket }, { ...hello({ kind: "client", token: null }), shrimpy: later });
+  const client = await answerTo({ path: gateway.socket }, { ...hello({ kind: "client", token: null }, thisMachine()), shrimpy: later });
   assert.equal(client.kind, "refused", "a client of another major too");
 });
 
@@ -67,8 +67,8 @@ test("a hello of a later release of the major is read past what it adds, and one
   const later = `${major ?? ""}.${Number(minor) + 1}.0`;
   const place = { path: gateway.socket };
 
-  const client = hello({ kind: "client", token: null });
-  const added = await answerTo(place, { ...client, shrimpy: later, said: "later", who: { ...client.who, also: true } });
+  const client = hello({ kind: "client", token: null }, thisMachine());
+  const added = await answerTo(place, { ...client, shrimpy: later, answer: "later", who: { ...client.who, also: true } });
   assert.equal(added.kind, "welcome", added.kind === "refused" ? added.words : "");
 
   const unserved = await answerTo(place, { ...client, shrimpy: later, who: { kind: "from-a-later-release" } });
@@ -86,7 +86,7 @@ test("the roster lists an agent turned away for its release, with what it runs, 
   const roster = await you.host.get(Roster, {}, context);
   const later = `${Number(SHRIMPY_VERSION.split(".")[0]) + 1}.0.0`;
 
-  const answer = await answerTo(place, { ...hello({ kind: "agent", name: "scout", token, roster: scout.roster }), shrimpy: later });
+  const answer = await answerTo(place, { ...hello({ kind: "agent", name: "scout", token, roster: scout.roster, home: "/home/scout" }, thisMachine()), shrimpy: later });
   assert.equal(answer.kind, "refused");
   await until(() => roster.turnedAway.value.length === 1, "the roster to list scout as turned away");
   assert.deepEqual(roster.turnedAway.value, [{ kind: "agent", name: "scout", member: scout.you.id, shrimpy: later, pi: PI_PACKAGES }]);
@@ -102,7 +102,7 @@ test("a second program for one agent is turned away while the first is linked", 
   const scout = await linkTestAgent(t, "scout", { place, token });
   await until(() => scout.welcomes.length === 1, "scout to be let in");
 
-  const answer = await answerTo(place, hello({ kind: "agent", name: "scout", token, roster: scout.roster }));
+  const answer = await answerTo(place, hello({ kind: "agent", name: "scout", token, roster: scout.roster, home: "/home/scout" }, thisMachine()));
   assert.equal(answer.kind === "refused" ? answer.reason : answer.kind, "agent_running");
 
   const you = await connectTestClient(t, place);
@@ -122,7 +122,7 @@ test("an agent joins over the entry with an invitation's code, once, and then li
   assert.deepEqual(invitation.value.addresses, [address]);
   assert.equal(invitation.value.fingerprint, gateway.fingerprint, "with the fingerprint of the gateway's key");
   const entry = { ...address, fingerprint: invitation.value.fingerprint };
-  const join = (token: string, code: string) => hello({ kind: "join", name: "crab", token, code, machine: "elsewhere" });
+  const join = (token: string, code: string) => hello({ kind: "join", name: "crab", token, code }, thisMachine());
 
   const wrong = await answerTo(entry, join(newToken(), "AAAA-AAAA"));
   assert.equal(wrong.kind, "refused");
@@ -158,29 +158,29 @@ test("an agent beside the gateway whose token was taken back is refused as unkno
   await scout.stop();
 
   // Presenting the same roster ID with a revoked token tells the gateway it knew this roster already: refuse as unknown_token.
-  const revoked = await answerTo(place, hello({ kind: "agent", name: "scout", token, roster: scout.roster }));
+  const revoked = await answerTo(place, hello({ kind: "agent", name: "scout", token, roster: scout.roster, home: "/home/scout" }, thisMachine()));
   assert.equal(revoked.kind === "refused" ? revoked.reason : revoked.kind, "unknown_token");
 
   // Deleting state/member.json (a fresh token with roster: null) on the gateway's socket reclaims the tokenless entry.
   const replacementToken = newToken();
-  const reclaimed = await answerTo(place, hello({ kind: "agent", name: "scout", token: replacementToken, roster: null }));
+  const reclaimed = await answerTo(place, hello({ kind: "agent", name: "scout", token: replacementToken, roster: null, home: "/home/scout" }, thisMachine()));
   assert.equal(reclaimed.kind, "welcome");
   assert.equal(reclaimed.you?.id, scout.you.id, "same member ID");
 
   // Once scout has a token again, another home asking for the same name is refused as name_taken.
-  const duplicate = await answerTo(place, hello({ kind: "agent", name: "scout", token: newToken(), roster: null }));
+  const duplicate = await answerTo(place, hello({ kind: "agent", name: "scout", token: newToken(), roster: null, home: "/home/scout" }, thisMachine()));
   assert.equal(duplicate.kind === "refused" ? duplicate.reason : duplicate.kind, "name_taken");
 
   // After removal, its token is turned away as removed, whatever roster it names, and the agent isn't made again.
   assert.equal((await roster.remove({ member: scout.you.id }, context)).kind, "done");
   for (const named of [scout.roster, null]) {
-    const removed = await answerTo(place, hello({ kind: "agent", name: "scout", token: replacementToken, roster: named }));
+    const removed = await answerTo(place, hello({ kind: "agent", name: "scout", token: replacementToken, roster: named, home: "/home/scout" }, thisMachine()));
     assert.equal(removed.kind === "refused" ? removed.reason : removed.kind, "removed");
   }
   assert.equal(roster.members.value.some((member) => member.name === "scout"), false);
 
   // Presenting a different roster ID (such as after the gateway's roster was wiped and recreated) joins the fresh roster.
-  const fresh = await answerTo(place, hello({ kind: "agent", name: "scout", token: newToken(), roster: "ros_otherroster00" }));
+  const fresh = await answerTo(place, hello({ kind: "agent", name: "scout", token: newToken(), roster: "ros_otherroster00", home: "/home/scout" }, thisMachine()));
   assert.equal(fresh.kind, "welcome");
   assert.equal(fresh.you?.name, "scout");
   assert.equal(fresh.roster, roster.id.value);

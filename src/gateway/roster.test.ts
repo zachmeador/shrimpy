@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { hostname } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { HelloRefusedError, Roster } from "../contracts/gateway/index.ts";
-import { newToken, sayHello } from "../contracts/gateway/node.ts";
+import { newToken, sayHello, thisMachine } from "../contracts/gateway/node.ts";
 import { migrationCopy } from "../lib/migration/node.ts";
 import { tempDir, until } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
@@ -35,7 +36,8 @@ test("a client holding the roster sees an agent arrive, and become reachable onc
   const scout = roster.members.value.find((member) => member.name === "scout");
   assert.equal(scout?.kind, "agent");
   assert.equal(scout.admin, true, "the first agent is an admin");
-  assert.deepEqual(roster.programs.value, [{ kind: "agent", name: "scout", member: scout.id, shrimpy: SHRIMPY_VERSION }]);
+  assert.deepEqual(roster.programs.value, [{ kind: "agent", name: "scout", member: scout.id, shrimpy: SHRIMPY_VERSION, machine: thisMachine() }]);
+  assert.deepEqual(scout.where, { machine: thisMachine(), home: "/home/scout" }, "the roster keeps where its hello came from");
 });
 
 test("taking a device's token back ends what it holds as revoked, closes its link, and lets it in no more", { timeout }, async (t) => {
@@ -50,7 +52,7 @@ test("taking a device's token back ends what it holds as revoked, closes its lin
   const invitation = await yours.inviteDevice(context);
   assert.equal(invitation.kind, "done");
   const token = newToken();
-  const joined = await sayHello(entry, { kind: "join", name: null, token, code: invitation.value.code, machine: "laptop" });
+  const joined = await sayHello(entry, { kind: "join", name: null, token, code: invitation.value.code });
   joined.linked.drop();
   assert.equal(joined.welcome.you?.id, you.you?.id, "a device is you");
 
@@ -62,7 +64,7 @@ test("taking a device's token back ends what it holds as revoked, closes its lin
   await until(() => yours.ways.value.some((each) => each.kind === "device"), "you to see the device's way in");
   const way = yours.ways.value.find((each) => each.kind === "device");
   assert.deepEqual(echo.caller.value, { kind: "person", member: you.you?.id, way: { kind: "device", id: way?.id } });
-  assert.equal(way?.label, "laptop", "the device is labelled with the machine it joined from");
+  assert.equal(way?.label, hostname(), "the device is labelled with the machine its hello came from");
 
   const taken = await yours.takeBack({ way: way.id }, context);
   assert.equal(taken.kind, "done");
@@ -179,7 +181,7 @@ test("taking back an agent's token keeps its entry, and inviting it again replac
   const firstInvite = await yours.invite({ name: "scout" }, context);
   assert.equal(firstInvite.kind, "done");
   const firstToken = newToken();
-  const joined = await sayHello(entry, { kind: "join", name: "scout", token: firstToken, code: firstInvite.value.code, machine: "box-1" });
+  const joined = await sayHello(entry, { kind: "join", name: "scout", token: firstToken, code: firstInvite.value.code });
   joined.linked.drop();
   assert.equal(joined.welcome.roster, rosterId);
   const scoutId = joined.welcome.you?.id;
@@ -195,7 +197,7 @@ test("taking back an agent's token keeps its entry, and inviting it again replac
   const secondInvite = await yours.invite({ name: "SCOUT" }, context);
   assert.equal(secondInvite.kind, "done");
   const secondToken = newToken();
-  const replaced = await sayHello(entry, { kind: "join", name: "scout", token: secondToken, code: secondInvite.value.code, machine: "box-2" });
+  const replaced = await sayHello(entry, { kind: "join", name: "scout", token: secondToken, code: secondInvite.value.code });
   replaced.linked.drop();
   assert.equal(replaced.welcome.you?.id, scoutId, "same member ID");
   assert.equal(replaced.welcome.you.name, "scout", "canonical roster spelling");
@@ -264,7 +266,7 @@ test("removing an agent revokes its link, withdraws its invitations, frees its n
 
   // The pending invitation was withdrawn and the old token is turned away as removed.
   await assert.rejects(
-    sayHello(entry, { kind: "join", name: "scout", token: newToken(), code: pending.value.code, machine: "box" }),
+    sayHello(entry, { kind: "join", name: "scout", token: newToken(), code: pending.value.code }),
     HelloRefusedError,
   );
   await assert.rejects(

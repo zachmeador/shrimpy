@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { hostname } from "node:os";
 import { dirname, join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
@@ -9,7 +8,7 @@ import { type AgentModels, parseModelChoice, parseSigil, PIGMENTS } from "../con
 import { initHome, loadHome, readMembership, saveMembership } from "../contracts/agent/node.ts";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
 import { type Program, Roster, type RosterEntry, valueOf } from "../contracts/gateway/index.ts";
-import { newToken, sayHello } from "../contracts/gateway/node.ts";
+import { newToken, sayHello, thisMachine } from "../contracts/gateway/node.ts";
 import { linkTestAgent, startTestGateway, type TestGateway } from "../contracts/gateway/testing/index.ts";
 import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
@@ -146,7 +145,7 @@ test("an agent starts from a home alone, finds chat through the gateway, and ans
   assert.equal(agent.name, "scout");
   assert.equal(agent.home, paths.root);
   assert.deepEqual(await agentsOf(gateway), [
-    { kind: "agent", name: "scout", member: person.partner.id, shrimpy: SHRIMPY_VERSION },
+    { kind: "agent", name: "scout", member: person.partner.id, shrimpy: SHRIMPY_VERSION, machine: thisMachine() },
   ]);
   assert.equal(receipt.status, "answered");
   assert.deepEqual((await person.replies()).map((reply) => reply.text), ["Hello from qwen"]);
@@ -270,7 +269,7 @@ test("an agent apart is given the workspace context through the gateway, and a c
   const { code, fingerprint } = valueOf(await roster.invite({ name: "scout" }, BACKGROUND_CONTEXT));
   const token = newToken();
   const entry = { ...address, fingerprint };
-  const joined = await sayHello(entry, { kind: "join", name: "scout", token, code, machine: hostname() });
+  const joined = await sayHello(entry, { kind: "join", name: "scout", token, code });
   joined.linked.drop();
   assert.ok(joined.welcome.you !== null);
   saveMembership(paths.root, { token, memberId: joined.welcome.you.id, gateway: entry });

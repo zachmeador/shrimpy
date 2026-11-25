@@ -1,6 +1,6 @@
 import { AGENT_HOME_VARIABLE, membershipFile, unknownTokenAdvice } from "../../contracts/agent/index.ts";
 import { readMembership } from "../../contracts/agent/node.ts";
-import { type Entry, type HelloRefusedError, type Machine, machineFile } from "../../contracts/gateway/index.ts";
+import { type Entry, type HelloRefusedError, type MachineMembership, machineFile } from "../../contracts/gateway/index.ts";
 import { gatewaySocket, readMachine } from "../../contracts/gateway/node.ts";
 import { formatAddress } from "../../lib/link/index.ts";
 import type { DialPlace } from "../../lib/link/node.ts";
@@ -8,7 +8,7 @@ import { folderPath } from "../folder/index.ts";
 import { notLetIn } from "./join.ts";
 
 /** A machine of a person's own that the gateway has let in: it knows who it is. */
-type JoinedMachine = Machine & Required<Pick<Machine, "member">>;
+type JoinedMachine = MachineMembership & Required<Pick<MachineMembership, "member">>;
 
 /**
  * The machine this Shrimpy folder has joined as, if it has: the file in the

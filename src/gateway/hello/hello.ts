@@ -4,6 +4,7 @@ import {
   type Answer,
   type Hello,
   type HelloAnswer,
+  type Machine,
   type Member,
   nameKey,
   notAHello,
@@ -17,10 +18,12 @@ import {
   type Revocation,
   turnAway,
   unservedHello,
-  welcome,
+  welcome as welcomed,
+  type Welcome,
   type Who,
 } from "../../contracts/gateway/index.ts";
 import { newToken } from "../../contracts/gateway/node.ts";
+import type { Linked } from "../../lib/link/index.ts";
 import type { Greeted } from "../../lib/link/node.ts";
 import { localTime } from "../../lib/time/index.ts";
 import type { Invitations } from "../invitations/index.ts";
@@ -53,6 +56,8 @@ export interface HelloDeps {
   readonly programs: Programs;
   readonly invitations: Invitations;
   readonly host: Host<Principal, Revocation>;
+  /** Where the gateway runs, which every welcome says. */
+  readonly machine: Machine;
   /** The parent of the work arriving on clients' links. */
   readonly context: Context;
 }
@@ -65,6 +70,8 @@ const NOT_A_PROGRAM = "That token is a device's, and a device is you, not a prog
 
 const NO_DEVICE_INVITATION =
   "The gateway has no invitation like that for a device of yours. An invitation is good once, for fifteen minutes and for what it was made for. Check the code, or ask for a new one.";
+
+const NO_MACHINE = "A program, and a machine joining, say in their hello which machine they run on, and this hello says none.";
 
 const ONLY_THE_PAGE = "The page's door takes the web client's link and nothing else. A program links in at the gateway's socket or its entry.";
 
@@ -84,6 +91,7 @@ const BROWSER_UNKNOWN =
  */
 export function greeter(deps: HelloDeps): Greeter {
   const { roster, programs, invitations, host, context } = deps;
+  const welcome = (you: Member | null): Welcome => welcomed(you, roster.id, deps.machine);
 
   const away = (words: string, reason: Reason | null = null): Greeted => ({ answer: turnAway(words, reason) });
 
@@ -124,16 +132,16 @@ export function greeter(deps: HelloDeps): Greeter {
       you = found.member;
       principal = { kind: you.kind, member: you.id, way: found.way };
     }
-    return { answer: welcome(you, roster.id), take: (linked) => host.accept(linked.link, { principal }, context) };
+    return { answer: welcome(you), take: (linked) => host.accept(linked.link, { principal }, context) };
   };
 
-  const agentProgram = (who: Extract<Who, { kind: "agent" }>, shrimpy: string, door: Door): Greeted => {
+  const agentProgram = (who: Extract<Who, { kind: "agent" }>, shrimpy: string, machine: Machine, door: Door): Greeted => {
     const found = roster.recognize(who.token);
     if (found?.way.kind === "device") return away(NOT_A_PROGRAM);
     const gone = found === undefined ? removedAway(who.token) : undefined;
     if (gone !== undefined) return gone;
     // A token this roster doesn't know is refused over the entry, and also on the gateway's socket when the home already
-    // belonged to this roster (its token was taken back or replaced, or the agent was removed).
+    // belonged to this roster (its token was taken back or replaced).
     if (found === undefined && (door !== "socket" || who.roster === roster.id)) return unknownToken;
     if (found !== undefined && programs.agentLinked(found.member.id)) return running(found.member);
     let member: Member;
@@ -153,13 +161,17 @@ export function greeter(deps: HelloDeps): Greeter {
     const way = roster.recognize(who.token)?.way;
     if (way?.kind !== "token") return unknownToken;
     const principal = { kind: "agent", member: member.id, way } as const;
-    return { answer: welcome(member, roster.id), take: (linked) => programs.takeAgent(principal, member.name, shrimpy, linked) };
+    const take = (linked: Linked): void => {
+      roster.linked(member.id, { machine, home: who.home }, Date.now());
+      programs.takeAgent(principal, member.name, shrimpy, machine, linked);
+    };
+    return { answer: welcome(member), take };
   };
 
-  const chatProgram = (shrimpy: string, door: Door): Greeted => {
+  const chatProgram = (shrimpy: string, machine: Machine, door: Door): Greeted => {
     if (door !== "socket") return away("The chat server links in on the gateway's own socket, on the gateway's machine.");
     if (programs.chatLinked()) return away("A chat server is linked already, and a gateway has one.");
-    return { answer: welcome(null, roster.id), take: (linked) => programs.takeChat(shrimpy, linked) };
+    return { answer: welcome(null), take: (linked) => programs.takeChat(shrimpy, machine, linked) };
   };
 
   /** Let a device of yours in with an invitation's `code`, as the holder of `token`, labelled `label`. */
@@ -171,23 +183,24 @@ export function greeter(deps: HelloDeps): Greeter {
     return added;
   };
 
-  const join = (who: Extract<Who, { kind: "join" }>, door: Door): Greeted => {
+  const join = (who: Extract<Who, { kind: "join" }>, machine: Machine | null, door: Door): Greeted => {
     if (door !== "entry") {
       return away("Joining is for the gateway's entry. On its own socket an agent links in with its new token, and you are you already.");
     }
     const known = roster.recognize(who.token);
     if (who.name === null) {
       // A device that never heard its answer shows the same token again, and is let in: its code was used for it.
-      if (known?.way.kind === "device") return { answer: welcome(known.member, roster.id) };
+      if (known?.way.kind === "device") return { answer: welcome(known.member) };
       if (known !== undefined) return away("That token is an agent's, and a token belongs to one member.");
-      const joined = letDeviceIn(who.code, who.token, who.machine);
-      return joined.kind === "refused" ? passOn(joined) : { answer: welcome(joined.value, roster.id) };
+      if (machine === null) return away(NO_MACHINE);
+      const joined = letDeviceIn(who.code, who.token, machine.host);
+      return joined.kind === "refused" ? passOn(joined) : { answer: welcome(joined.value) };
     }
     if (known?.way.kind === "device") return away(NOT_A_PROGRAM);
     // An agent that never heard its answer joins again with the same token and is the same member.
     if (known !== undefined) {
       if (programs.agentLinked(known.member.id)) return running(known.member);
-      return { answer: welcome(known.member, roster.id) };
+      return { answer: welcome(known.member) };
     }
     const invited = invitations.check(who.code, who.name);
     if (!invited.ok) {
@@ -206,12 +219,12 @@ export function greeter(deps: HelloDeps): Greeter {
         host.revoke({ way: replacedWay }, context);
         programs.dropAgent(member.id);
       }
-      return { answer: welcome(member, roster.id) };
+      return { answer: welcome(member) };
     }
     const joined = roster.join(invited.name, who.token);
     if (joined.kind === "refused") return passOn(joined);
     invited.spend();
-    return { answer: welcome(joined.value, roster.id) };
+    return { answer: welcome(joined.value) };
   };
 
   /** The web client's link at the page's door, as the device whose token the browser's cookie keeps. */
@@ -221,7 +234,7 @@ export function greeter(deps: HelloDeps): Greeter {
     const found = roster.recognize(kept);
     if (found?.way.kind !== "device") return away(BROWSER_UNKNOWN, "unknown_token");
     const principal: Principal = { kind: "person", member: found.member.id, way: found.way };
-    return { answer: welcome(found.member, roster.id), take: (linked) => host.accept(linked.link, { principal }, context) };
+    return { answer: welcome(found.member), take: (linked) => host.accept(linked.link, { principal }, context) };
   };
 
   /**
@@ -246,42 +259,46 @@ export function greeter(deps: HelloDeps): Greeter {
    * of the major, that asks for something this one doesn't serve, or from
    * something that isn't Shrimpy.
    */
-  const read = (raw: unknown, door: Door | "page"): Hello | Greeted => {
+  const read = (raw: unknown, door: Door | "page"): { hello: Hello } | { greeted: Greeted } => {
     // The versions come first, so a program of another release is told what to run where, whatever else its hello says.
     const versions = readVersions(raw);
-    const other = versions === undefined ? undefined : otherRelease(versions, ANSWERING);
-    if (versions === undefined) return away(notAHello("this gateway"));
-    if (other === undefined) return readHello(raw) ?? away(unservedHello(versions, ANSWERING));
+    if (versions === undefined) return { greeted: away(notAHello("this gateway")) };
+    const other = otherRelease(versions, ANSWERING);
+    if (other === undefined) {
+      const hello = readHello(raw);
+      return hello === undefined ? { greeted: away(unservedHello(versions, ANSWERING)) } : { hello };
+    }
     const program = programIn(raw, door);
     if (program?.kind === "agent") programs.turnAway({ kind: "agent", name: program.member.name, member: program.member.id, ...versions });
     if (program?.kind === "chat") programs.turnAway({ kind: "chat", name: "chat", member: null, ...versions });
-    return away(other);
+    return { greeted: away(other) };
   };
 
   return {
     greet: (door) => (raw) => {
-      const hello = read(raw, door);
-      if ("answer" in hello) return hello;
+      const said = read(raw, door);
+      if ("greeted" in said) return said.greeted;
+      const { hello } = said;
       const { who } = hello;
       switch (who.kind) {
         case "client":
           return client(who.token, door);
         case "agent":
-          return agentProgram(who, hello.shrimpy, door);
+          return hello.machine === null ? away(NO_MACHINE) : agentProgram(who, hello.shrimpy, hello.machine, door);
         case "chat":
-          return chatProgram(hello.shrimpy, door);
+          return hello.machine === null ? away(NO_MACHINE) : chatProgram(hello.shrimpy, hello.machine, door);
         case "join":
-          return join(who, door);
+          return join(who, hello.machine, door);
       }
     },
     greetPage: (raw, kept) => {
-      const hello = read(raw, "page");
-      return "answer" in hello ? hello : page(hello.who, kept);
+      const said = read(raw, "page");
+      return "greeted" in said ? said.greeted : page(said.hello.who, kept);
     },
     letBrowserIn: (code, label) => {
       const token = newToken();
       const joined = letDeviceIn(code, token, label);
-      return joined.kind === "refused" ? { answer: { ...turnAway(joined.words), reason: joined.reason } } : { answer: welcome(joined.value, roster.id), token };
+      return joined.kind === "refused" ? { answer: { ...turnAway(joined.words), reason: joined.reason } } : { answer: welcome(joined.value), token };
     },
   };
 }

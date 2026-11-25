@@ -16,6 +16,7 @@ import {
   unservedHello,
   welcome,
 } from "../contracts/gateway/index.ts";
+import { thisMachine } from "../contracts/gateway/node.ts";
 import { asError } from "../lib/errors/index.ts";
 import { saveFile } from "../lib/files/node.ts";
 import { hostFailure } from "../lib/link/index.ts";
@@ -79,6 +80,7 @@ export async function createAgentHost(
  * release is told what to run where, whatever else its hello says.
  */
 function greeter(host: Host<Principal, Revocation>): (raw: unknown) => Greeted {
+  const machine = thisMachine();
   return (raw) => {
     const versions = readVersions(raw);
     if (versions === undefined) return { answer: turnAway(notAHello("this agent")) };
@@ -89,7 +91,7 @@ function greeter(host: Host<Principal, Revocation>): (raw: unknown) => Greeted {
     if (hello.who.kind !== "client" || hello.who.token !== null) {
       return { answer: turnAway("An agent's own socket takes a client that shows no token. Anything else links to the gateway.") };
     }
-    return { answer: welcome(null, null), take: (linked) => host.accept(linked.link, { principal: { kind: "home" } }, context) };
+    return { answer: welcome(null, null, machine), take: (linked) => host.accept(linked.link, { principal: { kind: "home" } }, context) };
   };
 }
 

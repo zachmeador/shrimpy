@@ -63,6 +63,11 @@ export class ConfigObject {
     return value;
   }
 
+  optionalNumber(key: string): number | undefined {
+    this.#known.add(key);
+    return this.#has(key) ? this.number(key) : undefined;
+  }
+
   optionalPositiveInteger(key: string): number | undefined {
     const value = this.#take(key);
     if (value !== undefined && (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0)) {
