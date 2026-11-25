@@ -5,7 +5,7 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 ## Waiting on the owner
 
 - What wakes agents in a room with several of them. A question that mentioned nobody woke all five agents under the default `people`, and their mentions of each other doubled it: ten replies in four minutes on 2026-11-22, "too much for me to catch up on". One way: `mentions` as the default once a room holds more than two agents, and what every agent is told says room replies stay short and a brainstorm doesn't start work.
-- Files copied into the owner's homes from the read-only archive kept read-only modes: 726 in career's home, `vault/.git` among them, and 4 in SCREAMO's. Agents hit `EACCES` and worked around it with `chmod`. Making them writable is a one-time change to the owner's data, and should touch only what came from the archive, since career and nervous-bob make some of their own files read-only on purpose.
+- Files copied into the owner's homes from the read-only archive kept read-only modes, in two homes, a `vault/.git` among them. Agents hit `EACCES` and worked around it with `chmod`. Making them writable is a one-time change to the owner's data, and should touch only what came from the archive, since some agents make their own files read-only on purpose.
 - Whom a push service is told to write to about the gateway. As built it is the address of the page's door, which on a tailnet holds the tailnet's name. It could be an address the owner sets, such as an email, or nobody. Apple's service turns away a contact that isn't a URL or a mailto address and took the page's address. Whether it takes a notification that names nobody is untried.
 
 ## 2.0
