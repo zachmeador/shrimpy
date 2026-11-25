@@ -178,7 +178,7 @@ export function stepLines(paint: Paint, prose: Prose, step: Step, width: number,
   switch (step.kind) {
     case "shown": {
       const bar = paint.text("▏ ", "line2");
-      const lines = [paint.text(step.label, "ink3"), ...indent(earlierLine(paint, step.earlier), 2)];
+      const lines = [paint.text(`${step.label} ${step.when}`, "ink3"), ...indent(earlierLine(paint, step.earlier), 2)];
       if (step.text !== "") lines.push(...wrap(paint, step.text, width - 2, "ink2").map((line) => `${bar}${line}`));
       for (const image of step.images) lines.push(`${bar}${paint.text(image, "ink3")}`);
       return lines;

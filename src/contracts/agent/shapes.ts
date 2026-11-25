@@ -266,6 +266,9 @@ export type ToolStatus = Static<typeof ToolStatusSchema>;
  */
 const ENTRY = union([int(), nul()]);
 
+/** When it happened, in milliseconds since the epoch. */
+const AT = num();
+
 /** An image the model was shown, by its media type, such as `image/png`, which is enough to name it. */
 const SessionImageSchema = obj({ mimeType: str() });
 export type SessionImage = Static<typeof SessionImageSchema>;
@@ -289,13 +292,17 @@ export type AnswerEnding = Static<typeof AnswerEndingSchema>;
  * entry, is no item of its own. What the session was shown, and what a tool
  * gave back, can hold images beside the text, as Pi's `read` of an image file
  * does: each is named in `images`, in the order the model was shown them, and
- * is no part of `text`.
+ * is no part of `text`. Each item says when it happened: what the session was
+ * shown, when it was given it; an answer, when the model began it, and each
+ * tool call it made with it; and a compaction, when its summary was made. A
+ * reset has a time only when it carried text over.
  */
 const SessionItemSchema = union([
-  obj({ type: lit("user"), entry: ENTRY, text: str(), images: arr(SessionImageSchema) }),
+  obj({ type: lit("user"), entry: ENTRY, at: AT, text: str(), images: arr(SessionImageSchema) }),
   obj({
     type: lit("assistant"),
     entry: ENTRY,
+    at: AT,
     text: str(),
     thinking: str(),
     streaming: bool(),
@@ -308,6 +315,7 @@ const SessionItemSchema = union([
   obj({
     type: lit("tool"),
     entry: ENTRY,
+    at: AT,
     id: str(),
     name: str(),
     args: str(),
@@ -316,7 +324,7 @@ const SessionItemSchema = union([
     images: arr(SessionImageSchema),
     notes: arr(str()),
   }),
-  obj({ type: lit("marker"), entry: ENTRY, marker: oneOf("reset", "compaction") }),
+  obj({ type: lit("marker"), entry: ENTRY, at: union([AT, nul()]), marker: oneOf("reset", "compaction") }),
 ]);
 export type SessionItem = Static<typeof SessionItemSchema>;
 

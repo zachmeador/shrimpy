@@ -269,7 +269,7 @@ export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel |
     working,
     workingCounted,
     from,
-    works: worksOf(model, from, { inFull: options.inFull ?? BRIEF, outputLines: options.outputLines ?? OUTPUT_LINES }),
+    works: worksOf(model, from, { inFull: options.inFull ?? BRIEF, outputLines: options.outputLines ?? OUTPUT_LINES, now: options.now }),
     waiting,
     cancels: reading || soonest === undefined || waiting.length < 2 ? undefined : stopCancelsAll(waiting.length, dm ? "dm" : "room", dm ? who : soonest.who),
     queued: queuedOf(model),

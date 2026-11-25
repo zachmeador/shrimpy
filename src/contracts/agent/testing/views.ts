@@ -15,9 +15,13 @@ export function sessionStatus(parts: Partial<SessionStatus> = {}): SessionStatus
   };
 }
 
-export const userItem = (text: string, entry: number | null = null, images: SessionImage[] = []): SessionItem => ({
+/** When an item a test writes down happened, unless it says: 2026-11-21 at 16:21 UTC. */
+const AT = Date.UTC(2026, 10, 21, 16, 21);
+
+export const userItem = (text: string, entry: number | null = null, images: SessionImage[] = [], at = AT): SessionItem => ({
   type: "user",
   entry,
+  at,
   text,
   images,
 });
@@ -28,7 +32,7 @@ export function assistantItem(
   options: { thinking?: string; streaming?: boolean; ended?: AnswerEnding; entry?: number | null } = {},
 ): SessionItem {
   const { thinking = "", streaming = false, ended = "finished", entry = null } = options;
-  return { type: "assistant", entry, text, thinking, streaming, ended: streaming ? null : { how: ended, detail: null } };
+  return { type: "assistant", entry, at: AT, text, thinking, streaming, ended: streaming ? null : { how: ended, detail: null } };
 }
 
 export function toolItem(
@@ -44,5 +48,5 @@ export function toolItem(
   } = {},
 ): SessionItem {
   const { id = `call_${name}`, args = {}, status = "running", output = "", images = [], notes = [], entry = null } = options;
-  return { type: "tool", entry, id, name, args: JSON.stringify(args), status, output, images, notes };
+  return { type: "tool", entry, at: AT, id, name, args: JSON.stringify(args), status, output, images, notes };
 }

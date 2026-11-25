@@ -78,7 +78,7 @@ function toItems(entries: readonly EntryRecord[], live: LiveState): SessionItem[
   for (const entry of entries) {
     const message = entry.model?.[0];
     if (UserEntry.is(entry) && message?.role === "user") {
-      items.push({ type: "user", entry: entry.id, text: textOf(message.content), images: imagesOf(message.content) });
+      items.push({ type: "user", entry: entry.id, at: message.timestamp, text: textOf(message.content), images: imagesOf(message.content) });
     } else if (AssistantEntry.is(entry) && message?.role === "assistant") {
       items.push(assistantItem(message, entry.id, false));
       for (const tool of toolItems(message, entry.id, live)) {
@@ -94,9 +94,9 @@ function toItems(entries: readonly EntryRecord[], live: LiveState): SessionItem[
       const tool = tools.get(message.toolCallId);
       if (tool !== undefined) finishTool(tool, entry, message);
     } else if (ResetEntry.is(entry)) {
-      items.push({ type: "marker", entry: entry.id, marker: "reset" });
+      items.push({ type: "marker", entry: entry.id, at: message?.timestamp ?? null, marker: "reset" });
     } else if (CompactionEntry.is(entry)) {
-      items.push({ type: "marker", entry: entry.id, marker: "compaction" });
+      items.push({ type: "marker", entry: entry.id, at: message?.timestamp ?? null, marker: "compaction" });
     }
   }
   return items;
@@ -107,7 +107,15 @@ function assistantItem(message: AssistantMessage, entry: number | null, streamin
   for (const block of message.content) {
     if (block.type === "thinking") thinking += block.thinking;
   }
-  return { type: "assistant", entry, text: assistantText(message), thinking, streaming, ended: streaming ? null : endingOf(message) };
+  return {
+    type: "assistant",
+    entry,
+    at: message.timestamp,
+    text: assistantText(message),
+    thinking,
+    streaming,
+    ended: streaming ? null : endingOf(message),
+  };
 }
 
 /**
@@ -141,6 +149,7 @@ function toolItems(message: AssistantMessage, entry: number | null, live: LiveSt
     items.push({
       type: "tool",
       entry,
+      at: message.timestamp,
       id: block.id,
       name: block.name,
       args: JSON.stringify(block.arguments),

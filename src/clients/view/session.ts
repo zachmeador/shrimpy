@@ -102,7 +102,8 @@ function sessionOf(
   // A session that was working when the agent went away is not working now, whatever its last view says.
   const away = view?.reached === false;
   const busy = view?.status.busy === true && !away;
-  const watched = view === undefined ? undefined : watchOf(view, { inFull: options.inFull ?? BRIEF, outputLines: options.outputLines ?? OUTPUT_LINES });
+  const watched =
+    view === undefined ? undefined : watchOf(view, { inFull: options.inFull ?? BRIEF, outputLines: options.outputLines ?? OUTPUT_LINES, now: options.now });
 
   let lead: string | undefined;
   if (watched !== undefined && watched.earlier) lead = earlierItems(address, name);

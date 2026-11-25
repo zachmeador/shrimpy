@@ -3,6 +3,7 @@ import { oneLine, plain } from "../../lib/plain/index.ts";
 import type { SessionView } from "../state/index.ts";
 import { cutEnd } from "../../lib/text/index.ts";
 import { countLines, lastCharacters, lastLines, shortLine } from "./cut.ts";
+import { whenOf } from "./time.ts";
 import { answerNote, hiddenCharacters, hiddenLines, hiddenSteps, type InFull, moreCharacters, SHOWN, THINKING } from "./words.ts";
 
 /** One thing the agent is doing or has done in the turn it is working on now, or, in a session being watched, one thing in it. */
@@ -11,6 +12,8 @@ export type Step =
   | {
       kind: "shown";
       label: string;
+      /** When it was shown, as a person reads it. */
+      when: string;
       text: string;
       /** How much of the start of it is left out, in words, when it was too long to show. */
       earlier: string | undefined;
@@ -64,10 +67,11 @@ export interface Work {
   earlier: string | undefined;
 }
 
-/** How work is shown: what is in full, and how many of a tool's last lines a brief call shows. */
+/** How work is shown: what is in full, how many of a tool's last lines a brief call shows, and the moment it is, for saying when things happened. */
 export interface Shown {
   inFull: InFull;
   outputLines: number;
+  now: number;
 }
 
 /** The most steps of one turn shown. A turn that uses many tools shows the latest. */
@@ -132,7 +136,9 @@ function stepsOf(item: SessionItem, shown: Shown, transcript: boolean): Step[] {
       if (!transcript) return [];
       const { text, cut } = lastCharacters(item.text.trimEnd(), FULL_CHARACTERS);
       const images = item.images.map((image) => imageWords(image.mimeType));
-      return [{ kind: "shown", label: SHOWN, text: plain(text), earlier: cut > 0 ? hiddenCharacters(cut) : undefined, images }];
+      return [
+        { kind: "shown", label: SHOWN, when: whenOf(item.at, shown.now), text: plain(text), earlier: cut > 0 ? hiddenCharacters(cut) : undefined, images },
+      ];
     }
     case "marker":
       return transcript ? [{ kind: "marker", text: markerWords(item.marker) }] : [];

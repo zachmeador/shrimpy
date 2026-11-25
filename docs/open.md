@@ -13,7 +13,6 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 
 The owner agreed on 2026-11-24, hours after 1.0.0, to a 2.0 that gets the contracts' shape right while two setups run Shrimpy, and to each of its proposal's five choices. The proposal is kept outside the repo, and `AGENTS-PRIVATE.md` says where. What is left of it to build:
 
-- A session's items carry a time.
 - Before it ships, chat's and the roster's migrations run on copies of the owner's and Kathleen's data, and an agent apart follows its gateway across the major.
 
 ## The release
@@ -316,7 +315,7 @@ Daily use decides what comes after the release. The last order was compaction an
 **Falls short in the web client**
 
 - The button for an agent's view shows once an agent has a session behind the thread, where both mockups have it on every thread with agents in it. The client can't tell a thread with no session from one whose session it hasn't read.
-- A message streaming into a thread has no caret, and chat's contract says nothing of streaming. What a session was shown has no time beside it in the agent's view, since a session's item carries none.
+- A message streaming into a thread has no caret, and chat's contract says nothing of streaming.
 - The line over an agent's home says `agents/<name>/`, which is wrong for a home kept elsewhere.
 - In brief, the page says how many earlier lines of a tool's output are left out, which its mockup doesn't draw.
 - The address of an agent's view names no agent, so reloading it in a room shows whichever agent's session is known first.

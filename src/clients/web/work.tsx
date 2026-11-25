@@ -21,7 +21,9 @@ function StepItem({ step }: { step: Step }) {
     case "shown":
       return (
         <li class="step shown">
-          <span class="lbl">{step.label}</span>
+          <span class="lbl">
+            {step.label} · {step.when}
+          </span>
           {step.earlier !== undefined && <span class="lbl"> · {step.earlier}</span>}
           <pre>{step.text}</pre>
           {step.images.map((image, at) => (

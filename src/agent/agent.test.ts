@@ -20,6 +20,7 @@ import { valueOf } from "../contracts/chat/testing/index.ts";
 const timeout = 30_000;
 
 test("an agent has no sessions until it is talked to, then one for each thread, each with a history of its own", { timeout }, async (t) => {
+  const started = Date.now();
   const rig = await startAgentRig(t);
   const side = await rig.newThread();
   const connection = await rig.connect();
@@ -34,7 +35,12 @@ test("an agent has no sessions until it is talked to, then one for each thread, 
   assert.deepEqual(threads.toSorted(), [rig.thread.id, side.id].toSorted());
   const said = (view: SessionView): string[] =>
     view.items.flatMap((item) => (item.type === "user" ? [item.text.split("\n").at(-1) ?? ""] : []));
-  assert.deepEqual(said((await rig.attach(rig.thread.id)).session.view), ["only in the first thread"]);
+  const first = (await rig.attach(rig.thread.id)).session.view;
+  assert.deepEqual(said(first), ["only in the first thread"]);
+  assert.ok(
+    first.items.every((item) => item.at !== null && item.at >= started && item.at <= Date.now()),
+    "each item says when it happened",
+  );
   assert.deepEqual(said((await rig.attach(side.id)).session.view), ["only in the side thread"]);
   assert.equal((await rig.replies(rig.thread.id)).length, 1);
   assert.equal((await rig.replies(side.id)).length, 1, "each reply is in the thread its message came from");
