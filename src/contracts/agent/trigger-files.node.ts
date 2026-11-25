@@ -100,14 +100,15 @@ export async function saveTrigger(home: string, draft: TriggerDraft): Promise<{ 
 /**
  * Turn the trigger of this name on or off in its file, and leave the rest of the
  * file as it is. The file has to check out as it is and again as it will be
- * written, and if it does not, nothing is written and the error says what is
- * wrong. `changed` says whether the file had to be written: one that already
- * says what was asked is left alone.
+ * written, by `check` as an agent reading it would, and if it does not, nothing
+ * is written and the error says what is wrong. `changed` says whether the file
+ * had to be written: one that already says what was asked is left alone.
  */
 export async function switchTrigger(
   home: string,
   name: string,
   enabled: boolean,
+  check: TriggerCheck = {},
 ): Promise<{ file: string; definition: TriggerDefinition; changed: boolean }> {
   const { paths } = loadHome(home);
   if (!isName(name)) throw await noTrigger(paths, name);
@@ -116,10 +117,10 @@ export async function switchTrigger(
   if (read.kind === "missing") throw await noTrigger(paths, name);
   if (read.kind === "unreadable") throw new Error(`triggers/${name}.md could not be read: ${read.reason}.`);
 
-  const before = parseTrigger(name, read.text);
+  const before = parseTrigger(name, read.text, check);
   if (before.enabled === enabled) return { file, definition: before, changed: false };
   const text = withEnabled(read.text, enabled);
-  const definition = parseTrigger(name, text);
+  const definition = parseTrigger(name, text, check);
   if (definition.enabled !== enabled) {
     throw new TriggerFileError("it has an enabled line that cannot be changed here: edit the file by hand");
   }

@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { cpSync, existsSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { test, type TestContext } from "node:test";
 import type { Reference } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Agent, AGENT_HOME_VARIABLE, membershipFile, Session } from "../contracts/agent/index.ts";
-import { initHome, readMembership } from "../contracts/agent/node.ts";
+import { initHome, parseTrigger, readMembership } from "../contracts/agent/node.ts";
 import { type Client, type Entry, type Member, writeLink } from "../contracts/gateway/index.ts";
 import { connectClient, gatewaySocket } from "../contracts/gateway/node.ts";
 import { type RunningGateway, startGateway } from "../gateway/index.ts";
@@ -321,6 +321,17 @@ test("a command about one agent reaches it by its name on the roster, wherever i
   // A command that changes the files of crab's home can't, from here, and writes nothing.
   assert.equal((await shrimpy(["triggers", "add", "nightly", "--every", "1h", "Tidy.", "--agent", "crab"])).code, 1);
   assert.equal(existsSync(join(home, "triggers", "nightly.md")), false);
+  // But crab turns a trigger of its own off and on when asked by name.
+  const file = join(home, "triggers", "nightly.md");
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, "---\nevery: 1h\n---\nTidy.\n");
+  await eventually(() => shrimpy(["triggers", "--agent", "crab"]), (listed) => listed.stdout.includes("nightly"), { what: "crab to read its trigger" });
+  const off = await shrimpy(["triggers", "off", "nightly", "--agent", "crab"]);
+  assert.equal(off.code, 0, off.stderr);
+  assert.equal(parseTrigger("nightly", readFileSync(file, "utf8")).enabled, false);
+  const on = await shrimpy(["triggers", "on", "nightly", "--agent", "crab"]);
+  assert.equal(on.code, 0, on.stderr);
+  assert.equal(parseTrigger("nightly", readFileSync(file, "utf8")).enabled, true);
 
   // An agent that is no admin is refused by crab, and let in once it is promoted.
   const rex = await startAgentShell(t, "rex");

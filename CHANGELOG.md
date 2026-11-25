@@ -15,6 +15,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - A room's main thread is now its first pinned thread: it lists first, tagged `pinned`, and it's where an agent's `#room` posts.
 - The chat server brings a store from 1.0.0 up to date when it starts, and keeps a copy of the old one beside it, in `chat/state/`.
 - An agent's list in the terminal and on the page shows a new default model as soon as the agent reads it, where it showed the old one until the agent went away and came back.
+- `shrimpy triggers on` and `off` reach an agent on another machine by its name, and the agent changes its own trigger file.
 
 ## 🦐 1.0.0 - A Rising Tide - 2026-11-24
 

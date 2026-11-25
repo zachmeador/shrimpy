@@ -13,7 +13,7 @@
  * gateway beyond their contracts.
  */
 import { type AgentEndpoint, type ModelId, removedAtStart } from "../contracts/agent/index.ts";
-import { loadHome, readMembership, readTriggers, saveModel } from "../contracts/agent/node.ts";
+import { loadHome, NoTriggerError, readMembership, readTriggers, saveModel, switchTrigger, TriggerFileError } from "../contracts/agent/node.ts";
 import { createLiveRoster } from "../contracts/gateway/index.ts";
 import { asError } from "../lib/errors/index.ts";
 import { followFiles } from "../lib/files/node.ts";
@@ -157,10 +157,12 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     const wakeups = createWakeups(turn.task, { onError: report, breadcrumbs });
     // A question whose time is up looks at chat through the delivery, as a reply is posted.
     const questions = createQuestions(turn.task, { onError: report, breadcrumbs, looking: delivery });
+    // How the agent checks a trigger's file, which a switch through its contract checks the same way.
+    const triggerCheck = options.shortestEveryMs === undefined ? {} : { shortestEveryMs: options.shortestEveryMs };
     const triggers = createTriggers(host.harness, {
       turn: turn.task,
       defaults: sessions.defaults,
-      read: () => readTriggers(paths, options.shortestEveryMs === undefined ? {} : { shortestEveryMs: options.shortestEveryMs }),
+      read: () => readTriggers(paths, triggerCheck),
       channelOf: (threadId, signal) => channelOfThread(chat, threadId, signal),
       breadcrumbs,
       leaveBreadcrumb: (name, text) => writeBreadcrumb(paths, name, text),
@@ -230,6 +232,17 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
         if (options.setModel === undefined) refuse("This agent's model is set where it was started, and can't be changed while it runs.");
         await options.setModel(model);
         return keeping.reload();
+      },
+      async switchTrigger(name, on) {
+        try {
+          await switchTrigger(options.home, name, on, triggerCheck);
+        } catch (error) {
+          refuse(switchRefused(name, error));
+        }
+        await keeping.reload();
+        const now = (await triggers.list()).find((each) => each.name === name);
+        if (now === undefined) refuse(`The agent has no trigger called ${name} after reading its files again.`);
+        return now;
       },
       roster,
       takingInput: () => takingInput,
@@ -360,6 +373,16 @@ export async function startHomeAgent(
     ...(options.lookEveryMs === undefined ? {} : { lookEveryMs: options.lookEveryMs }),
   });
   return { ...agent, name: loaded.name, home: loaded.paths.root };
+}
+
+/** Why turning the trigger `name` on or off failed, from what the change to its file threw, in words that say the file is as it was. */
+function switchRefused(name: string, error: unknown): string {
+  if (error instanceof NoTriggerError) {
+    const known = error.known.length === 0 ? "It has none." : `Its triggers are: ${error.known.join(", ")}.`;
+    return `${error.message} ${known}`;
+  }
+  if (error instanceof TriggerFileError) return `triggers/${name}.md was not changed: ${error.message}.`;
+  return `Nothing was changed: ${asError(error).message}`;
 }
 
 /** Why a home's agent.json keeps its model when asked to take it out. */

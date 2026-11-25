@@ -17,7 +17,7 @@ import { type AgentReached, type HeldAgent, onAgent, onChannel, type Reached } f
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import { asTheAgent } from "./as-the-agent.ts";
 import type { Command } from "./command.ts";
-import { connectIfRunning, noAgentRunning, startOne } from "./connected.ts";
+import { connectIfRunning, noAgentRunning, startOne, withConnection } from "./connected.ts";
 import { leftOutLines, toldOfChange } from "./reloaded.ts";
 import { renderTrigger, renderTriggerFile, renderTriggerFiles, renderTriggers, when } from "./render-triggers.ts";
 import {
@@ -392,6 +392,9 @@ const run: Command = {
   },
 };
 
+/** What the help of `on` and `off` says about which agent they act on, and how they reach it. */
+const WHICH_SWITCHED = `${WHICH} By its name the agent changes its own file, so it has to be running. By the path to its home the file is changed here.`;
+
 /** `on` and `off`: the same command, turning a trigger one way or the other. */
 function switching(enabled: boolean): Command {
   const word = enabled ? "on" : "off";
@@ -400,19 +403,32 @@ function switching(enabled: boolean): Command {
     usage: "<name> [--agent <agent>]",
     summary: enabled ? "Turn a trigger on." : "Turn a trigger off, and keep it.",
     details: enabled
-      ? "Takes enabled: false out of the trigger's file, then tells a running agent to read its files again. " +
-        `Its schedule counts from then. An agent that is not running reads the file when it starts. ${WHICH_HOME}`
-      : "Puts enabled: false in the trigger's file, then tells a running agent to read its files again. A trigger " +
-        "that is off never runs on its schedule, but shrimpy triggers run still runs it. An occurrence that is " +
-        `running is not stopped: shrimpy sessions stop does that. ${WHICH_HOME}`,
+      ? "Takes enabled: false out of the trigger's file, and the agent reads its files again. Its schedule counts " +
+        `from then. An agent that is not running reads the file when it starts. ${WHICH_SWITCHED}`
+      : "Puts enabled: false in the trigger's file, and the agent reads its files again. A trigger that is off " +
+        "never runs on its schedule, but shrimpy triggers run still runs it. An occurrence that is running is not " +
+        `stopped: shrimpy sessions stop does that. ${WHICH_SWITCHED}`,
     async run(args, io) {
       const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
       const [name] = expectArguments(positionals, ["<name>"]);
-      const target = await atHome(agentToActOn(values.agent));
+      const chosen = agentToActOn(values.agent);
+      const said = (changed: boolean): string => (changed ? `Turned ${word} the trigger ${name}.` : `The trigger ${name} is ${word} already.`);
+      if (chosen.home === undefined) {
+        // An agent named on the roster may live anywhere, so it changes its own file.
+        await withConnection(chosen, (reached) =>
+          onAgent(reached, async (agent) => {
+            const was = agent.triggers.value.find((each) => each.name === name)?.on;
+            valueOf(await agent.switchTrigger({ name, on: enabled }, contextOf()));
+            io.out(said(was !== enabled));
+          }),
+        );
+        return 0;
+      }
+      const target = await atHome(chosen);
       await mayActOn(target, CHANGE);
 
       const { changed } = await changing(target, name, () => switchTrigger(target.home, name, enabled));
-      io.out(changed ? `Turned ${word} the trigger ${name}.` : `The trigger ${name} is ${word} already.`);
+      io.out(said(changed));
       await toldOfChange(io, target);
       return 0;
     },

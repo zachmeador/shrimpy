@@ -1,4 +1,4 @@
-import { arr, method, nul, obj, remote, str, union } from "@earendil-works/chord";
+import { arr, bool, method, nul, obj, remote, str, union } from "@earendil-works/chord";
 import { agent, answerOf, RefusedSchema } from "../gateway/index.ts";
 import {
   AgentModelSchema,
@@ -24,9 +24,10 @@ export const MAX_IMAGE_BYTES = 10_000_000;
  * One agent as the caller sees it, at `agent({ id: agent })`: its sessions,
  * its triggers, its default model and how it looks, kept live, what a client
  * does with the agent as a whole, and its home's files, to look at. Through
- * this contract the agent changes its own files only as `setModel` asks, by
- * naming a model in its `agent.json` or taking it out. Everything else in the
- * home it changes with its own tools and shell.
+ * this contract the agent changes its own files only as `setModel` and
+ * `switchTrigger` ask: the model its `agent.json` names, and whether a trigger
+ * is on. Everything else in the home, such as making or removing a trigger or
+ * what wakes it in a room, it changes with its own tools and shell.
  *
  * `refusal` is null, or why the caller may not watch this agent, and then its
  * sessions and triggers are empty, its model is null and every method answers
@@ -102,6 +103,17 @@ export const Agent = remote("shrimpy.agent", {
          * as it was.
          */
         setModel: method(obj({ model: union([ModelIdSchema, nul()]) }), answerOf(ReloadedSchema)),
+        /**
+         * Turns the trigger `name` on or off in its file, `triggers/<name>.md`
+         * in the home, then reads the home again, and answers with the trigger
+         * as the agent runs it now. A trigger that is on comes due on its
+         * schedule, counted from now; one that is off never does, though `fire`
+         * still runs it, and an occurrence that is running goes on. A trigger
+         * that is already as asked is left alone. A name the home has no trigger
+         * of is refused, and so is a file that doesn't check out, which is left
+         * as it was.
+         */
+        switchTrigger: method(obj({ name: str(), on: bool() }), answerOf(TriggerSummarySchema)),
         /**
          * The entries of a folder of the home, in order of name. `path` is where
          * the folder is in the home, with `/` between folders, and `""` is the

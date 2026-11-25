@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
 import type { Occurrence, TriggerDetail } from "../contracts/agent/index.ts";
+import { parseTrigger } from "../contracts/agent/node.ts";
 import { isRefusal } from "../lib/refusal/index.ts";
 import { eventually, stopAfter, tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
@@ -319,6 +320,33 @@ test("reloading makes the triggers follow their files", { timeout }, async (t) =
   await trigger(connection, "d", (found) => found.occurrences.length >= dRuns + 1, "d to go on");
   assert.equal(inputsOf((await connection.attach("trigger:b")).view).length, bInputs);
   assert.equal((await connection.trigger("c")).occurrences.length, cRuns);
+});
+
+test("a trigger switched off through the agent's contract stops, and switched on runs again, its file changed by the agent", { timeout }, async (t) => {
+  const home = tempDir(t, "agent");
+  // The agent changes a file of a home, which agent.json makes one.
+  writeFileSync(homePaths(home).config, JSON.stringify({ name: "scout" }));
+  writeTrigger(home, "beat", ["every: 1s"], "Beat.");
+  const rig = await startAgentRig(t, { home, scenario: "chat", shortestEveryMs: SHORTEST });
+  const connection = await rig.connect();
+  const file = join(homePaths(home).triggers, "beat.md");
+  const allEnded = (detail: TriggerDetail): boolean => detail.occurrences.every((occurrence) => occurrence.ended !== null);
+  await trigger(connection, "beat", (found) => found.occurrences.length >= 1, "beat to run");
+
+  const off = await connection.switchTrigger("beat", false);
+  assert.deepEqual([off.on, off.next], [false, null]);
+  assert.equal(parseTrigger("beat", readFileSync(file, "utf8"), { shortestEveryMs: SHORTEST }).enabled, false);
+  const runs = (await trigger(connection, "beat", allEnded, "what was under way to end")).occurrences.length;
+  await delay(2_500);
+  assert.equal((await connection.trigger("beat")).occurrences.length, runs, "nothing ran while it was off");
+
+  const on = await connection.switchTrigger("beat", true);
+  assert.equal(on.on, true);
+  assert.notEqual(on.next, null);
+  assert.equal(parseTrigger("beat", readFileSync(file, "utf8"), { shortestEveryMs: SHORTEST }).prompt, "Beat.", "the rest of the file is as it was");
+  await trigger(connection, "beat", (found) => found.occurrences.length > runs, "beat to run again");
+
+  await assert.rejects(connection.switchTrigger("nothing", false), isRefusal);
 });
 
 test("an agent killed while an occurrence's turn is underway comes back to it once: the occurrence happens once", { timeout: 60_000 }, async (t) => {

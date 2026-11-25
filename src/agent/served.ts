@@ -1,6 +1,14 @@
 import { defineFacet, type Facet, type FollowAttach } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT, type Context } from "@earendil-works/chord/context";
-import { Agent, AgentPresence, type ModelId, type Reloaded, Session, type SessionPage } from "../contracts/agent/index.ts";
+import {
+  Agent,
+  AgentPresence,
+  type ModelId,
+  type Reloaded,
+  Session,
+  type SessionPage,
+  type TriggerSummary,
+} from "../contracts/agent/index.ts";
 import { type Answer, done, type LiveRoster, type Principal, type Refused, refused } from "../contracts/gateway/index.ts";
 import { follow } from "../lib/follow/index.ts";
 import { isRefusal, refuse } from "../lib/refusal/index.ts";
@@ -26,6 +34,8 @@ export interface ServedParts {
    * as it was, when it can't.
    */
   setModel(model: ModelId | null): Promise<Reloaded>;
+  /** Turn a trigger on or off in its file, then read the home again, answering with the trigger as it runs now. Refused, with the file left as it was, when it can't be. */
+  switchTrigger(name: string, on: boolean): Promise<TriggerSummary>;
   /** The roster as the agent holds it, which says who a member is and whether it is an admin. */
   roster: LiveRoster;
   /** Whether new work may still be started: it may not once the agent is stopping. */
@@ -122,6 +132,11 @@ export function agentFacet(parts: ServedParts): Facet<Principal> {
               answering(async () => {
                 await allow(principal, "control", ctx);
                 return parts.setModel(model);
+              }),
+            switchTrigger: async ({ name, on }, ctx) =>
+              answering(async () => {
+                await allow(principal, "control", ctx);
+                return parts.switchTrigger(name, on);
               }),
             folder: async ({ path }, ctx) =>
               answering(async () => {

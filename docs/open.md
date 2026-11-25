@@ -13,7 +13,6 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 
 The owner agreed on 2026-11-24, hours after 1.0.0, to a 2.0 that gets the contracts' shape right while two setups run Shrimpy, and to each of its proposal's five choices. The proposal is kept outside the repo, and `AGENTS-PRIVATE.md` says where. What is left of it to build:
 
-- `Agent` gains `switchTrigger`, which turns a trigger on or off in the agent's own files when asked, as `setModel` names its model. Adding and removing triggers stays with the agent's own tools.
 - A session's items carry a time.
 - Before it ships, chat's and the roster's migrations run on copies of the owner's and Kathleen's data, and an agent apart follows its gateway across the major.
 
@@ -335,6 +334,7 @@ Daily use decides what comes after the release. The last order was compaction an
 - `shrimpy threads` can't name a DM between two agents, so from a shell its thread's ID comes from `shrimpy sessions list`.
 - `shrimpy update`'s preview calls going from a release candidate to its release a patch.
 - `shrimpy sessions list`, and the triggers' rows on an agent's screen, are in the order the agent made them, which the contract doesn't promise.
+- `triggers on` and `off` by an agent's name need the agent running, where by its home's path they change the file of an agent that is off.
 - `threads #ops` needs quotes in a shell, or the room's name is taken for a comment.
 - `run --no-wait` prints the IDs to follow up with, but no command waits on one.
 - `run` prints only the first part of an answer posted in parts, and can't follow a message once 200 newer ones are in its thread.

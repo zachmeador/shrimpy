@@ -63,6 +63,7 @@ export interface AgentConnection {
   /** The model its sessions follow by default, as the agent says it now, or null when the caller may not watch it. */
   model(): DefaultModel | null;
   setModel(model: ModelId | null): Promise<Reloaded>;
+  switchTrigger(name: string, on: boolean): Promise<TriggerSummary>;
   triggers(): Promise<TriggerSummary[]>;
   trigger(name: string): Promise<TriggerDetail>;
   fire(name: string): Promise<Occurrence>;
@@ -139,6 +140,7 @@ export async function holdAgent(host: Host<Principal, Revocation>, agent: string
     models: async () => valueOf(await held.models(context)),
     model: () => held.model.value,
     setModel: async (model) => valueOf(await held.setModel({ model }, context)),
+    switchTrigger: async (trigger, on) => valueOf(await held.switchTrigger({ name: trigger, on }, context)),
     async triggers() {
       allowed();
       return held.triggers.value;
