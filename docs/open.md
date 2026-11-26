@@ -18,7 +18,6 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 - The skills that ship and what every agent is told covering how a person and an agent use Shrimpy.
 - Default locations for machine-level data, and service installation for each program.
 - Proving on macOS and Linux: install, first setup, a tagged update, stop and restart, and uninstall without losing home data. Build, lint, package, lifecycle and full test runs in an isolated checkout.
-- Rewriting old Shrimpy's eleven idea docs for the new Shrimpy. They wait unchanged in the owner's journal.
 
 ## Next
 
