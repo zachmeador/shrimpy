@@ -33,7 +33,7 @@ Programs of one major link, and an agent on another machine may run an older rel
 | Agent | An enduring identity with a home, which is a folder. Pi uses "agent" for the configuration a conversation runs with. |
 | Channel | A place where people and agents talk: a DM or a room. |
 | Thread | One conversation in a channel. A member can pin one, for everyone in the channel, and a room is made with one thread, pinned. |
-| Session | An agent's private work behind a thread, or behind work with no thread, such as a trigger's. Pi calls it a conversation. |
+| Session | An agent's private work behind a thread. Pi calls it a conversation. |
 | Receipt | What an agent did with an event in a thread: answered, silent, stopped, skipped or failed. |
 | Member | The person or an agent, with an ID that never changes and a name that can. A network has one person, its owner. |
 | Roster | The gateway's list of members, each one's ways in, and who is reachable now. |
@@ -62,7 +62,7 @@ Programs of one major link, and an agent on another machine may run an older rel
 - Chord is imported only where programs meet, so replacing it, or keeping a fork, stays bounded: `contracts/`, `lib/link`, `lib/follow`, the files at the top of each program, and the modules that make a host, serve objects or hold another program's, which the lint names. Its `context`, `json` and `delta` go wherever Pi's durable runtime may.
 - Only `clients/console/draw/` imports `pi-tui`, and only from the package root, since `pi-tui` has no exports map to stop deep imports.
 - The two clients share what is true and what is said. A sentence that names a key belongs to the client that has it. Anything the other client would be wrong to say differently lives in `clients/state/` or `clients/view/`.
-- Inside `agent/`, imports point one way through tiers: `inputs`, `home`, `access`; `links`, `host`, `records`; `turns`; `questions`; `wakeups`, `triggers`, `chat`; `sessions`, `message-tools`, `context`. What two modules of one tier both need belongs in an earlier tier, and a new module is refused until it has one. A new source of input gets a module of its own, and calls `openSession` from `records/` and `takeUp` from `turns/` inside its own commit.
+- Inside `agent/`, imports point one way through tiers: `inputs`, `home`, `access`; `links`, `host`, `records`; `turns`; `watches`; `processes`, `triggers`, `chat`; `sessions`, `chat-tools`, `context`. What two modules of one tier both need belongs in an earlier tier, and a new module is refused until it has one. A new source of input gets a module of its own, and calls `openSession` from `records/` and `takeUp` from `turns/` inside its own commit.
 - Shared code stays plumbing: a `lib/` module must be deletable by inlining it into its callers.
 - Tests sit beside the code as `*.test.ts`. Test support lives in a `testing/` module that only tests import.
 - From 1.0.0, the names of the agent's tasks, documents, extensions and tools, their versions, the shape of a stored input and the form of a request ID change only with a migration and a new version of the agent's storage. Otherwise a home loses its sessions.
@@ -94,7 +94,7 @@ A few sentences that a program and the commands both say sit beside their code i
 Four rules decide a key, so the terminal stays learnable as it grows:
 
 1. One key means one thing on every screen.
-2. Right and Enter go in, and Left and Esc go out. The screens are levels: agents and rooms, then what one of them takes part in, then one thread or one session. In a thread, Left moves through what is typed and goes back from its start. Esc goes back from anywhere, whatever is typed, and going back never does anything else, such as stopping work. `/stop` stops it.
+2. Right and Enter go in, and Left and Esc go out. The screens are levels: agents and rooms, then what one of them takes part in, then one thread. In a thread, Left moves through what is typed and goes back from its start. Esc goes back from anywhere, whatever is typed, and going back never does anything else, such as stopping work. `/stop` stops it.
 3. Pi's key where Pi has one, since the editor is Pi's.
 4. Every key is findable. A key that acts on one thing is named beside it, the last line names the keys that move you, and Ctrl+G lists them all.
 

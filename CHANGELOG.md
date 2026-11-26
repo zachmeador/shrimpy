@@ -4,6 +4,13 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ## Unreleased
 
+- 3.0 doesn't link with 2.0: update the gateway's machine first, and agents on other machines that run from an install update themselves to its version.
+- Every agent session sits behind a thread. Waking triggers now require `thread:` (only `then: note` breadcrumb checks omit it), and legacy waking trigger files without one are left out until given a thread.
+- Agents now run with 8 tools: `read`, `write`, `edit`, `bash` (with optional `background: true`), `process`, `post`, `thread`, and `trigger`.
+- Posting to another agent's DM watches for their reply automatically and wakes the calling thread when they settle.
+- Background commands, triggers, and agent answers leave non-unread wake lines in the thread. Running background commands, open watches, and upcoming triggers appear in one block above the input and on the agent's page.
+- `/stop` stops only the active turn and queued unhanded inputs, leaving background commands, watches, and triggers running. Use `/kill`, `/drop`, `/cancel`, `/pause`, and `/resume` (or the web buttons) to manage them.
+- The chat server brings a store from 2.0.0 up to date when it starts, and keeps a copy of the old one beside it, in `chat/state/`.
 - The page installed on an iPhone's home screen reaches the bottom of the screen, where it left a strip under the composer.
 - An agent on another machine that runs from an install now installs its gateway's release by itself at every update.
 - In a room, a mistyped name before `/stop`, as in `@scuot /stop`, stops no agent, where it stopped them all, and the terminal and the page say that no one there has that name.

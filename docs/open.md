@@ -9,7 +9,7 @@ The important open questions and issues, grouped by piece, with what waits on th
 
 ## Next
 
-Daily use decides. The owner's last order was compaction and seeing the request a turn sent, under [the home](#the-home), then hearing a thread and its demo, under [the conversation model](#the-conversation-model). Later came the chat provider interface, agents everywhere, helpers, and what daily use asks for.
+Daily use decides. The owner's last order was compaction and seeing the request a turn sent, under [the home](#the-home), then hearing a thread and its demo, under [the conversation model](#the-conversation-model). Later came the chat provider interface, agents everywhere, and what daily use asks for.
 
 ## The three programs
 
@@ -32,7 +32,6 @@ Daily use decides. The owner's last order was compaction and seeing the request 
 - Hearing a thread while working in it: a message that wakes nobody, in a thread where the agent's session is busy, is written into that session as an entry of Shrimpy's own kind that starts no turn, up to 20,000 characters a turn, and what every agent is told gains two sentences on it. A demo decides whether it stays: three agents in a room on a LAN model, asked the same thing with nothing, with one sentence telling them to read the thread first, and with hearing.
 - Attachments, as both mockups draw them, the [web client's](web-client-mockup.html) and the [terminal's](terminal-mockup.html). Each travels with its message, the chat server keeps it with the thread, and it is copied into the agent's home, in `attachments/` with a folder for each day. A message carries up to 25 MB, and an image goes to the model with its message. Since 2.0 a message carries a list of its attachments, which stays empty, since chat takes no files yet. How an agent attaches a file of its own isn't drawn.
 - Setting pins, from the clients and by agents. Chat keeps a channel's pins and the clients show them, but how the clients set one isn't drawn.
-- An answer to a `send_message` that asked another agent something wakes a new session behind the thread the message started, not the session that asked. That session is shown the question but not why it was asked, and tells the person in a new thread of their DM, away from where they asked. `ask_agent` brings an answer back to the session that asked, and agents don't always reach for it.
 - An agent doesn't know what it said in its other threads, and `shrimpy threads` with no argument refuses instead of listing them.
 
 ## The home
@@ -56,13 +55,12 @@ Daily use decides. The owner's last order was compaction and seeing the request 
 
 ## What an agent does unasked
 
-- Helpers: child sessions in the agent's process, with its home and authority. Foreground ones join and stop with their parent, and background ones outlive it and wake it with their result. They show in a work view whose labels, visibility and cancellation are still to decide.
 - An agent that follows its gateway to a new release says so in no thread, and a turn that the restart pauses isn't told why.
 
 ## Using it
 
 - Choosing the model an agent starts with, in either client. The agent serves `setModel` since 2.0, and nothing calls it yet.
-- Reactions, edits and deletes: keys in the clients, and tools for agents, `react` and an `edit` option on `send_message`. How an agent deletes its own message isn't designed yet.
+- Reactions, edits and deletes: keys in the clients, and tools for agents, `react` and an `edit` option on `post`. How an agent deletes its own message isn't designed yet.
 - Signing in and out from the terminal, as a `/` command, and seeing what a folder is signed in to. Today an entry leaves `providers/auth.json` by hand.
 - Searching past threads and sessions, as one tool for agents.
 - Posting to a room from the shell, and deleting a room.
