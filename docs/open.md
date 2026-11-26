@@ -4,7 +4,6 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 
 ## Waiting on the owner
 
-- What wakes agents in a room with several of them. A question that mentioned nobody woke all five agents under the default `people`, and their mentions of each other doubled it: ten replies in four minutes on 2026-11-22, "too much for me to catch up on". One way: `mentions` as the default once a room holds more than two agents, and what every agent is told says room replies stay short and a brainstorm doesn't start work.
 - Files copied into the owner's homes from the read-only archive kept read-only modes, in two homes, a `vault/.git` among them. Agents hit `EACCES` and worked around it with `chmod`. Making them writable is a one-time change to the owner's data, and should touch only what came from the archive, since some agents make their own files read-only on purpose.
 - Whom a push service is told to write to about the gateway. As built it is the address of the page's door, which on a tailnet holds the tailnet's name. It could be an address the owner sets, such as an email, or nobody. Apple's service turns away a contact that isn't a URL or a mailto address and took the page's address. Whether it takes a notification that names nobody is untried.
 
@@ -13,21 +12,17 @@ What isn't built, falls short or hasn't been tried, and what waits on the owner,
 - A fixture of each store at 1.0.0 and at each release after it, and a test that opens every fixture of this major and the last.
 - Choosing the model an agent starts with, from the terminal.
 - Moving over from old Shrimpy. Nothing is built. Meant to be: fresh homes, and credentials set up by hand; each agent reads what it wants from the old workspace, and nothing converts transcripts, tasks, manifests or clocks; triggers and chat providers start off until reviewed, and an old poller stops before a new one starts on the same bot; the old workspace is never changed; a newer database is never opened with an older binary.
-- The owner's machines move from checkouts to the installed layout, by hand.
 - Every CLI entry, slash command, export, setup and update recipe, service definition, template, skill, test, doc and security statement accounted for, with help and completion from the real commands.
 - A decision on each old Shrimpy capability or affordance that isn't back and that no mark settles: those marked undecided under [old Shrimpy](#old-shrimpy-as-the-owner-marked-it), and the old terminal's affordances under [using it](#using-it) that no mark covers.
 - What is left of setting up through `shrimpy`, under [using it](#using-it).
 - The skills that ship and what every agent is told covering how a person and an agent use Shrimpy.
 - Default locations for machine-level data, and service installation for each program.
 - Proving on macOS and Linux: install, first setup, a tagged update, stop and restart, and uninstall without losing home data. Build, lint, package, lifecycle and full test runs in an isolated checkout.
-- Measuring against old Shrimpy at `574bb2c`: the code and dependencies deleted, and resource use at startup, idle and under load. Old Shrimpy there has 45,536 lines in `src/` and `extensions/`, 3,099 in `web/` and 27,026 in `test/`.
-- The gate: if client and framework complexity outweigh what the runtime saves, revise before going live, and the docs describe only what the release implements.
 - Rewriting old Shrimpy's eleven idea docs for the new Shrimpy. They wait unchanged in the owner's journal.
 
 ## Next
 
-Daily use decides what comes after the release. The last order was compaction and the request a turn sent, under [the home](#the-home), then hearing a thread and its demo, under [the conversation model](#the-conversation-model). Later came the chat provider interface, agents everywhere under [the network](#the-network), helpers, and what daily use asks for. The web client's leftovers don't hold up the release.
-
+Daily use decides what comes after the release. The last order was compaction and the request a turn sent, under [the home](#the-home), then hearing a thread and its demo, under [the conversation model](#the-conversation-model). Later came the chat provider interface, agents everywhere under [the network](#the-network), helpers, and what daily use asks for.
 ## The three programs
 
 **Not built**
