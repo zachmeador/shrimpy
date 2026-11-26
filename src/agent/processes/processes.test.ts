@@ -237,6 +237,43 @@ test("built-in check-in wakes the thread once while running, and /stop leaves ba
   );
 });
 
+test("a process exit that /stop skips is shown with the thread's next input", { timeout }, async (t) => {
+  let caughtUp = "";
+  const rig = await startAgentRig(t, {
+    tokensPerSecond: 40,
+    script: (messages) => {
+      const user = textOf(messages.findLast((m) => m.role === "user"));
+      const lastTool = resultText(messages);
+      if (user.includes("start it")) {
+        if (lastTool === "") {
+          return fauxAssistantMessage(
+            [fauxToolCall("bash", { command: "sleep 1; echo done-while-busy", background: true }, { id: "c-bg" })],
+            { stopReason: "toolUse" },
+          );
+        }
+        return fauxAssistantMessage("Started.");
+      }
+      if (user.includes("stream now")) {
+        return fauxAssistantMessage(Array.from({ length: 200 }, (_, i) => `line ${i}`).join("\n"));
+      }
+      if (user.includes("anything new")) caughtUp = user;
+      return fauxAssistantMessage("Noted.");
+    },
+  });
+  const connection = await rig.connect();
+
+  await rig.receiptOn(await rig.say("start it"));
+  await rig.say("stream now");
+  const { session } = await rig.attach();
+  await waitForView(session, (view) => (assistantItems(view).at(-1)?.text.length ?? 0) > 10);
+  await eventually(() => connection.processes(), (list) => list.length === 0, { what: "the process exit to be taken up" });
+  await session.stop();
+
+  await rig.receiptOn(await rig.say("anything new?"));
+  assert.match(caughtUp, /You were not shown these/);
+  assert.ok(caughtUp.includes("done-while-busy"), caughtUp);
+});
+
 test("restarting an agent after a background process died wakes the owning thread once with interrupted", { timeout }, async (t) => {
   const home = tempDir(t, "agent");
   const first = await startAgentRig(t, {

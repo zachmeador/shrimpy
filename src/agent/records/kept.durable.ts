@@ -4,11 +4,13 @@ import {
   type Breadcrumb,
   type Breadcrumbs,
   isChat,
+  isOccurrence,
+  isProcess,
   isWatch,
+  type Missed,
   type Outstanding,
   type Place,
   type Snapshot,
-  type WatchSettled,
 } from "../inputs/index.ts";
 import { copyOf, type SessionRecord } from "./documents.durable.ts";
 
@@ -25,8 +27,8 @@ export function takeEvents(session: SessionRecord): Snapshot[] {
   return events;
 }
 
-/** The settled watch results kept as missed, oldest first. The session keeps none afterwards. */
-export function takeMissed(session: SessionRecord): WatchSettled[] {
+/** What the session kept as missed, oldest first. The session keeps none afterwards. */
+export function takeMissed(session: SessionRecord): Missed[] {
   const missed = copyOf(session.missed);
   if (missed.length > 0) session.missed = [];
   return missed;
@@ -53,11 +55,11 @@ export function takeBreadcrumbs(session: SessionRecord, files: readonly Breadcru
   return { files: carried.map(({ name, text }) => ({ name, text })), ...(more > 0 ? { more } : {}) };
 }
 
-/** What an input carries of the missed watch results and the breadcrumbs it was handed. */
+/** What an input carries of what was missed and the breadcrumbs it was handed. */
 export function carrying(
-  missed: WatchSettled[],
+  missed: Missed[],
   breadcrumbs?: Breadcrumbs,
-): { missed: WatchSettled[]; breadcrumbs?: Breadcrumbs } {
+): { missed: Missed[]; breadcrumbs?: Breadcrumbs } {
   return { missed, ...(breadcrumbs === undefined ? {} : { breadcrumbs }) };
 }
 
@@ -72,20 +74,34 @@ export function learnPlace(session: SessionRecord, place: Place): void {
   session.place = copyOf(place);
 }
 
-/** Keep settled watch results as missed, each once, oldest first. */
-function keepMissed(session: SessionRecord, results: readonly WatchSettled[]): void {
-  if (results.length === 0) return;
-  const byId = new Map([...copyOf(session.missed), ...results].map((each) => [each.watch.id, each]));
-  session.missed = [...byId.values()].sort((a, b) => a.watch.startedAt - b.watch.startedAt);
+/** Keep what was missed, each once, oldest first. */
+function keepMissed(session: SessionRecord, missed: readonly Missed[]): void {
+  if (missed.length === 0) return;
+  const byId = new Map([...copyOf(session.missed), ...missed].map((each) => [missedId(each), each]));
+  session.missed = [...byId.values()].sort((a, b) => missedAt(a) - missedAt(b));
+}
+
+function missedId(missed: Missed): string {
+  if (missed.kind === "watch") return missed.settled.watch.id;
+  return missed.kind === "process" ? missed.event.eventId : missed.occurrence.id;
+}
+
+function missedAt(missed: Missed): number {
+  if (missed.kind === "watch") return missed.settled.at;
+  return missed.kind === "process" ? missed.event.at : missed.occurrence.firedAt;
 }
 
 /**
  * Keep what an input that was skipped was to show the model, for the session's
- * next input. A chat event is kept with the events that came with it, and a
- * settled watch result is kept as missed.
+ * next input. A chat event is kept with the events that came with it. A settled
+ * watch, a background command event and a one-time trigger don't come again, so
+ * they are kept as missed; a standing trigger's next occurrence says the same, so
+ * it isn't.
  */
 export function keepSkipped(session: SessionRecord, input: Outstanding): void {
-  if (isWatch(input)) keepMissed(session, [input.settled]);
+  if (isWatch(input)) keepMissed(session, [{ kind: "watch", settled: input.settled }]);
+  else if (isProcess(input)) keepMissed(session, [{ kind: "process", event: input.process }]);
+  else if (isOccurrence(input) && input.occurrence.trigger === null) keepMissed(session, [{ kind: "once", occurrence: input.occurrence }]);
   else if (isChat(input)) {
     const said = (input.backlog?.messages ?? []).filter((message) => message.kind === "posted");
     session.unacted = inOrder([...copyOf(session.unacted), ...input.earlier, ...said, input.event]);

@@ -11,6 +11,7 @@ import {
   type ChatInput,
   type Fired,
   isOccurrence,
+  type Missed,
   isProcess,
   isWatch,
   type ModelChange,
@@ -181,11 +182,14 @@ function watchBody(settled: WatchSettled, pending: readonly PendingWatch[]): str
   return blocks.join("\n\n");
 }
 
-/** Settled watches that this session was never shown because an earlier input was skipped. */
-function missedResults(missed: WatchSettled[]): string {
+/** What woke this session that it was never shown because an earlier input was skipped. */
+function missedResults(missed: readonly Missed[]): string {
   return [
-    "You were not shown these replies from other agents, because your work was stopped or a turn before them failed. Oldest first:",
-    ...missed.map((each) => watchBody(each, [])),
+    "You were not shown these, because your work was stopped or a turn before them failed. Oldest first:",
+    ...missed.map((each) => {
+      if (each.kind === "watch") return watchBody(each.settled, []);
+      return each.kind === "process" ? processBody(each.event) : fired(each.occurrence);
+    }),
   ].join("\n\n");
 }
 

@@ -33,6 +33,7 @@ export {
   type Place,
   type ProcessEvent,
   type ProcessInput,
+  type Missed,
   type Said,
   type Snapshot,
   threadOf,

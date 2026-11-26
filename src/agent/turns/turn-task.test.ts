@@ -21,7 +21,7 @@ function snapshot(n: number, text = `message ${String(n)}`): Snapshot {
   return { kind: "posted", id: `evt_${String(n)}`, seq: n, author: "Zach", text, sentAt: 1_700_000_000_000 + n * 1000 };
 }
 
-function draft(n: number, text?: string): Omit<ChatInput, "earlier" | "cancelled" | "missed" | "breadcrumbs"> {
+function draft(n: number, text?: string): Omit<ChatInput, "earlier" | "missed" | "breadcrumbs"> {
   return { event: snapshot(n, text), threadId: "th_1", channelId: "ch_1" };
 }
 

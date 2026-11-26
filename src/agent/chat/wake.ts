@@ -3,7 +3,7 @@ import type { Channel, ChatEvent, Member } from "../../contracts/chat/index.ts";
 import { attachedOf, type ChatInput, type Snapshot } from "../inputs/index.ts";
 
 /** What the agent takes up of an event, with where it came from. */
-export type Taken = Omit<ChatInput, "earlier" | "cancelled" | "missed" | "breadcrumbs">;
+export type Taken = Omit<ChatInput, "earlier" | "missed" | "breadcrumbs">;
 
 /** A receipt that says another member answered, which is an event of the feed like any other. */
 export type Receipted = Extract<ChatEvent, { kind: "receipted" }>;

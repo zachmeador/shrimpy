@@ -1,7 +1,7 @@
 import { defineDoc } from "@earendil-works/pi-durable";
 import type { TriggerDefinition } from "../../contracts/agent/node.ts";
 import { newId } from "../../lib/ids/index.ts";
-import { type Outstanding, type Place, type Snapshot, threadOf, type Watch, type WatchSettled } from "../inputs/index.ts";
+import { type Missed, type Outstanding, type Place, type Snapshot, threadOf, type Watch } from "../inputs/index.ts";
 
 /**
  * Shrimpy's own documents, kept in the engine's storage and written in the same
@@ -19,7 +19,7 @@ export const RecordsDoc = defineDoc<{ id: string }>({
 /**
  * A session of the agent. Every session sits behind one real thread, and keeps
  * what the model has yet to be shown for it: events skipped when work was
- * stopped, settled watch results it missed, where the agent last looked in the
+ * stopped, what woke it that it was never shown, where the agent last looked in the
  * thread, which breadcrumbs it was shown, and where the thread is.
  */
 export type SessionRecord = {
@@ -28,8 +28,8 @@ export type SessionRecord = {
   channelId: string;
   /** Events skipped when work was stopped: shown with the next event in the thread. Oldest first. */
   unacted: Snapshot[];
-  /** Settled watch results the session was never shown because an input was skipped. */
-  missed: WatchSettled[];
+  /** What woke the session that it was never shown because the input was skipped. */
+  missed: Missed[];
   /** The position of the newest event the agent took up in the thread. */
   looked?: number;
   /** Digest of each breadcrumb text shown to the session, by filename. */

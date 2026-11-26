@@ -246,10 +246,10 @@ export type ChatInput = InThread & {
    */
   backlog?: Backlog;
   /**
-   * Settled watches that this session was never shown because the input they
-   * came as was taken back by a stop or a failed turn ahead of it.
+   * What woke this session that it was never shown, because the input it came
+   * as was taken back by a stop or a failed turn ahead of it.
    */
-  missed: WatchSettled[];
+  missed: Missed[];
   /** The breadcrumbs that are new to the session, shown before anything else of the input. Absent when there are none. */
   breadcrumbs?: Breadcrumbs;
   /**
@@ -295,15 +295,20 @@ export type Occurrence = {
  */
 export type OccurrenceInput = {
   occurrence: Occurrence;
-  missed: WatchSettled[];
+  missed: Missed[];
   breadcrumbs?: Breadcrumbs;
   unrun?: { outcome: "skipped" | "failed" | "noted" | "interrupted"; reason: string };
 } & (InThread | { threadId?: undefined; channelId?: undefined; place?: undefined });
 
+export type Missed =
+  | { kind: "watch"; settled: WatchSettled }
+  | { kind: "process"; event: ProcessEvent }
+  | { kind: "once"; occurrence: Occurrence };
+
 /** A background `bash` process event waking the session that started it. */
 export type ProcessInput = InThread & {
   process: ProcessEvent;
-  missed: WatchSettled[];
+  missed: Missed[];
   breadcrumbs?: Breadcrumbs;
 };
 
@@ -311,7 +316,7 @@ export type ProcessInput = InThread & {
 export type WatchInput = InThread & {
   settled: WatchSettled;
   pending: PendingWatch[];
-  missed: WatchSettled[];
+  missed: Missed[];
   breadcrumbs?: Breadcrumbs;
 };
 
