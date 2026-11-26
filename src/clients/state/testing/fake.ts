@@ -30,11 +30,11 @@ export function fakeState(initial: Model): FakeState {
     selectRoom: (id) => void calls.push(`room ${id}`),
     selectReadOnly: (id) => void calls.push(`read-only ${id}`),
     openThread: (threadId) => void calls.push(`open ${threadId}`),
+    openFrom: (agentId, threadId) => void calls.push(`open from ${agentId} ${threadId}`),
     closeItem: () => void calls.push("close"),
     startThread: (place) => void calls.push(place === undefined ? "start" : `start in ${place.kind} ${place.id}`),
     turnOver: () => void calls.push("turn over"),
     showView: (agent) => void calls.push(`show view ${agent}`),
-    openSession: (address) => void calls.push(`watch ${address}`),
     look: () => undefined,
     joinRoom() {
       calls.push("join");
@@ -68,6 +68,31 @@ export function fakeState(initial: Model): FakeState {
     readFolder: (path) => void calls.push(`folder ${path}`),
     readFile: (path) => void calls.push(`file ${path}`),
     readPage: (folders) => void calls.push(`page ${[...folders].join(" ")}`.trimEnd()),
+    readProcessOutput: (agentId, procId) => void calls.push(`process output ${agentId} ${procId}`),
+    killProcess(agentId, procId) {
+      calls.push(`kill ${agentId} ${procId}`);
+      return Promise.resolve();
+    },
+    cancelWatch(agentId, watchId) {
+      calls.push(`cancel watch ${agentId} ${watchId}`);
+      return Promise.resolve();
+    },
+    cancelTrigger(agentId, triggerId) {
+      calls.push(`cancel trigger ${agentId} ${triggerId}`);
+      return Promise.resolve();
+    },
+    fireTrigger(agentId, name) {
+      calls.push(`fire ${agentId} ${name}`);
+      return Promise.resolve();
+    },
+    switchTrigger(agentId, name, on) {
+      calls.push(`switch ${agentId} ${name} ${on ? "on" : "off"}`);
+      return Promise.resolve();
+    },
+    stopSession(agentId) {
+      calls.push(`stop session ${agentId}`);
+      return Promise.resolve();
+    },
     farewell: () => answers.farewell,
     close() {
       listeners.clear();

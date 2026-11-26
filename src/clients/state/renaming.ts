@@ -27,7 +27,7 @@ export function createRenaming(store: Store, held: Holdings, sendMs: number): Re
     const { item } = model.open;
     const thread = openThreadOf(model);
     // Only a channel's members rename or archive its threads.
-    if (thread === undefined || item?.kind !== "thread" || item.place.kind === "read-only") return;
+    if (thread === undefined || item === undefined || item.place.kind === "read-only") return;
     const answered = AbortSignal.timeout(sendMs);
     try {
       if (model.chat.state === "down") throw new Down(model.chat.why);

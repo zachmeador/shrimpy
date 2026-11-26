@@ -43,7 +43,7 @@ export function createAsking(store: Store, held: Holdings, clock: () => number):
     readStatus() {
       const model = store.model();
       const { item } = model.open;
-      if (item?.kind !== "thread") return;
+      if (item === undefined) return;
       const asking = item.place.kind === "agent" && held.agent() !== undefined && model.agent?.state === "up";
       store.readingStatus();
       store.set({ status: statusOf(model, asking ? model.sessions : undefined, clock()) });
@@ -51,7 +51,7 @@ export function createAsking(store: Store, held: Holdings, clock: () => number):
 
     readDevices() {
       const model = store.model();
-      if (model.open.item?.kind !== "thread") return;
+      if (model.open.item === undefined) return;
       store.readingStatus();
       store.set({ status: { at: clock(), about: { kind: "devices", devices: devicesOf(model) } } });
     },
@@ -91,7 +91,7 @@ export function createAsking(store: Store, held: Holdings, clock: () => number):
       const model = store.model();
       const { item } = model.open;
       const asking = held.agent();
-      if (item?.kind !== "thread" || item.place.kind !== "agent" || asking === undefined || model.agent?.state !== "up") return undefined;
+      if (item === undefined || item.place.kind !== "agent" || asking === undefined || model.agent?.state !== "up") return undefined;
       return modelsOf(asking.id, asking.held);
     },
 
@@ -100,7 +100,7 @@ export function createAsking(store: Store, held: Holdings, clock: () => number):
       const { item } = model.open;
       const asking = held.agent();
       // A room's thread has no one agent whose model this could be, even when it was opened from an agent's list.
-      if (item?.kind !== "thread" || item.place.kind !== "agent" || asking === undefined) return;
+      if (item === undefined || item.place.kind !== "agent" || asking === undefined) return;
       const status = model.agent;
       if (status?.state === "down") return store.say({ kind: "model-not-shown", problem: { down: status.why } });
       const view = item.thread === undefined ? undefined : model.behind[asking.id];

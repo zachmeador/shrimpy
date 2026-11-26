@@ -3,7 +3,7 @@ import { halves } from "../../look/index.ts";
 import { EMPTY, type Fact, type FileLevel, LABELS } from "../../view/index.ts";
 import { role, type Run, type Style, type Tone } from "./paint.ts";
 import { hint, lamp, type Line, marking, spread } from "./rows.ts";
-import type { Frame } from "./screen.ts";
+import { type Frame, homeTargetKey, onceTargetKey, type PageTarget, processTargetKey, triggerTargetKey } from "./screen.ts";
 import { NEW_THREAD } from "./words.ts";
 
 /** A line of the page: a line of a pane, with the bar that marks a chosen row of the home, which stands in the margin before it. */
@@ -41,7 +41,7 @@ export function pageHead(frame: Frame, width: number): string[] {
 
 /** A line under a part of the page: its label, and a dotted rule to `width`. */
 const rule = (frame: Frame, text: string, width: number): Line => ({
-  text: frame.paint.runs([[text, "ink3"], [` ${"┈".repeat(Math.max(0, width - visibleWidth(text) - 1))}`, "line2"]]),
+  text: spread(frame.paint, [[text, "ink3"], [` ${"┈".repeat(Math.max(0, width - visibleWidth(text) - 1))}`, "line2"]], [], width + 1),
 });
 
 /** Runs wrapped to `width`, each line painted. */
@@ -50,11 +50,12 @@ const wrapRuns = (frame: Frame, runs: readonly Run[], width: number): string[] =
 /**
  * An agent's page as lines, `width` cells wide at most, from its top: its
  * sigil pressed into the pane beside how it stands, where the page is wide
- * enough; then why its triggers and home can't be read, or its triggers, each
- * its file, and its home as a tree, whose chosen row is marked as a list's is.
- * A click on a row of the tree does what → does on it.
+ * enough; then why its triggers and home can't be read, or its running
+ * processes, its standing and one-shot triggers, and its home as a tree, whose
+ * chosen row is marked as a list's is. A click on a selectable row does what
+ * → does on it.
  */
-export function pageLines(frame: Frame, width: number, open: (path: string) => void): PageLine[] {
+export function pageLines(frame: Frame, width: number, open: (target: PageTarget) => void): PageLine[] {
   const { paint, levels } = frame;
   const page = levels.page;
   if (page === undefined) return [];
@@ -63,7 +64,7 @@ export function pageLines(frame: Frame, width: number, open: (path: string) => v
   const lines: PageLine[] = [{ text: "" }];
   for (let at = 0; at < Math.max(art.length, facts.length); at += 1) {
     const sigil: Run[] = art.length === 0 ? [] : [[(art[at] ?? "").padEnd(ART - 3), "press"], ["   ", "ink"]];
-    lines.push({ text: paint.runs([...sigil, ...(facts[at] ?? [])]) });
+    lines.push({ text: spread(paint, [...sigil, ...(facts[at] ?? [])], [], width + 1) });
   }
   lines.push({ text: "" });
   if (page.note !== undefined) {
@@ -71,40 +72,101 @@ export function pageLines(frame: Frame, width: number, open: (path: string) => v
     return lines;
   }
 
+  const focus = frame.front === "item";
+  const bar: Run = ["▏ ", "line2"];
+  const leads = (text: string, go: () => void): PageLine => ({
+    text: spread(paint, [["→ ", "ink3"], [text, "ink2"]], [], width + 1),
+    go,
+  });
+
+  if (page.processes.length > 0) {
+    lines.push(rule(frame, LABELS.processes, width));
+    for (const proc of page.processes) {
+      const key = processTargetKey(proc.id);
+      const target: PageTarget = { key, kind: "process", agent: proc.agent, threadId: proc.threadId };
+      const go = (): void => open(target);
+      const { on, start } = marking({ focus, chosen: frame.home.chosen === key, open: false });
+      lines.push({
+        text: spread(paint, [["$ ", "ink3"], [proc.command, "ink"]], [[`running ${proc.since}`, "ink3"]], width + 1),
+        on,
+        bar: start[0],
+        go,
+        key,
+      });
+      if (frame.inFull.toolCalls && proc.output !== undefined) {
+        if (Array.isArray(proc.output)) {
+          for (const line of proc.output.slice(-4)) lines.push({ text: spread(paint, [bar, [line, "ink3"]], [], width + 1) });
+        } else {
+          for (const line of wrapRuns(frame, [[proc.output.note, role("caution")]], Math.max(1, width - 2))) {
+            lines.push({ text: `${paint.runs([bar])}${line}` });
+          }
+        }
+      }
+      lines.push(leads(`${proc.threadLabel} · ${proc.id}`, go));
+    }
+    lines.push({ text: "" });
+  }
+
   lines.push(rule(frame, LABELS.triggers, width));
-  if (page.triggers?.length === 0) lines.push({ text: paint.text(page.noTriggers, "ink3") }, { text: "" });
+  if (page.triggers?.length === 0 && page.once.length === 0) {
+    for (const line of wrapRuns(frame, [[page.noTriggers, "ink3"]], width)) lines.push({ text: line });
+    lines.push({ text: "" });
+  }
   for (const card of page.triggers ?? []) {
-    lines.push({ text: spread(paint, [[card.path, { tone: "ink", bold: true }]], [[card.when, "ink3"]], width + 1) });
-    const bar: Run = ["▏ ", "line2"];
+    const key = triggerTargetKey(card.name);
+    const target: PageTarget = { key, kind: "trigger", agent: card.agent, target: card.target };
+    const go = (): void => open(target);
+    const { on, start } = marking({ focus, chosen: frame.home.chosen === key, open: false });
+    const title: Run[] = card.on ? [[card.path, { tone: "ink", bold: true }]] : [[card.path, { tone: "ink3", bold: true }], [" (off)", "ink3"]];
+    lines.push({ text: spread(paint, title, [[card.when, "ink3"]], width + 1), on, bar: start[0], go, key });
     const { file } = card;
     if (file !== undefined && "note" in file) {
-      for (const line of wrapRuns(frame, [[file.note, role("caution")]], width - 2)) lines.push({ text: `${paint.runs([bar])}${line}` });
+      for (const line of wrapRuns(frame, [[file.note, role("caution")]], Math.max(1, width - 2))) lines.push({ text: `${paint.runs([bar])}${line}` });
     } else if (file !== undefined) {
-      for (const line of file.front ?? []) lines.push({ text: paint.runs([bar, [line, "ink3"]]) });
-      if (file.body !== "") for (const line of wrapRuns(frame, [[file.body, "ink2"]], width - 2)) lines.push({ text: `${paint.runs([bar])}${line}` });
+      for (const line of file.front ?? []) lines.push({ text: spread(paint, [bar, [line, "ink3"]], [], width + 1) });
+      if (file.body !== "") for (const line of wrapRuns(frame, [[file.body, "ink2"]], Math.max(1, width - 2))) lines.push({ text: `${paint.runs([bar])}${line}` });
+    }
+    lines.push(leads(card.target.kind === "thread" ? card.target.label : card.target.path, go), { text: "" });
+  }
+  if (page.once.length > 0) {
+    lines.push({ text: paint.text("once", { tone: "ink", bold: true }) });
+    for (const card of page.once) {
+      const key = onceTargetKey(card.id);
+      const target: PageTarget = { key, kind: "once", agent: card.agent, threadId: card.threadId };
+      const go = (): void => open(target);
+      const { on, start } = marking({ focus, chosen: frame.home.chosen === key, open: false });
+      const when = card.when.length < 13 ? card.when.padEnd(14) : `${card.when}  `;
+      lines.push({
+        text: spread(paint, [[when, "ink3"], [card.prompt, "ink2"], [` · ${card.threadLabel}`, "ink3"]], [], width + 1),
+        on,
+        bar: start[0],
+        go,
+        key,
+      });
     }
     lines.push({ text: "" });
   }
 
   lines.push(rule(frame, LABELS.home, width));
-  const focus = frame.front === "item";
   for (const row of page.home) {
     const indent = "  ".repeat(row.depth);
     if (row.kind === "empty") {
-      lines.push({ text: paint.text(`${indent}  ${EMPTY}`, "ink3") });
+      lines.push({ text: spread(paint, [[`${indent}  ${EMPTY}`, "ink3"]], [], width + 1) });
       continue;
     }
     if (row.kind === "note") {
-      for (const line of wrapRuns(frame, [[row.name, role("caution")]], width - indent.length)) lines.push({ text: `${indent}${line}` });
+      for (const line of wrapRuns(frame, [[row.name, role("caution")]], Math.max(1, width - indent.length))) lines.push({ text: `${indent}${line}` });
       continue;
     }
-    const marks = { focus, chosen: frame.home.chosen === row.path, open: frame.home.file === row.path };
+    const key = homeTargetKey(row.path);
+    const target: PageTarget = { key, kind: "home", row };
+    const marks = { focus, chosen: frame.home.chosen === key, open: frame.home.file === row.path };
     const { on, start } = marking(marks);
     const mark: Run = row.kind === "folder" ? [row.open ? "▾ " : "▸ ", "ink3"] : ["  ", "ink"];
     const style: Style | Tone = row.kind === "folder" ? { tone: "ink", bold: true } : row.kind === "file" ? "ink2" : "ink3";
     const name = row.kind === "folder" ? `${row.name}/` : row.name;
     // The bar of a chosen row stands in the margin before the page, as a list's does.
-    lines.push({ text: paint.runs([[indent, "ink"], mark, [name, style]]), on, bar: start[0], go: () => open(row.path), key: row.path });
+    lines.push({ text: spread(paint, [[indent, "ink"], mark, [name, style]], [], width + 1), on, bar: start[0], go: () => open(target), key });
   }
   return lines;
 }

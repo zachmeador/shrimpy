@@ -262,6 +262,15 @@ body { background: var(--pane); color: var(--ink); font: 400 var(--t-ui)/1.45 va
 .file pre { margin: 5px 0 0; font: 400 var(--t-code)/1.5 var(--mono); color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
 .file pre i { font-style: normal; color: var(--ink-3); }
 .file .last { margin-top: 6px; font-size: var(--t-small); color: var(--ink-3); }
+/* A command in the background and a trigger, on the page: what it is, then where it belongs and what can be done to it. */
+.file pre.out { padding-left: 12px; border-left: 2px solid var(--line-2); color: var(--ink-3); overflow-wrap: anywhere; }
+.file h3 .tag { vertical-align: 0; }
+.file.off h3, .file.off pre { opacity: 0.55; }
+.file .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.file .ctl .gap { flex: 1; }
+.file .ctl .to { min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.onces { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin: 10px 0 0; padding: 9px 12px 10px; list-style: none; font-size: var(--t-small); color: var(--ink-2); --fill: var(--well); --edge: var(--line); }
+.onces .top { margin-bottom: 2px; font: 600 var(--t-code)/1.4 var(--mono); color: var(--ink); }
 .tree { padding: 2px 0 0; font: 400 var(--t-code)/1.4 var(--mono); }
 .tree .note { font-family: var(--face); }
 .frow { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 28px; margin: 0; padding: 3px 14px 3px calc(8px + var(--depth) * 16px); color: var(--ink-2); }
@@ -348,13 +357,21 @@ button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent
 .mark.new { color: var(--coral-ink); }
 .mark.new::before, .mark.new::after { background: var(--coral); }
 
-/* A trigger's line: which trigger fired and when, folded open to what it brought, with the agent's receipt under it. */
+/* A wake line: a trigger that fired, a command in the background that ended, or an agent that answered. */
 .trig { margin: 10px 0 2px 36px; font-size: var(--t-small); color: var(--ink-3); }
-.trig summary { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; list-style: none; }
+.trig + .trig { margin-top: 5px; }
+.trig summary, .trig > button { display: inline-flex; align-items: center; gap: 9px; max-width: 100%; cursor: pointer; list-style: none; }
 .trig summary::-webkit-details-marker { display: none; }
+.trig summary > span, .trig > button > span:not(.to) { flex: none; }
 .trig summary b { font-weight: 500; color: var(--ink-2); }
+.trig > button b { font-weight: 600; color: var(--who-ink); }
+.trig code, .trig .to { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trig code { max-width: 26em; color: var(--ink-2); }
+.trig .to { max-width: 18em; padding: 1px 7px 2px; color: var(--ink-2); background: var(--raise); clip-path: var(--step); }
+.trig > button:hover .to { color: var(--ink); }
+.trig .bad { color: var(--bad-ink); }
 .trig[open] summary > .px:last-child { transform: rotate(90deg); }
-.trig pre { margin: 7px 0 0; padding-left: 12px; border-left: 2px solid var(--line); font: 400 var(--t-code)/1.5 var(--mono); white-space: pre-wrap; }
+.trig pre { margin: 7px 0 0; padding-left: 12px; border-left: 2px solid var(--line); font: 400 var(--t-code)/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 .receipt.of-trig { margin-left: 36px; }
 .earlier { padding-bottom: 8px; font-size: var(--t-small); color: var(--ink-3); }
 
@@ -386,6 +403,7 @@ button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent
 .step.running .st { color: var(--busy-ink); }
 .step.error .st, .step.interrupted .st { color: var(--bad-ink); }
 .step b { font-weight: 600; }
+.step .bg { color: var(--busy-ink); }
 .step .call { flex: 1; min-width: 0; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .step.whole .call { white-space: pre-wrap; overflow-wrap: anywhere; }
 .step .out { flex-basis: 100%; margin: 0 0 2px 18px; font: inherit; color: var(--ink-3); white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -409,16 +427,54 @@ button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent
 .dock-col { max-width: calc(var(--measure) - 56px); margin: 0 auto; }
 .line { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: var(--t-small); line-height: 1.35; color: var(--ink-2); }
 .line.working { color: var(--busy-ink); }
-.line.queued, .line.wake { color: var(--ink-3); }
-.line.wake > span { flex: 1; min-width: 0; }
-.line.wake.later > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.line .more { flex: none; padding: 1px 7px 2px; color: var(--ink-2); background: var(--raise); clip-path: var(--step); }
-.wakes { display: grid; gap: 2px; margin: 0 0 8px; padding: 8px 12px 9px; list-style: none; font-size: var(--t-small); color: var(--ink-2); --fill: var(--pane); --edge: var(--line); }
-.wakes li { display: grid; grid-template-columns: 6.6em 6.4em minmax(0, 1fr); column-gap: 10px; align-items: baseline; }
-.wakes time { font: 400 var(--t-meta)/1.5 var(--mono); color: var(--ink-3); }
-.wakes b { font-weight: 600; color: var(--who-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.wakes .how { display: block; margin-top: 5px; color: var(--ink-3); }
-.wakes .top { display: flex; justify-content: space-between; margin-bottom: 4px; font: 400 var(--t-meta)/1.3 var(--mono); color: var(--ink-3); }
+.line.queued { color: var(--ink-3); }
+.line .say { flex: 1; min-width: 0; }
+.act { flex: none; padding: 2px 8px 3px; font: 400 var(--t-meta)/1.3 var(--mono); color: var(--ink-2); background: var(--raise); clip-path: var(--step); white-space: nowrap; }
+.act:hover { color: var(--ink); }
+.act.end:hover { color: var(--bad-ink); }
+.act.toggle::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 7px; vertical-align: 1px; background: var(--good); }
+.act.toggle[aria-checked="false"]::before { background: none; box-shadow: inset 0 0 0 2px var(--ink-3); }
+.to { color: var(--link-ink); }
+
+/* What is still going in a thread between turns, a row for each kind: commands in the background, agents waited on, and the triggers that come to it. A row opens in place. */
+.still { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0 0 8px; padding: 3px 0; font-size: var(--t-small); line-height: 1.35; color: var(--ink-2); --fill: var(--pane); --edge: var(--line); }
+.srow { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 28px; padding: 3px 12px; }
+button.srow:hover { color: var(--ink); }
+.srow > .mk { flex: none; width: 12px; display: grid; place-items: center; color: var(--ink-3); }
+.srow > .what { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.srow.wrap > .what { white-space: normal; }
+.srow code { color: var(--ink); }
+.still .age { font: 400 var(--t-meta)/1 var(--mono); color: var(--ink-3); }
+.srow > .age { flex: none; }
+.still .age.down { color: var(--caution-ink); }
+.srow .more { flex: none; padding: 1px 7px 2px; color: var(--ink-2); background: var(--raise); clip-path: var(--step); }
+.srow > .px:last-child { flex: none; color: var(--ink-3); }
+.srow[aria-expanded="true"] > .px:last-child { transform: rotate(90deg); }
+.srow.whole { align-items: start; }
+.srow.whole > .what { white-space: normal; overflow-wrap: anywhere; }
+.srow.whole > .mk, .srow.whole > .px:last-child { margin-top: 6px; }
+.srow > .unfold { flex: none; display: grid; place-items: center; width: 24px; height: 22px; margin-right: -6px; color: var(--ink-3); }
+.srow > .unfold:hover { color: var(--ink); }
+.srow > .unfold[aria-expanded="true"] > .px { transform: rotate(90deg); }
+.still .on { display: inline-flex; align-items: center; gap: 6px; margin: 0 5px 0 4px; font-weight: 600; color: var(--who-ink); vertical-align: baseline; }
+.srow .on + .age { margin-right: 8px; }
+.srow .pair { white-space: nowrap; }
+.sbody { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0; padding: 2px 12px 8px 34px; list-style: none; }
+.sbody.tight { gap: 3px; }
+.sbody .cmd { font: 400 var(--t-code)/1.5 var(--mono); color: var(--ink); overflow-wrap: anywhere; }
+.sbody pre { margin: 4px 0 0; padding-left: 12px; border-left: 2px solid var(--line-2); font: 400 var(--t-code)/1.5 var(--mono); color: var(--ink-3); white-space: pre-wrap; overflow-wrap: anywhere; }
+.sbody .foot { display: flex; align-items: center; gap: 10px; margin-top: 6px; font: 400 var(--t-meta)/1.3 var(--mono); color: var(--ink-3); }
+.sbody .foot > span { flex: 1; min-width: 0; }
+.titem { display: grid; column-gap: 10px; align-items: baseline; }
+.titem.c3 { grid-template-columns: 7.4em minmax(0, 1fr) auto; }
+.titem.c4 { grid-template-columns: 7.4em 6.4em minmax(0, 1fr) auto; }
+.titem.cp { grid-template-columns: 7.4em minmax(0, 1fr) minmax(0, auto) auto; }
+.titem.cw { grid-template-columns: minmax(0, 1fr) auto; }
+.titem.cw .who { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.titem.cw .on { margin-left: 0; }
+.titem time { font: 400 var(--t-meta)/1.5 var(--mono); color: var(--ink-3); }
+.titem b { font-weight: 600; color: var(--who-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.titem .to { max-width: 17em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line kbd, .keys b { font-family: var(--mono); font-weight: 400; color: var(--ink-2); }
 .walk { flex: none; width: 36px; height: 24px; }
 .walk i { display: block; width: 24px; height: 24px; background: var(--coral); -webkit-mask: var(--bm-walker) 0 0 / 48px 24px no-repeat; mask: var(--bm-walker) 0 0 / 48px 24px no-repeat; animation: legs 0.36s steps(2) infinite, walk 0.72s step-end infinite; }
@@ -448,7 +504,6 @@ button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent
 .watch { background: var(--well); border-left: 1px solid var(--line); }
 .watch .head { border-bottom: 1px solid var(--line); }
 .watch .col { max-width: none; padding: 16px 16px 14px; }
-.thread .col.session { max-width: var(--measure); }
 
 /* --- A session watched: what it is doing now, under it ---------------------- */
 
@@ -517,6 +572,13 @@ button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent
   .keys { display: none; }
   .send { width: 34px; height: 34px; }
   .composer textarea { height: 34px; padding: 5px 0; }
+  .srow { min-height: 34px; }
+  .srow.one > .what { white-space: normal; }
+  .sbody { padding-left: 12px; }
+  .act { padding: 5px 10px 6px; }
+  .titem.c4, .titem.cp { grid-template-columns: 7.4em minmax(0, 1fr) auto; }
+  .titem.c4 .say { grid-column: 1 / -1; grid-row: 2; }
+  .titem.cp .to { grid-column: 2 / -1; grid-row: 2; justify-self: start; }
   .work-head .lk { display: none; }
   .turn span { display: none; }
   .turn { width: 30px; height: 30px; padding: 0; justify-content: center; background: none; }

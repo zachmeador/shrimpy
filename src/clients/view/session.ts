@@ -4,9 +4,9 @@ import { oneLine } from "../../lib/plain/index.ts";
 import { agentNameOf, agentRuns, type Model, type Place, type SessionView, sidesOf } from "../state/index.ts";
 import { BRIEF, type LevelOptions, type Looking, lookingAt, OUTPUT_LINES } from "./level.ts";
 import { type Look, lookOf } from "./look.ts";
-import { type About, notesOf } from "./notes.ts";
+import { notesOf } from "./notes.ts";
 import { type Step, watchOf } from "./work.ts";
-import { behindThread, earlierItems, type InFull, NOT_RUNNING, placeWords, SESSION_EMPTY, sessionFoot, sessionTitle, watchingWords } from "./words.ts";
+import { behindThread, earlierItems, type InFull, NOT_RUNNING, SESSION_EMPTY, sessionFoot, sessionTitle, watchingWords } from "./words.ts";
 
 /** An agent whose view of the session behind the open thread can be put on show. */
 export interface Side {
@@ -17,10 +17,9 @@ export interface Side {
 }
 
 /**
- * The session on show, as its agent sees it: the open session behind no
- * thread, which is a trigger's own, or the one behind the open thread, on show
- * in place of the conversation. It is for watching: nothing is said or done in
- * it.
+ * The session on show, as its agent sees it: the session behind the open
+ * thread, on show in place of the conversation. It is for watching: nothing is
+ * said or done in it directly.
  */
 export interface SessionLevel {
   title: string;
@@ -32,13 +31,9 @@ export interface SessionLevel {
   lead: string | undefined;
   /** The newest items of the session, oldest first: what it was shown, what it thought and wrote, and each tool call. */
   steps: Step[];
-  /**
-   * Under the session behind the open thread: what it is doing, how many
-   * inputs wait, its model and what it has used, or that the agent is not
-   * running. A trigger's own session has none.
-   */
+  /** Under the session behind the open thread: what it is doing, how many inputs wait, its model and what it has used, or that the agent is not running. */
   foot: string | undefined;
-  /** The agents whose view of the open thread can be on show, in the order they come, this one among them. None for a trigger's own session. */
+  /** The agents whose view of the open thread can be on show, in the order they come, this one among them. */
   sides: Side[];
   /** What is shown may be out of date: the agent is not being reached. */
   stale: boolean;
@@ -46,8 +41,6 @@ export interface SessionLevel {
   agent: string;
   /** How that agent looks. */
   look: Look;
-  /** It is the session behind the open thread, on show in place of its conversation, which can be put back. */
-  turned: boolean;
   /** What is not working, or has just gone wrong, most pressing first. */
   notes: string[];
 }
@@ -62,21 +55,13 @@ export interface SessionOptions extends LevelOptions {
 /** The session on show, as plain text and facts, or none while no session is. */
 export function sessionLevel(model: Model, options: SessionOptions): SessionLevel | undefined {
   const { item } = model.open;
-  if (item?.kind === "session") {
-    const summary = model.sessions?.find((each) => each.id === item.session);
-    const watching = watchingWords(placeWords(summary?.place ?? null, item.session, model.me?.name));
-    const refused = model.watchRefusal === undefined ? undefined : { what: "session" as const, words: model.watchRefusal };
-    return sessionOf(model, item.agent, item.session, model.watched, { watching, turned: false, refused }, options);
-  }
-  if (item?.kind === "thread" && item.side !== undefined && item.thread !== undefined) {
-    const here = lookingAt(model, item.place);
-    const threadId = item.thread;
-    const thread = (model.thread?.thread.id === threadId ? model.thread.thread : undefined) ?? here.threads.find((each) => each.id === threadId);
-    const where = placeFor(model, item.place, here, item.side);
-    const watching = watchingWords(behindThread(where, thread === undefined ? threadId : titleOf(thread)));
-    return sessionOf(model, item.side, threadId, model.behind[item.side], { watching, turned: true, refused: undefined }, options);
-  }
-  return undefined;
+  if (item?.side === undefined || item.thread === undefined) return undefined;
+  const here = lookingAt(model, item.place);
+  const threadId = item.thread;
+  const thread = (model.thread?.thread.id === threadId ? model.thread.thread : undefined) ?? here.threads.find((each) => each.id === threadId);
+  const where = placeFor(model, item.place, here, item.side);
+  const watching = watchingWords(behindThread(where, thread === undefined ? threadId : titleOf(thread)));
+  return sessionOf(model, item.side, threadId, model.behind[item.side], watching, options);
 }
 
 /** Where a thread is, as the list of the agent `viewer` says it: "your DM", "#ops" or "DM with mechanic". */
@@ -89,17 +74,16 @@ function placeFor(model: Model, place: Place, here: Looking, viewer: string): st
   return placeLabel({ kind: "dm", with: { name: other.name, kind: other.kind }, thread: { name: null } }, model.me?.name);
 }
 
-/** A session as `agentId` sees it, by its address, with what `frame` says of where it is on show. */
+/** A session as `agentId` sees it, by its thread ID. */
 function sessionOf(
   model: Model,
   agentId: string,
   address: string,
   view: SessionView | undefined,
-  frame: { watching: string; turned: boolean; refused: About["refused"] },
+  watching: string,
   options: SessionOptions,
 ): SessionLevel {
   const name = agentNameOf(model, agentId);
-  // A session that was working when the agent went away is not working now, whatever its last view says.
   const away = view?.reached === false;
   const busy = view?.status.busy === true && !away;
   const watched =
@@ -109,24 +93,20 @@ function sessionOf(
   if (watched !== undefined && watched.earlier) lead = earlierItems(address, name);
   else if (view !== undefined && view.items.length === 0) lead = SESSION_EMPTY;
 
-  let foot: string | undefined;
-  if (frame.turned) {
-    foot = !agentRuns(model, agentId) ? NOT_RUNNING : view === undefined ? undefined : sessionFoot(view.status, busy);
-  }
+  const foot = !agentRuns(model, agentId) ? NOT_RUNNING : view === undefined ? undefined : sessionFoot(view.status, busy);
 
   const who = oneLine(name);
   return {
-    title: sessionTitle(who, frame.watching),
+    title: sessionTitle(who, watching),
     who,
-    watching: frame.watching,
+    watching,
     lead,
     steps: watched?.steps ?? [],
     foot,
-    sides: frame.turned ? sidesOf(model).map((agent) => ({ agent, name: oneLine(agentNameOf(model, agent)), look: lookOf(model, agent) })) : [],
+    sides: sidesOf(model).map((agent) => ({ agent, name: oneLine(agentNameOf(model, agent)), look: lookOf(model, agent) })),
     stale: away,
     agent: agentId,
     look: lookOf(model, agentId),
-    turned: frame.turned,
-    notes: notesOf(model, { agent: agentId, watching: true, looking: "sessions", refused: frame.refused, notice: true }, options.self),
+    notes: notesOf(model, { agent: agentId, watching: true, looking: "sessions", refused: undefined, notice: true }, options.self),
   };
 }

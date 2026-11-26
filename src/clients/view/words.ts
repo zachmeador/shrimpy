@@ -1,18 +1,16 @@
 import {
   activityWords,
   type AnswerEnding,
+  describeSchedule,
   endingWords,
   failureWords,
   lastWords,
   type ModelId,
   modelWords,
-  type OnceTrigger,
   onceTriggerPrompt,
   placeLabel,
-  placeWords as placeWithThread,
   type QueuedInput,
   type SessionActivity,
-  type SessionPlace,
   type SessionStatus,
   type SessionSummary,
   type TriggerSummary,
@@ -37,56 +35,42 @@ import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../../lib/version/index.t
 import type { Problem, Why } from "../network/index.ts";
 import { type AgentStatus, type ClientCommand, commandNames, type DevicesStatus, type Notice, type RoomStatus } from "../state/index.ts";
 import { shortLine } from "./cut.ts";
-import { whenOf } from "./time.ts";
+import { elapsedOf, whenOf } from "./time.ts";
 
 /*
  * Every sentence a client says, in one place, but for what it says of a
  * session, a receipt, what a thread or a channel is called, what to start and a
  * program of another version, which it takes from the contracts as the commands
- * do, and frames here. They are plain and short, in the voice of the commands:
- * what happened, and what to do next. Where the commands already say it, a
- * client says it the same way. A name, an ID or a message that came from
- * another program is put on one line and made harmless here, whoever calls,
- * so no sentence can carry anything else.
+ * do, and frames here.
  */
 
-/** The command a person writes in a thread to stop the work there. */
 const STOP: AgentCommand = "stop";
-
-/** The command a person writes in a thread to see or change the model of the thread's session. */
 const MODEL: AgentCommand = "model";
-
-/** How a device is taken back, as the person writes it. */
 const TAKE_BACK = "/devices take back <device>";
-
-/** What `/devices` does, the same in a DM and a room. */
 const DEVICES = `List your devices, or take one back: ${TAKE_BACK}`;
-
-/** The commands a person writes in a thread to rename it, and to bring it back once it is archived. */
 const RENAME: ClientCommand = "rename";
 const UNARCHIVE: ClientCommand = "unarchive";
-
-/** What renaming, archiving and bringing back a thread do, the same in a DM and a room. */
 const RENAMES = `Name this thread: /${RENAME} <name>`;
 const ARCHIVES = "Hide this thread from the lists.";
 const UNARCHIVES = "Bring this thread back to the lists.";
-
-/** What `/update` does, the same in a DM and a room. */
+const KILL = "End a command running in the background in this thread.";
+const DROP = "Stop waiting on an agent in this thread.";
+const CANCEL = "Cancel a one-time trigger set for this thread.";
+const PAUSE = "Pause a standing trigger that comes to this thread.";
+const RESUME = "Resume a paused trigger that comes to this thread.";
 const UPDATE = "Install the gateway's version of Shrimpy on this machine, and open the terminal again.";
 
-/** That this machine runs an older Shrimpy than the gateway's `gateway`, and how to update it. */
 export const behindNote = (gateway: string): string =>
   `This machine runs Shrimpy ${SHRIMPY_VERSION}, older than the gateway's ${oneLine(gateway)}. Write /update in a thread to install ${oneLine(gateway)} here.`;
 
-/** What `/model` is written with to have the thread follow the agent's model again. */
 export const MODEL_DEFAULT = "default";
 
-/** The program a problem is about. */
 export type Program = { kind: "chat" } | { kind: "gateway" } | { kind: "agent"; name: string };
 
 const CHAT = "the chat server";
 
-/** What to tell about the gateway, if it is not as it should be. `self` is what the client calls itself. */
+const countOf = (n: number, one: string): string => `${String(n)} ${one}${n === 1 ? "" : one.endsWith("s") ? "es" : "s"}`;
+
 export function gatewayNote(why: Why, self: string): string | undefined {
   switch (why.kind) {
     case "not-running":
@@ -106,7 +90,6 @@ export function gatewayNote(why: Why, self: string): string | undefined {
   }
 }
 
-/** What to tell about the chat server, if it is not as it should be. */
 export function chatNote(why: Why): string | undefined {
   switch (why.kind) {
     case "not-linked":
@@ -124,12 +107,6 @@ export function chatNote(why: Why): string | undefined {
   }
 }
 
-/**
- * What to tell about the agent whose list is open, if it is not as it should be.
- * `looking` is what is on show: the work in a thread, or the agent's sessions.
- * `home` says whether this machine has a home for the agent, when the client
- * was told: an agent that has none lives somewhere else, and is started there.
- */
 export function agentNote(
   agent: string,
   why: Why,
@@ -155,22 +132,18 @@ export function agentNote(
   }
 }
 
-/** What a program said when it refused, as the end of a sentence. */
 const saidAsReason = (said: string): string => withoutPeriod(oneLine(said));
 
-/** What the agent said when it would not list its sessions, or would not let one be watched. */
 export function refusalNote(looking: "sessions" | "session", agent: string, said: string): string {
   const reason = saidAsReason(said);
   return looking === "sessions" ? `Could not list the sessions of ${oneLine(agent)}: ${reason}.` : `Could not watch the session: ${reason}.`;
 }
 
-/** That the client, which calls itself `self`, or a program runs Shrimpy `version`, newer than the gateway's `gateway`, if it does. */
 export function newerNote(what: { kind: "self"; self: string } | Exclude<Program, { kind: "gateway" }>, version: string, gateway: string): string | undefined {
   const named = what.kind === "self" ? what.self : what.kind === "chat" ? CHAT : `the agent ${oneLine(what.name)}`;
   return newerThanGateway(named, version, gateway);
 }
 
-/** Why something could not be done, as the end of a sentence. `self` is what the client calls itself. */
 function because(program: Program, problem: Problem, self: string): string {
   const who = program.kind === "chat" ? CHAT : program.kind === "gateway" ? "the gateway" : oneLine(program.name);
   if ("said" in problem) return saidAsReason(problem.said);
@@ -194,7 +167,16 @@ function because(program: Program, problem: Problem, self: string): string {
   }
 }
 
-/** What a notice says. `agent` is the agent the person is talking to, and `self` what the client calls itself. */
+const ACTIONS: Record<Extract<Notice, { kind: "action-failed" }>["what"], string> = {
+  kill: "end the background command",
+  drop: "stop waiting",
+  cancel: "cancel the trigger",
+  pause: "pause the trigger",
+  resume: "resume the trigger",
+  fire: "run the trigger",
+  stop: "stop the turn",
+};
+
 export function noticeText(notice: Notice, agentName: string, self: string): string {
   const agent = oneLine(agentName);
   switch (notice.kind) {
@@ -249,17 +231,40 @@ export function noticeText(notice: Notice, agentName: string, self: string): str
       return notice.gateway === undefined
         ? `What the gateway runs is known once ${self} links to it. Nothing was updated.`
         : `This machine runs Shrimpy ${SHRIMPY_VERSION}, and the gateway ${oneLine(notice.gateway)}, so there is nothing to update.`;
+    case "stop-still-going": {
+      const left = [
+        notice.processes > 0 ? `${countOf(notice.processes, "process")}, which /kill ends` : undefined,
+        notice.waitingOn.length > 0 ? waitingOnLine(notice.waitingOn, true) : undefined,
+        notice.triggers > 0 ? countOf(notice.triggers, "trigger") : undefined,
+      ].filter((part): part is string => part !== undefined);
+      const lead = notice.hadTurn ? "/stop ended the turn, and nothing else" : "No turn is running here, and /stop ends nothing else";
+      return `${lead}. Still going here: ${listed(left)}.`;
+    }
+    case "no-processes":
+      return "This thread runs no command in the background.";
+    case "many-processes":
+      return `This thread runs ${countOf(notice.ids.length, "command")} in the background: ${listed(notice.ids.map(oneLine))}. Write /kill and one of them.`;
+    case "no-watches":
+      return "This thread waits on no one.";
+    case "many-watches":
+      return `This thread waits on ${countOf(notice.agents.length, "agent")}: ${listed(notice.agents.map(oneLine))}. Write /drop and one of them.`;
+    case "no-triggers": {
+      const kind = notice.action === "cancel" ? "one-time trigger" : notice.action === "pause" ? "trigger that is on" : "paused trigger";
+      return `No ${kind} comes to this thread.`;
+    }
+    case "many-triggers":
+      return `${String(notice.names.length)} of them come to this thread: ${listed(notice.names.map(oneLine))}. Write /${notice.action} and one of them.`;
+    case "action-failed":
+      return `Could not ${ACTIONS[notice.what]}: ${because({ kind: "agent", name: notice.agent }, notice.problem, self)}.`;
   }
 }
 
-/** What each change to a thread does, as a sentence says it failed to. */
 const CHANGES: Record<Extract<Notice, { kind: "not-changed" }>["change"], string> = {
   rename: "rename the thread",
   archive: "archive the thread",
   unarchive: "bring the thread back",
 };
 
-/** What `/model` with nothing after it says: the model the thread uses, whose it is, and how to choose another. */
 function modelIs(agent: string, notice: Extract<Notice, { kind: "model-is" }>): string {
   const choose = `/${MODEL} and a space`;
   if (notice.model === null) return `This thread has no model yet. To choose one, write ${choose}.`;
@@ -269,7 +274,6 @@ function modelIs(agent: string, notice: Extract<Notice, { kind: "model-is" }>): 
   return `This thread uses ${used}, a model chosen for this thread.${home} Write /${MODEL} ${MODEL_DEFAULT} to follow ${agent}'s model again, or ${choose} to choose another.`;
 }
 
-/** The line printed when a client is left while an agent is still working. */
 export function farewellLine(agentName: string, threadId: string): string {
   const agent = oneLine(agentName);
   const thread = oneLine(threadId);
@@ -279,117 +283,83 @@ export function farewellLine(agentName: string, threadId: string): string {
   );
 }
 
+/** Command line shown in the terminal on a read-only thread while an agent is working in it. */
+export function stopReadOnlyCommand(threadId: string, agentName: string): string {
+  return `To stop it, run: shrimpy sessions stop ${shellWord(oneLine(threadId))} --agent ${shellWord(oneLine(agentName))}`;
+}
+
 export const THREAD_EMPTY = "No messages yet.";
 export const DELETED = "This message was deleted.";
-
-/** What marks a message that was edited, with when. */
 export const editedAt = (when: string): string => `edited ${when}`;
-
-/** Who put one emoji on a message, by name, in the order they did. */
 export const reactedBy = (names: string[]): string => names.join(", ");
-
-/** The emoji on a message and who put each there, on one line, as the terminal says them. */
 export const reactionsLine = (reactions: readonly { emoji: string; by: string }[]): string => reactions.map(({ emoji, by }) => `${emoji} ${by}`).join("  ");
-
-/** What a trigger's line says after the trigger's name, before when it fired. */
 export const FIRED = "fired";
-
-/** What stands before the first message that was new to the person when they opened the thread, on a line of its own. */
 export const NEW_SINCE = "while you were away";
-/** The same in a word, for where it stands inside a rule. */
 export const NEW_SINCE_SHORT = "new";
-
-/** The line under Shrimpy's wordmark: its version, then the release's name, in two parts so that a client can set the name apart. */
 export const versionLine = (): [lead: string, release: string] => [`${SHRIMPY_VERSION} · `, SHRIMPY_RELEASE_NAME];
-
 export const agentsTitle = (): string => `shrimpy · ${versionLine().join("")}`;
 
-/** The two tabs of an agent's list: the person's DM with it, and everything else it takes part in. Each is its own name. */
 export type AgentTab = "chat" | "observe";
 export const AGENT_TABS: readonly AgentTab[] = ["chat", "observe"];
-
-/** The row at the foot of a list that opens its archived threads in place, with how many there are. */
 export const archivedRow = (count: number): string => `${ARCHIVED} · ${String(count)}`;
 
-/** The labels over the parts of a list, the agents and the rooms and a room's threads, and over an agent's triggers and its home on its page. */
 export const LABELS = {
   agents: "agents",
   rooms: "rooms",
   threads: "threads",
+  processes: "processes",
   triggers: "triggers",
   home: "home",
 } as const;
 
-/** What stands where a thread would be while nothing is open: no list, or nothing in the open list. */
 export const PICK_LIST = "Pick an agent or a room.";
 export const PICK_THREAD = "Pick a thread.";
-/** The same where a thread can be started too. `key` is the client's key that starts one, as the client writes it. */
 export const pickOrStart = (key: string): string => `${withoutPeriod(PICK_THREAD)}, or press ${key} to start one.`;
-/** `said`, then how to start a thread, where there is none to pick. `key` is the client's key that starts one, as the client writes it. */
 export const thenStart = (said: string, key: string): string => `${said} Press ${key} to start a thread.`;
-/** What an agent's observe tab says while it is empty and the agent is not running. */
 export const notRunning = (agent: string): string => `${oneLine(agent)} is not running.`;
-/** What an agent's observe tab says while it is empty and the agent runs. */
 export const nothingElse = (agent: string): string => `${oneLine(agent)} takes part in nothing else yet.`;
 
-/** That more wake-ups wait than the one shown. */
-export const moreWakeups = (count: number): string => `${String(count)} more`;
-/** That more wake-ups wait than the one shown, and where all of them are listed. */
-export const moreWakeupsListed = (count: number): string => `${moreWakeups(count)} in /status`;
+/** Count of additional items of a kind in the thread dock. */
+export const moreCount = (count: number): string => `${String(count)} more`;
+/** Count of additional items listed in `/status` (terminal dock). */
+export const moreListed = (count: number): string => `${moreCount(count)} in /status`;
+/** Heading for multiple background commands when expanded on web. */
+export const backgroundCommandsCount = (count: number): string => `${countOf(count, "command")} in the background`;
 
-/** The title of the window a client is in: Shrimpy, how many agents are working, and how much is new to the person. */
 export function windowTitle(working: number, fresh: number): string {
   return ["🦐 shrimpy", working > 0 ? `${String(working)} working` : "", fresh > 0 ? `${String(fresh)} new` : ""]
     .filter((part) => part !== "")
     .join(" · ");
 }
-/** What is watched, as a session's title says it after the agent's name: `where` is where the session is, as `placeWords` says, or the thread it is behind. */
+
 export const watchingWords = (where: string): string => `watching ${oneLine(where)}`;
-/** `who` is the agent's name, and `watching` what `watchingWords` says. */
 export const sessionTitle = (who: string, watching: string): string => `${oneLine(who)} · ${watching}`;
 export const SESSION_EMPTY = "Nothing in this session yet.";
-/** The label over what a session was shown. */
 export const SHOWN = "shown";
-/** Where the session behind a thread is, as its agent's view names it: the place as the agent's list says it, then the thread's title. */
 export const behindThread = (place: string, title: string): string => `${place} · ${oneLine(title)}`;
-/** That an agent is not linked to the gateway, wherever it is said in a word. */
 export const NOT_RUNNING = "not running";
-/** That the gateway turned an agent away for the release it runs, as its row says it. */
 export const TURNED_AWAY = "turned away";
-/** Under an agent's view: what the session is doing, how many inputs wait, its model and what it has used. `busy` says it is working. */
+
 export function sessionFoot(status: SessionStatus, busy: boolean): string {
   const waiting = status.queued.length > 0 ? `${String(status.queued.length)} waiting` : undefined;
   const doing = busy ? activityWords(status.activity) : activityWords({ kind: "idle" });
   return [doing, waiting, status.model === null ? undefined : modelWords(status.model), usageWords(status.usage)].filter((part) => part !== undefined).join(" · ");
 }
-/** What a thread itself is called, as its title says it after who it is with: `title` on one line, or that it is new while it has none. */
+
 export const threadCalled = (title: string | undefined): string => (title === undefined ? "new thread" : oneLine(title));
-/** `who` is what the conversation is called: an agent's name or a room's label, and `called` what `threadCalled` says. */
 export const threadTitle = (who: string, called: string): string => `${oneLine(who)} · ${called}`;
 export const newThreadHint = (agent: string): string => `New thread with ${oneLine(agent)}. Type below to start it.`;
 export const newRoomThreadHint = (room: string): string => `New thread in ${roomLabel(room)}. Type below to start it.`;
 
-/** The word on a row of the agents and rooms for a room that the person is not in and only reads. */
 export const READ_ONLY_TAG = "read-only";
-/** The word beside the name of an agent that the roster has as an admin. */
 export const ADMIN_TAG = "admin";
 
-/**
- * What is said of a room the person only reads: that it is only read, which
- * comes first so that a narrow screen does not cut it, then its members.
- */
 export function readOnlyDetail(room: Pick<Channel, "members">): string {
   return [READ_ONLY_TAG, membersLine(room.members)].filter((part) => part !== "").join(" · ");
 }
 
-/** The names of a channel's members, on one line, in alphabetical order. */
 export const membersLine = (members: Channel["members"]): string => memberNames(members).join(", ");
 
-/**
- * The line that stands where the input would be in a thread of a channel the
- * person only reads: that they only read it, and how to join a room, with their
- * own name, `me`, as the command takes it, or that a DM can't be joined.
- */
 export function readOnlyLine(channel: Pick<Channel, "kind" | "name" | "members">, me: string | undefined): string {
   if (channel.kind === "dm") return `You are only reading the ${channelLabel(channel)}. ${DM_TAKES_NO_MORE}`;
   return `You are only reading ${roomLabel(channel.name)}. To join it, run: ${addToRoom(channel.name, me)}`;
@@ -400,30 +370,19 @@ export const earlierMessages = (count: number, threadId: string): string =>
 export const earlierItems = (address: string, agent: string): string =>
   `Earlier items are not shown. Read the whole session with: shrimpy sessions read ${shellWord(oneLine(address))} --agent ${shellWord(oneLine(agent))}`;
 
-/**
- * Where a session is, as a list says it, in the names the agent gave: `me` is
- * the name of the person who is looking, whose DM with the agent is "your DM".
- * With no place, which is how an agent lists a session it has not learned the
- * place of, it is the session's address.
- */
-export function placeWords(place: SessionPlace | null, address: string, me: string | undefined): string {
-  return place === null ? oneLine(address) : placeWithThread(place, address, me);
+/** Whom an agent or thread is waiting on: by name, or as a count where a row has no room for the names. */
+export function waitingOnLine(names: readonly string[], full: boolean): string {
+  const clean = names.map(oneLine);
+  if (clean.length === 0) return "";
+  return full || clean.length === 1 ? `waiting on ${listed(clean)}` : `waiting on ${countOf(clean.length, "agent")}`;
 }
 
-/** Where sessions that are working are, for a row: the place of the one there is, or how many when there are several. */
 function whereWords(sessions: SessionSummary[], me: string | undefined): string {
   const [only] = sessions;
   if (only === undefined || sessions.length > 1) return `${String(sessions.length)} sessions`;
   return only.place === null ? "another session" : placeLabel(only.place, me);
 }
 
-/**
- * What the list of agents says of an agent that is running: that it is idle, or
- * working, and, when it is working where the person's threads with it are not,
- * where, or in how many sessions when it is working in several. `sessions` is
- * how many it is working in, and `elsewhere` the ones that are none of the
- * person's threads with it.
- */
 export function agentDetail(sessions: number, elsewhere: SessionSummary[], me: string | undefined): string {
   if (sessions === 0) return "idle";
   if (elsewhere.length === 0) return "working";
@@ -432,48 +391,33 @@ export function agentDetail(sessions: number, elsewhere: SessionSummary[], me: s
 
 const QUEUED_CHARACTERS = 200;
 
-/** What a line of input that waits opens with, for when the session will take it. */
 const QUEUED: Record<QueuedInput["when"], string> = {
   next_step: "queued for the next step",
   next_turn: "queued for the next turn",
   other: "queued",
 };
 
-/** Input a session has accepted and not picked up yet, on one line. */
 export function queuedLine(input: QueuedInput): string {
   const text = shortLine(input.text, QUEUED_CHARACTERS);
   return `${QUEUED[input.when]}: ${text}`;
 }
 
-/**
- * Who is working, and what the session is doing. At least one name, and more
- * than three are two and how many more. `inThread` says that the person can
- * write in the place this is shown, where `/stop` is how to stop the work,
- * which they can't in a session they are only watching. `counted` says how
- * many agents in place of their names, for where the names don't fit.
- */
 export function workingLine(names: string[], activity: SessionActivity | undefined, inThread: boolean, counted = false): string {
   const each = names.map(oneLine);
   const who = counted ? `${String(names.length)} agents` : each.length > 3 ? upTo(each, 2).join(", ") : listed(each);
   const verb = names.length > 1 ? "are" : "is";
-  // That it is working is said already, and it would not be shown if it were idle.
   const doing = activity === undefined || activity.kind === "idle" || activity.kind === "working" ? undefined : activityWords(activity);
   return `${who} ${verb} working${doing === undefined ? "" : ` · ${doing}`}${inThread ? ` · write /${STOP} to stop` : ""}`;
 }
 
-/** A part of a sentence: words, or a command that a person runs or writes, which a client sets apart. */
 export interface SaidPart {
   text: string;
   command: boolean;
 }
 
-/** Every command a person writes in a thread, with its slash. */
 const THREAD_COMMANDS = [...new Set([...commandNames("dm"), ...commandNames("room")])];
-
-/** A command in a sentence: one written in a thread, standing alone, or a `shrimpy` command after a colon, up to a comma or the sentence's end. */
 const COMMAND = new RegExp(`(?<=: )shrimpy [^,]*?(?=\\.?$|, )|(?<=^|\\s)(?:${THREAD_COMMANDS.join("|")})(?=$|[\\s.,:;])`, "g");
 
-/** A sentence in parts, each command in it set apart, so that a client can draw a command as one. */
 export function commandParts(sentence: string): SaidPart[] {
   const parts: SaidPart[] = [];
   let at = 0;
@@ -486,54 +430,35 @@ export function commandParts(sentence: string): SaidPart[] {
   return parts;
 }
 
-/**
- * What each command the client acts on itself does, in one line, in a DM with
- * an agent and in a room. The list of commands shows them with the commands
- * for agents.
- */
 export const CLIENT_COMMAND_LINES = {
   archive: { dm: ARCHIVES, room: ARCHIVES },
+  cancel: { dm: CANCEL, room: CANCEL },
   devices: { dm: DEVICES, room: DEVICES },
+  drop: { dm: DROP, room: DROP },
+  kill: { dm: KILL, room: KILL },
+  pause: { dm: PAUSE, room: PAUSE },
   rename: { dm: RENAMES, room: RENAMES },
+  resume: { dm: RESUME, room: RESUME },
   status: {
-    dm: "Show what the agent is doing, its model, tokens and cost.",
-    room: "Show which agents here are running and working.",
+    dm: "Show what the agent is doing, its model, tokens, cost, and what is still going.",
+    room: "Show which agents here are running and working, and what is still going.",
   },
   unarchive: { dm: UNARCHIVES, room: UNARCHIVES },
   update: { dm: UPDATE, room: UPDATE },
 } as const satisfies Record<ClientCommand, { dm: string; room: string }>;
 
-/** The line beside `default` in the list that `/model ` opens: whose model it stands for, and which one that is. */
 export const defaultModelLine = (agent: string, model: ModelId): string => `${oneLine(agent)}'s model: ${modelWords(model)}`;
 
-/** What `/status` adds to the model of a thread when the thread was given it, and the agent's default when that is known. */
 const chosenFor = (agent: string, defaultModel: ModelId | undefined): string =>
   defaultModel === undefined
     ? " (chosen for this thread)"
     : ` (chosen for this thread; ${agent}'s default is ${modelWords(defaultModel)})`;
 
-/** The line over what `/status` or `/devices` read: which it was, whom it is for, and when it was read. */
 export const statusHeader = (at: number, what: "status" | "devices" = "status"): string => `${what} · shown only to you · read ${localTime(at)}`;
 
 const howMany = (count: number): string => (count === 0 ? "none" : String(count));
 
-/** That `/stop` written in a thread cancels the wake-ups waited on there, `count` of them: the one way it is said. */
-const stopCancels = (count: number): string => `/${STOP} cancels ${count === 1 ? "it" : "them"}`;
-
-/**
- * What `/stop` does to the `count` wake-ups waited on in a thread, said once
- * under all of them: in a DM with the agent called `agent`, with its work, and
- * in a room, with every agent's work, and how to stop only `agent`'s.
- */
-export function stopCancelsAll(count: number, where: "dm" | "room", agent: string): string {
-  const name = oneLine(agent);
-  return where === "dm"
-    ? `${stopCancels(count)}, with ${name}'s work here.`
-    : `${stopCancels(count)}, with every agent's work here, and @${name} /${STOP} only ${name}'s.`;
-}
-
-/** What `/status` read about an agent in its DM, one thing to a line. */
-export function agentStatusRows(status: AgentStatus): string[] {
+export function agentStatusRows(status: AgentStatus, at: number): string[] {
   const name = oneLine(status.name);
   const rows = [status.running ? `${name} · Shrimpy ${oneLine(status.version ?? "")} · running` : `${name} · ${NOT_RUNNING}`];
   if (status.doing !== undefined) rows.push(`Doing now: ${activityWords(status.doing)}`);
@@ -553,18 +478,24 @@ export function agentStatusRows(status: AgentStatus): string[] {
   }
   const failure = status.session?.failure ?? null;
   if (failure !== null) rows.push(`Last turn: ${oneLine(failureWords(failure.reason, failure.detail))}`);
-  const onceTriggers = status.session?.onceTriggers ?? [];
-  for (const trigger of onceTriggers) rows.push(`Once at ${localTime(trigger.due)}: ${onceTriggerPrompt(trigger)}`);
+  for (const proc of status.processes) {
+    rows.push(`Runs in the background, for ${elapsedOf(proc.startedAt, at)}: $ ${oneLine(proc.command)} (${oneLine(proc.id)})`);
+  }
+  for (const { watch, running } of status.watches) {
+    const down = running ? "" : `, and ${oneLine(watch.onAgentName)} is not running`;
+    rows.push(`Waits on ${oneLine(watch.onAgentName)} since ${localTime(watch.startedAt)}${down}`);
+  }
+  for (const trigger of status.session?.onceTriggers ?? []) {
+    rows.push(`Once at ${localTime(trigger.due)}: ${onceTriggerPrompt(trigger)}`);
+  }
+  for (const trigger of status.standingTriggers) {
+    const next = trigger.next === null ? "paused" : `next ${localTime(trigger.next)}`;
+    rows.push(`Trigger ${oneLine(trigger.name)}, ${describeSchedule(trigger.schedule)}, ${next}`);
+  }
   if (status.othersWorking !== undefined) rows.push(`Other sessions working: ${howMany(status.othersWorking)}`);
   return rows;
 }
 
-/** One-shot trigger waiting in a thread. */
-export function wakeupLine(agent: string, trigger: OnceTrigger, when: string, _stops: boolean): string {
-  return `${oneLine(agent)} once at ${when}: ${onceTriggerPrompt(trigger)}`;
-}
-
-/** What `/devices` read, one device to a line, with how to take one back. */
 export function devicesRows(status: DevicesStatus): string[] {
   if (status.devices.length === 0) {
     return ["You have no devices. Another machine of yours joins with the line that shrimpy invite prints, run there."];
@@ -575,8 +506,7 @@ export function devicesRows(status: DevicesStatus): string[] {
   ];
 }
 
-/** What `/status` read about the agents of a room, one to a line, then every pending one-shot trigger in the thread. */
-export function roomStatusRows(status: RoomStatus): string[] {
+export function roomStatusRows(status: RoomStatus, at: number): string[] {
   const rows =
     status.agents.length === 0
       ? ["No agent is in this room."]
@@ -584,101 +514,73 @@ export function roomStatusRows(status: RoomStatus): string[] {
           (agent) =>
             `${oneLine(agent.name)} · ${agent.running ? "running" : NOT_RUNNING} · ${agent.working ? "working in this thread" : "not working in this thread"}`,
         );
-  for (const { agent, trigger } of status.onceTriggers) rows.push(wakeupLine(agent, trigger, localTime(trigger.due), false));
+  for (const { agent, process } of status.processes) {
+    rows.push(`${oneLine(agent)} runs in the background, for ${elapsedOf(process.startedAt, at)}: $ ${oneLine(process.command)} (${oneLine(process.id)})`);
+  }
+  for (const { agent, watch, running } of status.watches) {
+    const down = running ? "" : `, and ${oneLine(watch.onAgentName)} is not running`;
+    rows.push(`${oneLine(agent)} waits on ${oneLine(watch.onAgentName)} since ${localTime(watch.startedAt)}${down}`);
+  }
+  for (const { agent, trigger } of status.onceTriggers) {
+    rows.push(`${oneLine(agent)}: once at ${localTime(trigger.due)}: ${onceTriggerPrompt(trigger)}`);
+  }
+  for (const { agent, trigger } of status.standingTriggers) {
+    const next = trigger.next === null ? "paused" : `next ${localTime(trigger.next)}`;
+    rows.push(`${oneLine(agent)}: trigger ${oneLine(trigger.name)}, ${describeSchedule(trigger.schedule)}, ${next}`);
+  }
   return rows;
 }
 
-/** What marks a title or a block that may no longer be current. */
 export const OUT_OF_DATE = "out of date";
-/** The same, beside a title or over a block. */
 export const OUT_OF_DATE_MARK = `(${OUT_OF_DATE})`;
-
-/** How tool calls are shown, and how thinking is, as the switch between brief and in full says each. */
 export const toolCallsShown = (full: boolean): string => `tool calls: ${full ? "full" : "brief"}`;
 export const thinkingShown = (full: boolean): string => `thinking: ${full ? "full" : "brief"}`;
 export const THINKING = "thinking";
-export const hiddenSteps = (count: number): string =>
-  `${String(count)} earlier ${count === 1 ? "step" : "steps"} not shown`;
-export const hiddenLines = (count: number): string =>
-  `${String(count)} earlier ${count === 1 ? "line" : "lines"}`;
-/** What is left out of the start of something shown in full, when it was longer than the limit. */
-export const hiddenCharacters = (count: number): string =>
-  `${String(count)} earlier ${count === 1 ? "character" : "characters"} not shown`;
-/** What is left out of the end of something shown in full, when it was longer than the limit. */
-export const moreCharacters = (count: number): string =>
-  `${String(count)} more ${count === 1 ? "character" : "characters"} not shown`;
+export const hiddenSteps = (count: number): string => `${String(count)} earlier ${count === 1 ? "step" : "steps"} not shown`;
+export const hiddenLines = (count: number): string => `${String(count)} earlier ${count === 1 ? "line" : "lines"}`;
+export const hiddenCharacters = (count: number): string => `${String(count)} earlier ${count === 1 ? "character" : "characters"} not shown`;
+export const moreCharacters = (count: number): string => `${String(count)} more ${count === 1 ? "character" : "characters"} not shown`;
 
-/** A word on an answer that did not end the way an answer does. `ended` is how it ended, if it has. */
 export function answerNote(ended: AnswerEnding | undefined): string | undefined {
   const words = endingWords(ended);
   return words === undefined ? undefined : `answer ${words}`;
 }
 
-/** What the person asked to see in full. What is not is brief. */
 export interface InFull {
   toolCalls: boolean;
   thinking: boolean;
 }
 
-/*
- * What a page says besides what both clients say: when it tries the gateway
- * again, what its input says before anything is typed, the wake-ups waiting in
- * a thread when all of them are shown, an agent's home and triggers, how a
- * browser is labelled among your devices, and what a notification is titled.
- */
-
-/** When the page tries to reach the gateway again, under the note that says it can't. */
 export const nextTry = (seconds: number): string => `next try in ${String(seconds)}s`;
-
-/** What the input says before anything is typed. `who` is what the conversation is called. */
 export const writeTo = (who: string): string => `Write to ${oneLine(who)}`;
-
-/** Over the wake-ups waiting in a thread, when all of them are shown. */
-export const CHECKING_BACK = "checking back here";
-
-/** What a folder or a file of an agent's home that has nothing in it shows. */
 export const EMPTY = "(empty)";
 
-/** Why a folder or a file of an agent's home could not be read. `self` is what the client calls itself. */
 export const homeNote = (agent: string, problem: Problem, self: string): string =>
   `Could not read the home of ${oneLine(agent)}: ${because({ kind: "agent", name: agent }, problem, self)}.`;
 
-/** That an agent has no triggers, and whom to ask for one: the agent, and the admin agents but it, by name. */
+export const processOutputNote = (agent: string, problem: Problem, self: string): string =>
+  `Could not read output from ${oneLine(agent)}: ${because({ kind: "agent", name: agent }, problem, self)}.`;
+
 export const noTriggers = (agent: string, admins: string[]): string =>
   `${oneLine(agent)} has no triggers. Ask it to make one${admins.length === 0 ? "" : `, or ask ${listed(admins.map(oneLine), "or")}`}.`;
 
-/** What each of an agent's facts is called on its page. */
 export const FACTS = { state: "state", admin: "admin", machine: "machine", model: "model", version: "version", home: "home" } as const;
-
-/** How an agent stands on its page while the gateway turns it away for the release it runs. */
 export const TURNED_AWAY_FOR_RELEASE = "turned away for its release";
-
-/** How an agent at work stands on its page: where it is working, as its list says each place. */
 export const workingAt = (places: readonly string[]): string => (places.length === 0 ? "working" : `working · ${listed(places.map(oneLine))}`);
-
-/** Whether an agent is an admin, as its page says it. */
 export const yesNo = (yes: boolean): string => (yes ? "yes" : "no");
 
-/**
- * What an agent's page says of its machine under the machine's name: the
- * system, the account the agent runs as, whether the gateway runs there too,
- * and, while the agent is off, when the gateway last saw it linked.
- */
 export const machineLine = (machine: Machine, gateways: boolean, lastLinked: string | undefined): string =>
   [oneLine(machine.system), `user ${oneLine(machine.account)}`, gateways ? "the gateway's machine" : undefined, lastLinked === undefined ? undefined : `last linked at ${lastLinked}`]
     .filter((part) => part !== undefined)
     .join(" · ");
 
-/** That an agent's triggers and home can't be read while it is off, and where to start it: on `host`, or as `start` says where that isn't known. */
 export function notLinkedNote(agent: string, host: string | undefined, start: string): string {
   const said = `${oneLine(agent)} is not linked to the gateway, so its triggers and its home can't be read.`;
   return host === undefined ? `${said} ${start}` : `${said} It lives on ${oneLine(host)}: start it there.`;
 }
 
-/** The same while the gateway turns the agent away for its release, after `why`, which says what to update. */
 export const turnedAwayNote = (why: string): string => `${why} Until then its triggers and its home can't be read.`;
 
-/** Under a trigger's file on its agent's page: when it runs next, or that it is off, and how its last occurrence went. */
 export function triggerWhen(trigger: Pick<TriggerSummary, "next" | "last" | "lastCheck">, now: number): string {
   const next = trigger.next === null ? "off" : `next ${whenOf(trigger.next, now)}`;
   const last =
@@ -686,22 +588,17 @@ export function triggerWhen(trigger: Pick<TriggerSummary, "next" | "last" | "las
   return `${next} · ${last}`;
 }
 
-/** The platforms a browser's user agent names, the more particular first, since an iPhone's names a Mac and Android's names Linux. */
 const PLATFORMS = ["iPhone", "iPad", "Android", "Mac", "Windows", "Linux"];
 
-/** How a browser is labelled among your devices, from its user agent. */
 export function browserLabel(userAgent: string): string {
   const platform = PLATFORMS.find((name) => userAgent.includes(name));
   return platform === undefined ? "a browser" : `a browser on ${platform}`;
 }
 
-/** That the door's answer to an invitation's code couldn't be read, with the status it came with. */
 export const unreadableJoin = (status: number): string =>
   `The gateway answered the invitation's code with something this page can't read (HTTP ${String(status)}). Reload the page, or ask for a new invitation.`;
 
-/** What a notification says when what was pushed can't be read: only that there is something new. */
 export const SOMETHING_NEW = "Something new in Shrimpy";
 
-/** What a notification is titled: who wrote, and the room, for a message in one. */
 export const notificationTitle = (from: string, room: string | null): string =>
   room === null ? oneLine(from) : `${oneLine(from)} in ${roomLabel(room)}`;

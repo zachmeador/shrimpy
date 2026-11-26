@@ -43,15 +43,18 @@ export function aModel(parts: Partial<Model> = {}): Model {
     readOnly: {},
     thread: undefined,
     behind: {},
-    watched: undefined,
     sessions: undefined,
     triggers: undefined,
     defaultModel: undefined,
     home: NOTHING_READ,
     looks: {},
     workingSessions: {},
+    processesByAgent: {},
+    watchesByAgent: {},
+    onceTriggersByAgent: {},
+    triggersByAgent: {},
+    processOutputs: {},
     refusal: undefined,
-    watchRefusal: undefined,
     notice: undefined,
     status: undefined,
     homes: undefined,
@@ -157,32 +160,6 @@ export function aSession(id: string, parts: Partial<SessionSummary> = {}): Sessi
     working: false,
     ...parts,
   };
-}
-
-/** A model with a session of an agent's behind no thread open in its list, with the sessions that agent lists and whatever else `parts` adds. */
-export function onSession(
-  agent: string,
-  session: SessionSummary,
-  view: SessionView | undefined,
-  parts: Partial<Model> = {},
-): Model {
-  const member = agentMember(agent);
-  const list = { kind: "agent" as const, id: member.id };
-  return aModel({
-    open: { list, item: { kind: "session", agent: member.id, session: session.id } },
-    listing: {
-      programs: [anAgent(agent), aChatServer()],
-      members: [{ ...zach, admin: true, reachable: false, where: null, lastLinked: null }, aRosterAgent(agent)],
-      ways: [],
-      turnedAway: [],
-      versions: GATEWAY,
-      machine: MACHINE,
-    },
-    agent: { state: "up" },
-    sessions: [session],
-    watched: view,
-    ...parts,
-  });
 }
 
 /** A model with a thread of an agent's DM open in its list, with whatever else `parts` adds. */

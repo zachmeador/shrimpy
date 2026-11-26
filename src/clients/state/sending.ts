@@ -70,7 +70,7 @@ export function createSending(store: Store, held: Holdings, moves: Moves, sendMs
     },
     async send(text) {
       const { item } = store.model().open;
-      if (item?.kind !== "thread") return false;
+      if (item === undefined) return false;
       const { place } = item;
       // The chat server refuses a write in a channel the person only reads, so nothing is asked of it.
       if (place.kind === "read-only") return false;

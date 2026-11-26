@@ -15,7 +15,7 @@ import {
   TuiAltScreen,
   VStack,
 } from "@earendil-works/pi-tui";
-import { agentNameOf, type ClientState, commandNames, type Item, type Open, placeKey } from "../../state/index.ts";
+import { agentNameOf, type ClientState, commandNames, type Item, type Open, openThreadOf, placeKey, processOutputKey } from "../../state/index.ts";
 import { type AgentTab, modelLines, type Row, tabHolding, windowTitle } from "../../view/index.ts";
 import { commandList } from "./commands.ts";
 import { interrupt } from "./interrupt.ts";
@@ -27,7 +27,6 @@ import { Pane } from "./rows.ts";
 import {
   draftKeyOf,
   type Frame,
-  homeRows,
   type Level,
   levelsAt,
   levelsOf,
@@ -38,6 +37,8 @@ import {
   openedKey,
   pageRow,
   pageShown,
+  type PageTarget,
+  pageTargets,
   RAIL,
   rowKey,
   runningIn,
@@ -203,7 +204,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
       async models() {
         const model = state.model();
         const { item } = model.open;
-        if (item?.kind !== "thread" || item.place.kind !== "agent") return undefined;
+        if (item?.place.kind !== "agent") return undefined;
         const models = await state.models();
         const { defaultModel } = state.model();
         return models === undefined || defaultModel === undefined ? undefined : modelLines(models, defaultModel, agentNameOf(model, item.place.id));
@@ -220,7 +221,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
     if (frame.model.open.item !== undefined) go("item");
   };
 
-  /** Open what a row is: an agent's list or a room's, an agent's page, or a thread or a session in the open list. */
+  /** Open what a row is: an agent's list or a room's, an agent's page, or a thread in the open list. */
   function open(row: Row): void {
     if (row.kind === "agent" || row.kind === "room" || row.kind === "read-only") {
       frame.chosen.agents = rowKey(row);
@@ -242,8 +243,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
       go("list");
       return;
     }
-    if (row.kind === "session") state.openSession(row.id);
-    else state.openThread(row.id);
+    state.openThread(row.id);
     go("item");
   }
 
@@ -262,21 +262,47 @@ export function startDrawing(options: DrawingOptions): Drawing {
     go("list");
   };
 
-  /** What → does on a row of the agent's home: a folder opens in place, or shuts, and a file opens where the page was. */
-  function openHome(path: string): void {
-    const row = frame.levels.page?.home.find((each) => each.path === path);
-    if (row === undefined) return;
-    home.chosen = path;
-    if (row.kind === "folder") {
-      if (!home.opened.delete(path)) {
-        home.opened.add(path);
-        state.readFolder(path);
-      }
-    } else if (row.kind === "file") {
-      home.file = path;
-      state.readFile(path);
-    }
+  /** Jump to `threadId` from the list of the agent with member ID `agent`. */
+  function jumpTo(agent: string, threadId: string): void {
+    state.openFrom(agent, threadId);
     go("item");
+  }
+
+  /** Open a file of the agent's home where the page was, reading its parent folder too so its size is shown. */
+  function openFile(path: string): void {
+    home.file = path;
+    state.readFile(path);
+    const at = path.lastIndexOf("/");
+    if (at !== -1) state.readFolder(path.slice(0, at));
+    go("item");
+  }
+
+  /** What → or a click does on a selectable row of the agent's page. */
+  function openTarget(target: PageTarget): void {
+    home.chosen = target.key;
+    switch (target.kind) {
+      case "process":
+      case "once":
+        jumpTo(target.agent, target.threadId);
+        return;
+      case "trigger":
+        if (target.target.kind === "thread") jumpTo(target.agent, target.target.threadId);
+        else openFile(target.target.path);
+        return;
+      case "home":
+        if (target.row.kind === "folder") {
+          if (!home.opened.delete(target.row.path)) {
+            home.opened.add(target.row.path);
+            state.readFolder(target.row.path);
+          }
+          go("item");
+        } else if (target.row.kind === "file") {
+          home.file = target.row.path;
+          state.readFile(target.row.path);
+          go("item");
+        }
+        return;
+    }
   }
 
   const prose = new Prose();
@@ -290,11 +316,16 @@ export function startDrawing(options: DrawingOptions): Drawing {
     },
   );
   const header = new ThreadHeader(frame, () => state.turnOver(), focusItem);
-  const dock = new Dock(frame);
+  const dock = new Dock(frame, jumpTo);
   const cursor = renderFakeCursor("\u0000");
   const [cursorStart = "", cursorEnd = ""] = cursor.split("\u0000");
   const input = new Input(frame, editor, focusItem, { start: cursorStart, end: cursorEnd });
-  const conversation = new Conversation(frame, prose, (width) => header.render(width).length + dock.render(width).length + input.render(width).length, openHome);
+  const conversation = new Conversation(
+    frame,
+    prose,
+    (width) => header.render(width).length + dock.render(width).length + input.render(width).length,
+    { openTarget, jump: jumpTo },
+  );
   const scroll = new ScrollView(conversation, { follow: "end", primary: true });
   const thread = new VStack([{ component: header }, { component: scroll, basis: 0, grow: 1, minSize: 1 }, { component: dock }, { component: input }]);
   const divider = (): Component => ({
@@ -400,6 +431,8 @@ export function startDrawing(options: DrawingOptions): Drawing {
   let shown: string | undefined;
   // The agent, whether it was reached and the triggers the page on show was read for, so that it is read again when it next comes on show, the agent is reached, or a trigger comes or goes.
   let pageRead: string | undefined;
+  // Background processes whose output tail has already been requested while currently visible with tool calls in full.
+  const fetchedOutputs = new Set<string>();
 
   function update(): void {
     const model = state.model();
@@ -420,8 +453,12 @@ export function startDrawing(options: DrawingOptions): Drawing {
     }
     if (opened(itemOpen, item)) {
       frame.front = "item";
-      // A thread opens its agent's list on the tab that holds it.
+      // A thread opens its agent's list on the tab that holds it, and opens archived threads if it is one.
       frame.tab = tabHolding(model) ?? frame.tab;
+      if (openThreadOf(model)?.archived === true) frame.archived = true;
+      frame.chosen.list = openedKey(item) ?? frame.chosen.list;
+      pageChosen = false;
+      landing = false;
       home.file = undefined;
     }
     listOpen = listKey;
@@ -446,18 +483,36 @@ export function startDrawing(options: DrawingOptions): Drawing {
       if (busy !== undefined) frame.chosen.list = rowKey(busy);
     }
     frame.chosen.list = kept(rows, frame.chosen.list);
-    const homes = homeRows(page);
-    if (!homes.some((each) => each.path === home.chosen)) home.chosen = homes[0]?.path;
+    const targets = pageTargets(page);
+    if (!targets.some((each) => each.key === home.chosen)) home.chosen = targets[0]?.key;
 
-    const pageOn = pageShown(model) && page !== undefined && !page.off && onShow(frame.width(), frame.folded, frame.front).includes("item");
+    const itemOnShow = onShow(frame.width(), frame.folded, frame.front).includes("item");
+    const pageOn = pageShown(model) && page !== undefined && !page.off && itemOnShow;
     const reading = pageOn ? [listKey, model.agent?.state, ...(model.triggers ?? []).map((each) => each.name)].join("\n") : undefined;
     if (reading !== pageRead) {
       pageRead = reading;
       if (reading !== undefined) state.readPage(home.opened);
     }
 
+    const visibleProcs =
+      inFull.toolCalls && itemOnShow
+        ? pageOn && home.file === undefined
+          ? page.processes
+          : threadLevel !== undefined
+            ? threadLevel.still.processes.slice(0, 1)
+            : []
+        : [];
+    const wantedOutputs = new Set(visibleProcs.map((proc) => processOutputKey(proc.agent, proc.id)));
+    for (const key of fetchedOutputs) if (!wantedOutputs.has(key)) fetchedOutputs.delete(key);
+    for (const proc of visibleProcs) {
+      const key = processOutputKey(proc.agent, proc.id);
+      if (fetchedOutputs.has(key)) continue;
+      fetchedOutputs.add(key);
+      state.readProcessOutput(proc.agent, proc.id);
+    }
+
     // The person is looking at a thread while it is on show, whichever view of it is.
-    state.look(item?.kind === "thread" && onShow(frame.width(), frame.folded, frame.front).includes("item"));
+    state.look(item !== undefined && itemOnShow);
     // Another thread, or another view of one, opens at its end, where what is new is, and the page and a file of the home at their top.
     const showing = item === undefined ? (pageShown(model) ? `page ${home.file ?? ""}` : undefined) : JSON.stringify(item);
     if (showing !== shown) {
@@ -472,7 +527,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
       tui.setFocus(next);
     }
     const working = agents.rows.filter((each) => each.kind === "agent" && each.working).length;
-    animate(working > 0 || threadLevel?.working !== undefined);
+    animate(working > 0 || threadLevel?.working !== undefined || (threadLevel?.still.processes.length ?? 0) > 0);
     const named = windowTitle(working, agents.unread);
     if (named !== title) {
       title = named;
@@ -515,19 +570,20 @@ export function startDrawing(options: DrawingOptions): Drawing {
 
   /**
    * What a key does where the keys are on an agent's page: ← goes back, ↑ ↓
-   * choose a row of its home, and → opens it. Whether the key was one of
-   * these: the others, as PgUp and PgDn are, scroll the page as a thread's.
+   * choose a process, trigger, one-shot trigger or home entry, and → opens it.
+   * Whether the key was one of these: the others, as PgUp and PgDn are, scroll
+   * the page as a thread's.
    */
   function onPage(data: string): boolean {
     if (matchesKey(data, "left")) {
       back();
       return true;
     }
-    const rows = home.file === undefined ? homeRows(frame.levels.page) : [];
-    const at = Math.max(0, rows.findIndex((each) => each.path === home.chosen));
-    if (rows.length === 0) return false;
+    const targets = home.file === undefined ? pageTargets(frame.levels.page) : [];
+    const at = Math.max(0, targets.findIndex((each) => each.key === home.chosen));
+    if (targets.length === 0) return false;
     if (matchesKey(data, "up") || matchesKey(data, "down")) {
-      home.chosen = rows[Math.max(0, Math.min(rows.length - 1, at + (matchesKey(data, "up") ? -1 : 1)))]?.path;
+      home.chosen = targets[Math.max(0, Math.min(targets.length - 1, at + (matchesKey(data, "up") ? -1 : 1)))]?.key;
       update();
       // The chosen row stays on show, as the page scrolls.
       const line = home.chosen === undefined ? undefined : conversation.lineOf(home.chosen);
@@ -536,7 +592,8 @@ export function startDrawing(options: DrawingOptions): Drawing {
       return true;
     }
     if (!matchesKey(data, "right") && !matchesKey(data, "enter")) return false;
-    if (rows[at] !== undefined) openHome(rows[at].path);
+    const target = targets[at];
+    if (target !== undefined) openTarget(target);
     return true;
   }
 
@@ -673,14 +730,12 @@ const kept = (rows: readonly Row[], chosen: string | undefined): string | undefi
   rows.some((each) => rowKey(each) === chosen) ? chosen : rows[0] === undefined ? undefined : rowKey(rows[0]);
 
 /**
- * Whether `now` is something other than `before` that was opened in the list:
- * a thread or a session told apart by its ID. A new thread that comes to be
- * with its first message is the one that was open.
+ * Whether `now` is another thread than `before` that was opened in the list.
+ * A new thread that comes to be with its first message is the one that was open.
  */
 function opened(before: Item | undefined, now: Item | undefined): boolean {
   if (now === undefined) return false;
-  if (before?.kind === "thread" && now.kind === "thread") return before.thread !== undefined && before.thread !== now.thread;
-  if (before?.kind === "session" && now.kind === "session") return before.session !== now.session;
+  if (before !== undefined) return before.thread !== undefined && before.thread !== now.thread;
   return true;
 }
 

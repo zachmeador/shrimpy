@@ -21,7 +21,6 @@ export const CONTROLS = {
   send: "Send",
   commands: "Commands",
   mode: "Switch between dusk and day",
-  hide: "hide",
   join: "join",
   notify: "Tell this device when an agent writes",
   reload: "Reload",
@@ -30,7 +29,32 @@ export const CONTROLS = {
   unarchive: "unarchive",
   threadMenu: "Rename or archive this thread",
   threadName: "This thread's name",
+  kill: "kill",
+  stop: "stop",
+  stopWaiting: "stop waiting",
+  cancel: "cancel",
+  pause: "pause",
+  resume: "resume",
+  runNow: "run now",
+  on: "on",
+  off: "off",
+  output: "output",
+  hideOutput: "hide output",
+  background: "background",
+  once: "once",
+  openThread: "Open the thread",
+  openNote: "Open the note",
+  stopTurn: "Stop the turn in this thread",
+  stillGoing: "Still going in this thread",
+  stillProcTitle: "Its last output, and a way to end it",
+  stillWaitTitle: "Each wait, and a way to drop it",
+  waitsFromTitle: "Open the thread it asked from",
 } as const;
+
+export const switchTriggerTitle = (on: boolean): string => `Turn this trigger ${on ? "off" : "on"}`;
+export const answerTitle = (who: string): string => `Open the thread ${who} was asked in`;
+export const waitThreadTitle = (by: string, on: string): string => `Open ${by}'s thread with ${on}`;
+export const stopWaitingTitle = (on: string): string => `Stop waiting on ${on}`;
 
 /** What the name and sigil at the top of an agent's list do. */
 export const pageOf = (agent: string): string => `Open ${agent}'s page`;

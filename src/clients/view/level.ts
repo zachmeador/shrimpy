@@ -22,15 +22,15 @@ export const OUTPUT_LINES = 6;
 
 /** A row of a list the person chooses from. */
 export interface Row {
-  /** What the state is told when the row is chosen: an agent's member ID, the channel ID of a room or of a channel only read, a thread's ID or the address of a session behind no thread. It is never shown. */
+  /** What the state is told when the row is chosen: an agent's member ID, the channel ID of a room or of a channel only read, or a thread's ID. It is never shown. */
   id: string;
   /**
-   * What choosing it opens: a thread is opened as the conversation it is, a
-   * session as the agent's view of it, the row of a list's archived threads
-   * opens them in place, or shuts them, and the row of an agent's name at the
-   * top of its list opens its page, which are the client's own to do.
+   * What choosing it opens: a thread is opened as the conversation it is, the
+   * row of a list's archived threads opens them in place, or shuts them, and
+   * the row of an agent's name at the top of its list opens its page, which
+   * are the client's own to do.
    */
-  kind: "agent" | "room" | "read-only" | "thread" | "session" | "archived" | "page";
+  kind: "agent" | "room" | "read-only" | "thread" | "archived" | "page";
   label: string;
   /** What the label names, on its own: a room's name without the mark its label starts with, and for any other row its label. */
   name: string;
@@ -38,7 +38,7 @@ export interface Row {
   tags: string[];
   /** How it stands: where and when, or who is in it, or how an agent is. That anyone works there is `working`, and not said here. */
   detail: string;
-  /** Someone works in what it opens, and what is shown is not out of date. */
+  /** Someone works in what it opens (active turn or running background command), and what is shown is not out of date. */
   working: boolean;
   /** How many messages are new to the person in what it opens. */
   unread: number;

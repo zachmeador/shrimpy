@@ -8,8 +8,7 @@
  * watch each agent's work beside a thread, and put each agent's view of the
  * session behind it on show in place of the conversation, with the thread's
  * input still under it. An agent's list has its DMs with other agents, which
- * are read live with no input, and the sessions of its triggers, which are
- * watched. The agents and rooms also list the rooms of agents you are not in,
+ * are read live with no input. The agents and rooms also list the rooms of agents you are not in,
  * whose threads are read live, with no input. It makes no room and adds no
  * member. It lists the person's devices and takes one back with `/devices`,
  * which no agent may do for them. It is a client of the gateway, the chat

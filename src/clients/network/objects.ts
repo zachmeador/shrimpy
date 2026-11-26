@@ -6,12 +6,17 @@ import {
   type DefaultModel,
   type HomeEntry,
   type HomeFile,
+  type Occurrence,
+  type OnceTrigger,
   type Pigment,
+  type ProcessOutput,
+  type ProcessSummary,
   Session,
   type SessionPage,
   type SessionStatus,
   type SessionSummary,
   type TriggerSummary,
+  type WatchSummary,
 } from "../../contracts/agent/index.ts";
 import { Channel, Chat, type Member, type Message, Thread } from "../../contracts/chat/index.ts";
 import {
@@ -200,6 +205,9 @@ export type AgentShown = {
   refusal: Refused | null;
   sessions: SessionSummary[];
   triggers: TriggerSummary[];
+  onceTriggers: OnceTrigger[];
+  processes: ProcessSummary[];
+  watches: WatchSummary[];
   sigil: string[] | null;
   pigment: Pigment | null;
   model: DefaultModel | null;
@@ -212,17 +220,32 @@ export interface AgentCalls {
   folder(path: string, signal?: AbortSignal): Promise<Answer<HomeEntry[]>>;
   /** A file of its home, by its path there, as text or an image. */
   file(path: string, signal?: AbortSignal): Promise<Answer<HomeFile>>;
+  /** Fire a standing trigger now, apart from its schedule. */
+  fire(name: string, signal?: AbortSignal): Promise<Answer<Occurrence>>;
+  /** Turn a standing trigger on or off in its file. */
+  switchTrigger(name: string, on: boolean, signal?: AbortSignal): Promise<Answer<TriggerSummary>>;
+  /** Recent combined output tail of a background `bash` command. */
+  processOutput(id: string, lines?: number, signal?: AbortSignal): Promise<Answer<ProcessOutput>>;
+  /** Kill a running background `bash` process group. */
+  killProcess(id: string, signal?: AbortSignal): Promise<Answer<null>>;
+  /** Cancel a pending one-shot trigger silently. */
+  cancelTrigger(id: string, signal?: AbortSignal): Promise<Answer<null>>;
+  /** Drop an open watch on another agent silently. */
+  cancelWatch(id: string, signal?: AbortSignal): Promise<Answer<null>>;
 }
 
 export function holdAgent(link: GatewayLink, id: string, changed: () => void): Holding<AgentShown, AgentCalls> {
   const held = link.host.hold(Agent, { agent: id }, BACKGROUND_CONTEXT);
   return followHeld(
     held,
-    (agent) => [agent.refusal, agent.sessions, agent.triggers, agent.sigil, agent.pigment, agent.model],
+    (agent) => [agent.refusal, agent.sessions, agent.triggers, agent.onceTriggers, agent.processes, agent.watches, agent.sigil, agent.pigment, agent.model],
     (agent) => ({
       refusal: agent.refusal.value,
       sessions: agent.sessions.value,
       triggers: agent.triggers.value,
+      onceTriggers: agent.onceTriggers.value,
+      processes: agent.processes.value,
+      watches: agent.watches.value,
       sigil: agent.sigil.value,
       pigment: agent.pigment.value,
       model: agent.model.value,
@@ -231,6 +254,12 @@ export function holdAgent(link: GatewayLink, id: string, changed: () => void): H
       models: (signal) => held.models(contextOf(signal)),
       folder: (path, signal) => held.folder({ path }, contextOf(signal)),
       file: (path, signal) => held.file({ path }, contextOf(signal)),
+      fire: (name, signal) => held.fire({ name }, contextOf(signal)),
+      switchTrigger: (name, on, signal) => held.switchTrigger({ name, on }, contextOf(signal)),
+      processOutput: (procId, lines, signal) => held.processOutput(lines === undefined ? { id: procId } : { id: procId, lines }, contextOf(signal)),
+      killProcess: (procId, signal) => held.killProcess({ id: procId }, contextOf(signal)),
+      cancelTrigger: (triggerId, signal) => held.cancelTrigger({ id: triggerId }, contextOf(signal)),
+      cancelWatch: (watchId, signal) => held.cancelWatch({ id: watchId }, contextOf(signal)),
     },
     changed,
   );
@@ -242,6 +271,8 @@ export type SessionShown = { refusal: Refused | null; window: SessionPage; statu
 export interface SessionCalls {
   /** The items of up to `limit` entries from the entry `before` back, that entry included, and the entry before them. */
   read(before: number, limit: number, signal?: AbortSignal): Promise<Answer<SessionPage>>;
+  /** Stop the running turn and queued unhanded inputs in this session. */
+  stop(signal?: AbortSignal): Promise<Answer<null>>;
 }
 
 export function holdSession(link: GatewayLink, agentId: string, session: string, changed: () => void): Holding<SessionShown, SessionCalls> {
@@ -250,7 +281,10 @@ export function holdSession(link: GatewayLink, agentId: string, session: string,
     held,
     (watched) => [watched.refusal, watched.window, watched.status],
     (watched) => ({ refusal: watched.refusal.value, window: watched.window.value, status: watched.status.value }),
-    { read: (before, limit, signal) => held.read({ before, limit }, contextOf(signal)) },
+    {
+      read: (before, limit, signal) => held.read({ before, limit }, contextOf(signal)),
+      stop: (signal) => held.stop(contextOf(signal)),
+    },
     changed,
   );
 }

@@ -1,5 +1,18 @@
 import type { SessionActivity, SessionSummary } from "../../contracts/agent/index.ts";
-import { agentEntries, agentNameOf, type DevicesStatus, type Model, openThreadOf, type Status, workingIn } from "./model.ts";
+import {
+  agentEntries,
+  agentNameOf,
+  agentRuns,
+  type DevicesStatus,
+  type Model,
+  onceTriggersIn,
+  openThreadOf,
+  processesIn,
+  standingTriggersIn,
+  type Status,
+  watchesIn,
+  workingIn,
+} from "./model.ts";
 
 /**
  * What `/status` finds out about the thread the person is in, as it stands in
@@ -9,10 +22,11 @@ import { agentEntries, agentNameOf, type DevicesStatus, type Model, openThreadOf
  */
 export function statusOf(model: Model, sessions: SessionSummary[] | undefined, at: number): Status | undefined {
   const { item } = model.open;
-  if (item?.kind !== "thread") return undefined;
+  if (item === undefined) return undefined;
   const { place } = item;
   if (place.kind === "read-only") return undefined;
   const thread = openThreadOf(model);
+  const threadId = item.thread;
   const entries = agentEntries(model);
 
   if (place.kind === "room") {
@@ -24,14 +38,17 @@ export function statusOf(model: Model, sessions: SessionSummary[] | undefined, a
         working: thread !== undefined && workingIn(thread, member.id),
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
-    // A session seen before its agent went away says nothing about now.
-    const onceTriggers = members
-      .flatMap((member) => {
-        const view = model.behind[member.id];
-        return view?.reached === true ? view.status.onceTriggers.map((trigger) => ({ agent: member.name, trigger })) : [];
-      })
-      .sort((a, b) => a.trigger.due - b.trigger.due);
-    return { at, about: { kind: "room", agents, onceTriggers } };
+    const processes =
+      threadId === undefined ? [] : processesIn(model, threadId).map(({ agent, process }) => ({ agent: agentNameOf(model, agent), process }));
+    const watches =
+      threadId === undefined
+        ? []
+        : watchesIn(model, threadId).map(({ agent, watch }) => ({ agent: agentNameOf(model, agent), watch, running: agentRuns(model, watch.onAgent) }));
+    const onceTriggers =
+      threadId === undefined ? [] : onceTriggersIn(model, threadId).map(({ agent, trigger }) => ({ agent: agentNameOf(model, agent), trigger }));
+    const standingTriggers =
+      threadId === undefined ? [] : standingTriggersIn(model, threadId).map(({ agent, trigger }) => ({ agent: agentNameOf(model, agent), trigger }));
+    return { at, about: { kind: "room", agents, processes, watches, onceTriggers, standingTriggers } };
   }
 
   const { id } = place;
@@ -43,6 +60,17 @@ export function statusOf(model: Model, sessions: SessionSummary[] | undefined, a
   const sessionBusy = view?.status.busy === true;
   const marked = thread !== undefined && entry !== undefined && workingIn(thread, entry.id);
   const idle: SessionActivity = { kind: "idle" };
+  const processes = threadId === undefined ? [] : processesIn(model, threadId).filter((each) => each.agent === id).map((each) => each.process);
+  const watches =
+    threadId === undefined
+      ? []
+      : watchesIn(model, threadId)
+          .filter((each) => each.agent === id)
+          .map(({ watch }) => ({ watch, running: agentRuns(model, watch.onAgent) }));
+  const standingTriggers =
+    threadId === undefined ? [] : standingTriggersIn(model, threadId).filter((each) => each.agent === id).map((each) => each.trigger);
+  const onceTriggers =
+    threadId === undefined ? [] : onceTriggersIn(model, threadId).filter((each) => each.agent === id).map((each) => each.trigger);
   return {
     at,
     about: {
@@ -62,8 +90,11 @@ export function statusOf(model: Model, sessions: SessionSummary[] | undefined, a
               defaultModel: model.defaultModel,
               usage: view.status.usage,
               failure: view.status.failure,
-              onceTriggers: view.status.onceTriggers,
+              onceTriggers,
             },
+      processes,
+      watches,
+      standingTriggers,
       othersWorking: sessions?.filter((each) => each.working && each.id !== item.thread).length,
     },
   };

@@ -3,6 +3,7 @@ import type { ToolStatus } from "../../../contracts/agent/index.ts";
 import { nameKey } from "../../../contracts/gateway/index.ts";
 import {
   type AgentWork,
+  FIRED,
   type InFull,
   type Look,
   type Mention,
@@ -11,6 +12,7 @@ import {
   OUT_OF_DATE_MARK,
   reactionsLine,
   type Step,
+  type WakeRow,
   withMentions,
 } from "../../view/index.ts";
 import { type Paint, role, type Run, runsWidth, type Style, type Tone, type Wool } from "./paint.ts";
@@ -20,7 +22,7 @@ import { inFullHints } from "./words.ts";
 /** The mark before how a tool call stands, and its tone, by how it stands. */
 const MARKS: Record<ToolStatus, [mark: string, tone: Tone]> = {
   pending: ["○", "ink3"],
-  running: ["●", role("busy")],
+  running: ["▪", role("busy")],
   done: ["✓", role("good")],
   error: ["✗", role("bad")],
   interrupted: ["!", role("bad")],
@@ -132,9 +134,21 @@ const indent = (lines: readonly string[], cells: number): string[] => lines.map(
 /** Runs as one line, cut to `width` with a mark where they were cut. */
 const oneOf = (paint: Paint, runs: readonly Run[], width: number): string => truncateToWidth(paint.runs(runs), Math.max(1, width), "…");
 
-/** What a message says, at a width: that it was deleted, a command as it was written, an agent's Markdown, or a person's words as typed; or what a trigger's line brought, whole, behind a bar. */
+/** One line of a thread or dock, with what a click on it does when it jumps somewhere. */
+export interface ThreadLine {
+  text: string;
+  go?: () => void;
+}
+
+/** Context for drawing one row of a thread: whether tool calls/output are in full, the row before it, and how a wake line jumps. */
+export interface MessageOptions {
+  inFull: InFull;
+  previous: MessageRow | undefined;
+  jump: (agent: string, threadId: string) => void;
+}
+
+/** What a message says, at a width: that it was deleted, a command as it was written, an agent's Markdown, or a person's words as typed. */
 function saidLines(paint: Paint, prose: Prose, row: MessageRow, width: number): string[] {
-  if (row.kind === "trigger") return wrap(paint, row.text, width - 2, "ink3").map((line) => `${paint.text("▏ ", "line2")}${line}`);
   if (row.deleted) return wrap(paint, row.text, width, "ink3");
   if (row.command) return wrap(paint, row.text, width, role("code"));
   if (row.agent) return prose.lines(paint, row.text, width, row.mentions);
@@ -142,27 +156,91 @@ function saidLines(paint: Paint, prose: Prose, row: MessageRow, width: number): 
 }
 
 /**
- * A message of the thread as it now stands, after a blank line, and after a
- * line of its own where it is the first that was new: who said it and when,
- * marked if it was edited, what they said or that it was deleted, the emoji on
- * it, and what came of it where that is worth saying, a failure apart. An
- * agent's words are Markdown, in its pigment's name; a person's are drawn as
- * typed. Each `@name` of an agent is in that agent's pigment. A trigger's line
- * is drawn the same way, with the trigger in lantern light, and what it
- * brought shown whole.
+ * The line left by what woke an agent without a message: a trigger that fired,
+ * a background command that ended or checked in, or a watched agent that
+ * settled. With tool calls in full, what a trigger or process brought stands
+ * under it behind a bar.
  */
-export function messageLines(paint: Paint, prose: Prose, row: MessageRow, width: number): string[] {
-  const who: Style = { tone: row.kind === "trigger" ? role("busy") : row.agent && row.look !== undefined ? row.look.pigment : "ink", bold: true };
+function wakeLines(
+  paint: Paint,
+  row: MessageRow,
+  wake: WakeRow,
+  width: number,
+  inFull: InFull,
+  jump: (agent: string, threadId: string) => void,
+): ThreadLine[] {
+  switch (wake.kind) {
+    case "answer": {
+      const markTone: Tone = wake.stopped ? role("bad") : "ink3";
+      const head: Run[] = [
+        [wake.stopped ? "! " : "✓ ", markTone],
+        [wake.fromName, { tone: wake.fromLook.pigment, bold: true }],
+        [` ${wake.how}`, markTone],
+        [`  ${row.when} · `, "ink3"],
+        [wake.title, { tone: "ink2", underline: true }],
+      ];
+      return [{ text: oneOf(paint, head, width), go: () => jump(wake.agent, wake.threadId) }];
+    }
+    case "trigger": {
+      const head: Run[] = [["◷ ", "ink3"], [wake.label, { tone: role("busy"), bold: true }], [` ${FIRED}  ${row.when}`, "ink3"]];
+      const lines: ThreadLine[] = [{ text: oneOf(paint, head, width) }];
+      if (inFull.toolCalls && wake.brought !== "") {
+        const bar = paint.text("▏ ", "line2");
+        for (const line of wrap(paint, wake.brought, Math.max(1, width - 4), "ink3")) lines.push({ text: `  ${bar}${line}` });
+      }
+      return lines;
+    }
+    case "process": {
+      const left: Run[] = [["$ ", "ink3"], [wake.command, role("code")]];
+      const right: Run[] = [[wake.how, wake.failed ? role("bad") : "ink3"], [`  ${row.when}`, "ink3"]];
+      const lines: ThreadLine[] = [{ text: spread(paint, left, right, width + 1) }];
+      if (inFull.toolCalls && wake.brought !== "") {
+        const bar = paint.text("▏ ", "line2");
+        for (const line of wrap(paint, wake.brought, Math.max(1, width - 4), "ink3")) lines.push({ text: `  ${bar}${line}` });
+      }
+      return lines;
+    }
+  }
+}
+
+/**
+ * A message or wake line of the thread as it now stands, after a blank line
+ * (consecutive wake lines stack without one, unless the first that was new),
+ * and after a line of its own where it is the first that was new: who said it
+ * and when, marked if it was edited, what they said or that it was deleted,
+ * the emoji on it, and what came of it where that is worth saying, a failure
+ * apart. An agent's words are Markdown, in its pigment's name; a person's are
+ * drawn as typed. Each `@name` of an agent is in that agent's pigment.
+ */
+export function messageLines(paint: Paint, prose: Prose, row: MessageRow, width: number, options: MessageOptions): ThreadLine[] {
+  const inner = Math.max(1, width - 2);
+  const mark = `┈┈┈ ${NEW_SINCE_SHORT} `;
+  const fresh: ThreadLine[] = row.firstNew
+    ? [{ text: "" }, { text: paint.text(`${mark}${"┈".repeat(Math.max(0, width - visibleWidth(mark)))}`, role("fresh")) }]
+    : [];
+  const stacked = row.kind === "wake" && options.previous?.kind === "wake" && !row.firstNew;
+  const gap: ThreadLine[] = stacked ? [] : [{ text: "" }];
+  const receipts = (): ThreadLine[] => {
+    const out: ThreadLine[] = [];
+    for (const { words, failed } of row.receipts) {
+      out.push(...indent(failed ? wrap(paint, `✗ ${words}`, inner, role("bad")) : wrap(paint, `· ${words}`, inner, "ink3"), 2).map((text) => ({ text })));
+    }
+    return out;
+  };
+  if (row.kind === "wake" && row.wake !== undefined) {
+    return [...fresh, ...gap, ...wakeLines(paint, row, row.wake, width, options.inFull, options.jump), ...receipts()];
+  }
+  const who: Style = { tone: row.agent && row.look !== undefined ? row.look.pigment : "ink", bold: true };
   const head: Run[] = [[row.who, who], [`  ${row.when}`, "ink3"]];
   if (row.edited !== undefined) head.push([`  ${row.edited}`, "ink3"]);
-  const inner = width - 2;
-  const mark = `┈┈┈ ${NEW_SINCE_SHORT} `;
-  const fresh = row.firstNew ? ["", paint.text(`${mark}${"┈".repeat(Math.max(0, width - visibleWidth(mark)))}`, role("fresh"))] : [];
-  const lines = [...fresh, "", oneOf(paint, head, width), ...indent(row.text === "" && !row.deleted ? [] : saidLines(paint, prose, row, inner), 2)];
-  if (row.reactions.length > 0) lines.push(...indent(wrap(paint, reactionsLine(row.reactions), inner, "ink3"), 2));
-  for (const { words, failed } of row.receipts) {
-    lines.push(...indent(failed ? wrap(paint, `✗ ${words}`, inner, role("bad")) : wrap(paint, `· ${words}`, inner, "ink3"), 2));
-  }
+  const lines: ThreadLine[] = [
+    ...fresh,
+    ...gap,
+    { text: oneOf(paint, head, width) },
+    ...indent(row.text === "" && !row.deleted ? [] : saidLines(paint, prose, row, inner), 2).map((text) => ({ text })),
+  ];
+  if (row.reactions.length > 0) lines.push(...indent(wrap(paint, reactionsLine(row.reactions), inner, "ink3"), 2).map((text) => ({ text })));
+  lines.push(...receipts());
   return lines;
 }
 
@@ -201,6 +279,7 @@ export function stepLines(paint: Paint, prose: Prose, step: Step, width: number,
       // A call shown whole may take many lines, so it goes under the line that says how the call stands.
       const [mark, tone] = MARKS[step.state];
       const head: Run[] = [[`${mark} ${step.status}`, tone], ["  ", "ink"], [step.name, { tone: "ink", bold: true }]];
+      if (step.background) head.push([" background", role("busy")]);
       if (!step.whole && step.call !== "") head.push([` ${step.call}`, "ink3"]);
       const lines = step.whole ? wrap(paint, paint.runs(head), width, "ink") : [oneOf(paint, head, width)];
       if (step.whole && step.call !== "") lines.push(...indent(wrap(paint, step.call, width - 2, "ink2"), 2));

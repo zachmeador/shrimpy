@@ -41,6 +41,8 @@ export type Step =
   | {
       kind: "tool";
       name: string;
+      /** True when this is a `bash` call with `background: true`. */
+      background: boolean;
       /** The call: on one line when brief, and every argument when whole, which may take many. */
       call: string;
       /** The call and what it printed are shown whole, as far as the limit allows. */
@@ -184,6 +186,7 @@ function toolStep(item: Extract<SessionItem, { type: "tool" }>, whole: boolean, 
   return {
     kind: "tool",
     name: oneLine(item.name),
+    background: isBackgroundBash(item.name, item.args),
     call: whole ? wholeCallOf(item.name, item.args) : callOf(item.name, item.args),
     whole,
     state: item.status,
@@ -193,6 +196,16 @@ function toolStep(item: Extract<SessionItem, { type: "tool" }>, whole: boolean, 
     images: item.images.map((image) => imageWords(image.mimeType)),
     notes: item.notes.map(oneLine),
   };
+}
+
+function isBackgroundBash(name: string, args: string): boolean {
+  if (name !== "bash") return false;
+  try {
+    const parsed = JSON.parse(args) as { background?: unknown } | null;
+    return parsed?.background === true;
+  } catch {
+    return false;
+  }
 }
 
 /** A tool call on one line: the command for the shell, the arguments for any other. */

@@ -7,6 +7,7 @@ import {
   type Model,
   type Open,
   type Place,
+  processOutputKey,
   type SessionView,
   type ThreadView,
 } from "./model.ts";
@@ -14,10 +15,10 @@ import {
 /**
  * The model with what the held objects show worked in: what the gateway
  * lists, the person's channels and their threads, the agent whose list is open
- * and its sessions, the open thread and the sessions behind it, the open
- * session behind no thread, and what each agent of the roll call is working
- * in. What is held is what is open. A room the person joins while reading it
- * is theirs from then on.
+ * and its sessions, the open thread and the sessions behind it, and what each
+ * running agent of the roll call is working on, running in the background,
+ * waiting on, or has scheduled. A room the person joins while reading it is
+ * theirs from then on.
  */
 export function worked(model: Model, held: Holdings, link: GatewayLink): Model {
   const shownRoster = held.roster.shown();
@@ -39,22 +40,44 @@ export function worked(model: Model, held: Holdings, link: GatewayLink): Model {
   const { item } = open;
   const reached = (session: HeldSession): boolean => session.held.status(linked("agent", session.agent)).state === "up";
   const behind: Model["behind"] = {};
-  if (item?.kind === "thread") {
+  if (item !== undefined) {
     for (const [id, session] of held.sessions()) {
       const view = sessionViewOf(session, item.side === id, reached(session));
       if (view !== undefined) behind[id] = view;
     }
   }
-  const watched = item?.kind === "session" ? held.sessions().get(item.agent) : undefined;
   const workingSessions: Model["workingSessions"] = {};
+  const processesByAgent: Model["processesByAgent"] = {};
+  const watchesByAgent: Model["watchesByAgent"] = {};
+  const onceTriggersByAgent: Model["onceTriggersByAgent"] = {};
+  const triggersByAgent: Model["triggersByAgent"] = {};
   const looks: Model["looks"] = {};
-  for (const [id, each] of held.rollCall()) {
-    const shown = each.shown();
-    const working = sessionsWorking(shown, each.status(linked("agent", id)).state === "up");
-    if (working.length > 0) workingSessions[id] = working;
+  const ingest = (id: string, shown: AgentShown | undefined, isUp: boolean): void => {
     if (shown !== undefined) looks[id] = { sigil: shown.sigil, pigment: shown.pigment };
+    if (!isUp || shown === undefined || shown.refusal !== null) return;
+    const working = shown.sessions.filter((each) => each.working);
+    if (working.length > 0) workingSessions[id] = working;
+    if (shown.processes.length > 0) processesByAgent[id] = shown.processes;
+    if (shown.watches.length > 0) watchesByAgent[id] = shown.watches;
+    if (shown.onceTriggers.length > 0) onceTriggersByAgent[id] = shown.onceTriggers;
+    triggersByAgent[id] = shown.triggers;
+  };
+  for (const [id, each] of held.rollCall()) {
+    ingest(id, each.shown(), each.status(linked("agent", id)).state === "up");
   }
-  if (agent !== undefined && agentShown !== undefined) looks[agent.id] = { sigil: agentShown.sigil, pigment: agentShown.pigment };
+  if (agent !== undefined) {
+    ingest(agent.id, agentShown, agent.held.status(linked("agent", agent.id)).state === "up");
+  }
+  // Drop cached process outputs for processes that are no longer running.
+  const activeProcs = new Set<string>();
+  for (const [id, procs] of Object.entries(processesByAgent)) {
+    for (const proc of procs) activeProcs.add(processOutputKey(id, proc.id));
+  }
+  let processOutputs = model.processOutputs;
+  if (Object.keys(processOutputs).some((key) => !activeProcs.has(key))) {
+    processOutputs = Object.fromEntries(Object.entries(processOutputs).filter(([key]) => activeProcs.has(key)));
+  }
+
   const channels = [...(shownChat?.channels ?? []), ...(shownChat?.readOnlyChannels ?? [])];
   const chat = waiting(held.chat.status(linked("chat")), [
     held.thread()?.held.status(linked("chat")),
@@ -82,11 +105,14 @@ export function worked(model: Model, held: Holdings, link: GatewayLink): Model {
     triggers: agentShown === undefined || agentShown.refusal !== null ? undefined : agentShown.triggers,
     defaultModel: agentShown?.model ?? undefined,
     refusal: agentShown?.refusal?.words,
-    watchRefusal: watched?.held.shown()?.refusal?.words,
     thread: threadViewOf(held.thread()),
     behind,
-    watched: watched === undefined ? undefined : sessionViewOf(watched, true, reached(watched)),
     workingSessions,
+    processesByAgent,
+    watchesByAgent,
+    onceTriggersByAgent,
+    triggersByAgent,
+    processOutputs,
     looks,
   };
 }
@@ -106,15 +132,9 @@ function joined(open: Open, rooms: Record<string, ChannelThreads>): Open {
   const mine = (place: Place): Place => (place.kind === "read-only" && rooms[place.id] !== undefined ? { kind: "room", id: place.id } : place);
   const list = open.list === undefined ? undefined : mine(open.list);
   const { item } = open;
-  const place = item?.kind === "thread" ? mine(item.place) : undefined;
-  if (list === open.list && (item?.kind !== "thread" || place === item.place)) return open;
-  return { list, item: item?.kind === "thread" && place !== undefined ? { ...item, place } : item };
-}
-
-/** What an agent of the roll call is working in, as it lists it: nothing when it is not reached, or refuses. */
-function sessionsWorking(shown: AgentShown | undefined, reached: boolean): AgentShown["sessions"] {
-  if (!reached || shown === undefined || shown.refusal !== null) return [];
-  return shown.sessions.filter((each) => each.working);
+  const place = item === undefined ? undefined : mine(item.place);
+  if (list === open.list && (item === undefined || place === item.place)) return open;
+  return { list, item: item !== undefined && place !== undefined ? { ...item, place } : item };
 }
 
 /** The open thread as it now stands, or none while chat has not shown it or refuses it. */

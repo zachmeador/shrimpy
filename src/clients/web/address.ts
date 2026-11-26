@@ -10,7 +10,6 @@
  *   …/home/<path>                           a file of its home
  *   …/threads/<id>, …/threads/<id>/view     a thread, and the agent's view of it
  *   …/new                                   a thread not started yet
- *   …/sessions/<address>                    a session behind no thread
  *   /threads/<id>                           a thread by its ID alone, as a notification opens it
  */
 import type { Place } from "../state/index.ts";
@@ -20,7 +19,6 @@ import type { AgentTab } from "../view/index.ts";
 type Shown =
   /** A thread, or a new one with no ID yet, and whether the agent's view of it is on show. */
   | { kind: "thread"; thread: string | undefined; view: boolean }
-  | { kind: "session"; session: string }
   /** The agent's page, which stands where a thread would. */
   | { kind: "page" }
   /** A file of the agent's home, by its path there, where its page was. */
@@ -46,8 +44,6 @@ export function addressOf(route: Route): string {
   switch (shown.kind) {
     case "thread":
       return shown.thread === undefined ? `${base}/new` : `${base}/threads/${part(shown.thread)}${shown.view ? "/view" : ""}`;
-    case "session":
-      return `${base}/sessions/${part(shown.session)}`;
     case "page":
       return `${base}/page`;
     case "file":
@@ -76,6 +72,5 @@ export function routeOf(address: string): Route {
   if (step === "new" && kind !== "read-only") return { ...chat, shown: { kind: "thread", thread: undefined, view: false } };
   const [named, more] = rest;
   if (step === "threads" && named !== undefined) return { ...chat, shown: { kind: "thread", thread: named, view: more === "view" } };
-  if (step === "sessions" && named !== undefined && kind === "agent") return { ...chat, tab: "observe", shown: { kind: "session", session: named } };
   return { ...chat, shown: undefined };
 }

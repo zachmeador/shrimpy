@@ -1,18 +1,25 @@
 /*
  * The third level: the open thread, with the work of each agent in it, what
- * is happening now and the input; or a session behind no thread, watched; or,
+ * is happening now, what is still going between turns, and the input; or,
  * with nothing open, a shape pressed into the pane and what to do.
  */
 import { type ComponentChildren, createContext, Fragment } from "preact";
 import { useContext, useEffect, useRef } from "preact/hooks";
 import { MAX_NAME } from "../../contracts/gateway/index.ts";
-import type { AgentWork, InFull, MessageRow, SessionLevel, ThreadLevel, Waiting } from "../view/index.ts";
-import { CHECKING_BACK, commandParts, FIRED, moreWakeups, NEW_SINCE, OUT_OF_DATE_MARK } from "../view/index.ts";
+import type { AgentWork, InFull, MessageRow, StillProcess, StillTrigger, StillWatch, ThreadLevel, ThreadStill } from "../view/index.ts";
+import { backgroundCommandsCount, commandParts, EMPTY, FIRED, moreCount, NEW_SINCE, NOT_RUNNING, OUT_OF_DATE_MARK } from "../view/index.ts";
 import { Composer, type ComposerProps } from "./composer.tsx";
-import { Glyph, Relief, Sigil } from "./marks.tsx";
+import { Glyph, Lamp, Relief, Sigil } from "./marks.tsx";
 import { Plain, Prose } from "./prose.tsx";
-import { Steps, WorkBlock, WorkRow } from "./work.tsx";
-import { CONTROLS, THREAD_MENU, TURN_OVER } from "./words.ts";
+import { WorkBlock, WorkRow } from "./work.tsx";
+import { answerTitle, CONTROLS, stopWaitingTitle, THREAD_MENU, TURN_OVER, waitThreadTitle } from "./words.ts";
+
+/** Which rows of the thread's `.still` block are opened in place. */
+export interface StillOpen {
+  proc: boolean;
+  wait: boolean;
+  trig: boolean;
+}
 
 /** The note that offers to reload the page, when the gateway runs a newer Shrimpy than the page. */
 export const ReloadOffer = createContext<string | undefined>(undefined);
@@ -125,8 +132,51 @@ function Naming({ who, name, called, keep, leave }: { who: string; name: string;
   );
 }
 
-/** A trigger's line: which trigger fired and when, folded open to what it brought, and the receipt the agent left on it. */
-function Fired({ row }: { row: MessageRow }) {
+/** A wake line: a trigger that fired, a background command that ended or checked in, or an agent that answered. */
+function Wake({ row, jump }: { row: MessageRow; jump: (agentId: string, threadId: string) => void }) {
+  const { wake } = row;
+  if (wake === undefined) return null;
+  if (wake.kind === "answer") {
+    return (
+      <>
+        {row.firstNew && <div class="mark new">{NEW_SINCE}</div>}
+        <p class={`trig pg-${wake.fromLook.pigment}`}>
+          <button type="button" title={answerTitle(wake.fromName)} onClick={() => jump(wake.agent, wake.threadId)}>
+            <Sigil look={wake.fromLook} size="s12" />
+            <span>
+              <b>{wake.fromName}</b>{" "}
+              <span class={wake.stopped ? "bad" : undefined}>{wake.how}</span>
+              <span class="dot">·</span>
+              {row.when}
+            </span>
+            {wake.title !== "" && <span class="to">{wake.title}</span>}
+          </button>
+        </p>
+        <Receipts row={row} under />
+      </>
+    );
+  }
+  if (wake.kind === "process") {
+    return (
+      <>
+        {row.firstNew && <div class="mark new">{NEW_SINCE}</div>}
+        <details class="trig">
+          <summary>
+            <Glyph name="prompt" />
+            <code>$ {wake.command}</code>
+            <span class={wake.failed ? "bad" : undefined}>
+              {wake.how}
+              <span class="dot">·</span>
+              {row.when}
+            </span>
+            <Glyph name="fold" />
+          </summary>
+          <pre>{wake.brought === "" ? EMPTY : wake.brought}</pre>
+        </details>
+        <Receipts row={row} under />
+      </>
+    );
+  }
   return (
     <>
       {row.firstNew && <div class="mark new">{NEW_SINCE}</div>}
@@ -134,20 +184,20 @@ function Fired({ row }: { row: MessageRow }) {
         <summary>
           <Glyph name="clock" />
           <span>
-            <b>{row.who}</b> {FIRED}
+            <b>{wake.label}</b> {FIRED}
             <span class="dot">·</span>
             {row.when}
           </span>
           <Glyph name="fold" />
         </summary>
-        <pre>{row.text}</pre>
+        <pre>{wake.brought === "" ? EMPTY : wake.brought}</pre>
       </details>
       <Receipts row={row} under />
     </>
   );
 }
 
-/** What the agents did with a message or a trigger's line, where that is worth saying. */
+/** What the agents did with a message or a wake line, where that is worth saying. */
 function Receipts({ row, under }: { row: MessageRow; under?: boolean }) {
   return (
     <>
@@ -174,9 +224,9 @@ function Words({ row }: { row: MessageRow }) {
   return row.agent ? <Prose text={row.text} breaks mentions={row.mentions} /> : <Plain text={row.text} mentions={row.mentions} />;
 }
 
-/** A message, after a line of its own where it is the first that was new, or a trigger's line. */
-function Message({ row, cont }: { row: MessageRow; cont: boolean }) {
-  if (row.kind === "trigger") return <Fired row={row} />;
+/** A message, after a line of its own where it is the first that was new, or a wake line. */
+function Message({ row, cont, jump }: { row: MessageRow; cont: boolean; jump: (agentId: string, threadId: string) => void }) {
+  if (row.kind === "wake") return <Wake row={row} jump={jump} />;
   return (
     <>
       {row.firstNew && <div class="mark new">{NEW_SINCE}</div>}
@@ -220,46 +270,209 @@ function Said({ text, tag }: { text: string; tag: "kbd" | "code" }) {
   );
 }
 
-/** The wake-ups waiting in a thread: the soonest on a line with a count of the rest, which open in place with what `/stop` does to them. */
-function Later({ waiting, cancels, open, toggle }: { waiting: Waiting[]; cancels: string | undefined; open: boolean; toggle: () => void }) {
-  const [first] = waiting;
-  if (first === undefined) return null;
-  if (waiting.length === 1) {
-    return (
-      <p class="line wake">
-        <Glyph name="clock" />
-        <span>{first.line}</span>
-      </p>
-    );
+function ProcessTail({ output }: { output: StillProcess["output"] }) {
+  if (output === undefined) return null;
+  if ("note" in output) return <pre>{output.note}</pre>;
+  return <pre>{output.length > 0 ? output.join("\n") : EMPTY}</pre>;
+}
+
+/** What is still going in a thread between turns: background commands, open watches, triggers, and agents waiting on this thread. */
+function Still({
+  still,
+  open,
+  toggle,
+  jump,
+  killProcess,
+  cancelWatch,
+  cancelTrigger,
+  switchTrigger,
+}: {
+  still: ThreadStill;
+  open: StillOpen;
+  toggle: (which: keyof StillOpen) => void;
+  jump: (agentId: string, threadId: string) => void;
+  killProcess: (agentId: string, procId: string) => void;
+  cancelWatch: (agentId: string, watchId: string) => void;
+  cancelTrigger: (agentId: string, triggerId: string) => void;
+  switchTrigger: (agentId: string, name: string, on: boolean) => void;
+}) {
+  const { manyAgents, processes, watches, triggers, waitedBy } = still;
+  if (processes.length === 0 && watches.length === 0 && triggers.length === 0 && waitedBy.length === 0) return null;
+
+  const whose = (agentName: string): string => (manyAgents ? `${agentName} · ` : "");
+  const [firstProc] = processes;
+  const loneProc = processes.length === 1;
+
+  const watchGroups: { byAgent: string; byName: string; items: StillWatch[] }[] = [];
+  for (const w of watches) {
+    const group = watchGroups.find((each) => each.byAgent === w.byAgent);
+    if (group !== undefined) group.items.push(w);
+    else watchGroups.push({ byAgent: w.byAgent, byName: w.byName, items: [w] });
   }
-  if (!open) {
-    return (
-      <p class="line wake later">
-        <Glyph name="clock" />
-        <span>{first.line}</span>
-        <button class="lk more" type="button" aria-expanded="false" onClick={toggle}>
-          {moreWakeups(waiting.length - 1)}
-        </button>
-      </p>
+
+  const pair = (w: StillWatch) => (
+    <span class="pair">
+      <button class={`on pg-${w.onLook.pigment}`} type="button" title={waitThreadTitle(w.byName, w.onName)} onClick={() => jump(w.byAgent, w.toThread)}>
+        <Sigil look={w.onLook} size="s12" off={!w.onRunning} />
+        {w.onName}
+      </button>
+      <span class={`age${w.onRunning ? "" : " down"}`}>
+        {w.since}
+        {!w.onRunning && ` · ${NOT_RUNNING}`}
+      </span>
+    </span>
+  );
+
+  const [firstTrig] = triggers;
+  const trigSaid = (t: StillTrigger): string =>
+    `${whose(t.agentName)}${t.kind === "once" ? `once at ${t.when} · ${t.say}` : `trigger ${t.id} · ${t.on ? `next ${t.when}` : t.when}`}`;
+  const trigAction = (t: StillTrigger) =>
+    t.kind === "once" ? (
+      <button class="act" type="button" onClick={() => cancelTrigger(t.agent, t.id)}>
+        {CONTROLS.cancel}
+      </button>
+    ) : (
+      <button class="act" type="button" onClick={() => switchTrigger(t.agent, t.id, !t.on)}>
+        {t.on ? CONTROLS.pause : CONTROLS.resume}
+      </button>
     );
-  }
+
   return (
-    <ol class="wakes stepbox">
-      <li class="top">
-        <span>{CHECKING_BACK}</span>
-        <button class="lk" type="button" aria-expanded="true" onClick={toggle}>
-          {CONTROLS.hide}
-        </button>
-      </li>
-      {waiting.map((each) => (
-        <li key={each.line} class={`pg-${each.look.pigment}`}>
-          <time>{each.when}</time>
-          <b>{each.who}</b>
-          <span>{each.note}</span>
-        </li>
+    <section class="still stepbox" aria-label={CONTROLS.stillGoing}>
+      {firstProc !== undefined && (
+        <>
+          <button
+            class={`srow${open.proc && loneProc ? " whole" : ""}`}
+            type="button"
+            aria-expanded={open.proc}
+            title={CONTROLS.stillProcTitle}
+            onClick={() => toggle("proc")}
+          >
+            <span class="mk">
+              <Lamp />
+            </span>
+            <span class="what">{open.proc && !loneProc ? backgroundCommandsCount(processes.length) : <code>$ {firstProc.command}</code>}</span>
+            {!open.proc && <span class="age">running {firstProc.since}</span>}
+            {!open.proc && !loneProc && <span class="more">{moreCount(processes.length - 1)}</span>}
+            <Glyph name="fold" />
+          </button>
+          {open.proc && (
+            <ul class="sbody">
+              {processes.map((proc) => (
+                <li key={`${proc.agent}\n${proc.id}`}>
+                  {!loneProc && <p class="cmd">$ {proc.command}</p>}
+                  <ProcessTail output={proc.output} />
+                  <p class="foot">
+                    <span>
+                      {whose(proc.agentName)}
+                      {proc.id}
+                      <span class="dot">·</span>
+                      started {proc.started}
+                      <span class="dot">·</span>
+                      running {proc.since}
+                    </span>
+                    <button class="act end" type="button" onClick={() => killProcess(proc.agent, proc.id)}>
+                      {CONTROLS.kill}
+                    </button>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+      {watchGroups.map((group) => (
+        <Fragment key={group.byAgent}>
+          <div class="srow wrap">
+            <span class="mk">
+              <Glyph name="wait" />
+            </span>
+            <span class="what">
+              {manyAgents ? `${group.byName} is waiting on` : "waiting on"}
+              {!open.wait &&
+                group.items.map((w) => (
+                  <Fragment key={w.id}>
+                    {" "}
+                    {pair(w)}
+                  </Fragment>
+                ))}
+            </span>
+            <button
+              class="unfold"
+              type="button"
+              aria-expanded={open.wait}
+              title={CONTROLS.stillWaitTitle}
+              aria-label={CONTROLS.stillWaitTitle}
+              onClick={() => toggle("wait")}
+            >
+              <Glyph name="fold" />
+            </button>
+          </div>
+          {open.wait && (
+            <ul class="sbody tight">
+              {group.items.map((w) => (
+                <li key={w.id} class="titem cw">
+                  <span class="who">{pair(w)}</span>
+                  <button class="act" type="button" title={stopWaitingTitle(w.onName)} onClick={() => cancelWatch(w.byAgent, w.id)}>
+                    {CONTROLS.stopWaiting}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Fragment>
       ))}
-      {cancels !== undefined && <li class="how">{cancels}</li>}
-    </ol>
+      {firstTrig !== undefined && triggers.length === 1 && (
+        <div class="srow one">
+          <span class="mk">
+            <Glyph name="clock" />
+          </span>
+          <span class="what">{trigSaid(firstTrig)}</span>
+          {trigAction(firstTrig)}
+        </div>
+      )}
+      {firstTrig !== undefined && triggers.length > 1 && (
+        <>
+          <button class="srow" type="button" aria-expanded={open.trig} onClick={() => toggle("trig")}>
+            <span class="mk">
+              <Glyph name="clock" />
+            </span>
+            <span class="what">{trigSaid(firstTrig)}</span>
+            <span class="more">{moreCount(triggers.length - 1)}</span>
+            <Glyph name="fold" />
+          </button>
+          {open.trig && (
+            <ul class="sbody tight">
+              {triggers.map((t) => (
+                <li key={`${t.kind}\n${t.agent}\n${t.id}`} class={`titem ${manyAgents ? "c4" : "c3"} pg-${t.agentLook.pigment}`}>
+                  <time>{t.kind === "once" ? t.when : t.on ? `next ${t.when}` : t.when}</time>
+                  {manyAgents && <b>{t.agentName}</b>}
+                  <span class="say">{t.kind === "once" ? t.say : `trigger ${t.id} · ${t.say}`}</span>
+                  {trigAction(t)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+      {waitedBy.map((w) => (
+        <div key={`${w.byAgent}\n${w.fromThread}`} class={`srow wrap pg-${w.byLook.pigment}`}>
+          <span class="mk">
+            <Glyph name="wait" />
+          </span>
+          <span class="what">
+            <b class="on">
+              <Sigil look={w.byLook} size="s12" />
+              {w.byName}
+            </b>
+            {" waits on this from "}
+            <button class="lk to" type="button" title={CONTROLS.waitsFromTitle} onClick={() => jump(w.byAgent, w.fromThread)}>
+              {w.fromLabel}
+            </button>
+          </span>
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -275,7 +488,7 @@ interface ThreadProps {
   inFull: InFull;
   /** The agent whose work is open where several work. */
   work: string | undefined;
-  later: boolean;
+  stillOpen: StillOpen;
   composer: Omit<ComposerProps, "commands" | "busy" | "placeholder">;
   placeholder: string;
   /** The thread's menu is open, with renaming and archiving. */
@@ -292,8 +505,14 @@ interface ThreadProps {
   /** Join the room the thread is in, which the person only reads. */
   join: () => void;
   toggleFull: (which: keyof InFull) => void;
-  toggleLater: () => void;
+  toggleStill: (which: keyof StillOpen) => void;
   openWork: (agent: string) => void;
+  jump: (agentId: string, threadId: string) => void;
+  killProcess: (agentId: string, procId: string) => void;
+  cancelWatch: (agentId: string, watchId: string) => void;
+  cancelTrigger: (agentId: string, triggerId: string) => void;
+  switchTrigger: (agentId: string, name: string, on: boolean) => void;
+  stopWorking: () => void;
 }
 
 export function ThreadView(props: ThreadProps) {
@@ -378,7 +597,7 @@ function ThreadBody(props: ThreadProps & { open: AgentWork | undefined }) {
             {thread.messages.map((row, at) => {
               const before = thread.messages[at - 1];
               const cont = before?.kind === "message" && row.kind === "message" && before.who === row.who && before.when === row.when && !before.deleted && !row.firstNew;
-              return <Message key={row.id} row={row} cont={cont} />;
+              return <Message key={row.id} row={row} cont={cont} jump={props.jump} />;
             })}
             {thread.works.map((each) =>
               each === open ? (
@@ -406,9 +625,14 @@ function ThreadBody(props: ThreadProps & { open: AgentWork | undefined }) {
               <span class="walk">
                 <i />
               </span>
-              <span>
+              <span class="say">
                 <Said text={thread.working} tag="kbd" />
               </span>
+              {!thread.writable && !props.stale && thread.workingAgents.length > 0 && (
+                <button class="act end" type="button" title={CONTROLS.stopTurn} onClick={props.stopWorking}>
+                  {CONTROLS.stop}
+                </button>
+              )}
             </p>
           )}
           {thread.queued.map((line, at) => (
@@ -416,7 +640,18 @@ function ThreadBody(props: ThreadProps & { open: AgentWork | undefined }) {
               <span>{line}</span>
             </p>
           ))}
-          <Later waiting={thread.waiting} cancels={thread.cancels} open={props.later} toggle={props.toggleLater} />
+          {!props.stale && (
+            <Still
+              still={thread.still}
+              open={props.stillOpen}
+              toggle={props.toggleStill}
+              jump={props.jump}
+              killProcess={props.killProcess}
+              cancelWatch={props.cancelWatch}
+              cancelTrigger={props.cancelTrigger}
+              switchTrigger={props.switchTrigger}
+            />
+          )}
           {thread.writable ? (
             <Composer {...props.composer} commands={thread.commands} busy={thread.working !== undefined} placeholder={props.placeholder} />
           ) : (
@@ -440,34 +675,6 @@ function ThreadBody(props: ThreadProps & { open: AgentWork | undefined }) {
   );
 }
 
-/** A session on show in the thread's place: a trigger's own, which is behind no thread, watched. */
-export function SessionView({ session, back, retry }: { session: SessionLevel; back: () => void; retry: string | undefined }) {
-  return (
-    <>
-      <Head back={back}>
-        <div class={`titles pg-${session.look.pigment}`}>
-          <Title who={session.who} rest={session.watching} stale={session.stale} />
-        </div>
-      </Head>
-      <div class="body">
-        <div class="scroll" data-follow="end">
-          <div class="col session">
-            {session.lead !== undefined && <p class="earlier">{session.lead}</p>}
-            <Steps steps={session.steps} />
-          </div>
-        </div>
-      </div>
-      {session.notes.length > 0 && (
-        <footer class="dock">
-          <div class="dock-col">
-            <Notes notes={session.notes} retry={retry} />
-          </div>
-        </footer>
-      )}
-    </>
-  );
-}
-
 /** The thread's pane with nothing open in it and no agent's page to show: the wordmark pressed into it, and what to do. */
 export function Empty({ words }: { words: string }) {
   return (
@@ -477,4 +684,3 @@ export function Empty({ words }: { words: string }) {
     </div>
   );
 }
-

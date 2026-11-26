@@ -1,4 +1,4 @@
-import { activityWords, modelWords, onceTriggerPrompt, YOUR_DM } from "../../contracts/agent/index.ts";
+import { activityWords, describeSchedule, modelWords, onceTriggerPrompt, YOUR_DM } from "../../contracts/agent/index.ts";
 import {
   agentCommandIn,
   answerWakeWords,
@@ -14,12 +14,29 @@ import {
   type WakeLine,
 } from "../../contracts/chat/index.ts";
 import { oneLine, plain } from "../../lib/plain/index.ts";
-import { agentNameOf, agentOfList, type Model, openThreadOf, sidesOf, standingOf, type Status } from "../state/index.ts";
+import {
+  agentNameOf,
+  agentOfList,
+  agentRuns,
+  type Model,
+  onceTriggersIn,
+  openThreadOf,
+  processesIn,
+  processOutputKey,
+  sidesOf,
+  standingOf,
+  standingTriggersIn,
+  type Status,
+  stillFlagsIn,
+  threadReferenceLabel,
+  waitsOnThread,
+  watchesIn,
+} from "../state/index.ts";
 import { type CommandLine, commandLines } from "./commands.ts";
 import { BRIEF, type LevelOptions, lookingAt, OUTPUT_LINES } from "./level.ts";
 import { type Look, lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
-import { whenOf } from "./time.ts";
+import { elapsedOf, whenOf } from "./time.ts";
 import { type Shown, type Work, workOf } from "./work.ts";
 import {
   agentStatusRows,
@@ -31,64 +48,64 @@ import {
   membersLine,
   newRoomThreadHint,
   newThreadHint,
+  processOutputNote,
   queuedLine,
   reactedBy,
   READ_ONLY_TAG,
   readOnlyLine,
   roomStatusRows,
   statusHeader,
-  stopCancelsAll,
+  stopReadOnlyCommand,
   THREAD_EMPTY,
   threadCalled,
   threadTitle,
-  wakeupLine,
   workingLine,
 } from "./words.ts";
 
-/** One message of a thread, as it now stands, or a trigger's line. */
+/** Structured details of a wake line left in a thread. */
+export type WakeRow =
+  | { kind: "trigger"; name: string | null; label: string; brought: string }
+  | { kind: "process"; command: string; how: string; failed: boolean; brought: string }
+  | {
+      kind: "answer";
+      /** Member ID of the agent that waited (whose list opens the watched DM thread). */
+      agent: string;
+      fromId: string;
+      fromName: string;
+      fromLook: Look;
+      how: string;
+      stopped: boolean;
+      threadId: string;
+      title: string;
+    };
+
+/** One message of a thread, as it now stands, or a wake line. */
 export interface MessageRow {
-  /** The message's ID, which is a key and is never shown. */
   id: string;
-  /**
-   * A message, or a trigger's line, which has the trigger that fired as `who`,
-   * when it fired as `when`, and as `text` what its check printed, or its
-   * prompt where it has no check or the check printed nothing. A line is
-   * neither edited, deleted, a command nor reacted to, and mentions nobody.
-   */
-  kind: "message" | "trigger";
+  kind: "message" | "wake";
+  /** Present when `kind === "wake"`. */
+  wake: WakeRow | undefined;
   who: string;
-  /** An agent wrote it. */
   agent: boolean;
-  /** How the agent that wrote it looks. */
   look: Look | undefined;
   when: string;
-  /** What marks it as edited, with when, or nothing if it never was. */
   edited: string | undefined;
-  /** It was deleted, and `text` says so. */
   deleted: boolean;
   text: string;
-  /** The text is a command for agents, such as `/model` or `@scout /stop`. */
   command: boolean;
-  /** Each agent the text names as `@name`, which is marked in its pigment where the text says it. */
   mentions: Mention[];
-  /** Each emoji on it, in the order each first appeared, with who put it there. */
   reactions: { emoji: string; by: string }[];
-  /** What the agents did with it, where that is worth saying, and whether it failed: failed, stopped, skipped. */
   receipts: { words: string; failed: boolean }[];
-  /** It is the first message that was new to the person when they first looked at the thread since it was opened. */
   firstNew: boolean;
 }
 
-/** An agent a message names as `@name`: what it is called and how it looks. */
 export interface Mention {
   name: string;
   look: Look;
 }
 
-/** A text in parts: what it says, and each `@name` of an agent it mentions, where it says it. */
 export type TextPart = string | { mention: string; look: Look };
 
-/** `text` in parts, with each `@name` of `mentions` set apart as chat finds it, so that a client marks what chat counted as a mention. */
 export function withMentions(text: string, mentions: readonly Mention[]): TextPart[] {
   const found = mentions
     .flatMap(({ name, look }) => mentionsOf(text, name).map((span) => ({ ...span, look })))
@@ -105,138 +122,138 @@ export function withMentions(text: string, mentions: readonly Mention[]): TextPa
   return parts;
 }
 
-/** What `/status` read, as lines: the first says it is for the person alone and when it was read. */
 export interface StatusBlock {
   header: string;
   rows: string[];
 }
 
-/** What one agent in the thread is doing, step by step, while its session behind the thread works. */
 export interface AgentWork {
-  /** The agent's member ID. */
   agent: string;
   name: string;
   look: Look;
   work: Work;
-  /** What the agent is doing there: working, answering, running a tool. */
   doing: string;
-  /** The work shown may be out of date: the agent is not being reached. */
   stale: boolean;
 }
 
-/** A wake-up an agent waits on in the thread. */
-export interface Waiting {
-  /** The member ID of the agent that waits on it. */
+/** A background `bash` command running in the open thread. */
+export interface StillProcess {
+  id: string;
   agent: string;
-  look: Look;
-  /** The agent's name. */
-  who: string;
-  /** When it comes. */
+  agentName: string;
+  command: string;
+  since: string;
+  started: string;
+  output: string[] | { note: string } | undefined;
+}
+
+/** An open watch started from the open thread. */
+export interface StillWatch {
+  id: string;
+  byAgent: string;
+  byName: string;
+  onAgent: string;
+  onName: string;
+  onLook: Look;
+  onRunning: boolean;
+  toThread: string;
+  since: string;
+}
+
+/** A trigger targeting the open thread: one-shot (`once`) or standing (`standing`). */
+export interface StillTrigger {
+  kind: "once" | "standing";
+  /** One-shot ID (`once_...`) or standing trigger name. */
+  id: string;
+  agent: string;
+  agentName: string;
+  agentLook: Look;
   when: string;
-  /** The note it brings. */
-  note: string;
-  /** Who waits, when it comes and the note it brings, and, where the person can write and it is the only one, how to cancel it. */
-  line: string;
+  say: string;
+  on: boolean;
+}
+
+/** An agent waiting on THIS thread from another thread. */
+export interface ReverseWatch {
+  byAgent: string;
+  byName: string;
+  byLook: Look;
+  fromThread: string;
+  fromLabel: string;
+}
+
+/** Everything still going in a thread between turns. */
+export interface ThreadStill {
+  manyAgents: boolean;
+  processes: StillProcess[];
+  watches: StillWatch[];
+  triggers: StillTrigger[];
+  waitedBy: ReverseWatch[];
 }
 
 /** The third level: the open thread. */
 export interface ThreadLevel {
   title: string;
-  /** What the conversation is called: the agent's name, or the room's or the channel's label. */
   who: string;
-  /** What the thread itself is called, as `title` has it after `who`. */
   called: string;
-  /** The thread's own name, which naming it starts from, or nothing while it has none and is called for how it starts. */
   name: string;
-  /** The thread is archived: it stands apart at the foot of its list, and nothing in it counts as new. */
   archived: boolean;
-  /** The word that stands beside what the thread is called: that it is archived. */
   tag: string | undefined;
-  /** The person can rename the thread, and archive it or bring it back: it is started, they write in it, and chat is reached. */
   nameable: boolean;
-  /** How the agent looks, in the person's DM with it. */
   look: Look | undefined;
-  /**
-   * The line under the title, in parts a client sets apart: in the person's DM
-   * that it is theirs, then the model the thread has of its own, if it has one;
-   * in a room every member's name; in a DM between two agents that it is only
-   * read. Empty while the channel is not known.
-   */
   sub: string[];
-  /** Said when there are older messages than the ones shown, or when there are none to show. */
   lead: string | undefined;
   messages: MessageRow[];
-  /** Who is working in the thread, and, where one agent is, what it is doing: the line that goes with the work. Absent when no one is. */
   working: string | undefined;
-  /** The same with how many agents in place of their names, for where the names don't fit. Absent unless several are working. */
   workingCounted: string | undefined;
-  /** The member ID of the agent whose list the thread was opened from, if it was opened from an agent's. */
+  /** Agents currently running a turn in this thread. */
+  workingAgents: { id: string; name: string }[];
+  /** Shell command to stop a turn on a read-only thread (for the terminal). */
+  stopCommand: string | undefined;
   from: string | undefined;
-  /** What each agent in the thread is doing, while its session behind the thread works: the agent it was opened from first, then by name. */
   works: AgentWork[];
-  /** Every wake-up an agent in the thread waits on there, the soonest first, while the agent is reached. */
-  waiting: Waiting[];
-  /** What `/stop` does to the wake-ups, said once under all of them where there are several and the person can write. */
-  cancels: string | undefined;
-  /** The input the sessions behind the thread have accepted and not picked up yet, a line each, while their agents are reached. */
+  /** Everything still going in this thread: background commands, open watches, triggers, and reverse watches. */
+  still: ThreadStill;
   queued: string[];
-  /** Every command the person can write here, in order of name, each with what it does here. None in a channel they only read. */
   commands: CommandLine[];
-  /** Said where the input would be when the person only reads the channel: that they do, and why they can't write there. */
   readOnly: string | undefined;
-  /** The person only reads the channel, and it is a room, which they can join. */
   joinable: boolean;
-  /** What `/status` read as it stood then, from the person's asking until they send a message or open something. */
   status: StatusBlock | undefined;
-  /** The person can write here: in their DM with an agent, or in a room they are in. */
   writable: boolean;
-  /** An agent in the thread has a session behind it, whose view of it can be on show in place of the conversation. */
   turnable: boolean;
-  /** What is not working, or has just gone wrong, most pressing first. */
   notes: string[];
 }
 
 export interface ThreadOptions extends LevelOptions {
-  /** What is shown in full where work is shown. Everything is brief when this is left out. */
   inFull?: InFull;
-  /** How many of a tool's last lines a brief call shows. */
   outputLines?: number;
 }
 
-/** The open thread, as plain text and facts, or none while no thread is open. */
 export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel | undefined {
   const { item } = model.open;
-  if (item?.kind !== "thread") return undefined;
+  if (item === undefined) return undefined;
   const { now } = options;
   const { place, thread: threadId } = item;
   const here = lookingAt(model, place);
   const live = threadId !== undefined && model.thread?.thread.id === threadId ? model.thread : undefined;
   const thread = openThreadOf(model);
-  // A thread can be shown before its channel is known, so the messages' authors name members too. The channel's members
-  // come last, so theirs are the names used.
   const known = namer([...(model.thread?.messages ?? []).map((message) => message.author), ...(here.channel?.members ?? [])]);
   const names = (memberId: string): string => oneLine(known(memberId));
-  // The agent whose list the thread was opened from has its work beside the conversation, from its session behind the
-  // thread. A room's own threads have none: the marks chat keeps say who is working.
   const from = agentOfList(model.open);
   const dm = place.kind === "agent";
-  // The person writes in their DM with an agent and in a room they are in, and in no other channel.
   const reading = place.kind === "read-only";
   const who = here.label;
 
   const members = here.channel?.members ?? [];
   const firstNew = live?.firstNew;
   const messages = (live?.messages ?? []).map((message) => messageRow(message, { model, names, members, firstNew }, now));
-  // A session that was working when the agent went away is not working now, whatever its last view says.
   const busy = (agent: string): boolean => model.behind[agent]?.status.busy === true && model.behind[agent].reached;
   const nameOf = (agent: string): string => (known(agent) === agent ? oneLine(agentNameOf(model, agent)) : names(agent));
-  // Who is working in the thread: each agent that chat marks there, or whose session behind it works.
   const workers = [...new Set([...(thread?.working.map((mark) => mark.memberId) ?? []), ...Object.keys(model.behind).filter(busy)])]
-    .map((agent) => ({ agent, name: nameOf(agent) }))
-    .sort((a, b) => Number(b.agent === from) - Number(a.agent === from) || a.name.localeCompare(b.name));
-  // What the work is doing is said where one agent works, from its session.
+    .map((agent) => ({ id: agent, name: nameOf(agent) }))
+    .sort((a, b) => Number(b.id === from) - Number(a.id === from) || a.name.localeCompare(b.name));
   const [only] = workers;
-  const activity = only !== undefined && workers.length === 1 && busy(only.agent) ? model.behind[only.agent]?.status.activity : undefined;
+  const activity = only !== undefined && workers.length === 1 && busy(only.id) ? model.behind[only.id]?.status.activity : undefined;
   const workerNames = workers.map((each) => each.name);
   const working = workers.length === 0 ? undefined : workingLine(workerNames, activity, !reading);
   const workingCounted = workers.length < 2 ? undefined : workingLine(workerNames, activity, !reading, true);
@@ -252,10 +269,10 @@ export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel |
   else if (here.channel?.kind === "dm") sub = [READ_ONLY_TAG];
   else if (here.channel !== undefined) sub = [membersLine(here.channel.members)];
 
-  const waiting = waitingOf(model, now, !reading);
-  const [soonest] = waiting;
+  const still = stillOf(model, threadId, members, dm, now, options.self);
   const called = threadCalled(thread === undefined ? threadId : titleOf(thread));
   const archived = thread?.archived === true;
+  const stopCommand = reading && threadId !== undefined && only !== undefined ? stopReadOnlyCommand(threadId, only.name) : undefined;
   return {
     title: threadTitle(who, called),
     who,
@@ -270,12 +287,13 @@ export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel |
     messages,
     working,
     workingCounted,
+    workingAgents: workers,
+    stopCommand,
     from,
     works: worksOf(model, from, { inFull: options.inFull ?? BRIEF, outputLines: options.outputLines ?? OUTPUT_LINES, now: options.now }),
-    waiting,
-    cancels: reading || soonest === undefined || waiting.length < 2 ? undefined : stopCancelsAll(waiting.length, dm ? "dm" : "room", dm ? who : soonest.who),
+    still,
     queued: queuedOf(model),
-    commands: reading ? [] : commandLines(dm ? "dm" : "room", standingOf(model), options.updates),
+    commands: reading ? [] : commandLines(dm ? "dm" : "room", standingOf(model), options.updates, stillFlagsIn(model, threadId)),
     readOnly: reading && here.channel !== undefined ? readOnlyLine(here.channel, model.me?.name) : undefined,
     joinable: reading && here.channel?.kind === "room",
     status: model.status === undefined ? undefined : statusBlock(model.status),
@@ -285,11 +303,82 @@ export function threadLevel(model: Model, options: ThreadOptions): ThreadLevel |
   };
 }
 
-/**
- * What each agent in the open thread is doing, while its session behind the
- * thread works as its last view says: the agent the thread was opened from
- * first, then by name.
- */
+function stillOf(
+  model: Model,
+  threadId: string | undefined,
+  members: readonly Member[],
+  dm: boolean,
+  now: number,
+  self: string,
+): ThreadStill {
+  const manyAgents = !dm && members.filter((member) => member.kind === "agent").length > 1;
+  if (threadId === undefined || model.chat.state === "down") {
+    return { manyAgents, processes: [], watches: [], triggers: [], waitedBy: [] };
+  }
+  const processes: StillProcess[] = processesIn(model, threadId).map(({ agent, process }) => {
+    const agentName = oneLine(agentNameOf(model, agent));
+    const read = model.processOutputs[processOutputKey(agent, process.id)];
+    let output: StillProcess["output"];
+    if (read !== undefined) {
+      output =
+        "problem" in read
+          ? { note: processOutputNote(agentName, read.problem, self) }
+          : plain(read.value.output)
+              .trimEnd()
+              .split("\n")
+              .filter((line, idx, arr) => !(arr.length === 1 && idx === 0 && line === ""));
+    }
+    return {
+      id: oneLine(process.id),
+      agent,
+      agentName,
+      command: oneLine(process.command),
+      since: elapsedOf(process.startedAt, now),
+      started: whenOf(process.startedAt, now),
+      output,
+    };
+  });
+  const watches: StillWatch[] = watchesIn(model, threadId).map(({ agent, watch }) => ({
+    id: watch.id,
+    byAgent: agent,
+    byName: oneLine(agentNameOf(model, agent)),
+    onAgent: watch.onAgent,
+    onName: oneLine(watch.onAgentName),
+    onLook: lookOf(model, watch.onAgent),
+    onRunning: agentRuns(model, watch.onAgent),
+    toThread: watch.toThread,
+    since: elapsedOf(watch.startedAt, now),
+  }));
+  const onces: StillTrigger[] = onceTriggersIn(model, threadId).map(({ agent, trigger }) => ({
+    kind: "once",
+    id: trigger.id,
+    agent,
+    agentName: oneLine(agentNameOf(model, agent)),
+    agentLook: lookOf(model, agent),
+    when: whenOf(trigger.due, now),
+    say: oneLine(onceTriggerPrompt(trigger)),
+    on: true,
+  }));
+  const standing: StillTrigger[] = standingTriggersIn(model, threadId).map(({ agent, trigger }) => ({
+    kind: "standing",
+    id: trigger.name,
+    agent,
+    agentName: oneLine(agentNameOf(model, agent)),
+    agentLook: lookOf(model, agent),
+    when: trigger.next === null ? "paused" : whenOf(trigger.next, now),
+    say: describeSchedule(trigger.schedule),
+    on: trigger.on,
+  }));
+  const waitedBy: ReverseWatch[] = waitsOnThread(model, threadId).map(({ agent, watch }) => ({
+    byAgent: agent,
+    byName: oneLine(agentNameOf(model, agent)),
+    byLook: lookOf(model, agent),
+    fromThread: watch.fromThread,
+    fromLabel: oneLine(threadReferenceLabel(model, agent, watch.fromThread)),
+  }));
+  return { manyAgents, processes, watches, triggers: [...onces, ...standing], waitedBy };
+}
+
 function worksOf(model: Model, from: string | undefined, shown: Shown): AgentWork[] {
   return Object.entries(model.behind)
     .flatMap(([agent, view]) => {
@@ -300,27 +389,6 @@ function worksOf(model: Model, from: string | undefined, shown: Shown): AgentWor
     .sort((a, b) => Number(b.agent === from) - Number(a.agent === from) || a.name.localeCompare(b.name));
 }
 
-/**
- * Every wake-up an agent in the open thread waits on there, the soonest first,
- * of each agent that is reached. `inThread` says that the person can write
- * where it is shown, where `/stop` cancels it.
- */
-function waitingOf(model: Model, now: number, inThread: boolean): Waiting[] {
-  const all = Object.entries(model.behind)
-    .flatMap(([agent, view]) => (view.reached ? view.status.onceTriggers.map((trigger) => ({ agent, trigger })) : []))
-    .sort((a, b) => a.trigger.due - b.trigger.due);
-  return all.map(({ agent, trigger }) => {
-    const who = oneLine(agentNameOf(model, agent));
-    const when = whenOf(trigger.due, now);
-    return { agent, look: lookOf(model, agent), who, when, note: onceTriggerPrompt(trigger), line: wakeupLine(who, trigger, when, inThread && all.length === 1) };
-  });
-}
-
-/**
- * The input the sessions behind the open thread have accepted and not picked
- * up yet, of each agent that is reached. The same message waiting in several
- * agents' sessions is one line.
- */
 function queuedOf(model: Model): string[] {
   const lines = Object.values(model.behind).flatMap((view) => (view.reached ? view.status.queued.map(queuedLine) : []));
   return [...new Set(lines)];
@@ -330,15 +398,14 @@ function statusBlock(status: Status): StatusBlock {
   const { about } = status;
   switch (about.kind) {
     case "agent":
-      return { header: statusHeader(status.at), rows: agentStatusRows(about) };
+      return { header: statusHeader(status.at), rows: agentStatusRows(about, status.at) };
     case "room":
-      return { header: statusHeader(status.at), rows: roomStatusRows(about) };
+      return { header: statusHeader(status.at), rows: roomStatusRows(about, status.at) };
     case "devices":
       return { header: statusHeader(status.at, "devices"), rows: devicesRows(about) };
   }
 }
 
-/** What a message row is made with besides the message: the model, members' names, the channel's members and the first message that was new. */
 interface RowContext {
   model: Model;
   names: (memberId: string) => string;
@@ -346,7 +413,6 @@ interface RowContext {
   firstNew: string | undefined;
 }
 
-/** What each agent did with a message or a trigger's line, where that is worth saying, and whether it failed. */
 function receiptsOf(message: Message, names: (memberId: string) => string): MessageRow["receipts"] {
   return message.receipts.flatMap((receipt) => {
     const words = receiptWords(receipt, names(receipt.memberId));
@@ -361,6 +427,7 @@ function messageRow(message: Message, context: RowContext, now: number): Message
   return {
     id: message.id,
     kind: "message",
+    wake: undefined,
     who: oneLine(message.author.name),
     agent: message.author.kind === "agent",
     look: message.author.kind === "agent" ? lookOf(model, message.author.id) : undefined,
@@ -380,11 +447,10 @@ function messageRow(message: Message, context: RowContext, now: number): Message
   };
 }
 
-/** A wake line: a trigger that fired, a background command event, or a watched agent settling. */
-function wakeRow(message: Message, line: WakeLine, { names, firstNew }: RowContext, now: number): MessageRow {
+function wakeRow(message: Message, line: WakeLine, { model, names, firstNew }: RowContext, now: number): MessageRow {
   const base = {
     id: message.id,
-    kind: "trigger" as const,
+    kind: "wake" as const,
     agent: false,
     look: undefined,
     edited: undefined,
@@ -398,26 +464,50 @@ function wakeRow(message: Message, line: WakeLine, { names, firstNew }: RowConte
   switch (line.kind) {
     case "trigger": {
       const output = line.output === null ? "" : plain(line.output).trimEnd();
+      const brought = output.trim() === "" ? plain(line.prompt).trimEnd() : output;
+      const label = triggerLabel(line.name);
       return {
         ...base,
-        who: triggerLabel(line.name),
+        who: label,
         when: whenOf(line.firedAt, now),
-        text: output.trim() === "" ? plain(line.prompt).trimEnd() : output,
+        text: brought,
+        wake: { kind: "trigger", name: line.name, label, brought },
       };
     }
-    case "process":
+    case "process": {
+      const command = oneLine(line.command);
+      const how = processWakeWords(line);
+      const failed = (line.state === "exited" && line.code !== null && line.code !== 0) || line.state === "interrupted";
+      const brought = line.output === null ? "" : plain(line.output).trimEnd();
       return {
         ...base,
-        who: `$ ${oneLine(line.command)} ${processWakeWords(line)}`,
+        who: `$ ${command} ${how}`,
         when: whenOf(line.at, now),
-        text: line.output === null ? "" : plain(line.output).trimEnd(),
+        text: brought,
+        wake: { kind: "process", command, how, failed, brought },
       };
-    case "answer":
+    }
+    case "answer": {
+      const fromName = oneLine(line.from.name);
+      const how = answerWakeWords(line.status);
+      const title = oneLine(line.title);
       return {
         ...base,
-        who: `${oneLine(line.from.name)} ${answerWakeWords(line.status)}`,
+        who: `${fromName} ${how}`,
         when: whenOf(line.at, now),
-        text: oneLine(line.title),
+        text: title,
+        wake: {
+          kind: "answer",
+          agent: message.author.id,
+          fromId: line.from.id,
+          fromName,
+          fromLook: lookOf(model, line.from.id),
+          how,
+          stopped: line.status === "stopped" || line.status === "failed",
+          threadId: line.thread,
+          title,
+        },
       };
+    }
   }
 }

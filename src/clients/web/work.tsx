@@ -7,6 +7,7 @@ import { thinkingShown, toolCallsShown } from "../view/index.ts";
 import type { GlyphName } from "./glyphs.ts";
 import { Glyph, Lamp, Sigil } from "./marks.tsx";
 import { Prose } from "./prose.tsx";
+import { CONTROLS } from "./words.ts";
 
 /** The mark before a tool call that is not running, by how it stands. A running call has a lit lamp. */
 const MARKS: Record<Exclude<Extract<Step, { kind: "tool" }>["state"], "running">, GlyphName> = {
@@ -54,6 +55,7 @@ function StepItem({ step }: { step: Step }) {
           <span class="mk">{step.state === "running" ? <Lamp /> : <Glyph name={MARKS[step.state]} />}</span>
           <span class="st">{step.status}</span>
           <b>{step.name}</b>
+          {step.background && <span class="bg">{CONTROLS.background}</span>}
           <span class="call">{step.call}</span>
           {step.earlier !== undefined && <span class="more">{step.earlier}</span>}
           {step.output.length > 0 && <pre class="out">{step.output.join("\n")}</pre>}

@@ -80,7 +80,7 @@ export const ALL_KEYS: readonly (readonly [group: string, keys: readonly Hint[]]
       ["←", "through what is typed, then back"],
       ["esc", "back, whatever is typed"],
       ["/", "commands, and esc closes their list"],
-      ["ctrl+o", "tool calls in full, and back to brief"],
+      ["ctrl+o", "tool calls and output in full, and back"],
       ["ctrl+t", "thinking in full, and back to brief"],
       ["pgup pgdn", "scroll, as the wheel does"],
       ["ctrl+shift+f", "search the thread, and esc closes it"],

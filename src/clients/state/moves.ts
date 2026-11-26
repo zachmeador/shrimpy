@@ -1,17 +1,19 @@
 import type { Holdings } from "./holdings.ts";
-import { type AgentEntry, agentOfList, type Item, nextSide, NOTHING_READ, type Place, placeKey, placeOf, readOnlyEntries, sidesOf } from "./model.ts";
+import { type AgentEntry, type Item, nextSide, NOTHING_READ, type Place, placeKey, placeOf, readOnlyEntries, sidesOf } from "./model.ts";
 import type { Store } from "./store.ts";
 
 /**
- * What the person opens: an agent's list or a room's, a thread or a session in
- * it, a new thread, and which side of a thread is on show. Each says what is
- * open, and what is held follows from that.
+ * What the person opens: an agent's list or a room's, a thread in it, a new
+ * thread, and which side of a thread is on show. Each says what is open, and
+ * what is held follows from that.
  */
 export interface Moves {
   selectAgent(id: string): void;
   selectChannel(place: Extract<Place, { kind: "room" | "read-only" }>): void;
   /** Open one of the threads of the open list. */
   open(threadId: string): void;
+  /** Open a thread from the list of the agent with member ID `agentId`. */
+  openFrom(agentId: string, threadId: string): void;
   /** Close what is open in the open list. */
   close(): void;
   /** Start a thread in `place`, or in the open list's own place when none is given. It comes to be with its first message. */
@@ -21,7 +23,6 @@ export interface Moves {
   turnOver(): void;
   /** In a thread, put the view of the agent with member ID `agent` on show, if it is one of its sides. */
   showView(agent: string): void;
-  openSession(address: string): void;
   /**
    * With one agent and no room to choose from, open the agent's list, once chat has said which channels the person
    * has, and a new thread in it too when the moves were made to start one there.
@@ -60,6 +61,19 @@ export function createMoves(store: Store, held: Holdings, startOnLanding = false
       if (thread?.id === threadId) thread.told = undefined;
       openItem({ kind: "thread", place: placeOf(model, list, threadId), thread: threadId, side: undefined });
     },
+    openFrom(agentId, threadId) {
+      const model = store.model();
+      landed = true;
+      const list: Place = { kind: "agent", id: agentId };
+      const sameList = model.open.list !== undefined && placeKey(model.open.list) === placeKey(list);
+      const thread = held.thread();
+      if (thread?.id === threadId) thread.told = undefined;
+      store.set({
+        open: { list, item: { kind: "thread", place: placeOf(model, list, threadId), thread: threadId, side: undefined } },
+        ...(sameList ? {} : { home: NOTHING_READ }),
+        notice: undefined,
+      });
+    },
     close() {
       const { list, item } = store.model().open;
       if (list === undefined || item === undefined) return;
@@ -74,14 +88,14 @@ export function createMoves(store: Store, held: Holdings, startOnLanding = false
     started(threadId) {
       const { open } = store.model();
       const { item } = open;
-      if (item?.kind !== "thread" || item.thread !== undefined) return;
+      if (item === undefined || item.thread !== undefined) return;
       store.set({ open: { ...open, item: { ...item, thread: threadId } }, notice: undefined });
     },
     turnOver() {
       const model = store.model();
       const { open } = model;
       const { item } = open;
-      if (item?.kind !== "thread" || item.thread === undefined) return;
+      if (item?.thread === undefined) return;
       const side = nextSide(model);
       if (side === item.side) return;
       store.set({ open: { ...open, item: { ...item, side } }, notice: undefined });
@@ -90,12 +104,8 @@ export function createMoves(store: Store, held: Holdings, startOnLanding = false
       const model = store.model();
       const { open } = model;
       const { item } = open;
-      if (item?.kind !== "thread" || item.thread === undefined || item.side === agent || !sidesOf(model).includes(agent)) return;
+      if (item?.thread === undefined || item.side === agent || !sidesOf(model).includes(agent)) return;
       store.set({ open: { ...open, item: { ...item, side: agent } }, notice: undefined });
-    },
-    openSession(address) {
-      const agent = agentOfList(store.model().open);
-      if (agent !== undefined) openItem({ kind: "session", agent, session: address });
     },
     land(entries) {
       if (landed || held.chat.shown() === undefined || entries.length === 0) return;

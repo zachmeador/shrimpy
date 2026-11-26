@@ -10,7 +10,7 @@ import { startTestGateway } from "../../../contracts/gateway/testing/index.ts";
 import { eventually, FakeTerminal, stopAfter, until, within } from "../../../lib/testing/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME } from "../../../lib/version/index.ts";
-import type { Model, Notice, Place, Status } from "../../state/index.ts";
+import { processOutputKey, type Model, type Notice, type Place, type Status } from "../../state/index.ts";
 import {
   aChatServer,
   agentMember,
@@ -26,14 +26,13 @@ import {
   aThreadView,
   type FakeState,
   fakeState,
-  onSession,
   onThread,
   sessionView,
   startRig,
   workingView,
   zach,
 } from "../../state/testing/index.ts";
-import { READ_ONLY_TAG, threadLevel, versionLine } from "../../view/index.ts";
+import { READ_ONLY_TAG, sessionLevel, threadLevel, versionLine } from "../../view/index.ts";
 import { type Drawing, type Screen, startDrawing } from "./index.ts";
 import { ALL_KEYS, CLOSE_KEYS, KEYS_TITLE, QUIT_AGAIN, SELF, turnHint } from "./words.ts";
 
@@ -298,11 +297,13 @@ test("a click chooses a row, and opens it", (t) => {
 
 test("a slash opens the list of commands, which typing narrows and Esc closes", async (t) => {
   const { terminal, state, drawn, lines, screen } = start(t, conversation());
+  // The list cuts a long description to the width it has.
+  const statusLine = lineOf("/status").slice(0, 40);
 
   terminal.type("/");
-  await until(() => drawn().includes(lineOf("/stop")) && drawn().includes(lineOf("/status")), "the list of both kinds of command");
+  await until(() => drawn().includes(lineOf("/stop")) && drawn().includes(statusLine), "the list of both kinds of command");
   terminal.type("sto");
-  await until(() => !drawn().includes(lineOf("/status")), "the list to narrow");
+  await until(() => !drawn().includes(statusLine), "the list to narrow");
   assert.ok(drawn().includes(lineOf("/stop")));
   terminal.type("x");
   await until(() => !drawn().includes(lineOf("/stop")), "the list to close, since nothing matches");
@@ -331,7 +332,7 @@ test("Enter acts on the command chosen in the list, and Tab only puts it in the 
   assert.ok(!drawn().includes(lineOf("/stop")), "and closes the list");
 
   terminal.type("/sta");
-  await until(() => drawn().includes(lineOf("/status")), "the list of commands");
+  await until(() => drawn().includes(lineOf("/status").slice(0, 40)), "the list of commands");
   terminal.type(TAB);
   assert.deepEqual(state.calls, ["write /stop"], "tab acts on nothing");
   assert.ok(shows(lines(), "/status"), "it puts the command in the editor");
@@ -480,9 +481,13 @@ test("Ctrl+O shows tool calls in full and Ctrl+T the thinking, and each press ag
     { kind: "working" },
   );
   const working = aThread("th_1", { preview: "go", working: [{ memberId: scout.id, since: now }] });
+  const dm = { kind: "agent" as const, id: scout.id };
   const where = {
     "work in your DM thread": onThread("scout", working, undefined, { behind: { [scout.id]: work } }),
-    "a session being watched": onSession("scout", aSession("th_2"), work),
+    "an agent's view of a thread": onThread("scout", working, undefined, {
+      open: { list: dm, item: { kind: "thread", place: dm, thread: working.id, side: scout.id } },
+      behind: { [scout.id]: work },
+    }),
   };
 
   for (const [shown, model] of Object.entries(where)) {
@@ -599,13 +604,20 @@ test("nothing drawn is wider than the terminal, however narrow or wide, whatever
   const place = { kind: "room" as const, room: "日本語のとても長い部屋", thread: { name: "averyveryveryverylongthreadnamewithoutanyspacesatall".repeat(2) } };
   const sessions = [aSession("th_2", { place, working: true })];
   const agent = { kind: "agent" as const, id: scout.id };
-  state.show({ ...model, open: { list: agent, item: undefined }, sessions });
+  const busy30: Partial<Model> = {
+    processesByAgent: { [scout.id]: [{ id: "proc_1", threadId: "th_1", command: "curl " + "x".repeat(120), startedAt: at(14, 40) }] },
+    watchesByAgent: { [scout.id]: [{ id: "w_1", fromThread: "th_1", onAgent: mechanic.id, onAgentName: "mechanic", toThread: "th_2", startedAt: at(14, 50) }] },
+    onceTriggersByAgent: { [scout.id]: [{ id: "once_1", threadId: "th_1", askedAt: at(14, 0), due: at(17, 0), prompt: "日本語 ".repeat(20) }] },
+    triggers: [{ name: "nightly", schedule: { cron: "0 3 * * *", timezone: "UTC" }, thread: "th_1", on: false, next: null, last: null, lastCheck: null }],
+    processOutputs: { [processOutputKey(scout.id, "proc_1")]: { value: { output: "out ".repeat(50), truncated: false } } },
+  };
+  state.show({ ...model, ...busy30, open: { list: agent, item: undefined }, sessions });
   fits();
   terminal.type(TAB);
   fits();
-  state.show({ ...model, open: { list: agent, item: { kind: "session", agent: scout.id, session: "th_2" } }, watched: model.behind[scout.id], sessions });
+  state.show({ ...model, ...busy30, open: { list: agent, item: { kind: "thread", place: agent, thread: "th_1", side: undefined } }, sessions });
   fits();
-  state.show({ ...model, open: { list: agent, item: { kind: "thread", place: agent, thread: "th_1", side: scout.id } }, sessions });
+  state.show({ ...model, ...busy30, open: { list: agent, item: { kind: "thread", place: agent, thread: "th_1", side: scout.id } }, sessions });
   fits();
   terminal.type(CTRL_O);
   terminal.type(CTRL_T);
@@ -640,12 +652,19 @@ test("text from other members and from tools can't reach the terminal, wherever 
       aMessage("msg_2", scout, `reply [a link](https://evil.example/${hostile}) ${hostile}`, {
         reactions: [{ emoji: `\u{1F44D}${hostile}`, memberIds: [stranger.id] }],
       }),
+      aMessage("msg_3", scout, "", {
+        wake: { kind: "process", id: `proc${hostile}`, command: `cmd${hostile}`, state: "exited", code: 1, afterMs: 5000, at: now, output: `tail${hostile}` },
+      }),
     ]),
     {
       me: { ...zach, name: `zach${hostile}` },
       behind: { [scout.id]: work },
       sessions,
       workingSessions: { [scout.id]: sessions.filter((each) => each.working) },
+      processesByAgent: { [scout.id]: [{ id: `proc${hostile}`, threadId: "th_1", command: `bg${hostile}`, startedAt: now }] },
+      watchesByAgent: { [scout.id]: [{ id: "w_1", fromThread: "th_1", onAgent: mechanic.id, onAgentName: `watched${hostile}`, toThread: "th_9", startedAt: now }] },
+      onceTriggersByAgent: { [scout.id]: [{ id: "once_1", threadId: "th_1", askedAt: now, due: now, prompt: `once${hostile}` }] },
+      refusal: `refused${hostile}`,
       listing: aListing([anAgent("scout", `1.0${hostile}`), aChatServer(`3.0${hostile}`)], `2.0${hostile}`),
       rooms: { ch_2: aRoom(`ops${hostile}`, ["scout"], [thread]) },
       readOnly: {
@@ -675,12 +694,22 @@ test("text from other members and from tools can't reach the terminal, wherever 
           failure: { reason: "other", detail: `why${hostile}` },
           onceTriggers: [{ id: "once_1", threadId: "th_1", askedAt: now, due: now, prompt: `wake${hostile}` }],
         },
+        processes: [],
+        watches: [],
+        standingTriggers: [],
         othersWorking: 1,
       },
     },
     room: {
       at: now,
-      about: { kind: "room", agents: [{ name: `lurker${hostile}`, running: true, working: true }], onceTriggers: [{ agent: `lurker${hostile}`, trigger: { id: "once_2", threadId: "th_1", askedAt: now, due: now, prompt: `later${hostile}` } }] },
+      about: {
+        kind: "room",
+        agents: [{ name: `lurker${hostile}`, running: true, working: true }],
+        processes: [],
+        watches: [],
+        onceTriggers: [{ agent: `lurker${hostile}`, trigger: { id: "once_2", threadId: "th_1", askedAt: now, due: now, prompt: `later${hostile}` } }],
+        standingTriggers: [],
+      },
     },
   };
   const notices: Notice[] = [
@@ -705,7 +734,6 @@ test("text from other members and from tools can't reach the terminal, wherever 
     item: { kind: "thread", place, thread: "th_1", side },
   });
   show({ ...model, open: { list: dm, item: undefined } });
-  show({ ...model, open: { list: dm, item: { kind: "session", agent: scout.id, session: "th_9" } }, watched: work, watchRefusal: `refused${hostile}` });
   show({ ...model, open: inThread(dm, scout.id) });
   show({ ...model, open: inThread(dm), status: statuses.agent });
   show({ ...model, open: { list: room, item: undefined } });
@@ -780,23 +808,27 @@ test("a receipt adds nothing under a message the agent answered or kept silent a
   assert.ok(lines().join("\n").includes("it was rude"), "while one that failed says why");
 });
 
-test("a thread or a watched session that starts after its first item says how to read the rest", (t) => {
+test("a thread or an agent's view of it that starts after its first item says how to read the rest", (t) => {
   const thread = aThread("th_1", { preview: "x" });
+  const dm = { kind: "agent" as const, id: scout.id };
   const { state, drawn, screen } = start(t, onThread("scout", thread, aThreadView(thread, [aMessage("msg_1", zach, "x")], 37)));
   // One level is on show, so the lines of the thread are all there is, and a sentence wrapped over two is read as one.
   const said = (): string => drawn().replace(/\s+/g, " ");
-  const lead = (): string | undefined => {
-    const shown = screen();
-    return shown?.kind === "thread" || shown?.kind === "session" ? shown.lead : undefined;
-  };
-  const before = lead();
-  assert.ok(before !== undefined && said().includes(before), drawn());
+  const shown = screen();
+  assert.ok(shown?.kind === "thread" && shown.lead !== undefined && said().includes(shown.lead), drawn());
 
-  state.show(onSession("scout", aSession("trigger:nightly"), sessionView({ items: [userItem("the newest", 140)], before: 139 })));
-  const earlier = lead();
+  const viewing = (before: number | null): Model =>
+    onThread("scout", thread, aThreadView(thread, []), {
+      open: { list: dm, item: { kind: "thread", place: dm, thread: thread.id, side: scout.id } },
+      behind: { [scout.id]: sessionView({ items: [userItem("the newest", before === null ? 1 : 140)], before }) },
+    });
+  const trimmed = viewing(139);
+  state.show(trimmed);
+  const earlier = sessionLevel(trimmed, { now, self: SELF })?.lead;
   assert.ok(earlier !== undefined && said().includes(earlier), drawn());
-  state.show(onSession("scout", aSession("trigger:nightly"), sessionView({ items: [userItem("the first", 1)] })));
-  assert.equal(lead(), undefined, "one that starts at the session's start has nothing more to read");
+  const full = viewing(null);
+  state.show(full);
+  assert.equal(sessionLevel(full, { now, self: SELF })?.lead, undefined, "one that starts at the session's start has nothing more to read");
   assert.ok(!said().includes(earlier), drawn());
 });
 
@@ -807,7 +839,12 @@ test("an image a session was shown, or a tool gave back, is named by its media t
       toolItem("read", { status: "done", output: "shot.jpg", images: [{ mimeType: "image/jpeg" }], entry: 2 }),
     ],
   });
-  const { drawn } = start(t, onSession("scout", aSession("th_1"), view), { columns: 100 });
+  const dm = { kind: "agent" as const, id: scout.id };
+  const model = onThread("scout", open, undefined, {
+    open: { list: dm, item: { kind: "thread", place: dm, thread: open.id, side: scout.id } },
+    behind: { [scout.id]: view },
+  });
+  const { drawn } = start(t, model, { columns: 100 });
 
   assert.ok(drawn().includes("image/png") && drawn().includes("image/jpeg"), drawn());
 });
@@ -1101,4 +1138,276 @@ test("a room the person joins while reading it takes their input from then on", 
   terminal.type(ENTER);
 
   await eventually(() => said(lab.thread.id), (texts) => texts.includes("hello"), { what: "the message to be posted" });
+});
+
+test("a background process lights the lantern, shows in the dock, and fetches output once on Ctrl+O", (t) => {
+  const proc = { id: "proc_1", threadId: "th_1", command: "curl -fLo thing.tar https://example.com/thing.tar", startedAt: at(14, 48) };
+  const secondProc = { id: "proc_2", threadId: "th_1", command: "sleep 300", startedAt: at(14, 55) };
+  const base = onThread("scout", open, aThreadView(open, [aMessage("msg_1", zach, "download it", { sentAt: at(14, 48) })]), {
+    processesByAgent: { [scout.id]: [proc] },
+  });
+  const { terminal, state, lines, drawn } = start(t, base, { columns: 140, rows: 30 });
+
+  const railScout = lines().find((line) => line.split("│")[0]?.includes("scout") ?? false) ?? "";
+  assert.ok(railScout.includes("▪"), `background process lights the agent lantern: ${railScout}`);
+  assert.ok(drawn().includes("▪ $ curl -fLo thing.tar"), drawn());
+  assert.ok(drawn().includes("/kill"), drawn());
+  assert.equal(
+    state.calls.filter((call) => call.startsWith("process output ")).length,
+    0,
+    "output is not fetched while tool calls are brief",
+  );
+
+  // Ctrl+O fetches output once and renders at most the last 4 lines under ▏.
+  terminal.type(CTRL_O);
+  assert.deepEqual(
+    state.calls.filter((call) => call.startsWith("process output ")),
+    [`process output ${scout.id} proc_1`],
+  );
+  const withOutput: Model = {
+    ...base,
+    processOutputs: {
+      [processOutputKey(scout.id, "proc_1")]: {
+        value: { output: "line 1\nline 2\nline 3\nline 4\nline 5", truncated: false },
+      },
+    },
+  };
+  state.show(withOutput);
+  assert.equal(
+    state.calls.filter((call) => call.startsWith("process output ")).length,
+    1,
+    "subsequent updates do not re-fetch the same process output",
+  );
+  assert.ok(drawn().includes("▏ line 2") && drawn().includes("▏ line 5") && !drawn().includes("▏ line 1"), drawn());
+
+  // Multiple background commands summarize the rest in /status, and a running background bash tool call shows ▪ + background.
+  state.show({
+    ...withOutput,
+    processesByAgent: { [scout.id]: [proc, secondProc] },
+    behind: {
+      [scout.id]: workingView([userItem("download it"), toolItem("bash", { args: { command: "sleep 300", background: true }, status: "running" })], {
+        kind: "tool",
+        name: "bash",
+      }),
+    },
+  });
+  assert.ok(drawn().includes("1 more in /status"), drawn());
+  assert.ok(drawn().includes("▪ running") && drawn().includes("bash background"), drawn());
+});
+
+test("waiting shows plain words with no lantern, names /drop for offline agents, and clicks jump both ways", (t) => {
+  const crab = agentMember("crab");
+  const dmBetween = aThread("th_dm", { name: "Update Shrimpy", updatedAt: at(14, 58), working: [{ memberId: mechanic.id, since: now }] });
+  const betweenChannel = {
+    channel: { id: "ch_between", kind: "dm" as const, name: "", members: [scout, mechanic] },
+    threads: [dmBetween],
+    unread: {},
+  };
+  const listing = aListing([anAgent("scout"), anAgent("mechanic"), aChatServer()]);
+  listing.members.push({ ...crab, admin: false, reachable: false, where: null, lastLinked: null });
+  const watches = [
+    { id: "w_1", fromThread: "th_1", onAgent: mechanic.id, onAgentName: "mechanic", toThread: "th_dm", startedAt: at(14, 58) },
+    { id: "w_2", fromThread: "th_1", onAgent: crab.id, onAgentName: "crab", toThread: "th_crab", startedAt: at(14, 58) },
+  ];
+  const waitingModel = onThread("scout", open, aThreadView(open, [aMessage("msg_1", zach, "update all", { sentAt: at(14, 58) })]), {
+    listing,
+    readOnly: { ch_between: betweenChannel },
+    watchesByAgent: { [scout.id]: watches },
+  });
+  const { terminal, state, lines, drawn } = start(t, waitingModel, { columns: 140, rows: 30 });
+
+  // Waiting alone shows plain words on the rail without a ▪ lantern.
+  const railLines = lines().map((line) => line.split("│")[0] ?? "");
+  const scoutRow = railLines.findIndex((line) => line.includes("scout"));
+  assert.ok(scoutRow >= 0 && !railLines[scoutRow]!.includes("▪"), `waiting agent has no lantern: ${railLines[scoutRow]}`);
+  assert.ok(railLines[scoutRow + 1]?.includes("waiting on 2 agents"), railLines.slice(scoutRow, scoutRow + 2).join("\n"));
+
+  // Dock shows waiting line with offline marker and /drop hint; clicking jumps to the watched thread and never drops.
+  const waitRow = lines().findIndex((line) => line.includes("○ waiting on"));
+  assert.ok(waitRow >= 0, drawn());
+  const waitLine = lines()[waitRow] ?? "";
+  assert.ok(waitLine.includes("not running") && waitLine.includes("/drop crab"), waitLine);
+  const waitCol = waitLine.indexOf("○ waiting on");
+  for (const each of click(waitCol + 2, waitRow)) terminal.type(each);
+  assert.equal(state.calls.at(-1), `open from ${scout.id} th_dm`, "clicking waiting line jumps to the watched DM");
+  assert.ok(!state.calls.some((call) => call.startsWith("cancel watch")), "a click never drops a wait");
+
+  // On the watched read-only DM, dock shows the shell stop command while working and a clickable reverse watch back.
+  state.show({
+    ...waitingModel,
+    open: {
+      list: { kind: "agent", id: scout.id },
+      item: { kind: "thread", place: { kind: "read-only", id: "ch_between" }, thread: "th_dm", side: undefined },
+    },
+    thread: aThreadView(dmBetween, [aMessage("msg_2", scout, "please update", { sentAt: at(14, 58) })], 0, true),
+  });
+  assert.ok(drawn().includes("shrimpy sessions stop th_dm --agent mechanic"), drawn());
+  const reverseRow = lines().findIndex((line) => line.includes("waits on this from"));
+  assert.ok(reverseRow >= 0, drawn());
+  const reverseCol = lines()[reverseRow]!.indexOf("waits on this from");
+  for (const each of click(reverseCol, reverseRow)) terminal.type(each);
+  assert.equal(state.calls.at(-1), `open from ${scout.id} th_1`, "clicking reverse watch jumps back to the calling thread");
+});
+
+test("wake lines stack without blank gaps, expand brought output on Ctrl+O, and answer lines jump on click", (t) => {
+  const model = onThread(
+    "scout",
+    open,
+    aThreadView(open, [
+      aMessage("msg_1", scout, "", {
+        sentAt: at(14, 0),
+        wake: { kind: "trigger", name: "nightly", firedAt: at(14, 0), prompt: "Check backups", output: "snapshot ok" },
+        receipts: [aReceipt("scout", "failed", "rate limit")],
+      }),
+      aMessage("msg_2", scout, "", {
+        sentAt: at(14, 5),
+        wake: { kind: "process", id: "proc_1", command: "make test", state: "exited", code: 2, afterMs: 120_000, at: at(14, 5), output: "FAIL suite.test.ts" },
+      }),
+      aMessage("msg_3", scout, "", {
+        sentAt: at(14, 6),
+        wake: { kind: "answer", from: mechanic, thread: "th_dm", title: "ROM sync", status: "answered", at: at(14, 6) },
+      }),
+      aMessage("msg_4", scout, "", {
+        sentAt: at(14, 7),
+        wake: { kind: "answer", from: mechanic, thread: "th_dm2", title: "Disk check", status: "stopped", at: at(14, 7) },
+      }),
+    ]),
+  );
+  const { terminal, state, lines, drawn } = start(t, model, { columns: 100, rows: 30 });
+
+  assert.ok(drawn().includes("◷ trigger nightly fired"), drawn());
+  assert.ok(drawn().includes("✗ scout failed: rate limit"), "receipts stay under wake lines");
+  assert.ok(drawn().includes("$ make test") && drawn().includes("exited 2 after 2 minutes"), drawn());
+  assert.ok(drawn().includes("✓ mechanic answered") && drawn().includes("ROM sync"), drawn());
+  assert.ok(drawn().includes("! mechanic was stopped before answering") && drawn().includes("Disk check"), drawn());
+  assert.ok(!drawn().includes("snapshot ok") && !drawn().includes("FAIL suite.test.ts"), "brought text is hidden while brief");
+
+  // Consecutive wake lines stack with no blank line between them.
+  const procRow = lines().findIndex((line) => line.includes("$ make test"));
+  const ansRow = lines().findIndex((line) => line.includes("✓ mechanic answered"));
+  const stoppedRow = lines().findIndex((line) => line.includes("! mechanic was stopped"));
+  assert.equal(ansRow, procRow + 1, "process and answer wake lines stack");
+  assert.equal(stoppedRow, ansRow + 1, "consecutive answer wake lines stack");
+
+  // Clicking an answer wake line jumps to that agent's watched thread.
+  const col = lines()[ansRow]!.indexOf("ROM sync");
+  for (const each of click(col, ansRow)) terminal.type(each);
+  assert.equal(state.calls.at(-1), `open from ${scout.id} th_dm`);
+
+  // Ctrl+O reveals brought text and process output behind ▏.
+  terminal.type(CTRL_O);
+  assert.ok(drawn().includes("▏ snapshot ok") && drawn().includes("▏ FAIL suite.test.ts"), drawn());
+});
+
+test("dock triggers, thread-control commands in autocomplete, and /stop still-going notice", async (t) => {
+  const pausedTrigger = { name: "nightly", schedule: { cron: "0 3 * * *", timezone: "UTC" }, thread: "th_1", on: false, next: null, last: null, lastCheck: null };
+  const activeTrigger = { ...pausedTrigger, name: "hourly", on: true, next: at(16, 0) };
+  const onceTrigger = { id: "once_1", threadId: "th_1", askedAt: at(14, 0), due: at(17, 0), prompt: "Check deploy" };
+  const base = onThread("scout", open, aThreadView(open, [aMessage("msg_1", zach, "hi", { sentAt: at(14, 5) })]), {
+    processesByAgent: { [scout.id]: [{ id: "proc_1", threadId: "th_1", command: "sleep 60", startedAt: at(14, 50) }] },
+    watchesByAgent: { [scout.id]: [{ id: "w_1", fromThread: "th_1", onAgent: mechanic.id, onAgentName: "mechanic", toThread: "th_dm", startedAt: at(14, 50) }] },
+    onceTriggersByAgent: { [scout.id]: [onceTrigger] },
+    triggersByAgent: { [scout.id]: [activeTrigger, pausedTrigger] },
+  });
+  const { terminal, state, lines, drawn } = start(t, base, { columns: 100, rows: 35 });
+
+  // Multiple triggers show the first plus count in /status.
+  assert.ok(drawn().includes("◷ once at") && drawn().includes("2 more in /status"), drawn());
+
+  // Autocomplete lists /kill, /drop, /cancel, /pause, /resume while active.
+  terminal.type("/");
+  await until(() => drawn().includes("/kill") && drawn().includes("/drop") && drawn().includes("/cancel") && drawn().includes("/pause") && drawn().includes("/resume"), "thread-control commands in autocomplete");
+  terminal.type(ESC);
+  terminal.type(CTRL_C);
+
+  // Single triggers show their own command hint on the right: /cancel, /pause, /resume.
+  state.show({ ...base, triggersByAgent: {} });
+  assert.ok(drawn().includes("◷ once at") && drawn().includes("/cancel"), drawn());
+  state.show({ ...base, onceTriggersByAgent: {}, triggersByAgent: { [scout.id]: [activeTrigger] } });
+  assert.ok(drawn().includes("◷ trigger hourly") && drawn().includes("/pause"), drawn());
+  state.show({ ...base, onceTriggersByAgent: {}, triggersByAgent: { [scout.id]: [pausedTrigger] } });
+  assert.ok(drawn().includes("◷ trigger nightly") && drawn().includes("paused") && drawn().includes("/resume"), drawn());
+
+  // Writing the commands forwards them to state.write, and a stop-still-going notice renders in the dock.
+  for (const cmd of ["/kill", "/drop mechanic", "/cancel", "/pause", "/resume"]) {
+    terminal.type(cmd);
+    terminal.type(ENTER);
+  }
+  assert.deepEqual(state.calls.slice(-5), ["write /kill", "write /drop mechanic", "write /cancel", "write /pause", "write /resume"]);
+
+  state.show({ ...base, notice: { kind: "stop-still-going", hadTurn: true, processes: 1, waitingOn: ["mechanic"], triggers: 2 } });
+  const pane = lines()
+    .map((line) => line.split("│").at(-1) ?? "")
+    .join(" ")
+    .replace(/\s+/g, " ");
+  assert.ok(pane.includes("/stop ended the turn") && pane.includes("1 process, which /kill ends") && pane.includes("waiting on mechanic"), drawn());
+});
+
+test("an agent's page shows processes, triggers, and once triggers, fetches output on Ctrl+O, and walks all rows with arrows", (t) => {
+  const entries = (...names: string[]) => names.map((name) => ({ name, kind: name.includes(".") ? ("file" as const) : ("folder" as const), size: name.includes(".") ? 40 : null }));
+  const top = { value: entries("SOUL.md", "context") };
+  const proc = { id: "proc_1", threadId: "th_1", command: "rclone sync nas: offsite:", startedAt: at(14, 50) };
+  const threadTrigger = { name: "nightly", schedule: { cron: "0 3 * * *", timezone: "UTC" }, thread: "th_1", on: true, next: at(16, 0), last: null, lastCheck: null };
+  const noteTrigger = { name: "disk", schedule: { every: "1h" }, thread: null, on: false, next: null, last: null, lastCheck: null };
+  const onceTrigger = { id: "once_1", threadId: "th_2", askedAt: at(14, 0), due: at(17, 0), prompt: "Check logs" };
+  const pageModel = (parts: Partial<Model> = {}): Model =>
+    scoutsList({
+      processesByAgent: { [scout.id]: [proc] },
+      triggers: [threadTrigger, noteTrigger],
+      onceTriggersByAgent: { [scout.id]: [onceTrigger] },
+      home: { folders: { "": top }, files: {} },
+      ...parts,
+    });
+  const { terminal, state, drawn, screen } = start(t, pageModel(), { columns: 100, rows: 45 });
+
+  // Open scout's page (its name is above its threads on the list).
+  terminal.type(UP);
+  terminal.type(RIGHT);
+  assert.equal(screen()?.kind, "page");
+
+  // Processes stand above triggers; paused trigger is marked (off); once stands under triggers.
+  assert.ok(drawn().includes("processes") && drawn().includes("$ rclone sync nas: offsite:") && drawn().includes("proc_1"), drawn());
+  assert.ok(drawn().indexOf("processes") < drawn().indexOf("triggers"), "processes come above triggers");
+  assert.ok(drawn().includes("triggers/nightly.md") && drawn().includes("triggers/disk.md (off)"), drawn());
+  assert.ok(drawn().includes("breadcrumbs/disk.md"), drawn());
+  assert.ok(drawn().includes("once") && drawn().includes("Check logs"), drawn());
+  assert.ok(!drawn().includes("has no triggers"), drawn());
+
+  // Ctrl+O fetches process output once on the page and displays it under ▏.
+  terminal.type(CTRL_O);
+  assert.deepEqual(
+    state.calls.filter((call) => call.startsWith("process output ")),
+    [`process output ${scout.id} proc_1`],
+  );
+  state.show(
+    pageModel({
+      processOutputs: { [processOutputKey(scout.id, "proc_1")]: { value: { output: "synced 12 files", truncated: false } } },
+    }),
+  );
+  assert.ok(drawn().includes("▏ synced 12 files"), drawn());
+
+  // Arrows walk process -> thread trigger -> breadcrumb trigger -> once trigger -> home entries.
+  terminal.type(RIGHT);
+  assert.equal(state.calls.at(-1), `open from ${scout.id} th_1`, "→ on process opens its thread");
+  terminal.type(DOWN);
+  terminal.type(RIGHT);
+  assert.equal(state.calls.at(-1), `open from ${scout.id} th_1`, "→ on thread trigger opens its thread");
+  terminal.type(DOWN);
+  terminal.type(RIGHT);
+  assert.ok(state.calls.includes("file breadcrumbs/disk.md"), "→ on breadcrumb trigger opens its note file");
+  terminal.type(LEFT);
+  assert.equal(screen()?.kind, "page");
+  terminal.type(DOWN);
+  terminal.type(RIGHT);
+  assert.equal(state.calls.at(-1), `open from ${scout.id} th_2`, "→ on once trigger opens its thread");
+  terminal.type(DOWN);
+  terminal.type(RIGHT);
+  assert.ok(state.calls.includes("file SOUL.md"), "→ on first home entry opens SOUL.md");
+  terminal.type(LEFT);
+
+  // noTriggers is hidden while once has entries, and shown only when both standing and once are empty.
+  state.show(pageModel({ processesByAgent: {}, triggers: [], onceTriggersByAgent: { [scout.id]: [onceTrigger] } }));
+  assert.ok(!drawn().includes("has no triggers"), "hidden while once triggers exist");
+  state.show(pageModel({ processesByAgent: {}, triggers: [], onceTriggersByAgent: {} }));
+  assert.ok(drawn().includes("has no triggers"), "shown when both standing and once triggers are empty");
 });

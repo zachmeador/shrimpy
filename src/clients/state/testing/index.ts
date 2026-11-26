@@ -19,7 +19,6 @@ export {
   aSession,
   aThread,
   aThreadView,
-  onSession,
   onThread,
   sessionView,
   workingView,

@@ -1,7 +1,7 @@
 import { type AgentModel, type ModelId, modelWords } from "../../contracts/agent/index.ts";
 import { AGENT_COMMANDS, type AgentCommand } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
-import { commandNames, type Standing } from "../state/index.ts";
+import { commandNames, type Standing, type StillFlags } from "../state/index.ts";
 import { CLIENT_COMMAND_LINES, defaultModelLine, MODEL_DEFAULT } from "./words.ts";
 
 /** A command the person can write in a thread, with its slash, and what it does where they are. */
@@ -19,10 +19,11 @@ const LINES: Record<string, { dm: string; room?: string }> = { ...AGENT_COMMANDS
  * there: the commands for agents, which are posted for the agents they are for
  * to act on, and the commands for the client, which the client acts on itself
  * and posts nowhere. `updates` says whether the client updates its own
- * machine, and so offers `/update`.
+ * machine, and so offers `/update`. `still` says which thread-control commands
+ * have something to act on in this thread.
  */
-export function commandLines(where: "dm" | "room", standing: Standing, updates = false): CommandLine[] {
-  return commandNames(where, standing, updates).map((name) => ({ name, line: LINES[name.slice(1)]?.[where] ?? "" }));
+export function commandLines(where: "dm" | "room", standing: Standing, updates = false, still?: StillFlags): CommandLine[] {
+  return commandNames(where, standing, updates, still).map((name) => ({ name, line: LINES[name.slice(1)]?.[where] ?? "" }));
 }
 
 /** The command after which a model is written, with its slash. */

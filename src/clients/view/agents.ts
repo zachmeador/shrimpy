@@ -5,7 +5,7 @@ import { type AgentEntry, agentEntries, gatewayAhead, type Model, readOnlyEntrie
 import type { LevelOptions, Row } from "./level.ts";
 import { lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
-import { agentDetail, agentsTitle, behindNote, membersLine, NOT_RUNNING, readOnlyDetail, TURNED_AWAY } from "./words.ts";
+import { agentDetail, agentsTitle, behindNote, membersLine, NOT_RUNNING, readOnlyDetail, TURNED_AWAY, waitingOnLine } from "./words.ts";
 
 /** The first level: the agents on the roster, running or not, the rooms the person is in, and the rooms they only read. */
 export interface AgentsLevel {
@@ -30,10 +30,16 @@ export interface AgentsLevel {
   update: string | undefined;
 }
 
-/** How an agent stands, as its row and its list say it: idle or working, and where, or that it is not running, or that the gateway turned it away. */
+/**
+ * How an agent stands, as its row and its list say it: working (turn or
+ * background command), waiting on another agent, idle, not running, or turned
+ * away. An agent that only waits on another says so in words with no lantern.
+ */
 export function agentAbout(entry: AgentEntry, me: string | undefined): string {
-  if (entry.running) return agentDetail(entry.sessions, entry.elsewhere, me);
-  return entry.away === undefined ? NOT_RUNNING : TURNED_AWAY;
+  if (!entry.running) return entry.away === undefined ? NOT_RUNNING : TURNED_AWAY;
+  if (entry.working) return agentDetail(entry.sessions, entry.elsewhere, me);
+  if (entry.waiting.length > 0) return waitingOnLine(entry.waiting, false);
+  return "idle";
 }
 
 /** The agents and rooms, as plain text and facts. */
@@ -63,7 +69,6 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
     yours: false,
     look: undefined,
   }));
-  // The rooms the person is not in come last, apart from their own.
   const reading: Row[] = readOnlyEntries(model).map(({ channel, working, unread }) => ({
     id: channel.id,
     kind: "read-only",
@@ -91,7 +96,6 @@ export function agentsLevel(model: Model, options: LevelOptions): AgentsLevel {
   };
 }
 
-/** That this machine is behind the gateway, once the client knows what the gateway runs. */
 function behind(model: Model): string[] {
   const gateway = gatewayAhead(model);
   return gateway === undefined ? [] : [behindNote(gateway)];

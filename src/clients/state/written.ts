@@ -1,10 +1,10 @@
 import { AGENT_COMMANDS, type AgentCommand, agentCommandIn, mentions } from "../../contracts/chat/index.ts";
 import { MAX_NAME } from "../../contracts/gateway/index.ts";
 import { cutEnd, singleSpaced } from "../../lib/text/index.ts";
-import { type Model, type Notice, openThreadOf } from "./model.ts";
+import { type Model, type Notice, openThreadOf, type StillFlags, stillFlagsIn } from "./model.ts";
 
 /** The commands a client acts on itself and posts nowhere, by name, in a DM with an agent and in a room alike. */
-export const CLIENT_COMMANDS = ["archive", "devices", "rename", "status", "unarchive", "update"] as const;
+export const CLIENT_COMMANDS = ["archive", "cancel", "devices", "drop", "kill", "pause", "rename", "resume", "status", "unarchive", "update"] as const;
 
 /** The name of a command for the client, without its slash. */
 export type ClientCommand = (typeof CLIENT_COMMANDS)[number];
@@ -29,8 +29,8 @@ const AGENT_LINES: Record<string, { dm: string; room?: string }> = AGENT_COMMAND
 /** How the thread written in stands, which decides which commands there are: not started yet, started, or archived. */
 export type Standing = "new" | "live" | "archived";
 
-/** Whether the client's command `name` is offered in a thread that stands as `standing`: a started thread is renamed, and archived or brought back, whichever it isn't. */
-function offeredIn(name: ClientCommand, standing: Standing): boolean {
+/** Whether the client's command `name` is listed in autocomplete for a thread that stands as `standing` with `still` going on. */
+function offeredIn(name: ClientCommand, standing: Standing, still?: StillFlags): boolean {
   switch (name) {
     case "rename":
       return standing !== "new";
@@ -38,6 +38,33 @@ function offeredIn(name: ClientCommand, standing: Standing): boolean {
       return standing === "live";
     case "unarchive":
       return standing === "archived";
+    case "kill":
+    case "drop":
+    case "cancel":
+    case "pause":
+    case "resume":
+      return standing !== "new" && still?.[name] === true;
+    default:
+      return true;
+  }
+}
+
+/**
+ * Whether the client recognizes `name` when typed in a thread standing as
+ * `standing`: thread-control commands are still recognized on started threads
+ * even when nothing matches so the person gets a plain notice instead of "no command".
+ */
+function recognizedIn(name: ClientCommand, standing: Standing): boolean {
+  switch (name) {
+    case "rename":
+    case "archive":
+    case "unarchive":
+    case "kill":
+    case "drop":
+    case "cancel":
+    case "pause":
+    case "resume":
+      return standing !== "new";
     default:
       return true;
   }
@@ -48,13 +75,13 @@ function offeredIn(name: ClientCommand, standing: Standing): boolean {
  * room, with its slash, in order of name: the commands for agents that say what
  * they do there, which are posted for the agents they are for to act on, and
  * the commands for the client, which the client acts on itself, of those
- * offered in a thread that stands as `standing` by a client that updates its
- * own machine, or doesn't. With no `standing`, every command that can be
- * written in a thread of either.
+ * offered in a thread that stands as `standing` with `still` going on, by a
+ * client that updates its own machine, or doesn't. With no `standing`, every
+ * command that can be written in a thread of either.
  */
-export function commandNames(where: "dm" | "room", standing?: Standing, updates = false): string[] {
+export function commandNames(where: "dm" | "room", standing?: Standing, updates = false, still?: StillFlags): string[] {
   const forAgents = Object.entries(AGENT_LINES).flatMap(([name, lines]) => (lines[where] === undefined ? [] : [name]));
-  const forClient = CLIENT_COMMANDS.filter((name) => standing === undefined || (takes(name, updates) && offeredIn(name, standing)));
+  const forClient = CLIENT_COMMANDS.filter((name) => standing === undefined || (takes(name, updates) && offeredIn(name, standing, still)));
   return [...forAgents, ...forClient].map((name) => `/${name}`).sort((a, b) => a.localeCompare(b));
 }
 
@@ -79,6 +106,14 @@ export type Written =
   | { do: "name" }
   /** `/archive` or `/unarchive`: the client archives the thread, or brings it back. */
   | { do: "archive"; archived: boolean }
+  /** `/kill [id]`: end a running background command in this thread. */
+  | { do: "kill"; id: string | undefined }
+  /** `/drop [agent]`: stop waiting on an agent in this thread. */
+  | { do: "drop"; agent: string | undefined }
+  /** `/cancel [id]`: cancel a pending one-time trigger in this thread. */
+  | { do: "cancel"; target: string | undefined }
+  /** `/pause [name]` or `/resume [name]`: pause or resume a standing trigger on this thread. */
+  | { do: "pause" | "resume"; name: string | undefined }
   /** `/update` alone: the client puts the gateway's version on its machine. */
   | { do: "update" }
   /** It is posted nowhere, and the text goes back where it was typed. */
@@ -92,27 +127,16 @@ const SLASH_FIRST = /^\s*\/([\p{L}\p{N}_-]*)(.*)$/su;
 
 /**
  * What a client does with `text`, written in a thread of a DM or of a room
- * that stands as `standing`. A text whose first character that is not a space
- * is a slash is a command, always, and is never posted as an ordinary message:
- * a command for agents is posted as it was written, a command for the client is
- * acted on and posted nowhere, and a name that is no command there is refused,
- * saying which are, so that nothing is posted by mistake. To start a message with a slash, a person
- * wraps it in backticks or writes anything before it, as `@scout /stop` does,
- * which is posted and acted on by the agent.
- *
- * Three things set a command for agents apart from the rest. In a room, one
- * that is for nobody unless an agent is named, as the chat contract says of
- * each, is refused when it is written first, since it mentions nobody:
- * `@scout /model x` is how it is written there. In a room too, one written
- * after a name that is no member's is refused, since the agents would take it
- * for no one and the person would never know: `@scuot /stop` would stop
- * nobody. `members` are the names of the room's members, where the client
- * knows them. And `/model` alone in a DM is answered by the client, which can
- * see which model the thread runs on, and is not posted. With anything after
- * it, it is posted like any command for agents. `updates` says whether the
- * client updates its own machine, and so takes `/update`.
+ * that stands as `standing`.
  */
-export function writtenIn(text: string, where: "dm" | "room", standing: Standing, updates = false, members?: readonly string[]): Written {
+export function writtenIn(
+  text: string,
+  where: "dm" | "room",
+  standing: Standing,
+  updates = false,
+  members?: readonly string[],
+  still?: StillFlags,
+): Written {
   const found = SLASH_FIRST.exec(text);
   if (found === null) {
     const nobody = where === "room" && members !== undefined ? nobodyNamed(text, members) : undefined;
@@ -120,14 +144,13 @@ export function writtenIn(text: string, where: "dm" | "room", standing: Standing
   }
   const name = (found[1] ?? "").toLowerCase();
   const rest = (found[2] ?? "").trim();
-  // A thread that is not started yet can't be renamed or archived, so those are no commands there.
-  if (isClientCommand(name) && takes(name, updates) && (standing !== "new" || offeredIn(name, "new"))) return clientCommand(name, rest, standing);
+  if (isClientCommand(name) && takes(name, updates) && recognizedIn(name, standing)) return clientCommand(name, rest, standing);
   if (isAgentCommand(name)) {
     if (where === "room" && AGENT_COMMANDS[name].withoutMention === "nobody") return { do: "refuse", notice: { kind: "name-an-agent", command: name } };
     return name === "model" && where === "dm" && rest === "" ? { do: "model" } : { do: "post" };
   }
   const written = /^\s*(\S+)/.exec(text)?.[1] ?? "/";
-  return { do: "refuse", notice: { kind: "no-command", written, commands: commandNames(where, standing, updates) } };
+  return { do: "refuse", notice: { kind: "no-command", written, commands: commandNames(where, standing, updates, still) } };
 }
 
 /** The first `@word` written before a command for agents in `text` that names none of `members`, as it was written, if there is one. `@all` names everyone. */
@@ -154,6 +177,15 @@ function clientCommand(name: ClientCommand, rest: string, standing: Standing): W
       if (archived === (standing === "archived")) return { do: "refuse", notice: { kind: archived ? "archived-already" : "not-archived" } };
       return { do: "archive", archived };
     }
+    case "kill":
+      return { do: "kill", id: rest === "" ? undefined : rest };
+    case "drop":
+      return { do: "drop", agent: rest === "" ? undefined : rest.replace(/^@/, "") };
+    case "cancel":
+      return { do: "cancel", target: rest === "" ? undefined : rest };
+    case "pause":
+    case "resume":
+      return { do: name, name: rest === "" ? undefined : rest };
     case "update":
       return rest === "" ? { do: "update" } : { do: "refuse", notice: { kind: "takes-nothing", command: "/update" } };
   }
@@ -165,7 +197,7 @@ export const typedName = (typed: string): string => cutEnd(singleSpaced(typed), 
 /** How the open thread stands, for which commands there are. One the client has not heard of from chat yet is taken as started and not archived. */
 export function standingOf(model: Model): Standing {
   const { item } = model.open;
-  if (item?.kind !== "thread" || item.thread === undefined) return "new";
+  if (item?.thread === undefined) return "new";
   return openThreadOf(model)?.archived === true ? "archived" : "live";
 }
 
@@ -176,7 +208,7 @@ export function standingOf(model: Model): Standing {
  */
 export function writtenInOpen(model: Model, text: string, updates = false): Written {
   const { item } = model.open;
-  if (item?.kind !== "thread") return { do: "post" };
+  if (item === undefined) return { do: "post" };
   const members = item.place.kind === "room" ? model.rooms[item.place.id]?.channel.members.map((member) => member.name) : undefined;
-  return writtenIn(text, item.place.kind === "agent" ? "dm" : "room", standingOf(model), updates, members);
+  return writtenIn(text, item.place.kind === "agent" ? "dm" : "room", standingOf(model), updates, members, stillFlagsIn(model, item.thread));
 }

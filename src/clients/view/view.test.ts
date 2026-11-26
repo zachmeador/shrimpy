@@ -185,7 +185,8 @@ test("a wake line says what woke the agent and when, does not count as unread, a
 
   const [, groceries, nightly] = threadLevel(read, at)?.messages ?? [];
   assert.ok(groceries && nightly);
-  assert.deepEqual([groceries.kind, nightly.kind], ["trigger", "trigger"]);
+  assert.deepEqual([groceries.kind, nightly.kind], ["wake", "wake"]);
+  assert.deepEqual([groceries.wake?.kind, nightly.wake?.kind], ["trigger", "trigger"]);
   assert.deepEqual([groceries.who, nightly.who], [triggerLabel("groceries"), triggerLabel("nightly")]);
   assert.deepEqual([groceries.text, nightly.text], ["14", "Run the snapshot."], "what the check printed, and the prompt of a trigger with no check");
   assert.deepEqual(firstNew(read), [false, false, false, true], "firstNew marks the real message, skipping wake lines");

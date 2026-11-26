@@ -84,9 +84,9 @@ function archivedLine(frame: Frame, width: number, row: Row, go: () => void): Li
 }
 
 /**
- * A thread, or a session behind no thread: what it is called, bold while
- * something in it is new, with the words that mark it, where it is and when,
- * and against the edge how much is new and a lantern while an agent works there.
+ * A thread: what it is called, bold while something in it is new, with the
+ * words that mark it, where it is and when, and against the edge how much is
+ * new and a lantern while an agent works there.
  */
 function rowOf(frame: Frame, width: number, item: Row, go: () => void): Line[] {
   const marks = { focus: frame.front === "list", chosen: isChosen(frame.chosen.list, item), open: openedKey(frame.model.open.item) === rowKey(item) };

@@ -18,6 +18,7 @@ import {
   type SessionLevel,
   threadLevel,
   type ThreadLevel,
+  type TriggerCard,
 } from "../../view/index.ts";
 import type { Paint } from "./paint.ts";
 import { NEW_THREAD_KEY, SELF } from "./words.ts";
@@ -59,7 +60,7 @@ export function notesFor(frame: Frame, level: Level): string[] {
     if (each === "agents") return levels.agents.notes;
     if (each === "list") return levels.list?.notes ?? [];
     if (model.open.item === undefined) return levels.page?.notes ?? [];
-    return (model.open.item.kind === "session" ? levels.session?.notes : levels.thread?.notes) ?? [];
+    return levels.thread?.notes ?? [];
   };
   const said = new Set<string>();
   for (const each of onShow(frame.width(), frame.folded, frame.front)) {
@@ -75,7 +76,7 @@ export interface Levels {
   agents: AgentsLevel;
   list: ListLevel | undefined;
   thread: ThreadLevel | undefined;
-  /** The session on show: an agent's view of the open thread, or a session behind no thread. */
+  /** The session on show: an agent's view of the open thread. */
   session: SessionLevel | undefined;
   /** The page of the agent whose list is open, which stands where a thread would while none is open. */
   page: PageLevel | undefined;
@@ -136,9 +137,32 @@ export function listRows(list: ListLevel, archived: boolean): Row[] {
   return [...(list.ofAgent ? [pageRow(list)] : []), ...list.rows, ...away];
 }
 
-/** The rows of the home on an agent's page that the keys move through: its folders and files, and what is neither. */
-export const homeRows = (page: PageLevel | undefined): HomeRow[] =>
-  page === undefined ? [] : page.home.filter((row) => row.kind === "folder" || row.kind === "file" || row.kind === "other");
+export const processTargetKey = (id: string): string => `process:${id}`;
+export const triggerTargetKey = (name: string): string => `trigger:${name}`;
+export const onceTargetKey = (id: string): string => `once:${id}`;
+export const homeTargetKey = (path: string): string => `home:${path}`;
+
+/** A row on an agent's page that the keys move through, in top-to-bottom order. */
+export type PageTarget =
+  | { key: string; kind: "process"; agent: string; threadId: string }
+  | { key: string; kind: "trigger"; agent: string; target: TriggerCard["target"] }
+  | { key: string; kind: "once"; agent: string; threadId: string }
+  | { key: string; kind: "home"; row: HomeRow };
+
+/** Every selectable row on an agent's page: running processes, standing triggers, one-shot triggers, and home entries. */
+export function pageTargets(page: PageLevel | undefined): PageTarget[] {
+  if (page === undefined || page.note !== undefined) return [];
+  const targets: PageTarget[] = [];
+  for (const proc of page.processes) targets.push({ key: processTargetKey(proc.id), kind: "process", agent: proc.agent, threadId: proc.threadId });
+  for (const card of page.triggers ?? []) targets.push({ key: triggerTargetKey(card.name), kind: "trigger", agent: card.agent, target: card.target });
+  for (const card of page.once) targets.push({ key: onceTargetKey(card.id), kind: "once", agent: card.agent, threadId: card.threadId });
+  for (const row of page.home) {
+    if (row.kind === "folder" || row.kind === "file" || row.kind === "other") {
+      targets.push({ key: homeTargetKey(row.path), kind: "home", row });
+    }
+  }
+  return targets;
+}
 
 /** Whether an agent's page, or a file of its home, is what the thread's pane shows: an agent's list is open with nothing open in it. */
 export const pageShown = (model: Pick<Model, "open">): boolean => model.open.list?.kind === "agent" && model.open.item === undefined;
@@ -155,11 +179,10 @@ export const placeRow = (frame: Pick<Frame, "levels">, place: Place): Row | unde
 
 /** The key of the row of the open list that `item` was opened from, if it has one: a thread not started yet has none. */
 export function openedKey(item: Item | undefined): string | undefined {
-  if (item?.kind === "session") return rowKey({ kind: "session", id: item.session });
   return item?.thread === undefined ? undefined : rowKey({ kind: "thread", id: item.thread });
 }
 
-/** What an agent's page has open of its home: the folders open in its tree, the row of the tree chosen, and the file open where the page was, each by its path. */
+/** What an agent's page has open: the folders open in its home tree, the target chosen by the keys, and the file open where the page was. */
 export interface Home {
   opened: Set<string>;
   chosen: string | undefined;
@@ -203,13 +226,12 @@ export const runningIn = (model: Model): Set<string> => new Set(agentEntries(mod
 
 /** Whether the open item is a thread the person can write in, and chat is reached: while it is lost, the input goes, and what was typed waits. */
 export const writable = (frame: Pick<Frame, "levels" | "model">): boolean =>
-  frame.model.open.item?.kind === "thread" && frame.levels.thread?.writable === true && frame.model.chat.state !== "down";
+  frame.model.open.item !== undefined && frame.levels.thread?.writable === true && frame.model.chat.state !== "down";
 
 /** The views of the open thread that Tab goes through after its conversation, and which of them is on show: 0 for the conversation. */
 export function sides(model: Model): { count: number; at: number } {
   const all = sidesOf(model);
-  const { item } = model.open;
-  const side = item?.kind === "thread" ? item.side : undefined;
+  const side = model.open.item?.side;
   return { count: all.length, at: side === undefined ? 0 : all.indexOf(side) + 1 };
 }
 
@@ -228,7 +250,6 @@ export type Screen = (
   | ({ kind: "agents" } & AgentsLevel)
   | ({ kind: "threads" } & ListLevel)
   | ({ kind: "thread" } & ThreadLevel)
-  | ({ kind: "session" } & SessionLevel)
   | ({ kind: "page" } & PageLevel)
   | ({ kind: "file" } & FileLevel)
 ) & { levels: 1 | 2 | 3; can: Can };
@@ -240,10 +261,7 @@ export function screenOf(frame: Frame): Screen {
   const can: Can = { back: front !== "agents", send: false, choose: front !== "item" };
   if (front === "item" && levels.file !== undefined && pageShown(model)) return { kind: "file", ...levels.file, levels: count, can };
   if (front === "item" && levels.page !== undefined && pageShown(model)) {
-    return { kind: "page", ...levels.page, levels: count, can: { ...can, choose: homeRows(levels.page).length > 0 } };
-  }
-  if (front === "item" && levels.session !== undefined && model.open.item?.kind === "session") {
-    return { kind: "session", ...levels.session, levels: count, can };
+    return { kind: "page", ...levels.page, levels: count, can: { ...can, choose: pageTargets(levels.page).length > 0 } };
   }
   if (front === "item" && levels.thread !== undefined) {
     return { kind: "thread", ...levels.thread, levels: count, can: { ...can, send: writable(frame) } };
@@ -257,5 +275,5 @@ export function screenOf(frame: Frame): Screen {
 /** The open item, as a key for what was typed in it: a thread the person can write in, by its place and ID, or "new" for one not started. */
 export function draftKeyOf(open: Open): string | undefined {
   const { item } = open;
-  return item?.kind === "thread" && item.place.kind !== "read-only" ? `${JSON.stringify(item.place)}\n${item.thread ?? "new"}` : undefined;
+  return item !== undefined && item.place.kind !== "read-only" ? `${JSON.stringify(item.place)}\n${item.thread ?? "new"}` : undefined;
 }
