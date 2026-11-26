@@ -89,7 +89,7 @@ export interface ProcessRuntime {
   run(command: string, background: boolean, api: ToolExecutionApi, at: Context): Promise<RunResult>;
   list(): Promise<StoredProcess[]>;
   read(id: string, lines?: number): Promise<ProcessOutput | undefined>;
-  input(id: string, text: string): Promise<{ ok: true } | { problem: string }>;
+  input(id: string, input: { text?: string; eof: boolean }): Promise<{ ok: true } | { problem: string }>;
   killFromTool(id: string): Promise<{ ok: true; output: string; truncated: boolean } | { problem: string }>;
 }
 
@@ -279,7 +279,7 @@ export function createProcesses(harness: Harness, options: ProcessesOptions): Pr
           cwd: options.home,
           env: envForShell(),
           detached: true,
-          stdio: ["pipe", fd, fd],
+          stdio: [background ? "pipe" : "ignore", fd, fd],
         });
       } catch (error) {
         closeSync(fd);
@@ -288,6 +288,7 @@ export function createProcesses(harness: Harness, options: ProcessesOptions): Pr
       }
       // Child inherited the duplicated fd; close parent's copy immediately.
       closeSync(fd);
+      child.stdin?.on("error", () => undefined);
       const pid = child.pid;
       if (pid === undefined) {
         removeProcessLog(logPath);
@@ -405,20 +406,26 @@ export function createProcesses(harness: Harness, options: ProcessesOptions): Pr
       return readLogTail(logPath, { maxLines: lines ?? DEFAULT_TAIL_LINES, maxBytes: MAX_TAIL_BYTES });
     },
 
-    async input(id, text) {
+    async input(id, { text, eof }) {
       const running = await storedMap();
       if (!Object.hasOwn(running, id)) return { problem: `No running process with ID ${id}.` };
-      const handle = live.get(id);
-      const stdin = handle?.child?.stdin;
-      if (stdin === undefined || stdin === null || stdin.destroyed || !stdin.writable) {
-        return { problem: `Process ${id} stdin is closed or unavailable after a restart.` };
+      const child = live.get(id)?.child;
+      if (child === undefined) return { problem: `Process ${id} was started before the agent restarted, so it can't be sent input.` };
+      const stdin = child.stdin;
+      if (stdin === null) {
+        return { problem: `Process ${id} was started without background: true, so it takes no input. Start it again with background: true to send it input.` };
       }
-      await new Promise<void>((resolve, reject) => {
-        stdin.write(text, (error) => {
-          if (error) reject(error);
-          else resolve();
+      if (stdin.destroyed || stdin.writableEnded) return { problem: `Process ${id}'s input is already closed.` };
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const done = (error?: Error | null): void => (error ? reject(error) : resolve());
+          if (!eof) stdin.write(text ?? "", done);
+          else if (text === undefined) stdin.end(done);
+          else stdin.end(text, done);
         });
-      });
+      } catch (error) {
+        return { problem: `Couldn't write to process ${id}: ${asError(error).message}` };
+      }
       return { ok: true };
     },
 

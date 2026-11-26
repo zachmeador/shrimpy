@@ -63,50 +63,39 @@ test("background bash wakes its thread on exit with a process wake line and outp
   assert.ok(told[0]?.includes("finished-ok"), told[0] ?? "");
 });
 
-test("sync bash auto-backgrounds when it exceeds syncWaitMs, supports process read/input/kill and Agent.processOutput", { timeout }, async (t) => {
+test("a normal bash call gets no input, so a command reading it ends at once, and one still running after syncWaitMs moves to the background", { timeout }, async (t) => {
   let procId = "";
+  let catResult = "";
+  let inputResult = "";
   const rig = await startAgentRig(t, {
     syncWaitMs: 300,
     tokensPerSecond: 1_000_000,
     script: (messages) => {
       const user = textOf(messages.findLast((m) => m.role === "user"));
       const lastTool = resultText(messages);
+      const call = (name: string, args: Parameters<typeof fauxToolCall>[1]) =>
+        fauxAssistantMessage([fauxToolCall(name, args, { id: `call-${name}` })], { stopReason: "toolUse" });
+      if (user.includes("read nothing")) {
+        if (lastTool === "") return call("bash", { command: "cat; echo cat-done" });
+        catResult = lastTool;
+        return fauxAssistantMessage("Done.");
+      }
       if (user.includes("run long")) {
-        if (lastTool === "") {
-          return fauxAssistantMessage(
-            [fauxToolCall("bash", { command: 'echo ready; read line; echo "got:$line"; sleep 30' }, { id: "c1" })],
-            { stopReason: "toolUse" },
-          );
-        }
-        const match = /proc_[0-9a-z]+/.exec(lastTool);
-        if (match) procId = match[0];
+        if (lastTool === "") return call("bash", { command: "echo ready; sleep 30" });
+        procId = /proc_[0-9a-z]+/.exec(lastTool)?.[0] ?? "";
         return fauxAssistantMessage(`Auto-backgrounded as ${procId}.`);
       }
       if (user.includes("send input")) {
-        if (lastTool === "") {
-          return fauxAssistantMessage(
-            [fauxToolCall("process", { action: "input", id: procId, text: "hello-stdin\n" }, { id: "c2" })],
-            { stopReason: "toolUse" },
-          );
-        }
-        return fauxAssistantMessage("Sent input.");
+        if (lastTool === "") return call("process", { action: "input", id: procId, text: "hello\n" });
+        inputResult = lastTool;
+        return fauxAssistantMessage("Tried.");
       }
       if (user.includes("read output")) {
-        if (lastTool === "") {
-          return fauxAssistantMessage(
-            [fauxToolCall("process", { action: "read", id: procId }, { id: "c3" })],
-            { stopReason: "toolUse" },
-          );
-        }
+        if (lastTool === "") return call("process", { action: "read", id: procId });
         return fauxAssistantMessage(`Output: ${lastTool}`);
       }
       if (user.includes("stop it")) {
-        if (lastTool === "") {
-          return fauxAssistantMessage(
-            [fauxToolCall("process", { action: "kill", id: procId }, { id: "c4" })],
-            { stopReason: "toolUse" },
-          );
-        }
+        if (lastTool === "") return call("process", { action: "kill", id: procId });
         return fauxAssistantMessage("Killed.");
       }
       return fauxAssistantMessage("Ok.");
@@ -114,11 +103,58 @@ test("sync bash auto-backgrounds when it exceeds syncWaitMs, supports process re
   });
   const connection = await rig.connect();
 
+  await rig.receiptOn(await rig.say("read nothing"));
+  assert.ok(catResult.includes("cat-done") && !catResult.includes("proc_"), catResult);
+
   await rig.receiptOn(await rig.say("run long"));
   assert.ok(procId.startsWith("proc_"), `expected auto-backgrounded proc ID, got: ${procId}`);
   const listed = await connection.processes();
   assert.equal(listed.length, 1);
   assert.equal(listed[0]?.id, procId);
+  assert.ok((await connection.processOutput(procId)).output.includes("ready"));
+
+  await rig.receiptOn(await rig.say("send input"));
+  assert.match(inputResult, /background: true/);
+
+  await rig.receiptOn(await rig.say("read output"));
+  assert.ok((await rig.replies()).at(-1)?.text.includes("ready"));
+
+  await rig.receiptOn(await rig.say("stop it"));
+  await eventually(() => connection.processes(), (procs) => procs.length === 0, { what: "killed process to disappear" });
+});
+
+test("a background command takes input, and eof lets one that reads to the end finish", { timeout }, async (t) => {
+  let procId = "";
+  const rig = await startAgentRig(t, {
+    tokensPerSecond: 1_000_000,
+    script: (messages) => {
+      const user = textOf(messages.findLast((m) => m.role === "user"));
+      const lastTool = resultText(messages);
+      const call = (name: string, args: Parameters<typeof fauxToolCall>[1]) =>
+        fauxAssistantMessage([fauxToolCall(name, args, { id: `call-${name}` })], { stopReason: "toolUse" });
+      if (user.includes("exited with code 0")) return fauxAssistantMessage("It finished.");
+      if (user.includes("start reader")) {
+        if (lastTool === "") {
+          return call("bash", { command: 'while read line; do echo "got:$line"; done; echo eof-seen', background: true });
+        }
+        procId = /proc_[0-9a-z]+/.exec(lastTool)?.[0] ?? "";
+        return fauxAssistantMessage(`Started ${procId}.`);
+      }
+      if (user.includes("send input")) {
+        if (lastTool === "") return call("process", { action: "input", id: procId, text: "hello-stdin\n" });
+        return fauxAssistantMessage("Sent.");
+      }
+      if (user.includes("close input")) {
+        if (lastTool === "") return call("process", { action: "input", id: procId, eof: true });
+        return fauxAssistantMessage("Closed.");
+      }
+      return fauxAssistantMessage("Ok.");
+    },
+  });
+  const connection = await rig.connect();
+
+  await rig.receiptOn(await rig.say("start reader"));
+  assert.ok(procId.startsWith("proc_"), procId);
 
   await rig.receiptOn(await rig.say("send input"));
   await eventually(
@@ -126,12 +162,17 @@ test("sync bash auto-backgrounds when it exceeds syncWaitMs, supports process re
     (out) => out.includes("got:hello-stdin"),
     { what: "stdin echo to appear in processOutput" },
   );
+  assert.equal((await connection.processes()).length, 1, "input alone leaves it running");
 
-  await rig.receiptOn(await rig.say("read output"));
-  assert.ok((await rig.replies()).at(-1)?.text.includes("got:hello-stdin"));
-
-  await rig.receiptOn(await rig.say("stop it"));
-  await eventually(() => connection.processes(), (procs) => procs.length === 0, { what: "killed process to disappear" });
+  await rig.receiptOn(await rig.say("close input"));
+  const wake = await eventually(
+    async () => (await rig.said()).find((m) => m.wake?.kind === "process" && m.wake.state === "exited"),
+    (found) => found !== undefined,
+    { what: "the exit wake line after eof" },
+  );
+  assert.ok(wake?.wake?.kind === "process");
+  assert.equal(wake.wake.code, 0);
+  assert.ok(wake.wake.output?.includes("eof-seen"), String(wake.wake.output));
 });
 
 test("built-in check-in wakes the thread once while running, and /stop leaves background processes untouched", { timeout }, async (t) => {

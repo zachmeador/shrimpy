@@ -10,10 +10,11 @@ const BASH_DESCRIPTION =
   "Run a shell command from your home directory. By default waits up to 60 seconds and returns combined stdout and stderr; " +
   "if still running after 60 seconds it moves to the background and returns its process ID so you can end your turn. " +
   "Pass background: true for long-running commands (downloads, builds, coding agents) to start immediately in the background. " +
+  "Only a command started with background: true takes input through process; any other gets none, so a command that reads input ends at once. " +
   "Background commands wake this thread when they exit (and once after 15 minutes if still running).";
 
 const PROCESS_DESCRIPTION =
-  "Inspect or control background bash commands: list running commands, read recent output, send stdin input, or kill a running command.";
+  "Inspect or control background bash commands: list running commands, read recent output, send input to one started with background: true (eof: true closes its input), or kill a running command.";
 
 /** `bash` and `process` tools installed as one extension. */
 export function processTools(runtime: ProcessRuntime): Extension {
@@ -22,7 +23,7 @@ export function processTools(runtime: ProcessRuntime): Extension {
     description: BASH_DESCRIPTION,
     parameters: obj({
       command: str({ description: "Shell command to execute in your home directory." }),
-      background: opt(bool({ description: "Run immediately in the background and wake this thread when it exits." })),
+      background: opt(bool({ description: "Run immediately in the background and wake this thread when it exits. Only these commands take input through process." })),
     }),
     outputLimits: { retain: "tail" },
     async execute({ command, background }, api, context) {
@@ -73,8 +74,9 @@ export function processTools(runtime: ProcessRuntime): Extension {
       id: opt(str({ description: "Process ID (proc_...), required for read, input, and kill." })),
       lines: opt(int({ minimum: 1, maximum: 2000, description: "How many recent lines to read (default 100)." })),
       text: opt(str({ description: "Text to write to stdin (for action: input). Include a trailing newline when submitting a line." })),
+      eof: opt(bool({ description: "For action: input, close stdin after writing text, so a command reading until the end of its input can finish." })),
     }),
-    async execute({ action, id, lines, text }) {
+    async execute({ action, id, lines, text, eof }) {
       switch (action) {
         case "list": {
           const running = await runtime.list();
@@ -95,10 +97,12 @@ export function processTools(runtime: ProcessRuntime): Extension {
         }
         case "input": {
           if (id === undefined || id.trim() === "") return failure("Give id (proc_...) to write to a process's stdin.");
-          if (text === undefined) return failure("Give text to write to the process's stdin.");
-          const wrote = await runtime.input(id.trim(), text);
+          if (text === undefined && eof !== true) return failure("Give text to write to the process's stdin, or eof: true to close it.");
+          const closing = eof === true;
+          const wrote = await runtime.input(id.trim(), { ...(text === undefined ? {} : { text }), eof: closing });
           if ("problem" in wrote) return failure(wrote.problem);
-          return answer(`Sent input to ${id.trim()}.`);
+          if (!closing) return answer(`Sent input to ${id.trim()}.`);
+          return answer(text === undefined ? `Closed the input of ${id.trim()}.` : `Sent input to ${id.trim()} and closed its input.`);
         }
         case "kill": {
           if (id === undefined || id.trim() === "") return failure("Give id (proc_...) to kill a running process.");
