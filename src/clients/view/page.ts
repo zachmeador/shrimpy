@@ -18,6 +18,7 @@ import type { LevelOptions } from "./level.ts";
 import { type Look, lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
 import { elapsedOf, whenOf } from "./time.ts";
+import { type OutputShown, outputShown } from "./work.ts";
 import {
   EMPTY,
   FACTS,
@@ -26,7 +27,6 @@ import {
   noTriggers,
   NOT_RUNNING,
   notLinkedNote,
-  processOutputNote,
   triggerWhen,
   TURNED_AWAY_FOR_RELEASE,
   turnedAwayNote,
@@ -54,7 +54,7 @@ export interface ProcessCard {
   threadId: string;
   threadLabel: string;
   /** Output lines once fetched, or why they couldn't be read, or undefined before fetched. */
-  output: string[] | { note: string } | undefined;
+  output: OutputShown | undefined;
 }
 
 /** A standing trigger of the agent's, as its page shows it: its file, schedule status, and where it goes. */
@@ -151,23 +151,16 @@ export function pageLevel(model: Model, options: PageOptions): PageLevel | undef
 
   const processes: ProcessCard[] =
     running && !stale
-      ? processesOf(model, id).map((proc) => {
-          const read = model.processOutputs[processOutputKey(id, proc.id)];
-          let output: ProcessCard["output"];
-          if (read !== undefined) {
-            output = "problem" in read ? { note: processOutputNote(name, read.problem, options.self) } : plain(read.value.output).trimEnd().split("\n").filter((line, idx, arr) => !(arr.length === 1 && idx === 0 && line === ""));
-          }
-          return {
-            id: oneLine(proc.id),
-            agent: id,
-            command: oneLine(proc.command),
-            since: elapsedOf(proc.startedAt, options.now),
-            started: whenOf(proc.startedAt, options.now),
-            threadId: proc.threadId,
-            threadLabel: oneLine(threadReferenceLabel(model, id, proc.threadId)),
-            output,
-          };
-        })
+      ? processesOf(model, id).map((proc) => ({
+          id: oneLine(proc.id),
+          agent: id,
+          command: oneLine(proc.command),
+          since: elapsedOf(proc.startedAt, options.now),
+          started: whenOf(proc.startedAt, options.now),
+          threadId: proc.threadId,
+          threadLabel: oneLine(threadReferenceLabel(model, id, proc.threadId)),
+          output: outputShown(model.processOutputs[processOutputKey(id, proc.id)], name, options.self),
+        }))
       : [];
 
   const once: OnceCard[] =

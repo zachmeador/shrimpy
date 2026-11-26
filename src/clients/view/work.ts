@@ -1,10 +1,10 @@
-import { imageWords, markerWords, type SessionItem, type ToolStatus, toolStatusWords } from "../../contracts/agent/index.ts";
+import { imageWords, markerWords, type ProcessOutput, type SessionItem, type ToolStatus, toolStatusWords } from "../../contracts/agent/index.ts";
 import { oneLine, plain } from "../../lib/plain/index.ts";
-import type { SessionView } from "../state/index.ts";
+import type { AgentRead, SessionView } from "../state/index.ts";
 import { cutEnd } from "../../lib/text/index.ts";
 import { countLines, lastCharacters, lastLines, shortLine } from "./cut.ts";
 import { whenOf } from "./time.ts";
-import { answerNote, hiddenCharacters, hiddenLines, hiddenSteps, type InFull, moreCharacters, SHOWN, THINKING } from "./words.ts";
+import { answerNote, hiddenCharacters, hiddenLines, hiddenSteps, type InFull, moreCharacters, processOutputNote, SHOWN, THINKING } from "./words.ts";
 
 /** One thing the agent is doing or has done in the turn it is working on now, or, in a session being watched, one thing in it. */
 export type Step =
@@ -196,6 +196,15 @@ function toolStep(item: Extract<SessionItem, { type: "tool" }>, whole: boolean, 
     images: item.images.map((image) => imageWords(image.mimeType)),
     notes: item.notes.map(oneLine),
   };
+}
+
+export type OutputShown = string[] | { note: string };
+
+export function outputShown(read: AgentRead<ProcessOutput> | undefined, agent: string, self: string): OutputShown | undefined {
+  if (read === undefined) return undefined;
+  if ("problem" in read) return { note: processOutputNote(agent, read.problem, self) };
+  const text = plain(read.value.output).trimEnd();
+  return text === "" ? [] : text.split("\n");
 }
 
 function isBackgroundBash(name: string, args: string): boolean {

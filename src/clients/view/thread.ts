@@ -37,7 +37,7 @@ import { BRIEF, type LevelOptions, lookingAt, OUTPUT_LINES } from "./level.ts";
 import { type Look, lookOf } from "./look.ts";
 import { notesOf } from "./notes.ts";
 import { elapsedOf, whenOf } from "./time.ts";
-import { type Shown, type Work, workOf } from "./work.ts";
+import { type OutputShown, outputShown, type Shown, type Work, workOf } from "./work.ts";
 import {
   agentStatusRows,
   DELETED,
@@ -48,7 +48,6 @@ import {
   membersLine,
   newRoomThreadHint,
   newThreadHint,
-  processOutputNote,
   queuedLine,
   reactedBy,
   READ_ONLY_TAG,
@@ -144,7 +143,7 @@ export interface StillProcess {
   command: string;
   since: string;
   started: string;
-  output: string[] | { note: string } | undefined;
+  output: OutputShown | undefined;
 }
 
 /** An open watch started from the open thread. */
@@ -317,17 +316,6 @@ function stillOf(
   }
   const processes: StillProcess[] = processesIn(model, threadId).map(({ agent, process }) => {
     const agentName = oneLine(agentNameOf(model, agent));
-    const read = model.processOutputs[processOutputKey(agent, process.id)];
-    let output: StillProcess["output"];
-    if (read !== undefined) {
-      output =
-        "problem" in read
-          ? { note: processOutputNote(agentName, read.problem, self) }
-          : plain(read.value.output)
-              .trimEnd()
-              .split("\n")
-              .filter((line, idx, arr) => !(arr.length === 1 && idx === 0 && line === ""));
-    }
     return {
       id: oneLine(process.id),
       agent,
@@ -335,7 +323,7 @@ function stillOf(
       command: oneLine(process.command),
       since: elapsedOf(process.startedAt, now),
       started: whenOf(process.startedAt, now),
-      output,
+      output: outputShown(model.processOutputs[processOutputKey(agent, process.id)], agentName, self),
     };
   });
   const watches: StillWatch[] = watchesIn(model, threadId).map(({ agent, watch }) => ({
