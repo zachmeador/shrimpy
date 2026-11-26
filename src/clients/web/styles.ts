@@ -30,11 +30,30 @@ const GROUNDS: Record<string, Exclude<keyof Wool, "flecks" | "pigments">> = {
 /** The seed of each wool's flecks, so each keeps its own pattern. */
 const SEEDS: Record<Mode, number> = { dusk: 7, day: 11 };
 
+const FLECKED: readonly (readonly [string, "ground" | "list" | "pane" | "well"])[] = [
+  ["--tx-fleck", "ground"],
+  ["--tx-fleck-list", "list"],
+  ["--tx-fleck-pane", "pane"],
+  ["--tx-fleck-well", "well"],
+];
+
+const channels = (color: string): number[] => [1, 3, 5].map((at) => Number.parseInt(color.slice(at, at + 2), 16));
+
+const hexOf = (values: readonly number[]): string =>
+  `#${values.map((value) => Math.min(255, Math.max(0, value)).toString(16).padStart(2, "0")).join("")}`;
+
+function flecksOn(wool: Wool, ground: string): readonly [string, string, string] {
+  const [from, to] = [channels(wool.ground), channels(ground)];
+  const shift = (color: string): string => hexOf(channels(color).map((value, at) => value + (to[at] ?? 0) - (from[at] ?? 0)));
+  return [shift(wool.flecks[0]), shift(wool.flecks[1]), shift(wool.flecks[2])];
+}
+
 function woolCss(mode: Mode): string {
   const wool = WOOLS[mode];
   const props = Object.entries(GROUNDS).map(([name, key]) => `${name}:${wool[key]}`);
   for (const [name, { mark, word }] of Object.entries(wool.pigments)) props.push(`--${name}:${mark}`, `--${name}-ink:${word}`);
-  props.push(`--tx-fleck:${flecks(wool.flecks, SEEDS[mode])}`, `--tx-mesh:${mesh(wool.line2)}`);
+  FLECKED.forEach(([name, ground], at) => props.push(`${name}:${flecks(flecksOn(wool, wool[ground]), SEEDS[mode] + at * 100)}`));
+  props.push(`--tx-mesh:${mesh(wool.line2)}`);
   return `[data-mode="${mode}"]{${props.join(";")}}`;
 }
 

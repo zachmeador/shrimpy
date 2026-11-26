@@ -5,7 +5,7 @@
 import type { ComponentChildren } from "preact";
 import type { Mode } from "../look/index.ts";
 import type { AgentsLevel, Row } from "../view/index.ts";
-import { LABELS, OUT_OF_DATE, versionLine } from "../view/index.ts";
+import { LABELS, OUT_OF_DATE } from "../view/index.ts";
 import { Fleck, Glyph, Lamp, Sigil, Wordmark } from "./marks.tsx";
 import { Tide } from "./tide.tsx";
 import { Notes } from "./thread.tsx";
@@ -50,7 +50,6 @@ function RailRow({ row, current, running, choose }: { row: Row; current: boolean
 
 export function Rail(props: RailProps) {
   const { agents } = props;
-  const [lead, release] = versionLine();
   const agentRows = agents.rows.filter((row) => row.kind === "agent");
   const roomRows = agents.rows.filter((row) => row.kind !== "agent");
   const row = (each: Row) => (
@@ -65,10 +64,6 @@ export function Rail(props: RailProps) {
       >
         <div class="brand">
           <Wordmark label={agents.title} />
-          <span class="rel">
-            {lead}
-            <em>{release}</em>
-          </span>
         </div>
         {props.corner}
       </Tide>

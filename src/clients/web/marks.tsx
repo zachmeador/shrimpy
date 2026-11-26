@@ -27,7 +27,7 @@ export function Glyph({ name }: { name: GlyphName }) {
 export function Wordmark({ label }: { label: string }) {
   return (
     <span role="img" aria-label={label}>
-      <Bitmap rows={WORDMARK} cls="px" />
+      <Bitmap rows={WORDMARK} cls="px" scale={STITCH * 1.2} />
     </span>
   );
 }

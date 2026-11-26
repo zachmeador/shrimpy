@@ -153,10 +153,8 @@ body { background: var(--pane); color: var(--ink); font: 400 var(--t-ui)/1.45 va
 
 .tide { flex: none; height: calc(104px + var(--safe-top, 0px)); }
 .tide canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.brand { position: absolute; left: 14px; top: calc(14px + var(--safe-top, 0px)); display: grid; gap: 7px; }
-.brand .px { color: var(--ink); }
-.rel { font: 400 var(--t-meta)/1 var(--mono); color: var(--ink-3); white-space: nowrap; }
-.rel em { font: italic 400 12.5px/1 var(--face); color: var(--ink-2); }
+.brand { position: absolute; left: 14px; top: calc(14px + var(--safe-top, 0px)); }
+.brand .px { color: var(--ink); display: block; }
 .lantern { position: absolute; width: 18px; height: 22px; }
 
 .label {
@@ -225,13 +223,14 @@ body { background: var(--pane); color: var(--ink); font: 400 var(--t-ui)/1.45 va
 /* The agent's name and sigil at the top of its list, which open its page. */
 .whois { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer; }
 
-.tabs { flex: none; display: flex; gap: 18px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+.list-top { flex: none; background: var(--tx-fleck-list) 0 0 / 256px 256px; border-bottom: 1px solid var(--line); }
+.tabs { flex: none; display: flex; gap: 18px; padding: 0 14px; }
 .tabs button { position: relative; padding: 6px 0 9px; font-size: var(--t-small); color: var(--ink-3); }
 .tabs button:hover { color: var(--ink-2); }
 .tabs button[aria-selected="true"] { color: var(--ink); }
 .tabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--who, var(--ink-2)); }
 
-.list .tabs + .body .scroll { padding-top: 6px; }
+.list-top + .body .scroll { padding-top: 6px; }
 
 .trow { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-content: center; width: 100%; min-height: calc(var(--row) + 4px); padding: 6px 14px; line-height: 1.3; }
 .t-title { display: flex; align-items: baseline; min-width: 0; font-weight: 500; }
@@ -289,7 +288,7 @@ button.frow:hover { background: color-mix(in srgb, var(--raise) 55%, transparent
 /* --- The thread ----------------------------------------------------------- */
 
 .thread { background: var(--pane); }
-.thead { position: relative; z-index: 3; padding-left: 28px; padding-right: 16px; border-bottom: 1px solid var(--line); }
+.thead { position: relative; z-index: 3; padding-left: 28px; padding-right: 16px; border-bottom: 1px solid var(--line); background: var(--tx-fleck-pane) 0 0 / 256px 256px; }
 .acts { display: flex; align-items: center; gap: 6px; }
 
 /* A thread's menu, its name as an input where it stands, and the tag of an archived one. */
@@ -502,7 +501,7 @@ button.srow:hover { color: var(--ink); }
 /* --- The agent's view: the session as the agent sees it ------------------- */
 
 .watch { background: var(--well); border-left: 1px solid var(--line); }
-.watch .head { border-bottom: 1px solid var(--line); }
+.watch .head { border-bottom: 1px solid var(--line); background: var(--tx-fleck-well) 0 0 / 256px 256px; }
 .watch .col { max-width: none; padding: 16px 16px 14px; }
 
 /* --- A session watched: what it is doing now, under it ---------------------- */

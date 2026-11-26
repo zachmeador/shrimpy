@@ -81,37 +81,39 @@ export function ListView(props: ListProps) {
   const empty = list.empty === undefined ? undefined : list.ofAgent && list.startable && props.tab === "chat" ? thenStart(list.empty, NEW_THREAD_KEY) : list.empty;
   return (
     <>
-      <header class={`head${pigment}`}>
-        <button class="ib only-narrow" type="button" aria-label={CONTROLS.backToAgents} onClick={props.back}>
-          <Glyph name="back" />
-        </button>
-        {list.ofAgent ? (
-          // The agent's name and sigil open its page, which is how a phone gets to it.
-          <button class="whois" type="button" title={pageOf(list.name)} aria-label={pageOf(list.name)} onClick={props.page}>
-            <Sigil look={list.look} size="s36" off={list.off} />
-            {titles}
+      <div class="list-top">
+        <header class={`head${pigment}`}>
+          <button class="ib only-narrow" type="button" aria-label={CONTROLS.backToAgents} onClick={props.back}>
+            <Glyph name="back" />
           </button>
-        ) : (
-          <>
-            <span class="hash big">#</span>
-            {titles}
-          </>
-        )}
-        {list.startable && (
-          <button class="ib" type="button" title={NEW_THREAD} aria-label={NEW_THREAD} onClick={props.start}>
-            <Glyph name="plus" />
-          </button>
-        )}
-      </header>
-      {list.ofAgent && (
-        <nav class={`tabs${pigment}`} role="tablist">
-          {AGENT_TABS.map((each) => (
-            <button key={each} type="button" role="tab" aria-selected={props.tab === each} onClick={() => props.setTab(each)}>
-              {each}
+          {list.ofAgent ? (
+            // The agent's name and sigil open its page, which is how a phone gets to it.
+            <button class="whois" type="button" title={pageOf(list.name)} aria-label={pageOf(list.name)} onClick={props.page}>
+              <Sigil look={list.look} size="s36" off={list.off} />
+              {titles}
             </button>
-          ))}
-        </nav>
-      )}
+          ) : (
+            <>
+              <span class="hash big">#</span>
+              {titles}
+            </>
+          )}
+          {list.startable && (
+            <button class="ib" type="button" title={NEW_THREAD} aria-label={NEW_THREAD} onClick={props.start}>
+              <Glyph name="plus" />
+            </button>
+          )}
+        </header>
+        {list.ofAgent && (
+          <nav class={`tabs${pigment}`} role="tablist">
+            {AGENT_TABS.map((each) => (
+              <button key={each} type="button" role="tab" aria-selected={props.tab === each} onClick={() => props.setTab(each)}>
+                {each}
+              </button>
+            ))}
+          </nav>
+        )}
+      </div>
       <div class="body">
         <div class="scroll">
           <Notes notes={list.notes} retry={props.retry} />
