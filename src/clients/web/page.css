@@ -263,7 +263,7 @@ body { background: var(--pane); color: var(--ink); font: 400 var(--t-ui)/1.45 va
 .file pre i { font-style: normal; color: var(--ink-3); }
 .file .last { margin-top: 6px; font-size: var(--t-small); color: var(--ink-3); }
 /* A command in the background and a trigger, on the page: what it is, then where it belongs and what can be done to it. */
-.file pre.out { padding-left: 12px; border-left: 2px solid var(--line-2); color: var(--ink-3); overflow-wrap: anywhere; }
+.file pre.out { padding-left: 12px; border-left: 2px solid var(--line-2); color: var(--ink-3); overflow-wrap: anywhere; max-height: 20em; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
 .file h3 .tag { vertical-align: 0; }
 .file.off h3, .file.off pre { opacity: 0.55; }
 .file .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
@@ -459,10 +459,10 @@ button.srow:hover { color: var(--ink); }
 .still .on { display: inline-flex; align-items: center; gap: 6px; margin: 0 5px 0 4px; font-weight: 600; color: var(--who-ink); vertical-align: baseline; }
 .srow .on + .age { margin-right: 8px; }
 .srow .pair { white-space: nowrap; }
-.sbody { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0; padding: 2px 12px 8px 34px; list-style: none; }
+.sbody { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0; padding: 2px 12px 8px 34px; list-style: none; max-height: 45vh; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
 .sbody.tight { gap: 3px; }
 .sbody .cmd { font: 400 var(--t-code)/1.5 var(--mono); color: var(--ink); overflow-wrap: anywhere; }
-.sbody pre { margin: 4px 0 0; padding-left: 12px; border-left: 2px solid var(--line-2); font: 400 var(--t-code)/1.5 var(--mono); color: var(--ink-3); white-space: pre-wrap; overflow-wrap: anywhere; }
+.sbody pre { margin: 4px 0 0; padding-left: 12px; border-left: 2px solid var(--line-2); font: 400 var(--t-code)/1.5 var(--mono); color: var(--ink-3); white-space: pre-wrap; overflow-wrap: anywhere; max-height: min(14em, 28vh); overflow: auto; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
 .sbody .foot { display: flex; align-items: center; gap: 10px; margin-top: 6px; font: 400 var(--t-meta)/1.3 var(--mono); color: var(--ink-3); }
 .sbody .foot > span { flex: 1; min-width: 0; }
 .titem { display: grid; column-gap: 10px; align-items: baseline; }

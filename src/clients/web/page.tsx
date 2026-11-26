@@ -64,7 +64,11 @@ function ProcessCardView({
   return (
     <article class="file stepbox">
       <h3>$ {proc.command}</h3>
-      {open && out !== undefined && <pre class="out">{"note" in out ? out.note : out.length > 0 ? out.join("\n") : EMPTY}</pre>}
+      {open && out !== undefined && (
+        <pre class="out" data-follow="end">
+          {"note" in out ? out.note : out.length > 0 ? out.join("\n") : EMPTY}
+        </pre>
+      )}
       <p class="last ctl">
         <span>
           running {proc.since}

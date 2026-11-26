@@ -273,7 +273,7 @@ function Said({ text, tag }: { text: string; tag: "kbd" | "code" }) {
 function ProcessTail({ output }: { output: StillProcess["output"] }) {
   if (output === undefined) return null;
   if ("note" in output) return <pre>{output.note}</pre>;
-  return <pre>{output.length > 0 ? output.join("\n") : EMPTY}</pre>;
+  return <pre data-follow="end">{output.length > 0 ? output.join("\n") : EMPTY}</pre>;
 }
 
 /** What is still going in a thread between turns: background commands, open watches, triggers, and agents waiting on this thread. */
