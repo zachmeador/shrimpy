@@ -251,10 +251,8 @@
 
 .tide { flex: none; height: calc(104px + var(--safe-top, 0px)); }
 .tide canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.brand { position: absolute; left: 14px; top: calc(14px + var(--safe-top, 0px)); display: grid; gap: 7px; }
-.brand .px { color: var(--ink); }
-.rel { font: 400 var(--t-meta)/1 var(--mono); color: var(--ink-3); white-space: nowrap; }
-.rel em { font: italic 400 12.5px/1 var(--face); color: var(--ink-2); }
+.brand { position: absolute; left: 14px; top: calc(14px + var(--safe-top, 0px)); }
+.brand .px { --stitch: 2.4px; color: var(--ink); display: block; }
 .lantern { position: absolute; width: 18px; height: 22px; }
 
 .label {
@@ -1708,7 +1706,6 @@ for (const [name, p] of Object.entries(PICTURES)) {
 
 const ME = 'zach';
 const VERSION = '3.0.0';
-const RELEASE = 'A Rising Tide';
 const LAN = 'lan/qwen3.8-27b';
 
 const AGENTS = {
@@ -2449,7 +2446,7 @@ function mount(host, kind, mode, route, flags = {}) {
     }).join('');
     const lost = s.stale ? `<p class="note stepbox">Lost the connection to the gateway. The list of agents may be out of date. Trying again.<span class="retry">next try in 8s</span></p>` : '';
     return `<div class="tide"><canvas aria-hidden="true"></canvas>
-        <div class="brand"><i class="px bm-wordmark" role="img" aria-label="shrimpy"></i><span class="rel">${VERSION} · <em>${RELEASE}</em></span></div>
+        <div class="brand"><i class="px bm-wordmark" role="img" aria-label="shrimpy"></i></div>
         <button class="ib fold-btn" data-go="fold" aria-pressed="${s.fold}" title="${s.fold ? 'Unfold the lists' : 'Fold the lists away'} · ctrl+\\" aria-label="${s.fold ? 'Unfold the lists' : 'Fold the lists away'}">${icon('panes')}</button></div>
       ${lost}
       <div class="body"><div class="scroll">
