@@ -524,14 +524,21 @@ button.srow:hover { color: var(--ink); }
 .srow > .what { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .srow.wrap > .what { white-space: normal; }
 .srow code { color: var(--ink); }
-.srow .age { font: 400 var(--t-meta)/1 var(--mono); color: var(--ink-3); }
+.still .age { font: 400 var(--t-meta)/1 var(--mono); color: var(--ink-3); }
 .srow > .age { flex: none; }
-.srow .age.down { color: var(--caution); }
+.still .age.down { color: var(--caution); }
 .srow .more { flex: none; padding: 1px 7px 2px; color: var(--ink-2); background: var(--raise); clip-path: var(--step); }
 .srow > .bm-fold { flex: none; color: var(--ink-3); }
 .srow[aria-expanded="true"] > .bm-fold { transform: rotate(90deg); }
-.srow .on { display: inline-flex; align-items: center; gap: 6px; margin: 0 5px 0 4px; font-weight: 600; color: var(--who-ink); vertical-align: baseline; }
+.srow.whole { align-items: start; }
+.srow.whole > .what { white-space: normal; overflow-wrap: anywhere; }
+.srow.whole > .mk, .srow.whole > .bm-fold { margin-top: 6px; }
+.srow > .unfold { flex: none; display: grid; place-items: center; width: 24px; height: 22px; margin-right: -6px; color: var(--ink-3); }
+.srow > .unfold:hover { color: var(--ink); }
+.srow > .unfold[aria-expanded="true"] > .bm-fold { transform: rotate(90deg); }
+.still .on { display: inline-flex; align-items: center; gap: 6px; margin: 0 5px 0 4px; font-weight: 600; color: var(--who-ink); vertical-align: baseline; }
 .srow .on + .age { margin-right: 8px; }
+.srow .pair { white-space: nowrap; }
 .sbody { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0; padding: 2px 12px 8px 34px; list-style: none; }
 .sbody.tight { gap: 3px; }
 .sbody .cmd { font: 400 var(--t-code)/1.5 var(--mono); color: var(--ink); overflow-wrap: anywhere; }
@@ -542,6 +549,9 @@ button.srow:hover { color: var(--ink); }
 .titem.c3 { grid-template-columns: 7.4em minmax(0, 1fr) auto; }
 .titem.c4 { grid-template-columns: 7.4em 6.4em minmax(0, 1fr) auto; }
 .titem.cp { grid-template-columns: 7.4em minmax(0, 1fr) minmax(0, auto) auto; }
+.titem.cw { grid-template-columns: minmax(0, 1fr) auto; }
+.titem.cw .who { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.titem.cw .on { margin-left: 0; }
 .titem time { font: 400 var(--t-meta)/1.5 var(--mono); color: var(--ink-3); }
 .titem b { font-weight: 600; color: var(--who-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .titem .to { max-width: 17em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -908,7 +918,7 @@ body:not([data-view="live"]) .live { display: none; }
     <div class="fit"><div class="fit-in">
       <div class="unit"><div class="desk frame" data-kind="desk" data-mode="dusk" data-route="agent:scout/thread:sc-door" data-going="proc"></div></div>
     </div></div>
-    <p class="cap" style="margin-top:44px">Asking another agent starts a thread with it, and the thread you asked in waits for the answer. A name in that row opens the thread with that agent, under observe, where its work shows as it happens and a button stops its turn. That thread says who waits on it and from where. The answer leaves a line where you asked, which opens the thread it came in.</p>
+    <p class="cap" style="margin-top:44px">Asking another agent starts a thread with it, and the thread you asked in waits for the answer. A name in that row opens the thread with that agent, under observe, where its work shows as it happens and a button stops its turn. That thread says who waits on it and from where, for as long as the wait is open. The answer leaves a line where you asked, which opens the thread it came in.</p>
     <div class="fit"><div class="fit-in">
       <div class="unit"><div class="phone frame" data-kind="phone" data-mode="dusk" data-route="agent:shrimpy/thread:sh-update"></div></div>
       <div class="unit"><div class="phone frame" data-kind="phone" data-mode="dusk" data-route="agent:shrimpy/thread:sh-game-update"></div></div>
@@ -923,9 +933,10 @@ body:not([data-view="live"]) .live { display: none; }
     <div class="fit"><div class="fit-in">
       <div class="unit"><div class="desk frame" data-kind="desk" data-mode="day" data-route="agent:shrimpy/thread:sh-roms" data-turned="1"></div></div>
     </div></div>
-    <p class="cap" style="margin-top:44px">An agent is working while anything of its runs, a turn or a command it left in the background, and one lantern says both. An agent that only waits on another says so in words, and is idle only when it waits on no one. A trigger that comes to a thread has its row there too: a one-time trigger with cancel, and a standing one with pause.</p>
+    <p class="cap" style="margin-top:44px">An agent is working while anything of its runs, a turn or a command it left in the background, and one lantern says both. An agent that only waits on another says so in words, and is idle only when it waits on no one. The row of the agents waited on opens to each wait, with a way to stop waiting that is kept apart from the names: that is how a person ends a wait on an agent that isn't running. A trigger that comes to a thread has its row there too: a one-time trigger with cancel, and a standing one with pause.</p>
     <div class="fit"><div class="fit-in">
       <div class="unit"><div class="phone frame" data-kind="phone" data-mode="dusk" data-route="" data-quiet="1"></div></div>
+      <div class="unit"><div class="crop frame" data-kind="crop" data-mode="dusk" data-route="agent:shrimpy/thread:sh-update" data-going="wait"></div></div>
       <div class="unit"><div class="crop frame" data-kind="crop" data-mode="dusk" data-route="agent:lighthouse/thread:lh-main"></div></div>
       <div class="unit"><div class="crop frame" data-kind="crop" data-mode="day" data-route="agent:pantry/thread:pa-week"></div></div>
     </div></div>
@@ -1156,15 +1167,15 @@ body:not([data-view="live"]) .live { display: none; }
         <h3 style="margin-top:18px">The 3.0 harness, drawn on 2026-11-26 from <code>BRANCH-PLAN.md</code>, and not built</h3>
         <ol start="31">
           <li><b>Every row of a list is a thread.</b> A trigger that wakes its agent comes to a thread, so the nightly snapshot is a thread of chat, and a trigger's own session is gone from observe. A trigger that only leaves a note comes to none.</li>
-          <li><b>Whatever wakes an agent with no message leaves a line in the thread:</b> a trigger that fired, as before, and here also a command in the background that ended and an agent that answered. The plan has only the trigger's line, and the other two need chat to keep them. Without them a reply that follows a command's end has nothing before it that says why the agent spoke, a turn that ends in END leaves no trace, and a thread keeps no link to where another agent did the work.</li>
-          <li><b>A line is not counted as new.</b> Chat counts a trigger's line today, so a nightly trigger with nothing to say would add one each night.</li>
-          <li><b>What is still going between turns is one block above the input,</b> a row for each kind: commands in the background, agents waited on, triggers. A command's row opens to its last output and to kill. A trigger has cancel or pause on its row while it is the only one, and several open as a list.</li>
+          <li><b>Whatever wakes an agent with no message leaves a line in the thread:</b> a trigger that fired, as before, and here also a command in the background that ended and an agent that answered. Without the two new ones a reply that follows a command's end has nothing before it that says why the agent spoke, a turn that ends in END leaves no trace, and a thread keeps no link to where another agent did the work. The plan took them up on 2026-11-26, so chat keeps all three.</li>
+          <li><b>A line is not counted as new,</b> which the plan has since 2026-11-26. Chat counts a trigger's line today, so a nightly trigger with nothing to say would add one each night.</li>
+          <li><b>What is still going between turns is one block above the input,</b> a row for each kind: commands in the background, agents waited on, triggers. A command's row opens to its last output and to kill, and open it is the whole command, so nothing under it says the command again. A trigger has cancel or pause on its row while it is the only one, and several open as a list.</li>
           <li><b>One lantern for whatever runs.</b> It is lit while a turn runs and while a command the agent left in the background does, on an agent, a thread, a room and the tide, and the row says working for both. A first drawing had a second, hollow mark for the command, and on 2026-11-26 you found three kinds of mark too many to tell apart. A row has the two it had, working and new to you, so the clock that drawing put on a thread a trigger comes to is gone too.</li>
           <li><b>An agent that only waits on another has no lantern,</b> since nothing runs there. Its row says "waiting on game" or "waiting on 2 agents" where it would say idle, and a thread's row says whom it waits on. A trigger lights nothing.</li>
-          <li><b>A name after "waiting on" opens the thread with that agent,</b> as the plan has it. That thread says who waits on it and from where, and its agent's view says that the agent that asked has no session there. Both need every wait listed for the whole agent, with the thread that waits, where the plan lists waits only on the session that waits. The words on an agent's row and on a thread's row need the same list.</li>
-          <li><b>An agent that isn't running says so where it is waited on.</b> Nothing ends such a wait: the plan gives a wait no time limit and nothing that drops one.</li>
-          <li><b>A thread you only read has a stop button while an agent works in it.</b> The plan stops another agent with <code>/stop</code> in its thread, which a person can't write in a DM between two agents. The button asks the agent, as <code>shrimpy sessions stop</code> does.</li>
-          <li><b><code>/stop</code> ends a turn and nothing else,</b> and a note says once what is still going. <code>/kill</code>, <code>/cancel</code>, <code>/pause</code> and <code>/resume</code> do what the buttons do, and are listed only while the thread has something for them. A killed command leaves its line. Pausing or cancelling a trigger leaves none and tells the agent nothing, which is yours to say.</li>
+          <li><b>A name after "waiting on" opens the thread with that agent,</b> as the plan has it. That thread says who waits on it and from where for as long as the wait is open, and no longer: only open waits are listed, and afterwards the line the answer left where it was asked keeps the link between the two threads. Its agent's view says that the agent that asked has no session there. The rows and this line read every open wait of an agent, with the thread that waits, which the plan lists on the agent since 2026-11-26.</li>
+          <li><b>An agent that isn't running says so where it is waited on,</b> and a wait has no time limit. So the row of the agents waited on opens to each wait, with a way to stop waiting, and <code>/drop</code> does the same. It is kept apart from the names, which open a thread, so that a wait isn't dropped by a slip. Dropping one leaves no line and tells the agent nothing, as cancelling and pausing a trigger do in the plan.</li>
+          <li><b>A thread you only read has a stop button while an agent works in it,</b> since a person can't write <code>/stop</code> in a DM between two agents. The button asks the agent, as <code>shrimpy sessions stop</code> does.</li>
+          <li><b><code>/stop</code> ends a turn and nothing else,</b> and a note says once what is still going. <code>/kill</code>, <code>/drop</code>, <code>/cancel</code>, <code>/pause</code> and <code>/resume</code> do what the buttons do, and are listed only while the thread has something for them. A killed command leaves its line. Pausing or cancelling a trigger leaves none and tells the agent nothing, as the plan decided on 2026-11-26.</li>
           <li><b>An agent's page lists its commands in the background above its triggers,</b> only while it has any. A standing trigger has the thread it comes to, a way to run it now and a switch, and the one-time ones are listed under them with cancel.</li>
           <li><b>A schedule is said as the commands say it,</b> such as <code>cron 0 3 * * *</code>, beside when it comes next. Nothing turns cron into words.</li>
         </ol>
@@ -1934,7 +1945,7 @@ const THREADS = {
     },
   },
   'sh-game-update': {
-    place: { kind: 'between', a: 'shrimpy', b: 'game' }, when: '16:20', asked: { by: 'shrimpy', from: 'sh-update', open: true },
+    place: { kind: 'between', a: 'shrimpy', b: 'game' }, when: '16:20', asker: 'shrimpy',
     messages: [
       { who: 'shrimpy', at: '16:20', html: `<p>Update Shrimpy to the latest release, and say when you are back up.</p>` },
     ],
@@ -1947,7 +1958,7 @@ const THREADS = {
     },
   },
   'sh-crab-update': {
-    place: { kind: 'between', a: 'shrimpy', b: 'crab' }, when: '16:20', asked: { by: 'shrimpy', from: 'sh-update', open: true },
+    place: { kind: 'between', a: 'shrimpy', b: 'crab' }, when: '16:20', asker: 'shrimpy',
     messages: [
       { who: 'shrimpy', at: '16:20', html: `<p>Update Shrimpy to the latest release, and say when you are back up.</p>` },
     ],
@@ -1972,7 +1983,7 @@ const THREADS = {
     },
   },
   'sh-game-roms': {
-    place: { kind: 'between', a: 'shrimpy', b: 'game' }, when: '10:09', archived: true, asked: { by: 'shrimpy', from: 'sh-roms', open: false },
+    place: { kind: 'between', a: 'shrimpy', b: 'game' }, when: '10:09', archived: true, asker: 'shrimpy',
     messages: [
       { who: 'shrimpy', at: '10:02', html: `<p>Fetch the latest ROMs from the file server and report what was synced.</p>` },
       { who: 'game', at: '10:09', html: `<p>Synced 12 new ROMs (4.8 GB) to <code>~/roms</code>.</p>` },
@@ -2202,6 +2213,7 @@ const ARCHIVE = 'Hide this thread from the lists.';
 const RENAME = 'Name this thread: /rename <name>';
 const UNARCHIVE = 'Bring this thread back to the lists.';
 const KILL = 'End a command this thread runs in the background.';
+const DROP = 'Stop waiting on an agent this thread waits on.';
 const CANCEL = 'Cancel a one-time trigger that comes to this thread.';
 const PAUSE = 'Pause a trigger that comes to this thread.';
 const RESUME = 'Start a paused trigger of this thread again.';
@@ -2209,6 +2221,7 @@ const COMMANDS = {
   archive: { dm: ARCHIVE, room: ARCHIVE },
   cancel: { dm: CANCEL, room: CANCEL },
   devices: { dm: 'List your devices, or take one back: /devices take back <device>', room: 'List your devices, or take one back: /devices take back <device>' },
+  drop: { dm: DROP, room: DROP },
   kill: { dm: KILL, room: KILL },
   model: { dm: 'Show the model of this thread, or try another one.', room: 'Try another model: name the agent first, as in @scout /model provider/id, or @all for every agent here.' },
   pause: { dm: PAUSE, room: PAUSE },
@@ -2220,7 +2233,7 @@ const COMMANDS = {
 };
 /**
  * The commands that can be written in a thread: archiving one that isn't archived, and bringing back one that is.
- * `has` says which of the commands that end, cancel, pause or start something have something there to act on.
+ * `has` says which of the commands that end, drop, cancel, pause or start something have something there to act on.
  */
 const commandsIn = (th, has = {}) => Object.keys(COMMANDS).filter((name) => name !== (th.archived ? 'archive' : 'unarchive') && has[name] !== false);
 
@@ -2276,7 +2289,7 @@ function mount(host, kind, mode, route, flags = {}) {
     mode, place: null, level: 1, tab: 'chat', thread: null,
     turned: false, watching: null, stale: Boolean(flags.stale), full: { tools: false, thinking: false },
     notice: null, status: null, slash: null, clock: 22, fresh: 0,
-    open: { proc: flags.going === 'proc', trig: flags.going === 'trig' }, tails: new Set(), work: null, file: null, dirs: new Set(),
+    open: { proc: flags.going === 'proc', trig: flags.going === 'trig', wait: flags.going === 'wait' }, tails: new Set(), work: null, file: null, dirs: new Set(),
     fold: Boolean(flags.fold), peek: flags.fold === 'peek',
     menu: Boolean(flags.menu), naming: null, arch: Boolean(flags.arch),
     tray: [], pick: false, view: null,
@@ -2374,6 +2387,8 @@ function mount(host, kind, mode, route, flags = {}) {
   const procsOf = (a) => Object.entries(db).flatMap(([id, th]) => (th.procs || []).filter((p) => p.agent === a).map((p) => ({ ...p, thread: id })));
   /** The agents an agent waits on, in any of its threads. */
   const awaitedBy = (a) => [...new Set(Object.values(db).flatMap((th) => (th.watches || []).filter((w) => w.agent === a).map((w) => w.on)))];
+  /** The waits on a thread: who waits for its answer, and from which thread. Only open waits are known, so this says nothing of one that is over. */
+  const waitsOn = (id) => Object.entries(db).flatMap(([from, th]) => (th.watches || []).filter((w) => w.thread === id).map((w) => ({ by: w.agent, on: w.on, from })));
   /** An agent's one-time triggers, the soonest first, each with the thread it comes to. */
   const oncesOf = (a) => Object.entries(db).flatMap(([id, th]) => (th.once || []).filter((o) => o.agent === a).map((o) => ({ ...o, thread: id }))).sort((x, y) => x.due - y.due);
   /** The triggers that come to a thread: the one-time ones set there, the soonest first, then the standing ones. */
@@ -2702,9 +2717,10 @@ function mount(host, kind, mode, route, flags = {}) {
   /** The session as one agent sees it: what a thread's script gives, or what can be read off its messages. */
   function sessionOf(th, a) {
     /* A thread an agent started to ask another has one session behind it, the other agent's: the answer wakes the session that asked. */
-    if (th.asked && th.asked.by === a) {
-      const from = db[th.asked.from];
-      return [{ kind: 'note', text: `${a} has no session behind this thread. It wrote here from ${placeFor(from, a)} · ${titleOf(from)}, and what ${agentsIn(th).find((x) => x !== a)} answers wakes it there.` }];
+    if (th.asker === a) {
+      const wait = waitsOn(s.thread).find((w) => w.by === a), from = wait ? db[wait.from] : null;
+      const text = from ? `It wrote here from ${placeFor(from, a)} · ${titleOf(from)}, and what ${agentsIn(th).find((x) => x !== a)} answers wakes it there.` : 'It wrote here from another thread.';
+      return [{ kind: 'note', text: `${a} has no session behind this thread. ${text}` }];
     }
     const given = th.session && th.session[a];
     const steps = given ? [...given] : [];
@@ -2783,18 +2799,27 @@ function mount(host, kind, mode, route, flags = {}) {
     let rows = '';
     const procs = th.procs || [];
     if (procs.length) {
-      rows += `<button class="srow" data-go="open:proc" aria-expanded="${s.open.proc}" title="Its last output, and a way to end it"><span class="mk"><i class="lamp"></i></span>
-        <span class="what"><code>$ ${esc(procs[0].command)}</code></span><span class="age">running ${procs[0].since}</span>${procs.length > 1 ? `<span class="more">${procs.length - 1} more</span>` : ''}${icon('fold')}</button>`;
-      if (s.open.proc) rows += `<ul class="sbody">${procs.map((p) => `<li><p class="cmd">$ ${esc(p.command)}</p><pre>${esc(p.out.join('\n'))}</pre>
+      /* Open, a lone command's row is the whole command, so nothing under it says it again. Several are counted, and each is named with its output. */
+      const open = s.open.proc, lone = procs.length === 1;
+      const head = open && !lone ? `${count(procs.length, 'command')} in the background` : `<code>$ ${esc(procs[0].command)}</code>`;
+      const tail = open ? '' : `<span class="age">running ${procs[0].since}</span>${lone ? '' : `<span class="more">${procs.length - 1} more</span>`}`;
+      rows += `<button class="srow${open && lone ? ' whole' : ''}" data-go="open:proc" aria-expanded="${open}" title="Its last output, and a way to end it"><span class="mk"><i class="lamp"></i></span>
+        <span class="what">${head}</span>${tail}${icon('fold')}</button>`;
+      if (open) rows += `<ul class="sbody">${procs.map((p) => `<li>${lone ? '' : `<p class="cmd">$ ${esc(p.command)}</p>`}<pre>${esc(p.out.join('\n'))}</pre>
         <p class="foot"><span>${whose(p.agent)}${p.id}<span class="dot">·</span>started ${p.started}<span class="dot">·</span>running ${p.since}</span><button class="act end" data-go="kill:${p.id}">kill</button></p></li>`).join('')}</ul>`;
     }
-    /* A name opens the thread with that agent, in the list of the agent that waits. One that isn't running says so, since nothing ends the wait. */
+    /*
+     * A name opens the thread with that agent, in the list of the agent that waits. The row opens to each wait and a way
+     * to drop it, apart from the names, so a wait isn't dropped by a slip. That is how one on an agent that isn't running ends.
+     */
     for (const by of [...new Set((th.watches || []).map((w) => w.agent))]) {
-      const on = th.watches.filter((w) => w.agent === by).map((w) => {
-        const up = AGENTS[w.on].running;
-        return `<button class="on ${pg(w.on)}" data-go="jump:${by}/${w.thread}" title="Open ${nameOf(by)}'s thread with ${nameOf(w.on)}">${sigil(w.on, 's12')}${nameOf(w.on)}</button><span class="age${up ? '' : ' down'}">${w.since}${up ? '' : ' · not running'}</span>`;
-      }).join('');
-      rows += `<div class="srow wrap"><span class="mk">${icon('wait')}</span><span class="what">${many ? `${nameOf(by)} is ` : ''}waiting on${on}</span></div>`;
+      const mine = th.watches.filter((w) => w.agent === by), open = s.open.wait;
+      const down = (w) => !AGENTS[w.on].running;
+      const name = (w) => `<button class="on ${pg(w.on)}" data-go="jump:${by}/${w.thread}" title="Open ${nameOf(by)}'s thread with ${nameOf(w.on)}">${sigil(w.on, 's12')}${nameOf(w.on)}</button>`;
+      const pair = (w) => `<span class="pair">${name(w)}<span class="age${down(w) ? ' down' : ''}">${w.since}${down(w) ? ' · not running' : ''}</span></span>`;
+      rows += `<div class="srow wrap"><span class="mk">${icon('wait')}</span><span class="what">${many ? `${nameOf(by)} is ` : ''}waiting on${open ? '' : mine.map(pair).join(' ')}</span>
+        <button class="unfold" data-go="open:wait" aria-expanded="${open}" title="Each wait, and a way to drop it" aria-label="Each wait, and a way to drop it">${icon('fold')}</button></div>`;
+      if (open) rows += `<ul class="sbody tight">${mine.map((w) => `<li class="titem cw"><span class="who">${pair(w)}</span><button class="act" data-go="drop:${id}/${by}/${w.on}" title="Stop waiting on ${nameOf(w.on)}">stop waiting</button></li>`).join('')}</ul>`;
     }
     const trig = triggersOn(id);
     if (trig.length) {
@@ -2806,11 +2831,11 @@ function mount(host, kind, mode, route, flags = {}) {
         if (s.open.trig) rows += `<ul class="sbody tight">${trig.map((t) => `<li class="titem ${many ? 'c4' : 'c3'} ${pg(t.agent)}"><time>${t.once ? t.when : t.on ? `next ${t.when}` : 'paused'}</time>${many ? `<b>${nameOf(t.agent)}</b>` : ''}<span class="say">${t.once ? esc(t.say) : `trigger ${t.name} · ${t.say}`}</span>${act(t)}</li>`).join('')}</ul>`;
       }
     }
-    /* A thread an agent started to ask another says who asked, and from where. */
-    if (th.asked) {
-      const from = db[th.asked.from], by = th.asked.by;
-      rows += `<div class="srow wrap ${pg(by)}"><span class="mk">${icon(th.asked.open ? 'wait' : 'done')}</span><span class="what"><b class="on">${sigil(by, 's12')}${nameOf(by)}</b>${th.asked.open ? 'waits on this from' : 'asked this from'}
-        <button class="lk to" data-go="jump:${by}/${th.asked.from}" title="Open the thread it asked from">${esc(placeFor(from, by))}<span class="dot">·</span>${esc(titleOf(from))}</button></span></div>`;
+    /* While an agent waits on this thread it says who, and from where. Afterwards the line the answer left where it was asked keeps the link. */
+    for (const w of waitsOn(id)) {
+      const from = db[w.from];
+      rows += `<div class="srow wrap ${pg(w.by)}"><span class="mk">${icon('wait')}</span><span class="what"><b class="on">${sigil(w.by, 's12')}${nameOf(w.by)}</b>waits on this from
+        <button class="lk to" data-go="jump:${w.by}/${w.from}" title="Open the thread it asked from">${esc(placeFor(from, w.by))}<span class="dot">·</span>${esc(titleOf(from))}</button></span></div>`;
     }
     return rows ? `<section class="still stepbox" aria-label="Still going in this thread">${rows}</section>` : '';
   }
@@ -2854,7 +2879,7 @@ function mount(host, kind, mode, route, flags = {}) {
     if (!th) return '';
     const all = agentsIn(th);
     /* The view opens on the agent the list is of, but for a thread that agent started to ask another, which has only the other's session behind it. */
-    const asked = th.asked ? all.find((x) => x !== th.asked.by) : null;
+    const asked = th.asker ? all.find((x) => x !== th.asker) : null;
     const a = all.includes(s.watching) ? s.watching : asked || (s.place && s.place.kind === 'agent' && all.includes(s.place.id) ? s.place.id : workingIn(th)[0] || all[0]);
     const A = AGENTS[a];
     const where = `${placeFor(th, a)} · ${esc(titleOf(th))}`;
@@ -3070,16 +3095,16 @@ function mount(host, kind, mode, route, flags = {}) {
     th.archived = false;
   }
 
-  /** The commands that can be written in the open thread, with those that end, cancel, pause or start something only while it has something for them. */
+  /** The commands that can be written in the open thread, with those that end, drop, cancel, pause or start something only while it has something for them. */
   const cmds = (th) => {
     const trig = triggersOn(s.thread);
-    return commandsIn(th, { kill: Boolean((th.procs || []).length), cancel: trig.some((t) => t.once), pause: trig.some((t) => !t.once && t.on), resume: trig.some((t) => !t.once && !t.on) });
+    return commandsIn(th, { kill: Boolean((th.procs || []).length), drop: Boolean((th.watches || []).length), cancel: trig.some((t) => t.once), pause: trig.some((t) => !t.once && t.on), resume: trig.some((t) => !t.once && !t.on) });
   };
 
   /** Opens a thread from the list of an agent that takes part in it, on the tab that holds it, with the archived ones open if it is one. */
   function openFrom(a, id) {
     s.place = { kind: 'agent', id: a };
-    s.thread = id; s.file = null; s.level = 3; s.peek = false; s.notice = s.status = null; s.open = { proc: false, trig: false };
+    s.thread = id; s.file = null; s.level = 3; s.peek = false; s.notice = s.status = null; s.open = { proc: false, trig: false, wait: false };
     s.tab = lists[a].yours.includes(id) ? 'chat' : 'observe';
     if (db[id].archived) s.arch = true;
     if (db[id].unread) db[id].unread = 0;
@@ -3109,18 +3134,18 @@ function mount(host, kind, mode, route, flags = {}) {
     wake(th, [a]);
   }
 
-  /** Stops the turns in the open thread, from where no command can be written. An agent that was asked something there is no longer waited on. */
+  /** Stops the turns in the open thread, from where no command can be written. A wait on an agent that is stopped is over, and the thread that waited gets the line an answer would have left. */
   function halt() {
     const th = thread();
     for (const a of workingIn(th)) {
       delete th.work[a];
       const asked = th.messages.findLast((m) => m.who && m.who !== a);
       if (asked) (asked.receipts ||= []).push({ text: `${nameOf(a)} stopped before answering` });
-      if (!th.asked || !th.asked.open) continue;
-      const from = db[th.asked.from];
-      from.watches = (from.watches || []).filter((w) => w.thread !== s.thread);
-      from.messages.push({ wake: 'answer', agent: th.asked.by, from: a, thread: s.thread, how: 'stopped', at: clock() });
-      th.asked.open = false;
+      for (const w of waitsOn(s.thread).filter((x) => x.on === a)) {
+        const from = db[w.from];
+        from.watches = from.watches.filter((x) => !(x.thread === s.thread && x.on === a));
+        from.messages.push({ wake: 'answer', agent: w.by, from: a, thread: s.thread, how: 'stopped', at: clock() });
+      }
     }
   }
 
@@ -3145,12 +3170,19 @@ function mount(host, kind, mode, route, flags = {}) {
       else th.archived = hide;
       return true;
     }
-    /* Ending a command, and cancelling, pausing and starting a trigger, are asked of the agent, as a button asks it. Nothing is posted. */
+    /* Ending a command, dropping a wait, and cancelling, pausing and starting a trigger, are asked of the agent, as a button asks it. Nothing is posted. */
     if (name === 'kill') {
       const procs = th.procs || [], p = words ? procs.find((x) => x.id === words) : procs[0];
       if (!procs.length) s.notice = 'This thread runs no command in the background.';
       else if (!p || (!words && procs.length > 1)) s.notice = `This thread runs ${procs.length} commands in the background: ${listed(procs.map((x) => x.id))}. Write /kill and one of them.`;
       else kill(p.id);
+      return true;
+    }
+    if (name === 'drop') {
+      const names = [...new Set((th.watches || []).map((w) => w.on))], on = words ? names.find((x) => x === words.replace(/^@/, '')) : names[0];
+      if (!names.length) s.notice = 'This thread waits on no one.';
+      else if (!on || (!words && names.length > 1)) s.notice = `This thread waits on ${count(names.length, 'agent')}: ${listed(names)}. Write /drop and one of them.`;
+      else th.watches = th.watches.filter((w) => w.on !== on);
       return true;
     }
     if (name === 'cancel' || name === 'pause' || name === 'resume') {
@@ -3275,7 +3307,7 @@ function mount(host, kind, mode, route, flags = {}) {
     else if (k === 'rename') { if (yoursToName(thread())) s.naming = { value: thread().title ?? '' }; }
     else if (k === 'archive') { if (yoursToName(thread())) thread().archived = !thread().archived; }
     else if (k === 'arch') s.arch = !s.arch;
-    else if (k === 'thread') { s.thread = v; s.file = null; s.level = 3; s.open = { proc: false, trig: false }; s.peek = false; s.notice = s.status = null; if (db[v].unread) db[v].unread = 0; }
+    else if (k === 'thread') { s.thread = v; s.file = null; s.level = 3; s.open = { proc: false, trig: false, wait: false }; s.peek = false; s.notice = s.status = null; if (db[v].unread) db[v].unread = 0; }
     else if (k === 'page') { s.thread = s.file = null; s.level = 3; s.turned = false; s.notice = s.status = null; s.peek = false; }
     else if (k === 'file') { s.file = v; s.thread = null; s.level = 3; s.turned = false; s.notice = s.status = null; s.peek = false; }
     else if (k === 'dir') { if (!s.dirs.delete(v)) s.dirs.add(v); }
@@ -3283,6 +3315,7 @@ function mount(host, kind, mode, route, flags = {}) {
     else if (k === 'tail') { if (!s.tails.delete(v)) s.tails.add(v); }
     else if (k === 'jump') openFrom(...v.split('/'));
     else if (k === 'kill') kill(v);
+    else if (k === 'drop') { const [id, by, on] = v.split('/'); db[id].watches = db[id].watches.filter((w) => !(w.agent === by && w.on === on)); }
     else if (k === 'fire') fire(...v.split('/'));
     else if (k === 'halt') halt();
     else if (k === 'switch') { const [a, name] = v.split('/'); const t = triggers[a].find((x) => x.name === name); t.on = !t.on; }

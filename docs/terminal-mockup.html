@@ -157,7 +157,7 @@ html[data-view="live"] body { overflow: hidden; }
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route="agent:scout/thread:sc-door" data-full="1"></div></div>
       <div class="unit"><div class="win term" data-cols="80" data-rows="24" data-mode="dusk" data-route="agent:shrimpy/thread:sh-update"></div></div>
     </div>
-    <p class="cap">The thread with the agent that was asked is under observe. It says who waits on it and from where, and a click on either line goes to the other thread. Where no command can be written, the line under the work names the shell's command that stops a turn.</p>
+    <p class="cap">The thread with the agent that was asked is under observe. It says who waits on it and from where, for as long as the wait is open, and a click on either line goes to the other thread. Where no command can be written, the line under the work names the shell's command that stops a turn.</p>
     <div class="fit">
       <div class="unit"><div class="win term" data-cols="112" data-rows="30" data-mode="day" data-route="agent:shrimpy/thread:sh-game-update" data-level="2"></div></div>
     </div>
@@ -353,12 +353,13 @@ html[data-view="live"] body { overflow: hidden; }
         </ul>
         <h3 style="margin-top:18px">The 3.0 harness, drawn on 2026-11-26 from <code>BRANCH-PLAN.md</code>, and not built</h3>
         <ul>
-          <li><b>Every row of a list is a thread,</b> as in the <a href="web-client-mockup.html">web mockup</a>, whose notes say what the plan lacks for what is drawn in both. A trigger that wakes its agent comes to a thread, so a trigger's own session is gone from observe.</li>
-          <li><b>What is still going between turns is a line for each kind above the input:</b> <code>▪</code> a command in the background, <code>○</code> the agents waited on, <code>◷</code> the soonest trigger. Each ends with the command that acts on it: <code>/kill</code>, <code>/cancel</code>, <code>/pause</code> or <code>/resume</code>, which are listed only while the thread has something for them. Several of a kind are the first and a count, and <code>/status</code> lists them all.</li>
+          <li><b>Every row of a list is a thread,</b> as in the <a href="web-client-mockup.html">web mockup</a>, whose notes say what was chosen for what is drawn in both. A trigger that wakes its agent comes to a thread, so a trigger's own session is gone from observe.</li>
+          <li><b>What is still going between turns is a line for each kind above the input:</b> <code>▪</code> a command in the background, <code>○</code> the agents waited on, <code>◷</code> the soonest trigger. Each ends with the command that acts on it: <code>/kill</code>, <code>/cancel</code>, <code>/pause</code> or <code>/resume</code>, and <code>/drop</code> for an agent that isn't running. All five are listed only while the thread has something for them. Several of a kind are the first and a count, and <code>/status</code> lists them all.</li>
           <li><b>Ctrl+O opens a command's last output,</b> under its line and on the agent's page, and what a line in the thread brought. Until now a trigger's line always showed what it brought, which a thread of little but such lines can't.</li>
           <li><b>One mark, <code>▪</code>, for whatever runs:</b> a turn, or a command the agent left in the background, and the row says working for both. A tool call that runs has it too, where it had <code>●</code>, as the web mockup has one lantern for both. An agent that only waits on another has none, and its row says whom it waits on. A row has no clock for a trigger. The web mockup's notes say why.</li>
           <li><b>Whatever wakes an agent leaves a line,</b> and lines that follow each other stand together, as a log does.</li>
-          <li><b>A click on "waiting on" opens the thread with that agent, and a click on the line there goes back.</b> No key does either, since the lists reach both threads.</li>
+          <li><b>A click on "waiting on" opens the thread with that agent, and a click on the line there goes back.</b> No key does either, since the lists reach both threads. That thread says who waits on it only while the wait is open, since only open waits are listed.</li>
+          <li><b><code>/drop</code> stops waiting on an agent,</b> and nothing a click can reach does, so a wait isn't dropped by a slip. The line names it for an agent that isn't running, whose wait ends no other way. It leaves no line and tells the agent nothing, as cancelling and pausing a trigger do in the plan.</li>
           <li><b>A thread you only read names the shell's command that stops a turn,</b> <code>shrimpy sessions stop</code>, where the web mockup has a button.</li>
           <li><b>On an agent's page → on a command in the background or a trigger opens its thread,</b> and on a trigger that only leaves a note, the note. Nothing on the page ends a command or turns a trigger off: its thread's commands do, and for a trigger with no thread, <code>shrimpy triggers off</code> in a shell.</li>
           <li><b><code>/stop</code> ends a turn and nothing else,</b> and a note says once what is still going.</li>
@@ -1192,7 +1193,7 @@ const THREADS = {
     },
   },
   'sh-game-update': {
-    place: { kind: 'between', a: 'shrimpy', b: 'game' }, when: '16:20', asked: { by: 'shrimpy', from: 'sh-update', open: true },
+    place: { kind: 'between', a: 'shrimpy', b: 'game' }, when: '16:20', asker: 'shrimpy',
     messages: [
       { who: 'shrimpy', at: '16:20', html: `<p>Update Shrimpy to the latest release, and say when you are back up.</p>` },
     ],
@@ -1205,7 +1206,7 @@ const THREADS = {
     },
   },
   'sh-crab-update': {
-    place: { kind: 'between', a: 'shrimpy', b: 'crab' }, when: '16:20', asked: { by: 'shrimpy', from: 'sh-update', open: true },
+    place: { kind: 'between', a: 'shrimpy', b: 'crab' }, when: '16:20', asker: 'shrimpy',
     messages: [
       { who: 'shrimpy', at: '16:20', html: `<p>Update Shrimpy to the latest release, and say when you are back up.</p>` },
     ],
@@ -1230,7 +1231,7 @@ const THREADS = {
     },
   },
   'sh-game-roms': {
-    place: { kind: 'between', a: 'shrimpy', b: 'game' }, when: '10:09', archived: true, asked: { by: 'shrimpy', from: 'sh-roms', open: false },
+    place: { kind: 'between', a: 'shrimpy', b: 'game' }, when: '10:09', archived: true, asker: 'shrimpy',
     messages: [
       { who: 'shrimpy', at: '10:02', html: `<p>Fetch the latest ROMs from the file server and report what was synced.</p>` },
       { who: 'game', at: '10:09', html: `<p>Synced 12 new ROMs (4.8 GB) to <code>~/roms</code>.</p>` },
@@ -1416,6 +1417,7 @@ const ARCHIVE = 'Hide this thread from the lists.';
 const RENAME = 'Name this thread: /rename <name>';
 const UNARCHIVE = 'Bring this thread back to the lists.';
 const KILL = 'End a command this thread runs in the background.';
+const DROP = 'Stop waiting on an agent this thread waits on.';
 const CANCEL = 'Cancel a one-time trigger that comes to this thread.';
 const PAUSE = 'Pause a trigger that comes to this thread.';
 const RESUME = 'Start a paused trigger of this thread again.';
@@ -1424,6 +1426,7 @@ const COMMANDS = {
   archive: { dm: ARCHIVE, room: ARCHIVE },
   cancel: { dm: CANCEL, room: CANCEL },
   devices: { dm: 'List your devices, or take one back: /devices take back <device>', room: 'List your devices, or take one back: /devices take back <device>' },
+  drop: { dm: DROP, room: DROP },
   kill: { dm: KILL, room: KILL },
   model: { dm: 'Show the model of this thread, or try another one.', room: 'Try another model: name the agent first, as in @scout /model provider/id, or @all for every agent here.' },
   pause: { dm: PAUSE, room: PAUSE },
@@ -1634,6 +1637,8 @@ function term(win, o) {
   const procsOf = (a) => Object.entries(db).flatMap(([id, th]) => (th.procs || []).filter((p) => p.agent === a).map((p) => ({ ...p, thread: id })));
   /** The agents an agent waits on, in any of its threads. */
   const awaitedBy = (a) => [...new Set(Object.values(db).flatMap((th) => (th.watches || []).filter((w) => w.agent === a).map((w) => w.on)))];
+  /** The waits on a thread: who waits for its answer, and from which thread. Only open waits are known, so this says nothing of one that is over. */
+  const waitsOn = (id) => Object.entries(db).flatMap(([from, th]) => (th.watches || []).filter((w) => w.thread === id).map((w) => ({ by: w.agent, on: w.on, from })));
   /** An agent's one-time triggers, the soonest first, each with the thread it comes to. */
   const oncesOf = (a) => Object.entries(db).flatMap(([id, th]) => (th.once || []).filter((o) => o.agent === a).map((o) => ({ ...o, thread: id }))).sort((x, y) => x.due - y.due);
   /** The triggers that come to a thread: the one-time ones set there, the soonest first, then the standing ones. */
@@ -1680,7 +1685,7 @@ function term(win, o) {
   const viewers = (th) => {
     const all = agentsIn(th);
     /* A thread an agent started to ask another has only the other's session behind it. */
-    const from = th.asked ? all.find((a) => a !== th.asked.by) : s.place && s.place.kind === 'agent' ? s.place.id : null;
+    const from = th.asker ? all.find((a) => a !== th.asker) : s.place && s.place.kind === 'agent' ? s.place.id : null;
     return all.includes(from) ? [from, ...all.filter((a) => a !== from)] : all;
   };
   const canWrite = (th) => Boolean(th) && youAreIn(th) && !s.stale;
@@ -1725,7 +1730,7 @@ function term(win, o) {
   /** The commands that can be written in the open thread, with those that end, cancel, pause or start something only while it has something for them. */
   const cmds = (th) => {
     const trig = triggersOn(s.thread);
-    return commandsIn(th, { kill: Boolean((th.procs || []).length), cancel: trig.some((t) => t.once), pause: trig.some((t) => !t.once && t.on), resume: trig.some((t) => !t.once && !t.on) });
+    return commandsIn(th, { kill: Boolean((th.procs || []).length), drop: Boolean((th.watches || []).length), cancel: trig.some((t) => t.once), pause: trig.some((t) => !t.once && t.on), resume: trig.some((t) => !t.once && !t.on) });
   };
   seat();
   if (o.level) s.level = Number(o.level);
@@ -2023,9 +2028,10 @@ function term(win, o) {
   /** The session behind a thread as agent `a` sees it. Where the made-up data has none, it is made from the thread. */
   function sessionOf(th, a) {
     /* A thread an agent started to ask another has one session behind it, the other agent's: the answer wakes the session that asked. */
-    if (th.asked && th.asked.by === a) {
-      const from = db[th.asked.from];
-      return [{ kind: 'note', text: `${a} has no session behind this thread. It wrote here from ${placeFor(from, a)} · ${titleOf(from)}, and what ${agentsIn(th).find((x) => x !== a)} answers wakes it there.` }];
+    if (th.asker === a) {
+      const wait = waitsOn(s.thread).find((w) => w.by === a), from = wait ? db[wait.from] : null;
+      const text = from ? `It wrote here from ${placeFor(from, a)} · ${titleOf(from)}, and what ${agentsIn(th).find((x) => x !== a)} answers wakes it there.` : 'It wrote here from another thread.';
+      return [{ kind: 'note', text: `${a} has no session behind this thread. ${text}` }];
     }
     const given = th.session && th.session[a];
     const out = given ? [...given] : [];
@@ -2085,11 +2091,14 @@ function term(win, o) {
       out.push({ s: [['▪ ', { f: lamp() }], [`${whose(p.agent)}$ ${p.command}`, INK2]], one: true, right: procs.length > 1 ? rest(procs.length - 1) : [[`running ${p.since}`, DIM], ...(can ? [[' · ', DIM], ['/kill', INK2]] : [])] });
       if (s.full.tools) for (const ln of p.out.slice(-4)) out.push({ s: [['  ▏ ', { f: 'line2' }], [ln, DIM]], one: true });
     }
-    /* A click opens the thread with the agent that is waited on. One that isn't running says so, since nothing ends the wait. */
+    /*
+     * A click opens the thread with the agent that is waited on. A wait is dropped with a command and never with a click,
+     * and the line names the command for an agent that isn't running, since that is how such a wait ends.
+     */
     for (const by of [...new Set((th.watches || []).map((w) => w.agent))]) {
-      const mine = th.watches.filter((w) => w.agent === by);
+      const mine = th.watches.filter((w) => w.agent === by), stuck = mine.find((w) => !AGENTS[w.on].running);
       const on = mine.flatMap((w, i) => [...(i ? [[' · ', DIM]] : []), [nameOf(w.on), { f: pig(w.on), b: 1 }], [` ${w.since}`, DIM], ...(AGENTS[w.on].running ? [] : [[', not running', SAND]])]);
-      out.push({ s: [['○ ', DIM], [`${many ? `${nameOf(by)} is ` : ''}waiting on `, DIM], ...on], one: true, go: `jump:${by}/${mine[0].thread}` });
+      out.push({ s: [['○ ', DIM], [`${many ? `${nameOf(by)} is ` : ''}waiting on `, DIM], ...on], one: true, right: can && stuck ? [[`/drop ${stuck.on}`, INK2]] : null, go: `jump:${by}/${mine[0].thread}` });
     }
     const trig = triggersOn(s.thread);
     if (trig.length) {
@@ -2097,10 +2106,10 @@ function term(win, o) {
       const said = t.once ? `once at ${t.when}: ${t.say}` : `trigger ${t.name} · ${t.say} · ${t.on ? `next ${t.when}` : 'paused'}`;
       out.push({ s: [['◷ ', DIM], [`${whose(t.agent)}${said}`, DIM]], one: true, right: trig.length > 1 ? rest(trig.length - 1) : can ? [[t.once ? '/cancel' : t.on ? '/pause' : '/resume', INK2]] : null });
     }
-    /* A thread an agent started to ask another says who asked, and from where. */
-    if (th.asked) {
-      const from = db[th.asked.from], by = th.asked.by;
-      out.push({ s: [[th.asked.open ? '○ ' : '✓ ', DIM], [nameOf(by), { f: pig(by), b: 1 }], [th.asked.open ? ' waits on this from ' : ' asked this from ', DIM], [`${placeFor(from, by)} · ${titleOf(from)}`, { f: 'ink2', u: 1 }]], one: true, go: `jump:${by}/${th.asked.from}` });
+    /* While an agent waits on this thread it says who, and from where. Afterwards the line the answer left where it was asked keeps the link. */
+    for (const w of waitsOn(s.thread)) {
+      const from = db[w.from];
+      out.push({ s: [['○ ', DIM], [nameOf(w.by), { f: pig(w.by), b: 1 }], [' waits on this from ', DIM], [`${placeFor(from, w.by)} · ${titleOf(from)}`, { f: 'ink2', u: 1 }]], one: true, go: `jump:${w.by}/${w.from}` });
     }
     return out;
   }
@@ -2462,12 +2471,17 @@ function term(win, o) {
       const trig = triggersOn(s.thread).length;
       const left = [(th.procs || []).length ? `${count(th.procs.length, 'process')}, which /kill ends` : '', (th.watches || []).length ? `waiting on ${listed([...new Set(th.watches.map((w) => w.on))])}` : '', trig ? count(trig, 'trigger') : ''].filter(Boolean);
       if (left.length) s.notice = `${stopped.length ? '/stop ended the turn, and nothing else' : 'No turn is running here, and /stop ends nothing else'}. Still going here: ${listed(left)}.`;
-    /* Ending a command, and cancelling, pausing and starting a trigger, are asked of the agent. Nothing is posted. */
+    /* Ending a command, dropping a wait, and cancelling, pausing and starting a trigger, are asked of the agent. Nothing is posted. */
     } else if (name === 'kill') {
       const procs = th.procs || [], p = rest[0] ? procs.find((x) => x.id === rest[0]) : procs[0];
       if (!procs.length) s.notice = 'This thread runs no command in the background.';
       else if (!p || (!rest[0] && procs.length > 1)) s.notice = `This thread runs ${procs.length} commands in the background: ${listed(procs.map((x) => x.id))}. Write /kill and one of them.`;
       else kill(p.id);
+    } else if (name === 'drop') {
+      const names = [...new Set((th.watches || []).map((w) => w.on))], asked = (rest[0] || '').replace(/^@/, ''), on = asked ? names.find((x) => x === asked) : names[0];
+      if (!names.length) s.notice = 'This thread waits on no one.';
+      else if (!on || (!asked && names.length > 1)) s.notice = `This thread waits on ${count(names.length, 'agent')}: ${listed(names)}. Write /drop and one of them.`;
+      else th.watches = th.watches.filter((w) => w.on !== on);
     } else if (name === 'cancel' || name === 'pause' || name === 'resume') {
       const fits = { cancel: (t) => t.once, pause: (t) => !t.once && t.on, resume: (t) => !t.once && !t.on }[name];
       const called = (t) => (t.once ? t.when : t.name), asked = rest.join(' ');
