@@ -65,7 +65,7 @@ Programs of one major link, and an agent on another machine may run an older rel
 - Inside `agent/`, imports point one way through tiers: `inputs`, `home`, `access`; `links`, `host`, `records`; `turns`; `watches`; `processes`, `triggers`, `chat`; `sessions`, `chat-tools`, `context`. What two modules of one tier both need belongs in an earlier tier, and a new module is refused until it has one. A new source of input gets a module of its own, and calls `openSession` from `records/` and `takeUp` from `turns/` inside its own commit.
 - Shared code stays plumbing: a `lib/` module must be deletable by inlining it into its callers.
 - Tests sit beside the code as `*.test.ts`. Test support lives in a `testing/` module that only tests import.
-- From 1.0.0, the names of the agent's tasks, documents, extensions and tools, their versions, the shape of a stored input and the form of a request ID change only with a migration and a new version of the agent's storage. Otherwise a home loses its sessions.
+- From 1.0.0, the names of the agent's tasks, documents, extensions and tools, their versions, the shape of a stored input and the form of a request ID change within a major only with a migration and a new version of the agent's storage. Otherwise a home loses its sessions.
 
 ## Where the words are
 

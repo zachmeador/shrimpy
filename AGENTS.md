@@ -52,7 +52,7 @@ When you're done, read the text once as its reader and cut whatever slows them d
 
 ## No legacy support
 
-Do not add backward-compatibility or migration code unless the user asks for it. The one standing ask: from 1.0.0, the chat store, the roster and each agent's storage migrate forward when their program starts, after a copy is set aside, through `src/lib/migration/`. Until then, a setup in use is converted by hand.
+Do not add backward-compatibility or migration code unless the user asks for it. The one standing ask: from 1.0.0, the chat store, the roster and each agent's storage migrate forward when their program starts, after a copy is set aside, through `src/lib/migration/`. A major release may leave converting a setup to the agent that updates it, as 3.0 does, and its changelog says what that agent has to do. Before 1.0.0, a setup in use is converted by hand.
 
 - **Never** add a legacy support path by default.
 - **Never** leave dead code, deprecated command shims, compatibility wrappers or error-only placeholder modules behind after replacing behavior. Remove the old path entirely.

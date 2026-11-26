@@ -5,7 +5,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 ## Unreleased
 
 - 3.0 doesn't link with 2.0: update the gateway's machine first, and agents on other machines that run from an install update themselves to its version.
-- Every agent session sits behind a thread. Waking triggers now require `thread:` (only `then: note` breadcrumb checks omit it), and legacy waking trigger files without one are left out until given a thread.
+- Every agent session sits behind a thread, so every waking trigger file needs a `thread:` (a `then: note` check goes without). Add one when updating: a file without keeps running on its last valid definition and fails every time.
 - Agents now run with 8 tools: `read`, `write`, `edit`, `bash` (with optional `background: true`), `process`, `post`, `thread`, and `trigger`.
 - Posting to another agent's DM watches for their reply automatically and wakes the calling thread when they settle.
 - Background commands, triggers, and agent answers leave non-unread wake lines in the thread. Running background commands, open watches, and upcoming triggers appear in one block above the input and on the agent's page.
