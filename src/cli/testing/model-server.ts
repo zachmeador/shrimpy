@@ -29,7 +29,7 @@ export interface ModelServer {
  * - "slow": stream words for ten seconds, until the client hangs up
  * - "a moment": stream words for a second, then end the answer
  * - "refuse": answer with an HTTP 400 error
- * - "check back": call the check_back tool to be woken in an hour, then say so
+ * - "check back": call the trigger tool to be woken in an hour, then say so
  * - "count to thirty": call the bash tool to echo step-01 to step-30, one call to an answer, then say it counted
  * - anything else: say hello
  *
