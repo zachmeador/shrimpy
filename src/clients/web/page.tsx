@@ -247,16 +247,16 @@ export function PageView({ state, page, opened, startable, small, reached, retry
     .join("\n");
   useEffect(() => {
     if (page.off || openTailKey === "") return;
-    for (const id of openTailKey.split("\n")) state.readProcessOutput(page.agent, id);
-  }, [state, page.agent, page.off, reached, openTailKey]);
+    const stops = openTailKey.split("\n").map((id) => state.followProcessOutput(page.agent, id));
+    return () => {
+      for (const stop of stops) stop();
+    };
+  }, [state, page.agent, page.off, openTailKey]);
 
   const toggleOutput = (procId: string): void => {
     setOpenTails((before) => {
       const next = new Set(before);
-      if (!next.delete(procId)) {
-        next.add(procId);
-        state.readProcessOutput(page.agent, procId);
-      }
+      if (!next.delete(procId)) next.add(procId);
       return next;
     });
   };

@@ -432,7 +432,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
   // The agent, whether it was reached and the triggers the page on show was read for, so that it is read again when it next comes on show, the agent is reached, or a trigger comes or goes.
   let pageRead: string | undefined;
   // Background processes whose output tail has already been requested while currently visible with tool calls in full.
-  const fetchedOutputs = new Set<string>();
+  const followedOutputs = new Map<string, () => void>();
 
   function update(): void {
     const model = state.model();
@@ -503,12 +503,14 @@ export function startDrawing(options: DrawingOptions): Drawing {
             : []
         : [];
     const wantedOutputs = new Set(visibleProcs.map((proc) => processOutputKey(proc.agent, proc.id)));
-    for (const key of fetchedOutputs) if (!wantedOutputs.has(key)) fetchedOutputs.delete(key);
+    for (const [key, stop] of followedOutputs) {
+      if (wantedOutputs.has(key)) continue;
+      stop();
+      followedOutputs.delete(key);
+    }
     for (const proc of visibleProcs) {
       const key = processOutputKey(proc.agent, proc.id);
-      if (fetchedOutputs.has(key)) continue;
-      fetchedOutputs.add(key);
-      state.readProcessOutput(proc.agent, proc.id);
+      if (!followedOutputs.has(key)) followedOutputs.set(key, state.followProcessOutput(proc.agent, proc.id));
     }
 
     // The person is looking at a thread while it is on show, whichever view of it is.

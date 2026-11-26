@@ -117,8 +117,8 @@ export interface ClientState {
   readFile(path: string): void;
   /** Read again what the page of the agent whose list is open shows of its home. */
   readPage(folders: Iterable<string>): void;
-  /** Fetch the output tail of a running background command into `model.processOutputs`. */
-  readProcessOutput(agentId: string, procId: string, lines?: number): void;
+  /** Keep the output tail of a running background command in `model.processOutputs`, read again every couple of seconds, until the returned function is called. */
+  followProcessOutput(agentId: string, procId: string): () => void;
   /** Kill a running background command of `agentId`. */
   killProcess(agentId: string, procId: string): Promise<void>;
   /** Drop an open watch of `agentId` silently. */
@@ -142,6 +142,7 @@ const NOTICE_MS = 6000;
 const SEND_MS = 20_000;
 /** How long an agent is waited for to show a folder, a file, a process tail, or perform an action. */
 const ASKING_MS = 10_000;
+const OUTPUT_EVERY_MS = 2_000;
 
 /** The model before anything is known: nothing open, linking to the gateway and chat. */
 const startingModel = (homes: HomeLookup | undefined): Model => ({
@@ -210,6 +211,9 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
   const asking = createAsking(store, held, options.now ?? Date.now);
   let closed = false;
   let looking = false;
+  const followedOutputs = new Map<string, { agent: string; id: string; count: number }>();
+  const readingOutputs = new Set<string>();
+  let outputTimer: ReturnType<typeof setInterval> | undefined;
 
   /** Hold what is open, and let go of what was held for what was open before. */
   function holdOpen(model: Model): void {
@@ -294,11 +298,40 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
       (home, read) => ({ ...home, files: { ...home.files, [path]: read } }),
     );
 
-  const readProcessOutput = (agentId: string, procId: string, lines?: number): void => {
+  const readProcessOutput = (agentId: string, procId: string): void => {
     const key = processOutputKey(agentId, procId);
-    void askById(agentId, (calls, signal) => calls.processOutput(procId, lines, signal)).then((read) => {
-      store.set({ processOutputs: { ...store.model().processOutputs, [key]: read } });
+    if (readingOutputs.has(key)) return;
+    readingOutputs.add(key);
+    void askById(agentId, (calls, signal) => calls.processOutput(procId, undefined, signal)).then((read) => {
+      readingOutputs.delete(key);
+      if (!closed) store.set({ processOutputs: { ...store.model().processOutputs, [key]: read } });
     });
+  };
+
+  const stopOutputTimer = (): void => {
+    if (outputTimer !== undefined) clearInterval(outputTimer);
+    outputTimer = undefined;
+  };
+
+  const followProcessOutput = (agentId: string, procId: string): (() => void) => {
+    const key = processOutputKey(agentId, procId);
+    const followed = followedOutputs.get(key);
+    if (followed === undefined) {
+      followedOutputs.set(key, { agent: agentId, id: procId, count: 1 });
+      readProcessOutput(agentId, procId);
+    } else followed.count += 1;
+    outputTimer ??= setInterval(() => {
+      if (store.model().gateway.state !== "up") return;
+      for (const each of followedOutputs.values()) readProcessOutput(each.agent, each.id);
+    }, OUTPUT_EVERY_MS);
+    let stopped = false;
+    return () => {
+      if (stopped) return;
+      stopped = true;
+      const now = followedOutputs.get(key);
+      if (now !== undefined && --now.count === 0) followedOutputs.delete(key);
+      if (followedOutputs.size === 0) stopOutputTimer();
+    };
   };
 
   async function runAgentAction(
@@ -525,7 +558,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
       for (const path of new Set(["", ...folders])) readFolder(path);
       for (const trigger of store.model().triggers ?? []) readFile(triggerFile(trigger.name));
     },
-    readProcessOutput,
+    followProcessOutput,
     killProcess,
     cancelWatch,
     cancelTrigger,
@@ -536,6 +569,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
     async close() {
       if (closed) return;
       closed = true;
+      stopOutputTimer();
       store.close();
       stopLink();
       held.release();

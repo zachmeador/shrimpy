@@ -68,7 +68,10 @@ export function fakeState(initial: Model): FakeState {
     readFolder: (path) => void calls.push(`folder ${path}`),
     readFile: (path) => void calls.push(`file ${path}`),
     readPage: (folders) => void calls.push(`page ${[...folders].join(" ")}`.trimEnd()),
-    readProcessOutput: (agentId, procId) => void calls.push(`process output ${agentId} ${procId}`),
+    followProcessOutput(agentId, procId) {
+      calls.push(`process output ${agentId} ${procId}`);
+      return () => void calls.push(`stop process output ${agentId} ${procId}`);
+    },
     killProcess(agentId, procId) {
       calls.push(`kill ${agentId} ${procId}`);
       return Promise.resolve();

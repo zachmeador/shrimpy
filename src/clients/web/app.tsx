@@ -449,12 +449,15 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
   // Fetch running command output tails whenever the thread's processes drawer is open.
   const openProcKey = page.stillOpen.proc ? (thread?.still.processes ?? []).map((proc) => `${proc.agent}\0${proc.id}`).join("\n") : "";
   useEffect(() => {
-    if (openProcKey === "" || model.gateway.state !== "up") return;
-    for (const pair of openProcKey.split("\n")) {
+    if (openProcKey === "") return;
+    const stops = openProcKey.split("\n").flatMap((pair) => {
       const [agentId, procId] = pair.split("\0");
-      if (agentId !== undefined && procId !== undefined) state.readProcessOutput(agentId, procId);
-    }
-  }, [state, openProcKey, model.gateway.state]);
+      return agentId === undefined || procId === undefined ? [] : [state.followProcessOutput(agentId, procId)];
+    });
+    return () => {
+      for (const stop of stops) stop();
+    };
+  }, [state, openProcKey]);
 
   const shownFile = file === undefined ? undefined : fileLevel(model, file, SELF);
   // The folders open in the tree of the home of the agent whose list is open, which another agent's list leaves shut.
