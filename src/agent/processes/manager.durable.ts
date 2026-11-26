@@ -1,5 +1,6 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { closeSync, existsSync } from "node:fs";
+import { uptime } from "node:os";
 import { join } from "node:path";
 import { BACKGROUND_CONTEXT, type Context } from "@earendil-works/chord/context";
 import type { CommitPublication, ConversationId, Extension, Harness, ToolExecutionApi } from "@earendil-works/pi-durable";
@@ -38,6 +39,7 @@ const STREAM_POLL_MS = 120;
 const RECOVERY_POLL_MS = 500;
 /** Grace period after SIGTERM before escalating to SIGKILL on a process group. */
 const KILL_ESCALATE_MS = 2_000;
+const BOOT_SLACK_MS = 5_000;
 
 export interface ProcessesOptions {
   home: string;
@@ -483,8 +485,9 @@ export function createProcesses(harness: Harness, options: ProcessesOptions): Pr
 
     async recover() {
       const running = await listStored();
+      const bootedAt = Date.now() - uptime() * 1000;
       for (const proc of running) {
-        if (!isGroupAlive(proc.pgid)) {
+        if (proc.startedAt + BOOT_SLACK_MS < bootedAt || !isGroupAlive(proc.pgid)) {
           await emitEvent(proc, "interrupted", null, true);
           continue;
         }
@@ -518,8 +521,8 @@ function isGroupAlive(pgid: number): boolean {
   try {
     process.kill(-pgid, 0);
     return true;
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === "EPERM";
+  } catch {
+    return false;
   }
 }
 
