@@ -25,13 +25,13 @@ export function statusOf(model: Model, sessions: SessionSummary[] | undefined, a
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
     // A session seen before its agent went away says nothing about now.
-    const wakeups = members
+    const onceTriggers = members
       .flatMap((member) => {
         const view = model.behind[member.id];
-        return view?.reached === true ? view.status.wakeups.map((wakeup) => ({ agent: member.name, wakeup })) : [];
+        return view?.reached === true ? view.status.onceTriggers.map((trigger) => ({ agent: member.name, trigger })) : [];
       })
-      .sort((a, b) => a.wakeup.due - b.wakeup.due);
-    return { at, about: { kind: "room", agents, wakeups } };
+      .sort((a, b) => a.trigger.due - b.trigger.due);
+    return { at, about: { kind: "room", agents, onceTriggers } };
   }
 
   const { id } = place;
@@ -62,7 +62,7 @@ export function statusOf(model: Model, sessions: SessionSummary[] | undefined, a
               defaultModel: model.defaultModel,
               usage: view.status.usage,
               failure: view.status.failure,
-              wakeups: view.status.wakeups,
+              onceTriggers: view.status.onceTriggers,
             },
       othersWorking: sessions?.filter((each) => each.working && each.id !== item.thread).length,
     },

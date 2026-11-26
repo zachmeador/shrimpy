@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { chatTools } from "../chat-tools/durable.ts";
 import type { HomeSnapshot } from "../home/index.ts";
-import { messageTools } from "../message-tools/durable.ts";
-import { askTools } from "../questions/durable.ts";
-import { wakeupTools } from "../wakeups/durable.ts";
+import { processTools } from "../processes/durable.ts";
+import { triggerTool } from "../triggers/durable.ts";
 import { baseInstructions } from "./base.ts";
 import { renderSections } from "./sections.ts";
 
@@ -52,21 +52,31 @@ test("what every agent is told names the agent, its home and every tool of its o
   const text = baseInstructions(agent);
 
   assert.ok(text.includes("scout") && text.includes("/agents/scout"));
+  const nope = () => Promise.reject(new Error("The tools are only listed here."));
   const installed = [
-    messageTools({ recordsId: "rec_test", chat: () => undefined, roster: () => undefined }),
-    wakeupTools({ wakeups: { set: () => Promise.reject(new Error("The tools are only listed here.")) } }),
-    askTools({
-      questions: {
-        find: () => Promise.reject(new Error("The tools are only listed here.")),
-        count: () => Promise.reject(new Error("The tools are only listed here.")),
-        keep: () => Promise.reject(new Error("The tools are only listed here.")),
-      },
-      recordsId: "rec_test",
-      chat: () => undefined,
-      roster: () => undefined,
+    processTools({
+      run: nope,
+      list: nope,
+      read: nope,
+      input: nope,
+      killFromTool: nope,
+    }),
+    chatTools(
+      { recordsId: "rec_test", chat: () => undefined, roster: () => undefined },
+      { list: nope, listed: nope as never, open: nope, cancel: nope, dropForThread: nope },
+    ),
+    triggerTool({
+      home: "/agents/scout",
+      triggerCheck: {},
+      listStanding: nope,
+      listOnce: nope,
+      scheduleOnce: nope,
+      cancelOnce: nope,
+      channelOf: nope,
+      reloadFiles: nope,
     }),
   ];
   const tools = installed.flatMap((extension) => (extension.tools ?? []).map((tool) => tool.name));
-  assert.deepEqual(tools, ["send_message", "read_messages", "check_back", "ask_agent"]);
+  assert.deepEqual(tools, ["bash", "process", "post", "thread", "trigger"]);
   for (const name of tools) assert.ok(text.includes(name), `the instructions don't name ${name}`);
 });

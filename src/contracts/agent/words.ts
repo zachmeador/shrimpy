@@ -1,12 +1,13 @@
 import { oneLine, plain } from "../../lib/plain/index.ts";
 import { withoutPeriod } from "../../lib/text/index.ts";
-import { roomLabel, triggerLabel } from "../chat/index.ts";
+import { roomLabel } from "../chat/index.ts";
 import { describeSchedule } from "./schedule.ts";
 import type {
   AnswerEnding,
   Check,
   ModelId,
   Occurrence,
+  OnceTrigger,
   SessionActivity,
   SessionItem,
   SessionPlace,
@@ -15,16 +16,15 @@ import type {
   TriggerDetail,
   TriggerSchedule,
   TriggerSummary,
-  WaitingWakeup,
 } from "./shapes.ts";
 
 /*
  * How a session is said, the one way the terminal and the commands say it:
  * what it is doing, where it is, how a tool call or an answer stands, where it
- * was reset, an image it was shown, its model, what it has used and a wake-up
- * it waits on. Each client frames these words its own way. A name, an ID or a
- * note that came from another program is put on one line and made harmless
- * here, whoever calls.
+ * was reset, an image it was shown, its model, what it has used and a one-shot
+ * trigger it waits on. Each client frames these words its own way. A name, an
+ * ID or a note that came from another program is put on one line and made
+ * harmless here, whoever calls.
  */
 
 /** What a session is doing: "idle", "working", "answering", "running bash" or "retrying after: …". */
@@ -47,9 +47,9 @@ export function activityWords(activity: SessionActivity): string {
 export const YOUR_DM = "your DM";
 
 /**
- * Where a session is, without which thread of it: "DM with mechanic", "#ops"
- * or "trigger nightly". `you` is the name of whoever looks, when it is known:
- * their own DM with the agent is "your DM".
+ * Where a session is, without which thread of it: "DM with mechanic" or "#ops".
+ * `you` is the name of whoever looks, when it is known: their own DM with the
+ * agent is "your DM".
  */
 export function placeLabel(place: SessionPlace, you?: string): string {
   switch (place.kind) {
@@ -57,23 +57,18 @@ export function placeLabel(place: SessionPlace, you?: string): string {
       return place.with.kind === "person" && place.with.name === you ? YOUR_DM : `DM with ${oneLine(place.with.name)}`;
     case "room":
       return roomLabel(place.room);
-    case "trigger":
-      return triggerLabel(place.trigger);
   }
 }
 
-/** A session's place that is a thread of a channel. */
-type InChannel = Exclude<SessionPlace, { kind: "trigger" }>;
-
 /** A thread of a session's place by its name, or by its address when it has no name; and whether it has a name. */
-export function threadName(place: InChannel, address: string): { label: string; named: boolean } {
+export function threadName(place: SessionPlace, address: string): { label: string; named: boolean } {
   const name = place.thread.name === null ? "" : oneLine(place.thread.name);
   return name === "" ? { label: `thread ${oneLine(address)}`, named: false } : { label: name, named: true };
 }
 
-/** Where a session is, with which thread of it: "DM with mechanic · thread thr_1", "#ops · deploys" or "trigger nightly". */
+/** Where a session is, with which thread of it: "DM with mechanic · thread thr_1" or "#ops · deploys". */
 export function placeWords(place: SessionPlace, address: string, you?: string): string {
-  return place.kind === "trigger" ? placeLabel(place, you) : `${placeLabel(place, you)} · ${threadName(place, address).label}`;
+  return `${placeLabel(place, you)} · ${threadName(place, address).label}`;
 }
 
 /** How a tool call stands: "waiting", "running", "done", "failed" or "interrupted, not run again". */
@@ -115,11 +110,8 @@ export function usageWords(usage: SessionStatus["usage"]): string {
   return `${count(usage.input)} tokens in, ${count(usage.output)} out, cost $${usage.cost.toFixed(4)}`;
 }
 
-/** The note a wake-up brings, on one line. */
-export const wakeupNote = (wakeup: WaitingWakeup): string => withoutPeriod(oneLine(wakeup.note));
-
-/** A wake-up a session waits on: when it comes, as `when` writes it, and the note it brings. */
-export const wakeupWords = (wakeup: WaitingWakeup, when: string): string => `Checks back at ${when}: ${wakeupNote(wakeup)}`;
+/** The prompt a one-shot trigger brings, on one line. */
+export const onceTriggerPrompt = (trigger: Pick<OnceTrigger, "prompt">): string => withoutPeriod(oneLine(trigger.prompt));
 
 /*
  * How a trigger is said, the one way the commands and the page say it: whether
@@ -140,8 +132,6 @@ export interface TriggerDefined {
   on: boolean;
   schedule: TriggerSchedule;
   thread: string | null;
-  /** The address of the session of its own, when the agent says it. */
-  session: string | null;
   overlap: "skip" | "allow";
   check: Check | null;
   prompt: string;
@@ -170,11 +160,9 @@ export const lastWords = (occurrence: Pick<Occurrence, "ended">, firedAt: string
 /** What defines a trigger as lines, with a line for when it runs next if `next` says, and for how its checks have gone if `checked` says. */
 function fields(trigger: TriggerDefined, next?: string, checked?: string): string[] {
   const goesTo =
-    trigger.check?.then === "note"
+    trigger.check?.then === "note" || trigger.thread === null
       ? "nobody: it only leaves a breadcrumb"
-      : trigger.thread === null
-        ? `a session of its own${trigger.session === null ? "" : `, ${oneLine(trigger.session)}`}. What the agent writes last there is posted nowhere.`
-        : `thread ${oneLine(trigger.thread)}. What the agent writes last is posted there.`;
+      : `thread ${oneLine(trigger.thread)}. What the agent writes last is posted there.`;
   const overlap =
     trigger.overlap === "skip"
       ? "skip: an occurrence that is due while the last is still going is skipped"

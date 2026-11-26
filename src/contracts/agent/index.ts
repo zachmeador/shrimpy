@@ -58,6 +58,7 @@ export {
   markerWords,
   modelWords,
   notRunWords,
+  onceTriggerPrompt,
   placeLabel,
   placeWords,
   runningTriggerFields,
@@ -68,8 +69,6 @@ export {
   triggerHeading,
   triggerState,
   usageWords,
-  wakeupNote,
-  wakeupWords,
   YOUR_DM,
 } from "./words.ts";
 export {
@@ -81,6 +80,9 @@ export {
   type HomeFile,
   type ModelId,
   type Occurrence,
+  type OnceTrigger,
+  type ProcessOutput,
+  type ProcessSummary,
   type QueuedInput,
   type Reloaded,
   type SessionActivity,
@@ -98,5 +100,5 @@ export {
   type TriggerSchedule,
   type TriggerSummary,
   type TurnFailure,
-  type WaitingWakeup,
+  type WatchSummary,
 } from "./shapes.ts";

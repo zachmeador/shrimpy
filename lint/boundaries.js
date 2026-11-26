@@ -17,9 +17,9 @@ const AGENT_TIERS = [
   ["inputs", "home", "access"],
   ["links", "host", "records"],
   ["turns"],
-  ["questions"],
-  ["wakeups", "triggers", "chat"],
-  ["sessions", "message-tools", "context"],
+  ["watches"],
+  ["processes", "triggers", "chat"],
+  ["sessions", "chat-tools", "context"],
 ];
 const tierOf = (module) => AGENT_TIERS.findIndex((tier) => tier.includes(module));
 /**

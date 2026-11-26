@@ -112,6 +112,9 @@ export function parseTrigger(name: string, text: string, check: TriggerCheck = {
   if (checked?.then === "note" && thread !== undefined) {
     throw new TriggerFileError("thread goes with then: wake: a trigger that notes wakes nobody, so there is no thread for it to go to");
   }
+  if (checked?.then !== "note" && thread === undefined) {
+    throw new TriggerFileError(`it needs thread: give the ID of a thread, such as ${EXAMPLE_THREAD}`);
+  }
   const prompt = body.trim();
   if (prompt === "" && checked?.then !== "note") {
     throw new TriggerFileError("it has no prompt: write what the trigger is to do after the closing --- line");

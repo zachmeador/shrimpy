@@ -319,7 +319,7 @@ test("an agent whose gateway is down starts on its copy of the workspace context
 
 test("a home whose agent.json can't be seen is not read until it can be", { timeout }, async (t) => {
   const paths = newHome(t);
-  writeTrigger(paths.root, "tidy", ["every: 1h"], "Tidy the notes.");
+  writeTrigger(paths.root, "tidy", ["every: 1h", "thread: th_aaaaaaaaaaaa"], "Tidy the notes.");
   writeFileSync(join(paths.context, "disk.md"), "The disk is on fire.\n");
   const reported: string[] = [];
   t.mock.method(console, "error", (...lines: unknown[]) => void reported.push(lines.join(" ")));

@@ -2,11 +2,12 @@ import type { ModelId } from "../../contracts/agent/index.ts";
 import type { Attachment, WakeLine } from "../../contracts/chat/index.ts";
 
 /**
- * What an input is, in Shrimpy's own terms: a chat event, a wake-up the agent
- * asked for, an occurrence of a trigger or the result of a question the agent
- * asked another agent, each as it is kept while the agent works on it, and the
- * helpers that ask an input what it is and where it is. What is stored is plain
- * JSON, so these are type aliases, which TypeScript lets stand for JSON.
+ * What an input is, in Shrimpy's own terms: a chat event, an occurrence of a
+ * standing or one-shot trigger, a background `bash` process event, or a
+ * settled watch on another agent, each as it is kept while the agent works on
+ * it, and the helpers that ask an input what it is and where it is. What is
+ * stored is plain JSON, so these are type aliases, which TypeScript lets stand
+ * for JSON.
  */
 
 /**
@@ -98,72 +99,72 @@ export type Snapshot =
     };
 
 /**
- * A wake-up the agent asked for with `check_back`, as it is kept and as the
- * model is told of it. It is for one session, at one time, and carries the note
- * the agent left itself.
+ * A live watch on another agent's reply in a DM thread. Created automatically
+ * when this agent uses `post` to send a message into a DM with another agent,
+ * and held open until that agent settles (leaves a non-`skipped` receipt on
+ * the posted event), the DM thread is archived, or the watch is dropped.
  */
-export type Wakeup = {
-  /** Names the wake-up for as long as the agent's records last. */
+export type Watch = {
+  /** Names the watch for as long as the agent's records last. */
   id: string;
-  /** When the agent asked for it, and when it is for: milliseconds since the epoch. */
-  askedAt: number;
-  due: number;
-  /** What the agent wanted to be told when it was woken, in its own words. */
-  note: string;
-};
-
-/**
- * A question the agent asked another agent with `ask_agent`, as it is kept while
- * the agent waits for the answer. It was posted as the first message of a new
- * thread of the agent's DM with the one asked, and the question is open until that
- * agent leaves its receipt on the question's event or the time to wait is up.
- */
-export type Question = {
-  /** Names the question for as long as the agent's records last. */
-  id: string;
-  /** The address of the session that asked, in the agent's records. */
-  session: string;
-  /** Who was asked: the member's ID, which never changes, and the name they had when asked. */
-  of: { id: string; name: string };
-  /** When the agent asked, and when it gives up waiting: milliseconds since the epoch. */
-  askedAt: number;
-  due: number;
-  /** The start of what it asked, on one line, which is also what its thread is called. */
+  /** The thread that posted and is waiting for the reply. */
+  fromThread: string;
+  fromChannel: string;
+  /** The agent being watched: member ID and name at the time of posting. */
+  onAgent: { id: string; name: string };
+  /** The DM thread with that agent. */
+  toThread: string;
+  /** When the watched post was sent: milliseconds since the epoch. */
+  startedAt: number;
+  /** The start of what was posted, on one line. */
   start: string;
-  /** The thread the question made, the question's message in it, and the event that posted it with its position in chat's order. */
-  thread: string;
+  /** The posted message, the event that posted it, and its position in chat's order. */
   message: string;
   event: string;
   seq: number;
-  /**
-   * Set once the question was closed by a look at chat that found the other
-   * agent's receipt on it, while the agent's place in chat's feed was still behind
-   * what the look saw: the position of the newest event of chat's log then. What the
-   * other agent posted in the question's thread up to it still belongs to the
-   * question, though the feed reads it after the question closed. Absent for a
-   * question that is open.
-   */
-  through?: number;
 };
 
-/** What the model is told of a question when its result comes: who was asked, when, the start of what was asked, and the thread it was asked in. */
-export type Asked = Pick<Question, "id" | "of" | "askedAt" | "due" | "start" | "thread">;
-
-/** What came back for a question. */
-export type QuestionResult =
-  /** The one asked answered. `reply` is what it wrote and when, and is absent when the reply could not be read. */
+/** What came back when a watched agent settled. */
+export type WatchResult =
+  /** The watched agent answered. `reply` is absent when the reply could not be read. */
   | { kind: "answered"; reply?: { text: string; at: number } }
-  /** It read the question and wrote nothing. */
+  /** It read the post and wrote nothing (`END`). */
   | { kind: "silent" }
   /** Its turn failed, for the reason its receipt gives. */
   | { kind: "failed"; reason: string }
   /** Its work was stopped before it answered. */
-  | { kind: "stopped" }
-  /** It had not answered when the time was up, and may not be running. */
-  | { kind: "unanswered" };
+  | { kind: "stopped" };
 
-/** What came back for a question, with the question it came for: what the model is told when a result comes. */
-export type CameBack = { question: Asked; result: QuestionResult };
+/** A watch that settled, with what came back and when. */
+export type WatchSettled = {
+  watch: Pick<Watch, "id" | "onAgent" | "toThread" | "startedAt" | "start">;
+  result: WatchResult;
+  at: number;
+};
+
+/** Another watch still open for the same calling thread when a watch settles. */
+export type PendingWatch = {
+  agent: string;
+  thread: string;
+};
+
+/** A background `bash` command event that wakes its owning thread. */
+export type ProcessEvent = {
+  /** Unique ID for this wake event (`proc_...` on end, `proc_...:checkin` on 15m check-in). */
+  eventId: string;
+  /** The process ID (`proc_...`). */
+  id: string;
+  command: string;
+  state: "exited" | "killed" | "checkin" | "interrupted";
+  code: number | null;
+  startedAt: number;
+  at: number;
+  afterMs: number;
+  /** Recent output tail. */
+  output: string;
+  /** Full output log path on disk. */
+  logPath: string;
+};
 
 /** Someone in a channel, as the model is told of them: a name, and whether they are a person or an agent. */
 export type Named = { name: string; kind: "person" | "agent" };
@@ -222,15 +223,16 @@ export type Breadcrumb = { name: string; text: string };
  */
 export type Breadcrumbs = { files: Breadcrumb[]; more?: number };
 
+/** The thread a session sits behind, and where it is when the session knows. */
+type InThread = { threadId: string; channelId: string; place?: Place };
+
 /**
  * A chat event the agent took up and has not left its receipt on yet: the input
  * of the task that follows it, from the moment the event is taken up until its
  * receipt is left.
  */
-export type ChatInput = {
+export type ChatInput = InThread & {
   event: Snapshot;
-  threadId: string;
-  channelId: string;
   /**
    * Earlier events in the same thread that the agent had not acted on, such
    * as ones skipped when work was stopped, shown to the model with this one.
@@ -240,72 +242,43 @@ export type ChatInput = {
   /**
    * What was said in the thread since the agent last looked, shown to the model
    * before the event. Present for every event that wakes the agent, with nothing
-   * in it when there was nothing to show. An agent at 1.0.0 left it out in a DM.
+   * in it when there was nothing to show.
    */
   backlog?: Backlog;
   /**
-   * Wake-ups the agent asked for that were cancelled since it last heard of
-   * them, told to the model with this input, once. Empty when there are none.
+   * Settled watches that this session was never shown because the input they
+   * came as was taken back by a stop or a failed turn ahead of it.
    */
-  cancelled: Wakeup[];
-  /**
-   * Results of questions the agent asked other agents that this session was
-   * never shown, because the input they came as was taken back when work was
-   * stopped, or the turn ahead of it failed. Told to the model with this input,
-   * once, oldest question first. Empty when there are none.
-   */
-  missed: CameBack[];
+  missed: WatchSettled[];
   /** The breadcrumbs that are new to the session, shown before anything else of the input. Absent when there are none. */
   breadcrumbs?: Breadcrumbs;
-  /** Where the thread is, which opens what the model is shown. Absent when the agent has not learned it. */
-  place?: Place;
   /**
    * Set when the message joins the turn that is running: a person wrote it.
    * The turn reads it at its next step, once the tools of the step it is on
-   * have finished, and its reply answers the message too. A turn
-   * with no step left can't read it, and the next turn answers it. Absent for
-   * every other input, which waits for the next turn.
+   * have finished, and its reply answers the message too.
    */
   urgent?: true;
 };
 
-/** The thread a session is behind, for an input that goes to one, and where it is when the session knows. */
-type InThread = { threadId: string; channelId: string; place?: Place; trigger?: undefined };
-/** What an input of a session behind no thread has in place of a thread. */
-type NoThread = { threadId?: undefined; channelId?: undefined; place?: undefined };
-
 /**
- * A wake-up the agent asked for that has come due, taken up as the input of the
- * task that follows it. It has no one to tell how its turn ended: the turn's
- * final text is posted to the thread, if the session is behind one, and a
- * failure is reported. A session behind no thread is a trigger's own, and
- * `trigger` names the trigger.
- */
-export type WakeupInput = {
-  wakeup: Wakeup;
-  /** As for a chat event. */
-  cancelled: Wakeup[];
-  missed: CameBack[];
-  breadcrumbs?: Breadcrumbs;
-} & (InThread | (NoThread & { trigger: string }));
-
-/**
- * An occurrence of a trigger, as it was when it fired. The prompt and the
- * schedule are kept as they were then, so a later edit of the trigger's file
- * does not change what the record says ran. What the trigger's check printed is
- * kept apart from the prompt, never merged into it.
+ * An occurrence of a standing or one-shot trigger, as it was when it fired.
+ * For a standing trigger `trigger` is its name and `schedule` is its schedule
+ * in words. For a one-shot trigger both are `null` and `askedAt` says when it
+ * was scheduled.
  */
 export type Occurrence = {
   /** Names the occurrence for as long as the agent's records last. */
   id: string;
-  trigger: string;
+  trigger: string | null;
   /** When it was due, and when it fired: milliseconds since the epoch. A run by hand is due when it fires. */
   due: number;
   firedAt: number;
   byHand: boolean;
-  /** The trigger's schedule, as the model is told it. */
-  schedule: string;
-  /** What the trigger is to do, from its file. */
+  /** The trigger's schedule in words, or null for a one-shot trigger. */
+  schedule: string | null;
+  /** When a one-shot trigger was scheduled, in milliseconds since the epoch. */
+  askedAt?: number;
+  /** What the trigger is to do. */
   prompt: string;
   /**
    * What the trigger's check printed, or the line that says it failed, for an
@@ -315,104 +288,89 @@ export type Occurrence = {
 };
 
 /**
- * An occurrence of a standing trigger, taken up as the input of the task that
- * follows it. Like a wake-up it has no one to tell how its turn ended: the
- * final text is posted to the trigger's thread if it names one, and a failure
- * is reported. With no thread it goes to a session of the trigger's own.
+ * An occurrence of a trigger, taken up as the input of the task that follows
+ * it. Every running occurrence belongs to a thread; `unrun` occurrences
+ * (skipped, noted to a breadcrumb, failed to reach their thread, or check
+ * interrupted) end immediately without a thread or turn.
  */
 export type OccurrenceInput = {
   occurrence: Occurrence;
-  /** As for a chat event. */
-  cancelled: Wakeup[];
-  missed: CameBack[];
+  missed: WatchSettled[];
   breadcrumbs?: Breadcrumbs;
-  /**
-   * An occurrence that no turn runs: it was skipped because the last one was
-   * still going, or could not be handed to a session; its check found news that
-   * it wrote to a breadcrumb, so it was noted; or the agent ended while its check
-   * ran, so it was interrupted. The task that follows it ends at once with this
-   * outcome, and `reason` says why. It has no thread.
-   */
   unrun?: { outcome: "skipped" | "failed" | "noted" | "interrupted"; reason: string };
-} & (InThread | NoThread);
+} & (InThread | { threadId?: undefined; channelId?: undefined; place?: undefined });
 
-/**
- * What came back for a question the agent asked another agent, taken up as the
- * input of the task that follows it, in the session that asked. Like a wake-up it
- * has no one to tell how its turn ended: the final text is posted to the thread
- * of the session that asked, if it is behind one, and a failure is reported. A
- * session behind no thread is a trigger's own, and `trigger` names the trigger.
- */
-export type QuestionInput = CameBack & {
-  /** As for a chat event. */
-  cancelled: Wakeup[];
-  missed: CameBack[];
+/** A background `bash` process event waking the session that started it. */
+export type ProcessInput = InThread & {
+  process: ProcessEvent;
+  missed: WatchSettled[];
   breadcrumbs?: Breadcrumbs;
-} & (InThread | (NoThread & { trigger: string }));
+};
+
+/** A settled watch waking the calling thread with what the other agent did. */
+export type WatchInput = InThread & {
+  settled: WatchSettled;
+  pending: PendingWatch[];
+  missed: WatchSettled[];
+  breadcrumbs?: Breadcrumbs;
+};
 
 /**
- * An input the agent took up and has not finished with, from any source: what
- * the task that follows it is given, from the moment it is taken up until its
- * source is told how its turn ended. A chat event, a wake-up, an occurrence of a
- * trigger and the result of a question are told apart by their shape. Code that
- * handles an input of any source asks the helpers below and does not look inside.
+ * An input the agent took up and has not finished with, from any source.
  */
-export type Outstanding = ChatInput | WakeupInput | OccurrenceInput | QuestionInput;
+export type Outstanding = ChatInput | OccurrenceInput | ProcessInput | WatchInput;
 
 /** Whether an input is a chat event. */
 export function isChat(outstanding: Outstanding): outstanding is ChatInput {
   return "event" in outstanding;
 }
 
-/** Whether an input is a wake-up that came due. */
-export function isWakeup(outstanding: Outstanding): outstanding is WakeupInput {
-  return "wakeup" in outstanding;
-}
-
-/** Whether an input is an occurrence of a trigger. */
+/** Whether an input is an occurrence of a trigger (standing or one-shot). */
 export function isOccurrence(outstanding: Outstanding): outstanding is OccurrenceInput {
   return "occurrence" in outstanding;
 }
 
-/** Whether an input is the result of a question the agent asked. */
-export function isQuestion(outstanding: Outstanding): outstanding is QuestionInput {
-  return "question" in outstanding;
+/** Whether an input is a background `bash` process event. */
+export function isProcess(outstanding: Outstanding): outstanding is ProcessInput {
+  return "process" in outstanding;
+}
+
+/** Whether an input is a settled watch on another agent. */
+export function isWatch(outstanding: Outstanding): outstanding is WatchInput {
+  return "settled" in outstanding;
 }
 
 /**
  * The ID the agent's records know an input by, such as in the request ID it is
- * handed to its session with. It is the one its source gave it, which the
- * source does not reuse.
+ * handed to its session with.
  */
 export function idOf(outstanding: Outstanding): string {
-  if (isWakeup(outstanding)) return outstanding.wakeup.id;
   if (isOccurrence(outstanding)) return outstanding.occurrence.id;
-  if (isQuestion(outstanding)) return outstanding.question.id;
+  if (isProcess(outstanding)) return outstanding.process.eventId;
+  if (isWatch(outstanding)) return outstanding.settled.watch.id;
   return outstanding.event.id;
 }
 
 /**
  * The thread an input's session is behind, which its reply is posted to and
- * which is marked as working while it runs; undefined for a session behind no
- * thread, whose replies go nowhere.
+ * which is marked as working while it runs; undefined only for an unrun
+ * occurrence.
  */
 export function threadOf(outstanding: Outstanding): { threadId: string; channelId: string } | undefined {
   return outstanding.threadId === undefined ? undefined : { threadId: outstanding.threadId, channelId: outstanding.channelId };
 }
 
 /**
- * Whether the source of an input wants a receipt: a chat event does, and so
- * does an occurrence of a trigger in a thread, on its line there. Nothing else
- * has anyone to leave one for.
+ * Whether the source of an input wants a receipt: every chat event and every
+ * in-thread wake line (trigger, process, or watch answer) gets a receipt.
  */
 export function hasReceipt(outstanding: Outstanding): boolean {
-  return isChat(outstanding) || (isOccurrence(outstanding) && threadOf(outstanding) !== undefined);
+  return isChat(outstanding) || threadOf(outstanding) !== undefined;
 }
 
 /**
  * Whether an input joins the turn that is running, which then reads it at its
- * next step. Only a chat event can: what a wake-up, an occurrence of a trigger
- * or the result of a question has to say is for the next turn.
+ * next step. Only a person's chat post can.
  */
 export function isUrgent(outstanding: Outstanding): boolean {
   return isChat(outstanding) && outstanding.urgent === true;
@@ -427,19 +385,7 @@ export type Ending = {
 
 /** How the turn for an input ended. */
 export type TurnOutcome =
-  /**
-   * `answer` names the final answer within the thread's session, and `text` is
-   * its text. `cut` says the agent ended uncleanly while the turn ran, and the
-   * turn went on after the agent started again.
-   */
   | { kind: "answered"; answer: string; text: string; cut?: true }
-  /** Someone stopped the work while the input's turn was running. */
   | { kind: "stopped" }
-  /**
-   * The input was still waiting when work was stopped, and has no `reason`, or
-   * when the turn ahead of it failed, and `reason`, which is short and a person
-   * can read, says so.
-   */
   | { kind: "skipped"; reason?: string }
-  /** The turn ended without an answer for any other reason: `reason` is short and a person can read it. */
   | { kind: "failed"; reason: string };

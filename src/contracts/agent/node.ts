@@ -19,6 +19,7 @@ export { draftTrigger, NoTriggerError, removeTrigger, saveTrigger, switchTrigger
 export {
   parseTrigger,
   readTriggers,
+  type TriggerCheck,
   type TriggerDefinition,
   TriggerFileError,
   type TriggerFiles,

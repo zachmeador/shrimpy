@@ -77,22 +77,18 @@ test("an agent that mentioned another is woken once by the answer, though it doe
   assert.deepEqual(scout.reports, []);
 });
 
-test("in a DM an answer is taken up once, by its reply and not again by its receipt, by a session shown what it answers", { timeout }, async (t) => {
-  const asking = talking((_shown, turn) =>
-    turn === 0 ? { send: { to: "@bob", text: "Which stanza will you take?" }, final: "I asked bob." } : { final: "Noted." },
-  );
+test("in a DM an answer is taken up once, by its reply and not again by its receipt", { timeout }, async (t) => {
+  const asking = talking((_shown, turn) => (turn === 0 ? { final: "Which stanza will you take?" } : { final: "Noted." }));
   const scout = await startAgentRig(t, { script: asking.script });
   const bob = await speakingAs(t, await scout.chat.agent("bob"));
+  const dmChannel = await bob.openDm(scout.partner.id);
+  const dm = await bob.createThread(dmChannel.id, null);
 
-  await scout.say("Ask bob which stanza he takes.");
-
-  const [channel] = await eventually(() => bob.channels(), (channels) => channels.length > 0, { what: "scout's DM with bob" });
-  assert.ok(channel);
-  const [dm] = await eventually(() => bob.threads(channel.id), (threads) => threads.length > 0, { what: "the thread scout started" });
-  assert.ok(dm);
-  const [question] = await messagesWhen(bob, dm.id, (messages) => messages.length > 0, "scout's question");
-  assert.ok(question);
-  const reply = await answer(bob, dm.id, "Stanza 2.", [question.event], "bob-1");
+  await bob.post(dm.id, "Ready to split the stanzas?", "bob-0");
+  const [question] = await messagesWhen(bob, dm.id, (messages) => messages.filter((m) => m.author.id === scout.partner.id).length >= 1, "scout's question");
+  const scoutReply = (await bob.read(dm.id, null, 10)).find((m) => m.author.id === scout.partner.id);
+  assert.ok(question && scoutReply);
+  const reply = await answer(bob, dm.id, "Stanza 2.", [scoutReply.event], "bob-1");
   assert.deepEqual(reply.mentions, [], "a reply in a DM that names nobody mentions nobody, and wakes the agent all the same");
 
   await messagesWhen(
@@ -101,12 +97,11 @@ test("in a DM an answer is taken up once, by its reply and not again by its rece
     (messages) => messages.some((message) => message.id === reply.id && message.receipts.some((receipt) => receipt.memberId === scout.partner.id)),
     "scout's receipt on bob's reply",
   );
-  await untilQuiet(bob, channel.id, dm.id);
+  await untilQuiet(bob, dmChannel.id, dm.id);
 
-  assert.equal(asking.shown.length, 2, "the person's message and bob's reply, and the receipt on the question woke nobody");
+  assert.equal(asking.shown.length, 2, "bob's opening and bob's reply, and the receipt on scout's question woke nobody");
   const woken = asking.shown[1] ?? "";
   assert.ok(woken.includes(written({ kind: "posted", id: reply.event, seq: reply.seq, author: "bob", sentAt: reply.sentAt, text: reply.text })), "shown as any message in a DM is");
-  assert.ok(woken.indexOf(question.text) >= 0 && woken.indexOf(question.text) < woken.indexOf(reply.text), "after the question it answers, which another session asked");
   assert.deepEqual(scout.reports, []);
 });
 

@@ -9,7 +9,9 @@ export function sessionStatus(parts: Partial<SessionStatus> = {}): SessionStatus
     model: { provider: "local", id: "test-model" },
     ownModel: false,
     usage: { input: 0, output: 0, cost: 0 },
-    wakeups: [],
+    processes: [],
+    watches: [],
+    onceTriggers: [],
     failure: null,
     ...parts,
   };

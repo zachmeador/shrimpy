@@ -95,7 +95,7 @@ tester.run("imports", importsRule, {
     allowed("cli/talk/objects.ts", "@earendil-works/chord"),
     allowed("agent/turns/turn-task.durable.ts", "@earendil-works/chord/json"),
     allowed("agent/sessions/sessions.durable.ts", "@earendil-works/chord/delta"),
-    allowed("agent/questions/durable.ts", "@earendil-works/chord/context"),
+    allowed("agent/watches/durable.ts", "@earendil-works/chord/context"),
     allowed("cli/flow.test.ts", "@earendil-works/chord"),
     allowed("cli/testing/scripted-agent.ts", "@earendil-works/chord"),
     // browser: a Node door may use Node, and so may tests and test support, which are never shipped.
@@ -147,10 +147,10 @@ tester.run("imports", importsRule, {
     // Plain code inside a module reaches nothing marked, in its own module or in another.
     refused("agent/chat/feed.ts", "./admissions.durable.ts", "plain"),
     refused("agent/chat/index.ts", "./durable.ts", "plain"),
-    refused("agent/message-tools/words.ts", "../turns/durable.ts", "plain"),
+    refused("agent/chat-tools/words.ts", "../turns/durable.ts", "plain"),
     // pi-ai is the agent's alone, apart from tests and test support.
     refused("agent/turns/working.ts", "../chat/index.ts", "tier"),
-    refused("agent/chat/feed.ts", "../wakeups/index.ts", "tier"),
+    refused("agent/chat/feed.ts", "../triggers/index.ts", "tier"),
     refused("agent/breadcrumbs/files.ts", "../home/index.ts", "noTier"),
     refused("cli/commands/run.ts", "@earendil-works/pi-ai", "piAi"),
     refused("contracts/agent/view.ts", "@earendil-works/pi-ai", "piAi"),

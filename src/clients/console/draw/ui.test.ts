@@ -621,7 +621,6 @@ test("text from other members and from tools can't reach the terminal, wherever 
   const others = [agentMember(`lurker${hostile}`), agentMember(`mechanic${hostile}`)];
   const sessions = [
     aSession("th_9", { place: { kind: "dm", with: { name: `mechanic${hostile}`, kind: "agent" }, thread: { name: `thread${hostile}` } } }),
-    aSession(`trigger:${hostile}`, { place: { kind: "trigger", trigger: `nightly${hostile}` }, working: true }),
     aSession(`th_2${hostile}`, { place: { kind: "room", room: `ops${hostile}`, thread: { name: null } }, working: true }),
   ];
   const work = workingView(
@@ -674,14 +673,14 @@ test("text from other members and from tools can't reach the terminal, wherever 
           defaultModel: { provider: `home${hostile}`, id: `default${hostile}` },
           usage: { input: 1, output: 2, cost: 0.5 },
           failure: { reason: "other", detail: `why${hostile}` },
-          wakeups: [{ due: now, note: `wake${hostile}` }],
+          onceTriggers: [{ id: "once_1", threadId: "th_1", askedAt: now, due: now, prompt: `wake${hostile}` }],
         },
         othersWorking: 1,
       },
     },
     room: {
       at: now,
-      about: { kind: "room", agents: [{ name: `lurker${hostile}`, running: true, working: true }], wakeups: [{ agent: `lurker${hostile}`, wakeup: { due: now, note: `later${hostile}` } }] },
+      about: { kind: "room", agents: [{ name: `lurker${hostile}`, running: true, working: true }], onceTriggers: [{ agent: `lurker${hostile}`, trigger: { id: "once_2", threadId: "th_1", askedAt: now, due: now, prompt: `later${hostile}` } }] },
     },
   };
   const notices: Notice[] = [
@@ -841,35 +840,29 @@ test("an agent's name opens its page, whose home the arrows walk, and Left goes 
   assert.equal(screen()?.kind, "threads", "and from it to the list");
 });
 
-test("a trigger's own session is in what an agent's list observes, and takes no input", (t) => {
-  const nightly = aSession("trigger:nightly", { place: { kind: "trigger", trigger: "nightly" }, working: true });
+test("an agent's DM thread with another agent is in what its list observes", (t) => {
   const disk = aThread("th_a", { preview: "check the disk", updatedAt: at(14, 5) });
+  const peer = aThread("th_b", { name: "ROM sync", updatedAt: at(14, 4) });
   const list = aModel({
     open: { list: { kind: "agent", id: scout.id }, item: undefined },
-    listing: aListing([anAgent("scout"), aChatServer()]),
+    listing: aListing([anAgent("scout"), anAgent("maya"), aChatServer()]),
     agent: { state: "up" },
     dms: { [scout.id]: aDm("scout", [disk]) },
-    sessions: [nightly],
+    readOnly: {
+      ch_dm: {
+        channel: { id: "ch_dm", kind: "dm", name: "", members: [scout, agentMember("maya")] },
+        threads: [peer],
+        unread: {},
+      },
+    },
   });
-  const { terminal, state, drawn, screen } = start(t, list, { columns: 100 });
-  assert.ok(drawn().includes("check the disk") && !drawn().includes("trigger nightly"), "the person's thread with the agent");
+  const { terminal, state, drawn } = start(t, list, { columns: 100 });
+  assert.ok(drawn().includes("check the disk") && !drawn().includes("ROM sync"), "the person's thread with the agent");
   terminal.type(TAB);
-  assert.ok(!drawn().includes("check the disk") && drawn().includes("trigger nightly"), "and the trigger's session in what it observes");
+  assert.ok(!drawn().includes("check the disk") && drawn().includes("ROM sync"), "and the agent-to-agent DM in what it observes");
 
   terminal.type(ENTER);
-  assert.deepEqual(asked(state), ["watch trigger:nightly"], "the session was the one chosen");
-  state.show(onSession("scout", nightly, workingView([userItem("It is 02:00."), toolItem("bash", { args: { command: "df -h" } })], { kind: "tool", name: "bash" })));
-  assert.match(drawn(), /df -h/);
-  terminal.type("hello");
-  terminal.type(ENTER);
-  assert.doesNotMatch(drawn(), /hello/, "there is no editor to type in");
-  assert.doesNotMatch(drawn(), /\/stop/, "and so no way to stop the work is offered");
-  terminal.type(LEFT);
-  assert.equal(screen()?.kind, "threads", "left went back");
-  assert.deepEqual(asked(state), ["watch trigger:nightly"], "and nothing was sent");
-  state.show(list);
-  terminal.type(ENTER);
-  assert.equal(asked(state).at(-1), "watch trigger:nightly", "coming back to the list is not opening it again: the choice stayed where it was");
+  assert.deepEqual(asked(state), ["open th_b"], "the thread was the one chosen");
 });
 
 test("/devices lists the person's devices, and /devices take back ends a device's link", { timeout: 30_000 }, async (t) => {

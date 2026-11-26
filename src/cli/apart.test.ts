@@ -319,12 +319,12 @@ test("a command about one agent reaches it by its name on the roster, wherever i
   assert.equal(read.code, 0, read.stderr);
   assert.equal((await shrimpy(["triggers", "--agent", "crab"])).code, 0);
   // A command that changes the files of crab's home can't, from here, and writes nothing.
-  assert.equal((await shrimpy(["triggers", "add", "nightly", "--every", "1h", "Tidy.", "--agent", "crab"])).code, 1);
+  assert.equal((await shrimpy(["triggers", "add", "nightly", "--every", "1h", "--thread", thread, "Tidy.", "--agent", "crab"])).code, 1);
   assert.equal(existsSync(join(home, "triggers", "nightly.md")), false);
   // But crab turns a trigger of its own off and on when asked by name.
   const file = join(home, "triggers", "nightly.md");
   mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, "---\nevery: 1h\n---\nTidy.\n");
+  writeFileSync(file, `---\nevery: 1h\nthread: ${thread}\n---\nTidy.\n`);
   await eventually(() => shrimpy(["triggers", "--agent", "crab"]), (listed) => listed.stdout.includes("nightly"), { what: "crab to read its trigger" });
   const off = await shrimpy(["triggers", "off", "nightly", "--agent", "crab"]);
   assert.equal(off.code, 0, off.stderr);

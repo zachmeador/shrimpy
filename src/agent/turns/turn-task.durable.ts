@@ -25,9 +25,9 @@ import {
   type Ending,
   idOf,
   isOccurrence,
-  isQuestion,
+  isProcess,
   isUrgent,
-  isWakeup,
+  isWatch,
   type ModelChange,
   type Outstanding,
   promptFor,
@@ -74,9 +74,9 @@ type Recovery<P extends TurnState> = (turn: Turn<P>, runtime: Runtime, context: 
  * namespace of its source, so handing the same one over twice is one input.
  */
 const requestIdOf = (outstanding: Outstanding): string => {
-  if (isWakeup(outstanding)) return `wake:${idOf(outstanding)}`;
   if (isOccurrence(outstanding)) return `trigger:${idOf(outstanding)}`;
-  if (isQuestion(outstanding)) return `question:${idOf(outstanding)}`;
+  if (isProcess(outstanding)) return `process:${idOf(outstanding)}`;
+  if (isWatch(outstanding)) return `watch:${idOf(outstanding)}`;
   return `chat:${idOf(outstanding)}`;
 };
 
@@ -100,8 +100,8 @@ const inputOf = (outstanding: Outstanding, change?: ModelChange) => ({
 function placeText(input: Outstanding): string {
   const thread = threadOf(input);
   if (thread !== undefined) return `in thread ${thread.threadId}`;
-  if (isOccurrence(input)) return `of the trigger ${input.occurrence.trigger}`;
-  return (isWakeup(input) || isQuestion(input)) && input.trigger !== undefined ? `in the session of the trigger ${input.trigger}` : "in no thread";
+  if (isOccurrence(input)) return `of the trigger ${input.occurrence.trigger ?? "one-time"}`;
+  return "in no thread";
 }
 
 export interface TurnTaskOptions {

@@ -6,6 +6,8 @@ import {
   lastWords,
   type ModelId,
   modelWords,
+  type OnceTrigger,
+  onceTriggerPrompt,
   placeLabel,
   placeWords as placeWithThread,
   type QueuedInput,
@@ -15,8 +17,6 @@ import {
   type SessionSummary,
   type TriggerSummary,
   usageWords,
-  type WaitingWakeup,
-  wakeupWords,
 } from "../../contracts/agent/index.ts";
 import {
   addToRoom,
@@ -553,20 +553,15 @@ export function agentStatusRows(status: AgentStatus): string[] {
   }
   const failure = status.session?.failure ?? null;
   if (failure !== null) rows.push(`Last turn: ${oneLine(failureWords(failure.reason, failure.detail))}`);
-  const wakeups = status.session?.wakeups ?? [];
-  for (const wakeup of wakeups) rows.push(wakeupWords(wakeup, localTime(wakeup.due)));
-  if (wakeups.length > 0) rows.push(stopCancelsAll(wakeups.length, "dm", name));
+  const onceTriggers = status.session?.onceTriggers ?? [];
+  for (const trigger of onceTriggers) rows.push(`Once at ${localTime(trigger.due)}: ${onceTriggerPrompt(trigger)}`);
   if (status.othersWorking !== undefined) rows.push(`Other sessions working: ${howMany(status.othersWorking)}`);
   return rows;
 }
 
-/**
- * A wake-up an agent waits on in a thread: who, when it comes and the note it
- * brings, and, where it is the one wake-up there and the person can write,
- * that `/stop` cancels it.
- */
-export function wakeupLine(agent: string, wakeup: WaitingWakeup, when: string, stops: boolean): string {
-  return `${oneLine(agent)} ${wakeupWords(wakeup, when).replace(/^Checks/, "checks")}${stops ? ` · ${stopCancels(1)}` : ""}`;
+/** One-shot trigger waiting in a thread. */
+export function wakeupLine(agent: string, trigger: OnceTrigger, when: string, _stops: boolean): string {
+  return `${oneLine(agent)} once at ${when}: ${onceTriggerPrompt(trigger)}`;
 }
 
 /** What `/devices` read, one device to a line, with how to take one back. */
@@ -580,7 +575,7 @@ export function devicesRows(status: DevicesStatus): string[] {
   ];
 }
 
-/** What `/status` read about the agents of a room, one to a line, then every wake-up they wait on in the thread and, once, what `/stop` does to them. */
+/** What `/status` read about the agents of a room, one to a line, then every pending one-shot trigger in the thread. */
 export function roomStatusRows(status: RoomStatus): string[] {
   const rows =
     status.agents.length === 0
@@ -589,9 +584,7 @@ export function roomStatusRows(status: RoomStatus): string[] {
           (agent) =>
             `${oneLine(agent.name)} · ${agent.running ? "running" : NOT_RUNNING} · ${agent.working ? "working in this thread" : "not working in this thread"}`,
         );
-  for (const { agent, wakeup } of status.wakeups) rows.push(wakeupLine(agent, wakeup, localTime(wakeup.due), false));
-  const [first] = status.wakeups;
-  if (first !== undefined) rows.push(stopCancelsAll(status.wakeups.length, "room", first.agent));
+  for (const { agent, trigger } of status.onceTriggers) rows.push(wakeupLine(agent, trigger, localTime(trigger.due), false));
   return rows;
 }
 

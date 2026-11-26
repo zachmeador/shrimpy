@@ -10,7 +10,10 @@ import {
   type HomeEntry,
   type HomeFile,
   type Occurrence,
+  type OnceTrigger,
   type Pigment,
+  type ProcessOutput,
+  type ProcessSummary,
   type Reloaded,
   Session,
   type SessionItem,
@@ -20,6 +23,7 @@ import {
   type Settlement,
   type TriggerDetail,
   type TriggerSummary,
+  type WatchSummary,
 } from "../../contracts/agent/index.ts";
 import { connectHome } from "../../contracts/agent/node.ts";
 import { type Principal, type Revocation, unlessRefused, valueOf } from "../../contracts/gateway/index.ts";
@@ -65,6 +69,13 @@ export interface AgentConnection {
   setModel(model: ModelId | null): Promise<Reloaded>;
   switchTrigger(name: string, on: boolean): Promise<TriggerSummary>;
   triggers(): Promise<TriggerSummary[]>;
+  onceTriggers(): Promise<OnceTrigger[]>;
+  processes(): Promise<ProcessSummary[]>;
+  watches(): Promise<WatchSummary[]>;
+  processOutput(id: string, lines?: number): Promise<ProcessOutput>;
+  killProcess(id: string): Promise<void>;
+  cancelTrigger(id: string): Promise<void>;
+  cancelWatch(id: string): Promise<void>;
   trigger(name: string): Promise<TriggerDetail>;
   fire(name: string): Promise<Occurrence>;
   reload(): Promise<Reloaded>;
@@ -144,6 +155,28 @@ export async function holdAgent(host: Host<Principal, Revocation>, agent: string
     async triggers() {
       allowed();
       return held.triggers.value;
+    },
+    async onceTriggers() {
+      allowed();
+      return held.onceTriggers.value;
+    },
+    async processes() {
+      allowed();
+      return held.processes.value;
+    },
+    async watches() {
+      allowed();
+      return held.watches.value;
+    },
+    processOutput: async (id, lines) => valueOf(await held.processOutput({ id, ...(lines === undefined ? {} : { lines }) }, context)),
+    killProcess: async (id) => {
+      valueOf(await held.killProcess({ id }, context));
+    },
+    cancelTrigger: async (id) => {
+      valueOf(await held.cancelTrigger({ id }, context));
+    },
+    cancelWatch: async (id) => {
+      valueOf(await held.cancelWatch({ id }, context));
     },
     trigger: async (trigger) => valueOf(await held.trigger({ name: trigger }, context)),
     fire: async (trigger) => valueOf(await held.fire({ name: trigger }, context)),

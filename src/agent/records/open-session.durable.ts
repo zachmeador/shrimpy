@@ -1,26 +1,23 @@
 import { configure, type Tx } from "@earendil-works/pi-durable";
 import type { SessionDefaults } from "./defaults.durable.ts";
 import { type SessionRecord, SessionsDoc } from "./documents.durable.ts";
-import { addressOfPlace, type SessionPlace } from "./thread-of.durable.ts";
+import type { SessionThread } from "./thread-of.durable.ts";
 
 /**
- * Find the session that `place` says, or make it, in the commit `tx` belongs
- * to. A session that is made gets a conversation that follows the home, and its
- * record is written. What comes back is the session's record as this commit
- * writes it, so a change to it is part of the commit. A session that exists is
- * found as it is: `place` says only where a new one would be.
+ * Find the session behind `thread`, or make it, in the commit `tx` belongs to.
  */
-export async function openSession(tx: Tx, defaults: SessionDefaults, place: SessionPlace): Promise<SessionRecord> {
+export async function openSession(tx: Tx, defaults: SessionDefaults, thread: SessionThread): Promise<SessionRecord> {
   const sessions = (await tx.doc(SessionsDoc)).sessions;
-  const address = addressOfPlace(place);
-  if (!Object.hasOwn(sessions, address)) {
+  if (!Object.hasOwn(sessions, thread.threadId)) {
     const conversationId = (await tx.createConversation({ ownership: { kind: "ownerless" } })).id;
     await configure(tx, conversationId, defaults);
-    const kept = { unacted: [], cancelled: [], missed: [], shown: {} };
-    sessions[address] =
-      "threadId" in place
-        ? { conversationId, channelId: place.channelId, ...kept }
-        : { conversationId, channelId: null, trigger: place.trigger, ...kept };
+    sessions[thread.threadId] = {
+      conversationId,
+      channelId: thread.channelId,
+      unacted: [],
+      missed: [],
+      shown: {},
+    };
   }
-  return sessions[address]!;
+  return sessions[thread.threadId]!;
 }

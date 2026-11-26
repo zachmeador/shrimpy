@@ -43,7 +43,7 @@ test("a file that changes while the agent reads its home is read again before th
 
 test("a file being written is read once it stops changing, and one that can't be used keeps what the agent had", { timeout }, async (t) => {
   const home = tempDir(t, "agent");
-  writeTrigger(home, "tidy", ["every: 1h"], "Tidy the notes.");
+  writeTrigger(home, "tidy", ["every: 1h", "thread: th_aaaaaaaaaaaa"], "Tidy the notes.");
   const model = talking(() => ({ final: "Seen." }));
   const rig = await startAgentRig(t, { home, script: model.script, lookEveryMs: LOOK });
   const connection = await rig.connect();
@@ -60,7 +60,7 @@ test("a file being written is read once it stops changing, and one that can't be
 
   // The file is written a character at a time, faster than the agent looks. At every step it is less than a trigger, and
   // so is an error to read, until the last write completes it.
-  const finished = "---\nevery: 2h\n---\nTidy the notes more.\n";
+  const finished = "---\nevery: 2h\nthread: th_aaaaaaaaaaaa\n---\nTidy the notes more.\n";
   const unfinished = finished.slice(0, finished.indexOf("Tidy"));
   for (let end = 1; end <= unfinished.length; end += 1) {
     writeFileSync(file, unfinished.slice(0, end));
@@ -72,13 +72,13 @@ test("a file being written is read once it stops changing, and one that can't be
   assert.equal(existsSync(breadcrumb), false);
 
   // A file that can't be used: the trigger keeps its last good definition, and the agent says so.
-  writeFileSync(file, "---\nevery: soon\n---\nTidy.\n");
+  writeFileSync(file, "---\nevery: soon\nthread: th_aaaaaaaaaaaa\n---\nTidy.\n");
   await eventually(() => said().length, (count) => count === 1, { what: "the file to be said" });
   assert.ok(said()[0]?.message.includes("triggers/tidy.md"), "it names the file");
   assert.deepEqual(await everything(), [["tidy", "2h"]], "and the agent has what it had");
 
   // Another change makes it read everything again, and the same file is not said again.
-  writeTrigger(home, "other", ["every: 1h"]);
+  writeTrigger(home, "other", ["every: 1h", "thread: th_aaaaaaaaaaaa"]);
   await eventually(everything, (found) => found.length === 2, { what: "the other trigger to be read" });
   assert.equal(said().length, 1);
 
@@ -89,7 +89,7 @@ test("a file being written is read once it stops changing, and one that can't be
   assert.ok(!(await shownWith("and now?")).includes("triggers/tidy.md"), "and not again");
 
   // The file is right: the agent reads it, and the breadcrumb goes.
-  writeFileSync(file, "---\nevery: 3h\n---\nTidy.\n");
+  writeFileSync(file, "---\nevery: 3h\nthread: th_aaaaaaaaaaaa\n---\nTidy.\n");
   await eventually(everything, (found) => found[1]?.[1] === "3h", { what: "the mended file to be read" });
   await eventually(() => existsSync(breadcrumb), (there) => !there, { what: "the breadcrumb to go" });
   assert.ok(!(await shownWith("one more")).includes("triggers/tidy.md"));

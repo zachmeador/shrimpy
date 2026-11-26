@@ -296,29 +296,33 @@ test("why a turn failed reads the same in its receipt and /status, and a wake-up
   terminal.type(ENTER);
   await seen(terminal, "I will check back later.", "the agent's answer");
   const read = await shrimpy(["sessions", "read", thread, "--json", "--agent", home]);
-  const [wakeup] = (JSON.parse(read.stdout) as { status: SessionStatus }).status.wakeups;
+  const [wakeup] = (JSON.parse(read.stdout) as { status: SessionStatus }).status.onceTriggers;
   assert.ok(wakeup);
   // Beside the thread it says the time of day, and /status says the whole time.
-  await seen(terminal, new Date(wakeup.due).toTimeString().slice(0, 5), "the wake-up beside the thread");
+  await seen(terminal, new Date(wakeup.due).toTimeString().slice(0, 5), "the one-shot trigger beside the thread");
   before = terminal.text().length;
   terminal.type("/status");
   terminal.type(ENTER);
-  await seenAfter(terminal, before, localTime(wakeup.due), "the wake-up in /status");
+  await seenAfter(terminal, before, localTime(wakeup.due), "the one-shot trigger in /status");
   await leave(terminal, exited);
 });
 
 test("the list of agents shows where an agent works when that is none of the person's threads", { timeout }, async (t) => {
   const { home, terminal, exited } = await consoleWithScout(t);
-  const added = await shrimpy(["triggers", "add", "nightly", "--every", "1h", "go slow", "--agent", home]);
+  assert.equal((await shrimpy(["rooms", "new", "ops", "scout"])).code, 0);
+  const rooms = await shrimpy(["threads", "#ops", "--json"]);
+  const roomThread = (JSON.parse(rooms.stdout) as { id: string }[])[0]?.id;
+  assert.ok(roomThread);
+  const added = await shrimpy(["triggers", "add", "nightly", "--every", "1h", "--thread", roomThread, "go slow", "--agent", home]);
   assert.equal(added.code, 0, added.stderr);
   const fired = await shrimpy(["triggers", "run", "nightly", "--agent", home]);
   assert.equal(fired.code, 0, fired.stderr);
-  await seen(terminal, "nightly", "the trigger's session on scout's screen");
+  await seen(terminal, "#ops", "the room thread on scout's screen");
 
   const before = terminal.text().length;
   terminal.type(LEFT);
-  await seenAfter(terminal, before, "nightly", "scout's row on the list of agents");
-  const stopped = await shrimpy(["sessions", "stop", "trigger:nightly", "--agent", home]);
+  await seenAfter(terminal, before, "#ops", "scout's row on the list of agents");
+  const stopped = await shrimpy(["sessions", "stop", roomThread, "--agent", home]);
   assert.equal(stopped.code, 0, stopped.stderr);
   await leave(terminal, exited);
 });

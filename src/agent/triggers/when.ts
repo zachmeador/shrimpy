@@ -1,42 +1,46 @@
 import { delayMs, normalizeDelay } from "../../contracts/agent/index.ts";
-import * as words from "./words.ts";
+import { howLong, localTime } from "../../lib/time/index.ts";
 
-/** The shortest and the longest time from asking that a wake-up may be for, in milliseconds. */
-export const SHORTEST = 1_000;
-export const LONGEST = delayMs("366d");
+/** Shortest and longest delay for a one-shot trigger, in milliseconds. */
+export const SHORTEST_ONCE = 1_000;
+export const LONGEST_ONCE = delayMs("366d");
 
-/** When a wake-up is due, or why what was asked for can't be used, in words for the model. */
+/** When a one-shot trigger is due, or why what was asked for can't be used. */
 export type When = { due: number } | { problem: string };
 
-/**
- * When the model asked to be woken, given `in`, a delay, or `at`, a time, and
- * when it asked. Exactly one is given; one left empty counts as left out.
- */
+/** Parse `in` (delay) or `at` (ISO 8601 with offset) relative to `now`. */
 export function readWhen(asked: { in?: string | undefined; at?: string | undefined }, now: number): When {
   const delay = given(asked.in);
   const at = given(asked.at);
-  if (delay !== undefined && at !== undefined) return { problem: words.GIVE_ONE };
+  if (delay !== undefined && at !== undefined) {
+    return { problem: "Give in or at, not both. in is a delay like 5m; at is an ISO 8601 time with an offset like 2026-10-05T09:00:00-04:00." };
+  }
 
   let due: number;
   if (delay !== undefined) {
     const wait = normalizeDelay(delay);
-    if (wait === undefined) return { problem: words.badDelay(delay) };
+    if (wait === undefined) {
+      return { problem: `in: "${delay}" is not a delay I can read. Write a whole number and a unit: 30s, 5m, 2h or 1d.` };
+    }
     due = now + delayMs(wait);
   } else if (at !== undefined) {
     const time = timeOf(at);
-    if (time === undefined) return { problem: words.badTime(at) };
-    if (time <= now) return { problem: words.inThePast(at, now) };
+    if (time === undefined) {
+      return { problem: `at: "${at}" is not a time I can read. Write ISO 8601 with an offset, such as 2026-10-05T09:00:00-04:00.` };
+    }
+    if (time <= now) {
+      return { problem: `at: "${at}" is in the past. It is ${localTime(now)} now. Give a later time, or use in.` };
+    }
     due = time;
   } else {
-    return { problem: words.GIVE_WHEN };
+    return { problem: "Say when: give in (such as 30s, 5m, 2h or 1d) or at (ISO 8601 with an offset)." };
   }
 
-  if (due - now < SHORTEST) return { problem: words.tooSoon(SHORTEST) };
-  if (due - now > LONGEST) return { problem: words.tooFar(LONGEST) };
+  if (due - now < SHORTEST_ONCE) return { problem: `The shortest wait is ${howLong(SHORTEST_ONCE)}. Give a longer one.` };
+  if (due - now > LONGEST_ONCE) return { problem: `The longest wait is ${howLong(LONGEST_ONCE)}. Give a shorter one.` };
   return { due };
 }
 
-/** What the model wrote, or nothing if it left the argument out or wrote only blanks. */
 function given(text: string | undefined): string | undefined {
   const trimmed = text?.trim();
   return trimmed === undefined || trimmed === "" ? undefined : trimmed;
@@ -45,11 +49,6 @@ function given(text: string | undefined): string | undefined {
 const ISO_TIME =
   /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})T(?<hour>\d{2}):(?<minute>\d{2})(?::(?<second>\d{2})(?:\.\d+)?)?(?:Z|[+-](?<offsetHour>\d{2}):(?<offsetMinute>\d{2}))$/;
 
-/**
- * An ISO 8601 time with an offset, in milliseconds since the epoch. A day the
- * calendar doesn't have, such as the 31st of February, is not read as the day
- * after it.
- */
 function timeOf(text: string): number | undefined {
   const parts = ISO_TIME.exec(text)?.groups;
   if (parts === undefined) return undefined;

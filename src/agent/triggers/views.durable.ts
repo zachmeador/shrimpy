@@ -38,7 +38,9 @@ export async function occurrences(harness: Harness): Promise<{ trigger: string; 
   const pages: TaskScanner = { scanTasks: (query, limit, cursor) => harness.commit((tx) => tx.scanTasks(query, limit, cursor), context) };
   return (await tasksOfKind(pages, TURN_TASK)).flatMap((record) => {
     const input = record.input as Outstanding;
-    return isOccurrence(input) ? [{ trigger: input.occurrence.trigger, view: occurrenceView(input, record) }] : [];
+    return isOccurrence(input) && input.occurrence.trigger !== null
+      ? [{ trigger: input.occurrence.trigger, view: occurrenceView(input, record) }]
+      : [];
   });
 }
 

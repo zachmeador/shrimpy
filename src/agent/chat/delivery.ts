@@ -6,50 +6,26 @@ import {
   hasReceipt,
   idOf,
   isOccurrence,
-  isQuestion,
-  isWakeup,
-  type Occurrence,
+  isProcess,
+  isWatch,
   type Outstanding,
   threadOf,
   type TurnOutcome,
 } from "../inputs/index.ts";
 import type { ChatLink, LiveChat } from "../links/index.ts";
-import type { Look, Looked } from "../questions/index.ts";
 import type { Delivery, Told } from "../turns/index.ts";
-import { deliver, hasReply, postLine } from "./deliver.ts";
-import { lookAt } from "./questions.ts";
+import { deliver, hasReply, postWakeLine } from "./deliver.ts";
+import { wakeLineOf } from "./reply.ts";
 
 export interface DeliveryOptions {
-  /** What the agent's records are called. Every reply's request ID carries it. */
   recordsId: string;
-  /** Told of failures, and of replies chat refused. */
   onError?: (error: Error) => void;
-  /** Characters in the longest message the agent posts; a longer answer is posted in parts. Tests shorten it. */
   messageLimit?: number;
 }
 
-/**
- * What goes back to chat for an input, once the task that follows it knows how its
- * turn ended, and what a question's task looks up in chat when its time is up.
- * Each is one try over chat as it is up now, which comes to "later" when chat is
- * away, is lost meanwhile or the try fails, and once the agent has left chat: the
- * task sleeps, and tries again.
- */
-export interface ChatDelivery extends Delivery, Look {
-  /** Give it the agent's way to chat. Until then, every try comes to "later". */
+export interface ChatDelivery extends Delivery {
   attach(link: ChatLink): void;
-  /**
-   * Post the reply if there is one and, for a chat event or an occurrence's
-   * line, leave the receipt. A reply that chat refuses for good is not posted:
-   * the receipt says it failed, with chat's reason. A receipt that chat refuses
-   * for good is dropped. A wake-up or the result of a question has no receipt to
-   * carry a failure, or a reply that chat refuses, so those are reported; and an
-   * input in a session behind no thread has no reply to post, so it is told
-   * without chat. Every step names itself, so doing all of it again posts nothing
-   * twice and changes no receipt.
-   */
   tell(outstanding: Outstanding, outcome: TurnOutcome, signal: AbortSignal): Promise<Told>;
-  /** The agent leaves chat. What is due stays where it is, and is told at the next start. */
   close(): void;
 }
 
@@ -66,17 +42,11 @@ export function createDelivery(options: DeliveryOptions): ChatDelivery {
             : `Chat refused the reply to the ${what(outstanding)}, so it was not posted: ${error.message}`,
         ),
       ),
-    onLineRefused: (occurrence: Occurrence, error: Error): void => onError(lineRefused(occurrence, error)),
+    onLineRefused: (outstanding: Outstanding, error: Error): void => onError(lineRefused(outstanding, error)),
   };
   let linked: ChatLink | undefined;
   let left = false;
 
-  /**
-   * Run `work` once over chat as it is up now. "later" when chat is not up, is
-   * lost while `work` runs or `work` fails, and once the agent has left chat;
-   * nothing when chat refuses for good, which `refused` reports. It ends with a
-   * rejection only when `signal` aborts.
-   */
   async function once<T>(
     signal: AbortSignal,
     work: (live: LiveChat, aborted: AbortSignal) => Promise<T>,
@@ -104,17 +74,15 @@ export function createDelivery(options: DeliveryOptions): ChatDelivery {
     },
     async announce(outstanding, signal) {
       const thread = threadOf(outstanding);
-      if (!isOccurrence(outstanding) || thread === undefined) return "told";
-      const { occurrence } = outstanding;
+      if (thread === undefined || wakeLineOf(outstanding) === undefined) return "told";
       const tried = await once(
         signal,
-        (live, aborted) => postLine(live.chat, occurrence, thread.threadId, options.recordsId, aborted),
-        (error) => onError(lineRefused(occurrence, error)),
+        (live, aborted) => postWakeLine(live.chat, outstanding, thread.threadId, options.recordsId, aborted)!,
+        (error) => onError(lineRefused(outstanding, error)),
       );
       return tried === "later" ? "later" : "told";
     },
     async tell(outstanding, outcome, signal) {
-      // An input with no receipt and no reply to post, or with no thread to post to, has nobody in chat to tell.
       const thread = threadOf(outstanding);
       if (thread === undefined || (!hasReceipt(outstanding) && !hasReply(outcome))) {
         if (outcome.kind === "failed") onError(new Error(`${failureOf(outstanding)} ${outcome.reason}`));
@@ -127,42 +95,29 @@ export function createDelivery(options: DeliveryOptions): ChatDelivery {
       );
       return tried === "later" ? "later" : "told";
     },
-    look: (question, signal): Promise<Looked | undefined | "later"> =>
-      once(
-        signal,
-        (live, aborted) => lookAt(live.chat, question, aborted, onError),
-        (error) =>
-          onError(
-            new Error(
-              `Chat refused to show the question asked of ${question.of.name} at ${localTime(question.askedAt)}, ` +
-                `so it is closed as not answered: ${error.message}`,
-            ),
-          ),
-      ),
     close() {
       left = true;
     },
   };
 }
 
-/** What a report calls an occurrence: "occurrence of the trigger nightly at 2026-10-04T03:00:00Z". */
-const describedOccurrence = (occurrence: Occurrence): string => `occurrence of the trigger ${occurrence.trigger} at ${localTime(occurrence.firedAt)}`;
-
-/** What a report calls a wake-up, an occurrence or the result of a question: "wake-up for 2026-10-04T09:00:00Z". */
 function what(outstanding: Outstanding): string {
-  if (isWakeup(outstanding)) return `wake-up for ${localTime(outstanding.wakeup.due)}`;
-  if (isOccurrence(outstanding)) return describedOccurrence(outstanding.occurrence);
-  if (isQuestion(outstanding)) {
-    return `result of the question asked of ${outstanding.question.of.name} at ${localTime(outstanding.question.askedAt)}`;
+  if (isOccurrence(outstanding)) {
+    const label = outstanding.occurrence.trigger === null ? "one-time trigger" : `trigger ${outstanding.occurrence.trigger}`;
+    return `occurrence of the ${label} at ${localTime(outstanding.occurrence.firedAt)}`;
+  }
+  if (isProcess(outstanding)) {
+    return `background command ${outstanding.process.id} (${outstanding.process.state}) at ${localTime(outstanding.process.at)}`;
+  }
+  if (isWatch(outstanding)) {
+    return `reply from @${outstanding.settled.watch.onAgent.name} at ${localTime(outstanding.settled.at)}`;
   }
   return idOf(outstanding);
 }
 
-/** What a report says when chat refuses an occurrence's line for good. */
-const lineRefused = (occurrence: Occurrence, error: Error): Error =>
-  new Error(`Chat refused the line for the ${describedOccurrence(occurrence)}, so the thread doesn't show it: ${error.message}`);
+const lineRefused = (outstanding: Outstanding, error: Error): Error =>
+  new Error(`Chat refused the wake line for the ${what(outstanding)}, so the thread doesn't show it: ${error.message}`);
 
-/** The start of what a report says about an input that failed and has no receipt to carry it. */
 function failureOf(outstanding: Outstanding): string {
   const ran = isOccurrence(outstanding) && outstanding.unrun !== undefined ? "did not run." : "did not get an answer.";
   return `The ${what(outstanding)} ${ran}`;

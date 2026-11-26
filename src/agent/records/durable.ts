@@ -2,42 +2,32 @@
  * Shrimpy's own documents, kept in the engine's storage and written in the same
  * commits as the work they belong to: what the agent's records are called,
  * which session is which and what each kept for its next input, where the agent
- * stands in chat's feed, the last valid definition of each trigger, and the
- * questions the agent asked other agents that are still open. It also holds the
- * changes to a session's record that another module makes in its own commit:
- * finding or making a session, taking out what it kept, working out which
- * breadcrumbs are new to it, and keeping what an input that was skipped was to
- * show. It opens the records at the start, giving them an ID of their own the
- * first time, refuses a home whose documents another version wrote, saying
- * what to do, and tells any other failure to read them as it is. It must not
- * know how an input is run, how chat or the files of a home are read, or what a
- * session shows a client.
+ * stands in chat's feed, the last valid definition of each standing trigger,
+ * running background `bash` processes, and live watches on other agents.
  */
 export type { SessionDefaults } from "./defaults.durable.ts";
 export {
   copyOf,
   DOCUMENTS,
   FeedDoc,
-  type OpenQuestion,
-  QuestionsDoc,
+  ProcessesDoc,
   type SessionRecord,
   sessionAddress,
   SessionsDoc,
+  type StoredProcess,
   type StoredTrigger,
-  triggerSession,
   TriggersDoc,
+  WatchesDoc,
 } from "./documents.durable.ts";
 export {
   carrying,
-  keepCancelled,
   keepSkipped,
   keptPlace,
   learnPlace,
   takeBreadcrumbs,
-  takeCancelled,
   takeEvents,
   takeMissed,
 } from "./kept.durable.ts";
 export { openSession } from "./open-session.durable.ts";
 export { openRecords } from "./records.durable.ts";
-export { addressOfPlace, placeOfSession, type SessionPlace, threadOfSession } from "./thread-of.durable.ts";
+export { type SessionThread, threadOfSession } from "./thread-of.durable.ts";

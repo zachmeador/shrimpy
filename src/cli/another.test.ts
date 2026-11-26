@@ -87,7 +87,7 @@ test("in an agent's shell, changing another agent's files or reading what it is 
   await joined.stop();
   saveMembership(rexHome, { token, memberId: joined.you.id });
   const trigger = join(rexHome, "triggers", "nightly.md");
-  const addToRex = ["triggers", "add", "nightly", "--every", "1h", "Tidy.", "--agent", "rex"];
+  const addToRex = ["triggers", "add", "nightly", "--every", "1h", "--thread", "th_aaaaaaaaaaaa", "Tidy.", "--agent", "rex"];
 
   const refused = await scout.run(addToRex);
   const wakeRefused = await scout.run(["wake", "ops", "all", "--agent", "rex"]);
@@ -99,7 +99,7 @@ test("in an agent's shell, changing another agent's files or reading what it is 
   assert.deepEqual(loadHome(rexHome).wake, {});
 
   // The agent's own triggers are its to change, and once the person has made it an admin so are another's.
-  const own = await scout.run(["triggers", "add", "nightly", "--every", "1h", "Tidy."]);
+  const own = await scout.run(["triggers", "add", "nightly", "--every", "1h", "--thread", "th_aaaaaaaaaaaa", "Tidy."]);
   assert.equal(own.code, 0, own.stderr);
   assert.ok(existsSync(join(scout.home, "triggers", "nightly.md")));
   await setAdmin(t, scout.member.id, true);
@@ -109,6 +109,6 @@ test("in an agent's shell, changing another agent's files or reading what it is 
 
   // A name nobody on the roster has changes no home, not even one in the folder that has never joined and keeps no member ID.
   assert.equal((await shrimpy(["agent", "init", "maya", "--model", "local/test-model"])).code, 0);
-  assert.equal((await scout.run(["triggers", "add", "nightly", "--every", "1h", "Tidy.", "--agent", "mya"])).code, 1);
+  assert.equal((await scout.run(["triggers", "add", "nightly", "--every", "1h", "--thread", "th_aaaaaaaaaaaa", "Tidy.", "--agent", "mya"])).code, 1);
   assert.equal(existsSync(join(useShrimpyDir(t), "agents", "maya", "triggers", "nightly.md")), false);
 });

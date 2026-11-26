@@ -187,7 +187,7 @@ test("new events in a chat store restored from an older copy are answered, thoug
 });
 
 test("a receipt another member leaves on a message the agent wrote wakes the agent for nothing", { timeout }, async (t) => {
-  const model = callingTools([[{ name: "send_message", args: { text: "Is the disk full?", to: "@mechanic" } }]], "I asked.");
+  const model = callingTools([[{ name: "post", args: { text: "Is the disk full?", to: "@mechanic" } }]], "I asked.");
   const rig = await startAgentRig(t, { script: model.script });
   const mechanic = await speakingAs(t, await rig.chat.agent("mechanic"));
   await rig.receiptOn(await rig.say("Ask the mechanic about the disk."));

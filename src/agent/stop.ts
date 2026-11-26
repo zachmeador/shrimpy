@@ -17,6 +17,8 @@ export interface Parts {
   server: AgentServer;
   /** The agent keeping up with its files, which stops looking before anything it reads from closes. */
   following: { close(): Promise<void> };
+  /** Background process monitor timers to stop when shutting down. */
+  processes?: { close(): void };
   /** Absent for an agent that takes no part in chat. */
   joined?: Joined;
   /** Refuse new input from clients from now on. They can still watch and stop work. */
@@ -43,7 +45,7 @@ export function stopper(parts: Parts): (options?: CloseOptions) => Promise<void>
   };
 }
 
-async function stop({ host, server, joined, following, refuseInput }: Parts, graceMs: number, hurry: AbortSignal): Promise<void> {
+async function stop({ host, server, joined, following, processes, refuseInput }: Parts, graceMs: number, hurry: AbortSignal): Promise<void> {
   refuseInput();
   joined?.stopTaking();
   try {
@@ -54,6 +56,7 @@ async function stop({ host, server, joined, following, refuseInput }: Parts, gra
       await joined?.drain(deadline);
     }
   } finally {
+    processes?.close();
     try {
       await joined?.close();
     } finally {

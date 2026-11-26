@@ -26,7 +26,7 @@ export interface StorageVersion extends Step {
  * version of one of Shrimpy's documents or tasks, is a change to the format.
  */
 export const AGENT_STORAGE: StoreFormat<StorageVersion> = {
-  current: 1,
+  current: 2,
   oldest: 1,
   steps: [
     {
@@ -40,6 +40,25 @@ export const AGENT_STORAGE: StoreFormat<StorageVersion> = {
         "shrimpy.question": 1,
         "shrimpy.trigger": 1,
         "shrimpy.trigger-run": 1,
+      },
+    },
+    {
+      version: 2,
+      pi: "1.5.2",
+      documents: {
+        "shrimpy.records": 3,
+        "shrimpy.sessions": 4,
+        "shrimpy.watches": 1,
+        "shrimpy.processes": 1,
+        "shrimpy.triggers": 1,
+        "shrimpy.feed": 3,
+      },
+      tasks: {
+        "shrimpy.turn": 2,
+        "shrimpy.turn-wait": 1,
+        "shrimpy.trigger": 1,
+        "shrimpy.trigger-run": 1,
+        "shrimpy.trigger-once": 1,
       },
     },
   ],

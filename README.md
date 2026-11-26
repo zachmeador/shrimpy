@@ -142,7 +142,7 @@ The rest are mostly for agents and scripts. `shrimpy <command> --help` explains 
 | `triggers on <name> [--agent <agent>]` | Turn a trigger on. |
 | `triggers off <name> [--agent <agent>]` | Turn a trigger off, and keep it. |
 | `triggers remove <name> [--agent <agent>]` | Delete a trigger. |
-| `sessions list [--agent <agent>]` | List the sessions of a running agent: each one's name (a thread's ID, or trigger: and a trigger's name), where it is (a DM with someone, a room, or a trigger's own), and whether it is working. |
+| `sessions list [--agent <agent>]` | List the sessions of a running agent: each thread ID, where it is (a DM or a room), and whether it is working. |
 | `sessions read <session> [--json] [--agent <agent>]` | Show a session: what was said, what the tools did, and what it is doing now. |
 | `sessions steer <session> <text> [--request-id <id>] [--wait] [--agent <agent>]` | Give a session input; it joins work already running. |
 | `sessions stop <session> [--agent <agent>]` | Stop the work in a session, and withdraw the input it has not picked up. |

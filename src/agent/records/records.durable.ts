@@ -2,7 +2,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Harness } from "@earendil-works/pi-durable";
 import { asError } from "../../lib/errors/index.ts";
 import { storageOfAnotherVersion } from "../home/index.ts";
-import { DOCUMENTS, FeedDoc, QuestionsDoc, RecordsDoc, SessionsDoc, TriggersDoc } from "./documents.durable.ts";
+import { DOCUMENTS, FeedDoc, ProcessesDoc, RecordsDoc, SessionsDoc, TriggersDoc, WatchesDoc } from "./documents.durable.ts";
 
 /** The kinds of Shrimpy's own documents, which the engine names when it refuses one. */
 const KINDS = new Set(DOCUMENTS.map(({ definition }) => definition.kind));
@@ -17,20 +17,13 @@ export async function openRecords(harness: Harness, file: string): Promise<strin
   return known ?? harness.commit(async (tx) => (await tx.doc(RecordsDoc)).id, BACKGROUND_CONTEXT);
 }
 
-/**
- * Read each of Shrimpy's own documents once. The engine refuses a document that
- * another version wrote, in words that don't say what to do, and nothing
- * converts one, so then the person is told to move the file into an archive
- * folder and start the agent again. Any other failure is told as it is, with
- * the file, since that advice would lose every session for nothing. Gives the
- * records' ID, if they have one yet.
- */
 async function read(harness: Harness, file: string): Promise<string | undefined> {
   try {
     await harness.snapshot(SessionsDoc, BACKGROUND_CONTEXT);
     await harness.snapshot(FeedDoc, BACKGROUND_CONTEXT);
     await harness.snapshot(TriggersDoc, BACKGROUND_CONTEXT);
-    await harness.snapshot(QuestionsDoc, BACKGROUND_CONTEXT);
+    await harness.snapshot(WatchesDoc, BACKGROUND_CONTEXT);
+    await harness.snapshot(ProcessesDoc, BACKGROUND_CONTEXT);
     return (await harness.snapshot(RecordsDoc, BACKGROUND_CONTEXT))?.id;
   } catch (error) {
     const said = asError(error).message;
@@ -39,12 +32,6 @@ async function read(harness: Harness, file: string): Promise<string | undefined>
   }
 }
 
-/**
- * Whether the engine refused one of Shrimpy's own documents because another
- * version of Shrimpy wrote it. Durable says so only in words: a plain error that
- * names the document's kind and the version it holds, newer than this one, or
- * older with nothing to convert it.
- */
 function anotherVersionWrote(said: string): boolean {
   const kind = /^Document \S+ \((.+)\) (?:has newer version \d+ than \d+|requires migration from version \d+)$/.exec(said)?.[1];
   return kind !== undefined && KINDS.has(kind);

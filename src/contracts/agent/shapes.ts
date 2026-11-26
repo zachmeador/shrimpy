@@ -57,26 +57,20 @@ const SessionPlaceSchema = union([
   obj({ kind: lit("dm"), with: obj({ name: str(), kind: oneOf("person", "agent") }), thread: ThreadPlaceSchema }),
   /** A thread of a room the agent is in. */
   obj({ kind: lit("room"), room: str(), thread: ThreadPlaceSchema }),
-  /** A trigger's own session, which is behind no thread. */
-  obj({ kind: lit("trigger"), trigger: str() }),
 ]);
 export type SessionPlace = Static<typeof SessionPlaceSchema>;
 
 /**
- * A session as a list shows it. An agent has one session for each thread it
- * takes part in, and one for each trigger whose occurrences go to no thread.
- * Every session has an address at the agent: a thread's ID for a session behind
- * a thread, and `trigger:` followed by the trigger's name for a trigger's own
- * session, which is behind none. A client treats the address as a name and
- * never takes it apart.
+ * A session as a list shows it. Every session sits behind one real thread, and
+ * its address at the agent is that thread's ID.
  */
 export const SessionSummarySchema = obj({
-  /** The session's address at the agent: the `session` param of `Session`. */
+  /** The session's address at the agent: the thread's ID. */
   id: str(),
-  /** The thread the session is behind, or null for a session behind none. For one behind a thread, it is also the address. */
-  threadId: union([str(), nul()]),
-  /** The channel of that thread, or null for a session behind no thread. */
-  channelId: union([str(), nul()]),
+  /** The thread the session is behind. */
+  threadId: str(),
+  /** The channel of that thread. */
+  channelId: str(),
   /** Where the session is, in names, or null when the agent has not learned it. */
   place: union([SessionPlaceSchema, nul()]),
   /** Whether a turn is underway in the session. */
@@ -146,7 +140,7 @@ const TRIGGER_SUMMARY = {
   /** The trigger's name, which is its file's name. */
   name: str(),
   schedule: TriggerScheduleSchema,
-  /** The thread its occurrences go to, or null when they go to a session of its own. */
+  /** The thread its occurrences go to, or null for a trigger that only writes a breadcrumb (`then: note`). */
   thread: union([str(), nul()]),
   /** Whether it is on. `enabled: false` in its file turns it off. */
   on: bool(),
@@ -176,12 +170,51 @@ export const TriggerDetailSchema = obj({
   overlap: oneOf("skip", "allow"),
   /** Its check, or null when every occurrence wakes the agent. */
   check: union([CheckSchema, nul()]),
-  /** The address of the session of its own that its occurrences go to, if they go there, whether or not it has been made yet. */
-  session: union([str(), nul()]),
   /** The latest occurrences, newest first. */
   occurrences: arr(OccurrenceSchema),
 });
 export type TriggerDetail = Static<typeof TriggerDetailSchema>;
+
+/** A one-shot trigger waiting to fire in a thread. */
+export const OnceTriggerSchema = obj({
+  id: str(),
+  threadId: str(),
+  /** When it was scheduled and when it is due, in milliseconds since the epoch. */
+  askedAt: num(),
+  due: num(),
+  prompt: str(),
+});
+export type OnceTrigger = Static<typeof OnceTriggerSchema>;
+
+/** A background `bash` command currently running for an agent. */
+export const ProcessSummarySchema = obj({
+  id: str(),
+  threadId: str(),
+  command: str(),
+  startedAt: num(),
+});
+export type ProcessSummary = Static<typeof ProcessSummarySchema>;
+
+/** The recent output tail of a background `bash` command. */
+export const ProcessOutputSchema = obj({
+  output: str(),
+  truncated: bool(),
+});
+export type ProcessOutput = Static<typeof ProcessOutputSchema>;
+
+/** A live watch on another agent's reply in a DM thread. */
+export const WatchSummarySchema = obj({
+  id: str(),
+  /** The thread waiting for the answer. */
+  fromThread: str(),
+  /** The agent being waited on: member ID and name. */
+  onAgent: str(),
+  onAgentName: str(),
+  /** The DM thread with that agent. */
+  toThread: str(),
+  startedAt: num(),
+});
+export type WatchSummary = Static<typeof WatchSummarySchema>;
 
 /**
  * What an agent found in its home when it read it again: how much of each kind
@@ -354,19 +387,11 @@ export type SessionActivity = Static<typeof SessionActivitySchema>;
 const QueuedInputSchema = obj({ when: oneOf("next_step", "next_turn", "other"), text: str() });
 export type QueuedInput = Static<typeof QueuedInputSchema>;
 
-/** A wake-up the session asked for with `check_back` and is waiting on: when it is due, and the note it will bring. */
-const WaitingWakeupSchema = obj({
-  /** In milliseconds since the epoch. */
-  due: num(),
-  note: str(),
-});
-export type WaitingWakeup = Static<typeof WaitingWakeupSchema>;
-
 /** Why a session's last turn ended without an answer, and more when the agent knows more. */
 const TurnFailureSchema = obj({ reason: FailureReasonSchema, detail: union([str(), nul()]) });
 export type TurnFailure = Static<typeof TurnFailureSchema>;
 
-/** What a session is doing, what waits, its model and its usage. */
+/** What a session is doing, what runs or waits in its thread, its model and its usage. */
 export const SessionStatusSchema = obj({
   activity: SessionActivitySchema,
   busy: bool(),
@@ -384,8 +409,12 @@ export const SessionStatusSchema = obj({
    */
   ownModel: bool(),
   usage: obj({ input: num(), output: num(), cost: num() }),
-  /** The wake-ups the session is waiting on, the soonest first. */
-  wakeups: arr(WaitingWakeupSchema),
+  /** Running background `bash` processes started in this thread, oldest first. */
+  processes: arr(ProcessSummarySchema),
+  /** Open watches on other agents started from this thread, oldest first. */
+  watches: arr(WatchSummarySchema),
+  /** Pending one-shot triggers set for this thread, soonest first. */
+  onceTriggers: arr(OnceTriggerSchema),
   /** Why the session's last turn ended without an answer, until its next turn starts; null when it answered, or there was none. */
   failure: union([TurnFailureSchema, nul()]),
 });

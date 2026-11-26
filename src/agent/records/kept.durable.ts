@@ -3,27 +3,14 @@ import { isDeepStrictEqual } from "node:util";
 import {
   type Breadcrumb,
   type Breadcrumbs,
-  type CameBack,
   isChat,
-  isQuestion,
-  isWakeup,
+  isWatch,
   type Outstanding,
   type Place,
   type Snapshot,
-  type Wakeup,
+  type WatchSettled,
 } from "../inputs/index.ts";
 import { copyOf, type SessionRecord } from "./documents.durable.ts";
-
-/*
- * What a session keeps in its record for its next input, because the model has
- * not been shown it: chat events nobody acted on, wake-ups that were cancelled,
- * and results of questions it asked that came as an input that was taken back. It
- * is taken out of the record in the commit that admits the input it goes with, so
- * it is told once, and put back if that input is skipped. The breadcrumbs are
- * kept the other way round: the record says which were shown, and the files that
- * differ from that go with the next input. A thread's session also keeps where
- * the thread is, which every input of the session carries.
- */
 
 /** How many breadcrumbs an input carries at the most: when more differ, the rest wait for later inputs. */
 const MOST_BREADCRUMBS = 10;
@@ -38,15 +25,8 @@ export function takeEvents(session: SessionRecord): Snapshot[] {
   return events;
 }
 
-/** The wake-ups kept as cancelled. The session keeps none afterwards. */
-export function takeCancelled(session: SessionRecord): Wakeup[] {
-  const cancelled = copyOf(session.cancelled);
-  if (cancelled.length > 0) session.cancelled = [];
-  return cancelled;
-}
-
-/** The results of questions kept as missed, oldest question first. The session keeps none afterwards. */
-export function takeMissed(session: SessionRecord): CameBack[] {
+/** The settled watch results kept as missed, oldest first. The session keeps none afterwards. */
+export function takeMissed(session: SessionRecord): WatchSettled[] {
   const missed = copyOf(session.missed);
   if (missed.length > 0) session.missed = [];
   return missed;
@@ -55,10 +35,7 @@ export function takeMissed(session: SessionRecord): CameBack[] {
 /**
  * The breadcrumbs the session is shown with its next input: the files, in the
  * order they come in, whose text differs from what it was last shown, as many as
- * an input carries, and how many more there are. The session's record keeps what
- * it is shown, and forgets the files that are gone, saying nothing of them. A file
- * that differs and does not fit keeps what the session was last shown of it, so it
- * comes with a later input. Nothing when no file differs.
+ * an input carries, and how many more there are.
  */
 export function takeBreadcrumbs(session: SessionRecord, files: readonly Breadcrumb[]): Breadcrumbs | undefined {
   const shown = session.shown;
@@ -76,65 +53,43 @@ export function takeBreadcrumbs(session: SessionRecord, files: readonly Breadcru
   return { files: carried.map(({ name, text }) => ({ name, text })), ...(more > 0 ? { more } : {}) };
 }
 
-/** What an input carries of the cancelled wake-ups, the missed results and the breadcrumbs it was handed. */
+/** What an input carries of the missed watch results and the breadcrumbs it was handed. */
 export function carrying(
-  cancelled: Wakeup[],
-  missed: CameBack[],
+  missed: WatchSettled[],
   breadcrumbs?: Breadcrumbs,
-): { cancelled: Wakeup[]; missed: CameBack[]; breadcrumbs?: Breadcrumbs } {
-  return { cancelled, missed, ...(breadcrumbs === undefined ? {} : { breadcrumbs }) };
+): { missed: WatchSettled[]; breadcrumbs?: Breadcrumbs } {
+  return { missed, ...(breadcrumbs === undefined ? {} : { breadcrumbs }) };
 }
 
-/** Where the session's thread is, as a copy, or nothing for a session that has not learned it or is behind no thread. */
+/** Where the session's thread is, as a copy, or nothing if not yet learned. */
 export function keptPlace(session: SessionRecord): Place | undefined {
-  return session.channelId === null || session.place === undefined ? undefined : copyOf(session.place);
+  return session.place === undefined ? undefined : copyOf(session.place);
 }
 
-/**
- * Keep where a session's thread is, as chat says it now. The record is written
- * only when that differs from what it has, as after a rename or when a member
- * joins a room. A trigger's own session is behind no thread and has none.
- */
+/** Keep where a session's thread is, as chat says it now. */
 export function learnPlace(session: SessionRecord, place: Place): void {
-  if (session.channelId === null) return;
   if (session.place !== undefined && isDeepStrictEqual(copyOf(session.place), place)) return;
   session.place = copyOf(place);
 }
 
-/** Keep wake-ups as cancelled, each once, in the order they were for. */
-export function keepCancelled(session: SessionRecord, wakeups: readonly Wakeup[]): void {
-  const byId = new Map([...copyOf(session.cancelled), ...wakeups].map((wakeup) => [wakeup.id, wakeup]));
-  session.cancelled = [...byId.values()].sort((a, b) => a.due - b.due);
-}
-
-/** Keep results of questions as missed, each once, the question asked first coming first. */
-function keepMissed(session: SessionRecord, results: readonly CameBack[]): void {
+/** Keep settled watch results as missed, each once, oldest first. */
+function keepMissed(session: SessionRecord, results: readonly WatchSettled[]): void {
   if (results.length === 0) return;
-  const byId = new Map([...copyOf(session.missed), ...results].map((each) => [each.question.id, each]));
-  session.missed = [...byId.values()].sort((a, b) => a.question.askedAt - b.question.askedAt);
+  const byId = new Map([...copyOf(session.missed), ...results].map((each) => [each.watch.id, each]));
+  session.missed = [...byId.values()].sort((a, b) => a.watch.startedAt - b.watch.startedAt);
 }
 
 /**
  * Keep what an input that was skipped was to show the model, for the session's
- * next input: the model never saw it. A chat event is kept with the events that
- * came with it, a wake-up is kept as one that was cancelled, since it won't
- * come again, and the result of a question is kept as one the session
- * missed. An occurrence of a trigger is not kept: the trigger's next one says the
- * same. What the input carried of the cancelled wake-ups and the missed results
- * is kept again too, and so are the messages of a room that came with a chat
- * event, since the agent has moved past them. The breadcrumbs it carried were
- * never shown, so the session forgets that it was shown them, unless a later
- * input has shown it a later version of the file since.
+ * next input. A chat event is kept with the events that came with it, and a
+ * settled watch result is kept as missed.
  */
 export function keepSkipped(session: SessionRecord, input: Outstanding): void {
-  if (isWakeup(input)) keepCancelled(session, [input.wakeup]);
-  else if (isQuestion(input)) keepMissed(session, [{ question: input.question, result: input.result }]);
+  if (isWatch(input)) keepMissed(session, [input.settled]);
   else if (isChat(input)) {
-    // A trigger's line among the messages of a room is nothing to act on, and is not kept.
     const said = (input.backlog?.messages ?? []).filter((message) => message.kind === "posted");
     session.unacted = inOrder([...copyOf(session.unacted), ...input.earlier, ...said, input.event]);
   }
-  keepCancelled(session, input.cancelled);
   keepMissed(session, input.missed);
   if (input.breadcrumbs !== undefined) {
     const shown = copyOf(session.shown);

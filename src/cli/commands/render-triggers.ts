@@ -3,6 +3,8 @@ import {
   lastWords,
   notRunWords,
   type Occurrence,
+  type OnceTrigger,
+  onceTriggerPrompt,
   runningTriggerFields,
   type TriggerDefined,
   type TriggerDetail,
@@ -37,18 +39,28 @@ function checkedCell(last: TriggerSummary["lastCheck"]): string {
   return `quiet ${localTime(last.at)}${last.quiet > 1 ? `, ${String(last.quiet)} in a row` : ""}`;
 }
 
-/** The triggers of a running agent as a table, with a column for when each last checked if any of them has. */
-export function renderTriggers(triggers: TriggerSummary[]): string[] {
-  const checked = triggers.some((trigger) => trigger.lastCheck !== null);
-  const rows = triggers.map((trigger) => [
-    trigger.name,
-    describeSchedule(trigger.schedule),
-    triggerState(trigger.on),
-    trigger.next === null ? "-" : localTime(trigger.next),
-    trigger.last === null ? "-" : lastWords(trigger.last, localTime(trigger.last.firedAt)),
-    ...(checked ? [checkedCell(trigger.lastCheck)] : []),
-  ]);
-  return renderTable(["trigger", "schedule", "state", "next", "last", ...(checked ? ["checked"] : [])], rows);
+/** The triggers of a running agent as a table (standing triggers plus any pending one-shot triggers). */
+export function renderTriggers(triggers: TriggerSummary[], onceTriggers: OnceTrigger[] = []): string[] {
+  const lines: string[] = [];
+  if (triggers.length > 0) {
+    const checked = triggers.some((trigger) => trigger.lastCheck !== null);
+    const rows = triggers.map((trigger) => [
+      trigger.name,
+      describeSchedule(trigger.schedule),
+      triggerState(trigger.on),
+      trigger.next === null ? "-" : localTime(trigger.next),
+      trigger.last === null ? "-" : lastWords(trigger.last, localTime(trigger.last.firedAt)),
+      ...(checked ? [checkedCell(trigger.lastCheck)] : []),
+    ]);
+    lines.push(...renderTable(["trigger", "schedule", "state", "next", "last", ...(checked ? ["checked"] : [])], rows));
+  }
+  if (onceTriggers.length > 0) {
+    if (lines.length > 0) lines.push("");
+    lines.push("One-time triggers:");
+    const rows = onceTriggers.map((once) => [once.id, localTime(once.due), once.threadId, onceTriggerPrompt(once)]);
+    lines.push(...renderTable(["id", "due", "thread", "prompt"], rows));
+  }
+  return lines;
 }
 
 /** The triggers a home's files hold as a table: what the files say, and nothing a running agent would add. */
@@ -57,7 +69,7 @@ export function renderTriggerFiles(triggers: TriggerDefinition[]): string[] {
     trigger.name,
     describeSchedule(trigger.schedule),
     triggerState(trigger.enabled),
-    trigger.thread ?? "a session of its own",
+    trigger.thread ?? `breadcrumbs/${trigger.name}.md`,
   ]);
   return renderTable(["trigger", "schedule", "state", "goes to"], rows);
 }
@@ -75,6 +87,6 @@ export function renderTrigger(trigger: TriggerDetail, now: number): string[] {
 
 /** One trigger as its file says it. */
 export function renderTriggerFile(trigger: TriggerDefinition): string[] {
-  const defined: TriggerDefined = { ...trigger, on: trigger.enabled, session: null, check: trigger.check ?? null };
+  const defined: TriggerDefined = { ...trigger, on: trigger.enabled, check: trigger.check ?? null };
   return definition(defined, triggerFields(defined));
 }

@@ -207,7 +207,7 @@ function partRow(part: Part, me: string | undefined, now: number, stale: boolean
   if (part.thread !== undefined) {
     label = titleOf(part.thread);
     tags = threadTags({ pinned: part.thread.pinned, archived: false });
-  } else if (part.place !== null && part.place.kind !== "trigger") {
+  } else if (part.place !== null) {
     label = threadName(part.place, part.id).label;
   }
   const when = part.at === undefined ? undefined : whenOf(part.at, now);

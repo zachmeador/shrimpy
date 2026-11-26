@@ -5,13 +5,14 @@ import {
   imageWords,
   markerWords,
   modelWords,
+  onceTriggerPrompt,
   type SessionImage,
   type SessionItem,
   type SessionStatus,
   toolStatusWords,
   usageWords,
-  wakeupWords,
 } from "../../contracts/agent/index.ts";
+import { oneLine } from "../../lib/plain/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 
 /** A session whole: every item, oldest first, and what it is doing now. */
@@ -22,18 +23,19 @@ export interface WholeSession {
 
 /**
  * A session as text for a person: each item under a label, then one line of
- * status, then why its last turn ended without an answer, when it did, and a
- * line for each wake-up it is waiting on, with `stop`, the command that cancels
- * them.
+ * status, then why its last turn ended without an answer, and any running
+ * background processes, open watches, or pending one-shot triggers in its
+ * thread.
  */
-export function renderSession(view: WholeSession, stop: string): string {
+export function renderSession(view: WholeSession): string {
   const lines: string[] = [];
   for (const item of view.items) lines.push(...renderItem(item), "");
   lines.push(renderStatus(view.status));
-  const { failure, wakeups } = view.status;
+  const { failure, processes, watches, onceTriggers } = view.status;
   if (failure !== null) lines.push(`Last turn: ${failureWords(failure.reason, failure.detail)}`);
-  for (const wakeup of wakeups) lines.push(wakeupWords(wakeup, localTime(wakeup.due)));
-  if (wakeups.length > 0) lines.push(`Stopping the session's work cancels ${wakeups.length === 1 ? "it" : "them"}: ${stop}`);
+  for (const proc of processes) lines.push(`Running ${proc.id}: $ ${oneLine(proc.command)} (since ${localTime(proc.startedAt)})`);
+  for (const watch of watches) lines.push(`Waiting on @${oneLine(watch.onAgentName)} in ${watch.toThread} (since ${localTime(watch.startedAt)})`);
+  for (const trig of onceTriggers) lines.push(`Once at ${localTime(trig.due)}: ${onceTriggerPrompt(trig)}`);
   return lines.join("\n");
 }
 
@@ -69,10 +71,8 @@ function renderStatus(status: SessionStatus): string {
   return parts.join(" · ");
 }
 
-/** A line for each image, naming it by its media type. */
 const images = (shown: readonly SessionImage[]): string[] => shown.map((image) => `  ${imageWords(image.mimeType)}`);
 
-/** The lines of `text`, each indented two spaces; no lines for no text. */
 export function indent(text: string): string[] {
   return text === "" ? [] : text.split("\n").map((line) => `  ${line}`);
 }

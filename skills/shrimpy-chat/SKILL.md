@@ -5,58 +5,48 @@ description: Use when you need to know where a message went, how to reach someon
 
 # Where messages go
 
-You speak by your reply and by `send_message`. The shrimpy command run from your shell acts as you: `run` posts as you, `threads` and `read` show your threads, your DMs with other agents included but not the person's threads with anyone else, and `rooms` lists and makes your rooms. To say something, use your reply or `send_message`.
+You speak by your reply and by `post`, and you manage threads with `thread`. The shrimpy command run from your shell acts as you: `run` posts as you, `threads` and `read` show your threads (including DMs with other agents, but not the person's threads with anyone else), and `rooms` lists and makes your rooms.
 
 ## How it fits together
 
-- A channel is where people and agents talk. It is a DM, you and one other member, or a room: a channel with a name and any number of members.
-- A thread is one conversation, and any member can start one. A DM is a set of threads, one for each conversation. A room is made with one thread, which is pinned, and can have any number of others. A pin is the channel's, so every member sees it, and a channel lists its pinned threads first.
-- You keep one session for each thread you are in: your own work there, with its own history. A session is addressed by its thread's ID, and it starts when the first message arrives.
-- Chat keeps a log of events: a message posted, edited or deleted, an emoji put on a message or taken back, and a receipt left on one of these. A message is what its events add up to.
-- A message wakes you when it is addressed to you. In a DM that is every message from the other member. In a room it is a message that mentions you as `@name`, whatever the case, or says `@all`. By default a message a person writes in a room that mentions nobody wakes you too, with every other agent there, and a message an agent writes wakes you only if it mentions you. Answer a person's message that mentions nobody only if it is yours to answer, and otherwise write only END. A person who mentions members is talking to them: you see it in what you are shown the next time something wakes you. An edit of such a message wakes you too, and says what it now reads. So does a reaction to a message you wrote, which says who reacted with what: a thumbs-up on a question you asked is an answer to it. So does an answer in words: if someone you mentioned answers your message without mentioning you, you are woken once with their reply, and what you write then wakes nobody unless it mentions someone. That is a net, not a way to reach someone: mention them when you want them to act. A delete, a reaction to someone else's message, a reaction taken back and any other receipt wake nobody. Several events that arrive while you are busy get one reply.
-- What you are shown in a thread opens by saying where you are: a thread of your DM with someone, by name, or the room and who else is in it.
-- What comes next is what was said in the thread since you last looked, oldest first, and then the message that woke you. What you posted there from another conversation is in it, such as a trigger's news that someone has now answered. In a room each message says who it was for: you, others by name, everyone in the room, or that it mentions nobody. If more was said than fits, a line says how many earlier messages are left out and which `before` number reads them with `read_messages`.
-- A person can write `/stop` in a thread, and your work there stops at once, without you being asked: in a DM it is for you, and in a room for whoever it mentions, or for everyone when it mentions nobody or says `@all`.
-- A person can write `/model` in a thread to have you run on another model there. You don't read the command: the thread gets one line from you that says which model it runs on now, and your next message in that thread says that your model changed. In a room it is for whoever it mentions, or for everyone when it says `@all`.
+- A channel is where people and agents talk: a DM (you and one other member) or a room (a named channel with any number of members).
+- A thread is one conversation, and any member can start one. A room is made with one pinned thread and can have any number of others.
+- Every session sits behind one real thread, addressed by that thread's ID, and starts when the first message or trigger arrives.
+- Chat keeps a log of events: a message posted, edited or deleted, a wake line (trigger, background command, or watched agent reply), an emoji reaction, and receipts. Wake lines and archived threads never count as unread.
+- A message wakes you when it is addressed to you. In a DM that is every message from the other member. In a room it is a message that mentions you as `@name` or `@all`, plus (by default) a person's message that mentions nobody — answer those only if they are yours to answer, otherwise write only END. Edits, reactions to your messages, and replies to your messages wake you too.
+- What comes before the waking message is everything said in the thread since you last looked, oldest first. If more was said than fits, call `thread({ action: "read", before: <seq> })` to read further back.
+- A person can write `/stop` in a thread to stop only the running turn there. Background commands, triggers, and watches keep running.
+- A person can write `/model` in a thread to switch the model for that thread.
 
 ## Reaching someone
 
-- Your reply goes to the thread the message came from. If chat is down it waits, and it is posted when chat is back.
-- In a room, another agent is woken only by a message that mentions it as `@name`, so write `@name` when you want someone to act. A name with no `@` reaches nobody.
-- `send_message` with no `to` posts to this thread now. With `to: "@maya"` it starts a new thread with maya, in your DM with them, which is started if you have none, and says the thread's ID. maya is any person or agent on the roster, which `shrimpy status` lists; for a name that isn't on it, the refusal lists the names that are. With `to: "@maya/<thread>"` it posts in one of your threads with maya, by its ID or its name. With `to: "#ops"` it posts in the first pinned thread of the room ops, which you have to be in, or is refused with the room's threads when none is pinned, and with `to: "#ops/poem"` it posts in its thread called poem, or the one with that ID.
-- `read_messages` takes the same places in `from`: it reads this thread with no `from`, and one of your threads with someone, a room's first pinned thread or one of its threads with one. `from: "@maya"` alone lists your threads with maya.
-- Each thread is a separate conversation, with a session of its own that doesn't see what is said in your other threads. Post in the thread a thing is about, and start a thread only for something new. A thread is called by how its first message starts, so make that first line say what it is about. `shrimpy threads <name>` lists your threads with someone, newest first, and `shrimpy read <thread>` shows one.
-- `check_back` wakes you once, later, in the conversation you call it from, with a note you leave yourself. If that conversation is behind a thread, what you write when you wake is posted there like any reply. For work that repeats, see shrimpy-triggers.
+- Your final text in a turn goes to the thread you are in. If chat is down it waits and posts when chat is back.
+- In a room, another agent is woken only by `@name`. A name with no `@` reaches nobody.
+- `post` with no `to` posts a mid-turn update to this thread. With `to: "@maya"` it starts a new thread in your DM with maya. With `to: "th_..."`, `"@maya/<thread>"`, `"#ops"`, or `"#ops/<thread>"` it posts to an existing thread.
+- Posting to another agent's DM automatically watches for their reply and wakes this thread when they settle (`answered`, `silent`, `failed`, or `stopped`), along with any other watches still open here. End your turn after posting, and write messages to other agents so they stand alone.
+- `thread` lists (`action: "list"`), reads (`action: "read"`), creates (`action: "create"`), renames (`action: "rename"`), or archives (`action: "archive"`) threads. When the user no longer needs an agent-to-agent DM thread or helper thread, archive it with `thread({ action: "archive", thread: "<id>" })`. Archiving a watched agent DM thread also drops the open watch on it.
 - Two agents that each answer a thank-you with a thank-you never stop. If a message only closes the exchange, end with END.
 
 ## Rooms
 
-Only the members of a room post in it, and an agent reads only its own rooms. The person who runs the gateway reads every room and DM. Making one, and adding anyone on the roster to one, takes an admin: every person is one, the first agent a setup has starts as one, and any other agent is one once it has been promoted. If you aren't one, the refusal says who is, and you can ask them to do it. `shrimpy members` lists the roster and who is an admin. A member who is added can read everything said before, and is only told of what comes after.
+Only members of a room post in it, and an agent reads only its own rooms. Making a room or adding members takes an admin (`shrimpy members` lists admins).
 
-- `shrimpy rooms` lists the rooms you are in, with their members and when each was last updated.
-- `shrimpy rooms new ops maya zach` makes the room ops with you, maya and zach in it. It checks every name first, and says which one is wrong.
-- `shrimpy rooms add ops rex` adds rex to a room you are in, if you are an admin.
-- `shrimpy threads "#ops"` lists the threads of a room, and `shrimpy read <thread>` shows one. Write a room as `#name` in quotes: a shell reads an unquoted `#` as the start of a comment.
+- `shrimpy rooms` lists the rooms you are in.
+- `shrimpy rooms new ops maya zach` makes the room ops with you, maya, and zach.
+- `shrimpy rooms add ops rex` adds rex to ops.
+- `shrimpy threads "#ops"` lists a room's threads, and `shrimpy read <thread>` prints one. Quote `#name` so the shell doesn't read `#` as a comment.
 
 ## What wakes you in a room
 
-A room wakes you by its policy, `people` unless you set another: a message that mentions you or says `@all`, an answer to a message of yours, and every message a person writes there that mentions nobody. `mentions` leaves out the person's messages that mention nobody, `all` wakes you for every message, an agent's included, and `none` for nothing.
-
-Set one with `shrimpy wake "#ops" mentions` and list what is set with `shrimpy wake`. Change it when a room is too busy for you to follow, or when your job in it is to follow all of it. It takes effect at once.
+A room wakes you by its policy (`people` by default, or `mentions`, `all`, `none`). Set one with `shrimpy wake "#ops" mentions` and list policies with `shrimpy wake`.
 
 ## Receipts
 
-When a turn for an event ends, the agent leaves a receipt on it. The receipt names the event, so a message that was edited after you answered it gets a second answer and a second receipt, and the two can be told apart. A receipt is an event in the log too. A later receipt on the same event, as when a skipped message is answered, is another event, and the message shows the one that stands. The statuses:
-
-- **answered**: it replied, and the receipt points at the reply.
-- **silent**: it ended with END, or wrote nothing. This is recorded and shown to nobody unless they ask for `--json`.
-- **stopped**: someone stopped its work.
-- **skipped**: the message was taken back before the agent reached it, because work was stopped or an earlier turn failed. When a turn failed, the receipt says why. The agent sees the message with the next one.
-- **failed**: the turn failed. The receipt says why in a few words.
+When a turn ends, the agent leaves a receipt on the waking event (`answered`, `silent`, `stopped`, `skipped`, or `failed`).
 
 ## Why didn't it answer?
 
-1. `shrimpy status`. An agent that isn't listed among the programs isn't running.
-2. `shrimpy read <thread> --json` shows each message with each agent's receipt on it. It reads only threads you are in.
-3. `shrimpy sessions read <session> --agent <agent>`, with the thread's ID as the session, shows what the agent was shown and what it did. It asks the agent, so it needs no seat in the thread.
-4. `shrimpy threads <name>` shows your threads with that member and who is working in each right now.
+1. `shrimpy status`. An agent missing from the programs list isn't running.
+2. `shrimpy read <thread> --json` shows each message and its receipts.
+3. `shrimpy sessions read <session> --agent <agent>` (using the thread ID) shows what the agent saw and did.
+4. `shrimpy threads <name>` shows your threads with that member and who is working in each.

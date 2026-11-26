@@ -14,13 +14,15 @@ import {
   UserEntry,
 } from "@earendil-works/pi-durable";
 import type {
+  OnceTrigger,
+  ProcessSummary,
   QueuedInput,
   SessionActivity,
   SessionImage,
   SessionItem,
   SessionPage,
   SessionStatus,
-  WaitingWakeup,
+  WatchSummary,
 } from "../../contracts/agent/index.ts";
 import { assistantText, failureOf } from "../turns/durable.ts";
 
@@ -186,7 +188,14 @@ function finishTool(tool: ToolItem, entry: EntryRecord, result: ToolResultMessag
  * without an answer is the engine's reason in the contract's words, until the
  * next turn starts.
  */
-export function statusOf(view: ConversationView, home: ModelRef, wakeups: readonly WaitingWakeup[]): SessionStatus {
+/** Per-thread background work shown on a session's status. */
+export interface SessionExtras {
+  processes: readonly ProcessSummary[];
+  watches: readonly WatchSummary[];
+  onceTriggers: readonly OnceTrigger[];
+}
+
+export function statusOf(view: ConversationView, home: ModelRef, extras: SessionExtras): SessionStatus {
   const live = (view.docs["pi.live"] ?? {}) as LiveState;
   const inbox = (view.docs["pi.inbox"] ?? { items: [] }) as InboxState;
   const agent = (view.docs["pi.agent"] ?? {}) as { model?: { provider: string; modelId: string } };
@@ -204,7 +213,9 @@ export function statusOf(view: ConversationView, home: ModelRef, wakeups: readon
     model: agent.model ? { provider: agent.model.provider, id: agent.model.modelId } : null,
     ownModel: agent.model !== undefined && (agent.model.provider !== home.provider || agent.model.modelId !== home.modelId),
     usage,
-    wakeups: wakeups.map(({ due, note }) => ({ due, note })),
+    processes: [...extras.processes],
+    watches: [...extras.watches],
+    onceTriggers: [...extras.onceTriggers],
     failure: live.runFailure === undefined ? null : failureOf(live.runFailure),
   };
 }

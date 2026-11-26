@@ -8,9 +8,8 @@ export const MAX_READ = 200;
 /**
  * One session of an agent as the caller sees it, at `agent({ id: agent })`:
  * the newest stretch of its history and what it is doing, kept live, older
- * history a page at a time, and control over its work. `session` is its address
- * at the agent: a thread's ID, or `trigger:` and a trigger's name. Holding it is
- * what attaching to a session was.
+ * history a page at a time, and control over its work. `session` is its thread
+ * ID. Holding it is what attaching to a session was.
  *
  * `refusal` is null, or why the caller can't have this session: the agent
  * hasn't made it yet, or the caller may not watch the agent. Then the rest of
@@ -19,7 +18,7 @@ export const MAX_READ = 200;
  * promotion, shows at once.
  */
 export const Session = remote("shrimpy.agent.session", {
-  version: 2,
+  version: 3,
   params: { agent: str(), session: str() },
   hostAddress: ({ agent: id }) => agent({ id }),
   variants: {

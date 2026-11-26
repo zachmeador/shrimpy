@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { parseArgs } from "node:util";
 import { failureWords, MAX_READ, type Settlement } from "../../contracts/agent/index.ts";
 import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
-import { shellWord } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
 import { type HeldSession, onAgent, onSession } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
@@ -10,18 +9,15 @@ import { CANCELLED, type Command } from "./command.ts";
 import { withConnection } from "./connected.ts";
 import { renderSession, type WholeSession } from "./render.ts";
 import { renderSessions } from "./render-sessions.ts";
-import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, command, type Target, WHICH_AGENT } from "./which-agent.ts";
+import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, type Target, WHICH_AGENT } from "./which-agent.ts";
 
 /** What a session is called, which every command that takes one says. */
-const ADDRESS =
-  "A session is named by its thread's ID, or, for the session of its own that a trigger with no thread has, " +
-  "by trigger: and the trigger's name. sessions list shows them.";
+const ADDRESS = "A session is named by its thread's ID. sessions list shows them.";
 
 const list: Command = {
   name: "sessions list",
   usage: "[--agent <agent>]",
-  summary:
-    "List the sessions of a running agent: each one's name (a thread's ID, or trigger: and a trigger's name), where it is (a DM with someone, a room, or a trigger's own), and whether it is working.",
+  summary: "List the sessions of a running agent: each thread ID, where it is (a DM or a room), and whether it is working.",
   details: `${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
@@ -51,7 +47,7 @@ const read: Command = {
     return withSession(target, session, async (held) => {
       const whole = await wholeSession(held);
       if (values.json === true) io.json(whole);
-      else io.out(renderSession(whole, command(target, `sessions stop ${shellWord(session)}`)));
+      else io.out(renderSession(whole));
       return 0;
     });
   },

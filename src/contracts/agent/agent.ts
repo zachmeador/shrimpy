@@ -1,4 +1,4 @@
-import { arr, bool, method, nul, obj, remote, str, union } from "@earendil-works/chord";
+import { arr, bool, int, method, nul, obj, opt, remote, str, union } from "@earendil-works/chord";
 import { agent, answerOf, RefusedSchema } from "../gateway/index.ts";
 import {
   AgentModelSchema,
@@ -7,11 +7,15 @@ import {
   ModelIdSchema,
   HomeFileSchema,
   OccurrenceSchema,
+  OnceTriggerSchema,
   PigmentSchema,
+  ProcessOutputSchema,
+  ProcessSummarySchema,
   ReloadedSchema,
   SessionSummarySchema,
   TriggerDetailSchema,
   TriggerSummarySchema,
+  WatchSummarySchema,
 } from "./shapes.ts";
 
 /** The most bytes a file of the home has for the agent to show it as text: 1 MB. */
@@ -22,22 +26,23 @@ export const MAX_IMAGE_BYTES = 10_000_000;
 
 /**
  * One agent as the caller sees it, at `agent({ id: agent })`: its sessions,
- * its triggers, its default model and how it looks, kept live, what a client
- * does with the agent as a whole, and its home's files, to look at. Through
- * this contract the agent changes its own files only as `setModel` and
- * `switchTrigger` ask: the model its `agent.json` names, and whether a trigger
- * is on. Everything else in the home, such as making or removing a trigger or
- * what wakes it in a room, it changes with its own tools and shell.
+ * its standing and one-shot triggers, its running background processes, its
+ * open watches on other agents, its default model and how it looks, kept live,
+ * what a client does with the agent as a whole, and its home's files, to look
+ * at. Through this contract the agent changes its own files only as `setModel`
+ * and `switchTrigger` ask: the model its `agent.json` names, and whether a
+ * trigger is on. Everything else in the home, such as making or removing a
+ * trigger or what wakes it in a room, it changes with its own tools and shell.
  *
  * `refusal` is null, or why the caller may not watch this agent, and then its
- * sessions and triggers are empty, its model is null and every method answers
- * with that refusal.
+ * sessions, triggers, processes and watches are empty, its model is null and
+ * every method answers with that refusal.
  * Its sigil and pigment show to every caller. You, the agent itself, an admin
  * and a client on the agent's home socket may watch it. It follows the live
  * roster, so a promotion shows at once.
  */
 export const Agent = remote("shrimpy.agent", {
-  version: 3,
+  version: 4,
   params: { agent: str() },
   hostAddress: ({ agent: id }) => agent({ id }),
   variants: {
@@ -48,12 +53,18 @@ export const Agent = remote("shrimpy.agent", {
         /** Its sessions, in the order they were made, each with where it is and whether a turn is underway in it. */
         sessions: arr(SessionSummarySchema),
         /**
-         * Its triggers, in order of name, each with when it is next due and how
-         * its last occurrence ended. The agent reads its triggers from the files
-         * of its home when it starts and whenever they change, and this is what
-         * it runs now.
+         * Its standing triggers, in order of name, each with when it is next
+         * due and how its last occurrence ended. The agent reads its triggers
+         * from the files of its home when it starts and whenever they change,
+         * and this is what it runs now.
          */
         triggers: arr(TriggerSummarySchema),
+        /** Pending one-shot triggers across all threads, soonest first. */
+        onceTriggers: arr(OnceTriggerSchema),
+        /** Running background `bash` processes across all threads, oldest first. */
+        processes: arr(ProcessSummarySchema),
+        /** Live watches on other agents across all threads, oldest first. */
+        watches: arr(WatchSummarySchema),
         /**
          * Its sigil: the twelve lines of `sigil` in its home's `agent.json`, `#`
          * for on and `.` for off, or null when it has none or it isn't twelve by
@@ -77,13 +88,14 @@ export const Agent = remote("shrimpy.agent", {
          * when the agent can't use it now.
          */
         models: method(undefined, answerOf(arr(AgentModelSchema))),
-        /** One trigger with its definition and its most recent occurrences, newest first. */
+        /** One standing trigger with its definition and its most recent occurrences, newest first. */
         trigger: method(obj({ name: str() }), answerOf(TriggerDetailSchema)),
         /**
-         * Fires a trigger once now, apart from its schedule, which it keeps,
-         * answering with the occurrence it made, which has not ended yet unless
-         * it was skipped. A trigger that is off can still be fired. A trigger
-         * with a check runs it now, and whatever it prints counts as news.
+         * Fires a standing trigger once now, apart from its schedule, which it
+         * keeps, answering with the occurrence it made, which has not ended yet
+         * unless it was skipped. A trigger that is off can still be fired. A
+         * trigger with a check runs it now, and whatever it prints counts as
+         * news.
          */
         fire: method(obj({ name: str() }), answerOf(OccurrenceSchema)),
         /**
@@ -104,16 +116,24 @@ export const Agent = remote("shrimpy.agent", {
          */
         setModel: method(obj({ model: union([ModelIdSchema, nul()]) }), answerOf(ReloadedSchema)),
         /**
-         * Turns the trigger `name` on or off in its file, `triggers/<name>.md`
-         * in the home, then reads the home again, and answers with the trigger
-         * as the agent runs it now. A trigger that is on comes due on its
-         * schedule, counted from now; one that is off never does, though `fire`
-         * still runs it, and an occurrence that is running goes on. A trigger
-         * that is already as asked is left alone. A name the home has no trigger
-         * of is refused, and so is a file that doesn't check out, which is left
-         * as it was.
+         * Turns the standing trigger `name` on or off in its file,
+         * `triggers/<name>.md` in the home, then reads the home again, and
+         * answers with the trigger as the agent runs it now. A trigger that is
+         * on comes due on its schedule, counted from now; one that is off never
+         * does, though `fire` still runs it, and an occurrence that is running
+         * goes on. A trigger that is already as asked is left alone. A name the
+         * home has no trigger of is refused, and so is a file that doesn't
+         * check out, which is left as it was.
          */
         switchTrigger: method(obj({ name: str(), on: bool() }), answerOf(TriggerSummarySchema)),
+        /** Recent combined stdout/stderr tail for a background `bash` process. */
+        processOutput: method(obj({ id: str(), lines: opt(int({ min: 1, max: 2000 })) }), answerOf(ProcessOutputSchema)),
+        /** Kill a running background `bash` process group, post a `killed` wake line, and wake its owning session. */
+        killProcess: method(obj({ id: str() }), answerOf(nul())),
+        /** Cancel a pending one-shot trigger silently (leaves no wake line and does not wake the session). */
+        cancelTrigger: method(obj({ id: str() }), answerOf(nul())),
+        /** Dismiss an open watch on another agent silently (leaves no wake line and does not wake the session). */
+        cancelWatch: method(obj({ id: str() }), answerOf(nul())),
         /**
          * The entries of a folder of the home, in order of name. `path` is where
          * the folder is in the home, with `/` between folders, and `""` is the

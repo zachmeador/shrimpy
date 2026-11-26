@@ -8,7 +8,6 @@ import type { Script } from "./index.ts";
  */
 export interface Turn {
   send?: { text: string; to?: string };
-  ask?: { to: string; text: string; within?: string };
   final: string;
 }
 
@@ -66,10 +65,7 @@ export function talking(respond: (shown: string, turn: number) => Turn): Talking
       if (current.send !== undefined) {
         const { text, to } = current.send;
         const args: Record<string, string> = to === undefined ? { text } : { text, to };
-        return fauxAssistantMessage([fauxToolCall("send_message", args, { id: `call-${String(shown.length)}` })], { stopReason: "toolUse" });
-      }
-      if (current.ask !== undefined) {
-        return fauxAssistantMessage([fauxToolCall("ask_agent", current.ask, { id: `call-${String(shown.length)}` })], { stopReason: "toolUse" });
+        return fauxAssistantMessage([fauxToolCall("post", args, { id: `call-${String(shown.length)}` })], { stopReason: "toolUse" });
       }
     }
     return fauxAssistantMessage([fauxText(current.final)]);

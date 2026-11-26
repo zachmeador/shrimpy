@@ -17,24 +17,38 @@ test("a trigger's file is read as written, and one that doesn't check out is ref
     overlap: "allow",
     prompt: "Tidy up.",
   });
-  assert.deepEqual(parseTrigger("daily", file(['cron: "0  3 * * *"', "timezone: Europe/Berlin"])).schedule, {
+  assert.deepEqual(parseTrigger("daily", file(['cron: "0  3 * * *"', "timezone: Europe/Berlin", `thread: ${THREAD}`])).schedule, {
     cron: "0 3 * * *",
     timezone: "Europe/Berlin",
   });
+  assert.deepEqual(
+    parseTrigger("crumb", file(["every: 10m", 'check: "echo hi"', "then: note"], "")),
+    {
+      name: "crumb",
+      schedule: { every: "10m" },
+      thread: null,
+      enabled: true,
+      overlap: "skip",
+      prompt: "",
+      check: { command: "echo hi", when: "changed", then: "note", timeout: "1m" },
+    },
+  );
 
   const refused: [string, string[], string][] = [
-    ["a key nobody knows", ["every: 1h", "retries: 3"], "retries"],
-    ["a delay under the minute", ["every: 30s"], "every"],
-    ["a delay that is not one", ["every: soon"], "every"],
-    ["both ways to schedule", ["every: 1h", "cron: 0 3 * * *"], "both"],
+    ["a key nobody knows", ["every: 1h", `thread: ${THREAD}`, "retries: 3"], "retries"],
+    ["a delay under the minute", ["every: 30s", `thread: ${THREAD}`], "every"],
+    ["a delay that is not one", ["every: soon", `thread: ${THREAD}`], "every"],
+    ["both ways to schedule", ["every: 1h", "cron: 0 3 * * *", `thread: ${THREAD}`], "both"],
     ["no way to schedule", [`thread: ${THREAD}`], "cron"],
-    ["a cron with the wrong number of fields", ["cron: 0 3 * *"], "cron"],
-    ["a cron that never comes", ["cron: 0 0 30 2 *", "timezone: UTC"], "cron"],
-    ["a time zone that isn't one", ["cron: 0 3 * * *", "timezone: Mars/Olympus"], "timezone"],
-    ["a time zone with a delay", ["every: 1h", "timezone: UTC"], "timezone"],
+    ["a cron with the wrong number of fields", ["cron: 0 3 * *", `thread: ${THREAD}`], "cron"],
+    ["a cron that never comes", ["cron: 0 0 30 2 *", "timezone: UTC", `thread: ${THREAD}`], "cron"],
+    ["a time zone that isn't one", ["cron: 0 3 * * *", "timezone: Mars/Olympus", `thread: ${THREAD}`], "timezone"],
+    ["a time zone with a delay", ["every: 1h", "timezone: UTC", `thread: ${THREAD}`], "timezone"],
+    ["a waking trigger without a thread", ["every: 1h"], "thread"],
+    ["a breadcrumb trigger with a thread", ["every: 10m", "check: echo hi", "then: note", `thread: ${THREAD}`], "thread"],
     ["a thread that isn't an ID", ["every: 1h", "thread: general"], "thread"],
-    ["an enabled that isn't true or false", ["every: 1h", "enabled: maybe"], "enabled"],
-    ["an overlap that isn't allowed", ["every: 1h", "overlap: always"], "overlap"],
+    ["an enabled that isn't true or false", ["every: 1h", `thread: ${THREAD}`, "enabled: maybe"], "enabled"],
+    ["an overlap that isn't allowed", ["every: 1h", `thread: ${THREAD}`, "overlap: always"], "overlap"],
   ];
   for (const [what, lines, mentions] of refused) {
     assert.throws(
@@ -43,12 +57,12 @@ test("a trigger's file is read as written, and one that doesn't check out is ref
       what,
     );
   }
-  assert.throws(() => parseTrigger("nightly", file(["every: 1h"], "  \n")), /prompt/);
+  assert.throws(() => parseTrigger("nightly", file(["every: 1h", `thread: ${THREAD}`], "  \n")), /prompt/);
   assert.throws(() => parseTrigger("nightly", "Tidy up.\n"), /front matter/);
-  assert.throws(() => parseTrigger("two words", file(["every: 1h"])), /name/);
+  assert.throws(() => parseTrigger("two words", file(["every: 1h", `thread: ${THREAD}`])), /name/);
   // A key nobody knows is told with the keys there are, and the shortest delay can be shortened for a test.
-  assert.throws(() => parseTrigger("nightly", file(["every: 1h", "retries: 3"])), /every, cron, timezone, thread, enabled, overlap, check, when, then and timeout/);
-  assert.deepEqual(parseTrigger("quick", file(["every: 1s"]), { shortestEveryMs: 1_000 }).schedule, { every: "1s" });
+  assert.throws(() => parseTrigger("nightly", file(["every: 1h", `thread: ${THREAD}`, "retries: 3"])), /every, cron, timezone, thread, enabled, overlap, check, when, then and timeout/);
+  assert.deepEqual(parseTrigger("quick", file(["every: 1s", `thread: ${THREAD}`]), { shortestEveryMs: 1_000 }).schedule, { every: "1s" });
 });
 
 test("a cron schedule is the next matching time in its own time zone, and a delay counts from where it is asked from", () => {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agentMember, aListing, aRoom, aSession, aThread, aThreadView, anAgent, aChatServer, onSession, onThread, sessionView, workingView } from "../state/testing/index.ts";
+import { agentMember, aListing, aRoom, aThread, aThreadView, anAgent, aChatServer, onThread, sessionView, workingView } from "../state/testing/index.ts";
 import { sessionLevel, threadLevel } from "./index.ts";
 
 const at = { now: Date.now(), self: "this test" };
@@ -30,12 +30,4 @@ test("the agent's view of a thread says where it is, what the session is doing w
     [scout.id, lurker.id],
   );
   assert.ok(threadLevel(model, at)?.works[0]?.doing.includes("bash"), "the work beside the conversation says what the agent is doing too");
-});
-
-test("a trigger's own session has nothing under its steps", () => {
-  const nightly = aSession("trigger:nightly", { place: { kind: "trigger", trigger: "nightly" }, working: true });
-  const view = sessionLevel(onSession("scout", nightly, workingView([])), at);
-  assert.ok(view);
-  assert.equal(view.foot, undefined);
-  assert.deepEqual(view.sides, []);
 });

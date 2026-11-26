@@ -1,4 +1,4 @@
-import { activityWords, modelWords, wakeupNote, YOUR_DM } from "../../contracts/agent/index.ts";
+import { activityWords, modelWords, onceTriggerPrompt, YOUR_DM } from "../../contracts/agent/index.ts";
 import {
   agentCommandIn,
   answerWakeWords,
@@ -307,13 +307,12 @@ function worksOf(model: Model, from: string | undefined, shown: Shown): AgentWor
  */
 function waitingOf(model: Model, now: number, inThread: boolean): Waiting[] {
   const all = Object.entries(model.behind)
-    .flatMap(([agent, view]) => (view.reached ? view.status.wakeups.map((wakeup) => ({ agent, wakeup })) : []))
-    .sort((a, b) => a.wakeup.due - b.wakeup.due);
-  // What `/stop` does to a wake-up is said on the one there is. Of several, `/status` lists them all and says it once.
-  return all.map(({ agent, wakeup }) => {
+    .flatMap(([agent, view]) => (view.reached ? view.status.onceTriggers.map((trigger) => ({ agent, trigger })) : []))
+    .sort((a, b) => a.trigger.due - b.trigger.due);
+  return all.map(({ agent, trigger }) => {
     const who = oneLine(agentNameOf(model, agent));
-    const when = whenOf(wakeup.due, now);
-    return { agent, look: lookOf(model, agent), who, when, note: wakeupNote(wakeup), line: wakeupLine(who, wakeup, when, inThread && all.length === 1) };
+    const when = whenOf(trigger.due, now);
+    return { agent, look: lookOf(model, agent), who, when, note: onceTriggerPrompt(trigger), line: wakeupLine(who, trigger, when, inThread && all.length === 1) };
   });
 }
 

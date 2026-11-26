@@ -128,21 +128,21 @@ const SCRIPTS: Record<FauxScenario, Script> = {
     );
   },
 
-  /** `check_back` once for each delay the message names, each with a note that says which, then an answer that says so. */
+  /** `trigger({ action: "add", in, prompt })` once for each delay the message names, then an answer that says so. */
   waking: (messages) => {
     if (pendingToolResult(messages) !== undefined) return fauxAssistantMessage("Wake-ups set.");
     const delays = (CHECK_BACK.exec(writtenLast(messages))?.[1] ?? "").split(" and ");
     const calls = delays.map((delay, index) =>
-      fauxToolCall("check_back", { in: delay, note: `look again (${delay})` }, { id: `call-${String(index)}` }),
+      fauxToolCall("trigger", { action: "add", in: delay, prompt: `look again (${delay})` }, { id: `call-${String(index)}` }),
     );
-    return fauxAssistantMessage([fauxText("Asking to be woken."), ...calls], { stopReason: "toolUse" });
+    return fauxAssistantMessage([fauxText("Scheduling one-time triggers."), ...calls], { stopReason: "toolUse" });
   },
 
-  /** `ask_agent` of maya, then an answer that says so. */
+  /** `post` to `@maya`, then an answer that says so. */
   asking: (messages) => {
     if (pendingToolResult(messages) !== undefined) return fauxAssistantMessage("I asked maya.");
     return fauxAssistantMessage(
-      [fauxText("Asking maya."), fauxToolCall("ask_agent", { to: "@maya", text: ASKED_OF_MAYA }, { id: "call-ask" })],
+      [fauxText("Asking maya."), fauxToolCall("post", { to: "@maya", text: ASKED_OF_MAYA }, { id: "call-ask" })],
       { stopReason: "toolUse" },
     );
   },

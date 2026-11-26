@@ -22,28 +22,20 @@ import {
   useShrimpyDir,
 } from "./testing/index.ts";
 
-/*
- * These tests make and change triggers with the commands, as people and agents
- * do. The agent is a process of its own, serving a home in the test's Shrimpy
- * folder, and its model is a stand-in on a local port.
- */
-
 const timeout = 90_000;
+const THREAD = "th_4k9x2m7q0b3d";
 
-/** Run `shrimpy` with `args` in this process and return the code with what it printed. */
 async function run(...args: string[]) {
   const cli = captureIo();
   const code = await runCli(args, cli.io);
   return { code, out: cli.out.join("\n"), err: cli.err.join("\n") };
 }
 
-/** What a test asks of a running agent's triggers. */
 interface Triggering {
   triggers(): Promise<TriggerSummary[]>;
   trigger(name: string): Promise<TriggerDetail>;
 }
 
-/** The agent `scout`, made in the test's Shrimpy folder and serving, and its home. */
 async function servedScout(t: TestContext): Promise<{ home: string; agent: ServedAgent; connection: () => Promise<Triggering> }> {
   useRuntimeDir(t);
   const model = await startModelServer(t);
@@ -70,14 +62,14 @@ async function servedScout(t: TestContext): Promise<{ home: string; agent: Serve
 test("add writes a file the agent accepts, which a running agent picks up at once", { timeout }, async (t) => {
   const { home, connection } = await servedScout(t);
 
-  const added = await run("triggers", "add", "nightly", "--every", "1h", "Tidy the notes.", "--agent", home);
+  const added = await run("triggers", "add", "nightly", "--every", "1h", "--thread", THREAD, "Tidy the notes.", "--agent", home);
 
   assert.equal(added.code, 0, added.err);
   const file = join(home, "triggers", "nightly.md");
   assert.deepEqual(parseTrigger("nightly", readFileSync(file, "utf8")), {
     name: "nightly",
     schedule: { every: "1h" },
-    thread: null,
+    thread: THREAD,
     enabled: true,
     overlap: "skip",
     prompt: "Tidy the notes.",
@@ -87,8 +79,7 @@ test("add writes a file the agent accepts, which a running agent picks up at onc
   assert.ok(trigger.next !== null && Math.abs(trigger.next - Date.now() - 3_600_000) < 60_000);
   assert.ok(added.out.includes(localTime(trigger.next)), `the time the agent has is said:\n${added.out}`);
 
-  // Making it again replaces it, and a schedule that changes counts from then.
-  const replaced = await run("triggers", "add", "nightly", "--cron", "0 3 * * *", "--timezone", "Europe/Berlin", "Tidy more.", "--agent", home);
+  const replaced = await run("triggers", "add", "nightly", "--cron", "0 3 * * *", "--timezone", "Europe/Berlin", "--thread", THREAD, "Tidy more.", "--agent", home);
   assert.equal(replaced.code, 0, replaced.err);
   const [again] = await (await connection()).triggers();
   assert.deepEqual(again?.schedule, { cron: "0 3 * * *", timezone: "Europe/Berlin" });
@@ -97,8 +88,7 @@ test("add writes a file the agent accepts, which a running agent picks up at onc
   assert.equal(listed.code, 0, listed.err);
   assert.ok(listed.out.includes("nightly"), listed.out);
 
-  // A check comes with what counts as news and how long it may run, and the agent has it as the file says it.
-  const checked = await run("triggers", "add", "inbox", "--every", "1h", "--check", 'ls inbox | grep -c "new"', "--when", "output", "--timeout", "30s", "Tell me.", "--agent", home);
+  const checked = await run("triggers", "add", "inbox", "--every", "1h", "--thread", THREAD, "--check", 'ls inbox | grep -c "new"', "--when", "output", "--timeout", "30s", "Tell me.", "--agent", home);
   assert.equal(checked.code, 0, checked.err);
   const check = { command: 'ls inbox | grep -c "new"', when: "output", then: "wake", timeout: "30s" };
   assert.deepEqual(parseTrigger("inbox", readFileSync(join(home, "triggers", "inbox.md"), "utf8")).check, check);
@@ -106,11 +96,10 @@ test("add writes a file the agent accepts, which a running agent picks up at onc
   const shown = await run("triggers", "show", "inbox", "--agent", home);
   assert.ok(shown.out.includes(check.command) && shown.out.includes("30s"), shown.out);
 
-  // A trigger that notes what its check finds wakes nobody, so it needs no prompt.
   const noted = await run("triggers", "add", "stuck", "--every", "1h", "--check", "test -f stuck.lock && echo stuck", "--then", "note", "--agent", home);
   assert.equal(noted.code, 0, noted.err);
   const stuck = parseTrigger("stuck", readFileSync(join(home, "triggers", "stuck.md"), "utf8"));
-  assert.deepEqual([stuck.check?.then, stuck.prompt], ["note", ""]);
+  assert.deepEqual([stuck.check?.then, stuck.prompt, stuck.thread], ["note", "", null]);
 });
 
 test("a schedule that is wrong is refused with its key and value, and nothing is written", { timeout }, async (t) => {
@@ -118,43 +107,43 @@ test("a schedule that is wrong is refused with its key and value, and nothing is
   const home = join(useShrimpyDir(t), "agents", "scout");
 
   const refused: [string, string[], string][] = [
-    ["a delay that is not one", ["--every", "soon"], "every: soon"],
-    ["a delay under a minute", ["--every", "30s"], "every: 30s"],
-    ["a cron without five fields", ["--cron", "0 3 * *"], "cron: 0 3 * *"],
-    ["a cron that never comes", ["--cron", "0 0 30 2 *", "--timezone", "UTC"], "cron: 0 0 30 2 *"],
-    ["a time zone that is not one", ["--cron", "0 3 * * *", "--timezone", "Mars/Olympus"], "timezone: Mars/Olympus"],
-    ["a time zone with a delay", ["--every", "1h", "--timezone", "UTC"], "timezone"],
+    ["a delay that is not one", ["--every", "soon", "--thread", THREAD], "every: soon"],
+    ["a delay under a minute", ["--every", "30s", "--thread", THREAD], "every: 30s"],
+    ["a cron without five fields", ["--cron", "0 3 * *", "--thread", THREAD], "cron: 0 3 * *"],
+    ["a cron that never comes", ["--cron", "0 0 30 2 *", "--timezone", "UTC", "--thread", THREAD], "cron: 0 0 30 2 *"],
+    ["a time zone that is not one", ["--cron", "0 3 * * *", "--timezone", "Mars/Olympus", "--thread", THREAD], "timezone: Mars/Olympus"],
+    ["a time zone with a delay", ["--every", "1h", "--timezone", "UTC", "--thread", THREAD], "timezone"],
+    ["missing thread on a waking trigger", ["--every", "1h"], "thread"],
     ["a thread that is not an ID", ["--every", "1h", "--thread", "general"], "thread: general"],
-    ["an overlap that is not one", ["--every", "1h", "--overlap", "always"], "overlap: always"],
-    ["a when with no check", ["--every", "1h", "--when", "output"], "when goes with check"],
-    ["a when that is not one", ["--every", "1h", "--check", "true", "--when", "sometimes"], "when: sometimes"],
-    ["a then that is not one", ["--every", "1h", "--check", "true", "--then", "sometimes"], "then: sometimes"],
-    ["a thread on a trigger that notes", ["--every", "1h", "--check", "true", "--then", "note", "--thread", "th_4k9x2m7q0b3d"], "thread goes with then: wake"],
-    ["a timeout that is not a delay", ["--every", "1h", "--check", "true", "--timeout", "soon"], "timeout: soon"],
-    ["a timeout that is too long", ["--every", "1h", "--check", "true", "--timeout", "20m"], "timeout: 20m"],
-    ["a check of more than one line", ["--every", "1h", "--check", "true\nfalse"], "check is one line"],
+    ["an overlap that is not one", ["--every", "1h", "--thread", THREAD, "--overlap", "always"], "overlap: always"],
+    ["a when with no check", ["--every", "1h", "--thread", THREAD, "--when", "output"], "when goes with check"],
+    ["a when that is not one", ["--every", "1h", "--thread", THREAD, "--check", "true", "--when", "sometimes"], "when: sometimes"],
+    ["a then that is not one", ["--every", "1h", "--thread", THREAD, "--check", "true", "--then", "sometimes"], "then: sometimes"],
+    ["a thread on a trigger that notes", ["--every", "1h", "--check", "true", "--then", "note", "--thread", THREAD], "thread goes with then: wake"],
+    ["a timeout that is not a delay", ["--every", "1h", "--thread", THREAD, "--check", "true", "--timeout", "soon"], "timeout: soon"],
+    ["a timeout that is too long", ["--every", "1h", "--thread", THREAD, "--check", "true", "--timeout", "20m"], "timeout: 20m"],
+    ["a check of more than one line", ["--every", "1h", "--thread", THREAD, "--check", "true\nfalse"], "check is one line"],
   ];
   for (const [what, flags, mentions] of refused) {
     const result = await run("triggers", "add", "nightly", ...flags, "Tidy.", "--agent", home);
     assert.equal(result.code, 2, `${what}: ${result.err}`);
     assert.ok(result.err.includes(mentions), `${what}: ${result.err}`);
   }
-  const named = await run("triggers", "add", "two words", "--every", "1h", "Tidy.", "--agent", home);
+  const named = await run("triggers", "add", "two words", "--every", "1h", "--thread", THREAD, "Tidy.", "--agent", home);
   assert.equal(named.code, 2);
   assert.ok(named.err.includes("two words"), named.err);
 
-  // A command used without saying when, or twice over, or without a prompt, is told so.
-  assert.equal((await run("triggers", "add", "nightly", "Tidy.", "--agent", home)).code, 2);
-  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", "--cron", "0 3 * * *", "Tidy.", "--agent", home)).code, 2);
-  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", "--agent", home)).code, 2);
-  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", " ", "--agent", home)).code, 2);
+  assert.equal((await run("triggers", "add", "nightly", "--thread", THREAD, "Tidy.", "--agent", home)).code, 2);
+  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", "--cron", "0 3 * * *", "--thread", THREAD, "Tidy.", "--agent", home)).code, 2);
+  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", "--thread", THREAD, "--agent", home)).code, 2);
+  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", "--thread", THREAD, " ", "--agent", home)).code, 2);
 
   assert.deepEqual(existsSync(join(home, "triggers")) ? readdirSync(join(home, "triggers")) : [], [], "no file was written");
 });
 
 test("off, on and remove change the trigger's file, and tell a running agent", { timeout }, async (t) => {
   const { home, agent, connection } = await servedScout(t);
-  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", "Tidy.", "--agent", home)).code, 0);
+  assert.equal((await run("triggers", "add", "nightly", "--every", "1h", "--thread", THREAD, "Tidy.", "--agent", home)).code, 0);
   const file = join(home, "triggers", "nightly.md");
   const state = async () => {
     const [trigger] = await (await connection()).triggers();
@@ -171,7 +160,6 @@ test("off, on and remove change the trigger's file, and tell a running agent", {
   assert.deepEqual(await state(), [true, false], "and the running agent has it going again");
   assert.equal(parseTrigger("nightly", readFileSync(file, "utf8")).prompt, "Tidy.", "the rest of the file is as it was");
 
-  // With the agent stopped there is nobody to tell. The file changes, and the agent reads it when it starts.
   assert.equal((await agent.stop()).code, 0);
   const stopped = await run("triggers", "off", "nightly", "--agent", home);
   assert.equal(stopped.code, 0, stopped.err);
@@ -190,8 +178,7 @@ test("off, on and remove change the trigger's file, and tell a running agent", {
   const missing = await run("triggers", "remove", "nightly", "--agent", home);
   assert.equal(missing.code, 1);
 
-  // A trigger made with nobody to tell waits for the start, and counts from then.
-  const later = await run("triggers", "add", "later", "--every", "2h", "Tidy later.", "--agent", home);
+  const later = await run("triggers", "add", "later", "--every", "2h", "--thread", THREAD, "Tidy later.", "--agent", home);
   assert.equal(later.code, 0, later.err);
 
   const restarted = await serve(t, home);
@@ -202,14 +189,34 @@ test("off, on and remove change the trigger's file, and tell a running agent", {
 });
 
 test("run fires a trigger now even when it is off, and show lists the occurrence", { timeout }, async (t) => {
-  const { home, connection } = await servedScout(t);
-  assert.equal((await run("triggers", "add", "parked", "--every", "1h", "Tidy the notes.", "--agent", home)).code, 0);
+  const talking = await startTalking(t);
+  const you = await talking.you();
+  const model = await startModelServer(t);
+  assert.equal((await run("agent", "init", "scout", "--model", "local/test-model")).code, 0);
+  const home = join(useShrimpyDir(t), "agents", "scout");
+  declareLocalModel(home, { url: model.url, model: "test-model" });
+  await serve(t, home);
+  const scout = await memberNamed(t, "scout");
+  const dm = await you.openDm(scout.id);
+  const dmThread = await you.createThread(dm.id, "Triggers");
+  const client = await connectHome(home);
+  stopAfter(t, () => client.close());
+  const heldAgent = await client.host.get(Agent, { agent: client.agent }, BACKGROUND_CONTEXT);
+  const held: Triggering = {
+    triggers: async () => heldAgent.triggers.value,
+    async trigger(name) {
+      const answer = await heldAgent.trigger({ name }, BACKGROUND_CONTEXT);
+      if (answer.kind === "refused") throw new Error(answer.words);
+      return answer.value;
+    },
+  };
+
+  assert.equal((await run("triggers", "add", "parked", "--every", "1h", "--thread", dmThread.id, "Tidy the notes.", "--agent", home)).code, 0);
   assert.equal((await run("triggers", "off", "parked", "--agent", home)).code, 0);
 
   const fired = await run("triggers", "run", "parked", "--agent", home);
 
   assert.equal(fired.code, 0, fired.err);
-  const held = await connection();
   const [trigger] = await eventually(
     () => held.triggers(),
     ([found]) => found?.last?.ended === "answered",
@@ -225,8 +232,7 @@ test("run fires a trigger now even when it is off, and show lists the occurrence
   assert.ok(nothing.err.includes("parked"), "and an unknown name is answered with the triggers there are");
   assert.equal((await run("triggers", "show", "nothing", "--agent", home)).code, 1);
 
-  // A trigger with a check runs it now, in the background, and the command says how to see how it ended.
-  assert.equal((await run("triggers", "add", "watched", "--every", "1h", "--check", "echo news", "Look.", "--agent", home)).code, 0);
+  assert.equal((await run("triggers", "add", "watched", "--every", "1h", "--thread", dmThread.id, "--check", "echo news", "Look.", "--agent", home)).code, 0);
   const started = await run("triggers", "run", "watched", "--agent", home);
   assert.equal(started.code, 0, started.err);
   assert.ok(started.out.includes("triggers show watched"), started.out);
@@ -241,12 +247,11 @@ test("run fires a trigger now even when it is off, and show lists the occurrence
 test("the commands act on the agent whose shell they run in, or else need --agent", { timeout }, async (t) => {
   const { home } = await servedScout(t);
   assert.equal((await run("agent", "init", "rex", "--model", "local/test-model")).code, 0);
-  // The launcher in an agent's home sets this for its shell; a test that runs in one must not take it for its own.
   const inShell = { env: { [AGENT_HOME_VARIABLE]: home } };
   const elsewhere = { env: { [AGENT_HOME_VARIABLE]: "" } };
   const enabled = (): boolean => parseTrigger("nightly", readFileSync(join(home, "triggers", "nightly.md"), "utf8")).enabled;
 
-  const added = await shrimpy(["triggers", "add", "nightly", "--every", "1h", "Tidy."], inShell);
+  const added = await shrimpy(["triggers", "add", "nightly", "--every", "1h", "--thread", THREAD, "Tidy."], inShell);
   assert.equal(added.code, 0, added.stderr);
   const listed = await shrimpy(["triggers"], inShell);
   assert.equal(listed.code, 0, listed.stderr);
@@ -270,13 +275,11 @@ test("add with a thread in the agent's shell writes nothing for a thread the age
   const you = await talking.you();
   assert.equal((await run("agent", "init", "scout", "--model", "local/test-model")).code, 0);
   const home = join(useShrimpyDir(t), "agents", "scout");
-  // The agent has joined the roster with a token its home keeps, which is what a command in its shell signs in with.
   const token = newToken();
   await (await linkTestAgent(t, "scout", { token })).stop();
   saveMembership(home, { token });
   const scout = await memberNamed(t, "scout");
   const maya = await joinRoster(t, "maya");
-  // The person is in both threads, and only one is the agent's.
   const mine = await you.createThread((await you.openDm(scout.id)).id, null);
   const theirs = await you.createThread((await you.openDm(maya.id)).id, null);
   const inShell = { env: { [AGENT_HOME_VARIABLE]: home } };
@@ -291,7 +294,6 @@ test("add with a thread in the agent's shell writes nothing for a thread the age
   assert.equal(accepted.code, 0, accepted.stderr);
   assert.equal(parseTrigger("report", readFileSync(file, "utf8")).thread, mine.id);
 
-  // Anyone else can't ask chat as the agent, so the thread is not checked, and the trigger is written all the same.
   const elsewhere = { env: { [AGENT_HOME_VARIABLE]: "" } };
   const unchecked = await shrimpy(["triggers", "add", "other", "--every", "1h", "--thread", theirs.id, "Write it.", "--agent", home], elsewhere);
   assert.equal(unchecked.code, 0, unchecked.stderr);

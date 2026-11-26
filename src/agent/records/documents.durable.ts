@@ -1,210 +1,138 @@
 import { defineDoc } from "@earendil-works/pi-durable";
 import type { TriggerDefinition } from "../../contracts/agent/node.ts";
 import { newId } from "../../lib/ids/index.ts";
-import {
-  type CameBack,
-  isOccurrence,
-  isQuestion,
-  isWakeup,
-  type Outstanding,
-  type Place,
-  type Question,
-  type Snapshot,
-  threadOf,
-  type Wakeup,
-} from "../inputs/index.ts";
+import { type Outstanding, type Place, type Snapshot, threadOf, type Watch, type WatchSettled } from "../inputs/index.ts";
 
 /**
  * Shrimpy's own documents, kept in the engine's storage and written in the same
- * commits as the work they belong to. The engine has no place for these: what
- * the agent's records are called, which thread a session belongs to, and where
- * the agent stands in chat's feed.
- *
- * Their version rises when a home written under the old meaning must be refused
- * and not read as current: the engine refuses it, and `records.durable.ts` says
- * what to do.
+ * commits as the work they belong to.
  */
 
-/**
- * What the agent's records are called. The ID is made with the records and
- * never changes. The engine numbers its entries and tasks again in a new
- * database, so a name built from those numbers alone repeats one that an earlier
- * set of records already posted under, and chat takes the post for a retry of
- * that one. What the agent posts under such a name carries this too.
- */
 export const RecordsDoc = defineDoc<{ id: string }>({
   kind: "shrimpy.records",
   version: 3,
   scope: "session",
   initial: () => ({ id: newId("rec") }),
-  // Every change is kept as a change, never a whole copy.
   checkpointWhen: () => false,
 });
 
 /**
- * A session of the agent, and what the model has yet to be shown for it: the
- * events in its thread the agent has not acted on, the wake-ups it asked for that
- * were cancelled, and the results of questions it asked that it was never shown.
- * All go with the session's next input. A session behind a thread also keeps
- * where the agent last looked in it. A session also keeps what it was shown of the
- * home's breadcrumbs, to tell which are new to it. A session is behind a thread,
- * and has that thread's channel and, once it has learned it, where the thread is,
- * or is a trigger's own and behind none, and has no channel and no place;
- * `trigger` names that trigger.
+ * A session of the agent. Every session sits behind one real thread, and keeps
+ * what the model has yet to be shown for it: events skipped when work was
+ * stopped, settled watch results it missed, where the agent last looked in the
+ * thread, which breadcrumbs it was shown, and where the thread is.
  */
-export type SessionRecord =
-  | {
-      /** The engine's ID for the session. */
-      conversationId: number;
-      channelId: string;
-      /** Events skipped when work was stopped: shown with the next event in the thread. Oldest first. */
-      unacted: Snapshot[];
-      /**
-       * Wake-ups the agent asked for that were cancelled, by a stop or because their
-       * turn was skipped: told to the model with the session's next input, once.
-       */
-      cancelled: Wakeup[];
-      /**
-       * Results of questions the session asked that it was never shown, because the
-       * input they came as was taken back by a stop, or the turn ahead of it failed:
-       * told to the model with the session's next input, once.
-       */
-      missed: CameBack[];
-      /**
-       * The position of the newest event the agent took up in the thread:
-       * everything the thread says after it is what the agent has not looked at. A
-       * session that was never woken has none, and so has one that an agent at
-       * 1.0.0 woke only in a DM.
-       */
-      looked?: number;
-      /**
-       * For each breadcrumb the session was shown, a digest of the text it was
-       * shown, by the name of the file. A file whose text differs, or that is not
-       * here, is new to the session.
-       */
-      shown: Record<string, string>;
-      /**
-       * Where the thread is, as chat said when the agent last took something up
-       * there, and written again when what chat says has changed. A session that
-       * has not learned it has none.
-       */
-      place?: Place;
-    }
-  | {
-      conversationId: number;
-      channelId: null;
-      /** The trigger whose own session this is. */
-      trigger: string;
-      /** Always empty: chat events come in threads. */
-      unacted: Snapshot[];
-      cancelled: Wakeup[];
-      missed: CameBack[];
-      shown: Record<string, string>;
-    };
+export type SessionRecord = {
+  /** The engine's ID for the session. */
+  conversationId: number;
+  channelId: string;
+  /** Events skipped when work was stopped: shown with the next event in the thread. Oldest first. */
+  unacted: Snapshot[];
+  /** Settled watch results the session was never shown because an input was skipped. */
+  missed: WatchSettled[];
+  /** The position of the newest event the agent took up in the thread. */
+  looked?: number;
+  /** Digest of each breadcrumb text shown to the session, by filename. */
+  shown: Record<string, string>;
+  /** Where the thread is, as chat last said. */
+  place?: Place;
+};
 
-/**
- * Every session the agent has, by its address: a thread's ID for a session
- * behind a thread, which it never changes, and `trigger:` and a trigger's name
- * for a trigger's own session (see `triggerSession`).
- */
+/** Every session the agent has, by its thread ID. */
 export const SessionsDoc = defineDoc<{ sessions: Record<string, SessionRecord> }>({
   kind: "shrimpy.sessions",
-  version: 3,
+  version: 4,
   scope: "session",
   initial: () => ({ sessions: {} }),
-  // Every change is kept as a change, never a whole copy.
+  migrate(value, fromVersion) {
+    if (fromVersion === 3) {
+      const raw = (value as { sessions?: Record<string, Record<string, unknown>> }).sessions ?? {};
+      const sessions: Record<string, SessionRecord> = {};
+      for (const [address, record] of Object.entries(raw)) {
+        if (typeof record.channelId !== "string" || typeof record.conversationId !== "number") continue;
+        sessions[address] = {
+          conversationId: record.conversationId,
+          channelId: record.channelId,
+          unacted: Array.isArray(record.unacted) ? (record.unacted as Snapshot[]) : [],
+          missed: [],
+          ...(typeof record.looked === "number" ? { looked: record.looked } : {}),
+          shown:
+            typeof record.shown === "object" && record.shown !== null && !Array.isArray(record.shown)
+              ? (record.shown as Record<string, string>)
+              : {},
+          ...(record.place !== undefined ? { place: record.place as Place } : {}),
+        };
+      }
+      return { sessions };
+    }
+    throw new Error(`Unsupported shrimpy.sessions migration from version ${String(fromVersion)}`);
+  },
   checkpointWhen: () => false,
 });
 
-/** The address of the session of its own that a trigger's occurrences go to when the trigger names no thread. */
-export const triggerSession = (name: string): string => `trigger:${name}`;
-
-/**
- * The address of the session an input belongs to: its thread's ID, or the
- * address of the trigger's own session. An occurrence that no session ran has
- * none.
- */
+/** The address of the session an input belongs to: its thread ID, or undefined for an unrun occurrence. */
 export function sessionAddress(input: Outstanding): string | undefined {
-  const thread = threadOf(input);
-  if (thread !== undefined) return thread.threadId;
-  if (isWakeup(input) || isQuestion(input)) return input.trigger === undefined ? undefined : triggerSession(input.trigger);
-  if (isOccurrence(input) && input.unrun === undefined) return triggerSession(input.occurrence.trigger);
-  return undefined;
+  return threadOf(input)?.threadId;
 }
 
 /**
- * A question the agent has asked: what `Question` says, and the engine's ID for
- * the task that sleeps until the time to wait is up, which ends when the question
- * closes.
+ * Live watches on other agents' replies in DM threads, keyed by watch ID.
+ * A watch lives here from the post until the other agent settles, the DM
+ * thread is archived, or the watch is cancelled.
  */
-export type OpenQuestion = Question & { task: number };
-
-/**
- * The questions the agent asked other agents that are open, by their IDs. A
- * question is in it from the commit that keeps it until the commit that closes it,
- * which takes its result up as an input of the session that asked, or until the
- * work of that session is stopped. It is the one place that says a question is
- * open: one that is not in it, or has `through`, is closed. A question that was
- * closed by a look at chat while the agent's place in chat's feed was behind what
- * the look saw stays, with `through`, until the feed is past that, so that what
- * the other agent posted meanwhile is still the question's when the feed reads it.
- */
-export const QuestionsDoc = defineDoc<{ open: Record<string, OpenQuestion> }>({
-  kind: "shrimpy.questions",
+export const WatchesDoc = defineDoc<{ open: Record<string, Watch> }>({
+  kind: "shrimpy.watches",
   version: 1,
   scope: "session",
   initial: () => ({ open: {} }),
-  // Every change is kept as a change, never a whole copy.
   checkpointWhen: () => false,
 });
 
-/**
- * A standing trigger the agent runs: its definition as the file last said it
- * validly, and the revision of its schedule. Each schedule a trigger is started
- * on gets a revision of its own, which no other has, so the task that waits for
- * the trigger's next occurrence, which carries the revision it was made for,
- * knows when it is out of date. A trigger with a check also keeps what its check
- * printed at the last occurrence that was told of it, which is what `changed`
- * compares with, and a trigger that has not had one has none and counts its next
- * as changed; when it last checked, in milliseconds since the epoch; and how many
- * checks in a row, the last included, have found no news since an occurrence was
- * made, which is 0 when the last check made one. A check that finds no news makes
- * no occurrence, so this is all there is of it.
- */
+/** A running background `bash` command persisted so restarts detect dead or orphaned processes. */
+export type StoredProcess = {
+  id: string;
+  pid: number;
+  pgid: number;
+  threadId: string;
+  channelId: string;
+  command: string;
+  startedAt: number;
+  logPath: string;
+  checkedIn?: boolean;
+};
+
+/** Running background `bash` commands, keyed by process ID. */
+export const ProcessesDoc = defineDoc<{ running: Record<string, StoredProcess> }>({
+  kind: "shrimpy.processes",
+  version: 1,
+  scope: "session",
+  initial: () => ({ running: {} }),
+  checkpointWhen: () => false,
+});
+
+/** A standing trigger the agent runs, with its schedule revision and check state. */
 export type StoredTrigger = { revision: number; definition: TriggerDefinition; last?: string; checkedAt?: number; quiet?: number };
 
-/**
- * The agent's standing triggers by name. They follow the files of the home
- * when the agent starts and when it reloads. `revisions` counts the schedules
- * triggers have been started on, to give each its revision. `owner` is the
- * engine's ID for the conversation that owns the tasks that wait for the
- * triggers and the occurrences that no session ran, once there is one.
- */
+/** The agent's standing triggers by name. */
 export const TriggersDoc = defineDoc<{ owner: number | null; revisions: number; triggers: Record<string, StoredTrigger> }>({
   kind: "shrimpy.triggers",
   version: 1,
   scope: "session",
   initial: () => ({ owner: null, revisions: 0, triggers: {} }),
-  // Every change is kept as a change, never a whole copy.
   checkpointWhen: () => false,
 });
 
-/**
- * Where the agent stands in chat's feed: the position of the last event it is
- * done with, and the ID of the chat store that position is in, null when it is
- * in none.
- */
+/** Where the agent stands in chat's feed. */
 export const FeedDoc = defineDoc<{ cursor: number | null; store: string | null }>({
   kind: "shrimpy.feed",
   version: 3,
   scope: "session",
   initial: () => ({ cursor: null, store: null }),
-  // Every change is kept as a change, never a whole copy.
   checkpointWhen: () => false,
 });
 
 /** Every one of Shrimpy's own documents. */
-export const DOCUMENTS = [RecordsDoc, SessionsDoc, QuestionsDoc, TriggersDoc, FeedDoc] as const;
+export const DOCUMENTS = [RecordsDoc, SessionsDoc, WatchesDoc, ProcessesDoc, TriggersDoc, FeedDoc] as const;
 
 /** A copy of something read from a document, safe to keep after the commit. */
 export function copyOf<T>(value: T): T {

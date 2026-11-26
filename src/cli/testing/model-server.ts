@@ -74,7 +74,7 @@ function respond(body: ModelRequest["body"], response: ServerResponse): void {
   }
   if (asked.includes("check back")) {
     response.writeHead(200, { "content-type": "text/event-stream" });
-    if (results === 0) callTool(response, { in: "1h", note: "look at the build again" }, "check_back");
+    if (results === 0) callTool(response, { action: "add", in: "1h", prompt: "look at the build again" }, "trigger");
     else say(response, "I will check back later.");
     return;
   }

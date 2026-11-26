@@ -149,11 +149,10 @@ export function workingView(items: SessionItem[], activity: SessionActivity = { 
 
 /** A session as an agent lists it: behind a thread of that ID with no place yet, and idle, unless `parts` says more. */
 export function aSession(id: string, parts: Partial<SessionSummary> = {}): SessionSummary {
-  const behindThread = !id.startsWith("trigger:");
   return {
     id,
-    threadId: behindThread ? id : null,
-    channelId: behindThread ? "ch_1" : null,
+    threadId: id,
+    channelId: "ch_1",
     place: null,
     working: false,
     ...parts,

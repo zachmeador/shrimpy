@@ -8,7 +8,7 @@ import type { Admissions } from "./admissions.ts";
 import { takeUpAnswer } from "./answer.ts";
 import { commandFor, obey } from "./commands.ts";
 import { inPlace } from "./place.ts";
-import { resultOf, toQuestion } from "./questions.ts";
+import { resultOf, toWatch } from "./watches.ts";
 import { withUnseen } from "./unseen.ts";
 import { isUrgentPost, passedOver, wakingOf } from "./wake.ts";
 
@@ -133,14 +133,12 @@ export async function readFeed(options: FeedOptions): Promise<void> {
           at = event.seq;
           continue;
         }
-        // What the agent that was asked posts while a question is open is the question's and wakes nobody, and its
-        // receipt closes the question. The open questions are asked for at each event, since one may close in this page.
-        const asked = passed ? undefined : toQuestion(event, await admissions.questions());
-        if (asked !== undefined) {
-          const result = asked.kind === "receipt" ? await resultOf(chat, asked.receipt, signal, reported) : undefined;
-          if (asked.kind === "receipt" && result !== undefined) {
-            // The agent's place in the feed moves in the commit that closes the question, to where the feed brought it.
-            await admissions.closeQuestion(asked.question.id, result, event.seq);
+        // While a watch is open on an agent DM thread, posts/edits by that agent belong to the watch, and its receipt settles it.
+        const watched = passed ? undefined : toWatch(event, await admissions.watches());
+        if (watched !== undefined) {
+          const result = watched.kind === "receipt" ? await resultOf(chat, watched.receipt, signal, reported) : undefined;
+          if (watched.kind === "receipt" && result !== undefined) {
+            await admissions.settleWatch(watched.watch.id, result, event.at, event.seq);
             cursor = stored = at = event.seq;
           } else {
             at = event.seq;

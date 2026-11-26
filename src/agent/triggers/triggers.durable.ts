@@ -1,113 +1,55 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type CommitPublication, defineExtension, type Extension, type Harness } from "@earendil-works/pi-durable";
-import type { Occurrence as OccurrenceView, TriggerDetail, TriggerSummary } from "../../contracts/agent/index.ts";
-import type { TriggerFiles } from "../../contracts/agent/node.ts";
+import type { Occurrence as OccurrenceView, OnceTrigger, TriggerDetail, TriggerSummary } from "../../contracts/agent/index.ts";
+import type { TriggerCheck, TriggerFiles } from "../../contracts/agent/node.ts";
 import { compare, type LeftOut } from "../../lib/files/index.ts";
 import { type FollowAttach, follow } from "../../lib/follow/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { type Breadcrumb, isOccurrence, type Outstanding, type Place } from "../inputs/index.ts";
-import {
-  copyOf,
-  type SessionDefaults,
-  SessionsDoc,
-  type StoredTrigger,
-  triggerSession,
-  TriggersDoc,
-} from "../records/durable.ts";
+import { copyOf, type SessionDefaults, SessionsDoc, type StoredTrigger, TriggersDoc } from "../records/durable.ts";
 import { TURN_TASK, type TurnTask } from "../turns/durable.ts";
 import { reconcile } from "./follow.durable.ts";
 import { fire, ownerOf, type Where } from "./occurrence.durable.ts";
+import { cancelOnce, createOnceTask, listOnce, scheduleOnce, touchesOnce } from "./once.durable.ts";
 import { RUN_TASK, runTask } from "./run.durable.ts";
 import { TRIGGER_TASK, triggerTask } from "./task.durable.ts";
+import { triggerTool } from "./tool.durable.ts";
 import { nextTimes, occurrences, RECENT, summaryOf } from "./views.durable.ts";
 
 export interface TriggersOptions {
-  /** The task that follows each occurrence, which is how an occurrence is taken up. */
+  home: string;
+  triggerCheck?: TriggerCheck;
   turn: TurnTask;
-  /** What a session of a trigger's own is configured with when it is made. */
   defaults: SessionDefaults;
-  /** Read the home's `triggers/` folder. */
   read(): Promise<TriggerFiles>;
-  /**
-   * Where the thread a trigger names is, for an occurrence that finds the agent
-   * with no session behind it: the thread's channel, which only chat knows, and
-   * where the thread is in words, or why there is no channel to be had. It asks
-   * chat, so it is asked before the commit that makes the occurrence and never
-   * inside it. Aborting `signal` gives up.
-   */
+  /** Called by the `trigger` tool after modifying `triggers/<name>.md` to reconcile immediately. */
+  onFilesChanged(): Promise<void>;
   channelOf(threadId: string, signal: AbortSignal): Promise<{ channelId: string; place?: Place } | { problem: string }>;
-  /** The home's breadcrumbs, read before the commit that makes an occurrence, which reads no files. */
   breadcrumbs(): Promise<readonly Breadcrumb[]>;
-  /** Write the breadcrumb `<name>.md` in the home, in place of the one there is. */
   leaveBreadcrumb(name: string, text: string): Promise<void>;
-  /** Told of an occurrence that could not be made. */
   onError(error: Error): void;
 }
 
-/** The agent's standing triggers. */
+/** The agent's standing and one-shot triggers. */
 export interface Triggers {
   readonly extension: Extension;
-  /**
-   * Read the home's trigger files and make the triggers follow them, which is
-   * what the agent does when it starts and whenever the files change. A file
-   * that checks out is the trigger's definition from now on: a new schedule
-   * counts from now, and a new prompt is used from the next occurrence. A file
-   * that is gone, or that says `enabled: false`, ends the trigger. A file that
-   * does not check out leaves the trigger as it was. Answers with how many
-   * triggers the agent has now, on or off, and the files it left out, and why.
-   * The agent reads its home one reading at a time, so two never run at once.
-   */
+  readonly toolExtension: Extension;
   reload(): Promise<{ count: number; leftOut: LeftOut[] }>;
-  /** Every trigger the agent has, in order of name. */
   list(): Promise<TriggerSummary[]>;
-  /** The list, kept live from the engine's commits, as Chord's `self.follow` takes it. */
   readonly listed: FollowAttach<TriggerSummary[]>;
-  /** One trigger with its definition and recent occurrences. Refused when there is none of that name. */
+  onceList(): Promise<OnceTrigger[]>;
+  readonly onceListed: FollowAttach<OnceTrigger[]>;
   show(name: string): Promise<TriggerDetail>;
-  /**
-   * Fire a trigger once now, apart from its schedule, which does not move. A
-   * trigger with a check runs it now, in a task of its own, and answers once that
-   * task exists, with the occurrence the check will make, which has not ended:
-   * whatever the check prints is news. Refused when there is none of that name.
-   */
   fire(name: string): Promise<OccurrenceView>;
+  cancelOnce(id: string): Promise<void>;
 }
 
 const context = BACKGROUND_CONTEXT;
 
-/**
- * The triggers an agent runs. A trigger and each of its occurrences are
- * separate tasks of the engine. The trigger's task is a background task of a
- * conversation of its own that sleeps as one of the engine's sleeping tasks until
- * the next occurrence is due, and keeps the revision of the trigger's schedule
- * that it is for and that time. When it wakes it makes the occurrence and the
- * sleep until the next time in one commit, so an occurrence happens once however
- * often the agent is killed meanwhile, and one that fell due while the agent was
- * down happens once at the next start: the next time counts from when it fired. An occurrence is an input
- * of a session, followed by the same task as any input, and that task's record
- * is the occurrence's record. A trigger with no thread has a session of its
- * own, made at its first occurrence; with a thread, its occurrences go to the
- * session behind that thread. If the agent has none, the occurrence asks chat
- * which channel the thread is in, before the commit that makes it, and makes
- * the session there. An occurrence that is skipped, or that has nowhere to go,
- * is still an occurrence: its task ends at once with that outcome. A trigger with
- * a check runs it first, and a check that finds no news makes no occurrence and
- * no task: the trigger's record says when it last checked and how many checks in
- * a row have found none. A check run by hand is a task of its own, which makes
- * the occurrence when the check ends and leaves the trigger's own task, and so
- * its schedule, as it was. Nothing is kept beside the engine's records but the
- * last valid definition of each trigger, with what its checks have left.
- */
 export function createTriggers(harness: Harness, options: TriggersOptions): Triggers {
   const { turn, defaults } = options;
 
-  /**
-   * Where the thread the trigger names is, when it names one and the agent has no
-   * session behind it. Nothing otherwise, and nothing is asked of chat. A trigger
-   * with a check has nobody to wake before its check has run, so it is asked
-   * once `afterCheck` says it has, or that there is none to run.
-   */
   async function whereTo(name: string, signal: AbortSignal, afterCheck = false): Promise<Where | undefined> {
     const found = await stored(name);
     const thread = found?.definition.thread ?? null;
@@ -128,8 +70,13 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
   };
   const task = triggerTask(parts);
   const run = runTask(parts);
+  const once = createOnceTask({
+    turn,
+    defaults,
+    breadcrumbs: () => options.breadcrumbs(),
+    onError: (error: Error) => options.onError(error),
+  });
 
-  /** The stored trigger of this name, if the agent has one. */
   async function stored(name: string): Promise<StoredTrigger | undefined> {
     const triggers = (await harness.snapshot(TriggersDoc, context))?.triggers ?? {};
     return Object.hasOwn(triggers, name) ? triggers[name] : undefined;
@@ -145,8 +92,22 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
       .map((name) => summaryOf(triggers[name]!, times.get(name), last.get(name)));
   };
 
+  const onceList = (): Promise<OnceTrigger[]> => listOnce(harness);
+
+  const toolExtension = triggerTool({
+    home: options.home,
+    triggerCheck: options.triggerCheck ?? {},
+    listStanding: list,
+    listOnce: onceList,
+    scheduleOnce: (api, target, request, at) => scheduleOnce(api, once, defaults, target, request, at),
+    cancelOnce: (id) => cancelOnce(harness, id),
+    channelOf: (threadId, signal) => options.channelOf(threadId, signal),
+    reloadFiles: () => options.onFilesChanged(),
+  });
+
   return {
-    extension: defineExtension({ name: "triggers", tasks: [task, run] }),
+    extension: defineExtension({ name: "triggers", tasks: [task, run, once] }),
+    toolExtension,
 
     list,
 
@@ -155,8 +116,22 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
       watch(changed) {
         const observation = harness.observeCommits({
           advance(publication) {
-            // Asked again outside the commit, where the engine may be asked.
             if (changesTriggers(publication)) setImmediate(changed);
+          },
+          end: () => undefined,
+        });
+        return () => observation.detach();
+      },
+    }),
+
+    onceList,
+
+    onceListed: follow({
+      read: onceList,
+      watch(changed) {
+        const observation = harness.observeCommits({
+          advance(publication) {
+            if (touchesOnce(publication)) setImmediate(changed);
           },
           end: () => undefined,
         });
@@ -176,14 +151,12 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
         prompt: definition.prompt,
         overlap: definition.overlap,
         check: definition.check ?? null,
-        session: definition.thread === null ? triggerSession(name) : null,
         occurrences: recent.slice(-RECENT).reverse(),
       };
     },
 
     async fire(name) {
       if ((await stored(name))?.definition.check !== undefined) {
-        // The check runs in a task of its own, and the occurrence comes when it ends, with the ID this answers with.
         return harness.commit(async (tx) => {
           const triggers = (await tx.doc(TriggersDoc)).triggers;
           const found = Object.hasOwn(triggers, name) ? triggers[name] : undefined;
@@ -205,13 +178,11 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
         return fire(tx, { turn, defaults, breadcrumbs }, copyOf(found.definition), { due: now, firedAt: now, byHand: true }, where);
       }, context);
     },
+
+    cancelOnce: (id) => cancelOnce(harness, id),
   };
 }
 
-/**
- * Whether a commit changed what the list of triggers says: their definitions and
- * what their checks left, when one is next due, or an occurrence.
- */
 function changesTriggers(publication: CommitPublication): boolean {
   return publication.changes.some((change) => {
     if (change.type === "document") return change.record.kind === TriggersDoc.definition.kind;

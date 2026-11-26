@@ -1,17 +1,3 @@
-/**
- * The agent program: one process that owns one home and serves the agent's
- * contract for it at `agent({ id })` over its link to the gateway (which relays
- * every request for it stamped with who asks) and at `agent({ id: HOME_AGENT })`
- * on the home's own socket, where a client is `home`. Over its gateway link it
- * takes part in the network as a member and in chat, and holds the workspace
- * context, which it copies into its home and reads from there.
- * Other programs reach an agent only through `contracts/agent`; they never
- * import this program's modules, except that the CLI starts an agent, previews
- * what a home would tell an agent, and signs the folder its agents are started
- * in to a model provider, through this door. It must not know who its clients
- * are beyond who it is told they are, or anything about the chat server and the
- * gateway beyond their contracts.
- */
 import { type AgentEndpoint, type ModelId, removedAtStart } from "../contracts/agent/index.ts";
 import { loadHome, NoTriggerError, readMembership, readTriggers, saveModel, switchTrigger, TriggerFileError } from "../contracts/agent/node.ts";
 import { createLiveRoster } from "../contracts/gateway/index.ts";
@@ -22,6 +8,7 @@ import { isRefusal, refuse } from "../lib/refusal/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { createAdmissions } from "./chat/durable.ts";
 import { channelOfThread, createDelivery, createWakes } from "./chat/index.ts";
+import { chatTools } from "./chat-tools/durable.ts";
 import { homeContext } from "./context/durable.ts";
 import { type ContextPreview, previewContext } from "./context/index.ts";
 import { homeReader } from "./following.ts";
@@ -30,8 +17,7 @@ import { AGENT_STORAGE, buildModels, checkStorageVersion, type HostOptions, type
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { followWorkspace, type LiveChat } from "./links/index.ts";
 import { keepLook } from "./look.ts";
-import { messageTools } from "./message-tools/durable.ts";
-import { askTools, createQuestions } from "./questions/durable.ts";
+import { createProcesses } from "./processes/durable.ts";
 import { DOCUMENTS, openRecords, type SessionDefaults } from "./records/durable.ts";
 import { agentFacet } from "./served.ts";
 import { startServer } from "./server.ts";
@@ -39,7 +25,7 @@ import { createSessions, requireModel, stopWork } from "./sessions/durable.ts";
 import { type CloseOptions, stopper } from "./stop.ts";
 import { createTriggers } from "./triggers/durable.ts";
 import { createWorking, turnTask } from "./turns/durable.ts";
-import { createWakeups, wakeupTools } from "./wakeups/durable.ts";
+import { createWatches } from "./watches/durable.ts";
 
 export type { ContextPreview } from "./context/index.ts";
 export {
@@ -56,91 +42,44 @@ export type { JoinOptions } from "./join.ts";
 export type { CloseOptions } from "./stop.ts";
 
 export interface AgentOptions extends HostOptions {
-  /**
-   * The agent's name: what it asks the roster to call it, and what its
-   * instructions call it. The roster binds the name to the agent's ID, and
-   * decides whether it is free.
-   */
   name: string;
-  /** The model every session follows, which is the home's. It is set again at every start, and a reload can change it. */
   model: SessionDefaults["model"];
-  /** Whether the home's agent.json names `model`, as against the folder's default-model.json. Without it, it does. */
   modelFromHome?: boolean;
-  /**
-   * Name a model in the home's agent.json, or take it out for null, once the
-   * agent can use it, refusing it otherwise and leaving the file as it was. A
-   * reading of the home follows. Without it, a caller's `setModel` is refused.
-   */
   setModel?: (model: ModelId | null) => Promise<void>;
-  /**
-   * Read again the model the home starts with and the model servers its files
-   * declare, for a reload. Without it a reload leaves both as they are.
-   */
   reloadModels?: () => Promise<ModelReload>;
-  /** The files `reloadModels` reads. The agent looks at them with its own, to know when to call it. */
   modelFiles?: readonly string[];
-  /**
-   * The file that makes the folder a home, such as the `agent.json` of a home the agent was started from. While it
-   * can't be seen, as when the share the home is on is not mounted for a moment, nothing is read: a reading fails with
-   * a sentence that says so, the agent keeps what it has, and the next look tries again. Without it a reading is made
-   * of whatever is there.
-   */
   homeFile?: string;
-  /**
-   * How often the agent looks at its files, in milliseconds, to read again what
-   * changed. Two seconds, if not given. Tests shorten it.
-   */
   lookEveryMs?: number;
-  /** Take part in the network and in chat. Without it, nothing reaches the agent but clients on the home's own socket. */
   join?: JoinOptions;
-  /** The shortest a trigger may repeat at, in milliseconds. A minute, if not given. Tests shorten it. */
+  /** The shortest a standing trigger may repeat at, in milliseconds. Tests shorten it. */
   shortestEveryMs?: number;
-  /** The shortest the agent may wait for another agent's answer to a question, in milliseconds. A minute, if not given. Tests shorten it. */
-  shortestWaitMs?: number;
+  /** Sync `bash` wait before auto-backgrounding, in milliseconds. Default 60s; tests shorten it. */
+  syncWaitMs?: number;
+  /** Built-in background process hang check-in delay, in milliseconds. Default 15m; tests shorten it. */
+  checkinMs?: number;
 }
 
 export interface RunningAgent {
   readonly endpoint: AgentEndpoint;
-  /**
-   * Stop taking input, let running turns finish for a short while, then close.
-   * Unfinished work resumes at the next start.
-   */
   close(options?: CloseOptions): Promise<void>;
-  /**
-   * Settles once the gateway has turned the agent away as removed from the
-   * roster, and the agent has stopped by itself, as `close` with `now` stops
-   * it, so that its triggers and turns call its model no more.
-   */
   readonly removed: Promise<void>;
 }
 
-/** An agent started from its home. */
 export interface HomeAgent extends RunningAgent {
   readonly name: string;
-  /** The home's absolute path. */
   readonly home: string;
 }
 
-/**
- * Take ownership of a home and start serving it. The lock comes first. What the
- * home's files tell the agent is read at the start, and again whenever they
- * change: the agent looks at them every couple of seconds, and nobody has to tell
- * it to.
- */
 export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
-  // A runtime directory too long for a socket fails here, before the home is claimed.
   socketPathFor(options.home);
   const paths = homePaths(options.home);
   const context = await homeContext({ name: options.name, home: options.home });
   const report = reporter(options);
   const host = await openHost(options);
   let following: { close(): Promise<void> } | undefined;
+  let processesClose: (() => void) | undefined;
   try {
-    // What the agent posts under names of its own making carries what its records are called, which only the opened
-    // storage can say, so what posts is made now, and installed before anything runs.
     const recordsId = await openRecords(host.harness, paths.database);
-    // The tools ask for the link to chat when they run, and say chat is unreachable without one. The tasks wait for the
-    // link `join` gives them.
     let joined: Joined | undefined;
     let close: RunningAgent["close"] | undefined;
     let stoppedForRemoval = (): void => undefined;
@@ -148,8 +87,6 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       stoppedForRemoval = resolve;
     });
     const chat = () => joined?.chat();
-    // A trigger's occurrence that falls due at the start can ask for chat before the agent has joined, so it waits on
-    // what the agent's part in the network tells here each time chat comes up.
     const chatUp = createListeners<LiveChat>(report);
     const untilChat = (signal: AbortSignal): Promise<LiveChat> => {
       const now = chat();
@@ -162,15 +99,26 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     const sessions = createSessions(host.harness, { model: options.model, cwd: host.home }, options.models, options.modelFromHome);
     const delivery = createDelivery({ recordsId, onError: report, ...messageLimit });
     const turn = turnTask({ delivery, onError: report });
-    const wakeups = createWakeups(turn.task, { onError: report, breadcrumbs });
-    // A question whose time is up looks at chat through the delivery, as a reply is posted.
-    const questions = createQuestions(turn.task, { onError: report, breadcrumbs, looking: delivery });
-    // How the agent checks a trigger's file, which a switch through its contract checks the same way.
+    const watches = createWatches(host.harness);
+    const processes = createProcesses(host.harness, {
+      home: options.home,
+      shellEnv: host.shellEnv,
+      turn: turn.task,
+      breadcrumbs,
+      onError: report,
+      ...(options.syncWaitMs === undefined ? {} : { syncWaitMs: options.syncWaitMs }),
+      ...(options.checkinMs === undefined ? {} : { checkinMs: options.checkinMs }),
+    });
+    processesClose = () => processes.close();
     const triggerCheck = options.shortestEveryMs === undefined ? {} : { shortestEveryMs: options.shortestEveryMs };
+    let reloadHome = async (): Promise<void> => undefined;
     const triggers = createTriggers(host.harness, {
+      home: options.home,
+      triggerCheck,
       turn: turn.task,
       defaults: sessions.defaults,
       read: () => readTriggers(paths, triggerCheck),
+      onFilesChanged: () => reloadHome(),
       channelOf: (threadId, signal) => channelOfThread(untilChat, threadId, signal),
       breadcrumbs,
       leaveBreadcrumb: (name, text) => writeBreadcrumb(paths, name, text),
@@ -178,18 +126,10 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     });
     const extensions = [
       context.extension,
-      messageTools({ recordsId, chat, roster: members, ...messageLimit }),
-      wakeupTools({ wakeups }),
-      askTools({
-        questions,
-        recordsId,
-        chat,
-        roster: members,
-        ...(options.shortestWaitMs === undefined ? {} : { shortestWaitMs: options.shortestWaitMs }),
-      }),
+      processes.extension,
+      chatTools({ recordsId, chat, roster: members, ...messageLimit }, watches),
+      triggers.toolExtension,
       turn.extension,
-      wakeups.extension,
-      questions.extension,
       triggers.extension,
     ];
     checkStorageVersion({ documents: DOCUMENTS, extensions }, AGENT_STORAGE);
@@ -212,9 +152,10 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       }),
       onError: report,
     });
-    // The copy of the workspace context is kept as the gateway changes it, and read with the rest of the home at once.
+    reloadHome = async () => {
+      await keeping.reload();
+    };
     const copier = workspaceCopier(paths, { changed: () => keeping.reload(), onError: report });
-    // A copy under way finishes before the agent stops reading its home.
     const keepingUp = {
       async close() {
         await copier.close();
@@ -222,17 +163,17 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       },
     };
     following = keepingUp;
-    // Sessions from an earlier start follow the home as it is now, and the home is read, before any of their work
-    // resumes: a trigger whose schedule changed while the agent was down is not woken by its old one.
     await sessions.applyDefaults();
     await keeping.reload();
     host.resume();
-    // The agent's objects are served on the home's socket at once, and through the gateway once it links there. They
-    // take new work until the agent begins to stop.
+    await processes.recover();
+
     let takingInput = true;
     const facet = agentFacet({
       sessions,
       triggers,
+      processes,
+      watches,
       look,
       paths,
       reload: () => keeping.reload(),
@@ -296,21 +237,20 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       const refuseInput = (): void => {
         takingInput = false;
       };
-      close = stopper({ host, server, joined, following: keepingUp, refuseInput });
+      close = stopper({ host, server, joined, following: keepingUp, processes, refuseInput });
       return { endpoint: server.endpoint, close, removed };
     } catch (error) {
       await server.close();
       throw error;
     }
   } catch (error) {
-    // A start that fails closes the engine in an orderly way too.
+    processesClose?.();
     await following?.close();
     await host.close();
     throw error;
   }
 }
 
-/** Where problems with the gateway and chat go: they are told once each and the agent carries on. */
 function reporter(options: AgentOptions): (error: Error) => void {
   return (error) => {
     if (options.onReport === undefined) console.error(error.message);
@@ -318,24 +258,6 @@ function reporter(options: AgentOptions): (error: Error) => void {
   };
 }
 
-/**
- * Start the agent that lives at `home`, and have it take part in chat as the
- * agent its `agent.json` names. Its name comes from that file, and so does its
- * model, if the file names one: otherwise it starts with the folder's default.
- * The agent reads that model, and the model servers, again whenever the files
- * that name them change. Its instructions come from the files of the home, and
- * it reads them again whenever they change. A home that names a gateway address in its
- * membership, as one does that joined from apart, links to the gateway there,
- * with its token, and reaches chat through it. A home whose membership notes
- * that the gateway turned the agent away as removed doesn't start. Reading `agent.json` takes no lock and changes
- * nothing, so a home that does not load, or a model that is missing or cannot
- * be used, fails before the agent claims the home. `shrimpy` is the program and arguments that run Shrimpy, which the agent's
- * shell finds as the `shrimpy` command. `providers` is the `providers/`
- * directory of the folder the agent is started in: what its home doesn't
- * declare or hold, such as a model server, a sign-in or the model to start
- * with, it takes from there. It is told where that is and never looks, so with
- * none the agent has only what its home holds.
- */
 export async function startHomeAgent(
   home: string,
   options: { shrimpy?: readonly string[]; providers?: string; lookEveryMs?: number } = {},
@@ -350,7 +272,6 @@ export async function startHomeAgent(
     authFile: loaded.paths.auth,
     configFile: loaded.paths.config,
     ...(options.providers === undefined ? {} : { providers: options.providers }),
-    // Asked again whenever the agent reads the model again, so a change to the file is seen.
     named: () => {
       const model = loadHome(loaded.paths.root).model;
       return model === undefined ? undefined : { provider: model.provider, modelId: model.id };
@@ -384,7 +305,6 @@ export async function startHomeAgent(
   return { ...agent, name: loaded.name, home: loaded.paths.root };
 }
 
-/** Why turning the trigger `name` on or off failed, from what the change to its file threw, in words that say the file is as it was. */
 function switchRefused(name: string, error: unknown): string {
   if (error instanceof NoTriggerError) {
     const known = error.known.length === 0 ? "It has none." : `Its triggers are: ${error.known.join(", ")}.`;
@@ -394,23 +314,13 @@ function switchRefused(name: string, error: unknown): string {
   return `Nothing was changed: ${asError(error).message}`;
 }
 
-/** Why a home's agent.json keeps its model when asked to take it out. */
 const NO_FOLDER_DEFAULT =
   "Nothing was changed: without a model in agent.json the agent would follow the folder's default model, and the folder has none.";
 
-/** What a home would give an agent: what it would be told, and how many triggers it would run. */
 export interface HomePreview extends ContextPreview {
-  /** How many of the home's trigger files check out. */
   readonly triggers: number;
 }
 
-/**
- * What the agent whose home is `home` would be told if it started now, and how
- * many triggers it would have, read from the home's files without starting
- * anything and without a lock. A trigger file that does not check out is among
- * what is left out. An agent that is running reads the same files by itself,
- * within a few seconds of a change.
- */
 export async function previewHomeContext(home: string): Promise<HomePreview> {
   const loaded = loadHome(home);
   const preview = await previewContext({ name: loaded.name, home: loaded.paths.root });

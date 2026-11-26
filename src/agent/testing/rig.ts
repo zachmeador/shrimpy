@@ -26,8 +26,10 @@ export interface AgentRigOptions {
   join?: Partial<JoinOptions>;
   /** The shortest a trigger may repeat at, in milliseconds. A test that fires triggers makes it short. */
   shortestEveryMs?: number;
-  /** The shortest the agent may wait for another agent's answer, in milliseconds. A test whose question times out makes it short. */
-  shortestWaitMs?: number;
+  /** Sync `bash` wait before auto-backgrounding, in milliseconds. */
+  syncWaitMs?: number;
+  /** Built-in background process hang check-in delay, in milliseconds. */
+  checkinMs?: number;
   /** How often the agent looks at its files, in milliseconds. A test that changes them while the agent runs makes it short. */
   lookEveryMs?: number;
 }
@@ -80,7 +82,8 @@ export async function startAgentRig(t: TestContext, options: AgentRigOptions = {
       }),
       onReport: (error) => reports.push(error),
       ...(options.shortestEveryMs === undefined ? {} : { shortestEveryMs: options.shortestEveryMs }),
-      ...(options.shortestWaitMs === undefined ? {} : { shortestWaitMs: options.shortestWaitMs }),
+      ...(options.syncWaitMs === undefined ? {} : { syncWaitMs: options.syncWaitMs }),
+      ...(options.checkinMs === undefined ? {} : { checkinMs: options.checkinMs }),
       ...(options.lookEveryMs === undefined ? {} : { lookEveryMs: options.lookEveryMs }),
       join: {
         backoff: () => backoff({ firstMs: 5, maxMs: 20 }),

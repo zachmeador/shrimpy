@@ -1,11 +1,10 @@
 /**
- * What an input is, whichever source it comes from: a chat event, a wake-up the
- * agent asked for, an occurrence of a trigger or the result of a question the
- * agent asked another agent. It holds their shapes, how each reads to the model
- * and how an input's turn can end, as data and words, and what the tools that
- * ask for one later say of how long they may wait. It must not know the
- * engine, how an input is stored or run, or how its source is told how the turn
- * ended.
+ * What an input is, whichever source it comes from: a chat event, an
+ * occurrence of a standing or one-shot trigger, a background `bash` process
+ * event, or a settled watch on another agent. It holds their shapes, how each
+ * reads to the model and how an input's turn can end, as data and words. It
+ * must not know the engine, how an input is stored or run, or how its source
+ * is told how the turn ended.
  */
 export { endingOf, readFinalText } from "./ending.ts";
 export {
@@ -15,29 +14,32 @@ export {
   type Backlog,
   type Breadcrumb,
   type Breadcrumbs,
-  type CameBack,
   type ChatInput,
   type Ending,
+  type Fired,
   hasReceipt,
   idOf,
   isChat,
   isOccurrence,
-  isQuestion,
+  isProcess,
   isUrgent,
-  isWakeup,
+  isWatch,
   type ModelChange,
   type Named,
   type Occurrence,
   type OccurrenceInput,
   type Outstanding,
+  type PendingWatch,
   type Place,
-  type Question,
-  type QuestionResult,
-  type Fired,
+  type ProcessEvent,
+  type ProcessInput,
   type Said,
   type Snapshot,
   threadOf,
   type TurnOutcome,
-  type Wakeup,
+  type Watch,
+  type WatchInput,
+  type WatchResult,
+  type WatchSettled,
 } from "./input.ts";
-export { CAN_END_TURN, promptFor, standing, waitTooLong, waitTooShort, written } from "./prompt.ts";
+export { CAN_END_TURN, promptFor, standing, written } from "./prompt.ts";

@@ -44,7 +44,7 @@ const WHICH = `${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`;
 const WHICH_HOME = `${WHICH_AGENT} ${ITS_FILES} ${ABOUT_ANOTHER_AGENT}`;
 
 /** How to make a trigger, for an error that has to say what to do next. */
-const MAKE_ONE = 'triggers add <name> --every 1h "<what to do>"';
+const MAKE_ONE = 'triggers add <name> --every 1h --thread <id> "<what to do>"';
 
 /** The sentence for a trigger that is not there: which triggers there are, or how to make the first. */
 function noTrigger(target: Target, name: string, known: readonly string[]): string {
@@ -66,12 +66,14 @@ function saysFilesOnly(io: Io, target: AtHome): void {
 /** What a command does with a running agent's triggers, over the `Agent` it holds. */
 interface Triggering {
   triggers(): ReturnType<typeof triggerList>;
+  onceTriggers(): ReturnType<typeof onceList>;
   names(): string[];
   trigger(name: string): Promise<TriggerDetail>;
   fire(name: string): Promise<Occurrence>;
 }
 
 const triggerList = (agent: HeldAgent) => agent.triggers.value;
+const onceList = (agent: HeldAgent) => agent.onceTriggers.value;
 
 /** Run `use` with the agent's triggers, if an agent is running, and let the agent go. */
 async function whileRunning<T>(target: Target, use: (agent: Triggering | undefined) => Promise<T>): Promise<T> {
@@ -81,6 +83,7 @@ async function whileRunning<T>(target: Target, use: (agent: Triggering | undefin
     return await onAgent(reached, (agent) =>
       use({
         triggers: () => triggerList(agent),
+        onceTriggers: () => onceList(agent),
         names: () => triggerList(agent).map((trigger) => trigger.name),
         trigger: async (name) => valueOf(await agent.trigger({ name }, contextOf())),
         fire: async (name) => valueOf(await agent.fire({ name }, contextOf())),
@@ -149,15 +152,14 @@ const list: Command = {
     "List the triggers of an agent: each one's schedule, whether it is on, when it runs next and how its last occurrence ended.",
   details: [
     "A trigger gives an agent a prompt on a schedule, again and again, such as every hour or at 3 every morning. " +
-      "Use one for work that repeats. To be woken once, later, an agent uses its check_back tool instead.",
+      "Every waking trigger runs in a real thread given with --thread (only --then note breadcrumb checks take no thread). " +
+      "An agent can also manage both one-time and recurring triggers directly with its trigger tool.",
     "",
     "To make one:",
-    '  shrimpy triggers add nightly --cron "0 3 * * *" "Look over today\'s notes and tidy what needs it."',
+    '  shrimpy triggers add nightly --cron "0 3 * * *" --thread <id> "Look over today\'s notes and tidy what needs it."',
     '  shrimpy triggers add heartbeat --every 1h --thread <id> "Check the build, and say so if it broke. If it didn\'t, write only END."',
     "To be woken only when something has changed, give the trigger a check, a command that runs first:",
     '  shrimpy triggers add inbox --every 10m --check "ls inbox | wc -l" --thread <id> "Say what is new in the inbox."',
-    "A trigger that tells someone something runs in a thread with them, given with --thread, so that their answer " +
-      "reaches the session that knows the trigger.",
     "The other commands take a trigger's name: show, run, on, off and remove, as in: shrimpy triggers show nightly. " +
       "Each has its own --help.",
     "",
@@ -182,7 +184,8 @@ const list: Command = {
     return whileRunning(target, async (running) => {
       if (running !== undefined) {
         const triggers = running.triggers();
-        for (const line of triggers.length === 0 ? [none] : renderTriggers(triggers)) io.out(line);
+        const once = running.onceTriggers();
+        for (const line of triggers.length === 0 && once.length === 0 ? [none] : renderTriggers(triggers, once)) io.out(line);
         return 0;
       }
       const here = await atHome(target);
@@ -208,13 +211,10 @@ const add: Command = {
       'day-of-week, such as "0 3 * * *" for 3 every morning, in the time zone --timezone names, an IANA name such ' +
       "as Europe/Berlin, or this machine's when it is left out.",
     "",
-    "The prompt is what the agent is told at each occurrence. Without --thread, each occurrence goes to a session " +
-      "of the trigger's own, called trigger:<name>, which keeps its history from one occurrence to the next. What " +
-      "the agent writes last there is posted nowhere, so a trigger that tells someone something is given a thread with them. " +
-      "With --thread <id>, each goes to the session behind that thread, which the first one makes if the agent " +
-      "has none, and what the agent writes last is posted in the thread. Run in the agent's own shell, this checks " +
-      "before it writes that the agent is in the thread's channel. An occurrence that is due while the last is " +
-      "still going is skipped, unless --overlap allow lets it wait behind.",
+    "The prompt is what the agent is told at each occurrence. Every waking trigger requires --thread <id>: each occurrence " +
+      "goes to the session behind that thread (creating one on the first run), and what the agent writes last is posted " +
+      "there. Run in the agent's own shell, this checks before it writes that the agent is in the thread's channel. An " +
+      "occurrence that is due while the last is still going is skipped, unless --overlap allow lets it wait behind.",
     "",
     "Without --check, every occurrence wakes the agent. --check is a command line that runs at each occurrence, " +
       "before anything else, from the agent's home with the shrimpy command on its path, and the agent is woken only " +
@@ -441,8 +441,7 @@ const remove: Command = {
   summary: "Delete a trigger.",
   details:
     "Deletes the trigger's file, then tells a running agent to read its files again, which ends the trigger. An " +
-    "occurrence that is running is not stopped: shrimpy sessions stop does that. The trigger's session, " +
-    `trigger:<name>, stays, so that what it did can still be read. ${WHICH_HOME}`,
+    `occurrence that is running is not stopped: shrimpy sessions stop does that. ${WHICH_HOME}`,
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     const [name] = expectArguments(positionals, ["<name>"]);

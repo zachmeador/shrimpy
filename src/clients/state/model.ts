@@ -3,6 +3,7 @@ import type {
   HomeEntry,
   HomeFile,
   ModelId,
+  OnceTrigger,
   Pigment,
   SessionActivity,
   SessionItem,
@@ -11,7 +12,6 @@ import type {
   SessionSummary,
   TriggerSummary,
   TurnFailure,
-  WaitingWakeup,
 } from "../../contracts/agent/index.ts";
 import { type AgentCommand, type Channel, type Member, type Message, type Thread } from "../../contracts/chat/index.ts";
 import {
@@ -335,18 +335,18 @@ export interface AgentStatus {
         defaultModel: ModelId | undefined;
         usage: SessionStatus["usage"];
         failure: TurnFailure | null;
-        wakeups: WaitingWakeup[];
+        onceTriggers: OnceTrigger[];
       }
     | undefined;
   /** How many of its other sessions were working. Undefined when it could not be asked. */
   othersWorking: number | undefined;
 }
 
-/** The agents of a room, as `/status` found them, and every wake-up they wait on in the thread, the soonest first. */
+/** The agents of a room, as `/status` found them, and every one-shot trigger they wait on in the thread, the soonest first. */
 export interface RoomStatus {
   kind: "room";
   agents: { name: string; running: boolean; working: boolean }[];
-  wakeups: { agent: string; wakeup: WaitingWakeup }[];
+  onceTriggers: { agent: string; trigger: OnceTrigger }[];
 }
 
 /** The person's devices, as `/devices` found them: each one's label, or null when it has none, and its ID. */
@@ -474,7 +474,7 @@ export function workingIn(thread: Thread, agentId: string): boolean {
 /** The sessions among `sessions` that are working and are none of the threads of `dm`, the person's DM with the agent. */
 function workingElsewhere(sessions: SessionSummary[], dm: ChannelThreads | undefined): SessionSummary[] {
   const yours = new Set(dm?.threads.map((thread) => thread.id));
-  return sessions.filter((session) => session.working && (session.threadId === null || !yours.has(session.threadId)));
+  return sessions.filter((session) => session.working && !yours.has(session.threadId));
 }
 
 /** Whether the agent with member ID `id` is linked to the gateway now. */
@@ -615,7 +615,7 @@ export function partsOf(model: Model, agentId: string): Part[] {
   const reached = model.agent?.state === "up";
   const listed = model.sessions ?? [];
   const sessionBehind = new Map<string, SessionSummary>();
-  for (const session of listed) if (session.threadId !== null) sessionBehind.set(session.threadId, session);
+  for (const session of listed) sessionBehind.set(session.threadId, session);
 
   const parts: Part[] = [];
   const have = new Set<string>();
@@ -653,15 +653,15 @@ export function partsOf(model: Model, agentId: string): Part[] {
   };
   for (const session of listed) {
     const { threadId } = session;
-    if (threadId !== null && have.has(threadId)) continue;
-    const found = threadId === null ? undefined : inRoom(threadId);
+    if (have.has(threadId)) continue;
+    const found = inRoom(threadId);
     if (found !== undefined) {
       addThread(found.room, found.thread);
       continue;
     }
     parts.push({
-      id: threadId ?? session.id,
-      kind: threadId === null ? "session" : "thread",
+      id: threadId,
+      kind: "thread",
       thread: undefined,
       place: session.place,
       yours: isYours(session.place),
