@@ -310,6 +310,8 @@
 /* --- The list: everything one agent, or one room, takes part in ----------- */
 
 .list { background: var(--list); border-right: 1px solid var(--line); }
+/* The top of a list, flecked like the rail. */
+.list-top { flex: none; background: var(--tx-fleck-list) 0 0 / 256px 256px; border-bottom: 1px solid var(--line); }
 .head { flex: none; display: flex; align-items: center; gap: 10px; min-height: calc(58px + var(--safe-top, 0px)); padding: calc(10px + var(--safe-top, 0px)) 12px 10px 14px; }
 .titles { flex: 1; min-width: 0; }
 .titles h1 { font: 600 15px/1.3 var(--face); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -318,13 +320,13 @@
 /* The agent's name and sigil at the top of its list, which open its page. */
 .whois { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; cursor: pointer; }
 
-.tabs { flex: none; display: flex; gap: 18px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+.tabs { flex: none; display: flex; gap: 18px; padding: 0 14px; }
 .tabs button { position: relative; padding: 6px 0 9px; font-size: var(--t-small); color: var(--ink-3); }
 .tabs button:hover { color: var(--ink-2); }
 .tabs button[aria-selected="true"] { color: var(--ink); }
 .tabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--who, var(--ink-2)); }
 
-.list .tabs + .body .scroll { padding-top: 6px; }
+.list-top + .body .scroll { padding-top: 6px; }
 
 .trow { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-content: center; width: 100%; min-height: calc(var(--row) + 4px); padding: 6px 14px; line-height: 1.3; }
 .t-title { display: flex; align-items: baseline; min-width: 0; font-weight: 500; }
@@ -381,7 +383,7 @@
 /* --- The thread ----------------------------------------------------------- */
 
 .thread { background: var(--pane); }
-.thead { position: relative; z-index: 3; padding-left: 28px; padding-right: 16px; border-bottom: 1px solid var(--line); }
+.thead { position: relative; z-index: 3; padding-left: 28px; padding-right: 16px; border-bottom: 1px solid var(--line); background: var(--tx-fleck-pane) 0 0 / 256px 256px; }
 .acts { display: flex; align-items: center; gap: 6px; }
 
 /* A thread's menu, its name as an input where it stands, and the tag of an archived one. */
@@ -628,7 +630,7 @@ button.srow:hover { color: var(--ink); }
 /* --- The agent's view: the session as the agent sees it ------------------- */
 
 .watch { background: var(--well); border-left: 1px solid var(--line); }
-.watch .head { border-bottom: 1px solid var(--line); }
+.watch .head { border-bottom: 1px solid var(--line); background: var(--tx-fleck-well) 0 0 / 256px 256px; }
 .watch .col { max-width: none; padding: 16px 16px 14px; }
 .watch-foot { flex: none; padding: 9px 16px calc(10px + var(--safe-bottom, 0px)); border-top: 1px solid var(--line); font: 400 var(--t-meta)/1.5 var(--mono); color: var(--ink-3); }
 .picker { display: flex; gap: 2px; }
@@ -1255,10 +1257,13 @@ function token(mode, name) {
   return probes[mode].getPropertyValue(name).trim();
 }
 
-/** The wool: a few flecks of other colors on the ground. */
-function fleckTile(mode) {
-  const next = rng(mode === 'dusk' ? 7 : 11);
-  const [a, b, c] = ['--fleck-a', '--fleck-b', '--fleck-c'].map((name) => token(mode, name));
+const hexToRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+
+/** The wool: a few flecks of other colors on `ground`, each as far from it as the rail's flecks are from the rail. */
+function fleckTile(mode, ground, seed) {
+  const next = rng(seed);
+  const [base, own] = ['--ground', ground].map((name) => hexToRgb(token(mode, name)));
+  const [a, b, c] = ['--fleck-a', '--fleck-b', '--fleck-c'].map((name) => `rgb(${hexToRgb(token(mode, name)).map((v, i) => v + own[i] - base[i]).join(',')})`);
   return tile(128, 128, (put) => {
     for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) {
       const v = next();
@@ -1466,14 +1471,15 @@ function bitmapMask(rows) {
   css += Object.entries(BITS).map(([name, rows]) => `.bm-${name}{--m:var(--bm-${name});--bw:${rows[0].length};--bh:${rows.length}}`).join('');
   for (const mode of ['dusk', 'day']) {
     const mesh = tile(4, 4, (put) => { put(0, 0, token(mode, '--line-2')); put(2, 2, token(mode, '--line-2')); });
-    css += `[data-mode="${mode}"]{--tx-fleck:${fleckTile(mode)};--tx-mesh:${mesh}}`;
+    const flecks = [['--tx-fleck', '--ground'], ['--tx-fleck-list', '--list'], ['--tx-fleck-pane', '--pane'], ['--tx-fleck-well', '--well']]
+      .map(([name, ground], i) => `${name}:${fleckTile(mode, ground, (mode === 'dusk' ? 7 : 11) + i * 100)}`);
+    css += `[data-mode="${mode}"]{${flecks.join(';')};--tx-mesh:${mesh}}`;
   }
   const style = document.createElement('style');
   style.textContent = css;
   document.head.append(style);
 })();
 
-const hexToRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 const mix = (a, b, t) => {
   const [x, y] = [hexToRgb(a), hexToRgb(b)];
   return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(',')})`;
@@ -2475,13 +2481,13 @@ function mount(host, kind, mode, route, flags = {}) {
 
   function agentListHTML(a) {
     const A = AGENTS[a], d = agentDetail(a), mine = lists[a];
-    const head = `<header class="head ${pg(a)}">
+    const head = `<div class="list-top"><header class="head ${pg(a)}">
         <button class="ib only-narrow" data-go="back" aria-label="Back to agents and rooms">${icon('back')}</button>
         <div class="whois" role="button" tabindex="0" data-go="page" title="${A.name}'s page" aria-label="Open ${A.name}'s page">${sigil(a, 's36')}
           <div class="titles"><h1>${A.name}${A.admin ? '<span class="tag">admin</span>' : ''}</h1><p class="sub${d.busy ? ' busy' : ''}">${d.text}</p></div></div>
         ${A.running ? `<button class="ib" data-go="new" title="New thread · ctrl+n" aria-label="New thread">${icon('plus')}</button>` : ''}
       </header>
-      <nav class="tabs ${pg(a)}" role="tablist">${['chat', 'observe'].map((t) => `<button role="tab" data-go="tab:${t}" aria-selected="${s.tab === t}">${t}</button>`).join('')}</nav>`;
+      <nav class="tabs ${pg(a)}" role="tablist">${['chat', 'observe'].map((t) => `<button role="tab" data-go="tab:${t}" aria-selected="${s.tab === t}">${t}</button>`).join('')}</nav></div>`;
     /* Chat is your DM with the agent, so its threads don't say where they are. Observe is everything else the agent takes part in. */
     const chat = s.tab === 'chat';
     const ids = chat ? mine.yours : mine.elsewhere;
@@ -2494,12 +2500,12 @@ function mount(host, kind, mode, route, flags = {}) {
 
   function roomListHTML(id) {
     const room = rooms[id], mine = room.members.includes('you');
-    return `<header class="head">
+    return `<div class="list-top"><header class="head">
         <button class="ib only-narrow" data-go="back" aria-label="Back to agents and rooms">${icon('back')}</button>
         <span class="hash" style="width:36px;height:36px;font-size:24px">#</span>
         <div class="titles"><h1>${id}${mine ? '' : '<span class="tag">read-only</span>'}</h1><p class="sub">${room.members.map(nameOf).sort().join(', ')}</p></div>
         ${mine ? `<button class="ib" data-go="new" title="New thread · ctrl+n" aria-label="New thread">${icon('plus')}</button>` : ''}
-      </header>
+      </header></div>
       <div class="body"><div class="scroll"><h2 class="label">threads</h2>${live(room.threads).map((t) => threadRow(t, null)).join('')}${shelfHTML(shelved(room.threads), null)}</div></div>`;
   }
 
