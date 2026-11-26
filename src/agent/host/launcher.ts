@@ -27,7 +27,7 @@ export function shellWithShrimpy(home: string, command: readonly string[]): Node
         "Move the home to a path without one.",
     );
   }
-  mkdirSync(bin, { recursive: true });
+  mkdirSync(bin, { recursive: true, mode: 0o700 });
   writeLauncher(join(bin, "shrimpy"), root, command);
   const inherited = process.env.PATH;
   return { PATH: [bin, inherited === undefined || inherited === "" ? ORDINARY_PATH : inherited].join(delimiter) };

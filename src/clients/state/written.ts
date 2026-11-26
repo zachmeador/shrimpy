@@ -1,4 +1,4 @@
-import { AGENT_COMMANDS, type AgentCommand } from "../../contracts/chat/index.ts";
+import { AGENT_COMMANDS, type AgentCommand, agentCommandIn, mentions } from "../../contracts/chat/index.ts";
 import { MAX_NAME } from "../../contracts/gateway/index.ts";
 import { cutEnd, singleSpaced } from "../../lib/text/index.ts";
 import { type Model, type Notice, openThreadOf } from "./model.ts";
@@ -100,17 +100,24 @@ const SLASH_FIRST = /^\s*\/([\p{L}\p{N}_-]*)(.*)$/su;
  * wraps it in backticks or writes anything before it, as `@scout /stop` does,
  * which is posted and acted on by the agent.
  *
- * Two things set a command for agents apart from the rest. In a room, one that
- * is for nobody unless an agent is named, as the chat contract says of each, is
- * refused when it is written first, since it mentions nobody: `@scout /model x`
- * is how it is written there. And `/model` alone in a DM is answered by the
- * client, which can see which model the thread runs on, and is not posted.
- * With anything after it, it is posted like any command for agents. `updates`
- * says whether the client updates its own machine, and so takes `/update`.
+ * Three things set a command for agents apart from the rest. In a room, one
+ * that is for nobody unless an agent is named, as the chat contract says of
+ * each, is refused when it is written first, since it mentions nobody:
+ * `@scout /model x` is how it is written there. In a room too, one written
+ * after a name that is no member's is refused, since the agents would take it
+ * for no one and the person would never know: `@scuot /stop` would stop
+ * nobody. `members` are the names of the room's members, where the client
+ * knows them. And `/model` alone in a DM is answered by the client, which can
+ * see which model the thread runs on, and is not posted. With anything after
+ * it, it is posted like any command for agents. `updates` says whether the
+ * client updates its own machine, and so takes `/update`.
  */
-export function writtenIn(text: string, where: "dm" | "room", standing: Standing, updates = false): Written {
+export function writtenIn(text: string, where: "dm" | "room", standing: Standing, updates = false, members?: readonly string[]): Written {
   const found = SLASH_FIRST.exec(text);
-  if (found === null) return { do: "post" };
+  if (found === null) {
+    const nobody = where === "room" && members !== undefined ? nobodyNamed(text, members) : undefined;
+    return nobody === undefined ? { do: "post" } : { do: "refuse", notice: { kind: "no-member", written: nobody } };
+  }
   const name = (found[1] ?? "").toLowerCase();
   const rest = (found[2] ?? "").trim();
   // A thread that is not started yet can't be renamed or archived, so those are no commands there.
@@ -121,6 +128,11 @@ export function writtenIn(text: string, where: "dm" | "room", standing: Standing
   }
   const written = /^\s*(\S+)/.exec(text)?.[1] ?? "/";
   return { do: "refuse", notice: { kind: "no-command", written, commands: commandNames(where, standing, updates) } };
+}
+
+/** The first `@word` written before a command for agents in `text` that names none of `members`, as it was written, if there is one. `@all` names everyone. */
+function nobodyNamed(text: string, members: readonly string[]): string | undefined {
+  return agentCommandIn(text)?.named.find((word) => !members.some((member) => mentions(word, member)));
 }
 
 /** What a client does with one of its own commands, written with `rest` after it in a thread that stands as `standing`. Each has a case of its own. */
@@ -165,5 +177,6 @@ export function standingOf(model: Model): Standing {
 export function writtenInOpen(model: Model, text: string, updates = false): Written {
   const { item } = model.open;
   if (item?.kind !== "thread") return { do: "post" };
-  return writtenIn(text, item.place.kind === "agent" ? "dm" : "room", standingOf(model), updates);
+  const members = item.place.kind === "room" ? model.rooms[item.place.id]?.channel.members.map((member) => member.name) : undefined;
+  return writtenIn(text, item.place.kind === "agent" ? "dm" : "room", standingOf(model), updates, members);
 }

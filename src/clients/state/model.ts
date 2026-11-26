@@ -286,6 +286,8 @@ export type Notice =
   | { kind: "model-not-shown"; problem: Problem }
   /** A command that is for nobody in a room unless an agent is named before it was written first there: nothing was posted. */
   | { kind: "name-an-agent"; command: AgentCommand }
+  /** A command for agents in a room was written after `written`, which names no member there: nothing was posted. */
+  | { kind: "no-member"; written: string }
   /** `/devices` with something after it that is not how a device is taken back. `command` has its slash. */
   | { kind: "devices-usage"; command: string }
   /** A device of the person's was taken back, by its label, or its ID when it has none. */

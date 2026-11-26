@@ -221,6 +221,8 @@ export function noticeText(notice: Notice, agentName: string, self: string): str
       return `Could not read the model of this thread: ${because({ kind: "agent", name: agent }, notice.problem, self)}.`;
     case "name-an-agent":
       return `Nothing was posted. ${oneLine(AGENT_COMMANDS[notice.command].room)}`;
+    case "no-member":
+      return `No one in this room is called ${oneLine(notice.written)}. Nothing was posted.`;
     case "devices-usage":
       return `${oneLine(notice.command)} lists your devices, and ${TAKE_BACK} takes one back. Nothing was taken back.`;
     case "taken-back":

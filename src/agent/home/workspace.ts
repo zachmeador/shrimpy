@@ -69,7 +69,7 @@ export async function keepWorkspaceCopy(paths: HomePaths, files: readonly Markdo
   let changed = false;
   for (const { path, text } of wanted) {
     if (texts.get(path) === text) continue;
-    await mkdir(dirname(at(path)), { recursive: true });
+    await mkdir(dirname(at(path)), { recursive: true, mode: 0o700 });
     saveFile(at(path), text);
     changed = true;
   }

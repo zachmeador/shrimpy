@@ -63,7 +63,7 @@ export function initHome(home: string, options: InitOptions): InitResult {
   const created: string[] = [];
   const folder = (path: string): void => {
     if (existsSync(path)) return;
-    mkdirSync(path, { recursive: true });
+    mkdirSync(path, { recursive: true, mode: 0o700 });
     created.push(relative(paths.root, path));
   };
   const file = (path: string, content: string, mode?: number): void => {
@@ -72,7 +72,7 @@ export function initHome(home: string, options: InitOptions): InitResult {
     created.push(relative(paths.root, path));
   };
 
-  mkdirSync(paths.root, { recursive: true });
+  mkdirSync(paths.root, { recursive: true, mode: 0o700 });
   file(paths.config, text);
   file(paths.soul, STARTING_SOUL);
   folder(paths.context);

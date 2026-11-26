@@ -50,6 +50,17 @@ export function folderPath(): string {
 }
 
 /**
+ * The permissions of the Shrimpy folder, such as 755, when other accounts can
+ * open it, or undefined when only its owner can or there is no folder. Shrimpy
+ * makes the folder private, and one it didn't make may not be. Nothing is made.
+ */
+export function folderOpenToOthers(): string | undefined {
+  const found = statSync(folderPath(), { throwIfNoEntry: false });
+  if (found?.isDirectory() !== true || (found.mode & 0o077) === 0) return undefined;
+  return (found.mode & 0o777).toString(8);
+}
+
+/**
  * Where the Shrimpy folder's `providers/` is, which an agent is told when it is
  * started and never looks for. Nothing is read or made: an agent takes what is
  * there, and a folder with no `providers/` gives it nothing.
@@ -216,7 +227,7 @@ export function lookForHome(name: string): { found: boolean; where: string } {
  */
 export function setHomeAside(home: string): string {
   const removed = join(ownFolder(), REMOVED);
-  mkdirSync(removed, { recursive: true });
+  mkdirSync(removed, { recursive: true, mode: 0o700 });
   const name = basename(home);
   let place = join(removed, name);
   for (let count = 2; existsSync(place); count += 1) place = join(removed, `${name}-${count}`);
@@ -245,6 +256,6 @@ export function nothingToStart(): Error {
  */
 export function dataFolder(): string {
   const folder = ownFolder();
-  mkdirSync(join(folder, AGENTS), { recursive: true });
+  mkdirSync(join(folder, AGENTS), { recursive: true, mode: 0o700 });
   return folder;
 }

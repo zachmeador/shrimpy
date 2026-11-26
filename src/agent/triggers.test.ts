@@ -46,8 +46,8 @@ function textOf(message: Message | undefined): string {
 const inputsOf = (view: SessionView): string[] => view.items.flatMap((item) => (item.type === "user" ? [item.text] : []));
 
 /** A trigger's detail once `done` accepts it. */
-const trigger = (connection: AgentConnection, name: string, done: (detail: TriggerDetail) => boolean, what: string) =>
-  eventually(() => connection.trigger(name), done, { what, timeoutMs: 20_000 });
+const trigger = (connection: AgentConnection, name: string, done: (detail: TriggerDetail) => boolean, what: string, timeoutMs = 20_000) =>
+  eventually(() => connection.trigger(name), done, { what, timeoutMs });
 
 /** How many of a trigger's occurrences have ended in this way. */
 const ended = (detail: TriggerDetail, how: Occurrence["ended"]): number => detail.occurrences.filter((occurrence) => occurrence.ended === how).length;
@@ -129,7 +129,7 @@ test("firing a trigger now makes an occurrence, keeps the schedule, and runs not
   assert.deepEqual(rig.reports, []);
 });
 
-test("a trigger with a thread runs in the session behind it, or fails its occurrence when it can't", { timeout }, async (t) => {
+test("a trigger with a thread runs in the session behind it, or fails its occurrence when it can't", { timeout: 60_000 }, async (t) => {
   const home = tempDir(t, "agent");
   // The occurrence is held until the test lets it go, to see the thread marked as working meanwhile.
   let open: () => void = () => undefined;
@@ -203,12 +203,12 @@ test("a trigger with a thread runs in the session behind it, or fails its occurr
   assert.ok(!(await connection.sessions()).some((each) => each.id.startsWith("trigger:")), "no session was made for either");
   assert.ok(!(await connection.sessions()).some((each) => each.id === "th_aaaaaaaaaaaa"));
 
-  // With chat away the agent cannot look, and that is what the occurrence says.
+  // With chat away for longer than the agent waits for it, 15 seconds, the agent cannot look, and that is what the occurrence says.
   for (const name of ["tidy", "report", "lost"]) removeTrigger(home, name);
   await rig.chat.outage();
   writeTrigger(home, "away", ["every: 1s", "thread: th_bbbbbbbbbbbb"], "Nothing reaches it.");
   await connection.reload();
-  const away = await trigger(connection, "away", (found) => ended(found, "failed") >= 1, "the occurrence to fail while chat is away");
+  const away = await trigger(connection, "away", (found) => ended(found, "failed") >= 1, "the occurrence to fail while chat is away", 30_000);
   assert.notEqual(away.occurrences[0]?.reason ?? null, null, "and says why");
 });
 
@@ -232,6 +232,33 @@ test("an agent down past several of a trigger's times runs it once when it start
   const kept = await trigger(connection, "tidy", (found) => found.occurrences.length >= 2, "the schedule to go on");
   assert.equal(kept.occurrences.length, 2, "the time made up and the next one, and not again for each time it missed");
   assert.ok((kept.occurrences[0]?.firedAt ?? 0) - late.firedAt >= 900, "a second after it ran, not a second after it was due");
+});
+
+test("a trigger's first run in a thread, due while the agent was down, waits at the start for chat to link", { timeout }, async (t) => {
+  const home = tempDir(t, "agent");
+  const first = await startAgentRig(t, { home, shortestEveryMs: SHORTEST, scenario: "chat" });
+  // The agent has no session behind this thread, so its first run needs chat to say which channel the thread is in.
+  const side = await first.newThread("Reports");
+  writeTrigger(home, "report", ["every: 3s", `thread: ${side.id}`], "Write the report.");
+  const before = await first.connect();
+  assert.equal((await before.reload()).triggers, 1);
+  const due = (await before.triggers())[0]?.next;
+  assert.ok(typeof due === "number");
+  await first.agent.close();
+  assert.ok(Date.now() < due, "the agent was down before the trigger's time");
+  // Chat is away when the agent starts again after that time, and back a second later.
+  await first.chat.outage();
+  await delay(due - Date.now() + 300);
+  await startAgentChild(t, home, "chat", 400, { shortestEveryMs: SHORTEST });
+  await delay(1_000);
+  await first.chat.recover();
+
+  const connection = await connectAgent(t, home);
+  stopAfter(t, () => connection.close().catch(() => undefined));
+  const ran = await trigger(connection, "report", (found) => ended(found, "answered") >= 1, "an occurrence to be answered");
+  const oldest = ran.occurrences.at(-1);
+  assert.deepEqual([oldest?.due, oldest?.ended], [due, "answered"], "the one that fell due while the agent was down ran, and did not fail");
+  assert.ok((await connection.sessions()).some((session) => session.id === side.id), "in a session made behind the thread");
 });
 
 test("an occurrence due while the last one still goes is skipped, or handed over behind it with overlap allowed", { timeout }, async (t) => {

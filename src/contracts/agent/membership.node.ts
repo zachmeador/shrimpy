@@ -47,6 +47,6 @@ export function readMembership(home: string): Membership | undefined {
 /** Keep the membership in the home, whole or not at all, readable only by its owner. */
 export function saveMembership(home: string, membership: Membership): void {
   const file = membershipFile(home);
-  mkdirSync(dirname(file), { recursive: true });
+  mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
   saveFile(file, `${JSON.stringify(membership, null, 2)}\n`, { mode: 0o600 });
 }

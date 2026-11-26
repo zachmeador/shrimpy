@@ -73,7 +73,7 @@ test("/stop in a DM stops the turn that is running there and takes back what wai
   assert.deepEqual(rig.reports, []);
 });
 
-test("/stop in a room stops every agent there when it mentions nobody, and only the one it names when it does", { timeout }, async (t) => {
+test("/stop in a room stops every agent there when it names nobody, only the one it names when it does, and none for a name nobody has", { timeout }, async (t) => {
   const scoutModel = streaming();
   const bobModel = streaming();
   const scout = await startAgentRig(t, { script: scoutModel.script, tokensPerSecond: SLOWLY });
@@ -101,8 +101,9 @@ test("/stop in a room stops every agent there when it mentions nobody, and only 
   const everyone = await say("/stop");
   await Promise.all([first, everyone].flatMap((message) => [scout.receiptOn(message), bob.receiptOn(message)]));
 
-  // One that mentions an agent is for that agent.
+  // One after a name nobody here has is for no one, so a mistyped name stops nobody. One that mentions an agent is for that agent.
   const second = await startBoth("and again", 2);
+  const typo = await say("@scuot /stop");
   const onlyScout = await say("@scout /stop");
   await Promise.all([scout.receiptOn(second), scout.receiptOn(onlyScout)]);
   // Bob's turn is still going, and is stopped on its own.
@@ -115,6 +116,7 @@ test("/stop in a room stops every agent there when it mentions nobody, and only 
   assert.deepEqual(await receiptsOn(first), { scout: "stopped", bob: "stopped" });
   assert.deepEqual(await receiptsOn(everyone), { scout: "silent", bob: "silent" });
   assert.deepEqual(await receiptsOn(second), { scout: "stopped", bob: "stopped" });
+  assert.deepEqual(await receiptsOn(typo), {}, "neither took it for a command of theirs");
   assert.deepEqual(await receiptsOn(onlyScout), { scout: "silent" }, "bob was not told to stop, and did not");
   assert.deepEqual(await receiptsOn(onlyBob), { bob: "silent" });
   assert.deepEqual([scout.reports, bob.reports], [[], []]);

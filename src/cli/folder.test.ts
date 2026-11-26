@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -45,6 +45,10 @@ test("agent init makes the home in the Shrimpy folder for a name, or at a path, 
   const model = { provider: "local", id: "test-model" };
   assert.deepEqual(agentFile(join(folder, "agents", "scout")), { name: "scout", model });
   assert.deepEqual(commandLines(made.out.join("\n")), [SIGN_IN, "shrimpy up"]);
+  // Every folder Shrimpy makes for a setup is private to the account.
+  for (const path of [folder, join(folder, "agents"), join(folder, "agents", "scout"), join(folder, "agents", "scout", "state")]) {
+    assert.equal(statSync(path).mode & 0o777, 0o700, path);
+  }
 
   const elsewhere = join(tempDir(t, "elsewhere"), "maya");
   const path = await run("agent", "init", elsewhere, ...modelFlags);

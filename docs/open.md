@@ -26,7 +26,6 @@ Daily use decides. The owner's last order was compaction and seeing the request 
 ## Identity and addressing
 
 - From an agent's shell, `agent init`, `agent serve` and `up` skip the admin check, and `status` lists no admins.
-- What every agent is told doesn't say that the `shrimpy` in its shell acts as the agent. One believed it acted as the person (2026-11-22).
 
 ## The conversation model
 
@@ -43,7 +42,6 @@ Daily use decides. The owner's last order was compaction and seeing the request 
 - The rule for ending a turn with `END` sends small models into long deliberation over a one-word reply.
 - The models an agent says it can use are those Pi lists as available, which checks more than the start does, so the home's own model can be missing from the list, and `setModel` can refuse a model the agent would start with.
 - A Shrimpy folder on a share that drops for a moment empties every agent's copy of the workspace context until it is back, and costs each agent a restart, since `up` takes a home whose `agent.json` it can't see for gone.
-- A Shrimpy folder that `agent init` makes isn't private to its account, where one the sign-in makes is.
 
 ## The network
 
@@ -59,7 +57,6 @@ Daily use decides. The owner's last order was compaction and seeing the request 
 ## What an agent does unasked
 
 - Helpers: child sessions in the agent's process, with its home and authority. Foreground ones join and stop with their parent, and background ones outlive it and wake it with their result. They show in a work view whose labels, visibility and cancellation are still to decide.
-- A trigger that names a thread and comes due while the agent was down fires before the link to chat is up, so that one occurrence fails.
 - An agent that follows its gateway to a new release says so in no thread, and a turn that the restart pauses isn't told why.
 
 ## Using it
@@ -73,8 +70,6 @@ Daily use decides. The owner's last order was compaction and seeing the request 
 - In the terminal: multiline input, recovering a draft, and pasting clipboard text.
 - Paging back through a long thread or session, in both clients. The terminal stops at the newest 200 messages.
 - Tab completion for commands, agents and options in the shell.
-- `run` prints only the first part of an answer posted in parts.
-- `@typo /stop` stops every agent in the room.
 - A Mac app that wraps the web client, in Electron.
 - Untried: setting up through a bare `shrimpy` with a subscription's sign-in, under launchd, with a person at a real terminal, and `shrimpy update` on macOS from a real release.
 

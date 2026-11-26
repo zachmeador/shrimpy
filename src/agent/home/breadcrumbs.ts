@@ -66,7 +66,7 @@ async function startOf(file: string): Promise<string | undefined> {
  * same moment sees the file whole or not at all.
  */
 export async function writeBreadcrumb(paths: HomePaths, name: string, text: string): Promise<void> {
-  await mkdir(paths.breadcrumbs, { recursive: true });
+  await mkdir(paths.breadcrumbs, { recursive: true, mode: 0o700 });
   saveFile(join(paths.breadcrumbs, `${name}.md`), text);
 }
 

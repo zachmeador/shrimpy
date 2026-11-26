@@ -32,20 +32,23 @@ const ACTIONS: Record<AgentCommand, (admissions: Admissions, event: ChatEvent, w
 /**
  * The command a message of a thread is, if it is one that is for the agent: a
  * person wrote it, and it is in a DM, or it is in a room and mentions the agent
- * or says `@all`, or mentions nobody and is a command that is then for everyone
- * there, as the chat contract says of each. What an agent writes is only text,
- * since an agent has no say over another agent's work.
+ * or says `@all`, or names nobody and is a command that is then for everyone
+ * there, as the chat contract says of each. A name before the command names
+ * someone even when it is no member's, so `@scuot /stop` stops no one. What an
+ * agent writes is only text, since an agent has no say over another agent's
+ * work.
  */
 export function commandFor(self: Member, event: ChatEvent, where: Channel["kind"]): AgentCommand | undefined {
   if (event.kind !== "posted" || event.actor.kind !== "person") return undefined;
-  const name = agentCommandIn(event.text)?.command;
-  if (name === undefined) return undefined;
+  const found = agentCommandIn(event.text);
+  if (found === undefined) return undefined;
   if (where === "room") {
     const { mentions } = event.message;
-    const forMe = mentions.length === 0 ? AGENT_COMMANDS[name].withoutMention === "everyone" : mentions.includes(self.id);
+    const namesNobody = mentions.length === 0 && found.named.length === 0;
+    const forMe = namesNobody ? AGENT_COMMANDS[found.command].withoutMention === "everyone" : mentions.includes(self.id);
     if (!forMe) return undefined;
   }
-  return name;
+  return found.command;
 }
 
 /** What acting on a command needs, apart from the command. */

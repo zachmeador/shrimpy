@@ -10,8 +10,8 @@ import {
   whyTurnedAway,
 } from "../../contracts/gateway/index.ts";
 import { formatAddress } from "../../lib/link/index.ts";
-import { listed } from "../../lib/text/index.ts";
-import { folderPath } from "../folder/index.ts";
+import { listed, shellWord } from "../../lib/text/index.ts";
+import { folderOpenToOthers, folderPath } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { thisAccount } from "../service/index.ts";
 import { askGateway } from "../talk/index.ts";
@@ -39,10 +39,12 @@ const status: Command = {
     "line that says whether a service is installed for your Shrimpy folder, which shrimpy install sets up, " +
     "and whether it is running. If no gateway is running it says how to start Shrimpy, or, when none is meant " +
     "to run here because every agent in your Shrimpy folder belongs to a gateway elsewhere, where that " +
-    "gateway is. It ends with the line on the service all the same, and exits 1.",
+    "gateway is. It ends with the line on the service all the same, and exits 1. When other accounts can open your " +
+    "Shrimpy folder, it says so first, on standard error, with the command that makes the folder private.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     expectArguments(positionals, []);
+    warnIfFolderOpen(io);
     const inspected = await askGateway();
     if (inspected === undefined) return noGatewayHere(io);
     const { programs, turnedAway, members, versions } = inspected;
@@ -60,6 +62,17 @@ const status: Command = {
     return 0;
   },
 };
+
+/** Say on standard error that other accounts can open the Shrimpy folder, with the command that makes it private. */
+function warnIfFolderOpen(io: Io): void {
+  const mode = folderOpenToOthers();
+  if (mode === undefined) return;
+  const folder = folderPath();
+  io.err(
+    `Other accounts can open your Shrimpy folder ${folder}, which holds your agents' notes and sessions: its permissions are ${mode}. ` +
+      `Make it private with: chmod 700 ${shellWord(folder)}`,
+  );
+}
 
 /** The gateways the agents of the Shrimpy folder belong to, when they all belong to one elsewhere and `up` starts none here. */
 function gatewaysElsewhere(): Address[] {

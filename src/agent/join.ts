@@ -34,6 +34,8 @@ export interface JoinOptions {
 export interface Joined {
   /** Chat as it is up right now, if it is. The agent's tools talk to chat over it. */
   chat(): LiveChat | undefined;
+  /** Call `listener` each time chat comes up. Returns what stops that. */
+  onChat(listener: (live: LiveChat) => void): () => void;
   /** Stop reading chat's feed. Events already taken up carry on. */
   stopTaking(): void;
   /**
@@ -148,6 +150,7 @@ export function join(participant: Participant, options: JoinOptions): Joined {
 
   return {
     chat: () => link.current(),
+    onChat: (listener) => link.onUp(listener),
     stopTaking: () => taking.abort(),
     async drain(signal) {
       const live = link.current();

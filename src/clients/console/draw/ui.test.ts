@@ -686,6 +686,7 @@ test("text from other members and from tools can't reach the terminal, wherever 
   };
   const notices: Notice[] = [
     { kind: "no-command", written: `/path${hostile}`, commands: [`/stop${hostile}`] },
+    { kind: "no-member", written: `@scuot${hostile}` },
     { kind: "model-is", model: used, own: true, defaultModel: used },
     { kind: "model-unstarted", defaultModel: used },
     { kind: "model-not-shown", problem: { down: { kind: "unreachable", message: `agent${hostile}` } } },

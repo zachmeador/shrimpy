@@ -9,7 +9,7 @@ import { homePaths } from "../home/index.ts";
  */
 export function takeOwnerLock(home: string): Lock {
   const { runtime } = homePaths(home);
-  mkdirSync(runtime, { recursive: true });
+  mkdirSync(runtime, { recursive: true, mode: 0o700 });
   const words = `Another process owns the agent home at ${home}. Talk to that agent instead of opening its storage.`;
   return takeLock(join(runtime, "owner.lock"), (cause) => new LockHeldError(words, { cause }));
 }

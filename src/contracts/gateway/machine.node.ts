@@ -31,6 +31,6 @@ export function readMachine(folder: string): MachineMembership | undefined {
  */
 export function saveMachine(folder: string, machine: MachineMembership): void {
   const file = machineFile(folder);
-  mkdirSync(folder, { recursive: true });
+  mkdirSync(folder, { recursive: true, mode: 0o700 });
   saveFile(file, `${JSON.stringify(machine, null, 2)}\n`, { mode: 0o600 });
 }

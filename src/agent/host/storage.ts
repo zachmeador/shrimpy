@@ -65,7 +65,7 @@ const SINCE_THE_MOVE = 2;
  */
 export function prepareStorage(database: string, format: StoreFormat<StorageVersion>): void {
   if (!existsSync(database)) {
-    mkdirSync(dirname(database), { recursive: true });
+    mkdirSync(dirname(database), { recursive: true, mode: 0o700 });
     write(database, (db) => keepVersion(db, format.current));
     return;
   }

@@ -92,7 +92,7 @@ export async function saveTrigger(home: string, draft: TriggerDraft): Promise<{ 
   const { paths } = loadHome(home);
   const file = triggerFile(paths, draft.name);
   const replaced = existsSync(file);
-  await mkdir(paths.triggers, { recursive: true });
+  await mkdir(paths.triggers, { recursive: true, mode: 0o700 });
   saveFile(file, draft.text);
   return { file, replaced };
 }

@@ -30,24 +30,31 @@ async function placeOfThread(chat: ChatCalls, threadId: string, signal: AbortSig
   }
 }
 
-/** The longest the agent waits for chat to say where a thread is. */
+/** The longest the agent waits for chat to come up and say where a thread is. */
 const LONGEST_WAIT_MS = 15_000;
 
 /**
  * The channel of a thread for an occurrence of a trigger, and where the thread is,
- * asked of the chat link the agent has now, or the reason there is none in words
+ * asked of chat once `untilChat` has it up, or the reason there is none in words
  * for whoever reads the occurrence's record: chat is away, or the agent is not in
- * the thread's channel. Chat being away is no failure of its own to report, and
- * aborting `signal` gives up.
+ * the thread's channel. The wait for chat to come up counts in the longest wait,
+ * so an occurrence that falls due as the agent starts runs once chat links.
+ * Chat being away is no failure of its own to report, and aborting `signal`
+ * gives up.
  */
 export async function channelOfThread(
-  link: () => LiveChat | undefined,
+  untilChat: (signal: AbortSignal) => Promise<LiveChat>,
   threadId: string,
   signal: AbortSignal,
 ): Promise<{ channelId: string; place?: Place } | { problem: string }> {
-  const live = link();
-  if (live === undefined) return { problem: chatAway(threadId) };
   const patience = AbortSignal.timeout(LONGEST_WAIT_MS);
+  let live: LiveChat;
+  try {
+    live = await untilChat(AbortSignal.any([signal, patience]));
+  } catch (error) {
+    if (signal.aborted || !patience.aborted) throw error;
+    return { problem: chatAway(threadId) };
+  }
   try {
     const place = await placeOfThread(live.chat, threadId, AbortSignal.any([signal, live.lost, patience]));
     if (place.kind === "found") {

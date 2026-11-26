@@ -17,6 +17,7 @@ import { loadHome, NoTriggerError, readMembership, readTriggers, saveModel, swit
 import { createLiveRoster } from "../contracts/gateway/index.ts";
 import { asError } from "../lib/errors/index.ts";
 import { followFiles } from "../lib/files/node.ts";
+import { createListeners, untilHeard } from "../lib/listeners/index.ts";
 import { isRefusal, refuse } from "../lib/refusal/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { createAdmissions } from "./chat/durable.ts";
@@ -27,7 +28,7 @@ import { homeReader } from "./following.ts";
 import { homePaths, lookAtHome, readBreadcrumbs, workspaceCopier, writeBreadcrumb } from "./home/index.ts";
 import { AGENT_STORAGE, buildModels, checkStorageVersion, type HostOptions, type ModelReload, openHost } from "./host/durable.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
-import { followWorkspace } from "./links/index.ts";
+import { followWorkspace, type LiveChat } from "./links/index.ts";
 import { keepLook } from "./look.ts";
 import { messageTools } from "./message-tools/durable.ts";
 import { askTools, createQuestions } from "./questions/durable.ts";
@@ -147,6 +148,13 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       stoppedForRemoval = resolve;
     });
     const chat = () => joined?.chat();
+    // A trigger's occurrence that falls due at the start can ask for chat before the agent has joined, so it waits on
+    // what the agent's part in the network tells here each time chat comes up.
+    const chatUp = createListeners<LiveChat>(report);
+    const untilChat = (signal: AbortSignal): Promise<LiveChat> => {
+      const now = chat();
+      return now === undefined ? untilHeard((heard) => chatUp.add(heard), signal) : Promise.resolve(now);
+    };
     const roster = createLiveRoster(report);
     const members = () => roster.now()?.members;
     const breadcrumbs = () => readBreadcrumbs(paths);
@@ -163,7 +171,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       turn: turn.task,
       defaults: sessions.defaults,
       read: () => readTriggers(paths, triggerCheck),
-      channelOf: (threadId, signal) => channelOfThread(chat, threadId, signal),
+      channelOf: (threadId, signal) => channelOfThread(untilChat, threadId, signal),
       breadcrumbs,
       leaveBreadcrumb: (name, text) => writeBreadcrumb(paths, name, text),
       onError: report,
@@ -283,6 +291,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
           },
           options.join,
         );
+        joined.onChat((live) => chatUp.notify(live));
       }
       const refuseInput = (): void => {
         takingInput = false;

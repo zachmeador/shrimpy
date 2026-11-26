@@ -6,6 +6,9 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 - The page installed on an iPhone's home screen reaches the bottom of the screen, where it left a strip under the composer.
 - An agent on another machine that runs from an install now installs its gateway's release by itself at every update.
+- In a room, a mistyped name before `/stop`, as in `@scuot /stop`, stops no agent, where it stopped them all, and the terminal and the page say that no one there has that name.
+- A trigger's first run in its thread waits for chat when the agent starts, where it failed if it fell due while the agent was down.
+- Shrimpy makes the folders it creates private to your account, and `shrimpy status` warns when other accounts can open your Shrimpy folder. To make one from before private, run `chmod 700 ~/shrimpy`, with your folder's path if it's elsewhere.
 
 ## 🦐 2.0.0 - A Rising Tide - 2026-11-25
 

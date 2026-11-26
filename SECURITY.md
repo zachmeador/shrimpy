@@ -21,7 +21,7 @@ Everything an agent reads may be hostile: messages from people and other agents,
 - **No prompt-injection defense:** instructions inside a message, a file, a web page or a tool's output can steer an agent. Models can't reliably tell your instructions from anyone else's.
 - **Agents can leak what they read:** an agent that can read a secret and has any way out, such as a message, a shell command or a web request, can send it on.
 - **Triggers run unattended:** a trigger wakes its agent, or runs its shell check, on a schedule, with nobody watching each step.
-- **Data stays on disk:** sessions, messages, the roster and sign-ins are files in the Shrimpy folder and each agent's home. Shrimpy doesn't encrypt them, and keeps the ones that hold secrets readable by their OS account alone.
+- **Data stays on disk:** sessions, messages, the roster and sign-ins are files in the Shrimpy folder and each agent's home. Shrimpy doesn't encrypt them. The folders it makes for them, and the files that hold secrets, are readable by their OS account alone.
 
 ## The network
 

@@ -140,7 +140,7 @@ test("a text that starts with a slash is never posted as a message, and a comman
   assert.deepEqual(await posted(), ["first", "`/etc/hosts` is wrong", "@scout /stop"]);
 });
 
-test("in a room a command for nobody is posted only with an agent named before it", { timeout }, async (t) => {
+test("in a room a command for nobody is posted only with an agent named before it, and none after a name nobody there has", { timeout }, async (t) => {
   const rig = await startRig(t);
   const scout = await rig.member("scout");
   const you = await rig.person();
@@ -155,6 +155,8 @@ test("in a room a command for nobody is posted only with an agent named before i
   assert.equal(await rig.state.write("/model local/big-model"), false, "written first, it mentions nobody");
   assert.deepEqual(rig.state.model().notice, { kind: "name-an-agent", command: "model" });
   assert.equal(await rig.state.write("/model"), false, "and alone it is not answered there");
+  assert.equal(await rig.state.write("@scuot /stop"), false, "a name nobody in the room has is refused, since it would stop no one");
+  assert.deepEqual(rig.state.model().notice, { kind: "no-member", written: "@scuot" });
   assert.equal(await rig.state.write("@scout /model local/big-model"), true);
   assert.deepEqual((await you.read(main.id, null, 10)).map((message) => message.text), ["@scout /model local/big-model"]);
 });
