@@ -1,6 +1,6 @@
 # 🦐 How Shrimpy Is Built
 
-For anyone about to read the code. How to run it is in [CONTRIBUTING.md](../CONTRIBUTING.md), and what isn't built yet is in [the open list](open.md).
+For anyone about to read the code. How to run it is in [CONTRIBUTING.md](../CONTRIBUTING.md), and the important open issues are in [the open list](open.md).
 
 ## Three programs
 
