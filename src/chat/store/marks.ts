@@ -5,14 +5,20 @@ import type { Sql } from "./sql.ts";
 /**
  * For each thread the query picks, how many messages others wrote after the
  * read mark of the member bound first, or in the whole thread while it has
- * none, leaving out deleted ones. The member is bound twice: for its mark, and
- * to leave out its own messages.
+ * none, leaving out deleted messages and wake lines, and 0 while the thread is
+ * archived. The member is bound twice: for its mark, and to leave out its own
+ * messages.
  */
 const UNREAD = `
   SELECT t.id AS thread_id, count(m.seq) AS unread
     FROM threads t
     LEFT JOIN read_marks r ON r.member_id = ? AND r.thread_id = t.id
-    LEFT JOIN messages m ON m.thread_id = t.id AND m.seq > coalesce(r.message_seq, 0) AND m.author_id <> ? AND m.deleted = 0`;
+    LEFT JOIN messages m ON t.archived = 0
+      AND m.thread_id = t.id
+      AND m.seq > coalesce(r.message_seq, 0)
+      AND m.author_id <> ?
+      AND m.deleted = 0
+      AND NOT EXISTS (SELECT 1 FROM wake_lines w WHERE w.message_seq = m.seq)`;
 
 /** A member's read marks: in each thread, the last message it has seen there. */
 export interface MarkOperations {

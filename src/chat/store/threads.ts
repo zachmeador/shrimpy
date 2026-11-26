@@ -86,10 +86,10 @@ const PREVIEW_BATCH = 20;
 /**
  * Make a thread's preview the preview of its first message that is still there
  * and is neither a command for agents nor the line an agent said about one, or
- * nothing when it has none. A trigger's line is no message here. A thread that someone starts with a command is
- * named for the first thing said in it after, and until then has no preview. A
- * message is what its events add up to, so the preview follows its edits, and a
- * deleted message leaves no trace in it.
+ * nothing when it has none. A wake line is no message here. A thread that
+ * someone starts with a command is named for the first thing said in it after,
+ * and until then has no preview. A message is what its events add up to, so the
+ * preview follows its edits, and a deleted message leaves no trace in it.
  */
 export function refreshPreview(sql: Sql, threadId: string): void {
   let after = -1;
@@ -98,7 +98,7 @@ export function refreshPreview(sql: Sql, threadId: string): void {
     const batch = sql.all(
       `SELECT m.seq, m.text, m.preview FROM messages m
        WHERE m.thread_id = ? AND m.deleted = 0 AND m.seq > ?
-         AND NOT EXISTS (SELECT 1 FROM trigger_lines l WHERE l.message_seq = m.seq)
+         AND NOT EXISTS (SELECT 1 FROM wake_lines w WHERE w.message_seq = m.seq)
        ORDER BY m.seq LIMIT ?`,
       threadId,
       after,

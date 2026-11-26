@@ -1,5 +1,5 @@
 import type { ChatEvent, Member, Receipt } from "../../contracts/chat/index.ts";
-import { lineOf } from "./messages.ts";
+import { wakeOf } from "./messages.ts";
 import { parseReceipts, RECEIPTS_ON_EVENT } from "./receipts.ts";
 import type { Sql } from "./sql.ts";
 
@@ -32,10 +32,7 @@ type EventRow = {
   author_kind: Member["kind"];
   author_name: string;
   receipts: string;
-  line_trigger: string | null;
-  fired_at: number | null;
-  prompt: string | null;
-  output: string | null;
+  wake_data: string | null;
 };
 
 const SELECT = `
@@ -45,12 +42,12 @@ const SELECT = `
          m.id AS message_id, m.channel_id, m.thread_id, m.sent_at, m.mentions, m.deleted, m.preview,
          a.id AS author_id, a.kind AS author_kind, a.name AS author_name,
          ${RECEIPTS_ON_EVENT} AS receipts,
-         l.trigger AS line_trigger, l.fired_at, l.prompt, l.output
+         w.data AS wake_data
   FROM events e
   JOIN members x ON x.id = e.actor_id
   JOIN messages m ON m.seq = e.message_seq
   JOIN members a ON a.id = m.author_id
-  LEFT JOIN trigger_lines l ON l.message_seq = m.seq
+  LEFT JOIN wake_lines w ON w.message_seq = m.seq
   LEFT JOIN events answered ON answered.seq = e.answers_seq
   LEFT JOIN messages replied ON replied.seq = e.reply_seq`;
 
@@ -90,7 +87,7 @@ function toEvent(row: EventRow): ChatEvent {
     case "deleted":
       return { ...base, kind: row.kind };
     case "fired":
-      return { ...base, kind: row.kind, trigger: stored(row, "trigger", lineOf(row)) };
+      return { ...base, kind: row.kind, wake: stored(row, "wake", wakeOf(row)) };
     case "reacted":
     case "unreacted":
       return { ...base, kind: row.kind, emoji: row.emoji ?? "" };

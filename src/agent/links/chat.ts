@@ -8,7 +8,7 @@ import {
   type Member,
   type Message,
   type Thread,
-  type TriggerLine,
+  type WakeLineInput,
 } from "../../contracts/chat/index.ts";
 import {
   contextOf,
@@ -53,8 +53,12 @@ export interface ChatCalls {
   post(thread: string, text: string, request: string, signal: AbortSignal, quiet?: boolean): Promise<Message>;
   /** Up to `limit` messages older than the position `before`, or the newest when it is null, oldest first. */
   read(thread: string, before: number | null, limit: number, signal: AbortSignal): Promise<Message[]>;
-  /** Show in a thread that one of the agent's triggers fired, as a line. A request ID's first use wins. */
-  triggerFired(thread: string, line: TriggerLine, request: string, signal: AbortSignal): Promise<Message>;
+  /** Name a thread at `revision`. */
+  rename(thread: string, name: string, revision: number, signal: AbortSignal): Promise<Thread>;
+  /** Archive or unarchive a thread at `revision`. */
+  archive(thread: string, archived: boolean, revision: number, signal: AbortSignal): Promise<Thread>;
+  /** Record a wake line in a thread. A request ID's first use wins. */
+  wakeLine(thread: string, wake: WakeLineInput, request: string, signal: AbortSignal): Promise<Message>;
 }
 
 /** Chat as it is up: its calls, who the agent is there, and a signal that aborts when it is lost. */
@@ -157,8 +161,14 @@ function callsOver(host: Host<Principal, Revocation>, chat: Held<typeof Chat>, m
     async read(thread, before, limit, signal) {
       return valueOf(await chat.read({ thread, before, limit }, contextOf(signal)));
     },
-    async triggerFired(thread, { name, firedAt, prompt, output }, request, signal) {
-      return valueOf(await chat.triggerFired({ thread, trigger: name, firedAt, prompt, output, request }, contextOf(signal)));
+    async rename(thread, name, revision, signal) {
+      return valueOf(await chat.rename({ thread, name, revision }, contextOf(signal)));
+    },
+    async archive(thread, archived, revision, signal) {
+      return valueOf(await chat.archive({ thread, archived, revision }, contextOf(signal)));
+    },
+    async wakeLine(thread, wake, request, signal) {
+      return valueOf(await chat.wakeLine({ thread, wake, request }, contextOf(signal)));
     },
   };
 }

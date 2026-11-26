@@ -54,7 +54,7 @@ function anEvent({
         ? { ...base, kind, event: "evt_0", status: "answered", reply: "msg_2", detail: null }
         : { ...base, kind, event: "evt_0", status: "silent", reply: null, detail: null };
     case "fired":
-      return { ...base, kind, trigger: { name: "groceries", firedAt: 2000, prompt: "Make the week's list.", output: null } };
+      return { ...base, kind, wake: { kind: "trigger", name: "groceries", firedAt: 2000, prompt: "Make the week's list.", output: null } };
   }
 }
 

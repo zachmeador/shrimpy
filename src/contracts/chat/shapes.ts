@@ -62,19 +62,78 @@ export const LeftReceiptSchema = obj({ status: StatusSchema, reply: union([str()
 export type LeftReceipt = Static<typeof LeftReceiptSchema>;
 
 /**
- * Characters a trigger's line keeps of the trigger's prompt, and of what its
- * check printed. An agent cuts either to this, with an ellipsis when it cuts.
+ * Characters a wake line keeps of a trigger's prompt, a check's output, a
+ * command, or a process's output tail. An agent cuts each to this, with an
+ * ellipsis when it cuts.
  */
-export const MAX_TRIGGER_LINE_LENGTH = 2_000;
+export const MAX_WAKE_LINE_LENGTH = 2_000;
 
 /**
- * That one of an agent's triggers fired into a thread: the trigger's name, when
- * it fired, in milliseconds since the epoch, its prompt, and what its check
- * printed, or the line that says the check failed, or null for a trigger with
- * no check.
+ * That one of an agent's triggers fired into a thread: its name (or null for a
+ * one-time trigger), when it fired, in milliseconds since the epoch, its
+ * prompt, and what its check printed, or the line that says the check failed,
+ * or null for a trigger with no check.
  */
-const TriggerLineSchema = obj({ name: str(), firedAt: num(), prompt: str(), output: union([str(), nul()]) });
-export type TriggerLine = Static<typeof TriggerLineSchema>;
+const TriggerWakeSchema = obj({
+  kind: lit("trigger"),
+  name: union([str(), nul()]),
+  firedAt: num(),
+  prompt: str(),
+  output: union([str(), nul()]),
+});
+
+/**
+ * That a background command an agent started exited, was killed, hit its
+ * check-in, or was interrupted by a restart. `code` is the exit code when it
+ * exited normally, or null otherwise.
+ */
+const ProcessWakeSchema = obj({
+  kind: lit("process"),
+  id: str(),
+  command: str(),
+  state: oneOf("exited", "killed", "checkin", "interrupted"),
+  code: union([int(), nul()]),
+  afterMs: int(),
+  at: num(),
+  output: union([str(), nul()]),
+});
+
+/** How a watched agent's turn in another DM thread settled. */
+const AnswerStatusSchema = oneOf("answered", "silent", "stopped", "failed");
+
+/**
+ * That an agent waited on in another DM thread settled: who settled, which DM
+ * thread and its title, how it settled, and when.
+ */
+const AnswerWakeSchema = obj({
+  kind: lit("answer"),
+  from: MemberSchema,
+  thread: str(),
+  title: str(),
+  status: AnswerStatusSchema,
+  at: num(),
+});
+
+/** What an agent passes to `Chat.wakeLine` for an answer line: chat resolves `from` and `title`. */
+const AnswerWakeInputSchema = obj({
+  kind: lit("answer"),
+  from: str(),
+  thread: str(),
+  status: AnswerStatusSchema,
+  at: num(),
+});
+
+/**
+ * A wake line in a thread: what woke an agent without a chat message of
+ * anyone's — a trigger that fired, a background command event, or a watched
+ * agent settling in another thread.
+ */
+export const WakeLineSchema = union([TriggerWakeSchema, ProcessWakeSchema, AnswerWakeSchema]);
+export type WakeLine = Static<typeof WakeLineSchema>;
+
+/** What an agent sends to `Chat.wakeLine`. */
+export const WakeLineInputSchema = union([TriggerWakeSchema, ProcessWakeSchema, AnswerWakeInputSchema]);
+export type WakeLineInput = Static<typeof WakeLineInputSchema>;
 
 /**
  * A file that came with a message: its ID, the name it was sent with, its media
@@ -97,11 +156,11 @@ export type Reaction = Static<typeof ReactionSchema>;
 
 /**
  * A message as it now stands: the log of events folded into one record. A
- * thread also holds trigger lines, each a record of this shape with `trigger`
- * set, written by the agent whose trigger fired, with no text, no mentions and
- * no reactions. A line counts as new to you like a message, wakes nobody and is
- * told to nobody's devices, and can't be edited, deleted or reacted to. The
- * agent leaves its receipt on the line's event, as on a message it took up.
+ * thread also holds wake lines, each a record of this shape with `wake` set,
+ * written by the agent that was woken, with no text, no mentions and no
+ * reactions. A wake line never counts as unread, wakes nobody, is told to
+ * nobody's devices, and can't be edited, deleted or reacted to. The agent
+ * leaves its receipt on the line's event, as on a message it took up.
  */
 export const MessageSchema = obj({
   id: str(),
@@ -134,8 +193,8 @@ export const MessageSchema = obj({
   mentions: arr(str()),
   /** The emoji on it, in the order each first appeared. */
   reactions: arr(ReactionSchema),
-  /** For a trigger's line, the trigger that fired; null for a message. */
-  trigger: union([TriggerLineSchema, nul()]),
+  /** For a wake line, what woke the agent; null for a message. */
+  wake: union([WakeLineSchema, nul()]),
   /**
    * What each agent did with each event that names this message, in order of
    * event and then of member ID. Silent receipts are here like any other:
@@ -221,6 +280,6 @@ export const ChatEventSchema = union([
     reply: union([str(), nul()]),
     detail: union([str(), nul()]),
   }),
-  obj({ ...EVENT_BASE, kind: lit("fired"), trigger: TriggerLineSchema }),
+  obj({ ...EVENT_BASE, kind: lit("fired"), wake: WakeLineSchema }),
 ]);
 export type ChatEvent = Static<typeof ChatEventSchema>;

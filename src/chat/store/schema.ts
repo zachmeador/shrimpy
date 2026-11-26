@@ -1,7 +1,7 @@
 import type { Step, StoreFormat } from "../../lib/migration/node.ts";
 
 /** The tables' version, kept in the store's `user_version`. */
-const SCHEMA_VERSION = 11;
+const SCHEMA_VERSION = 12;
 
 /**
  * A change to the tables: the SQL that brings a store from the version before
@@ -29,9 +29,9 @@ export interface ChatFormat extends StoreFormat<ChatStep> {
  * `target_seq`: it names the message it makes. `message_seq` is the message an
  * event names, either way. A post or an edit keeps the members its text
  * mentioned then in its own `mentions`, since the message's are replaced at
- * each edit. A `fired` event makes a trigger's line the way a post makes a
- * message: the line is a row of `messages` with no text, and `trigger_lines`
- * keeps the trigger that fired.
+ * each edit. A `fired` event makes a wake line the way a post makes a message:
+ * the line is a row of `messages` with no text, and `wake_lines` keeps what
+ * woke the agent (a trigger, a background command, or a watched agent's reply).
  *
  * A receipt is an event too. It names the message of the event it answers, and
  * carries the receipt in `answers_seq`, `status`, `reply_seq` and `detail`.
@@ -149,12 +149,10 @@ CREATE TABLE messages (
 ) STRICT;
 CREATE INDEX messages_by_thread ON messages (thread_id, seq);
 
-CREATE TABLE trigger_lines (
+CREATE TABLE wake_lines (
   message_seq INTEGER NOT NULL PRIMARY KEY REFERENCES messages (seq),
-  trigger TEXT NOT NULL,
-  fired_at INTEGER NOT NULL,
-  prompt TEXT NOT NULL,
-  output TEXT
+  kind TEXT NOT NULL CHECK (kind IN ('trigger', 'process', 'answer')),
+  data TEXT NOT NULL
 ) STRICT;
 
 CREATE TABLE reactions (
@@ -212,5 +210,25 @@ const PINS: ChatStep = {
   ],
 };
 
+/**
+ * 3.0.0: `trigger_lines` generalizes to `wake_lines`, holding trigger, process
+ * and answer wake lines as JSON. Existing trigger lines keep their content.
+ */
+const WAKE_LINES: ChatStep = {
+  version: 12,
+  statements: [
+    `CREATE TABLE wake_lines (
+      message_seq INTEGER NOT NULL PRIMARY KEY REFERENCES messages (seq),
+      kind TEXT NOT NULL CHECK (kind IN ('trigger', 'process', 'answer')),
+      data TEXT NOT NULL
+    ) STRICT`,
+    `INSERT INTO wake_lines (message_seq, kind, data)
+      SELECT message_seq, 'trigger',
+             json_object('kind', 'trigger', 'name', trigger, 'firedAt', fired_at, 'prompt', prompt, 'output', output)
+        FROM trigger_lines`,
+    "DROP TABLE trigger_lines",
+  ],
+};
+
 /** This release's format, which a change to `SCHEMA` changes. A store from 1.0.0 is at version 10. */
-export const CHAT_FORMAT: ChatFormat = { schema: SCHEMA, current: SCHEMA_VERSION, oldest: 10, steps: [PINS] };
+export const CHAT_FORMAT: ChatFormat = { schema: SCHEMA, current: SCHEMA_VERSION, oldest: 10, steps: [PINS, WAKE_LINES] };

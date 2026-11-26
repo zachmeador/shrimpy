@@ -1,7 +1,7 @@
-import { arr, bool, int, method, nul, num, obj, opt, remote, str, union } from "@earendil-works/chord";
+import { arr, bool, int, method, nul, obj, opt, remote, str, union } from "@earendil-works/chord";
 import { answerOf, chat } from "../gateway/index.ts";
 import { ChannelSchema } from "./channel.ts";
-import { ChatEventSchema, LeftReceiptSchema, MemberSchema, MessageSchema } from "./shapes.ts";
+import { ChatEventSchema, LeftReceiptSchema, MemberSchema, MessageSchema, WakeLineInputSchema } from "./shapes.ts";
 import { ThreadSchema } from "./thread.ts";
 
 /**
@@ -27,7 +27,7 @@ import { ThreadSchema } from "./thread.ts";
  * whatever revision it names, so a retry whose answer was lost goes through.
  */
 export const Chat = remote("shrimpy.chat", {
-  version: 2,
+  version: 3,
   params: {},
   hostAddress: () => chat(),
   variants: {
@@ -139,7 +139,7 @@ export const Chat = remote("shrimpy.chat", {
          * Archives a thread, which hides it from lists and leaves it readable,
          * or brings it back, answering with it as it now stands. Asking for
          * what it is already changes nothing. A new message in an archived
-         * thread, or a trigger's line, brings it back too.
+         * thread, or a wake line, brings it back too.
          */
         archive: method(obj({ thread: str(), archived: bool(), revision: int() }), answerOf(ThreadSchema)),
         /**
@@ -157,14 +157,14 @@ export const Chat = remote("shrimpy.chat", {
          */
         markRead: method(obj({ message: str() }), answerOf(nul())),
         /**
-         * Shows in a thread that one of the caller's triggers fired, as a line,
-         * answering with it. Only an agent has triggers. `prompt` and `output`
-         * are at most `MAX_TRIGGER_LINE_LENGTH` characters, and `output` is null
-         * for a trigger with no check. A request ID's first use wins, as for a
-         * post.
+         * Records a wake line in a thread — a trigger that fired, a background
+         * command event, or a watched agent settling — answering with the
+         * record. Only an agent writes wake lines. Text fields are at most
+         * `MAX_WAKE_LINE_LENGTH` characters. A request ID's first use wins, as
+         * for a post.
          */
-        triggerFired: method(
-          obj({ thread: str(), trigger: str(), firedAt: num(), prompt: str(), output: union([str(), nul()]), request: str() }),
+        wakeLine: method(
+          obj({ thread: str(), wake: WakeLineInputSchema, request: str() }),
           answerOf(MessageSchema),
         ),
       },

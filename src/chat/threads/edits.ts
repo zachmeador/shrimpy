@@ -7,9 +7,9 @@ import { mentionedMembers } from "./mentions.ts";
 import { previewOf } from "./messages.ts";
 import { once, requestOf } from "./requests.ts";
 
-/** Refuse anyone but the author, who is the only member that changes a message, and a trigger's line, which nobody changes. */
+/** Refuse anyone but the author, who is the only member that changes a message, and a wake line, which nobody changes. */
 function onlyAuthor(caller: Member, message: Message, doing: string): void {
-  if (message.trigger !== null) refuse(`A trigger's line can't be changed, so nobody can ${doing} it.`);
+  if (message.wake !== null) refuse(`A wake line can't be changed, so nobody can ${doing} it.`);
   if (message.author.id !== caller.id) refuse(`Only the author of a message can ${doing} it.`);
 }
 

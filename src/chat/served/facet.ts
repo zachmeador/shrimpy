@@ -29,8 +29,8 @@ import {
   renameThread,
   setWorking,
   threadView,
-  triggerFired,
   unreact,
+  wakeLine,
 } from "../threads/index.ts";
 
 /** What the objects are served from: the operations' own, with the roster as it is followed. */
@@ -193,7 +193,7 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
           archive: async ({ thread, archived, revision }) => answer(() => archiveThread(deps, caller(), thread, archived, revision)),
           pin: async ({ thread, pinned, revision }) => answer(() => pinThread(deps, caller(), thread, pinned, revision)),
           markRead: async ({ message }) => answer(() => markRead(deps, caller(), message)),
-          triggerFired: async ({ thread, request, ...fired }) => answer(() => triggerFired(deps, caller(), thread, fired, request)),
+          wakeLine: async ({ thread, wake, request }) => answer(() => wakeLine(deps, caller(), thread, wake, request)),
         },
       };
     });

@@ -1,4 +1,4 @@
-import type { Member, Message, Reaction, TriggerLine } from "../../contracts/chat/index.ts";
+import type { Member, Message, Reaction, WakeLine } from "../../contracts/chat/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { appendEvent } from "./append.ts";
 import type { ReportChange } from "./changes.ts";
@@ -22,11 +22,8 @@ type MessageRow = {
   author_name: string;
   reactions: string;
   receipts: string;
-  /** The trigger of a trigger's line, which has the next three too; null for a message. */
-  line_trigger: string | null;
-  fired_at: number | null;
-  prompt: string | null;
-  output: string | null;
+  /** The wake line's JSON payload, or null for a message. */
+  wake_data: string | null;
 };
 
 /**
@@ -46,16 +43,15 @@ const SELECT = `
          a.id AS author_id, a.kind AS author_kind, a.name AS author_name,
          ${REACTIONS_ON_MESSAGE} AS reactions,
          ${RECEIPTS_ON_MESSAGE} AS receipts,
-         l.trigger AS line_trigger, l.fired_at, l.prompt, l.output
+         w.data AS wake_data
   FROM messages m
   JOIN events p ON p.seq = m.seq
   JOIN members a ON a.id = m.author_id
-  LEFT JOIN trigger_lines l ON l.message_seq = m.seq`;
+  LEFT JOIN wake_lines w ON w.message_seq = m.seq`;
 
-/** The trigger of a trigger's line, from the columns a query read of `trigger_lines`, or null for a message. */
-export function lineOf(row: { line_trigger: string | null; fired_at: number | null; prompt: string | null; output: string | null }): TriggerLine | null {
-  if (row.line_trigger === null) return null;
-  return { name: row.line_trigger, firedAt: row.fired_at ?? 0, prompt: row.prompt ?? "", output: row.output };
+/** The wake line from `wake_lines`, or null for a message. */
+export function wakeOf(row: { wake_data: string | null }): WakeLine | null {
+  return row.wake_data === null ? null : (JSON.parse(row.wake_data) as WakeLine);
 }
 
 const toMessage = (row: MessageRow): Message => ({
@@ -72,7 +68,7 @@ const toMessage = (row: MessageRow): Message => ({
   deleted: row.deleted === 1,
   mentions: JSON.parse(row.mentions) as string[],
   reactions: JSON.parse(row.reactions) as Reaction[],
-  trigger: lineOf(row),
+  wake: wakeOf(row),
   receipts: parseReceipts(row.receipts),
 });
 
@@ -91,8 +87,8 @@ export interface NewMessage {
   mentions: string[];
   /** The start of the text, for places that show only that. */
   preview: string;
-  /** For a trigger's line, which has no text and mentions nobody, the trigger that fired. */
-  trigger?: TriggerLine;
+  /** For a wake line, which has no text and mentions nobody, what woke the agent. */
+  wake?: WakeLine;
 }
 
 /** What an edit changes about a message. */
@@ -138,7 +134,7 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
       if (thread === undefined) throw new Error(`Unknown thread ${post.threadId}`);
       const posted = appendEvent(
         sql,
-        post.trigger === undefined
+        post.wake === undefined
           ? { kind: "posted", channelId: thread.channel_id, actorId: post.authorId, at: post.sentAt, text: post.text, mentions: post.mentions }
           : { kind: "fired", channelId: thread.channel_id, actorId: post.authorId, at: post.sentAt },
       );
@@ -155,15 +151,12 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         post.sentAt,
         JSON.stringify(post.mentions),
       );
-      if (post.trigger !== undefined) {
-        const { name, firedAt, prompt, output } = post.trigger;
+      if (post.wake !== undefined) {
         sql.run(
-          "INSERT INTO trigger_lines (message_seq, trigger, fired_at, prompt, output) VALUES (?, ?, ?, ?, ?)",
+          "INSERT INTO wake_lines (message_seq, kind, data) VALUES (?, ?, ?)",
           posted.seq,
-          name,
-          firedAt,
-          prompt,
-          output,
+          post.wake.kind,
+          JSON.stringify(post.wake),
         );
       }
       // A clock that steps back must not make a thread look older than it was. An archived thread comes back.

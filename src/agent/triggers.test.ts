@@ -162,10 +162,10 @@ test("a trigger with a thread runs in the session behind it, or fails its occurr
   // A line in the thread says the trigger fired, and below it the final text is a reply like any other. The agent's
   // receipt on the line points to the reply.
   const said = await rig.said();
-  const line = said.find((message) => message.trigger?.name === "tidy");
-  assert.ok(line);
-  assert.deepEqual([line.author.id, line.trigger?.prompt, line.trigger?.output], [rig.partner.id, "Tidy the notes.", null]);
-  const reply = said.find((message) => message.seq > line.seq && message.author.id === rig.partner.id && message.trigger === null);
+  const line = said.find((message) => message.wake?.kind === "trigger" && message.wake.name === "tidy");
+  assert.ok(line && line.wake?.kind === "trigger");
+  assert.deepEqual([line.author.id, line.wake.prompt, line.wake.output], [rig.partner.id, "Tidy the notes.", null]);
+  const reply = said.find((message) => message.seq > line.seq && message.author.id === rig.partner.id && message.wake === null);
   for (const fact of [rig.thread.id, rig.thread.channelId, "tidy", "Tidy the notes."]) assert.ok(reply?.text.includes(fact), `${fact} in ${String(reply?.text)}`);
   assert.deepEqual(
     line.receipts.map((receipt) => [receipt.status, receipt.reply]),

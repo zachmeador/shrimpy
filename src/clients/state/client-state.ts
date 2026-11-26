@@ -235,7 +235,7 @@ function firstNewOf(messages: readonly Message[], unread: number, me: string | u
   let counted = 0;
   for (let at = messages.length - 1; at >= 0 && counted < unread; at--) {
     const message = messages[at];
-    if (message === undefined || message.deleted || message.author.id === me) continue;
+    if (message === undefined || message.deleted || message.author.id === me || message.wake !== null) continue;
     first = message.id;
     counted += 1;
   }

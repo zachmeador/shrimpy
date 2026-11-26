@@ -1,5 +1,5 @@
 import { modelWords } from "../../contracts/agent/index.ts";
-import { firedWords, type Message, roomLabel } from "../../contracts/chat/index.ts";
+import { type Message, roomLabel, type WakeLine, wakeLineWords } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
 import { listed, singleSpaced, sizeWords } from "../../lib/text/index.ts";
 import { howLong, localTime } from "../../lib/time/index.ts";
@@ -239,10 +239,12 @@ function cancellations(cancelled: Wakeup[]): string {
  * reply. A trigger's line, which is never taken up and only read among what was
  * said, says which trigger fired and when.
  */
+const wakeAt = (wake: WakeLine): number => (wake.kind === "trigger" ? wake.firedAt : wake.at);
+
 export function written(event: Snapshot | Fired): string {
   switch (event.kind) {
     case "fired":
-      return firedWords(event.trigger, localTime(event.firedAt));
+      return wakeLineWords(event.wake, localTime(wakeAt(event.wake)));
     case "posted": {
       const edited = event.editedAt === undefined ? "" : `, and edited it at ${localTime(event.editedAt)}`;
       const cut = event.clipped === true ? `\n(The rest of this message is cut here. To read all of it, call read_messages with before: ${event.seq + 1} and limit: 1.)` : "";
@@ -268,7 +270,7 @@ const attachedWords = ({ name, mediaType, size }: Attached): string => `Attached
  * fired and when. `nameOf` says what a member is called.
  */
 export function standing(message: Message, nameOf: (memberId: string) => string): string {
-  if (message.trigger !== null) return firedWords(message.trigger.name, localTime(message.trigger.firedAt));
+  if (message.wake !== null) return wakeLineWords(message.wake, localTime(wakeAt(message.wake)));
   const sent = `${message.author.name} wrote at ${localTime(message.sentAt)}`;
   if (message.deleted) return `${sent}, and deleted it.`;
   const lines = [message.editedAt === null ? `${sent}:` : `${sent}, and edited it at ${localTime(message.editedAt)}:`, message.text];

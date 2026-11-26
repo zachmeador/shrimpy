@@ -1,7 +1,8 @@
 import { oneLine } from "../../lib/plain/index.ts";
 import { listed, shellWord } from "../../lib/text/index.ts";
+import { howLong } from "../../lib/time/index.ts";
 import type { Channel } from "./channel.ts";
-import type { Receipt } from "./shapes.ts";
+import type { Receipt, WakeLine } from "./shapes.ts";
 import type { Thread } from "./thread.ts";
 
 /**
@@ -33,14 +34,55 @@ export function receiptWords(receipt: Receipt, who: string): string | undefined 
   }
 }
 
-/** A trigger as it is written where a person or an agent reads its name: "trigger groceries". */
-export const triggerLabel = (name: string): string => `trigger ${oneLine(name)}`;
+/** A trigger as it is written where a person or an agent reads its name: "trigger groceries", or "one-time trigger" when unnamed. */
+export const triggerLabel = (name: string | null): string => (name === null ? "one-time trigger" : `trigger ${oneLine(name)}`);
 
 /**
  * What a trigger's line says, as agents and the commands read it, with `at` the
  * time it fired as the reader writes times: "trigger groceries fired at 14:30".
  */
-export const firedWords = (trigger: string, at: string): string => `${triggerLabel(trigger)} fired at ${at}`;
+export const firedWords = (trigger: string | null, at: string): string => `${triggerLabel(trigger)} fired at ${at}`;
+
+/** How a background command's wake line describes what happened: "exited 0 after 6 minutes", "killed after 2 minutes", etc. */
+export function processWakeWords(wake: Pick<Extract<WakeLine, { kind: "process" }>, "state" | "code" | "afterMs">): string {
+  const after = howLong(wake.afterMs);
+  switch (wake.state) {
+    case "exited":
+      return wake.code === null ? `exited after ${after}` : `exited ${String(wake.code)} after ${after}`;
+    case "killed":
+      return `killed after ${after}`;
+    case "checkin":
+      return `still running after ${after}`;
+    case "interrupted":
+      return `interrupted after ${after}`;
+  }
+}
+
+/** How a watched agent's wake line describes how its turn settled. */
+export function answerWakeWords(status: Extract<WakeLine, { kind: "answer" }>["status"]): string {
+  switch (status) {
+    case "answered":
+      return "answered";
+    case "silent":
+      return "sent no reply";
+    case "stopped":
+      return "was stopped before answering";
+    case "failed":
+      return "failed";
+  }
+}
+
+/** What any wake line says on one line, with `at` formatted by the caller. */
+export function wakeLineWords(wake: WakeLine, at: string): string {
+  switch (wake.kind) {
+    case "trigger":
+      return firedWords(wake.name, at);
+    case "process":
+      return `$ ${oneLine(wake.command)} ${processWakeWords(wake)} at ${at}`;
+    case "answer":
+      return `${oneLine(wake.from.name)} ${answerWakeWords(wake.status)} at ${at} (${oneLine(wake.title)})`;
+  }
+}
 
 /** Why chat takes whoever asks for nobody: the roster has no member for them. */
 export const ONLY_MEMBERS = "Only the network's members use chat, and the roster has no member for whoever is asking.";
@@ -67,7 +109,7 @@ export const notTalkedTo = (name: string): string => `You have not talked to ${o
 export const NO_MESSAGES = "(no messages yet)";
 
 /** What a thread is called: its name, or the start of its first message, or that it has none yet, on one line. */
-export function titleOf(thread: Thread): string {
+export function titleOf(thread: Pick<Thread, "name" | "preview">): string {
   return oneLine(thread.name ?? thread.preview ?? NO_MESSAGES);
 }
 

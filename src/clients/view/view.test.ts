@@ -161,7 +161,7 @@ test("a message shows each emoji with who put it there, a failed receipt apart, 
   assert.deepEqual([first.command, stop.command], [false, true]);
 });
 
-test("a trigger's line says which trigger fired and when, with what its check printed or else its prompt, the mark for what is new before it and the receipt on it", { timeout }, async (t) => {
+test("a wake line says what woke the agent and when, does not count as unread, and keeps its receipt", { timeout }, async (t) => {
   const rig = await startRig(t);
   const scout = await rig.member("scout");
   const asScout = await rig.asAgent("scout");
@@ -173,19 +173,22 @@ test("a trigger's line says which trigger fired and when, with what its check pr
 
   rig.state.look(false);
   const firedAt = Date.now();
-  const checked = await asScout.fire(thread.id, { trigger: "groceries", firedAt, prompt: "Say what is on the list.", output: "14\n" });
-  await asScout.fire(thread.id, { trigger: "nightly", firedAt, prompt: "Run the snapshot.", output: null });
+  const checked = await asScout.wake(thread.id, { kind: "trigger", name: "groceries", firedAt, prompt: "Say what is on the list.", output: "14\n" });
+  await asScout.wake(thread.id, { kind: "trigger", name: "nightly", firedAt, prompt: "Run the snapshot.", output: null });
   await asScout.leaveReceipt([checked.event], { status: "failed", reply: null, detail: "The model failed." });
-  await rig.until((model) => model.thread?.messages.length === 3 && model.thread.messages[1]?.receipts.length === 1, "both lines, and the receipt");
+  const shown = await rig.until((model) => model.thread?.messages.length === 3 && model.thread.messages[1]?.receipts.length === 1, "both lines, and the receipt");
+  assert.equal(shown.thread?.unread, 0, "wake lines do not count as unread");
+  await asScout.post(thread.id, "Nothing urgent.");
+  await rig.until((model) => model.thread?.messages.length === 4 && model.thread.unread === 1, "only the real message counts as unread");
   rig.state.look(true);
-  const shown = await rig.until((model) => model.thread?.unread === 0, "the lines, read");
+  const read = await rig.until((model) => model.thread?.unread === 0, "the message, read");
 
-  const [, groceries, nightly] = threadLevel(shown, at)?.messages ?? [];
+  const [, groceries, nightly] = threadLevel(read, at)?.messages ?? [];
   assert.ok(groceries && nightly);
   assert.deepEqual([groceries.kind, nightly.kind], ["trigger", "trigger"]);
   assert.deepEqual([groceries.who, nightly.who], [triggerLabel("groceries"), triggerLabel("nightly")]);
   assert.deepEqual([groceries.text, nightly.text], ["14", "Run the snapshot."], "what the check printed, and the prompt of a trigger with no check");
-  assert.deepEqual(firstNew(shown), [false, true, false], "the first line is the first thing new");
+  assert.deepEqual(firstNew(read), [false, false, false, true], "firstNew marks the real message, skipping wake lines");
   assert.deepEqual(
     groceries.receipts.map((each) => each.failed),
     [true],

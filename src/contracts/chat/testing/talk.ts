@@ -119,7 +119,7 @@ export async function talkTo(t: TestContext, agentName: string): Promise<Talk> {
     unreact: (message, emoji) => asking(async (held) => valueOf(await held.unreact({ message: message.id, emoji, request: randomUUID() }, context))),
     said,
     async replies(threadId) {
-      return (await said(threadId)).filter((message) => message.author.id === partner.id && message.trigger === null);
+      return (await said(threadId)).filter((message) => message.author.id === partner.id && message.wake === null);
     },
     async events() {
       const events = await asking(async (held) => valueOf(await held.events({ after: 0, limit: 200 }, context)));

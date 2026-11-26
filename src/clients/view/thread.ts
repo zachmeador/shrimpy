@@ -1,15 +1,17 @@
 import { activityWords, modelWords, wakeupNote, YOUR_DM } from "../../contracts/agent/index.ts";
 import {
   agentCommandIn,
+  answerWakeWords,
   ARCHIVED,
   type Member,
   type Message,
   mentionsOf,
   namer,
+  processWakeWords,
   receiptWords,
   titleOf,
-  type TriggerLine,
   triggerLabel,
+  type WakeLine,
 } from "../../contracts/chat/index.ts";
 import { oneLine, plain } from "../../lib/plain/index.ts";
 import { agentNameOf, agentOfList, type Model, openThreadOf, sidesOf, standingOf, type Status } from "../state/index.ts";
@@ -354,7 +356,7 @@ function receiptsOf(message: Message, names: (memberId: string) => string): Mess
 }
 
 function messageRow(message: Message, context: RowContext, now: number): MessageRow {
-  if (message.trigger !== null) return triggerRow(message, message.trigger, context, now);
+  if (message.wake !== null) return wakeRow(message, message.wake, context, now);
   const { model, names, members, firstNew } = context;
   const text = message.deleted ? DELETED : plain(message.text).trimEnd();
   return {
@@ -379,23 +381,44 @@ function messageRow(message: Message, context: RowContext, now: number): Message
   };
 }
 
-/** A trigger's line: which trigger fired and when, what it brought, and the receipt the agent left on it. */
-function triggerRow(message: Message, line: TriggerLine, { names, firstNew }: RowContext, now: number): MessageRow {
-  const output = line.output === null ? "" : plain(line.output).trimEnd();
-  return {
+/** A wake line: a trigger that fired, a background command event, or a watched agent settling. */
+function wakeRow(message: Message, line: WakeLine, { names, firstNew }: RowContext, now: number): MessageRow {
+  const base = {
     id: message.id,
-    kind: "trigger",
-    who: triggerLabel(line.name),
+    kind: "trigger" as const,
     agent: false,
     look: undefined,
-    when: whenOf(line.firedAt, now),
     edited: undefined,
     deleted: false,
-    text: output.trim() === "" ? plain(line.prompt).trimEnd() : output,
     command: false,
     mentions: [],
     reactions: [],
     receipts: receiptsOf(message, names),
     firstNew: message.id === firstNew,
   };
+  switch (line.kind) {
+    case "trigger": {
+      const output = line.output === null ? "" : plain(line.output).trimEnd();
+      return {
+        ...base,
+        who: triggerLabel(line.name),
+        when: whenOf(line.firedAt, now),
+        text: output.trim() === "" ? plain(line.prompt).trimEnd() : output,
+      };
+    }
+    case "process":
+      return {
+        ...base,
+        who: `$ ${oneLine(line.command)} ${processWakeWords(line)}`,
+        when: whenOf(line.at, now),
+        text: line.output === null ? "" : plain(line.output).trimEnd(),
+      };
+    case "answer":
+      return {
+        ...base,
+        who: `${oneLine(line.from.name)} ${answerWakeWords(line.status)}`,
+        when: whenOf(line.at, now),
+        text: oneLine(line.title),
+      };
+  }
 }

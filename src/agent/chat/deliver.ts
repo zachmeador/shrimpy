@@ -21,7 +21,7 @@ interface Posting {
 
 /** Show an occurrence's line in the thread its turn answers in. Posting it again, as the reply does, shows it once. */
 export function postLine(chat: ChatCalls, occurrence: Occurrence, threadId: string, recordsId: string, signal: AbortSignal): Promise<Message> {
-  return chat.triggerFired(threadId, lineOf(occurrence), lineRequestId(recordsId, occurrence.id), signal);
+  return chat.wakeLine(threadId, lineOf(occurrence), lineRequestId(recordsId, occurrence.id), signal);
 }
 
 /** Whether a turn ended with a reply to post: it answered, and not with `END` or nothing. */

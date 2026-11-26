@@ -121,7 +121,7 @@ export function aMessage(id: string, author: Member, text: string, parts: Partia
     deleted: false,
     mentions: [],
     reactions: [],
-    trigger: null,
+    wake: null,
     receipts: [],
     ...parts,
   };

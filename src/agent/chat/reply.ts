@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { type LeftReceipt, MAX_RECEIPT_DETAIL_LENGTH, MAX_TRIGGER_LINE_LENGTH, type TriggerLine } from "../../contracts/chat/index.ts";
+import { type LeftReceipt, MAX_RECEIPT_DETAIL_LENGTH, MAX_WAKE_LINE_LENGTH, type WakeLineInput } from "../../contracts/chat/index.ts";
 import { cutEnd } from "../../lib/text/index.ts";
 import type { Occurrence } from "../inputs/index.ts";
 
@@ -31,10 +31,16 @@ function cutPoint(text: string, limit: number): number {
 /** `text` as the detail of a receipt: cut to what chat takes, with an ellipsis when it was cut. */
 export const receiptDetail = (text: string): string => cutEnd(text, MAX_RECEIPT_DETAIL_LENGTH, { ending: "…" });
 
-/** An occurrence's trigger as its line in the thread shows it: the prompt and what the check printed cut to what chat takes. */
-export function lineOf(occurrence: Occurrence): TriggerLine {
-  const fit = (text: string): string => cutEnd(text, MAX_TRIGGER_LINE_LENGTH, { ending: "…" });
-  return { name: occurrence.trigger, firedAt: occurrence.firedAt, prompt: fit(occurrence.prompt), output: occurrence.output === undefined ? null : fit(occurrence.output) };
+/** An occurrence's trigger as its wake line in the thread shows it: the prompt and what the check printed cut to what chat takes. */
+export function lineOf(occurrence: Occurrence): WakeLineInput {
+  const fit = (text: string): string => cutEnd(text, MAX_WAKE_LINE_LENGTH, { ending: "…" });
+  return {
+    kind: "trigger",
+    name: occurrence.trigger,
+    firedAt: occurrence.firedAt,
+    prompt: fit(occurrence.prompt),
+    output: occurrence.output === undefined ? null : fit(occurrence.output),
+  };
 }
 
 /**

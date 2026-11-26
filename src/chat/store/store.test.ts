@@ -202,3 +202,32 @@ test("a store as 1.0.0 wrote it is copied aside and migrated: each room's main t
     "and the store takes new threads",
   );
 });
+
+test("a v10 store with trigger_lines migrates them into wake_lines with 0 unread", (t) => {
+  const dataDir = tempDir(t, "chat-trigger-lines");
+  const file = writeStoreOf(dataDir, "1.0.0");
+  // Insert a trigger line into the v10 fixture before opening so v12 WAKE_LINES migrates it.
+  const raw = new DatabaseSync(file);
+  raw.exec(`
+    INSERT INTO events (seq, id, kind, channel_id, target_seq, actor_id, at)
+      VALUES (10, 'evt_trig1', 'fired', 'ch_1x64d1p8bhhz', NULL, 'mem_scout', 1764001100000);
+    INSERT INTO messages (seq, id, channel_id, thread_id, author_id, text, preview, sent_at, edited_at, deleted, mentions)
+      VALUES (10, 'msg_trig1', 'ch_1x64d1p8bhhz', 'th_fhpxckk4bbcp', 'mem_scout', '', '', 1764001100000, NULL, 0, '[]');
+    INSERT INTO trigger_lines (message_seq, trigger, fired_at, prompt, output)
+      VALUES (10, 'nightly', 1764001100000, 'Check disk.', '91%');
+    UPDATE threads SET message_count = message_count + 1, last_seq = 10 WHERE id = 'th_fhpxckk4bbcp';
+    UPDATE sqlite_sequence SET seq = 10 WHERE name = 'events';
+  `);
+  raw.close();
+
+  const store = openStore(dataDir, { onError: reportToStderr });
+  stopAfter(t, () => store.close());
+  store.transaction((tx) => {
+    const msg = tx.message("msg_trig1");
+    assert.deepEqual(msg?.wake, { kind: "trigger", name: "nightly", firedAt: 1764001100000, prompt: "Check disk.", output: "91%" });
+    assert.equal(tx.unreadIn("mem_zach", "th_fhpxckk4bbcp"), 0, "migrated trigger wake line does not count as unread");
+    const ev = tx.event("evt_trig1");
+    assert.ok(ev !== undefined && ev.kind === "fired");
+    assert.deepEqual(ev.wake, msg.wake);
+  });
+});

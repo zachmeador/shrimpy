@@ -60,7 +60,7 @@ export type Thread = Static<typeof ThreadSchema>;
  * seconds can be told to you on your devices.
  */
 export const Thread = remote("shrimpy.chat.thread", {
-  version: 4,
+  version: 5,
   params: { thread: str() },
   hostAddress: () => chat(),
   variants: {
@@ -78,9 +78,10 @@ export const Thread = remote("shrimpy.chat.thread", {
         readOnly: bool(),
         /**
          * How many messages others wrote here after your read mark, or in the
-         * whole thread while you have none, leaving out deleted ones. Your own
-         * messages never count. Null for an agent, which keeps no read marks,
-         * since its place in its feed says what it has taken.
+         * whole thread while you have none, leaving out deleted messages and
+         * wake lines, and 0 while the thread is archived. Your own messages
+         * never count. Null for an agent, which keeps no read marks, since its
+         * place in its feed says what it has taken.
          */
         unread: union([int(), nul()]),
       },

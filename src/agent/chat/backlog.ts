@@ -39,7 +39,7 @@ export async function readUnseen(options: {
   const page = await chat.read(threadId, before, PAGE, signal);
   const receipted = page.flatMap((message) => message.receipts.filter((receipt) => receipt.memberId === self.id).map((receipt) => [message.id, receipt.reply]));
   const named = new Set(receipted.flat());
-  const seen = (message: Message): boolean => named.has(message.id) || (message.author.id === self.id && message.trigger !== null);
+  const seen = (message: Message): boolean => named.has(message.id) || (message.author.id === self.id && message.wake !== null);
   const unseen = page.filter((message) => isUnseen(message) && !seen(message) && !message.deleted && message.id !== except);
 
   // The page is the newest messages. Whether more of what is unseen lies beyond it takes one look at what is just before it.
@@ -80,10 +80,10 @@ export function backlogOf(unseen: readonly Message[], more: boolean, self: Membe
   return { messages: shown, cut: index + (more ? 1 : 0), ...(more ? { atLeast: true as const } : {}) };
 }
 
-/** A message as the model reads one that arrives: with the files that came with it, in a room with who it was for, and when it was edited if it was. A trigger's line says which trigger fired and when. */
+/** A message as the model reads one that arrives: with the files that came with it, in a room with who it was for, and when it was edited if it was. A wake line carries what woke the agent. */
 function said(message: Message, self: Member, channel: Channel): Said | Fired {
-  if (message.trigger !== null) {
-    return { kind: "fired", id: message.event, seq: message.seq, trigger: message.trigger.name, firedAt: message.trigger.firedAt };
+  if (message.wake !== null) {
+    return { kind: "fired", id: message.event, seq: message.seq, wake: message.wake };
   }
   return {
     kind: "posted",

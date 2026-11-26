@@ -34,10 +34,10 @@ test("the agent posts, reads, starts a thread and shows a trigger's line holding
   const said = await rig.say("hello");
 
   while ((await rig.delivery.tell(rig.outstanding(said), { kind: "answered", answer: "1", text: "Hi." }, never)) === "later") continue;
-  const line = { name: "backups", firedAt: 1_700_000_000_000, prompt: "Check the backups.", output: null };
+  const line = { kind: "trigger", name: "backups", firedAt: 1_700_000_000_000, prompt: "Check the backups.", output: null } as const;
   const { side, read } = await rig.link.use(async ({ chat }, signal) => {
     const made = await chat.createThread(said.channelId, "backups", signal);
-    await chat.triggerFired(made.id, line, "line-1", signal);
+    await chat.wakeLine(made.id, line, "line-1", signal);
     return { side: made, read: await chat.read(said.threadId, null, 10, signal) };
   }, never);
 
@@ -46,7 +46,7 @@ test("the agent posts, reads, starts a thread and shows a trigger's line holding
     ["hello", "Hi."],
   );
   assert.deepEqual(
-    (await rig.said(side.id)).map((message) => message.trigger?.name),
+    (await rig.said(side.id)).map((message) => (message.wake?.kind === "trigger" ? message.wake.name : null)),
     ["backups"],
   );
   assert.deepEqual(rig.asked, ["shrimpy.chat"], "and never a thread or a channel");

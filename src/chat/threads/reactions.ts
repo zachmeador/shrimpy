@@ -19,7 +19,7 @@ export function react(deps: ChatDeps, caller: Member, messageId: unknown, emoji:
       once(tx, caller, request, () => {
         const { message } = visibleMessage(tx, caller, id);
         if (message.deleted) refuse("That message was deleted, so it takes no reactions.");
-        if (message.trigger !== null) refuse("A trigger's line takes no reactions.");
+        if (message.wake !== null) refuse("A wake line takes no reactions.");
         return tx.addReaction(message, caller.id, reaction, deps.now());
       }).message,
   );

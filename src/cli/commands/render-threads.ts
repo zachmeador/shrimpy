@@ -1,7 +1,6 @@
 import {
   type Channel,
   channelLabel,
-  firedWords,
   type Member,
   type Message,
   namer,
@@ -9,6 +8,7 @@ import {
   receiptWords,
   taggedTitle,
   type Thread,
+  wakeLineWords,
 } from "../../contracts/chat/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { indent } from "./render.ts";
@@ -26,9 +26,12 @@ export function renderThreads(threads: Thread[], channel: Channel): string[] {
   return renderTable(["thread", "updated", "working", "name"], rows);
 }
 
-/** What a message says as `read` prints it: its text, that it was deleted, or which trigger fired and when. */
+/** What a message says as `read` prints it: its text, that it was deleted, or its wake line. */
 function bodyOf(message: Message): string {
-  if (message.trigger !== null) return firedWords(message.trigger.name, localTime(message.trigger.firedAt));
+  if (message.wake !== null) {
+    const at = message.wake.kind === "trigger" ? message.wake.firedAt : message.wake.at;
+    return wakeLineWords(message.wake, localTime(at));
+  }
   return message.deleted ? "(deleted)" : message.text.trimEnd();
 }
 

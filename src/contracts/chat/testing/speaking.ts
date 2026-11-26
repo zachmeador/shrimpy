@@ -6,7 +6,7 @@ import { untilHeard } from "../../../lib/listeners/index.ts";
 import { eventually, stopAfter } from "../../../lib/testing/index.ts";
 import { holding, type Principal, type Revocation, Roster, valueOf } from "../../gateway/index.ts";
 import { linkTestAgent, startTestGateway, type TestAgent } from "../../gateway/testing/index.ts";
-import { Channel, Chat, type ChatEvent, type LeftReceipt, type Member, type Message, Thread, type TriggerLine } from "../index.ts";
+import { Channel, Chat, type ChatEvent, type LeftReceipt, type Member, type Message, Thread, type WakeLineInput } from "../index.ts";
 
 const context = BACKGROUND_CONTEXT;
 
@@ -37,8 +37,8 @@ export interface Speaking {
   unreact(message: string, emoji: string, request?: string): Promise<Message>;
   /** Archive a thread, or bring it back, at the revision it is at. */
   archive(thread: string, archived: boolean): Promise<Thread>;
-  /** Show in a thread that one of the member's triggers fired, as a line. Only an agent has triggers. */
-  fire(thread: string, line: Omit<TriggerLine, "name"> & { trigger: string }): Promise<Message>;
+  /** Record a wake line in a thread. Only an agent writes wake lines. */
+  wake(thread: string, wake: WakeLineInput): Promise<Message>;
   events(after: number, limit: number): Promise<ChatEvent[]>;
   leaveReceipt(events: string[], receipt: LeftReceipt): Promise<void>;
   /** Mark the member at work in a thread, or not, for as long as this holds chat. */
@@ -112,7 +112,7 @@ export async function speakingAs(t: TestContext, holder: Holder): Promise<Speaki
       const revision = await onThread(holder, thread, (held) => held.thread.value?.revision ?? 0);
       return valueOf(await chat.archive({ thread, archived, revision }, context));
     },
-    fire: async (thread, line) => valueOf(await chat.triggerFired({ thread, ...line, request: randomUUID() }, context)),
+    wake: async (thread, wake) => valueOf(await chat.wakeLine({ thread, wake, request: randomUUID() }, context)),
     events: async (after, limit) => valueOf(await chat.events({ after, limit }, context)),
     async leaveReceipt(events, receipt) {
       valueOf(await chat.leaveReceipt({ events, receipt }, context));

@@ -1,5 +1,5 @@
-import type { Member, Message } from "../../contracts/chat/index.ts";
-import { fitAnswer, identifier, MAX_PAGE, messageText, triggerLine, whole } from "../input/index.ts";
+import { type Member, type Message, titleOf, type WakeLine } from "../../contracts/chat/index.ts";
+import { fitAnswer, identifier, MAX_PAGE, messageText, wakeLine as checkWakeLine, whole } from "../input/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { cutEnd, singleSpaced } from "../../lib/text/index.ts";
 import { readableThread, visibleThread } from "./access.ts";
@@ -40,26 +40,42 @@ export function post(deps: ChatDeps, caller: Member, threadId: unknown, text: un
 }
 
 /**
- * Show in a thread that one of the caller's triggers fired, as a line, once for
- * each request ID, as `once` says. Only an agent has triggers. The line counts
- * as new to you, as a message does, and is told to nobody's devices.
+ * Show a wake line in a thread — a trigger that fired, a background command
+ * event, or a watched agent settling — once for each request ID, as `once`
+ * says. Only an agent writes wake lines. A wake line never counts as unread
+ * and is told to nobody's devices.
  */
-export function triggerFired(
+export function wakeLine(
   deps: ChatDeps,
   caller: Member,
   thread: unknown,
-  fired: { trigger: unknown; firedAt: unknown; prompt: unknown; output: unknown },
+  rawWake: unknown,
   requestId: unknown,
 ): Message {
-  if (caller.kind !== "agent") refuse("Only an agent has triggers.");
+  if (caller.kind !== "agent") refuse("Only an agent writes wake lines.");
   const threadId = identifier(thread, "thread");
-  const line = triggerLine(fired);
-  const request = requestOf(requestId, "fired", threadId, JSON.stringify(line));
+  const input = checkWakeLine(rawWake);
+  const request = requestOf(requestId, "wake", threadId, JSON.stringify(input));
   return deps.store.transaction(
     (tx) =>
       once(tx, caller, request, () => {
         visibleThread(tx, caller, threadId);
-        return tx.appendMessage({ threadId, authorId: caller.id, text: "", sentAt: deps.now(), mentions: [], preview: "", trigger: line });
+        let wake: WakeLine;
+        if (input.kind === "answer") {
+          const from = tx.member(input.from) ?? refuse(`Unknown member: ${input.from}.`);
+          const target = readableThread(tx, caller, input.thread);
+          wake = {
+            kind: "answer",
+            from,
+            thread: target.thread.id,
+            title: titleOf(target.thread),
+            status: input.status,
+            at: input.at,
+          };
+        } else {
+          wake = input;
+        }
+        return tx.appendMessage({ threadId, authorId: caller.id, text: "", sentAt: deps.now(), mentions: [], preview: "", wake });
       }).message,
   );
 }

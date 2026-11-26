@@ -1,4 +1,4 @@
-import type { Receipt, TriggerLine } from "../../contracts/chat/index.ts";
+import type { Receipt, WakeLineInput } from "../../contracts/chat/index.ts";
 import { fitName, NAME_RULE } from "../../contracts/gateway/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { MAX_DETAIL, MAX_ID, MAX_LINE, MAX_TEXT } from "./limits.ts";
@@ -28,20 +28,65 @@ export function messageText(value: unknown): string {
   return value;
 }
 
-/** One part of a trigger's line: text of at most `MAX_LINE` characters, which may be empty. */
+/** One part of a wake line: text of at most `MAX_LINE` characters, which may be empty. */
 function linePart(value: unknown, what: string): string {
   if (typeof value !== "string" || value.length > MAX_LINE) refuse(`${what} must be text of at most ${MAX_LINE} characters.`);
   return value;
 }
 
-/** That one of an agent's triggers fired: its name, when, its prompt, and what its check printed, or null with no check. */
-export function triggerLine(line: { trigger: unknown; firedAt: unknown; prompt: unknown; output: unknown }): TriggerLine {
-  return {
-    name: label(line.trigger, "The trigger's name"),
-    firedAt: whole(line.firedAt, "firedAt", 0),
-    prompt: linePart(line.prompt, "The trigger's prompt"),
-    output: line.output === null ? null : linePart(line.output, "What the trigger's check printed"),
-  };
+const PROCESS_STATES = { exited: true, killed: true, checkin: true, interrupted: true } as const;
+const ANSWER_STATUSES = { answered: true, silent: true, stopped: true, failed: true } as const;
+
+/** A wake line off the wire: trigger, process, or answer. */
+export function wakeLine(value: unknown): WakeLineInput {
+  if (typeof value !== "object" || value === null) refuse("wake must be a trigger, process, or answer line.");
+  const raw = value as Record<string, unknown>;
+  switch (raw.kind) {
+    case "trigger":
+      return {
+        kind: "trigger",
+        name: raw.name === null ? null : label(raw.name, "The trigger's name"),
+        firedAt: whole(raw.firedAt, "firedAt", 0),
+        prompt: linePart(raw.prompt, "The trigger's prompt"),
+        output: raw.output === null ? null : linePart(raw.output, "What the trigger's check printed"),
+      };
+    case "process": {
+      const state = raw.state;
+      if (typeof state !== "string" || !Object.hasOwn(PROCESS_STATES, state)) {
+        refuse('wake.state must be "exited", "killed", "checkin" or "interrupted".');
+      }
+      const command = linePart(raw.command, "The command");
+      if (command.trim() === "") refuse("The command must not be empty.");
+      if (raw.code !== null && (typeof raw.code !== "number" || !Number.isSafeInteger(raw.code))) {
+        refuse("code must be a whole number or null.");
+      }
+      return {
+        kind: "process",
+        id: identifier(raw.id, "The process ID"),
+        command,
+        state: state as keyof typeof PROCESS_STATES,
+        code: raw.code as number | null,
+        afterMs: whole(raw.afterMs, "afterMs", 0),
+        at: whole(raw.at, "at", 0),
+        output: raw.output === null ? null : linePart(raw.output, "The process output"),
+      };
+    }
+    case "answer": {
+      const status = raw.status;
+      if (typeof status !== "string" || !Object.hasOwn(ANSWER_STATUSES, status)) {
+        refuse('wake.status must be "answered", "silent", "stopped" or "failed".');
+      }
+      return {
+        kind: "answer",
+        from: identifier(raw.from, "from"),
+        thread: identifier(raw.thread, "thread"),
+        status: status as keyof typeof ANSWER_STATUSES,
+        at: whole(raw.at, "at", 0),
+      };
+    }
+    default:
+      refuse('wake.kind must be "trigger", "process" or "answer".');
+  }
 }
 
 // Built from a string because TypeScript's target does not know the `v` flag; the runtime does.

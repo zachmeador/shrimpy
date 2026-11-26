@@ -41,17 +41,19 @@ export {
   type LeftReceipt,
   MAX_MESSAGE_LENGTH,
   MAX_RECEIPT_DETAIL_LENGTH,
-  MAX_TRIGGER_LINE_LENGTH,
+  MAX_WAKE_LINE_LENGTH,
   type Member,
   type Message,
   type Reaction,
   type Receipt,
-  type TriggerLine,
+  type WakeLine,
+  type WakeLineInput,
   type Working,
 } from "./shapes.ts";
 export { Thread } from "./thread.ts";
 export {
   addToRoom,
+  answerWakeWords,
   ARCHIVED,
   channelLabel,
   DM_TAKES_NO_MORE,
@@ -63,6 +65,7 @@ export {
   notTalkedTo,
   ONLY_MEMBERS,
   PINNED,
+  processWakeWords,
   receiptWords,
   roomLabel,
   roomWord,
@@ -70,4 +73,5 @@ export {
   threadTags,
   titleOf,
   triggerLabel,
+  wakeLineWords,
 } from "./words.ts";

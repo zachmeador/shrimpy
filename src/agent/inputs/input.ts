@@ -1,5 +1,5 @@
 import type { ModelId } from "../../contracts/agent/index.ts";
-import type { Attachment } from "../../contracts/chat/index.ts";
+import type { Attachment, WakeLine } from "../../contracts/chat/index.ts";
 
 /**
  * What an input is, in Shrimpy's own terms: a chat event, a wake-up the agent
@@ -185,8 +185,8 @@ export type Place =
 /** A message of a thread, as the model reads one that arrives. */
 export type Said = Extract<Snapshot, { kind: "posted" }>;
 
-/** A trigger's line among what was said in a thread: which trigger fired, and when. */
-export type Fired = { kind: "fired"; id: string; seq: number; trigger: string; firedAt: number };
+/** A wake line among what was said in a thread: what woke an agent and when. */
+export type Fired = { kind: "fired"; id: string; seq: number; wake: WakeLine };
 
 /**
  * What was said in a thread since the agent last looked, which an event that
