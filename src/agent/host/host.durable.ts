@@ -1,6 +1,6 @@
 import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
 import type { Models } from "@earendil-works/pi-ai";
-import { createRegistry, defineExtension, type Extension, Harness } from "@earendil-works/pi-durable";
+import { createRegistry, defineExtension, type Extension, Harness, type HarnessSettings } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { createEditTool, createReadTool, createWriteTool } from "@earendil-works/pi-durable/tools";
@@ -45,6 +45,13 @@ export interface Host {
 
 const context = BACKGROUND_CONTEXT;
 
+/** Harness settings Shrimpy passes to Pi; exported so request inspection reads the same truth. */
+export const HOST_SETTINGS: HarnessSettings = {
+  followUpMode: "all",
+  steeringMode: "all",
+  afterFailedRun: "withdraw",
+};
+
 /** Pi's stock file tools (`read`, `write`, `edit`), without Pi's built-in `bash` which Shrimpy replaces. */
 const FileTools = defineExtension({
   name: "file-tools",
@@ -69,7 +76,7 @@ export async function openHost(options: HostOptions, storage: StoreFormat<Storag
       {
         models: options.models,
         registry,
-        settings: { followUpMode: "all", steeringMode: "all", afterFailedRun: "withdraw" },
+        settings: HOST_SETTINGS,
         env: () => new NodeExecutionEnv({ cwd: home, shellEnv: shell }),
         onReport: options.onReport ?? reportToStderr,
       },

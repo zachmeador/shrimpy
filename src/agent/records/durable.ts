@@ -28,6 +28,18 @@ export {
   takeEvents,
   takeMissed,
 } from "./kept.durable.ts";
+export {
+  ContextRevisionsDoc,
+  InputFactsDoc,
+  RequestDetailDoc,
+  RequestsIndexDoc,
+  type StoredHomeOmission,
+  type StoredHookDelta,
+  type StoredRequestDetail,
+  type StoredRequestSummary,
+  type StoredSectionRevision,
+  type StoredSourceRevision,
+} from "./request-docs.durable.ts";
 export { openSession } from "./open-session.durable.ts";
 export { openRecords } from "./records.durable.ts";
 export { type SessionThread, threadOfSession } from "./thread-of.durable.ts";

@@ -10,13 +10,18 @@ import type { HomePaths } from "./layout.ts";
 export interface BreadcrumbFile {
   name: string;
   text: string;
+  /** Set when the file's text exceeded `BREADCRUMB_LIMIT` characters and was truncated. */
+  truncated?: true;
+  /** Trimmed character count observed before truncation (at least `originalChars` if the file exceeded the read cap). */
+  originalChars?: number;
+  limitChars?: number;
 }
 
 /** The most characters of a breadcrumb that are kept. */
-const LONGEST = 1_000;
+export const BREADCRUMB_LIMIT = 1_000;
 
-/** Enough bytes of a file for more than `LONGEST` characters, however they are written. */
-const READ = 4 * LONGEST + 4;
+/** Enough bytes of a file for more than `BREADCRUMB_LIMIT` characters, however they are written. */
+const READ = 4 * BREADCRUMB_LIMIT + 4;
 
 /**
  * Read the `breadcrumbs/` folder: each Markdown file in it, hidden files and
@@ -37,7 +42,13 @@ export async function readBreadcrumbs(paths: HomePaths): Promise<BreadcrumbFile[
   const found: BreadcrumbFile[] = [];
   for (const entry of entries) {
     const text = (await startOf(join(paths.breadcrumbs, entry.name)))?.trim();
-    if (text !== undefined && text !== "") found.push({ name: entry.name, text: cutText(text, LONGEST) });
+    if (text === undefined || text === "") continue;
+    const shown = cutText(text, BREADCRUMB_LIMIT);
+    found.push(
+      shown === text
+        ? { name: entry.name, text: shown }
+        : { name: entry.name, text: shown, truncated: true, originalChars: text.length, limitChars: BREADCRUMB_LIMIT },
+    );
   }
   return found;
 }

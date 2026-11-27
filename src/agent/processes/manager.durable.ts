@@ -143,7 +143,7 @@ export function createProcesses(harness: Harness, options: ProcessesOptions): Pr
   ): Promise<void> => {
     if (closed) return;
     const now = Date.now();
-    const tail = readLogTail(proc.logPath, { maxLines: MAX_WAKE_TAIL_LINES, maxBytes: MAX_WAKE_TAIL_BYTES }).output;
+    const tail = readLogTail(proc.logPath, { maxLines: MAX_WAKE_TAIL_LINES, maxBytes: MAX_WAKE_TAIL_BYTES });
     const event: ProcessEvent = {
       eventId: state === "checkin" ? `${proc.id}:checkin` : proc.id,
       id: proc.id,
@@ -153,7 +153,8 @@ export function createProcesses(harness: Harness, options: ProcessesOptions): Pr
       startedAt: proc.startedAt,
       at: now,
       afterMs: Math.max(0, now - proc.startedAt),
-      output: tail,
+      output: tail.output,
+      ...(tail.truncated ? { outputTruncated: true as const } : {}),
       logPath: proc.logPath,
     };
     const crumbs = await options.breadcrumbs();

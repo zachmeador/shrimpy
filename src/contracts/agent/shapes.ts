@@ -316,7 +316,7 @@ export type SessionImage = Static<typeof SessionImageSchema>;
  * - `interrupted`: it was cut off, by a stop or by the agent ending.
  * - `other`: anything else, with what the engine said in the detail.
  */
-const AnswerEndingSchema = oneOf("finished", "called_tools", "too_long", "failed", "interrupted", "other");
+export const AnswerEndingSchema = oneOf("finished", "called_tools", "too_long", "failed", "interrupted", "other");
 export type AnswerEnding = Static<typeof AnswerEndingSchema>;
 
 /**

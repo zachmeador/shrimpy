@@ -73,11 +73,18 @@ export function backlogOf(unseen: readonly Message[], more: boolean, self: Membe
     const clipped = message.kind === "posted" ? clippedTo(message, left) : undefined;
     if (clipped !== undefined) {
       shown.unshift(clipped);
+      left = Math.max(0, left - (written(clipped).length + BETWEEN));
       index -= 1;
     }
     break;
   }
-  return { messages: shown, cut: index + (more ? 1 : 0), ...(more ? { atLeast: true as const } : {}) };
+  return {
+    messages: shown,
+    cut: index + (more ? 1 : 0),
+    ...(more ? { atLeast: true as const } : {}),
+    budgetChars: BACKLOG_BUDGET,
+    usedChars: BACKLOG_BUDGET - left,
+  };
 }
 
 /** A message as the model reads one that arrives: with the files that came with it, in a room with who it was for, and when it was edited if it was. A wake line carries what woke the agent. */

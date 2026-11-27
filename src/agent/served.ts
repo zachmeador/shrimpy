@@ -16,6 +16,7 @@ import { type Caller, callerOf, check, type Permission, refusalFor } from "./acc
 import { fileAt, folderAt, type HomePaths } from "./home/index.ts";
 import type { KeptLook } from "./look.ts";
 import type { Processes } from "./processes/durable.ts";
+import type { Requests } from "./requests/durable.ts";
 import { noSessionYet, type Sessions, shownOf } from "./sessions/durable.ts";
 import type { Triggers } from "./triggers/durable.ts";
 import type { Watches } from "./watches/durable.ts";
@@ -23,6 +24,7 @@ import type { Watches } from "./watches/durable.ts";
 /** What the agent's objects are served from. */
 export interface ServedParts {
   sessions: Sessions;
+  requests: Requests;
   triggers: Triggers;
   processes: Processes;
   watches: Watches;
@@ -49,7 +51,7 @@ async function answering<T>(work: () => Promise<T>): Promise<Answer<T>> {
 }
 
 export function agentFacet(parts: ServedParts): Facet<Principal> {
-  const { sessions, triggers, processes, watches, look, paths, roster } = parts;
+  const { sessions, requests, triggers, processes, watches, look, paths, roster } = parts;
 
   const callerNow = async (principal: Principal, signal: AbortSignal | undefined): Promise<Caller> => {
     if (principal.kind === "agent") await roster.known(signal);
@@ -211,6 +213,20 @@ export function agentFacet(parts: ServedParts): Facet<Principal> {
               await allow(principal, "control", ctx);
               await sessions.stop(address, BACKGROUND_CONTEXT);
               return null;
+            }),
+          requests: async ({ before, limit }, ctx) =>
+            answering(async () => {
+              await allow(principal, "watch", ctx);
+              return requests.list(address, { ...(before === undefined ? {} : { before }), limit }, ctx);
+            }),
+          request: async ({ id, entry }, ctx) =>
+            answering(async () => {
+              await allow(principal, "watch", ctx);
+              return requests.inspect(
+                address,
+                { ...(id === undefined ? {} : { id }), ...(entry === undefined ? {} : { entry }) },
+                ctx,
+              );
             }),
         },
       };

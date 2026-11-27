@@ -25,12 +25,11 @@ import {
   type Ending,
   idOf,
   isOccurrence,
-  isProcess,
   isUrgent,
-  isWatch,
   type ModelChange,
   type Outstanding,
   promptFor,
+  requestIdOf,
   threadOf,
   type TurnOutcome,
 } from "../inputs/index.ts";
@@ -68,17 +67,6 @@ type Turn<P extends TurnState = TurnState> = RunningTask<Outstanding, P, Ending>
 type Phase<P extends TurnState = TurnState> = (turn: Turn<P>, runtime: Runtime, context: Context) => Promise<void>;
 /** What a phase does when something unexpected went wrong in it, so that the task ends in a way that says so. */
 type Recovery<P extends TurnState> = (turn: Turn<P>, runtime: Runtime, context: Context, failure: Error) => Promise<void>;
-
-/**
- * The input a task hands its session is named for the input it follows, in the
- * namespace of its source, so handing the same one over twice is one input.
- */
-const requestIdOf = (outstanding: Outstanding): string => {
-  if (isOccurrence(outstanding)) return `trigger:${idOf(outstanding)}`;
-  if (isProcess(outstanding)) return `process:${idOf(outstanding)}`;
-  if (isWatch(outstanding)) return `watch:${idOf(outstanding)}`;
-  return `chat:${idOf(outstanding)}`;
-};
 
 /**
  * What the session is handed for an input. When the session is working, an

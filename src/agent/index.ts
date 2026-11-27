@@ -20,6 +20,7 @@ import { followWorkspace, type LiveChat } from "./links/index.ts";
 import { keepLook } from "./look.ts";
 import { createProcesses } from "./processes/durable.ts";
 import { DOCUMENTS, openRecords, type SessionDefaults } from "./records/durable.ts";
+import { createRequests } from "./requests/durable.ts";
 import { agentFacet } from "./served.ts";
 import { startServer } from "./server.ts";
 import { createSessions, requireModel, stopWork } from "./sessions/durable.ts";
@@ -126,6 +127,10 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       onError: report,
     });
     const chatToolsOptions = { recordsId, chat, roster: members, ...messageLimit };
+    const requests = createRequests(host.harness, {
+      context,
+      homeModel: () => ({ model: sessions.defaults.model, fromHome: sessions.fromHome() }),
+    });
     const extensions = [
       context.extension,
       processes.extension,
@@ -134,6 +139,8 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       triggers.toolExtension,
       turn.extension,
       triggers.extension,
+      // Installed last so `beforeRequest` captures final messages after every earlier hook (including `compactionNoteHook`).
+      requests.extension,
     ];
     checkStorageVersion({ documents: DOCUMENTS, extensions }, AGENT_STORAGE);
     host.install(...extensions);
@@ -174,6 +181,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     let takingInput = true;
     const facet = agentFacet({
       sessions,
+      requests,
       triggers,
       processes,
       watches,

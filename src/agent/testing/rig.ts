@@ -6,7 +6,7 @@ import { homePaths } from "../home/index.ts";
 import { type JoinOptions, type RunningAgent, startAgent } from "../index.ts";
 import { type AgentConnection, attachThread, closeAfter, connectAgent, type SessionHandle } from "./attach.ts";
 import { type ChatServer, startChatServer } from "./chat-server.ts";
-import { type FauxScenario, fauxModels, releaseGate, type Script } from "./index.ts";
+import { type FauxScenario, fauxModels, type ObservedProviderRequest, releaseGate, type Script } from "./index.ts";
 import { SCOUT } from "./names.ts";
 import { type Talk, talkTo } from "../../contracts/chat/testing/index.ts";
 
@@ -34,6 +34,8 @@ export interface AgentRigOptions {
   checkinMs?: number;
   /** How often the agent looks at its files, in milliseconds. A test that changes them while the agent runs makes it short. */
   lookEveryMs?: number;
+  /** Called with the exact provider request Pi passed into `streamSimple`. */
+  onRequest?: (request: ObservedProviderRequest) => void;
 }
 
 /** The agent, and you, to talk to it. */
@@ -82,6 +84,7 @@ export async function startAgentRig(t: TestContext, options: AgentRigOptions = {
         tokensPerSecond: options.tokensPerSecond,
         tokenSize: options.tokenSize,
         ...(options.contextWindow === undefined ? {} : { contextWindow: options.contextWindow }),
+        ...(options.onRequest === undefined ? {} : { onRequest: options.onRequest }),
       }),
       onReport: (error) => reports.push(error),
       ...(options.shortestEveryMs === undefined ? {} : { shortestEveryMs: options.shortestEveryMs }),

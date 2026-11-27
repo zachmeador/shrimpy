@@ -37,7 +37,6 @@ Daily use decides. The owner's last order was compaction and seeing the request 
 ## The home
 
 - Compaction: Shrimpy's guidance for the summary itself, on dates, voice, paths and the state of work (pre-compaction recall via `history`, the post-compaction reminder, and the threshold test are in place).
-- Seeing exactly what the model received for a request, and why: raw entries, effective messages, selected tools, source revisions, omissions and budgets, and the effective model and settings.
 - The rule for ending a turn with `END` sends small models into long deliberation over a one-word reply.
 - The models an agent says it can use are those Pi lists as available, which checks more than the start does, so the home's own model can be missing from the list, and `setModel` can refuse a model the agent would start with.
 - A Shrimpy folder on a share that drops for a moment empties every agent's copy of the workspace context until it is back, and costs each agent a restart, since `up` takes a home whose `agent.json` it can't see for gone.
@@ -60,6 +59,7 @@ Daily use decides. The owner's last order was compaction and seeing the request 
 ## Using it
 
 - Choosing the model an agent starts with, in either client. The agent serves `setModel` since 2.0, and nothing calls it yet.
+- Showing captured model requests (`Session.requests` and `Session.request`) in the web and terminal Watch views.
 - Reactions, edits and deletes: keys in the clients, and tools for agents, `react` and an `edit` option on `post`. How an agent deletes its own message isn't designed yet.
 - Signing in and out from the terminal, as a `/` command, and seeing what a folder is signed in to. Today an entry leaves `providers/auth.json` by hand.
 - Posting to a room from the shell, and deleting a room.

@@ -41,7 +41,26 @@ export {
 } from "./membership.ts";
 export { AgentPresence } from "./presence.ts";
 export { delayMs, delayText, describeSchedule, normalizeDelay, sameSchedule } from "./schedule.ts";
-export { MAX_READ, Session } from "./session.ts";
+export { MAX_READ, MAX_REQUESTS, Session } from "./session.ts";
+export {
+  type RequestBudget,
+  type RequestCompactionBudget,
+  type RequestContentBlock,
+  type RequestInputBudget,
+  type RequestMessage,
+  type RequestModelSettings,
+  type RequestOmission,
+  type RequestOutcome,
+  type RequestPage,
+  type RequestRawEntry,
+  type RequestSection,
+  type RequestSource,
+  type RequestStreamOptions,
+  type RequestSummary,
+  type RequestTool,
+  type RequestUsage,
+  type SessionRequest,
+} from "./request-shapes.ts";
 export { lookFromId, makeSigil, parseSigil, pickPigment, type Pigment, PIGMENTS } from "./sigil.ts";
 export {
   DEFAULT_WAKE_POLICY,

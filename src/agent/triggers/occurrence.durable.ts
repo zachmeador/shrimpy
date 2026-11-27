@@ -2,6 +2,7 @@ import type { ConversationId, Tx } from "@earendil-works/pi-durable";
 import { type Check, describeSchedule, type Occurrence as OccurrenceView } from "../../contracts/agent/index.ts";
 import type { TriggerDefinition } from "../../contracts/agent/node.ts";
 import { newId } from "../../lib/ids/index.ts";
+import { CUT_MARKER } from "../home/index.ts";
 import { tasksOfKind } from "../host/durable.ts";
 import {
   type Breadcrumb,
@@ -62,6 +63,7 @@ function occurrenceOf(definition: TriggerDefinition, firing: Firing): Occurrence
     schedule: describeSchedule(definition.schedule),
     prompt: definition.prompt,
     ...(firing.output === undefined ? {} : { output: firing.output }),
+    ...(firing.output?.endsWith(CUT_MARKER) === true ? { outputTruncated: true as const } : {}),
   };
 }
 

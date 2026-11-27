@@ -2,6 +2,7 @@ import { defineDoc } from "@earendil-works/pi-durable";
 import type { TriggerDefinition } from "../../contracts/agent/node.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { type Missed, type Outstanding, type Place, type Snapshot, threadOf, type Watch } from "../inputs/index.ts";
+import { ContextRevisionsDoc, InputFactsDoc, RequestDetailDoc, RequestsIndexDoc } from "./request-docs.durable.ts";
 
 /**
  * Shrimpy's own documents, kept in the engine's storage and written in the same
@@ -132,7 +133,18 @@ export const FeedDoc = defineDoc<{ cursor: number | null; store: string | null }
 });
 
 /** Every one of Shrimpy's own documents. */
-export const DOCUMENTS = [RecordsDoc, SessionsDoc, WatchesDoc, ProcessesDoc, TriggersDoc, FeedDoc] as const;
+export const DOCUMENTS = [
+  RecordsDoc,
+  SessionsDoc,
+  WatchesDoc,
+  ProcessesDoc,
+  TriggersDoc,
+  FeedDoc,
+  ContextRevisionsDoc,
+  RequestsIndexDoc,
+  RequestDetailDoc,
+  InputFactsDoc,
+] as const;
 
 /** A copy of something read from a document, safe to keep after the commit. */
 export function copyOf<T>(value: T): T {

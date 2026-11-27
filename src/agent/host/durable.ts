@@ -11,7 +11,7 @@
  * home's storage. It must not know about clients, chat or how the agent is
  * reached, or what a person's terminal looks like.
  */
-export { type Host, type HostOptions, openHost } from "./host.durable.ts";
+export { type Host, HOST_SETTINGS, type HostOptions, openHost } from "./host.durable.ts";
 export { buildModels, type ModelReload, type ModelRuntimeOptions, ModelSetupError } from "./models.durable.ts";
 export {
   type Dialogue,

@@ -52,6 +52,10 @@ export const AGENT_STORAGE: StoreFormat<StorageVersion> = {
         "shrimpy.processes": 1,
         "shrimpy.triggers": 1,
         "shrimpy.feed": 3,
+        "shrimpy.context-revisions": 1,
+        "shrimpy.requests": 1,
+        "shrimpy.request": 1,
+        "shrimpy.input-facts": 1,
       },
       tasks: {
         "shrimpy.turn": 2,

@@ -20,7 +20,7 @@ const AGENT_TIERS = [
   ["watches"],
   ["processes", "triggers", "chat"],
   ["sessions", "chat-tools", "context"],
-  ["history"],
+  ["history", "requests"],
 ];
 const tierOf = (module) => AGENT_TIERS.findIndex((tier) => tier.includes(module));
 /**

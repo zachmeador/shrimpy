@@ -11,6 +11,9 @@ export function shownIn(root: string, path: string): string {
   return inside === "" || outside ? path : inside.split(sep).join("/");
 }
 
+/** Marker appended by `cutText` when text is truncated at a character limit. */
+export const CUT_MARKER = "\n[cut here: there is more]";
+
 /**
  * `text` cut to at most `limit` characters, never between the two halves of a
  * character that takes two, with a last line that says it was cut. Text that
@@ -18,5 +21,5 @@ export function shownIn(root: string, path: string): string {
  */
 export function cutText(text: string, limit: number): string {
   const kept = cutEnd(text, limit);
-  return kept === text ? text : `${kept.trimEnd()}\n[cut here: there is more]`;
+  return kept === text ? text : `${kept.trimEnd()}${CUT_MARKER}`;
 }

@@ -1,9 +1,10 @@
-import { relative, sep } from "node:path";
+import { join, relative, sep } from "node:path";
 import { compare, type LeftOut, type MarkdownFile, stillHeld, stillKept, takesIn } from "../../lib/files/index.ts";
 import { readMarkdown, readText } from "../../lib/files/node.ts";
 import { isInside, shownIn } from "./files.ts";
 import { INCLUDED_SKILLS } from "./included.ts";
 import type { HomePaths } from "./layout.ts";
+import { type HomeRevisions, mtimeOf, revisionOf, type SourceRevision } from "./revisions.ts";
 import { mergeSkills, readSkills, type SkillTrail } from "./skills.ts";
 import { readWorkspaceCopy } from "./workspace.ts";
 
@@ -22,6 +23,8 @@ export interface HomeSnapshot {
   readonly skills: readonly SkillTrail[];
   /** What could not be read or used. Everything else was read anyway. */
   readonly leftOut: readonly LeftOut[];
+  /** Per-source digests, sizes, and modification times captured by this reading. */
+  readonly revisions?: HomeRevisions;
 }
 
 /**
@@ -38,21 +41,46 @@ export async function readHomeSnapshot(paths: HomePaths): Promise<HomeSnapshot> 
 
   const soul = await readText(paths.soul);
   if (soul.kind === "unreadable") leftOut.push({ file: inHome(paths.soul), reason: soul.reason });
+  const soulText = soul.kind === "text" && soul.text.trim() !== "" ? soul.text : undefined;
+  const soulRevision = soulText === undefined ? undefined : revisionOf("SOUL.md", soulText, "home", await mtimeOf(paths.soul));
 
   const workspace = await readWorkspaceCopy(paths, inHome);
   leftOut.push(...workspace.leftOut);
+  const workspaceRevisions = await Promise.all(
+    workspace.files.map(async ({ path, text }) =>
+      revisionOf(path, text, "workspace", await mtimeOf(join(paths.workspaceContext, ...path.split("/")))),
+    ),
+  );
+
   const context = await readMarkdown(paths.context, { named: inHome });
   leftOut.push(...context.leftOut);
+  const fileRevisions = await Promise.all(
+    context.files.map(async ({ path, text }) => revisionOf(path, text, "home", await mtimeOf(join(paths.root, ...path.split("/"))))),
+  );
 
-  const own = await readSkills(paths.skills, inHome, leftOut);
+  const skillRevisions: Record<string, SourceRevision> = {};
+  const own = await readSkills(paths.skills, inHome, leftOut, { origin: "home", revisions: skillRevisions });
   // Where the files of a skill that ships with Shrimpy are, if any is wrong, is told in full: they are not in the home.
-  const included = await readSkills(INCLUDED_SKILLS, (path) => path, leftOut);
+  const included = await readSkills(INCLUDED_SKILLS, (path) => path, leftOut, { origin: "shipped", revisions: skillRevisions });
+  const skills = mergeSkills(own, included);
+  const keptSkills = Object.fromEntries(
+    skills.flatMap((skill) => {
+      const rev = skillRevisions[skill.file];
+      return rev === undefined ? [] : [[skill.file, rev] as const];
+    }),
+  );
   return {
-    soul: soul.kind === "text" && soul.text.trim() !== "" ? soul.text : undefined,
+    soul: soulText,
     workspace: workspace.files,
     files: context.files,
-    skills: mergeSkills(own, included),
+    skills,
     leftOut,
+    revisions: {
+      ...(soulRevision === undefined ? {} : { soul: soulRevision }),
+      workspace: workspaceRevisions,
+      files: fileRevisions,
+      skills: keptSkills,
+    },
   };
 }
 
@@ -90,12 +118,53 @@ export function carryOver(previous: HomeSnapshot, read: HomeSnapshot, paths: Hom
     files.some(({ path }) => takesIn(left, path)) ||
     skills.some((skill) => takesIn(left, shown(skill)));
   const all = [...read.skills, ...skills];
+  const mergedSkills = mergeSkills(all.filter(isOwn), all.filter((skill) => !isOwn(skill)));
   return {
     soul: soul ?? read.soul,
     workspace: [...read.workspace, ...workspace].sort((a, b) => compare(a.path, b.path)),
     files: [...read.files, ...files].sort((a, b) => compare(a.path, b.path)),
     // A skill of the home that is carried over replaces a skill that ships under the same name, as one that is read does.
-    skills: mergeSkills(all.filter(isOwn), all.filter((skill) => !isOwn(skill))),
+    skills: mergedSkills,
     leftOut: read.leftOut.map((each) => (kept(each.file) ? stillKept(each) : each)),
+    revisions: mergeRevisions(previous.revisions, read.revisions, {
+      carriedSoul: soul !== undefined,
+      carriedWorkspace: new Set(workspace.map(({ path }) => path)),
+      carriedFiles: new Set(files.map(({ path }) => path)),
+      carriedSkills: new Set(skills.map(({ file }) => file)),
+      finalSkills: mergedSkills,
+    }),
   };
+}
+
+function mergeRevisions(
+  previous: HomeRevisions | undefined,
+  read: HomeRevisions | undefined,
+  carried: {
+    carriedSoul: boolean;
+    carriedWorkspace: ReadonlySet<string>;
+    carriedFiles: ReadonlySet<string>;
+    carriedSkills: ReadonlySet<string>;
+    finalSkills: readonly SkillTrail[];
+  },
+): HomeRevisions {
+  const prevSoul = carried.carriedSoul && previous?.soul !== undefined ? { ...previous.soul, carriedOver: true } : undefined;
+  const soul = prevSoul ?? read?.soul;
+  const workspace = [
+    ...(read?.workspace ?? []),
+    ...(previous?.workspace ?? []).filter((rev) => carried.carriedWorkspace.has(rev.path)).map((rev) => ({ ...rev, carriedOver: true })),
+  ].sort((a, b) => compare(a.path, b.path));
+  const files = [
+    ...(read?.files ?? []),
+    ...(previous?.files ?? []).filter((rev) => carried.carriedFiles.has(rev.path)).map((rev) => ({ ...rev, carriedOver: true })),
+  ].sort((a, b) => compare(a.path, b.path));
+  const skills: Record<string, SourceRevision> = {};
+  for (const skill of carried.finalSkills) {
+    const rev = carried.carriedSkills.has(skill.file)
+      ? previous?.skills[skill.file] === undefined
+        ? undefined
+        : { ...previous.skills[skill.file]!, carriedOver: true }
+      : read?.skills[skill.file];
+    if (rev !== undefined) skills[skill.file] = rev;
+  }
+  return { ...(soul === undefined ? {} : { soul }), workspace, files, skills };
 }

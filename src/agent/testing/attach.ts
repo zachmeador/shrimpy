@@ -6,6 +6,7 @@ import {
   Agent,
   type AgentModel,
   type DefaultModel,
+  MAX_REQUESTS,
   type ModelId,
   type HomeEntry,
   type HomeFile,
@@ -15,9 +16,11 @@ import {
   type ProcessOutput,
   type ProcessSummary,
   type Reloaded,
+  type RequestPage,
   Session,
   type SessionItem,
   type SessionPage,
+  type SessionRequest,
   type SessionStatus,
   type SessionSummary,
   type Settlement,
@@ -52,6 +55,10 @@ export interface SessionHandle {
   stop(): Promise<void>;
   /** The items of up to `limit` entries from the entry `before` back. */
   read(before: number, limit: number): Promise<SessionPage>;
+  /** Lists captured and unrecorded model requests for this session, newest first. */
+  requests(options?: { before?: string; limit?: number }): Promise<RequestPage>;
+  /** Reconstructs one model request in full (latest when neither `id` nor `entry` is given). */
+  request(options?: { id?: string; entry?: number }): Promise<SessionRequest | null>;
   /** Let go of the session. */
   release(): void;
 }
@@ -133,6 +140,23 @@ export async function holdSession(host: Host<Principal, Revocation>, agent: stri
       valueOf(await session.stop(context));
     },
     read: async (before, limit) => valueOf(await session.read({ before, limit }, context)),
+    requests: async (options = {}) =>
+      valueOf(
+        await session.requests(
+          { ...(options.before === undefined ? {} : { before: options.before }), limit: options.limit ?? MAX_REQUESTS },
+          context,
+        ),
+      ),
+    request: async (options = {}) =>
+      valueOf(
+        await session.request(
+          {
+            ...(options.id === undefined ? {} : { id: options.id }),
+            ...(options.entry === undefined ? {} : { entry: options.entry }),
+          },
+          context,
+        ),
+      ),
     release: () => session.release(),
   };
 }

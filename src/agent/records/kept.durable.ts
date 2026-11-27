@@ -7,15 +7,13 @@ import {
   isOccurrence,
   isProcess,
   isWatch,
+  MAX_BREADCRUMBS_PER_INPUT,
   type Missed,
   type Outstanding,
   type Place,
   type Snapshot,
 } from "../inputs/index.ts";
 import { copyOf, type SessionRecord } from "./documents.durable.ts";
-
-/** How many breadcrumbs an input carries at the most: when more differ, the rest wait for later inputs. */
-const MOST_BREADCRUMBS = 10;
 
 /** Enough of a breadcrumb's text to tell whether it has changed. */
 const digestOf = (text: string): string => createHash("sha256").update(text).digest("hex").slice(0, 16);
@@ -42,7 +40,7 @@ export function takeMissed(session: SessionRecord): Missed[] {
 export function takeBreadcrumbs(session: SessionRecord, files: readonly Breadcrumb[]): Breadcrumbs | undefined {
   const shown = session.shown;
   const differ = files.filter(({ name, text }) => shown[name] !== digestOf(text));
-  const carried = differ.slice(0, MOST_BREADCRUMBS);
+  const carried = differ.slice(0, MAX_BREADCRUMBS_PER_INPUT);
   const now: Record<string, string> = {};
   for (const { name, text } of files) {
     const digest = carried.some((each) => each.name === name) ? digestOf(text) : shown[name];
@@ -52,7 +50,16 @@ export function takeBreadcrumbs(session: SessionRecord, files: readonly Breadcru
   if (!kept) session.shown = now;
   if (carried.length === 0) return undefined;
   const more = differ.length - carried.length;
-  return { files: carried.map(({ name, text }) => ({ name, text })), ...(more > 0 ? { more } : {}) };
+  return {
+    files: carried.map(({ name, text, truncated, originalChars, limitChars }) => ({
+      name,
+      text,
+      ...(truncated === undefined ? {} : { truncated }),
+      ...(originalChars === undefined ? {} : { originalChars }),
+      ...(limitChars === undefined ? {} : { limitChars }),
+    })),
+    ...(more > 0 ? { more } : {}),
+  };
 }
 
 /** What an input carries of what was missed and the breadcrumbs it was handed. */

@@ -1,9 +1,13 @@
-import { int, method, nul, obj, remote, str, union } from "@earendil-works/chord";
+import { int, method, nul, obj, opt, remote, str, union } from "@earendil-works/chord";
 import { agent, answerOf, RefusedSchema } from "../gateway/index.ts";
+import { RequestPageSchema, SessionRequestSchema } from "./request-shapes.ts";
 import { SessionPageSchema, SessionStatusSchema, SettlementSchema, SubmittedSchema } from "./shapes.ts";
 
 /** The most entries one `read` covers. */
 export const MAX_READ = 200;
+
+/** The most requests one `requests` call returns. */
+export const MAX_REQUESTS = 100;
 
 /**
  * One session of an agent as the caller sees it, at `agent({ id: agent })`:
@@ -57,6 +61,27 @@ export const Session = remote("shrimpy.agent.session", {
         wait: method(obj({ submission: int() }), answerOf(SettlementSchema)),
         /** Stops the session's current work and takes back input it has not picked up. */
         stop: method(undefined, answerOf(nul())),
+        /**
+         * Lists model requests made in this session, newest first, including
+         * unrecorded assistant entries reconstructed from history when capture
+         * was absent. Pass `before` from the previous page to page back.
+         */
+        requests: method(
+          obj({ before: opt(str()), limit: int({ min: 1, max: MAX_REQUESTS }) }),
+          answerOf(RequestPageSchema),
+        ),
+        /**
+         * Full inspection of one model request: raw entries, effective messages
+         * as sent after hooks, active sections and source revisions, selected
+         * tools, omissions and budgets, and effective model and settings.
+         * Omit both `id` and `entry` for the latest request, or pass `entry`
+         * for the request behind an assistant entry ID. Returns null when the
+         * session has no matching request.
+         */
+        request: method(
+          obj({ id: opt(str()), entry: opt(int({ min: 0 })) }),
+          answerOf(union([SessionRequestSchema, nul()])),
+        ),
       },
     },
   },

@@ -15,10 +15,11 @@
  * showing `state/`. It must not know about the engine, the model
  * runtime or how the agent is reached.
  */
-export { readBreadcrumbs, removeBreadcrumb, writeBreadcrumb } from "./breadcrumbs.ts";
+export { BREADCRUMB_LIMIT, type BreadcrumbFile, readBreadcrumbs, removeBreadcrumb, writeBreadcrumb } from "./breadcrumbs.ts";
 export { fileAt, folderAt } from "./browse.ts";
-export { cutText, shownIn } from "./files.ts";
+export { CUT_MARKER, cutText, shownIn } from "./files.ts";
 export { type HomePaths, homePaths, storageOfAnotherVersion } from "./layout.ts";
 export { lookAtHome } from "./look.ts";
+export { digestText, type HomeRevisions, revisionOf, type SourceOrigin, type SourceRevision } from "./revisions.ts";
 export { carryOver, type HomeSnapshot, readHomeSnapshot } from "./snapshot.ts";
 export { type WorkspaceCopier, workspaceCopier } from "./workspace.ts";

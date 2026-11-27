@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { frontmatter, NO_FRONTMATTER } from "../../contracts/agent/index.ts";
 import { codeOf, compare, type LeftOut, why, whyUnseen } from "../../lib/files/index.ts";
 import { listFolder, readText } from "../../lib/files/node.ts";
+import { mtimeOf, revisionOf, type SourceOrigin, type SourceRevision } from "./revisions.ts";
 
 /** A skill as the agent is shown it: what it is for and where to read it. */
 export interface SkillTrail {
@@ -25,6 +26,7 @@ export async function readSkills(
   folder: string,
   shown: (path: string) => string,
   leftOut: LeftOut[],
+  options?: { origin: SourceOrigin; revisions: Record<string, SourceRevision> },
 ): Promise<SkillTrail[]> {
   let entries: Dirent[];
   try {
@@ -62,6 +64,9 @@ export async function readSkills(
       leftOut.push({ file: shown(file), reason: "its front matter has no description" });
     } else {
       skills.push({ name: (values.get("name") ?? "") || entry.name, description, file });
+      if (options !== undefined) {
+        options.revisions[file] = revisionOf(shown(file), read.text, options.origin, await mtimeOf(file));
+      }
     }
   }
   return skills;

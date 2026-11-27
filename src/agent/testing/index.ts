@@ -21,9 +21,13 @@ import {
   fauxThinking,
   fauxToolCall,
   type Message,
+  type Model,
   type Models,
+  type SimpleStreamOptions,
+  type Tool,
   type ToolResultMessage,
 } from "@earendil-works/pi-ai";
+import { getCurrentTools } from "@earendil-works/pi-ai/utils/transcript";
 import type { AgentOptions } from "../index.ts";
 
 export {
@@ -198,6 +202,14 @@ function slowCommandUntilItFinishes(messages: readonly Message[]) {
   return fauxAssistantMessage([fauxText("Running the slow command."), call], { stopReason: "toolUse" });
 }
 
+/** What the faux model actually received from Pi for one provider call. */
+export interface ObservedProviderRequest {
+  readonly messages: readonly Message[];
+  readonly tools: readonly Tool[];
+  readonly model: Model<string>;
+  readonly options: SimpleStreamOptions | undefined;
+}
+
 /**
  * A model runtime whose only model follows `scenario`, or `script` when given.
  * Each request is logged to `home/requests.jsonl`.
@@ -211,6 +223,8 @@ export function fauxModels(options: {
   tokenSize?: { min: number; max: number };
   /** Override the faux model's context window (tokens), e.g. to trigger compaction in a test. */
   contextWindow?: number;
+  /** Called with the exact provider request Pi passed into `streamSimple`. */
+  onRequest?: (request: ObservedProviderRequest) => void;
 }): { models: Models; model: AgentOptions["model"] } {
   const script = options.script ?? SCRIPTS[options.scenario ?? "chat"];
   const faux = fauxProvider({
@@ -219,8 +233,14 @@ export function fauxModels(options: {
     ...(options.contextWindow === undefined ? {} : { models: [{ id: "faux-1", contextWindow: options.contextWindow }] }),
   });
   mkdirSync(options.home, { recursive: true });
-  const respond: FauxResponseFactory = (request) => {
+  const respond: FauxResponseFactory = (request, streamOptions, _state, model) => {
     faux.appendResponses([respond]);
+    options.onRequest?.({
+      messages: structuredClone(request.messages),
+      tools: structuredClone(getCurrentTools(request.messages)),
+      model,
+      options: streamOptions,
+    });
     const digest = createHash("sha1").update(JSON.stringify(request.messages)).digest("hex");
     appendFileSync(
       join(options.home, "requests.jsonl"),

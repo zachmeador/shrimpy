@@ -162,6 +162,8 @@ export type ProcessEvent = {
   afterMs: number;
   /** Recent output tail. */
   output: string;
+  /** Set when the process log exceeded the wakeup output tail budget and was truncated. */
+  outputTruncated?: true;
   /** Full output log path on disk. */
   logPath: string;
 };
@@ -201,6 +203,9 @@ export type Backlog = {
   /** How many earlier messages are not shown, or at least that many when `atLeast` is set. */
   cut: number;
   atLeast?: true;
+  /** Character budget enforced when building this backlog, and characters used by the shown messages. */
+  budgetChars?: number;
+  usedChars?: number;
 };
 
 /**
@@ -212,8 +217,17 @@ export type Backlog = {
  */
 export type ModelChange = { was: ModelId; now: ModelId };
 
+/** How many breadcrumbs an input carries at most; remaining changed breadcrumbs wait for later inputs. */
+export const MAX_BREADCRUMBS_PER_INPUT = 10;
+
 /** A breadcrumb as the model is shown it: the name of its file, and its text, which is already cut to what is shown. */
-export type Breadcrumb = { name: string; text: string };
+export type Breadcrumb = {
+  name: string;
+  text: string;
+  truncated?: true;
+  originalChars?: number;
+  limitChars?: number;
+};
 
 /**
  * The breadcrumbs an input carries: the files of the home's `breadcrumbs/` that
@@ -285,6 +299,8 @@ export type Occurrence = {
    * occurrence the check's news woke the agent with. Absent for one with no check.
    */
   output?: string;
+  /** Set when the trigger's check output exceeded its character budget and was cut. */
+  outputTruncated?: true;
 };
 
 /**
@@ -354,6 +370,17 @@ export function idOf(outstanding: Outstanding): string {
   if (isProcess(outstanding)) return outstanding.process.eventId;
   if (isWatch(outstanding)) return outstanding.settled.watch.id;
   return outstanding.event.id;
+}
+
+/**
+ * The deduplication request ID handed to Pi when submitting `outstanding`,
+ * namespaced by its source so handing the same input over twice is one input.
+ */
+export function requestIdOf(outstanding: Outstanding): string {
+  if (isOccurrence(outstanding)) return `trigger:${idOf(outstanding)}`;
+  if (isProcess(outstanding)) return `process:${idOf(outstanding)}`;
+  if (isWatch(outstanding)) return `watch:${idOf(outstanding)}`;
+  return `chat:${idOf(outstanding)}`;
 }
 
 /**

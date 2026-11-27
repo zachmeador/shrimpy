@@ -24,6 +24,7 @@ export {
   isProcess,
   isUrgent,
   isWatch,
+  MAX_BREADCRUMBS_PER_INPUT,
   type ModelChange,
   type Named,
   type Occurrence,
@@ -33,6 +34,7 @@ export {
   type Place,
   type ProcessEvent,
   type ProcessInput,
+  requestIdOf,
   type Missed,
   type Said,
   type Snapshot,
@@ -44,3 +46,4 @@ export {
   type WatchSettled,
 } from "./input.ts";
 export { CAN_END_TURN, promptFor, standing, written } from "./prompt.ts";
+export { type InputProvenance, inputProvenanceOf, type StoredInputOmission } from "./provenance.ts";

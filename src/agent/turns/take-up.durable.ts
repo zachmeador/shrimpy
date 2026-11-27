@@ -1,8 +1,9 @@
 import type { ConversationId, Tx } from "@earendil-works/pi-durable";
-import type { Breadcrumb, Outstanding } from "../inputs/index.ts";
+import { type Breadcrumb, inputProvenanceOf, type Outstanding, requestIdOf } from "../inputs/index.ts";
 import {
   carrying,
   copyOf,
+  InputFactsDoc,
   keptPlace,
   sessionAddress,
   SessionsDoc,
@@ -41,5 +42,9 @@ export async function takeUp(
       : input.threadId === undefined
         ? { ...input, ...carried }
         : { ...input, ...carried, ...there };
+  if (session !== undefined) {
+    const facts = await tx.doc(InputFactsDoc, conversationId);
+    facts.byRequest[requestIdOf(taken)] = inputProvenanceOf(taken);
+  }
   await tx.createTask(turn, taken, { ownership: { kind: "conversation" }, conversationId, background: true });
 }
