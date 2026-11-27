@@ -181,6 +181,7 @@ export function agentFacet(parts: ServedParts): Facet<Principal> {
               onceTriggers: once.filter((t) => t.threadId === address),
             },
             home.model,
+            sessions.takesPictures,
           ),
       );
       const refusal = self.derive([allowed, shown], ([no, view]) =>
@@ -227,6 +228,11 @@ export function agentFacet(parts: ServedParts): Facet<Principal> {
                 { ...(id === undefined ? {} : { id }), ...(entry === undefined ? {} : { entry }) },
                 ctx,
               );
+            }),
+          image: async ({ entry, index }, ctx) =>
+            answering(async () => {
+              await allow(principal, "watch", ctx);
+              return sessions.image(address, entry, index, ctx);
             }),
         },
       };

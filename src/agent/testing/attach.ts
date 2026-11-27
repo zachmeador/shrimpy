@@ -20,6 +20,7 @@ import {
   Session,
   type SessionItem,
   type SessionPage,
+  type SessionPicture,
   type SessionRequest,
   type SessionStatus,
   type SessionSummary,
@@ -59,6 +60,8 @@ export interface SessionHandle {
   requests(options?: { before?: string; limit?: number }): Promise<RequestPage>;
   /** Reconstructs one model request in full (latest when neither `id` nor `entry` is given). */
   request(options?: { id?: string; entry?: number }): Promise<SessionRequest | null>;
+  /** An image an item names, as the model was shown it. */
+  image(entry: number, index: number): Promise<SessionPicture>;
   /** Let go of the session. */
   release(): void;
 }
@@ -157,6 +160,7 @@ export async function holdSession(host: Host<Principal, Revocation>, agent: stri
           context,
         ),
       ),
+    image: async (entry, index) => valueOf(await session.image({ entry, index }, context)),
     release: () => session.release(),
   };
 }

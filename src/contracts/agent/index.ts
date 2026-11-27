@@ -106,6 +106,7 @@ export {
   type Reloaded,
   type SessionActivity,
   type SessionImage,
+  type SessionPicture,
   type SessionItem,
   type SessionPage,
   type SessionPlace,

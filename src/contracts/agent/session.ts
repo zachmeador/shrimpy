@@ -1,7 +1,7 @@
 import { int, method, nul, obj, opt, remote, str, union } from "@earendil-works/chord";
 import { agent, answerOf, RefusedSchema } from "../gateway/index.ts";
 import { RequestPageSchema, SessionRequestSchema } from "./request-shapes.ts";
-import { SessionPageSchema, SessionStatusSchema, SettlementSchema, SubmittedSchema } from "./shapes.ts";
+import { SessionPageSchema, SessionPictureSchema, SessionStatusSchema, SettlementSchema, SubmittedSchema } from "./shapes.ts";
 
 /** The most entries one `read` covers. */
 export const MAX_READ = 200;
@@ -82,6 +82,8 @@ export const Session = remote("shrimpy.agent.session", {
           obj({ id: opt(str()), entry: opt(int({ min: 0 })) }),
           answerOf(union([SessionRequestSchema, nul()])),
         ),
+        /** The image at `index` among the images of the entry `entry`, as an item's image names it, as the model was shown it. */
+        image: method(obj({ entry: int({ min: 0 }), index: int({ min: 0 }) }), answerOf(SessionPictureSchema)),
       },
     },
   },

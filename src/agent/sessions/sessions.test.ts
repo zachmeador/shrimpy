@@ -30,7 +30,7 @@ test("a reason the engine gives that the agent has no word for reaches a client 
   const settled = await sessions.wait("th_1", submission, context);
   const view = await sessions.view("th_1")({ advance: () => undefined, end: () => undefined }, context);
   view?.detach();
-  const shown = view === undefined ? undefined : shownOf(view.value, { processes: [], watches: [], onceTriggers: [] }, model);
+  const shown = view === undefined ? undefined : shownOf(view.value, { processes: [], watches: [], onceTriggers: [] }, model, () => true);
 
   const engine = (await host.harness.snapshot(LiveDoc, conversationId, context))?.runFailure;
   assert.ok(engine?.detail !== undefined, "the engine said why the run ended");

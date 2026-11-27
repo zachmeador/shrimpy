@@ -835,8 +835,8 @@ test("a thread or an agent's view of it that starts after its first item says ho
 test("an image a session was shown, or a tool gave back, is named by its media type", (t) => {
   const view = sessionView({
     items: [
-      userItem("what is in this picture?", 1, [{ mimeType: "image/png" }]),
-      toolItem("read", { status: "done", output: "shot.jpg", images: [{ mimeType: "image/jpeg" }], entry: 2 }),
+      userItem("what is in this picture?", 1, [{ mimeType: "image/png", entry: 1, index: 0, omitted: false }]),
+      toolItem("read", { status: "done", output: "shot.jpg", images: [{ mimeType: "image/jpeg", entry: 3, index: 0, omitted: false }], entry: 2 }),
     ],
   });
   const dm = { kind: "agent" as const, id: scout.id };

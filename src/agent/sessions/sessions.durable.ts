@@ -19,6 +19,7 @@ import {
 import type {
   AgentModel,
   SessionPage,
+  SessionPicture,
   SessionPlace,
   SessionStatus,
   SessionSummary,
@@ -30,7 +31,7 @@ import { refuse } from "../../lib/refusal/index.ts";
 import { type SessionDefaults, type SessionRecord, SessionsDoc } from "../records/durable.ts";
 import { listModels } from "./models.durable.ts";
 import { stopWork } from "./service.durable.ts";
-import { pageOf, type SessionExtras, statusOf, unfinishedCalls, windowOf } from "./session-view.durable.ts";
+import { pageOf, type SessionExtras, statusOf, type TakesPictures, unfinishedCalls, windowOf } from "./session-view.durable.ts";
 import { waitForSettlement } from "./settlement.durable.ts";
 
 const context = BACKGROUND_CONTEXT;
@@ -45,8 +46,11 @@ export type HomeModel = { readonly model: ModelRef; readonly fromHome: boolean }
 
 export const noSessionYet = (address: string): string => `This agent has no session for ${address} yet.`;
 
-export function shownOf(view: ConversationView | null, extras: SessionExtras, home: ModelRef): SessionShown {
-  return view === null ? NOT_MADE : { made: true, window: windowOf(view), status: statusOf(view, home, extras) };
+const noSuchImage = (address: string, entry: number, index: number): string =>
+  `The session behind ${address} has no image ${String(index)} in entry ${String(entry)}.`;
+
+export function shownOf(view: ConversationView | null, extras: SessionExtras, home: ModelRef, takesPictures: TakesPictures): SessionShown {
+  return view === null ? NOT_MADE : { made: true, window: windowOf(view, takesPictures), status: statusOf(view, home, extras) };
 }
 
 /** The agent's sessions, each sitting behind one real thread and addressed by its thread ID. */
@@ -56,6 +60,10 @@ export interface Sessions {
   view(address: string): FollowAttach<ConversationView | null>;
   readonly homeModel: FollowAttach<HomeModel>;
   read(address: string, before: number, limit: number, context: Context): Promise<SessionPage>;
+  /** The image at `index` among those of an entry of a session, as the model was shown it. */
+  image(address: string, entry: number, index: number, context: Context): Promise<SessionPicture>;
+  /** Whether a model takes pictures, as the agent's model runtime lists it: one it doesn't list is taken to. */
+  readonly takesPictures: TakesPictures;
   steer(address: string, text: string, request: string, context: Context): Promise<Submitted>;
   wait(address: string, submission: number, context: Context): Promise<Settlement>;
   stop(address: string, context: Context): Promise<void>;
@@ -79,6 +87,7 @@ function changesSessions(publication: CommitPublication): boolean {
 }
 
 export function createSessions(harness: Harness, start: SessionDefaults, models: Models, fromHome = true): Sessions {
+  const takesPictures: TakesPictures = (provider, id) => models.getModel(provider, id)?.input.includes("image") ?? true;
   let homeModel: HomeModel = { model: start.model, fromHome };
   const defaults: SessionDefaults = {
     get model() {
@@ -218,8 +227,19 @@ export function createSessions(harness: Harness, start: SessionDefaults, models:
         unfinished === 0 || newest === undefined
           ? []
           : (await conversation.entries({ minEntryId: (newest.id + 1) as EntryId, order: "ascending" }, unfinished + SLACK, undefined, at)).items;
-      return pageOf(entries, earlier, later);
+      return pageOf(entries, earlier, later, takesPictures);
     },
+
+    async image(address, entry, index, at) {
+      const conversation = await conversationOf(address, at);
+      const [found] = (await conversation.entries({ minEntryId: entry as EntryId, maxEntryId: entry as EntryId }, 1, undefined, at)).items;
+      const content = found?.model?.[0]?.content;
+      const image = Array.isArray(content) ? content.filter((block) => block.type === "image")[index] : undefined;
+      if (image?.type !== "image") refuse(noSuchImage(address, entry, index));
+      return { mediaType: image.mimeType, data: Uint8Array.from(Buffer.from(image.data, "base64")) };
+    },
+
+    takesPictures,
 
     async steer(address, text, request, at) {
       const conversation = await conversationOf(address, at);

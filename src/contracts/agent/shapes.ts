@@ -1,4 +1,4 @@
-import { arr, bool, int, lit, nul, num, obj, oneOf, type Static, str, union } from "@earendil-works/chord";
+import { arr, bool, bytes, int, lit, nul, num, obj, oneOf, type Static, str, union } from "@earendil-works/chord";
 import { PIGMENTS } from "./sigil.ts";
 
 /** A color an agent's sigil is drawn in. */
@@ -302,9 +302,19 @@ const ENTRY = union([int(), nul()]);
 /** When it happened, in milliseconds since the epoch. */
 const AT = num();
 
-/** An image the model was shown, by its media type, such as `image/png`, which is enough to name it. */
-const SessionImageSchema = obj({ mimeType: str() });
+/**
+ * An image the model was shown, by its media type, such as `image/png`; where
+ * it is kept, which `Session.image` takes: the entry whose message holds it, or
+ * null for a tool call in a partial answer, and its place among that message's
+ * images; and whether the model that answered after it takes no pictures, so
+ * it was shown Pi's line in its place.
+ */
+const SessionImageSchema = obj({ mimeType: str(), entry: union([int(), nul()]), index: int(), omitted: bool() });
 export type SessionImage = Static<typeof SessionImageSchema>;
+
+/** An image a session holds, as the model was shown it: its media type and its bytes. */
+export const SessionPictureSchema = obj({ mediaType: str(), data: bytes() });
+export type SessionPicture = Static<typeof SessionPictureSchema>;
 
 /**
  * How an answer ended:

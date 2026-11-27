@@ -67,4 +67,13 @@ test("a picture you send is saved in the agent's home and shown to the model aft
   const attached = reply.attachments[0];
   assert.ok(attached !== undefined);
   assert.equal(new TextDecoder().decode(await rig.download(attached)), "forty-two\n");
+
+  const { session } = await rig.attach();
+  const item = session.view.items.find((each) => each.type === "user");
+  const named = item?.type === "user" ? item.images[0] : undefined;
+  assert.ok(named !== undefined && named.entry !== null);
+  assert.equal(named.omitted, false);
+  const kept = await session.image(named.entry, named.index);
+  assert.equal(kept.mediaType, "image/png");
+  assert.deepEqual(kept.data, picture);
 });

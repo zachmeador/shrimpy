@@ -38,9 +38,12 @@ type Content = string | readonly { type: string; text?: string; mimeType?: strin
  * before the window is not shown here: it comes with that answer when a client
  * pages back.
  */
-export function windowOf(view: ConversationView): SessionPage {
+/** Whether a model, by its provider and ID, takes pictures. */
+export type TakesPictures = (provider: string, model: string) => boolean;
+
+export function windowOf(view: ConversationView, takesPictures: TakesPictures): SessionPage {
   const live = (view.docs["pi.live"] ?? {}) as LiveState;
-  const items = toItems(view.entries, live);
+  const items = toItems(view.entries, live, takesPictures);
   const partial = live.generation?.message as AssistantMessage | undefined;
   if (partial !== undefined) {
     items.push(assistantItem(partial, null, true));
@@ -58,29 +61,48 @@ export function windowOf(view: ConversationView): SessionPage {
  * start, and `later`, the entries that follow them, where the results of their
  * last tool calls are.
  */
-export function pageOf(entries: readonly EntryRecord[], before: number | null, later: readonly EntryRecord[]): SessionPage {
-  const items = toItems(entries, {});
+export function pageOf(entries: readonly EntryRecord[], before: number | null, later: readonly EntryRecord[], takesPictures: TakesPictures): SessionPage {
+  const items = toItems(entries, {}, takesPictures);
   const open = new Map(items.flatMap((item) => (item.type === "tool" && item.status === "pending" ? [[item.id, item] as const] : [])));
+  const blind = blindAfter([...entries, ...later], takesPictures);
   for (const entry of later) {
     const result = ToolResultEntry.is(entry) ? (entry.model?.[0] as ToolResultMessage | undefined) : undefined;
     const tool = result === undefined ? undefined : open.get(result.toolCallId);
-    if (tool !== undefined && result !== undefined) finishTool(tool, entry, result);
+    if (tool !== undefined && result !== undefined) finishTool(tool, entry, result, blind.has(entry.id));
   }
   return { items, before };
 }
 
 /** How many tool calls of `entries` have no result among them, which a page looks for after them. */
 export function unfinishedCalls(entries: readonly EntryRecord[]): number {
-  return toItems(entries, {}).filter((item) => item.type === "tool" && item.status === "pending").length;
+  return toItems(entries, {}, () => true).filter((item) => item.type === "tool" && item.status === "pending").length;
 }
 
-function toItems(entries: readonly EntryRecord[], live: LiveState): SessionItem[] {
+/**
+ * The entries among `entries` whose images the model that answered after them
+ * was shown Pi's line in place of, since it takes no pictures. An entry with no
+ * answer after it yet is not among them.
+ */
+function blindAfter(entries: readonly EntryRecord[], takesPictures: TakesPictures): Set<number> {
+  const blind = new Set<number>();
+  let answeredBy: AssistantMessage | undefined;
+  for (const entry of entries.toReversed()) {
+    const message = entry.model?.[0];
+    if (AssistantEntry.is(entry) && message?.role === "assistant") answeredBy = message;
+    else if (answeredBy !== undefined && !takesPictures(answeredBy.provider, answeredBy.model)) blind.add(entry.id);
+  }
+  return blind;
+}
+
+function toItems(entries: readonly EntryRecord[], live: LiveState, takesPictures: TakesPictures): SessionItem[] {
   const items: SessionItem[] = [];
   const tools = new Map<string, ToolItem>();
+  const blind = blindAfter(entries, takesPictures);
   for (const entry of entries) {
     const message = entry.model?.[0];
     if (UserEntry.is(entry) && message?.role === "user") {
-      items.push({ type: "user", entry: entry.id, at: message.timestamp, text: textOf(message.content), images: imagesOf(message.content) });
+      const images = imagesOf(message.content, entry.id, blind.has(entry.id));
+      items.push({ type: "user", entry: entry.id, at: message.timestamp, text: wordsOf(message.content), images });
     } else if (AssistantEntry.is(entry) && message?.role === "assistant") {
       items.push(assistantItem(message, entry.id, false));
       for (const tool of toolItems(message, entry.id, live)) {
@@ -94,7 +116,7 @@ function toItems(entries: readonly EntryRecord[], live: LiveState): SessionItem[
       }
     } else if (ToolResultEntry.is(entry) && message?.role === "toolResult") {
       const tool = tools.get(message.toolCallId);
-      if (tool !== undefined) finishTool(tool, entry, message);
+      if (tool !== undefined) finishTool(tool, entry, message, blind.has(entry.id));
     } else if (ResetEntry.is(entry)) {
       items.push({ type: "marker", entry: entry.id, at: message?.timestamp ?? null, marker: "reset" });
     } else if (CompactionEntry.is(entry)) {
@@ -169,11 +191,11 @@ function toolItems(message: AssistantMessage, entry: number | null, live: LiveSt
  * <harness> block, and the same facts as structured diagnostics. The view
  * uses the structured form: `interrupted` marks a call recovery did not rerun.
  */
-function finishTool(tool: ToolItem, entry: EntryRecord, result: ToolResultMessage): void {
+function finishTool(tool: ToolItem, entry: EntryRecord, result: ToolResultMessage, omitted: boolean): void {
   const data = entry.data as { diagnostics?: ToolDiagnostic[] } | undefined;
   const diagnostics = data?.diagnostics ?? [];
   tool.output = textOf(result.content).replace(/\n?<harness>[\s\S]*<\/harness>\s*$/, "");
-  tool.images = imagesOf(result.content);
+  tool.images = imagesOf(result.content, entry.id, omitted);
   tool.notes = diagnostics.map((diagnostic) => diagnostic.message);
   if (!result.isError) tool.status = "done";
   else if (diagnostics.some((diagnostic) => diagnostic.code === "interrupted")) {
@@ -260,8 +282,16 @@ function textOf(content: Content): string {
   return content.map((block) => (block.type === "text" ? (block.text ?? "") : "")).join("");
 }
 
-/** The images in a message's content, by their media types, in order. */
-function imagesOf(content: Content): SessionImage[] {
+/** The words of what a session was shown, each block of them apart from the next, as a picture stood between them. */
+function wordsOf(content: Content): string {
+  if (typeof content === "string") return content;
+  return content.flatMap((block) => (block.type === "text" ? [block.text ?? ""] : [])).join("\n\n");
+}
+
+/** The images in the content of the entry `entry`, by their media types, in order, with where each is kept. */
+function imagesOf(content: Content, entry: number, omitted: boolean): SessionImage[] {
   if (typeof content === "string") return [];
-  return content.flatMap((block) => (block.type === "image" ? [{ mimeType: block.mimeType ?? "image" }] : []));
+  return content
+    .filter((block) => block.type === "image")
+    .map((block, index) => ({ mimeType: block.mimeType ?? "image", entry, index, omitted }));
 }
