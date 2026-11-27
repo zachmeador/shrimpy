@@ -21,7 +21,7 @@ Daily use decides. The owner's last order was compaction and seeing the request 
 ## The contracts
 
 - The rest of the agent's operations, as members of `Agent` and `Session`, as daily use asks for them: withdraw, thinking level, defaults, context queries, completion against the agent's files, provider status and attachments.
-- Untried for real: an agent following its gateway within a major, or after a release that changes the Pi packages, the terminal's `/update`, and the page reloading itself, or offering a reload, in a browser. Following within a major needs an agent on a release that has it, so the first chance is a candidate of the next 2.x minor and its release.
+- Untried for real: an agent following its gateway within a major, or after a release that changes the Pi packages, the terminal's `/update`, and the page reloading itself, or offering a reload, in a browser. Following within a major needs an agent on a release that has it, so the first chance is the first 3.x release after 3.0.0.
 - For Pi's developers: will Chord raise its protocol version for every wire change, and from when? Until it does, a Pi release reaches every machine together.
 
 ## Identity and addressing

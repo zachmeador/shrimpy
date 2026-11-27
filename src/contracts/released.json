@@ -82,5 +82,47 @@
       "version": 1,
       "fingerprint": "05f4444fbcc02c06"
     }
+  },
+  "3.0.0": {
+    "shrimpy.gateway.roster": {
+      "version": 3,
+      "fingerprint": "bd3776d7db921188"
+    },
+    "shrimpy.gateway.notifications": {
+      "version": 2,
+      "fingerprint": "de0eff585fbb62ed"
+    },
+    "shrimpy.gateway.workspace-context": {
+      "version": 1,
+      "fingerprint": "268a9f56d089f5f7"
+    },
+    "shrimpy.chat": {
+      "version": 3,
+      "fingerprint": "be29bc5a8fec40d3"
+    },
+    "shrimpy.chat.channel": {
+      "version": 3,
+      "fingerprint": "712b00673f09363c"
+    },
+    "shrimpy.chat.thread": {
+      "version": 5,
+      "fingerprint": "355a0924657d3709"
+    },
+    "shrimpy.chat.presence": {
+      "version": 1,
+      "fingerprint": "fe3fc3c599630562"
+    },
+    "shrimpy.agent": {
+      "version": 4,
+      "fingerprint": "cb6329a527661420"
+    },
+    "shrimpy.agent.session": {
+      "version": 3,
+      "fingerprint": "8f50043dc399969a"
+    },
+    "shrimpy.agent.presence": {
+      "version": 1,
+      "fingerprint": "05f4444fbcc02c06"
+    }
   }
 }

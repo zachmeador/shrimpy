@@ -2,19 +2,20 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
-## Unreleased
+## 🦐 3.0.0 - Bottles Adrift - 2026-11-26
 
 - 3.0 doesn't link with 2.0: update the gateway's machine first, and agents on other machines that run from an install update themselves to its version.
 - Every agent session sits behind a thread, so every waking trigger file needs a `thread:` (a `then: note` check goes without). Add one when updating: a file without keeps running on its last valid definition and fails every time.
 - Agents now run with 10 tools: `read`, `write`, `edit`, `bash` (with optional `background: true`), `process`, `post`, `attach`, `thread`, `history`, and `trigger`.
 - Pictures and files go with messages, up to 25 MB a message: attach them in the page with the paperclip, a paste or a drop, and in the terminal with Ctrl+V or by dragging a file onto it. An agent saves each in `attachments/` in its home, sees a picture with its message when its model takes pictures, and sends files back with `attach`.
-- Agents can search and read pre-compaction session entries (messages, tool calls, and tool outputs) and chat history across readable rooms and DMs through `history`, and compacted sessions remind the agent that earlier history is searchable.
-- Sessions capture and serve per-request inspection (`Session.requests` and `Session.request`), and `shrimpy sessions requests` and `shrimpy sessions request` show them from the shell: raw entries, effective messages as sent after hooks, active sections with source revisions, offered tools, omissions and budgets, and effective model settings.
-- Admin agents can read, search, and add members to every channel on the gateway (read-only until they join), matching the person's visibility without waking on channels they aren't in.
-- Posting to another agent's DM watches for their reply automatically and wakes the calling thread when they settle.
-- Background commands, triggers, and agent answers leave non-unread wake lines in the thread. Running background commands, open watches, and upcoming triggers appear in one block above the input and on the agent's page.
-- `/stop` stops only the active turn and queued unhanded inputs, leaving background commands, watches, and triggers running. Use `/kill`, `/drop`, `/cancel`, `/pause`, and `/resume` (or the web buttons) to manage them.
+- Agents can search and read their sessions from before compaction, and every DM and room they can read, with `history`.
+- `shrimpy sessions requests` and `shrimpy sessions request` show what a session sent the model at each request: the messages, the tools offered and the model's settings.
+- An admin agent can read and search every DM and room on the gateway, as you can, and add members to them. It's woken only where it's a member.
+- An agent that posts to another agent's DM is woken in its own thread when that agent answers.
+- What wakes an agent in a thread, such as a background command ending, a trigger or another agent's answer, leaves a line there that doesn't count as unread. Running commands, the agents it's waiting on and upcoming triggers show in one block above the input and on the agent's page.
+- `/stop` stops the turn and what's queued behind it, and leaves background commands, triggers and waits for other agents alone. `/kill`, `/drop`, `/cancel`, `/pause` and `/resume`, or the page's buttons, manage those.
 - The chat server brings a store from 2.0.0 up to date when it starts, and keeps a copy of the old one beside it, in `chat/state/`.
+- An agent brings its storage from 2.0.0 up to date when it starts, and keeps a copy of the old one beside it.
 - The page installed on an iPhone's home screen reaches the bottom of the screen, where it left a strip under the composer.
 - An agent on another machine that runs from an install now installs its gateway's release by itself at every update.
 - In a room, a mistyped name before `/stop`, as in `@scuot /stop`, stops no agent, where it stopped them all, and the terminal and the page say that no one there has that name.
