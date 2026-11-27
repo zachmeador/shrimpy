@@ -258,7 +258,7 @@ export function stepLines(paint: Paint, prose: Prose, step: Step, width: number,
       const bar = paint.text("▏ ", "line2");
       const lines = [paint.text(`${step.label} ${step.when}`, "ink3"), ...indent(earlierLine(paint, step.earlier), 2)];
       if (step.text !== "") lines.push(...wrap(paint, step.text, width - 2, "ink2").map((line) => `${bar}${line}`));
-      for (const image of step.images) lines.push(`${bar}${paint.text(image, "ink3")}`);
+      for (const image of step.images) lines.push(`${bar}${paint.text(image.omitted ?? image.words, "ink3")}`);
       return lines;
     }
     case "marker":
@@ -287,7 +287,7 @@ export function stepLines(paint: Paint, prose: Prose, step: Step, width: number,
       for (const output of step.output) {
         lines.push(...indent(step.whole ? wrap(paint, output, width - 2, "ink3") : [oneOf(paint, [[output, "ink3"]], width - 2)], 2));
       }
-      for (const image of step.images) lines.push(...indent([paint.text(image, "ink3")], 2));
+      for (const image of step.images) lines.push(...indent([paint.text(image.omitted ?? image.words, "ink3")], 2));
       for (const note of step.notes) lines.push(...indent(wrap(paint, `· ${note}`, width - 2, "ink3"), 2));
       return lines;
     }

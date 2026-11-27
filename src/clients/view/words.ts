@@ -24,12 +24,14 @@ import {
   type Channel,
   channelLabel,
   DM_TAKES_NO_MORE,
+  MAX_ATTACHED_BYTES,
+  MAX_ATTACHMENTS,
   memberNames,
   roomLabel,
 } from "../../contracts/chat/index.ts";
 import { howToStartAgent, type Machine, NO_CHAT_SERVER, NO_GATEWAY, newerThanGateway } from "../../contracts/gateway/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
-import { listed, shellWord, upTo, withoutPeriod } from "../../lib/text/index.ts";
+import { listed, shellWord, sizeWords, upTo, withoutPeriod } from "../../lib/text/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME, SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import type { Problem, Why } from "../network/index.ts";
@@ -182,6 +184,12 @@ export function noticeText(notice: Notice, agentName: string, self: string): str
   switch (notice.kind) {
     case "not-sent":
       return `Not sent: ${because({ kind: "chat" }, notice.problem, self)}. Your message is still in the editor.`;
+    case "not-attached":
+      return notice.why === "big"
+        ? `Not attached: ${oneLine(notice.name)} is ${sizeWords(notice.size)}, and a message carries up to ${sizeWords(MAX_ATTACHED_BYTES)}.`
+        : `Not attached: ${oneLine(notice.name)}, since a message carries up to ${MAX_ATTACHMENTS} files.`;
+    case "files-with-command":
+      return "A command takes no files, so nothing was sent. Send the files in a message of their own.";
     case "not-opened":
       return `Could not open the thread: ${because({ kind: "chat" }, notice.problem, self)}.`;
     case "not-joined":
@@ -336,6 +344,9 @@ export const watchingWords = (where: string): string => `watching ${oneLine(wher
 export const sessionTitle = (who: string, watching: string): string => `${oneLine(who)} · ${watching}`;
 export const SESSION_EMPTY = "Nothing in this session yet.";
 export const SHOWN = "shown";
+
+/** What a model that takes no pictures was shown in place of one, as Pi words it. */
+export const PICTURE_OMITTED = "(image omitted: model does not support images)";
 export const behindThread = (place: string, title: string): string => `${place} · ${oneLine(title)}`;
 export const NOT_RUNNING = "not running";
 export const TURNED_AWAY = "turned away";

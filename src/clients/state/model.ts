@@ -319,7 +319,11 @@ export type Notice =
   /** `/cancel`, `/pause`, or `/resume` when several match, or the given target matched none of them. */
   | { kind: "many-triggers"; action: "cancel" | "pause" | "resume"; names: string[] }
   /** An action asked of an agent failed. */
-  | { kind: "action-failed"; what: "kill" | "drop" | "cancel" | "pause" | "resume" | "fire" | "stop"; agent: string; problem: Problem };
+  | { kind: "action-failed"; what: "kill" | "drop" | "cancel" | "pause" | "resume" | "fire" | "stop"; agent: string; problem: Problem }
+  /** A file was left out of what waits to be sent: it is too big for a message, or a message has as many files as it carries. */
+  | { kind: "not-attached"; name: string; size: number; why: "big" | "many" }
+  /** A command was written with files waiting to be sent: nothing was sent. */
+  | { kind: "files-with-command" };
 
 /** A live watch in `/status`, with whether the watched agent is currently linked. */
 export interface StatusWatch {

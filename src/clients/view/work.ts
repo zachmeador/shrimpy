@@ -1,10 +1,21 @@
-import { imageWords, markerWords, type ProcessOutput, type SessionItem, type ToolStatus, toolStatusWords } from "../../contracts/agent/index.ts";
+import { imageWords, markerWords, type ProcessOutput, type SessionImage, type SessionItem, type ToolStatus, toolStatusWords } from "../../contracts/agent/index.ts";
 import { oneLine, plain } from "../../lib/plain/index.ts";
 import type { AgentRead, SessionView } from "../state/index.ts";
 import { cutEnd } from "../../lib/text/index.ts";
 import { countLines, lastCharacters, lastLines, shortLine } from "./cut.ts";
 import { whenOf } from "./time.ts";
-import { answerNote, hiddenCharacters, hiddenLines, hiddenSteps, type InFull, moreCharacters, processOutputNote, SHOWN, THINKING } from "./words.ts";
+import {
+  answerNote,
+  hiddenCharacters,
+  hiddenLines,
+  hiddenSteps,
+  type InFull,
+  moreCharacters,
+  PICTURE_OMITTED,
+  processOutputNote,
+  SHOWN,
+  THINKING,
+} from "./words.ts";
 
 /** One thing the agent is doing or has done in the turn it is working on now, or, in a session being watched, one thing in it. */
 export type Step =
@@ -17,8 +28,8 @@ export type Step =
       text: string;
       /** How much of the start of it is left out, in words, when it was too long to show. */
       earlier: string | undefined;
-      /** Each image it was shown with, named. */
-      images: string[];
+      /** Each image it was shown with. */
+      images: ImageShown[];
     }
   | {
       kind: "thinking";
@@ -55,12 +66,30 @@ export type Step =
       output: string[];
       /** How much of the start of the output is left out, in words, when there was more. */
       earlier: string | undefined;
-      /** Each image the tool gave back, named. */
-      images: string[];
+      /** Each image the tool gave back. */
+      images: ImageShown[];
       notes: string[];
     }
   /** Where a session being watched was reset or compacted. */
   | { kind: "marker"; text: string };
+
+/**
+ * An image a session was shown, or a tool gave back: named by its kind, where
+ * the session keeps it, for a client that draws it, or null for one not stored
+ * yet, and Pi's line when the model that answered after it took no pictures and
+ * was shown that in its place.
+ */
+export interface ImageShown {
+  words: string;
+  at: { entry: number; index: number } | null;
+  omitted: string | undefined;
+}
+
+const imageShown = ({ mimeType, entry, index, omitted }: SessionImage): ImageShown => ({
+  words: imageWords(mimeType),
+  at: entry === null ? null : { entry, index },
+  omitted: omitted ? PICTURE_OMITTED : undefined,
+});
 
 /** The work in progress behind the open thread: what the agent is doing, not what was said. */
 export interface Work {
@@ -137,7 +166,7 @@ function stepsOf(item: SessionItem, shown: Shown, transcript: boolean): Step[] {
     case "user": {
       if (!transcript) return [];
       const { text, cut } = lastCharacters(item.text.trimEnd(), FULL_CHARACTERS);
-      const images = item.images.map((image) => imageWords(image.mimeType));
+      const images = item.images.map(imageShown);
       return [
         { kind: "shown", label: SHOWN, when: whenOf(item.at, shown.now), text: plain(text), earlier: cut > 0 ? hiddenCharacters(cut) : undefined, images },
       ];
@@ -193,7 +222,7 @@ function toolStep(item: Extract<SessionItem, { type: "tool" }>, whole: boolean, 
     status: toolStatusWords(item.status),
     output: lines.length === 1 && lines[0] === "" ? [] : lines,
     earlier,
-    images: item.images.map((image) => imageWords(image.mimeType)),
+    images: item.images.map(imageShown),
     notes: item.notes.map(oneLine),
   };
 }

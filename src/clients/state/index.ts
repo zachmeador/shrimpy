@@ -7,11 +7,13 @@
  * their threads and how many messages in each are new to the person; an agent's
  * sessions and triggers; everything an agent takes part in; the open thread and
  * the session behind it of each agent in it; what is linked; the person's
- * devices; and the things a person does. Everything it learns comes through the
+ * devices; and the things a person does, sending files and reading them back
+ * among them. Everything it learns comes through the
  * client's link, as objects it holds. It must not know how any of this is shown
  * or drawn, or what a key does.
  */
-export { type ClientState, createClientState } from "./client-state.ts";
+export { type ClientState, createClientState, type Fetched } from "./client-state.ts";
+export { notAttachable } from "./sending.ts";
 export {
   type AgentEntry,
   agentEntries,

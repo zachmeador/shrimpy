@@ -1,8 +1,8 @@
-import type { AgentModel } from "../../contracts/agent/index.ts";
-import { agentCommandIn, type Message } from "../../contracts/chat/index.ts";
+import type { AgentModel, SessionPicture } from "../../contracts/agent/index.ts";
+import { agentCommandIn, type Attachment, fetchFile, type FileToSend, type Message } from "../../contracts/chat/index.ts";
 import { type Answer, nameKey, valueOf } from "../../contracts/gateway/index.ts";
 import type { Backoff } from "../../lib/retry/index.ts";
-import { type AgentCalls, CONNECTING, type Dial, Down, keepGateway, problemOf } from "../network/index.ts";
+import { type AgentCalls, CONNECTING, type Dial, Down, keepGateway, type Problem, problemOf } from "../network/index.ts";
 import { createAsking } from "./asking.ts";
 import { readBack } from "./history.ts";
 import { createHoldings } from "./holdings.ts";
@@ -35,6 +35,9 @@ import { createSending } from "./sending.ts";
 import { createStore } from "./store.ts";
 import { worked } from "./worked.ts";
 import { writtenInOpen } from "./written.ts";
+
+/** What was read, or why it wasn't. */
+export type Fetched<T> = { value: T } | { problem: Problem };
 
 export interface ClientStateOptions {
   /** How to dial the gateway, which the client hands it: from Node, at its own socket on this machine or at its entry. */
@@ -91,10 +94,14 @@ export interface ClientState {
   /** Join the room the open thread is in, which the person only reads. */
   joinRoom(): Promise<void>;
 
-  /** Act on what the person wrote in the open thread. */
-  write(text: string): Promise<boolean>;
-  /** Say something in the open thread, or in a new one, and say whether it was sent. */
-  send(text: string): Promise<boolean>;
+  /** Act on what the person wrote in the open thread, with the files that wait to be sent with it. A command takes none. */
+  write(text: string, files?: readonly FileToSend[]): Promise<boolean>;
+  /** Say something in the open thread, or in a new one, with `files`, and say whether it was sent. */
+  send(text: string, files?: readonly FileToSend[]): Promise<boolean>;
+  /** The bytes of a file that came with a message, or why chat didn't give them. */
+  fetchFile(attachment: Attachment): Promise<Fetched<Uint8Array>>;
+  /** An image the session behind the open thread of the agent `agent` names, as the model was shown it, or why the agent didn't give it. */
+  sessionImage(agent: string, entry: number, index: number): Promise<Fetched<SessionPicture>>;
   /** Name the open thread what `typed` says. */
   rename(typed: string): Promise<void>;
   /** Archive the open thread, or bring it back. */
@@ -417,10 +424,14 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
         store.say({ kind: "not-joined", problem: problemOf(error) });
       }
     },
-    async write(text) {
+    async write(text, files = []) {
       const model = store.model();
       const threadId = model.open.item?.thread;
       const written = writtenInOpen(model, text, options.update !== undefined);
+      if (files.length > 0 && written.do !== "post") {
+        store.say({ kind: "files-with-command" });
+        return false;
+      }
       switch (written.do) {
         case "status":
           asking.readStatus();
@@ -529,7 +540,7 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
             isStop &&
             threadId !== undefined &&
             ((openThreadOf(model)?.working.length ?? 0) > 0 || Object.values(model.behind).some((view) => view.reached && view.status.busy));
-          const sent = await sending.send(text);
+          const sent = await sending.send(text, files);
           if (sent && isStop && threadId !== undefined) {
             const nowModel = store.model();
             const procs = processesIn(nowModel, threadId).length;
@@ -543,7 +554,26 @@ export async function createClientState(options: ClientStateOptions): Promise<Cl
         }
       }
     },
-    send: (text) => sending.send(text),
+    send: (text, files) => sending.send(text, files),
+    async fetchFile(attachment) {
+      try {
+        const bytes = await fetchFile(attachment.size, async (offset, length) =>
+          valueOf(await held.chat.calls.download(attachment.id, offset, length, AbortSignal.timeout(options.sendMs ?? SEND_MS))),
+        );
+        return { value: bytes };
+      } catch (error) {
+        return { problem: problemOf(error) };
+      }
+    },
+    async sessionImage(agent, entry, index) {
+      const session = held.sessions().get(agent);
+      try {
+        if (session === undefined) throw new Down({ kind: "not-linked" });
+        return { value: valueOf(await session.held.calls.image(entry, index, AbortSignal.timeout(options.sendMs ?? SEND_MS))) };
+      } catch (error) {
+        return { problem: problemOf(error) };
+      }
+    },
     rename: (typed) => renaming.rename(typed),
     archive: (archived) => renaming.archive(archived),
     note: (notice) => store.say(notice),

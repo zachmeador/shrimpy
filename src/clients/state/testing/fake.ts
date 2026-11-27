@@ -40,13 +40,21 @@ export function fakeState(initial: Model): FakeState {
       calls.push("join");
       return Promise.resolve();
     },
-    write(text) {
-      calls.push(`write ${text}`);
+    write(text, files = []) {
+      calls.push(`write ${text}${files.map((file) => ` [${file.name}]`).join("")}`);
       return Promise.resolve(answers.write);
     },
-    send(text) {
-      calls.push(`send ${text}`);
+    send(text, files = []) {
+      calls.push(`send ${text}${files.map((file) => ` [${file.name}]`).join("")}`);
       return Promise.resolve(answers.send);
+    },
+    fetchFile(attachment) {
+      calls.push(`fetch ${attachment.name}`);
+      return Promise.resolve({ problem: { said: "A fake fetches nothing." } });
+    },
+    sessionImage(agent, entry, index) {
+      calls.push(`session image ${agent} ${String(entry)} ${String(index)}`);
+      return Promise.resolve({ problem: { said: "A fake fetches nothing." } });
     },
     rename(typed) {
       calls.push(`rename ${typed}`);

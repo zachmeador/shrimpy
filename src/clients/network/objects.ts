@@ -13,12 +13,13 @@ import {
   type ProcessSummary,
   Session,
   type SessionPage,
+  type SessionPicture,
   type SessionStatus,
   type SessionSummary,
   type TriggerSummary,
   type WatchSummary,
 } from "../../contracts/agent/index.ts";
-import { Channel, Chat, type Member, type Message, Thread } from "../../contracts/chat/index.ts";
+import { Channel, Chat, type Member, type Message, Thread, type Upload } from "../../contracts/chat/index.ts";
 import {
   type Answer,
   contextOf,
@@ -125,8 +126,14 @@ export interface ChatCalls {
   createThread(channel: string, name: string | null, signal?: AbortSignal): Promise<Answer<Thread>>;
   /** Adds members of the roster to a room, by their member IDs, answering with the room as it now stands. */
   addMembers(channel: string, members: string[], signal?: AbortSignal): Promise<Answer<Channel>>;
-  /** Post a message in a thread. A request ID's first use wins. */
-  post(thread: string, text: string, request: string, signal?: AbortSignal): Promise<Answer<Message>>;
+  /** Post a message in a thread, with the person's finished uploads as its files. A request ID's first use wins. */
+  post(thread: string, text: string, request: string, signal?: AbortSignal, attachments?: readonly string[]): Promise<Answer<Message>>;
+  /** Start an upload of a file, or find the one this request ID started, with how much of it chat has. */
+  upload(file: { name: string; mediaType: string; size: number }, request: string, signal?: AbortSignal): Promise<Answer<Upload>>;
+  /** Send a piece of an upload from `offset`, answering with how much of it chat has. */
+  uploadPiece(attachment: string, offset: number, data: Uint8Array, signal?: AbortSignal): Promise<Answer<number>>;
+  /** Up to `length` bytes of a file that came with a message, from `offset`. */
+  download(attachment: string, offset: number, length: number, signal?: AbortSignal): Promise<Answer<Uint8Array>>;
   /** Move the person's read mark in a message's thread up to that message. A mark only moves forward. */
   markRead(message: string, signal?: AbortSignal): Promise<Answer<null>>;
   /** Name a thread, as decided on its revision `revision`. */
@@ -145,7 +152,11 @@ export function holdChat(link: GatewayLink, changed: () => void): Holding<ChatSh
       openDm: (member, signal) => held.openDm({ member }, contextOf(signal)),
       createThread: (channel, name, signal) => held.createThread({ channel, name }, contextOf(signal)),
       addMembers: (channel, members, signal) => held.addMembers({ channel, members }, contextOf(signal)),
-      post: (thread, text, request, signal) => held.post({ thread, text, request }, contextOf(signal)),
+      post: (thread, text, request, signal, attachments = []) =>
+        held.post({ thread, text, request, ...(attachments.length === 0 ? {} : { attachments: [...attachments] }) }, contextOf(signal)),
+      upload: (file, request, signal) => held.upload({ ...file, request }, contextOf(signal)),
+      uploadPiece: (attachment, offset, data, signal) => held.uploadPiece({ attachment, offset, data }, contextOf(signal)),
+      download: (attachment, offset, length, signal) => held.download({ attachment, offset, length }, contextOf(signal)),
       markRead: (message, signal) => held.markRead({ message }, contextOf(signal)),
       rename: (thread, name, revision, signal) => held.rename({ thread, name, revision }, contextOf(signal)),
       archive: (thread, archived, revision, signal) => held.archive({ thread, archived, revision }, contextOf(signal)),
@@ -273,6 +284,8 @@ export interface SessionCalls {
   read(before: number, limit: number, signal?: AbortSignal): Promise<Answer<SessionPage>>;
   /** Stop the running turn and queued unhanded inputs in this session. */
   stop(signal?: AbortSignal): Promise<Answer<null>>;
+  /** An image an item of the session names, as the model was shown it. */
+  image(entry: number, index: number, signal?: AbortSignal): Promise<Answer<SessionPicture>>;
 }
 
 export function holdSession(link: GatewayLink, agentId: string, session: string, changed: () => void): Holding<SessionShown, SessionCalls> {
@@ -284,6 +297,7 @@ export function holdSession(link: GatewayLink, agentId: string, session: string,
     {
       read: (before, limit, signal) => held.read({ before, limit }, contextOf(signal)),
       stop: (signal) => held.stop(contextOf(signal)),
+      image: (entry, index, signal) => held.image({ entry, index }, contextOf(signal)),
     },
     changed,
   );

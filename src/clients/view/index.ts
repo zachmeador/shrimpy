@@ -41,6 +41,7 @@ export {
 export { sessionLevel, type SessionLevel, type SessionOptions, type Side } from "./session.ts";
 export {
   type AgentWork,
+  type FileRow,
   type Mention,
   type MessageRow,
   type ReverseWatch,
@@ -55,7 +56,7 @@ export {
   type WakeRow,
   withMentions,
 } from "./thread.ts";
-export type { Step, Work } from "./work.ts";
+export type { ImageShown, Step, Work } from "./work.ts";
 export {
   AGENT_TABS,
   type AgentTab,

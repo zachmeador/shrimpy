@@ -115,6 +115,26 @@ test("saying something posts it as the person, and a new thread is made with its
   await rig.until((each) => each.dms[scout.id]?.threads.some((one) => one.preview === "a fresh topic") === true, "the thread to be listed");
 });
 
+test("a message goes with the person's files, which read back from chat, and a command takes none", { timeout }, async (t) => {
+  const rig = await startRig(t);
+  const thread = await rig.thread("scout", "first");
+  await rig.until(listOpen, "the agent's list");
+  rig.state.openThread(thread.id);
+  await rig.until((model) => textsOf(model).length === 1, "the thread's view");
+
+  const notes = { name: "notes.txt", mediaType: "text/plain", bytes: new TextEncoder().encode("the tide is out") };
+  assert.equal(await rig.state.write("/status", [notes]), false);
+  assert.equal(rig.state.model().notice?.kind, "files-with-command");
+  assert.equal(await rig.state.write("", [notes]), true);
+  const model = await rig.until((each) => (each.thread?.messages.length ?? 0) === 2, "the message with its file");
+  const [file] = model.thread?.messages[1]?.attachments ?? [];
+  assert.deepEqual([file?.name, file?.mediaType, file?.size], ["notes.txt", "text/plain", 15]);
+  assert.ok(file !== undefined);
+  const fetched = await rig.state.fetchFile(file);
+  assert.ok("value" in fetched);
+  assert.equal(new TextDecoder().decode(fetched.value), "the tide is out");
+});
+
 test("a text that starts with a slash is never posted as a message, and a command for the client is acted on and posted nowhere", { timeout }, async (t) => {
   const rig = await startRig(t);
   const thread = await rig.thread("scout", "first");

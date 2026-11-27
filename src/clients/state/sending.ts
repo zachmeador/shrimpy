@@ -1,7 +1,8 @@
+import { type FileToSend, MAX_ATTACHED_BYTES, MAX_ATTACHMENTS, sendFile } from "../../contracts/chat/index.ts";
 import { valueOf } from "../../contracts/gateway/index.ts";
 import { Down, type Problem, problemOf } from "../network/index.ts";
 import type { Holdings } from "./holdings.ts";
-import { type AgentEntry, agentEntries, type Model, type Place, placeKey } from "./model.ts";
+import { type AgentEntry, agentEntries, type Model, type Notice, type Place, placeKey } from "./model.ts";
 import type { Moves } from "./moves.ts";
 import type { Store } from "./store.ts";
 
@@ -9,8 +10,12 @@ import type { Store } from "./store.ts";
 export interface Sending {
   /** Start a thread in `place`, or with the agent or in the room whose list is open. It comes to be with its first message. */
   startThread(place: Place | undefined): void;
-  /** Say something in the open thread, or in a new one, and say whether it was sent. The person's draft is theirs to put back when it was not. */
-  send(text: string): Promise<boolean>;
+  /**
+   * Say something in the open thread, or in a new one, with `files`, and say
+   * whether it was sent. The person's draft is theirs to put back when it was
+   * not. Sending the same again sends only what chat lacks of the files.
+   */
+  send(text: string, files?: readonly FileToSend[]): Promise<boolean>;
 }
 
 /** What went wrong with a change asked of chat: `error`, or that chat did not answer before `answered` ran out. */
@@ -33,7 +38,7 @@ export function createSending(store: Store, held: Holdings, moves: Moves, sendMs
   // The thread a person started and could not send a first message in, so that trying again does not make another.
   let started: { place: string; threadId: string } | undefined;
   // The message being sent, so that sending the same again after a failure is the same message.
-  let pending: { threadId: string; text: string; requestId: string } | undefined;
+  let pending: { threadId: string; text: string; requestId: string; files: readonly FileToSend[]; uploads: string[] } | undefined;
   // Which new thread is open, so that a first message that arrives late does not open it over something else.
   let newThreads = 0;
 
@@ -68,7 +73,7 @@ export function createSending(store: Store, held: Holdings, moves: Moves, sendMs
       started = undefined;
       moves.start(place);
     },
-    async send(text) {
+    async send(text, files = []) {
       const { item } = store.model().open;
       if (item === undefined) return false;
       const { place } = item;
@@ -76,14 +81,23 @@ export function createSending(store: Store, held: Holdings, moves: Moves, sendMs
       if (place.kind === "read-only") return false;
       const newThread = newThreads;
       // A chat server that has stopped answering must not leave the message in limbo. Sending it again is safe either way.
-      const answered = AbortSignal.timeout(sendMs);
+      let answered = AbortSignal.timeout(sendMs);
+      const call = (): AbortSignal => (answered = AbortSignal.timeout(sendMs));
       try {
         const { chat } = store.model();
         if (chat.state === "down") throw new Down(chat.why);
         const threadId = await threadIn(place, item.thread, answered);
-        const requestId = pending?.threadId === threadId && pending.text === text ? pending.requestId : crypto.randomUUID();
-        pending = { threadId, text, requestId };
-        valueOf(await held.chat.calls.post(threadId, text, requestId, answered));
+        const same = pending?.threadId === threadId && pending.text === text && sameFiles(pending.files, files);
+        const message = same && pending !== undefined ? pending : { threadId, text, requestId: crypto.randomUUID(), files, uploads: files.map(() => crypto.randomUUID()) };
+        pending = message;
+        const sender = {
+          upload: async (file: { name: string; mediaType: string; size: number }, request: string) => valueOf(await held.chat.calls.upload(file, request, call())),
+          uploadPiece: async (attachment: string, offset: number, data: Uint8Array) =>
+            valueOf(await held.chat.calls.uploadPiece(attachment, offset, data, call())),
+        };
+        const attachments: string[] = [];
+        for (const [index, file] of files.entries()) attachments.push(await sendFile(sender, file, message.uploads[index] ?? crypto.randomUUID()));
+        valueOf(await held.chat.calls.post(threadId, text, message.requestId, call(), attachments));
         pending = undefined;
         // A message that is sent ends what `/status` read.
         store.endStatus();
@@ -98,4 +112,19 @@ export function createSending(store: Store, held: Holdings, moves: Moves, sendMs
       }
     },
   };
+}
+
+/** Whether two sets of files are the same ones, in the same order, as a person sending again sends them. */
+const sameFiles = (a: readonly FileToSend[], b: readonly FileToSend[]): boolean =>
+  a.length === b.length && a.every((file, index) => file === b[index]);
+
+/**
+ * Why `file` can't join the files that wait to be sent, `waiting`, or undefined
+ * when it can: a message carries `MAX_ATTACHMENTS` files and `MAX_ATTACHED_BYTES`
+ * of them at most.
+ */
+export function notAttachable(waiting: readonly { size: number }[], file: { name: string; size: number }): Notice | undefined {
+  if (waiting.length >= MAX_ATTACHMENTS) return { kind: "not-attached", name: file.name, size: file.size, why: "many" };
+  const total = waiting.reduce((sum, each) => sum + each.size, file.size);
+  return total > MAX_ATTACHED_BYTES ? { kind: "not-attached", name: file.name, size: file.size, why: "big" } : undefined;
 }

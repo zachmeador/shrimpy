@@ -3,6 +3,8 @@ import {
   agentCommandIn,
   answerWakeWords,
   ARCHIVED,
+  type Attachment,
+  isPicture,
   type Member,
   type Message,
   mentionsOf,
@@ -14,6 +16,7 @@ import {
   type WakeLine,
 } from "../../contracts/chat/index.ts";
 import { oneLine, plain } from "../../lib/plain/index.ts";
+import { sizeWords } from "../../lib/text/index.ts";
 import {
   agentNameOf,
   agentOfList,
@@ -96,7 +99,20 @@ export interface MessageRow {
   reactions: { emoji: string; by: string }[];
   receipts: { words: string; failed: boolean }[];
   firstNew: boolean;
+  /** The pictures that came with it, which a client shows, in the order they were sent. */
+  pictures: FileRow[];
+  /** The other files that came with it, each its name and size. */
+  files: FileRow[];
 }
+
+/** A file that came with a message: what chat has of it, to fetch it by, and its name and size as a person reads them. */
+export interface FileRow {
+  attachment: Attachment;
+  name: string;
+  size: string;
+}
+
+const fileRow = (attachment: Attachment): FileRow => ({ attachment, name: oneLine(attachment.name), size: sizeWords(attachment.size) });
 
 export interface Mention {
   name: string;
@@ -432,6 +448,8 @@ function messageRow(message: Message, context: RowContext, now: number): Message
     reactions: message.reactions.map((reaction) => ({ emoji: oneLine(reaction.emoji), by: reactedBy(reaction.memberIds.map(names)) })),
     receipts: receiptsOf(message, names),
     firstNew: message.id === firstNew,
+    pictures: message.attachments.filter(isPicture).map(fileRow),
+    files: message.attachments.filter((attachment) => !isPicture(attachment)).map(fileRow),
   };
 }
 
@@ -448,6 +466,8 @@ function wakeRow(message: Message, line: WakeLine, { model, names, firstNew }: R
     reactions: [],
     receipts: receiptsOf(message, names),
     firstNew: message.id === firstNew,
+    pictures: [],
+    files: [],
   };
   switch (line.kind) {
     case "trigger": {
