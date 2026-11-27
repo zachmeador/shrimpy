@@ -2,7 +2,7 @@
 export const SHRIMPY_VERSION = "3.1.0-dev";
 
 /** The name of the public release this code leads up to, shown beside the version on the terminal's first screen. It changes with each public release, and `AGENTS.md` has the rule for the name. */
-export const SHRIMPY_RELEASE_NAME = "Bottles Adrift";
+export const SHRIMPY_RELEASE_NAME = "A Rising Tide";
 
 /**
  * The Pi packages this code runs, each at its exact version. Chord's wire has

@@ -2,7 +2,7 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
-## 🦐 3.0.0 - Bottles Adrift - 2026-11-26
+## 🦐 3.0.0 - A Rising Tide - 2026-11-26
 
 - 3.0 doesn't link with 2.0: update the gateway's machine first, and agents on other machines that run from an install update themselves to its version.
 - Every agent session sits behind a thread, so every waking trigger file needs a `thread:` (a `then: note` check goes without). Add one when updating: a file without keeps running on its last valid definition and fails every time.
