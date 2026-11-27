@@ -33,3 +33,8 @@ export function mediaTypeOf(name: string): string {
   const found = dot <= 0 ? undefined : TYPES[name.slice(dot + 1).toLowerCase()];
   return found ?? "application/octet-stream";
 }
+
+/** The extension a file of `mediaType` is most often named with, or undefined for a media type Shrimpy knows no extension of. */
+export function extensionOf(mediaType: string): string | undefined {
+  return Object.keys(TYPES).find((extension) => TYPES[extension] === mediaType);
+}

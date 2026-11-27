@@ -5,7 +5,9 @@
  * and what a key does, and the only one that names a key. What is shown comes
  * from the views the clients share, as plain text and facts, in the colors of
  * the look they share, and nothing here trusts a string from another member.
- * It must not reach the network or decide what the console knows.
+ * It reads the clipboard and the files a person attaches on the machine the
+ * terminal runs on, and opens what came with a message in that machine's own
+ * viewer. It must not reach the network or decide what the console knows.
  */
 export { type Screen } from "./screen.ts";
 export { type ConsoleTerminal, type Drawing, startDrawing } from "./ui.ts";

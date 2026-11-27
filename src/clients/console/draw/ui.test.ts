@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { hostname } from "node:os";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { hostname, tmpdir } from "node:os";
+import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { setCapabilityOverrides, stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
@@ -8,6 +10,7 @@ import { Roster } from "../../../contracts/gateway/index.ts";
 import { connectClient, newToken, sayHello } from "../../../contracts/gateway/node.ts";
 import { startTestGateway } from "../../../contracts/gateway/testing/index.ts";
 import { eventually, FakeTerminal, stopAfter, until, within } from "../../../lib/testing/index.ts";
+import { sizeWords } from "../../../lib/text/index.ts";
 import { localTime } from "../../../lib/time/index.ts";
 import { SHRIMPY_RELEASE_NAME } from "../../../lib/version/index.ts";
 import { processOutputKey, type Model, type Notice, type Place, type Status } from "../../state/index.ts";
@@ -847,6 +850,62 @@ test("an image a session was shown, or a tool gave back, is named by its media t
   const { drawn } = start(t, model, { columns: 100 });
 
   assert.ok(drawn().includes("image/png") && drawn().includes("image/jpeg"), drawn());
+});
+
+function dragged(t: TestContext, name: string, text: string): string {
+  const folder = mkdtempSync(join(tmpdir(), "shrimpy-console-"));
+  t.after(() => rmSync(folder, { recursive: true, force: true }));
+  const path = join(folder, name);
+  writeFileSync(path, text);
+  return `\u001b[200~${path.replaceAll(" ", "\\ ")}\u001b[201~`;
+}
+
+test("a dragged file is one piece of what is typed, which the arrows step over, and sent it goes with the message and leaves the words", async (t) => {
+  const { terminal, state, lines } = start(t, conversation());
+  terminal.type("ab");
+  terminal.type(dragged(t, "tide notes.txt", "the tide is out"));
+  assert.ok(lines().some((line) => line.includes("▤ tide notes.txt")), lines().join("\n"));
+
+  terminal.type(LEFT);
+  terminal.type(LEFT);
+  terminal.type(BACKSPACE);
+  terminal.type("c");
+  terminal.type(ENTER);
+  await until(() => state.calls.includes("write abc [tide notes.txt]"), "the message with its file");
+  assert.ok(!lines().some((line) => line.includes("tide notes.txt")), "the input is empty again");
+});
+
+test("Right steps over a piece too, Backspace takes it out, and its file doesn't go", async (t) => {
+  const { terminal, state, lines } = start(t, conversation());
+  terminal.type(dragged(t, "notes.txt", "the tide is out"));
+  terminal.type(LEFT);
+  terminal.type(LEFT);
+  terminal.type(RIGHT);
+  terminal.type(BACKSPACE);
+  assert.ok(!lines().some((line) => line.includes("notes.txt")), lines().join("\n"));
+  terminal.type("hi");
+  terminal.type(ENTER);
+  await until(() => state.calls.includes("write hi"), "the message alone");
+});
+
+test("a message's pictures and then its files are lines with their names and sizes where the terminal draws no pictures, and a click opens one", (t) => {
+  const board = { id: "att_1", name: "board.png", mediaType: "image/png", size: 182_000, width: 400, height: 300 };
+  const sheet = { id: "att_2", name: "datasheet.pdf", mediaType: "application/pdf", size: 1_200_000, width: null, height: null };
+  const model = onThread(
+    "scout",
+    open,
+    aThreadView(open, [aMessage("msg_1", zach, "this one", { sentAt: at(14, 5), attachments: [sheet, board] })]),
+  );
+  const { terminal, state, lines } = start(t, model, { columns: 100 });
+  setCapabilityOverrides({ hyperlinks: false, images: null });
+
+  const pictureRow = lines().findIndex((line) => new RegExp(`▣ board\\.png\\s+${sizeWords(board.size)}`).test(line));
+  const fileRow = lines().findIndex((line) => new RegExp(`▤ datasheet\\.pdf\\s+${sizeWords(sheet.size)}`).test(line));
+  assert.ok(pictureRow !== -1 && fileRow === pictureRow + 1, lines().join("\n"));
+  assert.ok(lines().findIndex((line) => line.includes("this one")) < pictureRow, "the words come first");
+
+  for (const each of click(lines()[fileRow]!.indexOf("datasheet"), fileRow)) terminal.type(each);
+  assert.equal(state.calls.at(-1), "fetch datasheet.pdf");
 });
 
 test("an agent's name opens its page, whose home the arrows walk, and Left goes back to the page, then to the list", (t) => {

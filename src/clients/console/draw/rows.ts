@@ -24,6 +24,9 @@ export const noteRuns = (text: string): Run[] => saidRuns(text, role("caution"),
 /** The lantern of a working agent: its light, which dims between two pulses. */
 export const lamp = (tick: number): Tone => (Math.floor(tick / 3) % 3 === 2 ? "ember" : role("busy", true));
 
+export const PICTURE_MARK = "▣";
+export const FILE_MARK = "▤";
+
 /** A line of a pane, not laid on its ground yet: the ground it is laid on when not the pane's, what a click on it does, and the key of the row it is part of. */
 export interface Line {
   text: string;

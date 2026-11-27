@@ -1,11 +1,12 @@
-import { type Component, type Editor, stripTerminalSequences, type TuiMouseEvent, type TuiMouseEventResult, visibleWidth } from "@earendil-works/pi-tui";
+import { type Component, stripTerminalSequences, type TuiMouseEvent, type TuiMouseEventResult, visibleWidth } from "@earendil-works/pi-tui";
 import { halves, SHRIMP } from "../../look/index.ts";
-import { moreListed, OUT_OF_DATE_MARK } from "../../view/index.ts";
+import { moreListed, OUT_OF_DATE_MARK, type SessionLevel } from "../../view/index.ts";
 import { cutRuns, type Ground, role, type Run, runsWidth, type Tone } from "./paint.ts";
 import { fileLines, pageHead, type PageLine, pageLines } from "./page.ts";
+import type { PieceEditor } from "./pieces.ts";
 import { hint, lamp, noteRuns, saidRuns, spread } from "./rows.ts";
 import { type Frame, MEASURE, notesFor, pageShown, type PageTarget, sides, writable } from "./screen.ts";
-import { messageLines, type Prose, sessionLines, type ThreadLine, workLines, wrap } from "./steps.ts";
+import { type FileDrawing, type ImageDrawing, messageLines, type Prose, sessionLines, type ThreadLine, workLines, wrap } from "./steps.ts";
 import { turnHint } from "./words.ts";
 
 /** The shrimp that walks while an agent works, one frame after another. */
@@ -93,6 +94,8 @@ export class ThreadHeader implements Component {
 export interface ConversationActions {
   openTarget: (target: PageTarget) => void;
   jump: (agent: string, threadId: string) => void;
+  files: FileDrawing;
+  images: (session: SessionLevel) => ImageDrawing;
 }
 
 /**
@@ -129,19 +132,19 @@ export class Conversation implements Component {
 
   /** What is said, as lines that are not laid on a ground, for the thread printed back on leaving. */
   said(width: number): string[] {
-    return this.#saidLines(width).map((line) => line.text);
+    return this.#said(width, false).map((line) => line.text);
   }
 
   #saidLines(width: number): ThreadLine[] {
     const { levels, paint } = this.#frame;
     const kept = this.#kept;
     if (kept?.levels === levels && kept.paint === paint && kept.width === width) return [...kept.lines];
-    const lines = this.#said(width);
+    const lines = this.#said(width, true);
     this.#kept = { levels, paint, width, lines };
     return [...lines];
   }
 
-  #said(width: number): ThreadLine[] {
+  #said(width: number, pictures: boolean): ThreadLine[] {
     const frame = this.#frame;
     const { paint, levels, model, inFull } = frame;
     const mx = measure(width);
@@ -151,10 +154,11 @@ export class Conversation implements Component {
     const lead = session?.lead ?? thread?.lead;
     if (lead !== undefined) lines.push({ text: "" }, ...wrap(paint, saidRuns(lead, "ink3", role("code")), mx).map((text) => ({ text })));
     if (session !== undefined) {
-      lines.push(...sessionLines(paint, this.#prose, session.steps, mx, inFull).map((text) => ({ text })));
+      lines.push(...sessionLines(paint, this.#prose, session.steps, mx, inFull, pictures ? this.#actions.images(session) : undefined));
     } else if (thread !== undefined) {
+      const files = pictures ? this.#actions.files : undefined;
       thread.messages.forEach((message, at) => {
-        lines.push(...messageLines(paint, this.#prose, message, mx, { inFull, previous: thread.messages[at - 1], jump: this.#actions.jump }));
+        lines.push(...messageLines(paint, this.#prose, message, mx, { inFull, previous: thread.messages[at - 1], jump: this.#actions.jump, files }));
       });
       const dm = model.open.item?.place.kind === "agent";
       lines.push(...workLines(paint, this.#prose, thread.works, thread.works.length > 1 || !dm, mx, inFull).map((text) => ({ text })));
@@ -359,11 +363,11 @@ export class Dock implements Component {
  */
 export class Input implements Component {
   readonly #frame: Frame;
-  readonly #editor: Editor;
+  readonly #editor: PieceEditor;
   readonly #focus: () => void;
   readonly #cursor: { start: string; end: string };
 
-  constructor(frame: Frame, editor: Editor, focus: () => void, cursor: { start: string; end: string }) {
+  constructor(frame: Frame, editor: PieceEditor, focus: () => void, cursor: { start: string; end: string }) {
     this.#frame = frame;
     this.#editor = editor;
     this.#focus = focus;
@@ -380,7 +384,7 @@ export class Input implements Component {
     const lines = this.#editor.render(measure(width));
     const shown = this.#editor.focused ? lines : lines.map((line) => line.replaceAll(start, "").replaceAll(end, ""));
     const on = threadGround(frame);
-    return shown.map((line) => frame.paint.lay(` ${line}`, width, on));
+    return shown.map((line) => frame.paint.lay(` ${this.#editor.drawn(line, frame.paint, this.#cursor)}`, width, on));
   }
 
   handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {

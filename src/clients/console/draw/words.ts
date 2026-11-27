@@ -80,6 +80,7 @@ export const ALL_KEYS: readonly (readonly [group: string, keys: readonly Hint[]]
       ["←", "through what is typed, then back"],
       ["esc", "back, whatever is typed"],
       ["/", "commands, and esc closes their list"],
+      ["ctrl+v", "attach the picture or files on the clipboard, or paste its text"],
       ["ctrl+o", "tool calls and output in full, and back"],
       ["ctrl+t", "thinking in full, and back to brief"],
       ["pgup pgdn", "scroll, as the wheel does"],

@@ -323,7 +323,9 @@ export type Notice =
   /** A file was left out of what waits to be sent: it is too big for a message, or a message has as many files as it carries. */
   | { kind: "not-attached"; name: string; size: number; why: "big" | "many" }
   /** A command was written with files waiting to be sent: nothing was sent. */
-  | { kind: "files-with-command" };
+  | { kind: "files-with-command" }
+  | { kind: "not-fetched"; name: string | undefined; agent: string | undefined; problem: Problem }
+  | { kind: "no-clipboard" };
 
 /** A live watch in `/status`, with whether the watched agent is currently linked. */
 export interface StatusWatch {

@@ -6,6 +6,7 @@ The important open questions and issues, grouped by piece, with what waits on th
 
 - Files copied into the owner's homes from the read-only archive kept read-only modes, in two homes, a `vault/.git` among them. Agents hit `EACCES` and worked around it with `chmod`. Making them writable is a one-time change to the owner's data, and should touch only what came from the archive, since some agents make their own files read-only on purpose.
 - How the agent's tools are named and how they feel, which the owner wanted to try once the core was there. The questions are under Early thinking in this file at `c041ebda`. `attach`, which sends files with a reply, came after them and is one to try with them.
+- A click on a file in the terminal writes it to the temporary folder and opens it with `open` or `xdg-open`, as decided. On macOS that runs a `.command` file, so a file an agent sends can run with one click. Whether a click should open only some kinds of file, or show the file in Finder instead, is the owner's call.
 
 ## Next
 
@@ -30,7 +31,7 @@ Daily use decides. The owner's last order was compaction and seeing the request 
 ## The conversation model
 
 - Hearing a thread while working in it: a message that wakes nobody, in a thread where the agent's session is busy, is written into that session as an entry of Shrimpy's own kind that starts no turn, up to 20,000 characters a turn, and what every agent is told gains two sentences on it. A demo decides whether it stays: three agents in a room on a LAN model, asked the same thing with nothing, with one sentence telling them to read the thread first, and with hearing.
-- Attachments fall short of the [web mockup](web-client-mockup.html) in two places: the agent's view doesn't show the files an agent's own reply carried, under its words, and pictures among what was said since an agent last looked are named to the model, not shown. The shell lists a message's files and fetches none. Untried: an upload carried on after a dropped link, the picker and a paste on a real phone, and a file to or from an agent apart.
+- Attachments fall short of both mockups, the [web client's](web-client-mockup.html) and the [terminal's](terminal-mockup.html), in two places: the agent's view doesn't show the files an agent's own reply carried, under its words, and pictures among what was said since an agent last looked are named to the model, not shown. The shell lists a message's files and fetches none. Untried: an upload carried on after a dropped link, the picker and a paste on a real phone, and a file to or from an agent apart.
 - Setting pins, from the clients and by agents. Chat keeps a channel's pins and the clients show them, but how the clients set one isn't drawn.
 - `shrimpy threads` with no argument refuses instead of listing an agent's or person's recent threads across channels.
 
@@ -64,7 +65,9 @@ Daily use decides. The owner's last order was compaction and seeing the request 
 - Signing in and out from the terminal, as a `/` command, and seeing what a folder is signed in to. Today an entry leaves `providers/auth.json` by hand.
 - Posting to a room from the shell, and deleting a room.
 - Memory notes in an agent's own voice, with memory breadcrumbs and a search index behind them.
-- In the terminal: multiline input, recovering a draft, and pasting clipboard text.
+- In the terminal: multiline input and recovering a draft.
+- The terminal draws a picture only where the terminal speaks Kitty's protocol, and only a PNG. pi-tui's whole screen shows iTerm2's pictures as text, since it can't take one away when it draws the screen again, and Kitty takes any other kind only through a converter, which the terminal lacks: Pi's Photon comes with Pi's durable runtime, which only the agent imports. Several pictures of one message stand one under another, where the mockup has them side by side, since pi-tui crops only the first picture on a line at a pane's edge.
+- On Linux, the terminal's Ctrl+V reads the clipboard only under X11, as pi-tui does. Pi's own Ctrl+V falls back to `wl-paste` under Wayland.
 - Paging back through a long thread or session, in both clients. The terminal stops at the newest 200 messages.
 - Tab completion for commands, agents and options in the shell.
 - A Mac app that wraps the web client, in Electron.

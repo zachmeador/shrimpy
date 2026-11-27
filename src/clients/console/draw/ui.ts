@@ -1,6 +1,5 @@
 import {
   type Component,
-  Editor,
   type EditorTheme,
   getTerminalColorMode,
   HStack,
@@ -15,13 +14,27 @@ import {
   TuiAltScreen,
   VStack,
 } from "@earendil-works/pi-tui";
-import { agentNameOf, type ClientState, commandNames, type Item, type Open, openThreadOf, placeKey, processOutputKey } from "../../state/index.ts";
+import type { FileToSend } from "../../../contracts/chat/index.ts";
+import {
+  agentNameOf,
+  type ClientState,
+  commandNames,
+  type Item,
+  notAttachable,
+  type Open,
+  openThreadOf,
+  placeKey,
+  processOutputKey,
+} from "../../state/index.ts";
 import { type AgentTab, modelLines, type Row, tabHolding, windowTitle } from "../../view/index.ts";
 import { commandList } from "./commands.ts";
 import { interrupt } from "./interrupt.ts";
 import { KEYS_WIDTH, KeysLine, KeysList } from "./keys.ts";
 import { drawList } from "./list.ts";
+import { filesPasted, type Found, readClipboard, readFound } from "./machine.ts";
 import { createPaint, isLight, role } from "./paint.ts";
+import { fileDrawing, imageDrawing, Pictures } from "./pictures.ts";
+import { PieceEditor } from "./pieces.ts";
 import { drawRail } from "./rail.ts";
 import { Pane } from "./rows.ts";
 import {
@@ -86,6 +99,8 @@ export interface Drawing {
 
 /** How often what moves moves: the shrimp walks, the lanterns pulse and the tide runs. */
 const TICK_MS = 180;
+const PASTE_START = "\u001b[200~";
+const PASTE_END = "\u001b[201~";
 /** How long the terminal is given to say what its background is. */
 const COLORS_MS = 400;
 
@@ -157,7 +172,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
     },
   };
   // The list of commands shows every command that can be written in a thread at once, as the terminal's mockup draws it.
-  const editor = new Editor(tui, editorTheme, { paddingX: 1, autocompleteMaxVisible: commandNames("dm").length });
+  const editor = new PieceEditor(tui, editorTheme, { paddingX: 1, autocompleteMaxVisible: commandNames("dm").length });
 
   // What was typed in each thread that is not open, so that opening another thread doesn't lose or misplace it.
   const drafts = new Map<string, string>();
@@ -188,12 +203,45 @@ export function startDrawing(options: DrawingOptions): Drawing {
 
   // What is written is the state's to act on, and a text it does not take goes back where it was typed.
   editor.onSubmit = (text) => {
-    if (text === "") return;
+    const words = editor.wordsOf(text);
+    const files = editor.filesIn(text);
+    if (words === "" && files.length === 0) return;
     const key = draftKey;
-    void state.write(text).then((taken) => {
-      if (!taken) restore(key, text);
+    void state.write(words, files).then((taken) => {
+      if (taken) editor.sent(text);
+      else restore(key, text);
     });
   };
+
+  const attach = (file: FileToSend): void => {
+    const refused = notAttachable(editor.waiting(), { name: file.name, size: file.bytes.byteLength });
+    if (refused === undefined) editor.attach(file);
+    else state.note(refused);
+  };
+  const attachFound = (found: readonly Found[]): void => {
+    for (const each of found) {
+      const refused = notAttachable(editor.waiting(), each);
+      const file = refused === undefined ? readFound(each) : undefined;
+      if (refused !== undefined) state.note(refused);
+      else if (file !== undefined) editor.attach(file);
+    }
+  };
+  const paste = (text: string): void => {
+    const found = filesPasted(text);
+    if (found === undefined) editor.handleInput(`${PASTE_START}${text}${PASTE_END}`);
+    else attachFound(found);
+  };
+  async function fromClipboard(): Promise<void> {
+    const key = draftKey;
+    const held = await readClipboard();
+    if (key !== draftKey || focused !== editor) return;
+    if (held === "unreadable") state.note({ kind: "no-clipboard" });
+    else if (held === "empty") return;
+    else if ("files" in held) attachFound(held.files);
+    else if ("picture" in held) attach(held.picture);
+    else paste(held.text);
+    update();
+  }
 
   // The screen as it was last drawn, which says what the keys do in front.
   let current: Screen = screenOf(frame);
@@ -320,11 +368,19 @@ export function startDrawing(options: DrawingOptions): Drawing {
   const cursor = renderFakeCursor("\u0000");
   const [cursorStart = "", cursorEnd = ""] = cursor.split("\u0000");
   const input = new Input(frame, editor, focusItem, { start: cursorStart, end: cursorEnd });
+  const pictures = new Pictures(() => {
+    if (!stopped) update();
+  });
   const conversation = new Conversation(
     frame,
     prose,
     (width) => header.render(width).length + dock.render(width).length + input.render(width).length,
-    { openTarget, jump: jumpTo },
+    {
+      openTarget,
+      jump: jumpTo,
+      files: fileDrawing(state, pictures),
+      images: (session) => imageDrawing(state, pictures, session, frame.model.open.item?.thread),
+    },
   );
   const scroll = new ScrollView(conversation, { follow: "end", primary: true });
   const thread = new VStack([{ component: header }, { component: scroll, basis: 0, grow: 1, minSize: 1 }, { component: dock }, { component: input }]);
@@ -632,6 +688,15 @@ export function startDrawing(options: DrawingOptions): Drawing {
     quitting.other();
     if (matchesKey(data, "ctrl+g")) {
       openKeys();
+      return { consume: true };
+    }
+    if (matchesKey(data, "ctrl+v")) {
+      if (focused === editor) void fromClipboard();
+      return { consume: true };
+    }
+    if (focused === editor && data.startsWith(PASTE_START) && data.endsWith(PASTE_END)) {
+      paste(data.slice(PASTE_START.length, -PASTE_END.length));
+      update();
       return { consume: true };
     }
     if (matchesKey(data, "ctrl+d")) {

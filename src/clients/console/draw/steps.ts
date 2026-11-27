@@ -4,6 +4,8 @@ import { nameKey } from "../../../contracts/gateway/index.ts";
 import {
   type AgentWork,
   FIRED,
+  type FileRow,
+  type ImageShown,
   type InFull,
   type Look,
   type Mention,
@@ -16,7 +18,7 @@ import {
   withMentions,
 } from "../../view/index.ts";
 import { type Paint, role, type Run, runsWidth, type Style, type Tone, type Wool } from "./paint.ts";
-import { hintRuns, spread } from "./rows.ts";
+import { FILE_MARK, hintRuns, PICTURE_MARK, spread } from "./rows.ts";
 import { inFullHints } from "./words.ts";
 
 /** The mark before how a tool call stands, and its tone, by how it stands. */
@@ -145,6 +147,34 @@ export interface MessageOptions {
   inFull: InFull;
   previous: MessageRow | undefined;
   jump: (agent: string, threadId: string) => void;
+  files?: FileDrawing;
+}
+
+export interface FileDrawing {
+  picture(file: FileRow, width: number): string[] | undefined;
+  open(file: FileRow): void;
+}
+
+export interface ImageDrawing {
+  lines(image: ImageShown, width: number): string[] | undefined;
+  open(image: ImageShown): void;
+}
+
+const clicked = (text: string, go: (() => void) | undefined): ThreadLine => (go === undefined ? { text } : { text, go });
+
+function filesLines(paint: Paint, row: MessageRow, width: number, drawing: FileDrawing | undefined): ThreadLine[] {
+  const lines: ThreadLine[] = [];
+  const line = (mark: string, file: FileRow): string => oneOf(paint, [[`${mark} `, "ink3"], [file.name, "ink"], [`  ${file.size}`, "ink3"]], width);
+  let drew = false;
+  for (const file of row.pictures) {
+    const go = drawing === undefined ? undefined : () => drawing.open(file);
+    const drawn = drawing?.picture(file, width);
+    if (drawn === undefined) lines.push(clicked(line(PICTURE_MARK, file), go));
+    else lines.push(...(drew ? [{ text: "" }] : []), ...drawn.map((text) => clicked(text, go)));
+    drew = drawn !== undefined;
+  }
+  for (const file of row.files) lines.push(clicked(line(FILE_MARK, file), drawing === undefined ? undefined : () => drawing.open(file)));
+  return lines;
 }
 
 /** What a message says, at a width: that it was deleted, a command as it was written, an agent's Markdown, or a person's words as typed. */
@@ -238,6 +268,7 @@ export function messageLines(paint: Paint, prose: Prose, row: MessageRow, width:
     ...gap,
     { text: oneOf(paint, head, width) },
     ...indent(row.text === "" && !row.deleted ? [] : saidLines(paint, prose, row, inner), 2).map((text) => ({ text })),
+    ...(row.deleted ? [] : filesLines(paint, row, inner, options.files).map((line) => ({ ...line, text: `  ${line.text}` }))),
   ];
   if (row.reactions.length > 0) lines.push(...indent(wrap(paint, reactionsLine(row.reactions), inner, "ink3"), 2).map((text) => ({ text })));
   lines.push(...receipts());
@@ -247,6 +278,20 @@ export function messageLines(paint: Paint, prose: Prose, row: MessageRow, width:
 /** What is left out of the start of something, on a line of its own. */
 const earlierLine = (paint: Paint, earlier: string | undefined): string[] => (earlier === undefined ? [] : [paint.text(`… ${earlier}`, "ink3")]);
 
+function shownLines(paint: Paint, step: Extract<Step, { kind: "shown" }>, width: number, images: ImageDrawing | undefined): ThreadLine[] {
+  const bar = paint.text("▏ ", "line2");
+  const lines: ThreadLine[] = [paint.text(`${step.label} ${step.when}`, "ink3"), ...indent(earlierLine(paint, step.earlier), 2)].map((text) => ({ text }));
+  if (step.text !== "") lines.push(...wrap(paint, step.text, width - 2, "ink2").map((line) => ({ text: `${bar}${line}` })));
+  for (const image of step.images) {
+    const shown = image.omitted === undefined && image.at !== null && images !== undefined;
+    const go = shown ? () => images.open(image) : undefined;
+    const drawn = shown ? images.lines(image, width - 2) : undefined;
+    if (drawn === undefined) lines.push(clicked(`${bar}${paint.text(image.omitted ?? image.words, "ink3")}`, go));
+    else lines.push(...drawn.map((text) => clicked(`${bar}${text}`, go)));
+  }
+  return lines;
+}
+
 /**
  * One step: what the agent thought, wrote or did, or in a session watched what
  * it was shown or where it was reset. Thinking and a tool call take one line
@@ -254,13 +299,8 @@ const earlierLine = (paint: Paint, earlier: string | undefined): string[] => (ea
  */
 export function stepLines(paint: Paint, prose: Prose, step: Step, width: number, inFull: InFull): string[] {
   switch (step.kind) {
-    case "shown": {
-      const bar = paint.text("▏ ", "line2");
-      const lines = [paint.text(`${step.label} ${step.when}`, "ink3"), ...indent(earlierLine(paint, step.earlier), 2)];
-      if (step.text !== "") lines.push(...wrap(paint, step.text, width - 2, "ink2").map((line) => `${bar}${line}`));
-      for (const image of step.images) lines.push(`${bar}${paint.text(image.omitted ?? image.words, "ink3")}`);
-      return lines;
-    }
+    case "shown":
+      return shownLines(paint, step, width, undefined).map((line) => line.text);
     case "marker":
       return [oneOf(paint, [[`-- ${step.text} --`, "ink3"]], width)];
     case "thinking": {
@@ -298,11 +338,12 @@ export function stepLines(paint: Paint, prose: Prose, step: Step, width: number,
 const apart = (step: Step | undefined): boolean => step !== undefined && (step.kind === "shown" || step.kind === "marker" || step.kind === "text");
 
 /** A session watched, oldest first, with a blank line around what stands apart, so that a turn reads as one run. */
-export function sessionLines(paint: Paint, prose: Prose, steps: readonly Step[], width: number, inFull: InFull): string[] {
-  const lines: string[] = [];
+export function sessionLines(paint: Paint, prose: Prose, steps: readonly Step[], width: number, inFull: InFull, images?: ImageDrawing): ThreadLine[] {
+  const lines: ThreadLine[] = [];
   steps.forEach((step, index) => {
-    if (index === 0 || apart(step) || apart(steps[index - 1])) lines.push("");
-    lines.push(...stepLines(paint, prose, step, width, inFull));
+    if (index === 0 || apart(step) || apart(steps[index - 1])) lines.push({ text: "" });
+    if (step.kind === "shown") lines.push(...shownLines(paint, step, width, images));
+    else lines.push(...stepLines(paint, prose, step, width, inFull).map((text) => ({ text })));
   });
   return lines;
 }

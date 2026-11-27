@@ -190,6 +190,12 @@ export function noticeText(notice: Notice, agentName: string, self: string): str
         : `Not attached: ${oneLine(notice.name)}, since a message carries up to ${MAX_ATTACHMENTS} files.`;
     case "files-with-command":
       return "A command takes no files, so nothing was sent. Send the files in a message of their own.";
+    case "not-fetched": {
+      const from: Program = notice.agent === undefined ? { kind: "chat" } : { kind: "agent", name: notice.agent };
+      return `Could not open ${notice.name === undefined ? "the picture" : oneLine(notice.name)}: ${because(from, notice.problem, self)}.`;
+    }
+    case "no-clipboard":
+      return `The clipboard can't be read from ${self}.`;
     case "not-opened":
       return `Could not open the thread: ${because({ kind: "chat" }, notice.problem, self)}.`;
     case "not-joined":
