@@ -1,5 +1,6 @@
-import type { Member, Message, Reaction, WakeLine } from "../../contracts/chat/index.ts";
+import type { Member, Message, Reaction, SearchHit, WakeLine } from "../../contracts/chat/index.ts";
 import { newId } from "../../lib/ids/index.ts";
+import { matchesTerms } from "../../lib/text/index.ts";
 import { appendEvent } from "./append.ts";
 import type { ReportChange } from "./changes.ts";
 import { parseReceipts, RECEIPTS_ON_MESSAGE } from "./receipts.ts";
@@ -114,6 +115,17 @@ export interface MessageOperations {
   message(id: string): Message | undefined;
   /** Up to `limit` messages of a thread older than `before`, or the newest when it is null; oldest first. */
   messagesIn(threadId: string, before: number | null, limit: number): Message[];
+  /** Up to `limit` messages of a thread centered around `seq`, oldest first. */
+  messagesAround(threadId: string, seq: number, limit: number): Message[];
+  /** Search non-deleted messages matching every lowercase term, newest first. */
+  searchMessages(options: {
+    memberId: string;
+    readsAll: boolean;
+    terms: readonly string[];
+    channelId?: string;
+    threadId?: string;
+    limit: number;
+  }): SearchHit[];
   /** Change what a message says. The message stays as it is if it already says that. It must not be deleted. */
   editMessage(message: Message, edit: MessageEdit): Message;
   /**
@@ -187,6 +199,92 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         limit,
       ) as MessageRow[];
       return rows.map(toMessage);
+    },
+    messagesAround(threadId, seq, limit) {
+      const halfBefore = Math.floor((limit - 1) / 2);
+      const upTo = sql.all(
+        `SELECT * FROM (
+           ${SELECT}
+           WHERE m.thread_id = ? AND m.seq <= ?
+           ORDER BY m.seq DESC LIMIT ?
+         ) ORDER BY seq`,
+        threadId,
+        seq,
+        halfBefore + 1,
+      ) as MessageRow[];
+      const afterLimit = Math.max(limit - upTo.length, limit - halfBefore - 1);
+      const after =
+        afterLimit <= 0
+          ? []
+          : (sql.all(
+              `${SELECT}
+               WHERE m.thread_id = ? AND m.seq > ?
+               ORDER BY m.seq ASC LIMIT ?`,
+              threadId,
+              seq,
+              afterLimit,
+            ) as MessageRow[]);
+      const combined = [...upTo, ...after];
+      if (combined.length < limit && upTo.length === halfBefore + 1 && upTo[0] !== undefined) {
+        const extra = sql.all(
+          `SELECT * FROM (
+             ${SELECT}
+             WHERE m.thread_id = ? AND m.seq < ?
+             ORDER BY m.seq DESC LIMIT ?
+           ) ORDER BY seq`,
+          threadId,
+          upTo[0].seq,
+          limit - combined.length,
+        ) as MessageRow[];
+        return [...extra, ...combined].map(toMessage);
+      }
+      return combined.map(toMessage);
+    },
+    searchMessages({ memberId, readsAll, terms, channelId, threadId, limit }) {
+      const clauses = ["m.deleted = 0", "m.text <> ''"];
+      const params: (string | number | null)[] = [];
+      if (!readsAll) {
+        clauses.push("m.channel_id IN (SELECT channel_id FROM memberships WHERE member_id = ?)");
+        params.push(memberId);
+      }
+      if (channelId !== undefined) {
+        clauses.push("m.channel_id = ?");
+        params.push(channelId);
+      }
+      if (threadId !== undefined) {
+        clauses.push("m.thread_id = ?");
+        params.push(threadId);
+      }
+      const asciiTerms = terms.filter((term) => /^[\x00-\x7f]+$/.test(term));
+      const hasUnicode = asciiTerms.length < terms.length;
+      for (const term of asciiTerms) {
+        clauses.push("lower(m.text) LIKE ? ESCAPE '\\'");
+        params.push(`%${term.replace(/[\\%_]/g, "\\$&")}%`);
+      }
+      const query = `
+        SELECT m.seq, p.id AS event_id, m.id, m.channel_id, m.thread_id, m.text, m.sent_at, m.edited_at, m.deleted, m.mentions,
+               a.id AS author_id, a.kind AS author_kind, a.name AS author_name,
+               ${REACTIONS_ON_MESSAGE} AS reactions,
+               ${RECEIPTS_ON_MESSAGE} AS receipts,
+               w.data AS wake_data,
+               t.name AS thread_name
+        FROM messages m
+        JOIN events p ON p.seq = m.seq
+        JOIN members a ON a.id = m.author_id
+        JOIN threads t ON t.id = m.thread_id
+        LEFT JOIN wake_lines w ON w.message_seq = m.seq
+        WHERE ${clauses.join(" AND ")}
+        ORDER BY m.seq DESC${hasUnicode ? "" : " LIMIT ?"}`;
+      const rows = (
+        hasUnicode ? sql.all(query, ...params) : sql.all(query, ...params, limit)
+      ) as (MessageRow & { thread_name: string | null })[];
+      const hits: SearchHit[] = [];
+      for (const row of rows) {
+        if (hasUnicode && !matchesTerms(row.text, terms)) continue;
+        hits.push({ message: toMessage(row), threadName: row.thread_name });
+        if (hits.length >= limit) break;
+      }
+      return hits;
     },
     editMessage(message, edit) {
       if (message.deleted) throw new Error(`Message ${message.id} is deleted and cannot be edited`);

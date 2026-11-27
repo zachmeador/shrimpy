@@ -18,9 +18,9 @@ const read: Command = {
     "Messages are shown as they now stand: an edited one says when, a deleted one says it was deleted, and the " +
     "emoji on a message are listed with who put them there. Where an agent failed, stopped or skipped a message, " +
     "a line below it says so. A silent receipt is not shown. --json prints the thread and every message with " +
-    "all its receipts, silent ones included. A person can read any thread, a DM between two agents included; an " +
-    "agent can read only the threads it is in. Exits 1 if no gateway or chat server is running, or you can't " +
-    "read the thread.",
+    "all its receipts, silent ones included. You and any admin agent can read any thread, a DM between two other " +
+    "members included; a non-admin agent can read only the threads it is in. Exits 1 if no gateway or chat server " +
+    "is running, or you can't read the thread.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({ args, options: { json: { type: "boolean" } }, allowPositionals: true }),

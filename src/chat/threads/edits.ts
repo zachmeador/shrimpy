@@ -26,7 +26,7 @@ export function editMessage(deps: ChatDeps, caller: Member, messageId: unknown, 
   return deps.store.transaction(
     (tx) =>
       once(tx, caller, request, () => {
-        const { message, channel } = visibleMessage(tx, caller, id);
+        const { message, channel } = visibleMessage(tx, deps, caller, id);
         onlyAuthor(caller, message, "edit");
         if (message.deleted) refuse("That message was deleted, so it can't be edited.");
         return tx.editMessage(message, {
@@ -47,7 +47,7 @@ export function deleteMessage(deps: ChatDeps, caller: Member, messageId: unknown
   return deps.store.transaction(
     (tx) =>
       once(tx, caller, request, () => {
-        const { message } = visibleMessage(tx, caller, id);
+        const { message } = visibleMessage(tx, deps, caller, id);
         onlyAuthor(caller, message, "delete");
         return tx.deleteMessage(message, caller.id, deps.now());
       }).message,

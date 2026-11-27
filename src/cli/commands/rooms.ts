@@ -74,11 +74,12 @@ const roomsNew: Command = {
 const roomsAdd: Command = {
   name: "rooms add",
   usage: "<room> <member>...",
-  summary: "Add members to a room you are in. Takes an admin.",
+  summary: "Add members to a room. Takes an admin.",
   details:
-    "Name the room as #name, in quotes, or as its name alone. Adding takes an admin who is in the room. You, " +
-    "the person, can add to any room, which is how you join one you only read. Anyone on the roster can be added. Every name is checked before anyone is added, and the error says " +
-    "which name is wrong. A member added can read what came before, and is only told of what comes after.",
+    "Name the room as #name, in quotes, or as its name alone. Adding takes an admin, who can add members to any " +
+    "room, themselves included to join one they only read. Anyone on the roster can be added. Every name is checked " +
+    "before anyone is added, and the error says which name is wrong. A member added can read what came before, and " +
+    "is only told of what comes after.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     const [written, ...named] = positionals;
@@ -87,7 +88,6 @@ const roomsAdd: Command = {
 
     const reached = await reachChat(io);
     try {
-      // The person adds to any room, one they only read included, which is how they walk into it. An agent reads no others.
       const { chat } = reached;
       const room = roomNamed([...chat.channels.value, ...chat.readOnlyChannels.value], written);
       const members = membersNamed(reached.members, named);

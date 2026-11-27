@@ -8,6 +8,7 @@
  */
 export { cutEnd, cutStart } from "./cut.ts";
 export { listed, upTo } from "./listed.ts";
+export { matchesTerms, parseSearchTerms, snippetAround } from "./search.ts";
 export { asSentence, capitalize, withoutPeriod } from "./sentence.ts";
 export { shellWord } from "./shell-word.ts";
 export { sizeWords } from "./size.ts";

@@ -17,7 +17,7 @@ export function react(deps: ChatDeps, caller: Member, messageId: unknown, emoji:
   return deps.store.transaction(
     (tx) =>
       once(tx, caller, request, () => {
-        const { message } = visibleMessage(tx, caller, id);
+        const { message } = visibleMessage(tx, deps, caller, id);
         if (message.deleted) refuse("That message was deleted, so it takes no reactions.");
         if (message.wake !== null) refuse("A wake line takes no reactions.");
         return tx.addReaction(message, caller.id, reaction, deps.now());
@@ -33,7 +33,7 @@ export function unreact(deps: ChatDeps, caller: Member, messageId: unknown, emoj
   return deps.store.transaction(
     (tx) =>
       once(tx, caller, request, () => {
-        const { message } = visibleMessage(tx, caller, id);
+        const { message } = visibleMessage(tx, deps, caller, id);
         return tx.removeReaction(message, caller.id, reaction, deps.now());
       }).message,
   );

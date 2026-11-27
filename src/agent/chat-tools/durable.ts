@@ -12,3 +12,4 @@ export function chatTools(options: ChatToolsOptions, watches: Watches): Extensio
 }
 
 export type { ChatToolsOptions } from "./options.ts";
+export { reactorNames, resolveChannel, resolveThread, type ResolvedThread, type Unusable } from "./place.durable.ts";

@@ -15,43 +15,49 @@ import type { ChatDeps } from "./deps.ts";
 export const isMember = (channel: ChannelRecord, memberId: string): boolean =>
   channel.members.some((member) => member.id === memberId);
 
+/** Whether the caller is an admin, as the roster has it now (every person is one). */
+export const isAdmin = (deps: ChatDeps, caller: Member): boolean =>
+  caller.kind === "person" || deps.identity.admins().some((admin) => admin.id === caller.id);
+
 /**
- * Whether the caller reads the channels it is not in. You do: every channel on
- * the gateway is yours to read. An agent, admin or not, reads only the channels
- * it is in.
+ * Whether the caller reads the channels it is not in. You and any admin agent
+ * do: every channel on the gateway is readable to an admin. A non-admin agent
+ * reads only the channels it is in.
  */
-export const readsOthers = (caller: Member): boolean => caller.kind === "person";
+export const readsOthers = (deps: ChatDeps, caller: Member): boolean => isAdmin(deps, caller);
 
-const mayRead = (channel: ChannelRecord, caller: Member): boolean =>
-  isMember(channel, caller.id) || readsOthers(caller);
+const mayRead = (deps: ChatDeps, channel: ChannelRecord, caller: Member): boolean =>
+  isMember(channel, caller.id) || readsOthers(deps, caller);
 
-// To an agent, a channel or thread that does not exist and one it is not in get
-// the same refusal, so asking tells it nothing about channels it cannot see. You
-// read every channel, so to you only what does not exist is unknown.
+// To a non-admin agent, a channel or thread that does not exist and one it is
+// not in get the same refusal, so asking tells it nothing about channels it
+// cannot see. You and admin agents read every channel, so only what does not
+// exist is unknown.
 
-/** A channel the caller reads: one it is in, and for you any other too. */
-export function readableChannel(tx: Transaction, caller: Member, channelId: string): ChannelRecord {
+/** A channel the caller reads: one it is in, and for an admin any other too. */
+export function readableChannel(tx: Transaction, deps: ChatDeps, caller: Member, channelId: string): ChannelRecord {
   const channel = tx.channel(channelId);
-  if (channel === undefined || !mayRead(channel, caller)) refuse(`Unknown channel: ${channelId}`);
+  if (channel === undefined || !mayRead(deps, channel, caller)) refuse(`Unknown channel: ${channelId}`);
   return channel;
 }
 
 /** A thread in a channel the caller reads, with that channel. */
 export function readableThread(
   tx: Transaction,
+  deps: ChatDeps,
   caller: Member,
   threadId: string,
 ): { thread: ThreadRecord; channel: ChannelRecord } {
   const thread = tx.thread(threadId);
   const channel = thread === undefined ? undefined : tx.channel(thread.channelId);
-  if (thread === undefined || channel === undefined || !mayRead(channel, caller)) {
+  if (thread === undefined || channel === undefined || !mayRead(deps, channel, caller)) {
     refuse(`Unknown thread: ${threadId}`);
   }
   return { thread, channel };
 }
 
-// Everything below is for what writes, so it takes a member. You, reading a
-// channel you are not in, are refused, and told what would let you write.
+// Everything below is for what writes, so it takes a member. An admin reading a
+// channel it is not in is refused, and told what would let it write.
 
 /** Refuse unless the caller is in the channel. */
 function requireMember(channel: ChannelRecord, caller: Member): void {
@@ -64,8 +70,8 @@ function requireMember(channel: ChannelRecord, caller: Member): void {
 }
 
 /** A channel the caller is in. */
-export function visibleChannel(tx: Transaction, caller: Member, channelId: string): ChannelRecord {
-  const channel = readableChannel(tx, caller, channelId);
+export function visibleChannel(tx: Transaction, deps: ChatDeps, caller: Member, channelId: string): ChannelRecord {
+  const channel = readableChannel(tx, deps, caller, channelId);
   requireMember(channel, caller);
   return channel;
 }
@@ -73,34 +79,45 @@ export function visibleChannel(tx: Transaction, caller: Member, channelId: strin
 /** A thread in a channel the caller is in, with that channel. */
 export function visibleThread(
   tx: Transaction,
+  deps: ChatDeps,
   caller: Member,
   threadId: string,
 ): { thread: ThreadRecord; channel: ChannelRecord } {
-  const found = readableThread(tx, caller, threadId);
+  const found = readableThread(tx, deps, caller, threadId);
   requireMember(found.channel, caller);
   return found;
 }
 
 /** A message in a channel the caller reads, with that channel. */
-export function readableMessage(tx: Transaction, caller: Member, messageId: string): { message: Message; channel: ChannelRecord } {
+export function readableMessage(
+  tx: Transaction,
+  deps: ChatDeps,
+  caller: Member,
+  messageId: string,
+): { message: Message; channel: ChannelRecord } {
   const message = tx.message(messageId);
   const channel = message === undefined ? undefined : tx.channel(message.channelId);
-  if (message === undefined || channel === undefined || !mayRead(channel, caller)) refuse(`Unknown message: ${messageId}`);
+  if (message === undefined || channel === undefined || !mayRead(deps, channel, caller)) refuse(`Unknown message: ${messageId}`);
   return { message, channel };
 }
 
 /** A message in a channel the caller is in, with that channel. */
-export function visibleMessage(tx: Transaction, caller: Member, messageId: string): { message: Message; channel: ChannelRecord } {
-  const found = readableMessage(tx, caller, messageId);
+export function visibleMessage(
+  tx: Transaction,
+  deps: ChatDeps,
+  caller: Member,
+  messageId: string,
+): { message: Message; channel: ChannelRecord } {
+  const found = readableMessage(tx, deps, caller, messageId);
   requireMember(found.channel, caller);
   return found;
 }
 
 /** An event in a channel the caller is in. */
-export function visibleEvent(tx: Transaction, caller: Member, eventId: string): ChatEvent {
+export function visibleEvent(tx: Transaction, deps: ChatDeps, caller: Member, eventId: string): ChatEvent {
   const event = tx.event(eventId);
   const channel = event === undefined ? undefined : tx.channel(event.message.channelId);
-  if (event === undefined || channel === undefined || !mayRead(channel, caller)) {
+  if (event === undefined || channel === undefined || !mayRead(deps, channel, caller)) {
     refuse(`Unknown event: ${eventId}`);
   }
   requireMember(channel, caller);

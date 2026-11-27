@@ -32,7 +32,7 @@ export function chatView(deps: ChatDeps, caller: Member | undefined, since: numb
   return deps.store.transaction((tx) => ({
     you: caller,
     channels: tx.channelsOf(caller.id).map((record) => toChannel(record, caller)),
-    readOnlyChannels: readsOthers(caller) ? tx.channelsWithout(caller.id).map((record) => toChannel(record, caller)) : [],
+    readOnlyChannels: readsOthers(deps, caller) ? tx.channelsWithout(caller.id).map((record) => toChannel(record, caller)) : [],
     head: tx.headOf(caller.id, since),
   }));
 }
@@ -53,7 +53,7 @@ export function channelView(deps: ChatDeps, caller: Member | undefined, channelI
       ? NOT_A_MEMBER
       : answer(() =>
           deps.store.transaction((tx) => {
-            const record = readableChannel(tx, caller, channelId);
+            const record = readableChannel(tx, deps, caller, channelId);
             return {
               refusal: null,
               channel: toChannel(record, caller),
@@ -87,7 +87,7 @@ export function threadView(deps: ChatDeps, caller: Member | undefined, threadId:
       ? NOT_A_MEMBER
       : answer(() =>
           deps.store.transaction((tx) => {
-            const { thread, channel } = readableThread(tx, caller, threadId);
+            const { thread, channel } = readableThread(tx, deps, caller, threadId);
             const messages = fitAnswer(tx.messagesIn(threadId, null, VIEW_MESSAGES), "newest");
             return {
               refusal: null,

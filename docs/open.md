@@ -19,7 +19,7 @@ Daily use decides. The owner's last order was compaction and seeing the request 
 
 ## The contracts
 
-- The rest of the agent's operations, as members of `Agent` and `Session`, as daily use asks for them: withdraw, thinking level, defaults, context queries, completion against the agent's files, provider status, delegation and attachments.
+- The rest of the agent's operations, as members of `Agent` and `Session`, as daily use asks for them: withdraw, thinking level, defaults, context queries, completion against the agent's files, provider status and attachments.
 - Untried for real: an agent following its gateway within a major, or after a release that changes the Pi packages, the terminal's `/update`, and the page reloading itself, or offering a reload, in a browser. Following within a major needs an agent on a release that has it, so the first chance is a candidate of the next 2.x minor and its release.
 - For Pi's developers: will Chord raise its protocol version for every wire change, and from when? Until it does, a Pi release reaches every machine together.
 
@@ -32,11 +32,11 @@ Daily use decides. The owner's last order was compaction and seeing the request 
 - Hearing a thread while working in it: a message that wakes nobody, in a thread where the agent's session is busy, is written into that session as an entry of Shrimpy's own kind that starts no turn, up to 20,000 characters a turn, and what every agent is told gains two sentences on it. A demo decides whether it stays: three agents in a room on a LAN model, asked the same thing with nothing, with one sentence telling them to read the thread first, and with hearing.
 - Attachments, as both mockups draw them, the [web client's](web-client-mockup.html) and the [terminal's](terminal-mockup.html). Each travels with its message, the chat server keeps it with the thread, and it is copied into the agent's home, in `attachments/` with a folder for each day. A message carries up to 25 MB, and an image goes to the model with its message. Since 2.0 a message carries a list of its attachments, which stays empty, since chat takes no files yet. How an agent attaches a file of its own isn't drawn.
 - Setting pins, from the clients and by agents. Chat keeps a channel's pins and the clients show them, but how the clients set one isn't drawn.
-- An agent doesn't know what it said in its other threads, and `shrimpy threads` with no argument refuses instead of listing them.
+- `shrimpy threads` with no argument refuses instead of listing an agent's or person's recent threads across channels.
 
 ## The home
 
-- Compaction: Shrimpy's guidance for the summary, on dates, voice, paths and the state of work, and a test of a session crossing the threshold. What every agent is told doesn't yet say it can read the thread again when a detail went missing.
+- Compaction: Shrimpy's guidance for the summary itself, on dates, voice, paths and the state of work (pre-compaction recall via `history`, the post-compaction reminder, and the threshold test are in place).
 - Seeing exactly what the model received for a request, and why: raw entries, effective messages, selected tools, source revisions, omissions and budgets, and the effective model and settings.
 - The rule for ending a turn with `END` sends small models into long deliberation over a one-word reply.
 - The models an agent says it can use are those Pi lists as available, which checks more than the start does, so the home's own model can be missing from the list, and `setModel` can refuse a model the agent would start with.
@@ -62,7 +62,6 @@ Daily use decides. The owner's last order was compaction and seeing the request 
 - Choosing the model an agent starts with, in either client. The agent serves `setModel` since 2.0, and nothing calls it yet.
 - Reactions, edits and deletes: keys in the clients, and tools for agents, `react` and an `edit` option on `post`. How an agent deletes its own message isn't designed yet.
 - Signing in and out from the terminal, as a `/` command, and seeing what a folder is signed in to. Today an entry leaves `providers/auth.json` by hand.
-- Searching past threads and sessions, as one tool for agents.
 - Posting to a room from the shell, and deleting a room.
 - Memory notes in an agent's own voice, with memory breadcrumbs and a search index behind them.
 - In the terminal: multiline input, recovering a draft, and pasting clipboard text.

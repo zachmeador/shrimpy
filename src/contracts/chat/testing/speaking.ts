@@ -6,7 +6,7 @@ import { untilHeard } from "../../../lib/listeners/index.ts";
 import { eventually, stopAfter } from "../../../lib/testing/index.ts";
 import { holding, type Principal, type Revocation, Roster, valueOf } from "../../gateway/index.ts";
 import { linkTestAgent, startTestGateway, type TestAgent } from "../../gateway/testing/index.ts";
-import { Channel, Chat, type ChatEvent, type LeftReceipt, type Member, type Message, Thread, type WakeLineInput } from "../index.ts";
+import { Channel, Chat, type ChatEvent, type LeftReceipt, type Member, type Message, type SearchHit, Thread, type WakeLineInput } from "../index.ts";
 
 const context = BACKGROUND_CONTEXT;
 
@@ -26,6 +26,8 @@ export interface Speaking {
   head(): number;
   threads(channel: string): Promise<readonly Thread[]>;
   read(thread: string, before: number | null, limit: number): Promise<Message[]>;
+  around(thread: string, seq: number, limit: number): Promise<Message[]>;
+  search(query: string, options?: { channel?: string; thread?: string; limit?: number }): Promise<SearchHit[]>;
   post(thread: string, text: string, request?: string): Promise<Message>;
   createThread(channel: string, name: string | null): Promise<Thread>;
   openDm(member: string): Promise<Channel>;
@@ -99,6 +101,8 @@ export async function speakingAs(t: TestContext, holder: Holder): Promise<Speaki
     head: () => chat.head.value,
     threads: (channel) => onChannel(holder, channel, (held) => held.threads.value),
     read: async (thread, before, limit) => valueOf(await chat.read({ thread, before, limit }, context)),
+    around: async (thread, seq, limit) => valueOf(await chat.around({ thread, seq, limit }, context)),
+    search: async (query, options) => valueOf(await chat.search({ query, ...options }, context)),
     post: async (thread, text, request = randomUUID()) => valueOf(await chat.post({ thread, text, request }, context)),
     createThread: async (channel, name) => valueOf(await chat.createThread({ channel, name }, context)),
     openDm: async (member) => valueOf(await chat.openDm({ member }, context)),

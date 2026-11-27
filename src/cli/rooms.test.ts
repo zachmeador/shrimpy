@@ -19,11 +19,11 @@ test("an admin agent makes a room from its shell, adds the person, and both list
   await joinRoster(t, "maya");
   const rex = await startAgentShell(t, "rex", { admin: true });
 
-  // The agent makes it, so it is the agent that is in it, and the person has to be added to see it.
+  // The agent makes it, so the person is not a member yet, though the person (and any admin) can still read its threads.
   const made = await rex.run(["rooms", "new", "ops", "scout"]);
   assert.equal(made.code, 0, made.stderr);
   assert.deepEqual(await you.channels(), []);
-  assert.equal((await shrimpy(["threads", "#ops"])).code, 1);
+  assert.equal((await shrimpy(["threads", "#ops"])).code, 0);
 
   // A member adds anyone on the roster, in any case, and one who is in already is said to be.
   const added = await rex.run(["rooms", "add", "#OPS", "MAYA", you.me.name, "scout"]);

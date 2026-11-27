@@ -7,6 +7,7 @@ import {
   type LeftReceipt,
   type Member,
   type Message,
+  type SearchHit,
   type Thread,
   type WakeLineInput,
 } from "../../contracts/chat/index.ts";
@@ -37,6 +38,8 @@ export interface ChatCalls {
   untilHead(after: number, signal: AbortSignal): Promise<void>;
   /** The agent's channels, oldest first. */
   channels(): readonly Channel[];
+  /** Channels the agent reads without being in (all other channels for an admin, empty otherwise). */
+  readOnlyChannels(): readonly Channel[];
   /** Up to `limit` events after the position `after`, oldest first, and maybe none. A position past `head` is refused. */
   events(after: number, limit: number, signal: AbortSignal): Promise<ChatEvent[]>;
   /** Leave the agent's receipt on 1 to 200 events, all or none. */
@@ -53,6 +56,13 @@ export interface ChatCalls {
   post(thread: string, text: string, request: string, signal: AbortSignal, quiet?: boolean): Promise<Message>;
   /** Up to `limit` messages older than the position `before`, or the newest when it is null, oldest first. */
   read(thread: string, before: number | null, limit: number, signal: AbortSignal): Promise<Message[]>;
+  /** Up to `limit` messages centered around `seq`, oldest first. */
+  around(thread: string, seq: number, limit: number, signal: AbortSignal): Promise<Message[]>;
+  /** Search non-deleted messages across readable channels (or scoped to one channel/thread), newest first. */
+  search(
+    options: { query: string; channel?: string; thread?: string; limit?: number },
+    signal: AbortSignal,
+  ): Promise<SearchHit[]>;
   /** Name a thread at `revision`. */
   rename(thread: string, name: string, revision: number, signal: AbortSignal): Promise<Thread>;
   /** Archive or unarchive a thread at `revision`. */
@@ -101,6 +111,12 @@ export function chatFailure(error: unknown, live: LiveChat, context: Context): {
   throw error;
 }
 
+/** All channels the agent can read: its own channels first, then read-only channels (for admins). */
+export const readableChannels = (chat: Pick<ChatCalls, "channels" | "readOnlyChannels">): readonly Channel[] => [
+  ...chat.channels(),
+  ...chat.readOnlyChannels(),
+];
+
 /** The signal that ends a call to chat: chat being lost, or the turn being stopped. */
 export function callSignal(live: LiveChat, context: Context): AbortSignal {
   return context.abortSignal === undefined ? live.lost : AbortSignal.any([live.lost, context.abortSignal]);
@@ -135,6 +151,7 @@ function callsOver(host: Host<Principal, Revocation>, chat: Held<typeof Chat>, m
       );
     },
     channels: () => chat.channels.value,
+    readOnlyChannels: () => chat.readOnlyChannels.value,
     async events(after, limit, signal) {
       return valueOf(await chat.events({ after, limit }, contextOf(signal)));
     },
@@ -160,6 +177,12 @@ function callsOver(host: Host<Principal, Revocation>, chat: Held<typeof Chat>, m
     },
     async read(thread, before, limit, signal) {
       return valueOf(await chat.read({ thread, before, limit }, contextOf(signal)));
+    },
+    async around(thread, seq, limit, signal) {
+      return valueOf(await chat.around({ thread, seq, limit }, contextOf(signal)));
+    },
+    async search(options, signal) {
+      return valueOf(await chat.search(options, contextOf(signal)));
     },
     async rename(thread, name, revision, signal) {
       return valueOf(await chat.rename({ thread, name, revision }, contextOf(signal)));

@@ -204,6 +204,13 @@ export const MessageSchema = obj({
 });
 export type Message = Static<typeof MessageSchema>;
 
+/** One message matched by `Chat.search`, with its thread's title when it has one. */
+export const SearchHitSchema = obj({
+  message: MessageSchema,
+  threadName: union([str(), nul()]),
+});
+export type SearchHit = Static<typeof SearchHitSchema>;
+
 /**
  * The message an event names, as it stands when the event is read: enough to
  * decide what the event means to a member without asking for the message.

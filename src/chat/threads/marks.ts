@@ -20,7 +20,7 @@ export function markRead(deps: ChatDeps, caller: Member, messageId: unknown): nu
   if (!keepsMarks(caller)) refuse("Only a person keeps read marks.");
   const id = identifier(messageId, "message");
   deps.store.transaction((tx) => {
-    const { message } = readableMessage(tx, caller, id);
+    const { message } = readableMessage(tx, deps, caller, id);
     tx.markRead(caller.id, message);
   });
   return null;

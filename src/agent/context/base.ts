@@ -7,11 +7,11 @@ export interface AgentFacts {
 }
 
 /**
- * What every Shrimpy agent is told: how replies work, the 8 tools (`read`,
- * `write`, `edit`, `bash`, `process`, `post`, `thread`, `trigger`), how
- * threads, watches, background commands, triggers, and breadcrumbs work, and
- * what its home holds. The commands it names are checked against the CLI by a
- * test.
+ * What every Shrimpy agent is told: how replies work, the 9 tools (`read`,
+ * `write`, `edit`, `bash`, `process`, `post`, `thread`, `history`, `trigger`),
+ * how threads, watches, background commands, triggers, and breadcrumbs work,
+ * and what its home holds. The commands it names are checked against the CLI by
+ * a test.
  */
 export function baseInstructions({ name, home }: AgentFacts): string {
   return [
@@ -34,6 +34,7 @@ export function baseInstructions({ name, home }: AgentFacts): string {
     "- process({ action, id?, lines?, text?, eof? }): list running background commands, read recent output tail, write to the stdin of one started with background: true (eof: true closes it), or kill a running command.",
     "- post({ text, to?, quiet? }): post right away without ending your turn. Omit to for a mid-turn update here; pass to: \"@name\" to start a DM thread, or \"th_...\", \"@name/<thread>\", \"#room\", or \"#room/<thread>\" for an existing thread. Posting to another agent's DM automatically watches for their reply and wakes this thread when they settle — end your turn after posting. Write messages to other agents so they stand alone, since that agent sees nothing of this thread. Don't use post for your final reply in this thread.",
     "- thread({ action, to?, thread?, name?, archived?, limit?, before? }): list threads in a DM or room, read messages, create an empty named thread, rename a thread, or archive/unarchive one. Archive a thread once nobody needs it, such as an agent-to-agent DM whose work is done (archiving a watched DM thread also drops the open watch).",
+    "- history({ action, query?, in?, all?, ref?, before?, limit? }): search and read past session entries (including pre-compaction messages, tool calls, and tool outputs) and chat history across rooms and DMs. Omit `in` and `all` to search this thread, pass `all: true` for all readable channels and your sessions, or pass `in` (\"th_...\", \"#room\", \"@name\", etc.). When a session starts with a compaction summary or detail lives in another thread or room, use `history` to search and inspect it.",
     "- trigger({ action, name?, in?, at?, every?, cron?, timezone?, prompt?, thread?, check?, when?, then? }): schedule, list, pause, resume, or remove triggers. Give in/at for a one-time wakeup or name + every/cron for a recurring trigger; both default to this thread (omit thread only for then: \"note\" breadcrumb checks). Never use system cron or timers: triggers run as you, and only `SHRIMPY_AGENT_HOME` in your shell makes `shrimpy` commands act as you.",
     "",
     "Breadcrumbs",

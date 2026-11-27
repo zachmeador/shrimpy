@@ -12,6 +12,16 @@ export const MAX_LINE = MAX_WAKE_LINE_LENGTH;
 /** Messages or events in one page of `read` or `feed`. Larger requests get a page this size. */
 export const MAX_PAGE = 200;
 
+/** Characters in one search query. */
+export const MAX_QUERY = 500;
+
+/** Distinct terms in one search query. */
+export const MAX_SEARCH_TERMS = 12;
+
+/** Default and maximum hits returned by `Chat.search`. */
+export const DEFAULT_SEARCH_LIMIT = 20;
+export const MAX_SEARCH_LIMIT = 50;
+
 /** Members one call can name, when it makes a room or adds to one. */
 export const MAX_MEMBERS = 200;
 

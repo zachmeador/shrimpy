@@ -1,8 +1,18 @@
-import { type Member, type Message, titleOf, type WakeLine } from "../../contracts/chat/index.ts";
-import { fitAnswer, identifier, MAX_PAGE, messageText, wakeLine as checkWakeLine, whole } from "../input/index.ts";
+import { type Member, type Message, type SearchHit, titleOf, type WakeLine } from "../../contracts/chat/index.ts";
+import {
+  DEFAULT_SEARCH_LIMIT,
+  fitAnswer,
+  identifier,
+  MAX_PAGE,
+  MAX_SEARCH_LIMIT,
+  messageText,
+  searchQuery,
+  wakeLine as checkWakeLine,
+  whole,
+} from "../input/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { cutEnd, singleSpaced } from "../../lib/text/index.ts";
-import { readableThread, visibleThread } from "./access.ts";
+import { readableChannel, readableThread, readsOthers, visibleThread } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
 import { mentionedMembers } from "./mentions.ts";
 import { once, requestOf } from "./requests.ts";
@@ -24,7 +34,7 @@ export function post(deps: ChatDeps, caller: Member, threadId: unknown, text: un
   const request = requestOf(requestId, id, body);
   const posted = deps.store.transaction((tx) =>
     once(tx, caller, request, () => {
-      const { channel } = visibleThread(tx, caller, id);
+      const { channel } = visibleThread(tx, deps, caller, id);
       return tx.appendMessage({
         threadId: id,
         authorId: caller.id,
@@ -59,11 +69,11 @@ export function wakeLine(
   return deps.store.transaction(
     (tx) =>
       once(tx, caller, request, () => {
-        visibleThread(tx, caller, threadId);
+        visibleThread(tx, deps, caller, threadId);
         let wake: WakeLine;
         if (input.kind === "answer") {
           const from = tx.member(input.from) ?? refuse(`Unknown member: ${input.from}.`);
-          const target = readableThread(tx, caller, input.thread);
+          const target = readableThread(tx, deps, caller, input.thread);
           wake = {
             kind: "answer",
             from,
@@ -92,7 +102,56 @@ export function readMessages(
   const before = beforeSeq === null ? null : whole(beforeSeq, "before", 0);
   const count = Math.min(whole(limit, "limit", 1), MAX_PAGE);
   return deps.store.transaction((tx) => {
-    readableThread(tx, caller, id);
+    readableThread(tx, deps, caller, id);
     return fitAnswer(tx.messagesIn(id, before, count), "newest");
+  });
+}
+
+/** Messages of a thread centered around `seq`, oldest first. */
+export function readAround(
+  deps: ChatDeps,
+  caller: Member,
+  threadId: unknown,
+  seq: unknown,
+  limit: unknown,
+): Message[] {
+  const id = identifier(threadId, "thread");
+  const target = whole(seq, "seq", 0);
+  const count = Math.min(whole(limit, "limit", 1), MAX_PAGE);
+  return deps.store.transaction((tx) => {
+    readableThread(tx, deps, caller, id);
+    return fitAnswer(tx.messagesAround(id, target, count), "newest");
+  });
+}
+
+/** Search non-deleted messages matching `query` across channels the caller may read, newest first. */
+export function searchMessages(
+  deps: ChatDeps,
+  caller: Member,
+  query: unknown,
+  channelId: unknown,
+  threadId: unknown,
+  limit: unknown,
+): SearchHit[] {
+  const terms = searchQuery(query);
+  const channel = channelId === undefined ? undefined : identifier(channelId, "channel");
+  const thread = threadId === undefined ? undefined : identifier(threadId, "thread");
+  const count = limit === undefined ? DEFAULT_SEARCH_LIMIT : Math.min(whole(limit, "limit", 1), MAX_SEARCH_LIMIT);
+  return deps.store.transaction((tx) => {
+    if (channel !== undefined) readableChannel(tx, deps, caller, channel);
+    if (thread !== undefined) {
+      const found = readableThread(tx, deps, caller, thread);
+      if (channel !== undefined && found.channel.id !== channel) refuse(`Thread ${thread} is not in channel ${channel}.`);
+    }
+    const hits = tx.searchMessages({
+      memberId: caller.id,
+      readsAll: readsOthers(deps, caller),
+      terms,
+      ...(channel === undefined ? {} : { channelId: channel }),
+      ...(thread === undefined ? {} : { threadId: thread }),
+      limit: count,
+    });
+    // Hits are newest first, so keeping from the front keeps the newest matches.
+    return fitAnswer(hits, "oldest");
   });
 }

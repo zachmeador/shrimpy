@@ -151,7 +151,7 @@ The rest are mostly for agents and scripts. `shrimpy <command> --help` explains 
 | `read <thread> [--json]` | Show a thread: who said what and when, oldest first, with each message's ID. |
 | `rooms` | List the rooms you are in, each with its members and when it was last updated. |
 | `rooms new <name> [<member>...]` | Make a room, with you and the members you name in it. Takes an admin. |
-| `rooms add <room> <member>...` | Add members to a room you are in. Takes an admin. |
+| `rooms add <room> <member>...` | Add members to a room. Takes an admin. |
 | `install` | Run shrimpy up for your Shrimpy folder as a service of your account, started again if it fails. |
 | `uninstall` | Stop your Shrimpy folder's service and remove it. Nothing of Shrimpy's is deleted. |
 | `update [<version>]` | Say what the latest release would change here, or install a version here and restart the service with it. |

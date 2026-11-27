@@ -1,12 +1,12 @@
 import { defineTool } from "@earendil-works/pi-durable";
 import { bool, int, obj, oneOf, opt, str } from "@earendil-works/pi-schema";
-import { type Message, namer, type Thread } from "../../contracts/chat/index.ts";
+import { type Thread } from "../../contracts/chat/index.ts";
 import { answer, failure } from "../host/durable.ts";
 import { standing } from "../inputs/index.ts";
-import { callSignal, type ChatCalls, chatFailure } from "../links/index.ts";
+import { callSignal, chatFailure } from "../links/index.ts";
 import type { Watches } from "../watches/durable.ts";
 import type { ChatToolsOptions } from "./options.ts";
-import { resolveChannel, resolveThread } from "./place.durable.ts";
+import { reactorNames, resolveChannel, resolveThread } from "./place.durable.ts";
 import * as words from "./words.ts";
 
 const DEFAULT_READ_LIMIT = 20;
@@ -44,6 +44,7 @@ export function threadTool(options: ChatToolsOptions, watches: Watches) {
             const target = await resolveChannel({
               value: to,
               openDmIfMissing: false,
+              includeReadOnly: true,
               conversationId: api.conversationId,
               read: api,
               chat: live.chat,
@@ -69,6 +70,7 @@ export function threadTool(options: ChatToolsOptions, watches: Watches) {
               argument: "thread",
               value: thread ?? to,
               allowNewDm: false,
+              includeReadOnly: true,
               conversationId: api.conversationId,
               read: api,
               chat: live.chat,
@@ -161,11 +163,4 @@ export function threadTool(options: ChatToolsOptions, watches: Watches) {
       }
     },
   });
-}
-
-function reactorNames(chat: ChatCalls, messages: Message[]): (memberId: string) => string {
-  const first = messages[0];
-  const reacted = messages.some((message) => message.reactions.length > 0);
-  const channel = first === undefined || !reacted ? undefined : chat.channels().find((each) => each.id === first.channelId);
-  return namer(channel?.members ?? []);
 }

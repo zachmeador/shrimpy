@@ -30,7 +30,7 @@ const threads: Command = {
 
     const reached = await reachChat(io);
     try {
-      const channel = channelNamed(reached, reached.chat.channels.value, name);
+      const channel = channelNamed(reached, reached.chat.channels.value, reached.chat.readOnlyChannels.value, name);
       const list = channel === undefined ? [] : await onChannel(reached.client, channel.id, (held) => held.threads.value);
       if (json) io.json(list);
       else if (channel === undefined || list.length === 0) io.out(`${notTalkedTo(name)} Start with: shrimpy run ${name} "<text>"`);
@@ -42,9 +42,14 @@ const threads: Command = {
   },
 };
 
-/** The channel `name` means: a room written #name, or your DM with a member, which you may not have yet. */
-function channelNamed(reached: Reached, channels: readonly Channel[], name: string): Channel | undefined {
-  if (name.startsWith("#")) return roomNamed(channels, name);
+/** The channel `name` means: a room written #name (including read-only ones for admins), or your DM with a member, which you may not have yet. */
+function channelNamed(
+  reached: Reached,
+  channels: readonly Channel[],
+  readOnlyChannels: readonly Channel[],
+  name: string,
+): Channel | undefined {
+  if (name.startsWith("#")) return roomNamed([...channels, ...readOnlyChannels], name);
   const member = memberNamed(reached.members, name);
   if (member.id === reached.me.id) {
     throw new Error(`${member.name} is you. Name the person or agent you have threads with.`);

@@ -1,7 +1,8 @@
 import type { Receipt, WakeLineInput } from "../../contracts/chat/index.ts";
 import { fitName, NAME_RULE } from "../../contracts/gateway/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import { MAX_DETAIL, MAX_ID, MAX_LINE, MAX_TEXT } from "./limits.ts";
+import { parseSearchTerms } from "../../lib/text/index.ts";
+import { MAX_DETAIL, MAX_ID, MAX_LINE, MAX_QUERY, MAX_SEARCH_TERMS, MAX_TEXT } from "./limits.ts";
 
 // Arguments arrive off the wire, so their TypeScript types promise nothing. Each
 // check refuses with a message that names the argument as `what`.
@@ -26,6 +27,20 @@ export function messageText(value: unknown): string {
     refuse(`A message holds at most ${MAX_TEXT} characters, and this one has ${value.length}.`);
   }
   return value;
+}
+
+/** A search query off the wire, split into lowercase terms (quoted phrases kept together). */
+export function searchQuery(value: unknown): string[] {
+  if (typeof value !== "string" || value.trim() === "") refuse("A search query needs some text.");
+  if (value.length > MAX_QUERY) {
+    refuse(`A search query holds at most ${MAX_QUERY} characters, and this one has ${value.length}.`);
+  }
+  const terms = parseSearchTerms(value);
+  if (terms.length === 0) refuse("A search query needs some text.");
+  if (terms.length > MAX_SEARCH_TERMS) {
+    refuse(`A search query takes at most ${MAX_SEARCH_TERMS} terms, and this one has ${terms.length}.`);
+  }
+  return terms;
 }
 
 /** One part of a wake line: text of at most `MAX_LINE` characters, which may be empty. */

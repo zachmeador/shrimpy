@@ -209,11 +209,14 @@ export function fauxModels(options: {
   tokensPerSecond?: number;
   /** How many characters a streamed piece holds. Long answers need big pieces to arrive in a reasonable time. */
   tokenSize?: { min: number; max: number };
+  /** Override the faux model's context window (tokens), e.g. to trigger compaction in a test. */
+  contextWindow?: number;
 }): { models: Models; model: AgentOptions["model"] } {
   const script = options.script ?? SCRIPTS[options.scenario ?? "chat"];
   const faux = fauxProvider({
     tokensPerSecond: options.tokensPerSecond ?? 400,
     tokenSize: options.tokenSize ?? { min: 1, max: 2 },
+    ...(options.contextWindow === undefined ? {} : { models: [{ id: "faux-1", contextWindow: options.contextWindow }] }),
   });
   mkdirSync(options.home, { recursive: true });
   const respond: FauxResponseFactory = (request) => {

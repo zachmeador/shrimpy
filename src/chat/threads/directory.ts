@@ -67,31 +67,31 @@ export function createRoom(deps: ChatDeps, caller: Member, name: unknown, member
 }
 
 /**
- * A room the caller can add members to: one it is in, and for you any room,
- * since a room you only read is yours to walk into. An agent adds only to a
- * room it is in. A DM is refused: it has the two members and no more.
+ * A room the caller can add members to: one it is in, and for any admin any
+ * room, since a room an admin only reads is theirs to walk into. A DM is
+ * refused: it has the two members and no more.
  */
-function roomOf(tx: Transaction, caller: Member, channelId: string): ChannelRecord {
-  const channel = readsOthers(caller) ? readableChannel(tx, caller, channelId) : visibleChannel(tx, caller, channelId);
+function roomOf(tx: Transaction, deps: ChatDeps, caller: Member, channelId: string): ChannelRecord {
+  const channel = readsOthers(deps, caller) ? readableChannel(tx, deps, caller, channelId) : visibleChannel(tx, deps, caller, channelId);
   if (channel.kind !== "room") refuse(`${DM_TAKES_NO_MORE} Make a room to talk with more.`);
   return channel;
 }
 
 /**
- * Add members to a room, as an admin: a room the caller is in, or for you any
- * room, yourself included. Whoever is added is offered the room's events from
- * then on, and one who is in already stays as they are.
+ * Add members to a room, as an admin: any room on the gateway, yourself
+ * included. Whoever is added is offered the room's events from then on, and
+ * one who is in already stays as they are.
  */
 export function addMembers(deps: ChatDeps, caller: Member, channel: unknown, memberIds: unknown): Channel {
   const channelId = identifier(channel, "channel");
   const ids = identifiers(memberIds, "members", MAX_MEMBERS);
   // Someone who is not in the room is refused as if there were none, before being told it takes an admin.
-  deps.store.transaction((tx) => roomOf(tx, caller, channelId));
+  deps.store.transaction((tx) => roomOf(tx, deps, caller, channelId));
   requireAdmin(deps, caller, "Adding members to a room");
   const added = membersOf(deps, caller, ids);
   return deps.store.transaction((tx) => {
-    const room = roomOf(tx, caller, channelId);
-    // You, naming yourself in a room you are not in, walk into it, as anyone you name does.
+    const room = roomOf(tx, deps, caller, channelId);
+    // An admin naming itself in a room it is not in walks into it, as anyone it names does.
     const joining = ids.includes(caller.id) && !isMember(room, caller.id) ? [...added, caller] : added;
     for (const member of joining) tx.saveMember(member);
     return toChannel(tx.addToChannel(channelId, joining), caller);
@@ -102,7 +102,7 @@ export function createThread(deps: ChatDeps, caller: Member, channel: unknown, n
   const channelId = identifier(channel, "channel");
   const title = name === null ? null : label(name, "The thread's name");
   return deps.store.transaction((tx) => {
-    visibleChannel(tx, caller, channelId);
+    visibleChannel(tx, deps, caller, channelId);
     return withWorking(tx.addThread(channelId, title, deps.now()), deps.working);
   });
 }
@@ -126,7 +126,7 @@ export function renameThread(deps: ChatDeps, caller: Member, thread: unknown, na
   const title = label(name, "The thread's name");
   const seen = whole(revision, "revision", 0);
   return deps.store.transaction((tx) => {
-    unchangedSince(visibleThread(tx, caller, threadId).thread, seen, (thread) => thread.name === title);
+    unchangedSince(visibleThread(tx, deps, caller, threadId).thread, seen, (thread) => thread.name === title);
     return withWorking(tx.renameThread(threadId, title), deps.working);
   });
 }
@@ -141,22 +141,23 @@ export function archiveThread(deps: ChatDeps, caller: Member, thread: unknown, a
   const hidden = flag(archived, "archived");
   const seen = whole(revision, "revision", 0);
   return deps.store.transaction((tx) => {
-    unchangedSince(visibleThread(tx, caller, threadId).thread, seen, (thread) => thread.archived === hidden);
+    unchangedSince(visibleThread(tx, deps, caller, threadId).thread, seen, (thread) => thread.archived === hidden);
     return withWorking(tx.archiveThread(threadId, hidden), deps.working);
   });
 }
 
 /**
  * Pin a thread in its channel or unpin it, as decided on its revision
- * `revision`. A member pins in a channel it is in, and you in any channel, as
- * you add members to any room. A thread pinned already keeps when it was.
+ * `revision`. A member pins in a channel it is in, and any admin in any
+ * channel, as an admin adds members to any room. A thread pinned already keeps
+ * when it was.
  */
 export function pinThread(deps: ChatDeps, caller: Member, thread: unknown, pinned: unknown, revision: unknown): Thread {
   const threadId = identifier(thread, "thread");
   const pin = flag(pinned, "pinned");
   const seen = whole(revision, "revision", 0);
   return deps.store.transaction((tx) => {
-    const found = readsOthers(caller) ? readableThread(tx, caller, threadId) : visibleThread(tx, caller, threadId);
+    const found = readsOthers(deps, caller) ? readableThread(tx, deps, caller, threadId) : visibleThread(tx, deps, caller, threadId);
     unchangedSince(found.thread, seen, (each) => (each.pinned !== null) === pin);
     return withWorking(tx.pinThread(threadId, pin ? deps.now() : null), deps.working);
   });
@@ -175,7 +176,7 @@ export function setWorking(
 ): null {
   const id = identifier(threadId, "thread");
   const mark = flag(working, "working");
-  deps.store.transaction((tx) => visibleThread(tx, caller, id));
+  deps.store.transaction((tx) => visibleThread(tx, deps, caller, id));
   deps.working.set(holder, caller.id, id, mark, deps.now());
   return null;
 }

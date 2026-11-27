@@ -22,7 +22,7 @@ export function leaveReceipt(deps: ChatDeps, caller: Member, eventIds: unknown, 
     const reply = left.reply === null ? null : (tx.message(left.reply) ?? null);
     const named: ChatEvent[] = [];
     for (const id of ids) {
-      const event = visibleEvent(tx, caller, id);
+      const event = visibleEvent(tx, deps, caller, id);
       if (event.kind === "receipted") refuse(`${id} is a receipt, and a receipt can't be left on one.`);
       if (left.reply !== null && (reply?.author.id !== caller.id || reply.threadId !== event.message.threadId)) {
         refuse(`${left.reply} is not a message you wrote in the same thread as ${id}.`);

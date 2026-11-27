@@ -1,8 +1,8 @@
 import type { Context } from "@earendil-works/chord/context";
 import type { DocumentReader } from "@earendil-works/pi-durable";
-import { type Channel, findDm, findRoom, type Member, notInRoom, roomLabel, type Thread } from "../../contracts/chat/index.ts";
+import { type Channel, findDm, findRoom, type Member, type Message, namer, notInRoom, roomLabel, type Thread } from "../../contracts/chat/index.ts";
 import { nameKey, type RosterEntry } from "../../contracts/gateway/index.ts";
-import { type ChatCalls, type Named, nameOnRoster } from "../links/index.ts";
+import { type ChatCalls, type Named, nameOnRoster, readableChannels } from "../links/index.ts";
 import { threadOfSession } from "../records/durable.ts";
 import * as words from "./words.ts";
 
@@ -30,6 +30,8 @@ export interface ResolveThreadOptions {
   argument: string;
   value: string | undefined;
   allowNewDm: boolean;
+  /** Also look in `chat.readOnlyChannels()` (for read operations by an admin agent). */
+  includeReadOnly?: boolean;
   conversationId: number;
   read: DocumentReader;
   chat: ChatCalls;
@@ -38,6 +40,20 @@ export interface ResolveThreadOptions {
   newThread?: (make: () => Promise<Thread>) => Promise<Thread>;
   context: Context;
   signal: AbortSignal;
+}
+
+const channelsOf = (chat: ChatCalls, includeReadOnly?: boolean): readonly Channel[] =>
+  includeReadOnly === true ? readableChannels(chat) : chat.channels();
+
+/** Resolve reactor member IDs to display names using the channel of `messages`. */
+export function reactorNames(chat: ChatCalls, messages: readonly Message[]): (memberId: string) => string {
+  const first = messages[0];
+  const reacted = messages.some((message) => message.reactions.length > 0);
+  const channel =
+    first === undefined || !reacted
+      ? undefined
+      : readableChannels(chat).find((each) => each.id === first.channelId);
+  return namer(channel?.members ?? []);
 }
 
 /**
@@ -54,7 +70,7 @@ export async function resolveThread(opts: ResolveThreadOptions): Promise<Resolve
   const current = await threadOfSession(opts.read, opts.conversationId, opts.context);
   if (value === undefined || value.trim() === "") {
     if (current === undefined) return { problem: `This session has no thread. Pass ${argument} with a thread ID, @name, or #room.` };
-    const found = await findThreadById(chat, current.threadId, self.id, opts.signal, current.channelId);
+    const found = await findThreadById(chat, current.threadId, self.id, opts.signal, current.channelId, opts.includeReadOnly);
     if (found === undefined) {
       return {
         threadId: current.threadId,
@@ -70,7 +86,7 @@ export async function resolveThread(opts: ResolveThreadOptions): Promise<Resolve
 
   const written = value.trim();
   if (THREAD_ID.test(written)) {
-    const found = await findThreadById(chat, written, self.id, opts.signal);
+    const found = await findThreadById(chat, written, self.id, opts.signal, undefined, opts.includeReadOnly);
     if (found === undefined) return { problem: words.threadNotFound(written) };
     return { ...found, here: found.threadId === current?.threadId };
   }
@@ -83,6 +99,8 @@ export async function resolveThread(opts: ResolveThreadOptions): Promise<Resolve
 export async function resolveChannel(opts: {
   value: string | undefined;
   openDmIfMissing: boolean;
+  /** Also look in `chat.readOnlyChannels()` (for read operations by an admin agent). */
+  includeReadOnly?: boolean;
   conversationId: number;
   read: DocumentReader;
   chat: ChatCalls;
@@ -92,16 +110,17 @@ export async function resolveChannel(opts: {
   signal: AbortSignal;
 }): Promise<{ channel: Channel; label: string } | Unusable> {
   const { value, chat, self } = opts;
+  const visible = channelsOf(chat, opts.includeReadOnly);
   if (value === undefined || value.trim() === "") {
     const current = await threadOfSession(opts.read, opts.conversationId, opts.context);
-    if (current === undefined) return { problem: "Give to: \"@name\" or \"#room\"." };
-    const channel = chat.channels().find((ch) => ch.id === current.channelId);
+    if (current === undefined) return { problem: 'Give to: "@name" or "#room".' };
+    const channel = visible.find((ch) => ch.id === current.channelId);
     if (channel === undefined) return { problem: "The current channel is not listed by chat." };
     return { channel, label: channelLabel(channel, self.id) };
   }
   const written = value.trim();
   if (written.startsWith("#")) {
-    const rooms = chat.channels().filter((ch) => ch.kind === "room");
+    const rooms = visible.filter((ch) => ch.kind === "room");
     const room = findRoom(rooms, written.slice(1).trim());
     if (room === undefined) return { problem: notInRoom(written.slice(1).trim(), rooms.map((r) => r.name)) };
     return { channel: room, label: words.theRoom(room.name) };
@@ -128,8 +147,9 @@ async function findThreadById(
   selfId: string,
   signal: AbortSignal,
   hintChannelId?: string,
+  includeReadOnly?: boolean,
 ): Promise<Omit<ResolvedThread, "here"> | undefined> {
-  const channels = chat.channels();
+  const channels = channelsOf(chat, includeReadOnly);
   const ordered =
     hintChannelId === undefined
       ? channels
@@ -138,11 +158,14 @@ async function findThreadById(
     const threads = await chat.threads(channel.id, signal);
     const found = threads.find((t) => t.id === threadId);
     if (found === undefined) continue;
-    const dmOther = channel.kind === "dm" ? channel.members.find((m) => m.id !== selfId) : undefined;
+    const isSelfIn = channel.members.some((m) => m.id === selfId);
+    const dmOther = channel.kind === "dm" && isSelfIn ? channel.members.find((m) => m.id !== selfId) : undefined;
     const label =
       channel.kind === "room"
         ? words.roomThreadLabel(found.name ?? found.id, channel.name)
-        : words.dmThreadLabel(dmOther?.name ?? channel.name, found.id);
+        : isSelfIn
+          ? words.dmThreadLabel(dmOther?.name ?? channel.name, found.id)
+          : `thread ${found.id} of DM (${channel.name})`;
     return {
       threadId: found.id,
       channelId: channel.id,
@@ -202,7 +225,7 @@ async function dmPlace(opts: ResolveThreadOptions, written: string, current: str
 }
 
 async function roomPlace(opts: ResolveThreadOptions, written: string, current: string | undefined): Promise<ResolvedThread | Unusable> {
-  const rooms = opts.chat.channels().filter((channel) => channel.kind === "room");
+  const rooms = channelsOf(opts.chat, opts.includeReadOnly).filter((channel) => channel.kind === "room");
   const found = roomAndThread(rooms, written);
   if (found === undefined) return { problem: notInRoom(firstPart(written), rooms.map((room) => room.name)) };
   const { room, thread } = found;

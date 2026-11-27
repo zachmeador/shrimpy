@@ -12,6 +12,7 @@ import { chatTools } from "./chat-tools/durable.ts";
 import { homeContext } from "./context/durable.ts";
 import { type ContextPreview, previewContext } from "./context/index.ts";
 import { homeReader } from "./following.ts";
+import { createHistory } from "./history/durable.ts";
 import { homePaths, lookAtHome, readBreadcrumbs, workspaceCopier, writeBreadcrumb } from "./home/index.ts";
 import { AGENT_STORAGE, buildModels, checkStorageVersion, type HostOptions, type ModelReload, openHost } from "./host/durable.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
@@ -124,10 +125,12 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       leaveBreadcrumb: (name, text) => writeBreadcrumb(paths, name, text),
       onError: report,
     });
+    const chatToolsOptions = { recordsId, chat, roster: members, ...messageLimit };
     const extensions = [
       context.extension,
       processes.extension,
-      chatTools({ recordsId, chat, roster: members, ...messageLimit }, watches),
+      chatTools(chatToolsOptions, watches),
+      createHistory(host.harness, chatToolsOptions),
       triggers.toolExtension,
       turn.extension,
       triggers.extension,

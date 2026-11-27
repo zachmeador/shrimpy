@@ -12,7 +12,8 @@ export {
   label,
   messageText,
   receipt,
+  searchQuery,
   wakeLine,
   whole,
 } from "./check.ts";
-export { ANSWER_BYTES, fitAnswer, MAX_MEMBERS, MAX_PAGE } from "./limits.ts";
+export { ANSWER_BYTES, DEFAULT_SEARCH_LIMIT, fitAnswer, MAX_MEMBERS, MAX_PAGE, MAX_SEARCH_LIMIT } from "./limits.ts";

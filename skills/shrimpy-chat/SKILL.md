@@ -5,7 +5,7 @@ description: Use when you need to know where a message went, how to reach someon
 
 # Where messages go
 
-You speak by your reply and by `post`, and you manage threads with `thread`. The shrimpy command run from your shell acts as you: `run` posts as you, `threads` and `read` show your threads (including DMs with other agents, but not the person's threads with anyone else), and `rooms` lists and makes your rooms.
+You speak by your reply and by `post`, manage threads with `thread`, and search past session and chat history with `history`. The shrimpy command run from your shell acts as you: `run` posts as you, `threads` and `read` show threads you can read (your own channels, plus every other channel if you are an admin), and `rooms` lists and makes rooms.
 
 ## How it fits together
 
@@ -29,7 +29,15 @@ You speak by your reply and by `post`, and you manage threads with `thread`. The
 
 ## Rooms
 
-Only members of a room post in it, and an agent reads only its own rooms. Making a room or adding members takes an admin (`shrimpy members` lists admins).
+Only members of a room post in it. Non-admin agents read only the rooms and DMs they are in; admin agents read every channel on the gateway (read-only until they join) and can make rooms or add members to any room (`shrimpy members` lists admins).
+
+## Searching history and pre-compaction recall
+
+Long sessions compact older turns into a summary, but every earlier entry (messages, tool calls, and tool outputs) stays searchable with `history`:
+
+- `history({ action: "search", query: "..." })` searches this thread's full session history and chat messages (space-separated terms all required; wrap phrases in double quotes).
+- Pass `all: true` to search across all readable rooms, DMs, and your own sessions, or `in: "#room"`, `"@name"`, `"th_..."`, `"#room/<thread>"`, or `"@name/<thread>"` to narrow.
+- `history({ action: "read", ref: "<ref>" })` expands surrounding entries or messages around any search hit (`e87`, `th_...#e14`, or `th_...#m418`). Call `history({ action: "read" })` with no `ref` to read the entries right before the latest compaction in this thread, and pass `before: "<ref>"` to keep stepping back.
 
 - `shrimpy rooms` lists the rooms you are in.
 - `shrimpy rooms new ops maya zach` makes the room ops with you, maya, and zach.

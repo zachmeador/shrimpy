@@ -18,6 +18,8 @@ export interface AgentRigOptions {
   script?: Script;
   tokensPerSecond?: number;
   tokenSize?: { min: number; max: number };
+  /** Override the faux model's context window (tokens), e.g. to trigger compaction in a test. */
+  contextWindow?: number;
   /** A home that already has an agent's history, for a second agent on it. */
   home?: string;
   /** A chat server that already has things said in it, for a second agent on it. */
@@ -79,6 +81,7 @@ export async function startAgentRig(t: TestContext, options: AgentRigOptions = {
         script: options.script,
         tokensPerSecond: options.tokensPerSecond,
         tokenSize: options.tokenSize,
+        ...(options.contextWindow === undefined ? {} : { contextWindow: options.contextWindow }),
       }),
       onReport: (error) => reports.push(error),
       ...(options.shortestEveryMs === undefined ? {} : { shortestEveryMs: options.shortestEveryMs }),
