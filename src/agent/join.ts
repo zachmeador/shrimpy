@@ -6,7 +6,7 @@ import type { Entry, LiveRoster, Principal, Revocation } from "../contracts/gate
 import { asError } from "../lib/errors/index.ts";
 import type { Backoff } from "../lib/retry/index.ts";
 import { type Admissions, type ChatDelivery, markWorking, readFeed, type Wakes } from "./chat/index.ts";
-import { homePaths } from "./home/index.ts";
+import { homePaths, type KeptFiles } from "./home/index.ts";
 import { type ChatCalls, followGateway, type LiveChat, linkToGateway, type LiveWorkspace, openChatLink } from "./links/index.ts";
 import { createAgentHost } from "./server.ts";
 import type { Working } from "./turns/index.ts";
@@ -68,6 +68,8 @@ export interface Participant {
   working: Working;
   /** What the tasks that follow the events tell chat with. It is given the agent's way to chat. */
   delivery: ChatDelivery;
+  /** The files that came with messages, which the agent saves in its home when it is shown them. */
+  files: KeptFiles;
   /**
    * The program and arguments that run this Shrimpy, with which the agent runs
    * `shrimpy update` to follow its gateway to a newer release. Without it the
@@ -90,7 +92,7 @@ export interface Participant {
  * so that it doesn't start or link again until it is let in again.
  */
 export function join(participant: Participant, options: JoinOptions): Joined {
-  const { name, facet, roster, workspace, admissions, wakes, working, delivery, onError } = participant;
+  const { name, facet, roster, workspace, admissions, wakes, working, delivery, files, onError } = participant;
   const paths = homePaths(participant.home);
   const backoff = options.backoff;
   const link = openChatLink(onError, options.chatCalls);
@@ -142,6 +144,7 @@ export function join(participant: Participant, options: JoinOptions): Joined {
   const reading = readFeed({
     link,
     admissions,
+    files,
     wakeIn: (room) => wakes.of(room),
     onError,
     stop: taking.signal,

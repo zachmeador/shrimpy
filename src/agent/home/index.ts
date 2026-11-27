@@ -7,7 +7,8 @@
  * workspace context, which goes on with what an earlier reading had of a file
  * the next one leaves out, and what its breadcrumbs folder holds. It writes and
  * deletes the breadcrumbs the agent and a trigger leave, and keeps the copy of
- * the workspace context as the gateway gives it. It also looks at the files an
+ * the workspace context as the gateway gives it, and the files that came with
+ * messages, a folder for each day, saving each once. It also looks at the files an
  * agent reads, by their names, sizes, modes and times and never their contents,
  * so the agent can tell when to read them again, and says what to do with
  * storage that another version of Shrimpy wrote. It lists the home's folders and
@@ -15,6 +16,7 @@
  * showing `state/`. It must not know about the engine, the model
  * runtime or how the agent is reached.
  */
+export { type KeptFiles, keptFiles } from "./attachments.ts";
 export { BREADCRUMB_LIMIT, type BreadcrumbFile, readBreadcrumbs, removeBreadcrumb, writeBreadcrumb } from "./breadcrumbs.ts";
 export { fileAt, folderAt } from "./browse.ts";
 export { CUT_MARKER, cutText, shownIn } from "./files.ts";

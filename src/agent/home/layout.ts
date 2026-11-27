@@ -11,6 +11,10 @@ export interface HomePaths extends SharedPaths {
   readonly processes: string;
   /** The copy of the workspace context the gateway last gave the agent, each file at its path on the gateway's machine. Only the agent writes it. */
   readonly workspaceContext: string;
+  /** Where the files that came with messages are kept, a folder for each day. */
+  readonly attachments: string;
+  /** What was saved where in `attachments`, by attachment ID. */
+  readonly attachmentsIndex: string;
 }
 
 export function homePaths(home: string): HomePaths {
@@ -21,6 +25,8 @@ export function homePaths(home: string): HomePaths {
     bin: join(paths.runtime, "bin"),
     processes: join(paths.state, "processes"),
     workspaceContext: join(paths.state, "workspace-context"),
+    attachments: join(paths.root, "attachments"),
+    attachmentsIndex: join(paths.state, "attachments.json"),
   };
 }
 

@@ -9,6 +9,7 @@ import {
   type Message,
   type SearchHit,
   type Thread,
+  type Upload,
   type WakeLineInput,
 } from "../../contracts/chat/index.ts";
 import {
@@ -52,8 +53,18 @@ export interface ChatCalls {
   threads(channel: string, signal: AbortSignal): Promise<readonly Thread[]>;
   /** A new thread in a channel. */
   createThread(channel: string, name: string | null, signal: AbortSignal): Promise<Thread>;
-  /** Post a message, quietly when `quiet` says so, which tells it to nobody's devices. A request ID's first use wins. */
-  post(thread: string, text: string, request: string, signal: AbortSignal, quiet?: boolean): Promise<Message>;
+  /**
+   * Post a message, with the agent's finished uploads that `attachments` names
+   * as its files, and quietly when `quiet` says so, which tells it to nobody's
+   * devices. A request ID's first use wins.
+   */
+  post(thread: string, text: string, request: string, signal: AbortSignal, options?: PostOptions): Promise<Message>;
+  /** Start an upload of a file, or find the one this request ID started, with how much of it chat has. */
+  upload(file: { name: string; mediaType: string; size: number }, request: string, signal: AbortSignal): Promise<Upload>;
+  /** Send a piece of an upload from `offset`, and hear how much of it chat has. */
+  uploadPiece(attachment: string, offset: number, data: Uint8Array, signal: AbortSignal): Promise<number>;
+  /** Up to `length` bytes of an attachment from `offset`. */
+  download(attachment: string, offset: number, length: number, signal: AbortSignal): Promise<Uint8Array>;
   /** Up to `limit` messages older than the position `before`, or the newest when it is null, oldest first. */
   read(thread: string, before: number | null, limit: number, signal: AbortSignal): Promise<Message[]>;
   /** Up to `limit` messages centered around `seq`, oldest first. */
@@ -69,6 +80,12 @@ export interface ChatCalls {
   archive(thread: string, archived: boolean, revision: number, signal: AbortSignal): Promise<Thread>;
   /** Record a wake line in a thread. A request ID's first use wins. */
   wakeLine(thread: string, wake: WakeLineInput, request: string, signal: AbortSignal): Promise<Message>;
+}
+
+/** How a post goes: quietly or not, and with which of the agent's finished uploads as its files. */
+export interface PostOptions {
+  quiet?: boolean;
+  attachments?: readonly string[];
 }
 
 /** Chat as it is up: its calls, who the agent is there, and a signal that aborts when it is lost. */
@@ -172,8 +189,18 @@ function callsOver(host: Host<Principal, Revocation>, chat: Held<typeof Chat>, m
     async createThread(channel, name, signal) {
       return valueOf(await chat.createThread({ channel, name }, contextOf(signal)));
     },
-    async post(thread, text, request, signal, quiet = false) {
-      return valueOf(await chat.post({ thread, text, request, quiet }, contextOf(signal)));
+    async post(thread, text, request, signal, options = {}) {
+      const attachments = options.attachments === undefined || options.attachments.length === 0 ? {} : { attachments: [...options.attachments] };
+      return valueOf(await chat.post({ thread, text, request, quiet: options.quiet === true, ...attachments }, contextOf(signal)));
+    },
+    async upload(file, request, signal) {
+      return valueOf(await chat.upload({ ...file, request }, contextOf(signal)));
+    },
+    async uploadPiece(attachment, offset, data, signal) {
+      return valueOf(await chat.uploadPiece({ attachment, offset, data }, contextOf(signal)));
+    },
+    async download(attachment, offset, length, signal) {
+      return valueOf(await chat.download({ attachment, offset, length }, contextOf(signal)));
     },
     async read(thread, before, limit, signal) {
       return valueOf(await chat.read({ thread, before, limit }, contextOf(signal)));

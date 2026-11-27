@@ -3,10 +3,12 @@ import { agentCommandIn, type Channel, type ChatEvent } from "../../contracts/ch
 import { asError } from "../../lib/errors/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { type Backoff, backoff, pause } from "../../lib/retry/index.ts";
+import type { KeptFiles } from "../home/index.ts";
 import type { ChatLink, LiveChat } from "../links/index.ts";
 import type { Admissions } from "./admissions.ts";
 import { takeUpAnswer } from "./answer.ts";
 import { commandFor, obey } from "./commands.ts";
+import { backlogInHome, snapshotInHome } from "./files.ts";
 import { inPlace } from "./place.ts";
 import { resultOf, toWatch } from "./watches.ts";
 import { withUnseen } from "./unseen.ts";
@@ -18,6 +20,8 @@ const FEED_LIMIT = 50;
 export interface FeedOptions {
   link: ChatLink;
   admissions: Admissions;
+  /** The files that came with messages, which the agent saves in its home as it is shown them. */
+  files: KeptFiles;
   /** What wakes the agent in the room with this name, whatever the case. */
   wakeIn: (room: string) => WakePolicy;
   /** Told of failures, each time one ends an attempt to read. */
@@ -136,7 +140,7 @@ export async function readFeed(options: FeedOptions): Promise<void> {
         // While a watch is open on an agent DM thread, posts/edits by that agent belong to the watch, and its receipt settles it.
         const watched = passed ? undefined : toWatch(event, await admissions.watches());
         if (watched !== undefined) {
-          const result = watched.kind === "receipt" ? await resultOf(chat, watched.receipt, signal, reported) : undefined;
+          const result = watched.kind === "receipt" ? await resultOf({ chat, files: options.files, signal }, watched.receipt, reported) : undefined;
           if (watched.kind === "receipt" && result !== undefined) {
             await admissions.settleWatch(watched.watch.id, result, event.at, event.seq);
             cursor = stored = at = event.seq;
@@ -155,7 +159,13 @@ export async function readFeed(options: FeedOptions): Promise<void> {
           const context = { chat, self, looked: (threadId: string) => admissions.looked(threadId), signal, onError: reported };
           // The event comes with what was said before it that the agent has not seen, and where its thread is, and in a
           // room who each message was for.
-          const taken = await inPlace(context, await withUnseen(context, event, woken));
+          const placed = await inPlace(context, await withUnseen(context, event, woken));
+          const files = { chat, files: options.files, signal };
+          const taken = {
+            ...placed,
+            event: await snapshotInHome(files, placed.event),
+            ...(placed.backlog === undefined ? {} : { backlog: await backlogInHome(files, placed.backlog) }),
+          };
           // A person's message is read by the turn that is running, at its next step, and not after it.
           const input = isUrgentPost(event) ? { ...taken, urgent: true as const } : taken;
           // The agent's place in the feed moves in the commit that takes the event up, to where the feed brought it.

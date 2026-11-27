@@ -69,9 +69,9 @@ async function open(t: TestContext, home: string, scenario: FauxScenario, option
   const delivery = options.delivery ?? recordingDelivery().delivery;
   const reports: Error[] = [];
   const { models, model } = fauxModels({ home, scenario, tokensPerSecond: options.tokensPerSecond ?? 4000 });
-  const real = turnTask({ delivery, onError: (error) => reports.push(error) });
-  const turn = options.pace === undefined ? real : paced(real, options.pace);
   const host = await openHost({ home, models });
+  const real = turnTask({ delivery, pictures: host.pictures, onError: (error) => reports.push(error) });
+  const turn = options.pace === undefined ? real : paced(real, options.pace);
   host.install(turn.extension);
   let stopped = false;
   const stop = async (): Promise<void> => {

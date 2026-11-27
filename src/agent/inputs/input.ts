@@ -1,5 +1,5 @@
 import type { ModelId } from "../../contracts/agent/index.ts";
-import type { Attachment, WakeLine } from "../../contracts/chat/index.ts";
+import { type Attachment, isPicture, type WakeLine } from "../../contracts/chat/index.ts";
 
 /**
  * What an input is, in Shrimpy's own terms: a chat event, an occurrence of a
@@ -21,12 +21,26 @@ export type Audience = {
   everyone: boolean;
 };
 
-/** A file that came with a message, as the model is told of it: its name, its media type and its size in bytes. */
-export type Attached = { name: string; mediaType: string; size: number };
+/**
+ * A file that came with a message, as the model is told of it: its attachment
+ * ID, its name, media type and size in bytes, whether it is a picture, which
+ * the model is shown with its message, and where it is in the agent's home,
+ * relative to it, or why it couldn't be saved there.
+ */
+export type Attached = { id: string; name: string; mediaType: string; size: number; picture?: true; path?: string; missing?: string };
+
+/** A file as chat has it, before it is in the home. */
+export const attached = (attachment: Attachment): Attached => ({
+  id: attachment.id,
+  name: attachment.name,
+  mediaType: attachment.mediaType,
+  size: attachment.size,
+  ...(isPicture(attachment) ? { picture: true as const } : {}),
+});
 
 /** What a posted message's snapshot keeps of the files that came with it: nothing when none did. */
 export function attachedOf(attachments: readonly Attachment[]): { attachments?: Attached[] } {
-  return attachments.length === 0 ? {} : { attachments: attachments.map(({ name, mediaType, size }) => ({ name, mediaType, size })) };
+  return attachments.length === 0 ? {} : { attachments: attachments.map(attached) };
 }
 
 /**
@@ -126,8 +140,8 @@ export type Watch = {
 
 /** What came back when a watched agent settled. */
 export type WatchResult =
-  /** The watched agent answered. `reply` is absent when the reply could not be read. */
-  | { kind: "answered"; reply?: { text: string; at: number } }
+  /** The watched agent answered. `reply` is absent when the reply could not be read, and has the files that came with it. */
+  | { kind: "answered"; reply?: { text: string; at: number; attachments?: Attached[] } }
   /** It read the post and wrote nothing (`END`). */
   | { kind: "silent" }
   /** Its turn failed, for the reason its receipt gives. */
@@ -415,9 +429,12 @@ export type Ending = {
   reason?: string;
 };
 
-/** How the turn for an input ended. */
+/**
+ * How the turn for an input ended. An answer carries the files its turn sent
+ * for the reply, as chat's attachments, when it sent any.
+ */
 export type TurnOutcome =
-  | { kind: "answered"; answer: string; text: string; cut?: true }
+  | { kind: "answered"; answer: string; text: string; cut?: true; attachments?: string[] }
   | { kind: "stopped" }
   | { kind: "skipped"; reason?: string }
   | { kind: "failed"; reason: string };

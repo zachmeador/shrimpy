@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { localTime } from "../../lib/time/index.ts";
 import type { Outstanding, Snapshot } from "./input.ts";
-import { promptFor } from "./prompt.ts";
+import { promptText } from "./prompt.ts";
 
 const at = (iso: string): number => Date.parse(iso);
 
@@ -21,7 +21,7 @@ test("a message is shown with its thread and channel, after the earlier events, 
   ];
   const latest = posted("evt_4", "Zach", "Never mind the first one.", "2026-10-03T14:09:00Z");
 
-  const prompt = promptFor(outstanding(latest, earlier));
+  const prompt = promptText(outstanding(latest, earlier));
 
   assert.ok(prompt.includes("th_4k9x2m7q0b3d") && prompt.includes("ch_8f2m1q7z4c0a"), prompt);
   const where = [...earlier, latest].map((event) => (event.kind === "posted" ? prompt.indexOf(event.text) : -1));

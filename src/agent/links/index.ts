@@ -17,6 +17,7 @@ export {
   type ChatLink,
   type LiveChat,
   openChatLink,
+  type PostOptions,
   readableChannels,
 } from "./chat.ts";
 export { linkToGateway } from "./gateway.ts";

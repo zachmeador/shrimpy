@@ -8,6 +8,7 @@
  */
 export { endingOf, readFinalText } from "./ending.ts";
 export {
+  attached,
   attachedOf,
   type Attached,
   type Audience,
@@ -45,5 +46,5 @@ export {
   type WatchResult,
   type WatchSettled,
 } from "./input.ts";
-export { CAN_END_TURN, promptFor, standing, written } from "./prompt.ts";
+export { CAN_END_TURN, type Picture, promptFor, type PromptPart, promptText, standing, unshownPicture, written } from "./prompt.ts";
 export { type InputProvenance, inputProvenanceOf, type StoredInputOmission } from "./provenance.ts";

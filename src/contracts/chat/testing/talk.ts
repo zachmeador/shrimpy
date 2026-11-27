@@ -5,7 +5,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { eventually } from "../../../lib/testing/index.ts";
 import { type Client, valueOf } from "../../gateway/index.ts";
 import { startTestGateway } from "../../gateway/testing/index.ts";
-import type { Chat, ChatEvent, Member, Message, Receipt, Thread } from "../index.ts";
+import { type Attachment, type Chat, type ChatEvent, fetchFile, type FileToSend, type Member, type Message, type Receipt, sendFile, type Thread } from "../index.ts";
 import { memberNamed, onChannel, onChat } from "./speaking.ts";
 
 const context = BACKGROUND_CONTEXT;
@@ -22,6 +22,10 @@ export interface Talk {
   newThread(name?: string): Promise<Thread>;
   /** Say something in a thread, the one you talk in unless another is given. */
   say(text: string, threadId?: string): Promise<Message>;
+  /** Say something with files in a thread, the one you talk in unless another is given. */
+  send(text: string, files: readonly FileToSend[], threadId?: string): Promise<Message>;
+  /** The bytes of a file that came with a message. */
+  download(attachment: Attachment): Promise<Uint8Array>;
   /** Change what a message of yours says. */
   edit(message: Message, text: string): Promise<Message>;
   /** Delete a message of yours. */
@@ -113,6 +117,22 @@ export async function talkTo(t: TestContext, agentName: string): Promise<Talk> {
     thread,
     newThread: (name) => asking(async (held) => valueOf(await held.createThread({ channel: dm.id, name: name ?? null }, context))),
     say: (text, threadId = thread.id) => asking(async (held) => valueOf(await held.post({ thread: threadId, text, request: randomUUID() }, context))),
+    send: (text, files, threadId = thread.id) =>
+      asking(async (held) => {
+        const sender = {
+          upload: async (upload: { name: string; mediaType: string; size: number }, request: string) =>
+            valueOf(await held.upload({ ...upload, request }, context)),
+          uploadPiece: async (attachment: string, offset: number, data: Uint8Array) =>
+            valueOf(await held.uploadPiece({ attachment, offset, data }, context)),
+        };
+        const attachments = [];
+        for (const file of files) attachments.push(await sendFile(sender, file, randomUUID()));
+        return valueOf(await held.post({ thread: threadId, text, request: randomUUID(), attachments }, context));
+      }),
+    download: (attachment) =>
+      asking((held) =>
+        fetchFile(attachment.size, async (offset, length) => valueOf(await held.download({ attachment: attachment.id, offset, length }, context))),
+      ),
     edit: (message, text) => asking(async (held) => valueOf(await held.edit({ message: message.id, text, request: randomUUID() }, context))),
     remove: (message) => asking(async (held) => valueOf(await held.delete({ message: message.id, request: randomUUID() }, context))),
     react: (message, emoji) => asking(async (held) => valueOf(await held.react({ message: message.id, emoji, request: randomUUID() }, context))),

@@ -1,4 +1,5 @@
 import type { JsonValue } from "@earendil-works/chord/json";
+import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
 import type { Context } from "@earendil-works/chord/context";
 import {
   type ConversationHandle,
@@ -16,6 +17,7 @@ import {
   type TaskRecord,
   type TaskRuntime,
   type Tx,
+  type UserInput,
 } from "@earendil-works/pi-durable";
 import { failureWords } from "../../contracts/agent/index.ts";
 import { asError } from "../../lib/errors/index.ts";
@@ -29,15 +31,17 @@ import {
   type ModelChange,
   type Outstanding,
   promptFor,
+  promptText,
   requestIdOf,
   threadOf,
   type TurnOutcome,
+  unshownPicture,
 } from "../inputs/index.ts";
-import { ABORTED, tasksOfKind } from "../host/durable.ts";
+import { ABORTED, type Pictures, tasksOfKind } from "../host/durable.ts";
 import { keepSkipped, sessionAddress, SessionsDoc } from "../records/durable.ts";
 import { chatPause, type Delivery } from "./delivery.ts";
 import { modelChangeOf } from "./model-change.durable.ts";
-import { CUT_OFF, toOutcome } from "./turn.durable.ts";
+import { CUT_OFF, forReply, toOutcome } from "./turn.durable.ts";
 
 /** The name of the task that follows one input, from the moment it is taken up until its source is told how it ended. */
 export const TURN_TASK = "shrimpy.turn";
@@ -62,27 +66,50 @@ export function phaseOf(record: TaskRecord<JsonValue, JsonValue, JsonValue>): Tu
 
 type Runtime = TaskRuntime<Outstanding, TurnState, Ending, object>;
 /** What reading how an input ended takes of a task's runtime: the input's task's, or its wait's. */
-type Reader = Pick<Runtime, "conversationId" | "entry" | "snapshot">;
+type Reader = Pick<Runtime, "conversationId" | "entry" | "entries" | "snapshot">;
 type Turn<P extends TurnState = TurnState> = RunningTask<Outstanding, P, Ending>;
 type Phase<P extends TurnState = TurnState> = (turn: Turn<P>, runtime: Runtime, context: Context) => Promise<void>;
 /** What a phase does when something unexpected went wrong in it, so that the task ends in a way that says so. */
 type Recovery<P extends TurnState> = (turn: Turn<P>, runtime: Runtime, context: Context, failure: Error) => Promise<void>;
 
 /**
- * What the session is handed for an input. When the session is working, an
- * urgent input joins the turn that is running, which reads it at its next step,
- * and any other input waits for the next turn. A session that is idle starts a
- * turn for either. `change` is the fact that the session's model is not the one
- * that wrote its last answer, which is shown with the first input it is handed
- * after that. Only the submission that first names a request ID says anything,
- * so whoever asks for it again to find it leaves `change` out.
+ * What the session is handed for an input, saying `content`. When the session
+ * is working, an urgent input joins the turn that is running, which reads it at
+ * its next step, and any other input waits for the next turn. A session that is
+ * idle starts a turn for either.
  */
-const inputOf = (outstanding: Outstanding, change?: ModelChange) => ({
+const inputOf = (outstanding: Outstanding, content: UserInput) => ({
   type: "input" as const,
-  content: promptFor(outstanding, change),
+  content,
   whenBusy: isUrgent(outstanding) ? ("steer" as const) : ("followUp" as const),
   requestId: requestIdOf(outstanding),
 });
+
+/**
+ * An input as its session is first handed it: its words, and the pictures that
+ * came with its messages, read from the home and fitted to what a model takes.
+ * `change` is the fact that the session's model is not the one that wrote its
+ * last answer, which is shown with the first input it is handed after that.
+ */
+async function toHandOver(outstanding: Outstanding, pictures: Pictures, change?: ModelChange) {
+  const content: (TextContent | ImageContent)[] = [];
+  for (const part of promptFor(outstanding, change)) {
+    if ("text" in part) {
+      content.push({ type: "text", text: part.text });
+      continue;
+    }
+    const shown = await pictures.show(part.picture.path);
+    content.push("image" in shown ? shown.image : { type: "text", text: unshownPicture(part.picture, shown.unshown) });
+  }
+  const [only] = content;
+  return inputOf(outstanding, content.length === 1 && only?.type === "text" ? only.text : content);
+}
+
+/**
+ * An input as whoever finds it again names it. Only the submission that first
+ * names a request ID says anything, so this one says only its words.
+ */
+const foundAgain = (outstanding: Outstanding) => inputOf(outstanding, promptText(outstanding));
 
 /** Where an input is, as a report says it. */
 function placeText(input: Outstanding): string {
@@ -95,6 +122,8 @@ function placeText(input: Outstanding): string {
 export interface TurnTaskOptions {
   /** What tells an input's source how its turn ended. */
   delivery: Delivery;
+  /** Pictures from the home, as a model is shown them. */
+  pictures: Pictures;
   /** Told of a failure inside a task, which the task turns into the failure its source is told. */
   onError(error: Error): void;
 }
@@ -127,7 +156,7 @@ export interface TurnTaskOptions {
  * telling, which holds nothing, so a crash then cuts nothing off.
  */
 export function turnTask(options: TurnTaskOptions) {
-  const { delivery } = options;
+  const { delivery, pictures } = options;
 
   /**
    * The task that waits for an input's turn to end and says how it ended. It
@@ -145,7 +174,7 @@ export function turnTask(options: TurnTaskOptions) {
     phases: {
       wait: async (waiting, runtime, context) => {
         const session = await sessionOf(waiting.input, runtime, context);
-        const submission = await session.submit(inputOf(waiting.input), context);
+        const submission = await session.submit(foundAgain(waiting.input), context);
         const cut = (waiting.restarts ?? 0) > 0 && (await submission.status(context)).status === "placed";
         const outcome = await outcomeOf(await submission.wait(context), runtime, context);
         const result: TurnOutcome = cut && outcome.kind === "answered" ? { ...outcome, cut: true } : outcome;
@@ -196,7 +225,7 @@ export function turnTask(options: TurnTaskOptions) {
           const change = await modelChange(runtime, context);
           const inputs = [...(await unhanded(turn, runtime, context)), turn.input];
           for (const [index, input] of inputs.entries()) {
-            await session.submit(inputOf(input, index === 0 ? change : undefined), context);
+            await session.submit(await toHandOver(input, pictures, index === 0 ? change : undefined), context);
           }
           await runtime.commit(async (tx) => {
             const waiting = await tx.createTask(wait, turn.input, { ownership: { kind: "task", taskId: runtime.taskId } });
@@ -326,7 +355,10 @@ export async function withdrawUnhanded(harness: Harness, conversationId: Convers
  * turn failed until its next turn starts, which is read at once.
  */
 async function outcomeOf(settled: SettledSubmissionRecord, runtime: Reader, context: Context): Promise<TurnOutcome> {
-  if (settled.type === "input" && settled.status === "done") return toOutcome(settled, await runtime.entry(settled.answer, context));
+  if (settled.type === "input" && settled.status === "done") {
+    const files = await forReply(settled.answer, (query, limit, cursor, at) => runtime.entries(query, limit, cursor, at), context);
+    return toOutcome(settled, await runtime.entry(settled.answer, context), undefined, files);
+  }
   if (settled.status === "unanswered" && settled.reason === "run_failed") {
     return toOutcome(settled, undefined, (await runtime.snapshot(LiveDoc, runtime.conversationId, context))?.runFailure);
   }
@@ -363,7 +395,7 @@ async function handedOver(input: Outstanding, runtime: Runtime, context: Context
 async function stopped(turn: Turn, runtime: Runtime, context: Context, instead?: TurnOutcome): Promise<TurnOutcome> {
   if ((await handedOver(turn.input, runtime, context)) === undefined) return { kind: "skipped" };
   const session = await sessionOf(turn.input, runtime, context);
-  const submission = await session.submit(inputOf(turn.input), context);
+  const submission = await session.submit(foundAgain(turn.input), context);
   const { status } = await submission.status(context);
   if (status === "queued") await submission.abort(context);
   else if (status === "placed") await session.abort(context);

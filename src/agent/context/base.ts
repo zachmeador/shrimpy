@@ -7,10 +7,10 @@ export interface AgentFacts {
 }
 
 /**
- * What every Shrimpy agent is told: how replies work, the 9 tools (`read`,
- * `write`, `edit`, `bash`, `process`, `post`, `thread`, `history`, `trigger`),
- * how threads, watches, background commands, triggers, and breadcrumbs work,
- * and what its home holds. The commands it names are checked against the CLI by
+ * What every Shrimpy agent is told: how replies work, the 10 tools (`read`,
+ * `write`, `edit`, `bash`, `process`, `post`, `attach`, `thread`, `history`,
+ * `trigger`), how threads, watches, background commands, triggers, files and
+ * breadcrumbs work, and what its home holds. The commands it names are checked against the CLI by
  * a test.
  */
 export function baseInstructions({ name, home }: AgentFacts): string {
@@ -32,7 +32,8 @@ export function baseInstructions({ name, home }: AgentFacts): string {
     "- read, write, edit: inspect and edit files in your home and workspace.",
     "- bash({ command, background? }): run a shell command from your home. By default waits up to 60 seconds and returns combined output; if still running after 60s it moves to the background and returns a process ID. Pass background: true for long-running work (downloads, builds, coding agents) so you can end your turn immediately, and for a command you will send input to: no other command gets any. Background commands wake this thread on exit (and once after 15 minutes if still running).",
     "- process({ action, id?, lines?, text?, eof? }): list running background commands, read recent output tail, write to the stdin of one started with background: true (eof: true closes it), or kill a running command.",
-    "- post({ text, to?, quiet? }): post right away without ending your turn. Omit to for a mid-turn update here; pass to: \"@name\" to start a DM thread, or \"th_...\", \"@name/<thread>\", \"#room\", or \"#room/<thread>\" for an existing thread. Posting to another agent's DM automatically watches for their reply and wakes this thread when they settle — end your turn after posting. Write messages to other agents so they stand alone, since that agent sees nothing of this thread. Don't use post for your final reply in this thread.",
+    "- post({ text, to?, quiet?, attach? }): post right away without ending your turn. Omit to for a mid-turn update here; pass to: \"@name\" to start a DM thread, or \"th_...\", \"@name/<thread>\", \"#room\", or \"#room/<thread>\" for an existing thread. Posting to another agent's DM automatically watches for their reply and wakes this thread when they settle — end your turn after posting. Write messages to other agents so they stand alone, since that agent sees nothing of this thread. attach sends files with the message. Don't use post for your final reply in this thread.",
+    "- attach({ paths }): attach files to your reply in this thread. They go with your final text, or alone if you end with END.",
     "- thread({ action, to?, thread?, name?, archived?, limit?, before? }): list threads in a DM or room, read messages, create an empty named thread, rename a thread, or archive/unarchive one. Archive a thread once nobody needs it, such as an agent-to-agent DM whose work is done (archiving a watched DM thread also drops the open watch).",
     "- history({ action, query?, in?, all?, ref?, before?, limit? }): search and read past session entries (including pre-compaction messages, tool calls, and tool outputs) and chat history across rooms and DMs. Omit `in` and `all` to search this thread, pass `all: true` for all readable channels and your sessions, or pass `in` (\"th_...\", \"#room\", \"@name\", etc.). When a session starts with a compaction summary or detail lives in another thread or room, use `history` to search and inspect it.",
     "- trigger({ action, name?, in?, at?, every?, cron?, timezone?, prompt?, thread?, check?, when?, then? }): schedule, list, pause, resume, or remove triggers. Give in/at for a one-time wakeup or name + every/cron for a recurring trigger; both default to this thread (omit thread only for then: \"note\" breadcrumb checks). Never use system cron or timers: triggers run as you, and only `SHRIMPY_AGENT_HOME` in your shell makes `shrimpy` commands act as you.",
@@ -49,6 +50,7 @@ export function baseInstructions({ name, home }: AgentFacts): string {
     "- breadcrumbs/ holds moving facts as small Markdown files.",
     "- skills/ holds skills, each a folder with a SKILL.md. Read a listed skill when the task calls for it.",
     "- vault/ holds longer notes and files you read when needed.",
+    "- attachments/ holds the files that came with messages, a folder for each day. You are told where each is, and shown a picture with its message.",
     "- agent.json holds your settings, including your 12x12 sigil.",
     "Changes to SOUL.md or files in context/, skills/, or triggers/ are picked up automatically within seconds.",
     "<workspace> holds shared network notes from context/ on the gateway machine. Edit them there, never your copy in state/workspace-context/.",

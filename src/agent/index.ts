@@ -13,7 +13,7 @@ import { homeContext } from "./context/durable.ts";
 import { type ContextPreview, previewContext } from "./context/index.ts";
 import { homeReader } from "./following.ts";
 import { createHistory } from "./history/durable.ts";
-import { homePaths, lookAtHome, readBreadcrumbs, workspaceCopier, writeBreadcrumb } from "./home/index.ts";
+import { homePaths, keptFiles, lookAtHome, readBreadcrumbs, workspaceCopier, writeBreadcrumb } from "./home/index.ts";
 import { AGENT_STORAGE, buildModels, checkStorageVersion, type HostOptions, type ModelReload, openHost } from "./host/durable.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { followWorkspace, type LiveChat } from "./links/index.ts";
@@ -97,10 +97,11 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     const roster = createLiveRoster(report);
     const members = () => roster.now()?.members;
     const breadcrumbs = () => readBreadcrumbs(paths);
+    const files = keptFiles(paths);
     const messageLimit = options.join?.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit };
     const sessions = createSessions(host.harness, { model: options.model, cwd: host.home }, options.models, options.modelFromHome);
     const delivery = createDelivery({ recordsId, onError: report, ...messageLimit });
-    const turn = turnTask({ delivery, onError: report });
+    const turn = turnTask({ delivery, pictures: host.pictures, onError: report });
     const watches = createWatches(host.harness);
     const processes = createProcesses(host.harness, {
       home: options.home,
@@ -126,7 +127,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       leaveBreadcrumb: (name, text) => writeBreadcrumb(paths, name, text),
       onError: report,
     });
-    const chatToolsOptions = { recordsId, chat, roster: members, ...messageLimit };
+    const chatToolsOptions = { recordsId, home: options.home, chat, roster: members, files, ...messageLimit };
     const requests = createRequests(host.harness, {
       context,
       homeModel: () => ({ model: sessions.defaults.model, fromHome: sessions.fromHome() }),
@@ -233,6 +234,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
             wakes,
             working: createWorking(host.harness),
             delivery,
+            files,
             ...(options.shrimpy === undefined ? {} : { shrimpy: options.shrimpy }),
             onRemoved() {
               void (close?.({ now: true }) ?? Promise.resolve())

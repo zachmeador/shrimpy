@@ -87,6 +87,10 @@ export function backlogOf(unseen: readonly Message[], more: boolean, self: Membe
   };
 }
 
+/** The characters `messages` take as the model reads them, each with the blank line after it. */
+export const charactersOf = (messages: readonly (Said | Fired)[]): number =>
+  messages.reduce((total, message) => total + written(message).length + BETWEEN, 0);
+
 /** A message as the model reads one that arrives: with the files that came with it, in a room with who it was for, and when it was edited if it was. A wake line carries what woke the agent. */
 function said(message: Message, self: Member, channel: Channel): Said | Fired {
   if (message.wake !== null) {

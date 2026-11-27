@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
 import type { Occurrence, TriggerDetail } from "../contracts/agent/index.ts";
 import { eventually, stopAfter, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
-import { promptFor } from "./inputs/index.ts";
+import { promptText } from "./inputs/index.ts";
 import {
   type AgentConnection,
   connectAgent,
@@ -42,7 +42,7 @@ const ended = (detail: TriggerDetail, how: Occurrence["ended"]): number => detai
 const quiet = (detail: TriggerDetail): number => detail.lastCheck?.quiet ?? 0;
 
 const opening = (name: string): string =>
-  promptFor({
+  promptText({
     occurrence: { id: "occ_1", trigger: name, due: 0, firedAt: 0, byHand: false, schedule: "every 1s", prompt: "" },
     threadId: DUMMY_THREAD,
     channelId: "ch_1",

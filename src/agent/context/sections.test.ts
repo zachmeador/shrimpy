@@ -62,7 +62,7 @@ test("what every agent is told names the agent, its home and every tool of its o
       killFromTool: nope,
     }),
     chatTools(
-      { recordsId: "rec_test", chat: () => undefined, roster: () => undefined },
+      { recordsId: "rec_test", home: "/agents/scout", chat: () => undefined, roster: () => undefined, files: { whereIs: () => undefined, keep: () => "" } },
       { list: nope, listed: nope as never, open: nope, cancel: nope, dropForThread: nope },
     ),
     triggerTool({
@@ -77,6 +77,6 @@ test("what every agent is told names the agent, its home and every tool of its o
     }),
   ];
   const tools = installed.flatMap((extension) => (extension.tools ?? []).map((tool) => tool.name));
-  assert.deepEqual(tools, ["bash", "process", "post", "thread", "trigger"]);
+  assert.deepEqual(tools, ["bash", "process", "post", "attach", "thread", "trigger"]);
   for (const name of tools) assert.ok(text.includes(name), `the instructions don't name ${name}`);
 });

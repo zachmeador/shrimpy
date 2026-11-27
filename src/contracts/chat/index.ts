@@ -26,12 +26,14 @@
  * that every client and chat's own refusals say them the same way; and finding
  * a member, a room or a DM by what it is called, and a member's name by its ID,
  * as the clients and the agent's tools do; and where a text says `@name`, so
- * that chat records whom a message mentions and a client marks the same words.
- * This door is safe for browsers.
+ * that chat records whom a message mentions and a client marks the same words;
+ * and moving a file to or from chat in pieces, which every sender and reader
+ * does the same way. This door is safe for browsers.
  */
 export { Channel } from "./channel.ts";
 export { Chat } from "./chat.ts";
 export { AGENT_COMMANDS, type AgentCommand, agentCommandIn } from "./commands.ts";
+export { fetchFile, type FileSender, type FileToSend, sendFile } from "./files.ts";
 export { findDm, findMember, findRoom, namer } from "./lookups.ts";
 export { mentions, mentionsOf } from "./mentions.ts";
 export { ChatPresence } from "./presence.ts";

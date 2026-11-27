@@ -1,7 +1,7 @@
 import type { ChatEvent, Message, Receipt } from "../../contracts/chat/index.ts";
-import type { Watch, WatchResult } from "../inputs/index.ts";
-import type { ChatCalls } from "../links/index.ts";
+import { attachedOf, type Watch, type WatchResult } from "../inputs/index.ts";
 import { findReply } from "./answer.ts";
+import { type FilesContext, inHome } from "./files.ts";
 import type { Receipted } from "./wake.ts";
 
 /** What an event means to an open watch: it belongs to the watched reply, or it is the receipt that settles it. */
@@ -27,6 +27,7 @@ async function fromReceipt(
   { status, reply, detail }: Pick<Receipt, "status" | "reply" | "detail">,
   find: (reply: string) => Promise<Message | undefined>,
   missing: () => void,
+  files: FilesContext,
 ): Promise<WatchResult | undefined> {
   switch (status) {
     case "skipped":
@@ -40,21 +41,19 @@ async function fromReceipt(
     case "answered": {
       const found = reply === null ? undefined : await find(reply);
       if (found === undefined) missing();
-      return found === undefined || found.deleted ? { kind: "answered" } : { kind: "answered", reply: { text: found.text, at: found.sentAt } };
+      if (found === undefined || found.deleted) return { kind: "answered" };
+      const attached = attachedOf(found.attachments).attachments;
+      const attachments = attached === undefined ? {} : { attachments: await inHome(files, attached, found.sentAt) };
+      return { kind: "answered", reply: { text: found.text, at: found.sentAt, ...attachments } };
     }
   }
 }
 
-/** Extract the `WatchResult` from a settlement receipt event in the feed. */
-export function resultOf(
-  chat: ChatCalls,
-  receipt: Receipted,
-  signal: AbortSignal,
-  onError: (error: Error) => void,
-): Promise<WatchResult | undefined> {
+/** Extract the `WatchResult` from a settlement receipt event in the feed, with the reply's files saved in the home. */
+export function resultOf(files: FilesContext, receipt: Receipted, onError: (error: Error) => void): Promise<WatchResult | undefined> {
   return fromReceipt(
     receipt,
-    (reply) => findReply(chat, receipt.message.threadId, receipt.seq, reply, signal),
+    (reply) => findReply(files.chat, receipt.message.threadId, receipt.seq, reply, files.signal),
     () =>
       onError(
         new Error(
@@ -62,5 +61,6 @@ export function resultOf(
             "was not among the newest of its thread, so the result says only that it was answered.",
         ),
       ),
+    files,
   );
 }

@@ -5,6 +5,7 @@ import { listed, sizeWords } from "../../lib/text/index.ts";
 import { howLong, localTime } from "../../lib/time/index.ts";
 import {
   type Attached,
+  attached,
   type Audience,
   type Backlog,
   type Breadcrumbs,
@@ -32,20 +33,54 @@ import {
 export const CAN_END_TURN =
   "You can end your turn now. What you write last is posted as your reply, so write a line meant for whoever you are talking to, such as what you are waiting for, or write only END to post nothing.";
 
+/** A picture that came with a message and is in the agent's home, which the model is shown after the message. */
+export type Picture = Attached & { picture: true; path: string };
+
+/** A part of what the model is shown for an input: words, or a picture from the home, which follows the words before it. */
+export type PromptPart = { text: string } | { picture: Picture };
+
 /**
- * What the model is shown for an input. It travels with the input and is never
- * part of the prompt sections, which stay the same on every request.
+ * What the model is shown for an input: its words, with each picture that came
+ * with a message it takes up after that message, read from where it is in the
+ * home. It travels with the input and is never part of the prompt sections,
+ * which stay the same on every request.
  */
-export function promptFor(outstanding: Outstanding, change?: ModelChange): string {
+export function promptFor(outstanding: Outstanding, change?: ModelChange): PromptPart[] {
   const thread = threadOf(outstanding);
   const { missed } = outstanding;
-  return [
+  const blocks: (string | Picture)[] = [
     ...(outstanding.breadcrumbs === undefined ? [] : [shown(outstanding.breadcrumbs)]),
     ...(thread === undefined ? [] : [whereIs(thread, outstanding.place)]),
     ...(change === undefined ? [] : [modelChanged(change)]),
     ...(missed.length === 0 ? [] : [missedResults(missed)]),
-    bodyOf(outstanding),
-  ].join("\n\n");
+    ...bodyOf(outstanding),
+  ];
+  const parts: PromptPart[] = [];
+  for (const block of blocks) {
+    const last = parts.at(-1);
+    if (typeof block !== "string") parts.push({ picture: block });
+    else if (last !== undefined && "text" in last) last.text = `${last.text}\n\n${block}`;
+    else parts.push({ text: block });
+  }
+  return parts;
+}
+
+/** What the model is shown in place of a picture that can't be shown: it is gone from the home, can't be read, or isn't one a model takes. */
+export function unshownPicture({ path }: Picture, why: "gone" | "unreadable" | "unfit"): string {
+  const because = why === "gone" ? "it is no longer in your home" : why === "unreadable" ? "it can't be read" : "it isn't a picture a model takes";
+  return `(The picture ${path} can't be shown here: ${because}.)`;
+}
+
+/** The words of what the model is shown for an input, without its pictures. */
+export const promptText = (outstanding: Outstanding, change?: ModelChange): string =>
+  promptFor(outstanding, change)
+    .flatMap((part) => ("text" in part ? [part.text] : []))
+    .join("\n\n");
+
+/** The pictures of a message the model takes up that are in the home, in the order they came. */
+function picturesOf(event: Snapshot): Picture[] {
+  if (event.kind !== "posted") return [];
+  return (event.attachments ?? []).filter((file): file is Picture => file.picture === true && file.path !== undefined);
 }
 
 /** That the session's model changed since its last answer, which models the two are, and nothing about what to do with it. */
@@ -76,10 +111,10 @@ function inWords(place: Place): string {
 
 const aKind = (kind: "person" | "agent"): string => (kind === "person" ? "a person" : "an agent");
 
-function bodyOf(outstanding: Outstanding): string {
-  if (isOccurrence(outstanding)) return fired(outstanding.occurrence);
-  if (isProcess(outstanding)) return processBody(outstanding.process);
-  if (isWatch(outstanding)) return watchBody(outstanding.settled, outstanding.pending);
+function bodyOf(outstanding: Outstanding): (string | Picture)[] {
+  if (isOccurrence(outstanding)) return [fired(outstanding.occurrence)];
+  if (isProcess(outstanding)) return [processBody(outstanding.process)];
+  if (isWatch(outstanding)) return [watchBody(outstanding.settled, outstanding.pending)];
   return chatBody(outstanding);
 }
 
@@ -89,15 +124,17 @@ const THEN_WOKE = "Then this woke you:";
 
 /**
  * A chat event as the model reads it: any earlier events the agent has not
- * acted on, then what was said since it last looked, then the event.
+ * acted on, then what was said since it last looked, then the event. The
+ * pictures of the events it takes up follow each one, and what was said since
+ * it last looked only names its files.
  */
-function chatBody({ earlier, backlog, event }: ChatInput): string {
-  const blocks = earlier.map(written);
+function chatBody({ earlier, backlog, event }: ChatInput): (string | Picture)[] {
+  const blocks: (string | Picture)[] = earlier.flatMap((each) => [written(each), ...picturesOf(each)]);
   if (backlog !== undefined && (backlog.messages.length > 0 || backlog.cut > 0)) {
     blocks.push(SINCE_LOOKED, ...(backlog.cut > 0 ? [notShown(backlog, event)] : []), ...backlog.messages.map(written), THEN_WOKE);
   }
-  blocks.push(written(event));
-  return blocks.join("\n\n");
+  blocks.push(written(event), ...picturesOf(event));
+  return blocks;
 }
 
 /** What says that earlier messages were left out, and how to read them: from before the oldest one shown. */
@@ -162,7 +199,7 @@ function watchBody(settled: WatchSettled, pending: readonly PendingWatch[]): str
       detail =
         result.reply === undefined
           ? `@${watch.onAgent.name} answered, but their reply can't be shown here. To read it, ${readHint}.`
-          : `@${watch.onAgent.name} answered at ${localTime(result.reply.at)}:\n${result.reply.text}`;
+          : `@${watch.onAgent.name} answered at ${localTime(result.reply.at)}:${withFiles(result.reply.text, result.reply.attachments ?? [])}`;
       break;
     case "silent":
       detail = `@${watch.onAgent.name} read it and sent no reply. To check the thread, ${readHint}.`;
@@ -220,8 +257,7 @@ export function written(event: Snapshot | Fired): string {
         event.clipped === true
           ? `\n(The rest of this message is cut here. To read all of it, call thread with action: "read", before: ${event.seq + 1}, and limit: 1.)`
           : "";
-      const files = (event.attachments ?? []).map((file) => `\n${attachedWords(file)}`).join("");
-      return `${event.author} wrote at ${localTime(event.sentAt)}${edited}${forWhom(event.to)}:\n${event.text}${cut}${files}`;
+      return `${event.author} wrote at ${localTime(event.sentAt)}${edited}${forWhom(event.to)}:${withFiles(`${event.text}${cut}`, event.attachments ?? [])}`;
     }
     case "edited":
       return `${event.author} edited their message from ${localTime(event.sentAt)} at ${localTime(event.at)}. It now reads${forWhom(event.to)}:\n${event.text}`;
@@ -232,16 +268,30 @@ export function written(event: Snapshot | Fired): string {
   }
 }
 
-/** A file that came with a message, on a line of its own: its name, its media type and its size. */
-const attachedWords = ({ name, mediaType, size }: Attached): string => `Attached: ${oneLine(name)} (${oneLine(mediaType)}, ${sizeWords(size)})`;
+/** What a message says, on the lines after its heading, and then the files that came with it, a line for each, after a blank line. */
+function withFiles(text: string, files: readonly Attached[]): string {
+  const lines = files.map(attachedWords).join("\n");
+  if (lines === "") return `\n${text}`;
+  return text === "" ? `\n${lines}` : `\n${text}\n\n${lines}`;
+}
 
-/** A message as it now stands, for the model to read back. */
-export function standing(message: Message, nameOf: (memberId: string) => string): string {
+/** A file that came with a message: where it is in the home, or why it isn't there, with its media type and size. */
+function attachedWords({ name, mediaType, size, path, missing }: Attached): string {
+  const what = `${oneLine(mediaType)}, ${sizeWords(size)}`;
+  if (path !== undefined) return `Attached: ${path} in your home, ${what}.`;
+  if (missing !== undefined) return `Attached: ${oneLine(name)}, ${what}, which could not be saved in your home: ${missing}`;
+  return `Attached: ${oneLine(name)}, ${what}.`;
+}
+
+/**
+ * A message as it now stands, for the model to read back, with the files that
+ * came with it as `files` has them: where each is in the home, when it is.
+ */
+export function standing(message: Message, nameOf: (memberId: string) => string, files: readonly Attached[] = message.attachments.map(attached)): string {
   if (message.wake !== null) return wakeLineWords(message.wake, localTime(wakeAt(message.wake)));
   const sent = `${message.author.name} wrote at ${localTime(message.sentAt)}`;
   if (message.deleted) return `${sent}, and deleted it.`;
-  const lines = [message.editedAt === null ? `${sent}:` : `${sent}, and edited it at ${localTime(message.editedAt)}:`, message.text];
-  lines.push(...message.attachments.map(attachedWords));
+  const lines = [`${message.editedAt === null ? `${sent}:` : `${sent}, and edited it at ${localTime(message.editedAt)}:`}${withFiles(message.text, files)}`];
   if (message.reactions.length > 0) {
     const reactions = message.reactions.map((reaction) => `${reaction.emoji} by ${listed(reaction.memberIds.map(nameOf))}`);
     lines.push(`Reactions: ${reactions.join(", ")}`);

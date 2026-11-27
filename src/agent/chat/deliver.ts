@@ -28,9 +28,9 @@ export function postWakeLine(
   return chat.wakeLine(threadId, wake, lineRequestId(recordsId, outstanding), signal);
 }
 
-/** Whether a turn ended with a reply to post: it answered, and not with `END` or nothing. */
+/** Whether a turn ended with a reply to post: it answered, and not with `END` or nothing, or its tools left files for the reply. */
 export function hasReply(outcome: TurnOutcome): boolean {
-  return outcome.kind === "answered" && readFinalText(outcome.text).kind === "reply";
+  return outcome.kind === "answered" && (readFinalText(outcome.text).kind === "reply" || (outcome.attachments ?? []).length > 0);
 }
 
 /**
@@ -83,10 +83,12 @@ async function postReply(
     case "answered": {
       const reading = readFinalText(outcome.text);
       const parts = reading.kind === "silent" ? [] : inParts(reading.text, messageLimit);
+      const files = outcome.attachments ?? [];
+      if (parts.length === 0 && files.length > 0) parts.push("");
       let first: Message | undefined;
       for (const [index, part] of parts.entries()) {
         const requestId = replyRequestId(recordsId, threadId, outcome.answer, index);
-        const posted = await chat.post(threadId, part, requestId, signal);
+        const posted = await chat.post(threadId, part, requestId, signal, { attachments: index === parts.length - 1 ? files : [] });
         first ??= posted;
       }
       return first === undefined

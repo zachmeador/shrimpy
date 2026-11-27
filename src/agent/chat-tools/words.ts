@@ -1,6 +1,6 @@
-import { roomLabel, type Thread } from "../../contracts/chat/index.ts";
+import { MAX_ATTACHED_BYTES, MAX_ATTACHMENTS, roomLabel, type Thread } from "../../contracts/chat/index.ts";
 import { oneLine } from "../../lib/plain/index.ts";
-import { cutEnd, listed } from "../../lib/text/index.ts";
+import { cutEnd, listed, sizeWords } from "../../lib/text/index.ts";
 
 /** Maximum characters kept as the one-line summary of a watched post. */
 const START_LENGTH = 80;
@@ -74,3 +74,31 @@ export function threadBullets(threads: readonly Thread[]): string {
     })
     .join("\n");
 }
+
+export const ATTACH_DESCRIPTION =
+  "Attach files to your reply in this thread: paths in your home, or any file you can read. " +
+  "They are sent now and go with your final text when your turn ends, or alone if you end it with END. " +
+  `A reply carries up to ${MAX_ATTACHMENTS} files and ${sizeWords(MAX_ATTACHED_BYTES)} in all. ` +
+  "To send files anywhere else, or right away, pass them to post as `attach`.";
+
+export const FILE_PATHS = "Paths of files: relative to your home, absolute, or starting with ~/.";
+
+export const NO_FILES = "Name at least one file to attach.";
+
+/** What the agent is told of files it attached to its reply. */
+export function attached(sent: readonly { name: string; size: number }[]): string {
+  const named = listed(sent.map((file) => `${file.name} (${sizeWords(file.size)})`));
+  return `Attached ${named} to your reply. ${sent.length === 1 ? "It goes" : "They go"} with your final text.`;
+}
+
+/** What says which files went with a post. */
+export const withFiles = (sent: readonly { name: string }[]): string =>
+  sent.length === 0 ? "" : ` with ${listed(sent.map((file) => file.name))}`;
+
+export const tooManyFiles = (count: number): string => `A message carries up to ${MAX_ATTACHMENTS} files, and these are ${count}.`;
+export const tooBig = (bytes: number): string =>
+  `A message carries up to ${sizeWords(MAX_ATTACHED_BYTES)} of files, and these are ${sizeWords(bytes)}. Send fewer, or smaller ones.`;
+export const notAFile = (path: string): string => `${path} is not a file.`;
+export const emptyFile = (path: string): string => `${path} is empty, and chat takes no empty file.`;
+export const unreadableFile = (path: string, why: string): string => `${path} can't be read: ${why}.`;
+export const filesRefused = (why: string): string => `Chat refused the files: ${why}`;

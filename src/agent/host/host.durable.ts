@@ -7,6 +7,7 @@ import { createEditTool, createReadTool, createWriteTool } from "@earendil-works
 import type { StoreFormat } from "../../lib/migration/node.ts";
 import { homePaths } from "../home/index.ts";
 import { shellWithShrimpy } from "./launcher.ts";
+import { openPictures, type Pictures } from "./pictures.durable.ts";
 import { takeOwnerLock } from "./owner-lock.ts";
 import { AGENT_STORAGE, prepareStorage, type StorageVersion } from "./storage.ts";
 
@@ -28,6 +29,8 @@ export interface HostOptions {
 export interface Host {
   readonly home: string;
   readonly harness: Harness;
+  /** Pictures from the home as a model is shown them. */
+  readonly pictures: Pictures;
   /** Environment additions for shell commands (such as PATH with the `shrimpy` launcher). */
   readonly shellEnv: NodeJS.ProcessEnv | undefined;
   /**
@@ -52,11 +55,15 @@ export const HOST_SETTINGS: HarnessSettings = {
   afterFailedRun: "withdraw",
 };
 
-/** Pi's stock file tools (`read`, `write`, `edit`), without Pi's built-in `bash` which Shrimpy replaces. */
-const FileTools = defineExtension({
-  name: "file-tools",
-  tools: [createReadTool(), createWriteTool(), createEditTool()],
-});
+/**
+ * Pi's stock file tools (`read`, `write`, `edit`), without Pi's built-in `bash`
+ * which Shrimpy replaces, with `read` fitting a picture to what a model takes.
+ */
+const fileTools = (pictures: Pictures) =>
+  defineExtension({
+    name: "file-tools",
+    tools: [createReadTool({ images: pictures.processor }), createWriteTool(), createEditTool()],
+  });
 
 /**
  * Take ownership of a home and open its storage and engine, with Pi's file
@@ -70,7 +77,8 @@ export async function openHost(options: HostOptions, storage: StoreFormat<Storag
     prepareStorage(database, storage);
     const shell = options.shrimpy === undefined ? undefined : shellWithShrimpy(home, options.shrimpy);
     const registry = createRegistry();
-    registry.install(FileTools);
+    const pictures = await openPictures(home);
+    registry.install(fileTools(pictures));
     const harness = await Harness.open(
       await openNodeSqliteStorage(database),
       {
@@ -85,6 +93,7 @@ export async function openHost(options: HostOptions, storage: StoreFormat<Storag
     return {
       home,
       harness,
+      pictures,
       shellEnv: shell,
       install(...extensions) {
         for (const extension of extensions) registry.install(extension);

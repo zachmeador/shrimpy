@@ -5,6 +5,7 @@
  * builds the model runtime from the home's files and the folder's. It reads the engine's
  * tasks of a kind, ends a session's, has what a task ends with when it is done
  * or aborted, and ends one that failed, for the modules that keep tasks there,
+ * fits a picture from the home to what a model takes,
  * and says what a tool answers and what names a request a tool call makes.
  * It also signs the folder in to a model provider, through Pi's own flows under
  * Shrimpy's name, with whoever runs it asked through a dialogue. Nothing else in Shrimpy opens a
@@ -12,6 +13,7 @@
  * reached, or what a person's terminal looks like.
  */
 export { type Host, HOST_SETTINGS, type HostOptions, openHost } from "./host.durable.ts";
+export type { Pictures, Shown } from "./pictures.durable.ts";
 export { buildModels, type ModelReload, type ModelRuntimeOptions, ModelSetupError } from "./models.durable.ts";
 export {
   type Dialogue,

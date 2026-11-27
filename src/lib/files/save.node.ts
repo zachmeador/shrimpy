@@ -9,13 +9,13 @@ export interface SaveOptions {
 }
 
 /**
- * Save `text` as `file`, whole, so that whoever reads it sees the old file or
+ * Save `content`, text or bytes, as `file`, whole, so that whoever reads it sees the old file or
  * the new one and never half of either, after a crash too. It is written to a
  * hidden file beside it, with the mode the file is to have, flushed to disk and
  * renamed over the old one, and then the folder is flushed, so that a power
  * cut after this returns keeps the new file. The folder must be there.
  */
-export function saveFile(file: string, text: string, options: SaveOptions = {}): void {
+export function saveFile(file: string, content: string | Uint8Array, options: SaveOptions = {}): void {
   const folder = dirname(file);
   // Hidden, so that whatever reads the folder's files, such as an agent its triggers, passes it by.
   const temporary = join(folder, `.${basename(file)}.${String(process.pid)}.tmp`);
@@ -25,7 +25,7 @@ export function saveFile(file: string, text: string, options: SaveOptions = {}):
     try {
       // Exactly the mode, which the umask would otherwise cut down.
       if (mode !== undefined) fchmodSync(descriptor, mode);
-      writeFileSync(descriptor, text);
+      writeFileSync(descriptor, content);
       fsyncSync(descriptor);
     } finally {
       closeSync(descriptor);

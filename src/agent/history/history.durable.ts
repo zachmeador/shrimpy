@@ -4,6 +4,8 @@ import { bool, int, obj, oneOf, opt, str } from "@earendil-works/pi-schema";
 import type { SearchHit } from "../../contracts/chat/index.ts";
 import { parseSearchTerms } from "../../lib/text/index.ts";
 import { type ChatToolsOptions, reactorNames } from "../chat-tools/durable.ts";
+import { filesOfMessages } from "../chat/index.ts";
+import type { KeptFiles } from "../home/index.ts";
 import { answer, failure } from "../host/durable.ts";
 import { standing } from "../inputs/index.ts";
 import { callSignal, chatFailure, type LiveChat, readableChannels } from "../links/index.ts";
@@ -157,7 +159,7 @@ async function runRead(
 
   if (parsed?.kind === "message") {
     if (live === undefined) return failure("Chat is not reachable right now. Try again later.");
-    return readChatSlice(live, target.threadId, target.label ?? target.threadId, parsed.seq, args.before !== undefined, limit, context);
+    return readChatSlice(live, options.files, target.threadId, target.label ?? target.threadId, parsed.seq, args.before !== undefined, limit, context);
   }
 
   const sessions = await allSessions(harness, context);
@@ -200,6 +202,7 @@ async function runRead(
 
 async function readChatSlice(
   live: LiveChat,
+  files: KeptFiles,
   threadId: string,
   label: string,
   seq: number,
@@ -219,11 +222,12 @@ async function readChatSlice(
       return answer(isBefore ? `No earlier messages in ${label}.` : `No messages around seq ${String(seq)} in ${label}.`);
     }
     const nameOf = reactorNames(live.chat, shown);
+    const placed = await filesOfMessages({ chat: live.chat, files, signal }, shown);
     const body = shown
-      .map((message) => {
+      .map((message, index) => {
         const ref = formatMessageRef(message.seq, message.threadId);
         const mark = !isBefore && message.seq === seq ? " <-- match" : "";
-        return `[${ref}]${mark} ${standing(message, nameOf)}`;
+        return `[${ref}]${mark} ${standing(message, nameOf, placed[index])}`;
       })
       .join("\n\n");
     const heading = label === threadId ? threadId : `${label} (${threadId})`;

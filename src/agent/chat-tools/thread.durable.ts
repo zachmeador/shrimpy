@@ -1,6 +1,7 @@
 import { defineTool } from "@earendil-works/pi-durable";
 import { bool, int, obj, oneOf, opt, str } from "@earendil-works/pi-schema";
 import { type Thread } from "../../contracts/chat/index.ts";
+import { filesOfMessages } from "../chat/index.ts";
 import { answer, failure } from "../host/durable.ts";
 import { standing } from "../inputs/index.ts";
 import { callSignal, chatFailure } from "../links/index.ts";
@@ -89,7 +90,8 @@ export function threadTool(options: ChatToolsOptions, watches: Watches) {
               return answer(before === undefined ? `No messages in ${place.label}.` : `No earlier messages in ${place.label}.`);
             }
             const nameOf = reactorNames(live.chat, shown);
-            const body = shown.map((message) => standing(message, nameOf)).join("\n\n");
+            const files = await filesOfMessages({ chat: live.chat, files: options.files, signal }, shown);
+            const body = shown.map((message, index) => standing(message, nameOf, files[index])).join("\n\n");
             const lines = [`Messages in ${place.label} (${place.threadId}), oldest first:`, "", body];
             if (older) {
               lines.push("", `There are older messages. Call thread({ action: "read", thread: "${place.threadId}", before: ${oldest.seq} }) to read further back.`);
