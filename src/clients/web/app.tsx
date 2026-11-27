@@ -30,7 +30,9 @@ import {
   writeTo,
 } from "../view/index.ts";
 import { addressOf, type Route, routeOf } from "./address.ts";
+import { Files, fileSource } from "./attached.tsx";
 import { setCount } from "./badge.ts";
+import type { Waiting } from "./composer.tsx";
 import { ListView } from "./list.tsx";
 import { Glyph } from "./marks.tsx";
 import { FileView, PageView } from "./page.tsx";
@@ -276,6 +278,8 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
   const stale = model.gateway.state === "down" && model.listing !== undefined;
   const now = useNow(stale);
   const drafts = useRef(new Map<string, string>()).current;
+  const trays = useRef(new Map<string, Waiting[]>()).current;
+  const files = useMemo(() => fileSource(state), [state]);
   const app = useRef<HTMLDivElement>(null);
 
   // What the address names, until the state has it open: the address the page was opened at, or went Back or Forward
@@ -678,14 +682,16 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
         naming={page.naming}
         composer={{
           drafts,
+          trays,
           draftKey,
           models,
           // `/rename` alone turns the name into an input, where the thread can be renamed.
-          submit: (text) => {
-            if (!thread.nameable || writtenInOpen(state.model(), text).do !== "name") return state.write(text);
+          submit: (text, files) => {
+            if (files.length > 0 || !thread.nameable || writtenInOpen(state.model(), text).do !== "name") return state.write(text, files);
             setPage((before) => ({ ...before, menu: false, naming: true }));
             return Promise.resolve(true);
           },
+          note: (notice) => state.note(notice),
           keys: keyHints({ newThread: thread.writable, turnOver: turnable }),
         }}
         back={back}
@@ -719,89 +725,91 @@ export function App({ state, retry, refusal }: { state: ClientState; retry: Retr
   }
 
   return (
-    <ReloadOffer.Provider value={outOfDate}>
-      <div
-        class="app"
-        ref={app}
-        data-mode={mode}
-        data-level={String(page.level)}
-        data-turned={String(watching !== undefined)}
-        data-stale={String(stale)}
-        data-fold={String(fold)}
-        data-peek={String(fold && peek)}
-      >
-        <div class="panes" ref={lists}>
-          <aside
-            class="pane rail"
-            {...peeking}
-            onClickCapture={(event) => {
-              // On a touch screen the first tap on the strip brings the lists back, and chooses nothing.
-              if (!fold || peek) return;
-              event.preventDefault();
-              event.stopPropagation();
-              setPeek(true);
-            }}
-          >
-            <Rail
-              agents={agents}
-              running={running}
-              current={page.level >= 2 ? list?.id : undefined}
-              notes={railNotes}
-              retry={retryLine}
-              me={model.me?.name}
-              device={browserLabel(navigator.userAgent)}
-              mode={mode}
-              corner={
-                <button class="ib fold-btn" type="button" aria-pressed={fold} title={fold ? UNFOLD : FOLD} aria-label={fold ? UNFOLD : FOLD} onClick={toggleFold}>
-                  <Glyph name="panes" />
-                </button>
-              }
-              footer={
-                push === "ask" ? (
-                  <button class="ib" type="button" title={CONTROLS.notify} aria-label={CONTROLS.notify} onClick={() => void askPush().then(setPush, () => setPush("ask"))}>
-                    <Glyph name="bell" />
-                  </button>
-                ) : null
-              }
-              choose={choose}
-              toggleMode={() =>
-                setMode((before) => {
-                  const next = before === "dusk" ? "day" : "dusk";
-                  keep("mode", next);
-                  return next;
-                })
-              }
-            />
-          </aside>
-          <section class="pane list" {...peeking}>
-            {listView !== undefined && (
-              <ListView
-                list={{ ...listView, notes: listNotes }}
-                tab={page.tab}
-                archivedOpen={list !== undefined && page.archived === placeKey(list)}
-                current={front ? item?.thread : undefined}
+    <Files.Provider value={files}>
+      <ReloadOffer.Provider value={outOfDate}>
+        <div
+          class="app"
+          ref={app}
+          data-mode={mode}
+          data-level={String(page.level)}
+          data-turned={String(watching !== undefined)}
+          data-stale={String(stale)}
+          data-fold={String(fold)}
+          data-peek={String(fold && peek)}
+        >
+          <div class="panes" ref={lists}>
+            <aside
+              class="pane rail"
+              {...peeking}
+              onClickCapture={(event) => {
+                // On a touch screen the first tap on the strip brings the lists back, and chooses nothing.
+                if (!fold || peek) return;
+                event.preventDefault();
+                event.stopPropagation();
+                setPeek(true);
+              }}
+            >
+              <Rail
+                agents={agents}
+                running={running}
+                current={page.level >= 2 ? list?.id : undefined}
+                notes={railNotes}
                 retry={retryLine}
-                back={back}
-                start={startThread}
-                open={choose}
-                page={openPage}
-                toggleArchived={() => {
-                  if (list === undefined) return;
-                  const key = placeKey(list);
-                  setPage((before) => ({ ...before, archived: before.archived === key ? undefined : key }));
-                }}
-                setTab={(tab) => setPage((before) => ({ ...before, tab }))}
+                me={model.me?.name}
+                device={browserLabel(navigator.userAgent)}
+                mode={mode}
+                corner={
+                  <button class="ib fold-btn" type="button" aria-pressed={fold} title={fold ? UNFOLD : FOLD} aria-label={fold ? UNFOLD : FOLD} onClick={toggleFold}>
+                    <Glyph name="panes" />
+                  </button>
+                }
+                footer={
+                  push === "ask" ? (
+                    <button class="ib" type="button" title={CONTROLS.notify} aria-label={CONTROLS.notify} onClick={() => void askPush().then(setPush, () => setPush("ask"))}>
+                      <Glyph name="bell" />
+                    </button>
+                  ) : null
+                }
+                choose={choose}
+                toggleMode={() =>
+                  setMode((before) => {
+                    const next = before === "dusk" ? "day" : "dusk";
+                    keep("mode", next);
+                    return next;
+                  })
+                }
               />
-            )}
-          </section>
-          <section class="pane thread" onPointerDown={() => setPeek(false)}>
-            {pane}
-          </section>
-          <section class="pane watch" onPointerDown={() => setPeek(false)}>
-            {watching !== undefined && <WatchView session={{ ...watching, notes: watchNotes }} close={back} show={(agent) => state.showView(agent)} retry={retryLine} />}
-          </section>
+            </aside>
+            <section class="pane list" {...peeking}>
+              {listView !== undefined && (
+                <ListView
+                  list={{ ...listView, notes: listNotes }}
+                  tab={page.tab}
+                  archivedOpen={list !== undefined && page.archived === placeKey(list)}
+                  current={front ? item?.thread : undefined}
+                  retry={retryLine}
+                  back={back}
+                  start={startThread}
+                  open={choose}
+                  page={openPage}
+                  toggleArchived={() => {
+                    if (list === undefined) return;
+                    const key = placeKey(list);
+                    setPage((before) => ({ ...before, archived: before.archived === key ? undefined : key }));
+                  }}
+                  setTab={(tab) => setPage((before) => ({ ...before, tab }))}
+                />
+              )}
+            </section>
+            <section class="pane thread" onPointerDown={() => setPeek(false)}>
+              {pane}
+            </section>
+            <section class="pane watch" onPointerDown={() => setPeek(false)}>
+              {watching !== undefined && <WatchView session={{ ...watching, notes: watchNotes }} close={back} show={(agent) => state.showView(agent)} retry={retryLine} />}
+            </section>
+          </div>
         </div>
-      </div>
-    </ReloadOffer.Provider>
+      </ReloadOffer.Provider>
+    </Files.Provider>
   );
 }

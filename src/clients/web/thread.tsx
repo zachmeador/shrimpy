@@ -4,10 +4,11 @@
  * with nothing open, a shape pressed into the pane and what to do.
  */
 import { type ComponentChildren, createContext, Fragment } from "preact";
-import { useContext, useEffect, useRef } from "preact/hooks";
+import { useContext, useEffect, useRef, useState } from "preact/hooks";
 import { MAX_NAME } from "../../contracts/gateway/index.ts";
-import type { AgentWork, InFull, MessageRow, StillProcess, StillTrigger, StillWatch, ThreadLevel, ThreadStill } from "../view/index.ts";
+import type { AgentWork, FileRow, InFull, MessageRow, StillProcess, StillTrigger, StillWatch, ThreadLevel, ThreadStill } from "../view/index.ts";
 import { backgroundCommandsCount, commandParts, EMPTY, FIRED, moreCount, NEW_SINCE, NOT_RUNNING, OUT_OF_DATE_MARK } from "../view/index.ts";
+import { FileCards, Pictures, Viewer } from "./attached.tsx";
 import { Composer, type ComposerProps } from "./composer.tsx";
 import { Glyph, Lamp, Relief, Sigil } from "./marks.tsx";
 import { Plain, Prose } from "./prose.tsx";
@@ -225,7 +226,7 @@ function Words({ row }: { row: MessageRow }) {
 }
 
 /** A message, after a line of its own where it is the first that was new, or a wake line. */
-function Message({ row, cont, jump }: { row: MessageRow; cont: boolean; jump: (agentId: string, threadId: string) => void }) {
+function Message({ row, cont, jump, view }: { row: MessageRow; cont: boolean; jump: (agentId: string, threadId: string) => void; view: (picture: FileRow) => void }) {
   if (row.kind === "wake") return <Wake row={row} jump={jump} />;
   return (
     <>
@@ -240,7 +241,9 @@ function Message({ row, cont, jump }: { row: MessageRow; cont: boolean; jump: (a
               {row.edited !== undefined && <span class="edited">{row.edited}</span>}
             </header>
           )}
-          <Words row={row} />
+          {(row.text !== "" || row.deleted) && <Words row={row} />}
+          <Pictures pictures={row.pictures} open={view} />
+          <FileCards files={row.files} />
           {row.reactions.length > 0 && (
             <div class="reactions">
               {row.reactions.map(({ emoji, by }) => (
@@ -588,8 +591,10 @@ export function ThreadView(props: ThreadProps) {
 /** What the open thread says and what is going on in it, under its head: the conversation, each agent's work, the dock and the input. */
 function ThreadBody(props: ThreadProps & { open: AgentWork | undefined }) {
   const { thread, dm, inFull, open } = props;
+  const [viewing, setViewing] = useState<FileRow | undefined>(undefined);
   return (
     <>
+      {viewing !== undefined && <Viewer row={viewing} close={() => setViewing(undefined)} />}
       <div class="body">
         <div class="scroll" data-follow="end">
           <div class="col">
@@ -597,7 +602,7 @@ function ThreadBody(props: ThreadProps & { open: AgentWork | undefined }) {
             {thread.messages.map((row, at) => {
               const before = thread.messages[at - 1];
               const cont = before?.kind === "message" && row.kind === "message" && before.who === row.who && before.when === row.when && !before.deleted && !row.firstNew;
-              return <Message key={row.id} row={row} cont={cont} jump={props.jump} />;
+              return <Message key={row.id} row={row} cont={cont} jump={props.jump} view={setViewing} />;
             })}
             {thread.works.map((each) =>
               each === open ? (

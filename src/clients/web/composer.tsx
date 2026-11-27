@@ -1,17 +1,34 @@
 /*
- * The input of a thread: what is typed, kept for each thread; the commands
- * that can be written there while it starts with a slash, and the models after
- * `/model `, as the views say which fit what is typed before the cursor; and
- * sending.
+ * The input of a thread: what is typed, and the pictures and files that wait
+ * to go with it, picked with the paperclip, pasted, or dropped on the thread,
+ * each kept for each thread; the commands that can be written there while it
+ * starts with a slash, and the models after `/model `, as the views say which
+ * fit what is typed before the cursor; and sending.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import type { FileToSend } from "../../contracts/chat/index.ts";
+import { mediaTypeOf } from "../../lib/files/index.ts";
+import { pictureOf } from "../../lib/pictures/index.ts";
+import { sizeWords } from "../../lib/text/index.ts";
+import { type Notice, notAttachable } from "../state/index.ts";
 import { type CommandLine, commandsFitting, commandWord, type ModelLine, modelsFitting, modelWord, offersModels } from "../view/index.ts";
 import { Glyph } from "./marks.tsx";
-import { CONTROLS } from "./words.ts";
+import { CONTROLS, takeOff } from "./words.ts";
+
+/** A file that waits to be sent: what goes to chat, and an address to show it by while it waits, for a picture. */
+export interface Waiting {
+  file: FileToSend;
+  shown: string | undefined;
+}
+
+/** Whether a file is shown as a picture while it waits: one chat will take for a picture. */
+const isPicture = (file: FileToSend): boolean => pictureOf(file.bytes) !== undefined;
 
 export interface ComposerProps {
   /** What is typed for each thread, by its key, so that leaving a thread loses nothing typed in it. */
   drafts: Map<string, string>;
+  /** The files that wait to be sent in each thread, by the same key. */
+  trays: Map<string, Waiting[]>;
   draftKey: string;
   placeholder: string;
   /** Someone is working in the thread. */
@@ -19,8 +36,10 @@ export interface ComposerProps {
   commands: CommandLine[];
   /** The models of the thread's agent for the list after `/model `, where it has one. */
   models: (() => Promise<ModelLine[] | undefined>) | undefined;
-  /** Act on what was written: false when it stays in the input, as a message that was not sent does. */
-  submit: (text: string) => Promise<boolean>;
+  /** Act on what was written, with the files that wait: false when it stays in the input, as a message that was not sent does. */
+  submit: (text: string, files: FileToSend[]) => Promise<boolean>;
+  /** Tell the person something, such as that a file was left out. */
+  note: (notice: Notice) => void;
   /** The line of keys under the input, where there is one. */
   keys: { key: string; does: string }[] | undefined;
 }
@@ -32,8 +51,13 @@ interface Choice {
   written: string;
 }
 
-export function Composer({ drafts, draftKey, placeholder, busy, commands, models, submit, keys }: ComposerProps) {
+export function Composer({ drafts, trays, draftKey, placeholder, busy, commands, models, submit, note, keys }: ComposerProps) {
   const [value, setValue] = useState(() => drafts.get(draftKey) ?? "");
+  const [tray, setTray] = useState<Waiting[]>(() => trays.get(draftKey) ?? []);
+  const [dropping, setDropping] = useState(false);
+  const picker = useRef<HTMLInputElement>(null);
+  const waitingNow = useRef(tray);
+  waitingNow.current = tray;
   // Where the cursor is in what is typed, or undefined at its end.
   const [cursor, setCursor] = useState<number | undefined>(undefined);
   const [chosen, setChosen] = useState(0);
@@ -53,6 +77,60 @@ export function Composer({ drafts, draftKey, placeholder, busy, commands, models
     if (value === "") drafts.delete(draftKey);
     else drafts.set(draftKey, value);
   }, [value, drafts, draftKey]);
+
+  useEffect(() => {
+    if (tray.length === 0) trays.delete(draftKey);
+    else trays.set(draftKey, tray);
+  }, [tray, trays, draftKey]);
+
+  /** Put what was picked, pasted or dropped with what waits, leaving out with a note what a message can't carry. */
+  const add = async (files: readonly File[]): Promise<void> => {
+    const added: Waiting[] = [];
+    for (const each of files) {
+      const name = each.name === "" ? "pasted.png" : each.name;
+      const waiting = [...waitingNow.current, ...added].map((one) => ({ size: one.file.bytes.byteLength }));
+      const refused = notAttachable(waiting, { name, size: each.size });
+      if (refused !== undefined) {
+        note(refused);
+        continue;
+      }
+      const file = { name, mediaType: each.type === "" ? mediaTypeOf(name) : each.type, bytes: new Uint8Array(await each.arrayBuffer()) };
+      added.push({ file, shown: isPicture(file) ? URL.createObjectURL(each) : undefined });
+    }
+    if (added.length > 0) setTray((before) => [...before, ...added]);
+  };
+
+  /** Take a file off what waits. */
+  const drop = (gone: Waiting): void => {
+    if (gone.shown !== undefined) URL.revokeObjectURL(gone.shown);
+    setTray((before) => before.filter((each) => each !== gone));
+  };
+
+  useEffect(() => {
+    const carriesFiles = (event: DragEvent): boolean => event.dataTransfer?.types.includes("Files") === true;
+    const over = (event: DragEvent): void => {
+      if (!carriesFiles(event)) return;
+      event.preventDefault();
+      setDropping(true);
+    };
+    const left = (event: DragEvent): void => {
+      if (event.relatedTarget === null) setDropping(false);
+    };
+    const dropped = (event: DragEvent): void => {
+      if (!carriesFiles(event)) return;
+      event.preventDefault();
+      setDropping(false);
+      void add([...(event.dataTransfer?.files ?? [])]);
+    };
+    addEventListener("dragover", over);
+    addEventListener("dragleave", left);
+    addEventListener("drop", dropped);
+    return () => {
+      removeEventListener("dragover", over);
+      removeEventListener("dragleave", left);
+      removeEventListener("drop", dropped);
+    };
+  });
 
   // The input grows with what is typed, and an empty one is as tall as the styles make it at the width there is.
   useLayoutEffect(() => {
@@ -96,13 +174,23 @@ export function Composer({ drafts, draftKey, placeholder, busy, commands, models
   const moved = (): void => setCursor(area.current?.selectionStart);
 
   const send = async (text: string): Promise<void> => {
-    if (text.trim() === "") return;
+    const going = tray;
+    if (text.trim() === "" && going.length === 0) return;
     type("");
-    const sent = await submit(text);
-    if (sent) return;
+    setTray([]);
+    const sent = await submit(text, going.map((each) => each.file));
+    if (sent) {
+      for (const each of going) if (each.shown !== undefined) URL.revokeObjectURL(each.shown);
+      return;
+    }
     // What was not sent goes back where it was typed, ahead of anything typed since.
-    if (alive.current) setValue((typed) => (typed === "" ? text : `${text}\n${typed}`));
-    else drafts.set(draftKey, drafts.has(draftKey) ? `${text}\n${drafts.get(draftKey) ?? ""}` : text);
+    if (alive.current) {
+      setValue((typed) => (typed === "" ? text : text === "" ? typed : `${text}\n${typed}`));
+      setTray((since) => [...going, ...since]);
+    } else {
+      if (text !== "") drafts.set(draftKey, drafts.has(draftKey) ? `${text}\n${drafts.get(draftKey) ?? ""}` : text);
+      trays.set(draftKey, [...going, ...(trays.get(draftKey) ?? [])]);
+    }
   };
 
   const onKeyDown = (event: KeyboardEvent): void => {
@@ -144,7 +232,30 @@ export function Composer({ drafts, draftKey, placeholder, busy, commands, models
           ))}
         </ul>
       )}
-      <div class="composer stepbox" data-busy={String(busy)}>
+      <div class="composer stepbox" data-busy={String(busy)} data-drop={String(dropping)}>
+        {tray.length > 0 && (
+          <div class="tray">
+            {tray.map((each, at) => (
+              <div key={at} class="tray-item">
+                {each.shown !== undefined ? (
+                  <img class="thumb" src={each.shown} alt={each.file.name} title={`${each.file.name} · ${sizeWords(each.file.bytes.byteLength)}`} />
+                ) : (
+                  <span class="att stepbox">
+                    <Glyph name="doc" />
+                    <b>{each.file.name}</b>
+                    <span>{sizeWords(each.file.bytes.byteLength)}</span>
+                  </span>
+                )}
+                <button class="drop" type="button" title={CONTROLS.takeOff} aria-label={takeOff(each.file.name)} onClick={() => drop(each)}>
+                  <Glyph name="close" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <button class="ib clip" type="button" title={CONTROLS.attach} aria-label={CONTROLS.attach} onClick={() => picker.current?.click()}>
+          <Glyph name="clip" />
+        </button>
         <textarea
           ref={area}
           rows={1}
@@ -155,10 +266,27 @@ export function Composer({ drafts, draftKey, placeholder, busy, commands, models
           onKeyDown={onKeyDown}
           onKeyUp={moved}
           onPointerUp={moved}
+          onPaste={(event) => {
+            const files = [...(event.clipboardData?.files ?? [])];
+            if (files.length === 0) return;
+            event.preventDefault();
+            void add(files);
+          }}
         />
-        <button class="send" type="button" aria-label={CONTROLS.send} disabled={value.trim() === ""} onClick={() => void send(value)}>
+        <button class="send" type="button" aria-label={CONTROLS.send} disabled={value.trim() === "" && tray.length === 0} onClick={() => void send(value)}>
           <Glyph name="send" />
         </button>
+        <input
+          ref={picker}
+          type="file"
+          multiple
+          hidden
+          onChange={(event) => {
+            const files = [...(event.currentTarget.files ?? [])];
+            event.currentTarget.value = "";
+            void add(files);
+          }}
+        />
       </div>
       {keys !== undefined && (
         <p class="keys">

@@ -44,7 +44,7 @@ export function WatchView({ session, close, show, retry }: WatchProps) {
         <div class="scroll" data-follow="end">
           <div class="col">
             {session.lead !== undefined && <p class="earlier">{session.lead}</p>}
-            <Steps steps={session.steps} />
+            <Steps steps={session.steps} agent={session.agent} />
           </div>
         </div>
       </div>

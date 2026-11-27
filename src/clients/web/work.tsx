@@ -4,6 +4,7 @@
  */
 import type { AgentWork, InFull, Step } from "../view/index.ts";
 import { thinkingShown, toolCallsShown } from "../view/index.ts";
+import { StepImages } from "./attached.tsx";
 import type { GlyphName } from "./glyphs.ts";
 import { Glyph, Lamp, Sigil } from "./marks.tsx";
 import { Prose } from "./prose.tsx";
@@ -17,7 +18,7 @@ const MARKS: Record<Exclude<Extract<Step, { kind: "tool" }>["state"], "running">
   interrupted: "bang",
 };
 
-function StepItem({ step }: { step: Step }) {
+function StepItem({ step, agent }: { step: Step; agent: string }) {
   switch (step.kind) {
     case "shown":
       return (
@@ -27,11 +28,7 @@ function StepItem({ step }: { step: Step }) {
           </span>
           {step.earlier !== undefined && <span class="lbl"> · {step.earlier}</span>}
           <pre>{step.text}</pre>
-          {step.images.map((image, at) => (
-            <span key={at} class="lbl">
-              {image}
-            </span>
-          ))}
+          <StepImages agent={agent} images={step.images} />
         </li>
       );
     case "thinking":
@@ -59,7 +56,12 @@ function StepItem({ step }: { step: Step }) {
           <span class="call">{step.call}</span>
           {step.earlier !== undefined && <span class="more">{step.earlier}</span>}
           {step.output.length > 0 && <pre class="out">{step.output.join("\n")}</pre>}
-          {[...step.images, ...step.notes].map((line, at) => (
+          {step.images.length > 0 && (
+            <span class="more">
+              <StepImages agent={agent} images={step.images} />
+            </span>
+          )}
+          {step.notes.map((line, at) => (
             <span key={at} class="more">
               {line}
             </span>
@@ -71,11 +73,11 @@ function StepItem({ step }: { step: Step }) {
   }
 }
 
-export function Steps({ steps }: { steps: Step[] }) {
+export function Steps({ steps, agent }: { steps: Step[]; agent: string }) {
   return (
     <ol class="steps">
       {steps.map((step, at) => (
-        <StepItem key={at} step={step} />
+        <StepItem key={at} step={step} agent={agent} />
       ))}
     </ol>
   );
@@ -105,7 +107,7 @@ export function WorkBlock({ work, named, inFull, toggle }: WorkProps) {
         </button>
       </header>
       {work.work.earlier !== undefined && <p class="step note">{work.work.earlier}</p>}
-      <Steps steps={work.work.steps} />
+      <Steps steps={work.work.steps} agent={work.agent} />
     </section>
   );
 }

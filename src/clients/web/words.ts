@@ -49,7 +49,15 @@ export const CONTROLS = {
   stillProcTitle: "Its last output, and a way to end it",
   stillWaitTitle: "Each wait, and a way to drop it",
   waitsFromTitle: "Open the thread it asked from",
+  attach: "Attach a picture or a file",
+  takeOff: "Take it off",
+  save: "Save",
+  closePicture: "Close · esc",
 } as const;
+
+export const openPicture = (name: string): string => `Open ${oneLine(name)}`;
+export const saveFile = (name: string): string => `Save ${oneLine(name)}`;
+export const takeOff = (name: string): string => `Take ${oneLine(name)} off`;
 
 export const switchTriggerTitle = (on: boolean): string => `Turn this trigger ${on ? "off" : "on"}`;
 export const answerTitle = (who: string): string => `Open the thread ${who} was asked in`;

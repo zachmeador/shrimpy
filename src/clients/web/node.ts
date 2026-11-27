@@ -21,10 +21,11 @@ const NAME = "Shrimpy";
 
 /**
  * What the page may load and run, which the browser itself holds it to: its
- * own files from its gateway, its own link there, and the pictures it carries
- * in itself, which are a home's images and its styles' material.
+ * own files from its gateway, its own link there, the pictures it carries in
+ * itself, which are a home's images and its styles' material, and the pictures
+ * it reads from chat and the agents, which it holds as blobs.
  */
-const POLICY = "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'";
+const POLICY = "default-src 'self'; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'";
 
 /** The page's one document, which loads its styles and its script, and says how it is installed. */
 const DOCUMENT = `<!doctype html>

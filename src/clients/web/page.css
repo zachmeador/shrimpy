@@ -495,6 +495,46 @@ button.srow:hover { color: var(--ink); }
 .send:disabled { background: var(--raise); color: var(--ink-3); cursor: default; }
 .keys { margin-top: 7px; padding: 0 2px; font: 400 var(--t-meta)/1.3 var(--mono); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .readonly { display: flex; align-items: center; gap: 12px; padding: 10px 12px; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); --fill: var(--pane); --edge: var(--line); }
+
+/* --- Attachments: what is picked waits in the input until it is sent ------- */
+
+.composer { flex-wrap: wrap; padding-left: 7px; }
+.composer[data-drop="true"] { --edge: var(--ink-3); }
+.tray { flex-basis: 100%; display: flex; gap: 8px; padding: 1px 0 8px 5px; overflow-x: auto; scrollbar-width: none; }
+.tray-item { position: relative; flex: none; }
+.tray-item .thumb { display: block; width: 64px; height: 64px; object-fit: cover; clip-path: var(--step); }
+.tray-item .att { height: 64px; max-width: 232px; padding-right: 34px; }
+.tray-item .drop { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; display: grid; place-items: center; color: var(--ink); background: color-mix(in srgb, var(--well) 80%, transparent); clip-path: var(--step); }
+
+/* In a thread a picture shows itself, and a file is its name and its size. */
+.pics { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 168px)); gap: 6px; margin-top: 8px; }
+.pics.one { display: block; }
+.pic { display: block; position: relative; overflow: hidden; padding: 0; border: 0; background: var(--well); clip-path: var(--step); cursor: zoom-in; }
+.pics:not(.one) .pic { aspect-ratio: 1; }
+.pics:not(.one) .pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pics.one .pic { display: inline-block; max-width: min(100%, 360px); vertical-align: top; }
+.pics.one .pic img { display: block; max-width: 100%; max-height: 280px; width: auto; height: auto; }
+.pic .gone { display: grid; place-items: center; min-width: 96px; min-height: 64px; padding: 8px; font: 400 var(--t-meta)/1.3 var(--mono); color: var(--ink-3); }
+.atts { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px; }
+.att { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; min-height: 40px; padding: 6px 12px 7px 10px; text-decoration: none; color: var(--ink); --fill: var(--well); --edge: var(--line); }
+.att:hover { --edge: var(--line-2); }
+.att .px { color: var(--ink-3); }
+.att b { min-width: 0; font-size: var(--t-small); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.att span { flex: none; font: 400 var(--t-meta)/1 var(--mono); color: var(--ink-3); }
+.step .pics, .step .atts { font-family: var(--face); }
+.watch .pics.one .pic, .session .pics.one .pic { max-width: min(100%, 240px); }
+.watch .pics.one .pic img, .session .pics.one .pic img { max-height: 150px; }
+.watch .pics, .session .pics { grid-template-columns: repeat(var(--n, 2), minmax(0, 96px)); }
+.step.shown .with { margin: -6px 0 6px; padding: 2px 0 0 12px; border-left: 2px solid var(--line-2); }
+.step.shown .with .pics { margin-top: 0; }
+.step .omitted { display: block; padding-bottom: 2px; color: var(--ink-3); }
+
+/* A picture opened whole, over everything. */
+.viewer { position: absolute; inset: 0; z-index: 7; display: flex; flex-direction: column; background: var(--well); }
+.viewer .head { border-bottom: 1px solid var(--line); }
+.viewer .titles h1 { font: 500 13.5px/1.3 var(--mono); }
+.viewer .stage { flex: 1; min-height: 0; display: grid; place-items: center; padding: 16px 16px calc(16px + var(--safe-bottom, 0px)); }
+.viewer .stage img { display: block; max-width: 100%; max-height: 100%; clip-path: var(--step); }
 .readonly > span { flex: 1; min-width: 0; }
 .readonly .px { color: var(--ink-3); }
 
@@ -569,8 +609,9 @@ button.srow:hover { color: var(--ink); }
   .work, .trig, .receipt.of-trig { margin-left: 0; }
   .dock { padding: 2px 10px calc(8px + var(--safe-bottom, 0px)); }
   .keys { display: none; }
-  .send { width: 34px; height: 34px; }
+  .send, .composer .clip { width: 34px; height: 34px; }
   .composer textarea { height: 34px; padding: 5px 0; }
+  .tray-item .drop { width: 26px; height: 26px; }
   .srow { min-height: 34px; }
   .srow.one > .what { white-space: normal; }
   .sbody { padding-left: 12px; }
