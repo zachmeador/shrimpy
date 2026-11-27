@@ -1,7 +1,7 @@
-import type { Receipt, WakeLineInput } from "../../contracts/chat/index.ts";
+import { MAX_ATTACHED_BYTES, MAX_ATTACHMENTS, PIECE_BYTES, type Receipt, type WakeLineInput } from "../../contracts/chat/index.ts";
 import { fitName, NAME_RULE } from "../../contracts/gateway/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import { parseSearchTerms } from "../../lib/text/index.ts";
+import { parseSearchTerms, sizeWords } from "../../lib/text/index.ts";
 import { MAX_DETAIL, MAX_ID, MAX_LINE, MAX_QUERY, MAX_SEARCH_TERMS, MAX_TEXT } from "./limits.ts";
 
 // Arguments arrive off the wire, so their TypeScript types promise nothing. Each
@@ -25,6 +25,56 @@ export function messageText(value: unknown): string {
   if (typeof value !== "string" || value.trim() === "") refuse("A message needs some text.");
   if (value.length > MAX_TEXT) {
     refuse(`A message holds at most ${MAX_TEXT} characters, and this one has ${value.length}.`);
+  }
+  return value;
+}
+
+/** The text of a message that carries files, which may have none. */
+export function textWithFiles(value: unknown): string {
+  if (typeof value !== "string") refuse("A message's text must be text, which may be empty when it carries files.");
+  if (value.length > MAX_TEXT) {
+    refuse(`A message holds at most ${MAX_TEXT} characters, and this one has ${value.length}.`);
+  }
+  return value;
+}
+
+/** The uploads a post names as its files: different IDs, at most `MAX_ATTACHMENTS` of them. */
+export function attachmentIds(value: unknown): string[] {
+  if (value === undefined) return [];
+  const ids = identifiers(value, "attachments", MAX_ATTACHMENTS, 0);
+  if (new Set(ids).size !== ids.length) refuse("attachments names one upload more than once.");
+  return ids;
+}
+
+/** A file's name as it was sent: one line, trimmed, with no slash, since a reader may save it under that name. */
+export function fileName(value: unknown): string {
+  const name = typeof value === "string" ? fitName(value) : undefined;
+  if (name === undefined || /[/\\]/.test(name) || name === "." || name === "..") {
+    refuse(`A file's name ${NAME_RULE}, with no slash, and not "." or "..".`);
+  }
+  return name;
+}
+
+/** A media type such as `image/png`, in lower case, or `application/octet-stream` when the sender gives none. */
+export function mediaType(value: unknown): string {
+  if (value === "") return "application/octet-stream";
+  if (typeof value !== "string" || value.length > 200 || !/^[\w.+-]+\/[\w.+-]+$/.test(value)) {
+    refuse(`A media type must be a type and a subtype, such as "image/png", or empty when it isn't known.`);
+  }
+  return value.toLowerCase();
+}
+
+/** A file's size: 1 byte to `MAX_ATTACHED_BYTES`. */
+export function fileSize(value: unknown): number {
+  const size = whole(value, "size", 1);
+  if (size > MAX_ATTACHED_BYTES) refuse(`A message carries files of at most ${sizeWords(MAX_ATTACHED_BYTES)} in all, and this one is ${sizeWords(size)}.`);
+  return size;
+}
+
+/** A piece of a file's bytes: 1 byte to `PIECE_BYTES`. */
+export function piece(value: unknown): Uint8Array {
+  if (!(value instanceof Uint8Array) || value.byteLength === 0 || value.byteLength > PIECE_BYTES) {
+    refuse(`A piece of a file holds 1 to ${PIECE_BYTES} bytes.`);
   }
   return value;
 }

@@ -1,7 +1,7 @@
-import { arr, bool, int, method, nul, obj, opt, remote, str, union } from "@earendil-works/chord";
+import { arr, bool, bytes, int, method, nul, obj, opt, remote, str, union } from "@earendil-works/chord";
 import { answerOf, chat } from "../gateway/index.ts";
 import { ChannelSchema } from "./channel.ts";
-import { ChatEventSchema, LeftReceiptSchema, MemberSchema, MessageSchema, SearchHitSchema, WakeLineInputSchema } from "./shapes.ts";
+import { ChatEventSchema, LeftReceiptSchema, MemberSchema, MessageSchema, SearchHitSchema, UploadSchema, WakeLineInputSchema } from "./shapes.ts";
 import { ThreadSchema } from "./thread.ts";
 
 /**
@@ -125,14 +125,45 @@ export const Chat = remote("shrimpy.chat", {
           answerOf(arr(SearchHitSchema)),
         ),
         /**
-         * Posts a message of at most `MAX_MESSAGE_LENGTH` characters in a
-         * thread. A request ID's first use wins: a retry from the same member
-         * answers with the first message as it now stands, even if it was
-         * edited or deleted since, and the same ID with another thread or text
-         * is refused. The message records the members its text mentions. A
-         * message sent with `quiet` is never told to you on your devices.
+         * Posts a message in a thread: text of at most `MAX_MESSAGE_LENGTH`
+         * characters, and the files of the caller's finished uploads that
+         * `attachments` names, in the order the message shows them, at most
+         * `MAX_ATTACHMENTS` and `MAX_ATTACHED_BYTES` together. A message with
+         * files needs no text. A request ID's first use wins: a retry from the
+         * same member answers with the first message as it now stands, even if
+         * it was edited or deleted since, and the same ID with another thread,
+         * text or files is refused. The message records the members its text
+         * mentions. A message sent with `quiet` is never told to you on your
+         * devices.
          */
-        post: method(obj({ thread: str(), text: str(), request: str(), quiet: opt(bool()) }), answerOf(MessageSchema)),
+        post: method(
+          obj({ thread: str(), text: str(), request: str(), quiet: opt(bool()), attachments: opt(arr(str())) }),
+          answerOf(MessageSchema),
+        ),
+        /**
+         * Starts sending a file to attach to a message: its name, its media
+         * type and its size in bytes, at most `MAX_ATTACHED_BYTES`. Chat holds
+         * it for the caller alone, as the attachment it answers with, until a
+         * post of the caller's names it, and lets it go a day after it started
+         * if none does. A request ID's first use wins: a retry answers with the
+         * same attachment and how many of its bytes chat has, so the sender
+         * carries on from there.
+         */
+        upload: method(obj({ name: str(), mediaType: str(), size: int(), request: str() }), answerOf(UploadSchema)),
+        /**
+         * Sends a piece of an upload's bytes, at most `PIECE_BYTES`, starting
+         * at `offset`, answering with how many of its bytes chat has. Pieces go
+         * in order: one that starts past what chat has is refused, and the part
+         * of one that chat has already, as after a retry, is skipped.
+         */
+        uploadPiece: method(obj({ attachment: str(), offset: int(), data: bytes() }), answerOf(int())),
+        /**
+         * Up to `length` of an attachment's bytes from `offset`, and at most
+         * `PIECE_BYTES`: fewer at its end, and none past it. Whoever reads the
+         * message's thread reads its files, and the sender reads its own
+         * upload. A deleted message's files are gone.
+         */
+        download: method(obj({ attachment: str(), offset: int(), length: int() }), answerOf(bytes())),
         /**
          * Changes what one of the caller's messages says, and which members it
          * mentions. A deleted message can't be edited. Editing to the text it

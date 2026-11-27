@@ -2,8 +2,8 @@
  * What the chat contract means: which channels and threads a member reads
  * (its own, and for any admin every other) and which it writes in (its own),
  * what `Chat`, `Channel` and `Thread` show each caller, how DMs and rooms are made,
- * which members a post mentions, what posting, editing, deleting, reacting,
- * reading and leaving receipts do and who may do them, who is working where,
+ * which members a post mentions, what posting, sending files, editing,
+ * deleting, reacting, reading and leaving receipts do and who may do them, who is working where,
  * and what you have read; and, once a new message or a failed receipt is
  * committed, telling whoever decides what is worth telling you. Each operation
  * takes the caller, as the roster has it now, and runs as one store
@@ -12,6 +12,7 @@
  * the roster is held.
  */
 export { answer } from "./answer.ts";
+export { download, upload, uploadPiece } from "./attachments.ts";
 export type { ChatDeps, Notifier } from "./deps.ts";
 export { addMembers, archiveThread, createRoom, createThread, openDm, pinThread, renameThread, setWorking } from "./directory.ts";
 export { deleteMessage, editMessage } from "./edits.ts";

@@ -5,14 +5,20 @@
  * store, what a member may see, or how a refusal travels.
  */
 export {
+  attachmentIds,
   emoji,
+  fileName,
+  fileSize,
   flag,
   identifier,
   identifiers,
   label,
+  mediaType,
   messageText,
+  piece,
   receipt,
   searchQuery,
+  textWithFiles,
   wakeLine,
   whole,
 } from "./check.ts";

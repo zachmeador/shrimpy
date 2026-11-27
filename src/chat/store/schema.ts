@@ -1,7 +1,7 @@
 import type { Step, StoreFormat } from "../../lib/migration/node.ts";
 
 /** The tables' version, kept in the store's `user_version`. */
-const SCHEMA_VERSION = 12;
+const SCHEMA_VERSION = 13;
 
 /**
  * A change to the tables: the SQL that brings a store from the version before
@@ -58,6 +58,14 @@ export interface ChatFormat extends StoreFormat<ChatStep> {
  * `read_marks` keeps a member's read mark in a thread: the position of the last
  * message it has seen there. A mark only moves forward. It is no event, so
  * nothing in the log or the feed tells of it.
+ *
+ * `attachments` keeps each file a member sends, from the upload that starts it.
+ * `received` counts the bytes that have come, kept in `attachment_pieces` in
+ * the order they came, each piece by where it starts. A file is its sender's
+ * alone until a post of theirs names it: then `message_seq` is the message and
+ * `position` its place among the message's files. `request_id` is the sender's
+ * own ID for the upload, so a retry finds it. A deleted message's files go,
+ * bytes and all.
  *
  * `store` has one row: the store's own ID, made when the store was and never
  * changed.
@@ -189,6 +197,34 @@ CREATE TABLE read_marks (
   message_seq INTEGER NOT NULL REFERENCES messages (seq),
   PRIMARY KEY (member_id, thread_id)
 ) STRICT, WITHOUT ROWID;
+
+CREATE TABLE attachments (
+  id TEXT NOT NULL PRIMARY KEY,
+  owner_id TEXT NOT NULL REFERENCES members (id),
+  request_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  media_type TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  received INTEGER NOT NULL DEFAULT 0,
+  width INTEGER,
+  height INTEGER,
+  created_at INTEGER NOT NULL,
+  message_seq INTEGER REFERENCES messages (seq),
+  position INTEGER,
+  UNIQUE (owner_id, request_id),
+  CHECK ((message_seq IS NULL) = (position IS NULL)),
+  CHECK (received <= size),
+  CHECK ((width IS NULL) = (height IS NULL))
+) STRICT;
+CREATE INDEX attachments_by_message ON attachments (message_seq, position);
+CREATE INDEX attachments_by_age ON attachments (created_at) WHERE message_seq IS NULL;
+
+CREATE TABLE attachment_pieces (
+  attachment_id TEXT NOT NULL REFERENCES attachments (id),
+  start INTEGER NOT NULL,
+  data BLOB NOT NULL,
+  PRIMARY KEY (attachment_id, start)
+) STRICT;
 `;
 
 /**
@@ -230,5 +266,38 @@ const WAKE_LINES: ChatStep = {
   ],
 };
 
+/** 3.0.0: a message carries files, which chat keeps in pieces. */
+const ATTACHMENTS: ChatStep = {
+  version: 13,
+  statements: [
+    `CREATE TABLE attachments (
+      id TEXT NOT NULL PRIMARY KEY,
+      owner_id TEXT NOT NULL REFERENCES members (id),
+      request_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      media_type TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      received INTEGER NOT NULL DEFAULT 0,
+      width INTEGER,
+      height INTEGER,
+      created_at INTEGER NOT NULL,
+      message_seq INTEGER REFERENCES messages (seq),
+      position INTEGER,
+      UNIQUE (owner_id, request_id),
+      CHECK ((message_seq IS NULL) = (position IS NULL)),
+      CHECK (received <= size),
+      CHECK ((width IS NULL) = (height IS NULL))
+    ) STRICT`,
+    "CREATE INDEX attachments_by_message ON attachments (message_seq, position)",
+    "CREATE INDEX attachments_by_age ON attachments (created_at) WHERE message_seq IS NULL",
+    `CREATE TABLE attachment_pieces (
+      attachment_id TEXT NOT NULL REFERENCES attachments (id),
+      start INTEGER NOT NULL,
+      data BLOB NOT NULL,
+      PRIMARY KEY (attachment_id, start)
+    ) STRICT`,
+  ],
+};
+
 /** This release's format, which a change to `SCHEMA` changes. A store from 1.0.0 is at version 10. */
-export const CHAT_FORMAT: ChatFormat = { schema: SCHEMA, current: SCHEMA_VERSION, oldest: 10, steps: [PINS, WAKE_LINES] };
+export const CHAT_FORMAT: ChatFormat = { schema: SCHEMA, current: SCHEMA_VERSION, oldest: 10, steps: [PINS, WAKE_LINES, ATTACHMENTS] };

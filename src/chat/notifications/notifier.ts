@@ -1,4 +1,4 @@
-import { type ChatEvent, type Member, type Message, receiptWords } from "../../contracts/chat/index.ts";
+import { type ChatEvent, filesWords, type Member, type Message, receiptWords } from "../../contracts/chat/index.ts";
 import type { Notification } from "../../contracts/gateway/index.ts";
 import { asError } from "../../lib/errors/index.ts";
 import { plain } from "../../lib/plain/index.ts";
@@ -108,7 +108,7 @@ export function createNotifier(options: NotifierOptions): RunningNotifier {
           return {
             from: now.author.name,
             room: roomOf(tx, message.channelId),
-            line: lineOf(now.text),
+            line: lineOf(now.text.trim() === "" ? filesWords(now.attachments) : now.text),
             thread: message.threadId,
             unread: tx.unreadInAll(person.id),
           };

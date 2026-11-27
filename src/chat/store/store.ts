@@ -1,4 +1,5 @@
 import { createListeners } from "../../lib/listeners/index.ts";
+import { type AttachmentOperations, attachmentOperations } from "./attachments.ts";
 import { type ChannelOperations, channelOperations } from "./channels.ts";
 import type { Change } from "./changes.ts";
 import { openDatabase } from "./database.ts";
@@ -21,7 +22,8 @@ export type Transaction = MemberOperations &
   ReactionOperations &
   EventOperations &
   ReceiptOperations &
-  MarkOperations;
+  MarkOperations &
+  AttachmentOperations;
 
 export interface Store {
   /** The ID the store was given when it was made, which it keeps for good. */
@@ -103,6 +105,7 @@ function createTransaction(sql: Sql, report: (change: Change) => void): Transact
     ...eventOperations(sql),
     ...receiptOperations(sql, report),
     ...markOperations(sql, report),
+    ...attachmentOperations(sql),
   };
 }
 

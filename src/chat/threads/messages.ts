@@ -1,5 +1,6 @@
-import { type Member, type Message, type SearchHit, titleOf, type WakeLine } from "../../contracts/chat/index.ts";
+import { filesWords, MAX_ATTACHED_BYTES, type Member, type Message, type SearchHit, titleOf, type WakeLine } from "../../contracts/chat/index.ts";
 import {
+  attachmentIds,
   DEFAULT_SEARCH_LIMIT,
   fitAnswer,
   identifier,
@@ -7,12 +8,14 @@ import {
   MAX_SEARCH_LIMIT,
   messageText,
   searchQuery,
+  textWithFiles,
   wakeLine as checkWakeLine,
   whole,
 } from "../input/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import { cutEnd, singleSpaced } from "../../lib/text/index.ts";
+import { cutEnd, singleSpaced, sizeWords } from "../../lib/text/index.ts";
 import { readableChannel, readableThread, readsOthers, visibleThread } from "./access.ts";
+import { finishedUploads } from "./attachments.ts";
 import type { ChatDeps } from "./deps.ts";
 import { mentionedMembers } from "./mentions.ts";
 import { once, requestOf } from "./requests.ts";
@@ -25,23 +28,40 @@ export function previewOf(text: string): string {
 }
 
 /**
- * Post to a thread, once for each request ID, as `once` says. A new message
- * that isn't `quiet` may be worth telling you.
+ * Post to a thread, once for each request ID, as `once` says, with the
+ * caller's finished uploads that `attachments` names as its files. A message
+ * with files needs no text, and one with none shows their names where its text
+ * would start. A new message that isn't `quiet` may be worth telling you.
  */
-export function post(deps: ChatDeps, caller: Member, threadId: unknown, text: unknown, requestId: unknown, quiet = false): Message {
+export function post(
+  deps: ChatDeps,
+  caller: Member,
+  threadId: unknown,
+  text: unknown,
+  requestId: unknown,
+  quiet = false,
+  attachments?: unknown,
+): Message {
   const id = identifier(threadId, "thread");
-  const body = messageText(text);
-  const request = requestOf(requestId, id, body);
+  const files = attachmentIds(attachments);
+  const body = files.length === 0 ? messageText(text) : textWithFiles(text);
+  const request = requestOf(requestId, id, body, ...files);
   const posted = deps.store.transaction((tx) =>
     once(tx, caller, request, () => {
       const { channel } = visibleThread(tx, deps, caller, id);
+      const uploads = finishedUploads(tx, caller, files);
+      const total = uploads.reduce((sum, file) => sum + file.size, 0);
+      if (total > MAX_ATTACHED_BYTES) {
+        refuse(`A message carries files of at most ${sizeWords(MAX_ATTACHED_BYTES)} in all, and these are ${sizeWords(total)}.`);
+      }
       return tx.appendMessage({
         threadId: id,
         authorId: caller.id,
         text: body,
         sentAt: deps.now(),
         mentions: mentionedMembers(channel, caller, body),
-        preview: previewOf(body),
+        preview: previewOf(body.trim() === "" ? filesWords(uploads) : body),
+        attachments: files,
       });
     }),
   );

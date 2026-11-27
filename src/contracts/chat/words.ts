@@ -165,3 +165,6 @@ export function channelLabel(channel: Pick<Channel, "kind" | "name" | "members">
   if (channel.members.some((member) => member.id === you)) return `your DM with ${oneLine(channel.name)}`;
   return `DM between ${listed(memberNames(channel.members))}`;
 }
+
+/** The files of a message that has no text, as a thread's preview and a notification say them: their names. */
+export const filesWords = (files: readonly { name: string }[]): string => listed(files.map((file) => file.name));

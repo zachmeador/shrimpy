@@ -136,9 +136,26 @@ export const WakeLineInputSchema = union([TriggerWakeSchema, ProcessWakeSchema, 
 export type WakeLineInput = Static<typeof WakeLineInputSchema>;
 
 /**
+ * Bytes of files one message carries, all of them together, so also the most
+ * one file can be: 25 MB.
+ */
+export const MAX_ATTACHED_BYTES = 25_000_000;
+
+/** Files one message carries. */
+export const MAX_ATTACHMENTS = 20;
+
+/**
+ * Bytes one piece of a file holds as it moves to or from chat. A file moves in
+ * pieces, so no message on a link is big enough to hold the link up.
+ */
+export const PIECE_BYTES = 1024 * 1024;
+
+/**
  * A file that came with a message: its ID, the name it was sent with, its media
  * type, its size in bytes, and for a picture its width and height in pixels, so
  * a client can lay it out before the bytes arrive, or null for anything else.
+ * Chat knows a PNG, JPEG, GIF or WebP picture by its bytes, and gives it that
+ * media type whatever the sender said.
  */
 const AttachmentSchema = obj({
   id: str(),
@@ -149,6 +166,13 @@ const AttachmentSchema = obj({
   height: union([int(), nul()]),
 });
 export type Attachment = Static<typeof AttachmentSchema>;
+
+/** Whether an attachment is a picture, which a client shows and a model can be shown: chat found its width and height. */
+export const isPicture = (attachment: Attachment): boolean => attachment.width !== null && attachment.height !== null;
+
+/** A file on its way to chat: the attachment it is to be, and how many of its bytes chat has. */
+export const UploadSchema = obj({ attachment: str(), received: int() });
+export type Upload = Static<typeof UploadSchema>;
 
 /** One emoji on a message, and the members who put it there, in the order they did. */
 const ReactionSchema = obj({ emoji: str(), memberIds: arr(str()) });
@@ -176,7 +200,7 @@ export const MessageSchema = obj({
   author: MemberSchema,
   /** What it says now: its latest edit, or nothing once it is deleted. */
   text: str(),
-  /** The files that came with it, in the order they were sent, or none once it is deleted. Chat takes no files yet, so it has none. */
+  /** The files that came with it, in the order they were sent, or none once it is deleted. */
   attachments: arr(AttachmentSchema),
   sentAt: num(),
   /** When it was last edited, or null if it never was. */

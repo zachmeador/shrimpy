@@ -56,6 +56,13 @@ export function readableThread(
   return { thread, channel };
 }
 
+/** Whether the caller reads a thread: it is in the thread's channel, or reads every channel. */
+export function readsThread(tx: Transaction, deps: ChatDeps, caller: Member, threadId: string): boolean {
+  const thread = tx.thread(threadId);
+  const channel = thread === undefined ? undefined : tx.channel(thread.channelId);
+  return channel !== undefined && mayRead(deps, channel, caller);
+}
+
 // Everything below is for what writes, so it takes a member. An admin reading a
 // channel it is not in is refused, and told what would let it write.
 

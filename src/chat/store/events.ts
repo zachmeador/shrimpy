@@ -1,4 +1,5 @@
 import type { ChatEvent, Member, Receipt } from "../../contracts/chat/index.ts";
+import { ATTACHMENTS_OF_MESSAGE, parseAttachments } from "./attachments.ts";
 import { wakeOf } from "./messages.ts";
 import { parseReceipts, RECEIPTS_ON_EVENT } from "./receipts.ts";
 import type { Sql } from "./sql.ts";
@@ -32,6 +33,7 @@ type EventRow = {
   author_kind: Member["kind"];
   author_name: string;
   receipts: string;
+  attachments: string;
   wake_data: string | null;
 };
 
@@ -42,6 +44,7 @@ const SELECT = `
          m.id AS message_id, m.channel_id, m.thread_id, m.sent_at, m.mentions, m.deleted, m.preview,
          a.id AS author_id, a.kind AS author_kind, a.name AS author_name,
          ${RECEIPTS_ON_EVENT} AS receipts,
+         ${ATTACHMENTS_OF_MESSAGE} AS attachments,
          w.data AS wake_data
   FROM events e
   JOIN members x ON x.id = e.actor_id
@@ -61,6 +64,7 @@ function stored<T>(row: EventRow, column: string, value: T | null): T {
 const saidMentions = (row: EventRow): string[] => JSON.parse(stored(row, "mentions", row.said_mentions)) as string[];
 
 function toEvent(row: EventRow): ChatEvent {
+  const attachments = parseAttachments(row.attachments);
   const base = {
     id: row.id,
     seq: row.seq,
@@ -75,13 +79,13 @@ function toEvent(row: EventRow): ChatEvent {
       mentions: JSON.parse(row.mentions) as string[],
       deleted: row.deleted === 1,
       preview: row.preview,
-      attachments: [],
+      attachments,
     },
     receipts: parseReceipts(row.receipts),
   };
   switch (row.kind) {
     case "posted":
-      return { ...base, kind: row.kind, text: row.text ?? "", mentions: saidMentions(row), attachments: [] };
+      return { ...base, kind: row.kind, text: row.text ?? "", mentions: saidMentions(row), attachments };
     case "edited":
       return { ...base, kind: row.kind, text: row.text ?? "", mentions: saidMentions(row) };
     case "deleted":

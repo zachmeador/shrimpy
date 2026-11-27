@@ -3,6 +3,7 @@ import { open, readdir, realpath, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { type HomeEntry, type HomeFile, MAX_IMAGE_BYTES, MAX_TEXT_BYTES } from "../../contracts/agent/index.ts";
 import { codeOf, compare, why } from "../../lib/files/index.ts";
+import { pictureOf } from "../../lib/pictures/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { isInside } from "./files.ts";
 import type { HomePaths } from "./layout.ts";
@@ -141,8 +142,8 @@ export async function fileAt(paths: HomePaths, path: string): Promise<HomeFile> 
   }
   if (bytes === undefined) refuse(problem);
   if (bytes.length > MAX_IMAGE_BYTES) refuse(tooBig(named));
-  const image = imageType(bytes);
-  if (image !== undefined) return { kind: "image", mediaType: image, data: bytes.toString("base64") };
+  const picture = pictureOf(bytes);
+  if (picture !== undefined) return { kind: "image", mediaType: picture.mediaType, data: bytes.toString("base64") };
   if (!startsAsText(bytes.subarray(0, LOOK_AT))) refuse(notShown(named));
   if (bytes.length > MAX_TEXT_BYTES) refuse(tooBig(named));
   try {
@@ -150,19 +151,6 @@ export async function fileAt(paths: HomePaths, path: string): Promise<HomeFile> 
   } catch {
     refuse(notShown(named));
   }
-}
-
-type ImageType = Extract<HomeFile, { kind: "image" }>["mediaType"];
-
-/** The kind of image `bytes` are, by how each kind starts, or undefined for none of them. */
-function imageType(bytes: Buffer): ImageType | undefined {
-  const startsWith = (at: number, ...values: number[]): boolean => values.every((value, index) => bytes[at + index] === value);
-  const says = (at: number, text: string): boolean => bytes.toString("latin1", at, at + text.length) === text;
-  if (startsWith(0, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return "image/png";
-  if (startsWith(0, 0xff, 0xd8, 0xff)) return "image/jpeg";
-  if (says(0, "GIF87a") || says(0, "GIF89a")) return "image/gif";
-  if (says(0, "RIFF") && says(8, "WEBP")) return "image/webp";
-  return undefined;
 }
 
 /** Whether the start of a file reads as UTF-8 text, with no NUL in it. A character cut at the end of it doesn't count. */

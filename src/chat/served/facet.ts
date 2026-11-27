@@ -17,6 +17,7 @@ import {
   createRoom,
   createThread,
   deleteMessage,
+  download,
   editMessage,
   leaveReceipt,
   markRead,
@@ -32,6 +33,8 @@ import {
   setWorking,
   threadView,
   unreact,
+  upload,
+  uploadPiece,
   wakeLine,
 } from "../threads/index.ts";
 
@@ -189,7 +192,11 @@ export function chatFacet(deps: ServedDeps): Facet<Principal> {
           around: async ({ thread, seq, limit }) => answer(() => readAround(deps, caller(), thread, seq, limit)),
           search: async ({ query, channel, thread, limit }) =>
             answer(() => searchMessages(deps, caller(), query, channel, thread, limit)),
-          post: async ({ thread, text, request, quiet }) => answer(() => post(deps, caller(), thread, text, request, quiet === true)),
+          post: async ({ thread, text, request, quiet, attachments }) =>
+            answer(() => post(deps, caller(), thread, text, request, quiet === true, attachments)),
+          upload: async ({ name, mediaType, size, request }) => answer(() => upload(deps, caller(), name, mediaType, size, request)),
+          uploadPiece: async ({ attachment, offset, data }) => answer(() => uploadPiece(deps, caller(), attachment, offset, data)),
+          download: async ({ attachment, offset, length }) => answer(() => download(deps, caller(), attachment, offset, length)),
           edit: async ({ message, text, request }) => answer(() => editMessage(deps, caller(), message, text, request)),
           delete: async ({ message, request }) => answer(() => deleteMessage(deps, caller(), message, request)),
           react: async ({ message, emoji, request }) => answer(() => react(deps, caller(), message, emoji, request)),

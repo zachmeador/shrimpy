@@ -2,6 +2,7 @@ import type { Member, Message, Reaction, SearchHit, WakeLine } from "../../contr
 import { newId } from "../../lib/ids/index.ts";
 import { matchesTerms } from "../../lib/text/index.ts";
 import { appendEvent } from "./append.ts";
+import { ATTACHMENTS_OF_MESSAGE, attachmentOperations, parseAttachments } from "./attachments.ts";
 import type { ReportChange } from "./changes.ts";
 import { parseReceipts, RECEIPTS_ON_MESSAGE } from "./receipts.ts";
 import type { Sql } from "./sql.ts";
@@ -23,6 +24,7 @@ type MessageRow = {
   author_name: string;
   reactions: string;
   receipts: string;
+  attachments: string;
   /** The wake line's JSON payload, or null for a message. */
   wake_data: string | null;
 };
@@ -44,6 +46,7 @@ const SELECT = `
          a.id AS author_id, a.kind AS author_kind, a.name AS author_name,
          ${REACTIONS_ON_MESSAGE} AS reactions,
          ${RECEIPTS_ON_MESSAGE} AS receipts,
+         ${ATTACHMENTS_OF_MESSAGE} AS attachments,
          w.data AS wake_data
   FROM messages m
   JOIN events p ON p.seq = m.seq
@@ -63,7 +66,7 @@ const toMessage = (row: MessageRow): Message => ({
   threadId: row.thread_id,
   author: { id: row.author_id, kind: row.author_kind, name: row.author_name },
   text: row.text,
-  attachments: [],
+  attachments: parseAttachments(row.attachments),
   sentAt: row.sent_at,
   editedAt: row.edited_at,
   deleted: row.deleted === 1,
@@ -90,6 +93,8 @@ export interface NewMessage {
   preview: string;
   /** For a wake line, which has no text and mentions nobody, what woke the agent. */
   wake?: WakeLine;
+  /** The finished uploads that are its files, in the order it shows them. */
+  attachments?: readonly string[];
 }
 
 /** What an edit changes about a message. */
@@ -136,6 +141,7 @@ export interface MessageOperations {
 }
 
 export function messageOperations(sql: Sql, report: ReportChange): MessageOperations {
+  const files = attachmentOperations(sql);
   const select = (where: string, ...params: (string | number | null)[]): Message[] =>
     (sql.all(`${SELECT} ${where}`, ...params) as MessageRow[]).map(toMessage);
   return {
@@ -163,6 +169,7 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         post.sentAt,
         JSON.stringify(post.mentions),
       );
+      if (post.attachments !== undefined) files.attachTo(posted.seq, post.attachments);
       if (post.wake !== undefined) {
         sql.run(
           "INSERT INTO wake_lines (message_seq, kind, data) VALUES (?, ?, ?)",
@@ -266,6 +273,7 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
                a.id AS author_id, a.kind AS author_kind, a.name AS author_name,
                ${REACTIONS_ON_MESSAGE} AS reactions,
                ${RECEIPTS_ON_MESSAGE} AS receipts,
+               ${ATTACHMENTS_OF_MESSAGE} AS attachments,
                w.data AS wake_data,
                t.name AS thread_name
         FROM messages m
@@ -321,6 +329,7 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
       });
       sql.run("UPDATE messages SET text = '', preview = '', deleted = 1 WHERE seq = ?", message.seq);
       sql.run("DELETE FROM reactions WHERE message_seq = ?", message.seq);
+      files.dropFilesOf(message.seq);
       // The text is gone from the log as well as from the message. The events stay: that it happened is a fact.
       sql.run("UPDATE events SET text = '' WHERE message_seq = ? AND kind IN ('posted', 'edited')", message.seq);
       refreshPreview(sql, message.threadId);
