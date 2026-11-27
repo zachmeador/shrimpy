@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { parseArgs } from "node:util";
-import { failureWords, MAX_READ, type Settlement } from "../../contracts/agent/index.ts";
+import { failureWords, MAX_READ, MAX_REQUESTS, type Settlement } from "../../contracts/agent/index.ts";
 import { contextOf, valueOf } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
 import { type HeldSession, onAgent, onSession } from "../talk/index.ts";
@@ -8,6 +8,7 @@ import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import { CANCELLED, type Command } from "./command.ts";
 import { withConnection } from "./connected.ts";
 import { renderSession, type WholeSession } from "./render.ts";
+import { renderRequestDetail, renderRequestList } from "./render-requests.ts";
 import { renderSessions } from "./render-sessions.ts";
 import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, type Target, WHICH_AGENT } from "./which-agent.ts";
 
@@ -139,4 +140,95 @@ async function wholeSession(held: HeldSession): Promise<WholeSession> {
   return { items, status };
 }
 
-export const sessionsCommands: Command[] = [list, read, steer, stop];
+const requests: Command = {
+  name: "sessions requests",
+  usage: "<session> [--limit <n>] [--before <id>] [--json] [--agent <agent>]",
+  summary: "List the model requests made in a session, newest first.",
+  details:
+    `${ADDRESS} Shows each request's ID, whether it was captured or reconstructed from history, its model, ` +
+    `outcome, estimated and actual tokens, and how many omissions affected it. ${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
+  async run(args, io) {
+    const { values, positionals } = parsing(() =>
+      parseArgs({
+        args,
+        options: {
+          ...AGENT_OPTION,
+          limit: { type: "string" },
+          before: { type: "string" },
+          json: { type: "boolean" },
+        },
+        allowPositionals: true,
+      }),
+    );
+    const [session] = expectArguments(positionals, ["<session>"]);
+    const limit = values.limit === undefined ? 20 : parseBoundedInt(values.limit, "--limit", 1, MAX_REQUESTS);
+    return withSession(agentToActOn(values.agent), session, async (held) => {
+      const page = valueOf(
+        await held.requests(
+          { ...(values.before === undefined ? {} : { before: values.before }), limit },
+          contextOf(),
+        ),
+      );
+      if (values.json === true) io.json(page);
+      else if (page.items.length === 0) io.out("This session has no requests yet.");
+      else for (const line of renderRequestList(page)) io.out(line);
+      return 0;
+    });
+  },
+};
+
+const request: Command = {
+  name: "sessions request",
+  usage: "<session> [<id>] [--entry <n>] [--json] [--agent <agent>]",
+  summary: "Show exactly what the model received for one request in a session, and why.",
+  details:
+    `${ADDRESS} Shows raw entries, effective messages after hooks, active sections with source revisions, ` +
+    "offered tools, omissions and budgets, and effective model settings. Omit <id> and --entry to inspect " +
+    `the latest request. ${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
+  async run(args, io) {
+    const { values, positionals } = parsing(() =>
+      parseArgs({
+        args,
+        options: {
+          ...AGENT_OPTION,
+          entry: { type: "string" },
+          json: { type: "boolean" },
+        },
+        allowPositionals: true,
+      }),
+    );
+    if (positionals.length < 1 || positionals.length > 2) {
+      throw new UsageError("Expected <session> and an optional <id>.");
+    }
+    const [session, id] = positionals as [string, string | undefined];
+    if (id !== undefined && values.entry !== undefined) {
+      throw new UsageError("Pass either <id> or --entry, not both.");
+    }
+    const entry = values.entry === undefined ? undefined : parseBoundedInt(values.entry, "--entry", 0, Number.MAX_SAFE_INTEGER);
+    return withSession(agentToActOn(values.agent), session, async (held) => {
+      const found = valueOf(
+        await held.request(
+          { ...(id === undefined ? {} : { id }), ...(entry === undefined ? {} : { entry }) },
+          contextOf(),
+        ),
+      );
+      if (found === null) {
+        io.err("No matching request found in this session.");
+        return 1;
+      }
+      if (values.json === true) io.json(found);
+      else io.out(renderRequestDetail(found));
+      return 0;
+    });
+  },
+};
+
+function parseBoundedInt(raw: string, flag: string, min: number, max: number): number {
+  const parsed = Number(raw);
+  if (!/^\d+$/.test(raw) || !Number.isInteger(parsed) || parsed < min || parsed > max) {
+    throw new UsageError(`${flag} must be an integer between ${String(min)} and ${String(max)}.`);
+  }
+  return parsed;
+}
+
+export const sessionsCommands: Command[] = [list, read, requests, request, steer, stop];

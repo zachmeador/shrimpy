@@ -59,6 +59,8 @@ A file the agent can't use is also shown to its sessions in a breadcrumb, which 
 
 - `shrimpy sessions list` has a line for each session: its thread's ID, where it is (a DM with someone or a room), and `working` or `idle`.
 - `shrimpy sessions read <session>` shows a session, named by its thread's ID: what the agent was shown, what its tools did and what it answered.
+- `shrimpy sessions requests <session>` lists the model requests made in a session, newest first: ID, model, tokens and omission count.
+- `shrimpy sessions request <session> [<id>]` shows what the model received for a request (the latest when `<id>` is omitted): messages sent, active sections and their source revisions, offered tools, omissions and budgets, and model settings.
 - `shrimpy sessions stop <session>` stops the turn in that session and takes back the messages it hadn't picked up. Those stay in the thread, marked skipped, and the agent reads them with the next one. Its background commands, triggers and waits on other agents keep going, and so does the agent.
 
 `sessions steer` puts input into a session that the thread never sees. It is not a way to talk to an agent.

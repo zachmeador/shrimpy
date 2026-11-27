@@ -144,6 +144,8 @@ The rest are mostly for agents and scripts. `shrimpy <command> --help` explains 
 | `triggers remove <name> [--agent <agent>]` | Delete a trigger. |
 | `sessions list [--agent <agent>]` | List the sessions of a running agent: each thread ID, where it is (a DM or a room), and whether it is working. |
 | `sessions read <session> [--json] [--agent <agent>]` | Show a session: what was said, what the tools did, and what it is doing now. |
+| `sessions requests <session> [--limit <n>] [--before <id>] [--json] [--agent <agent>]` | List the model requests made in a session, newest first. |
+| `sessions request <session> [<id>] [--entry <n>] [--json] [--agent <agent>]` | Show exactly what the model received for one request in a session, and why. |
 | `sessions steer <session> <text> [--request-id <id>] [--wait] [--agent <agent>]` | Give a session input; it joins work already running. |
 | `sessions stop <session> [--agent <agent>]` | Stop the work in a session, and withdraw the input it has not picked up. |
 | `wake [<room> <policy>] [--agent <agent>]` | Choose what wakes an agent in a room, or list what is set. |
