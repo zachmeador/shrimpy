@@ -63,6 +63,7 @@ export {
   addToRoom,
   answerWakeWords,
   ARCHIVED,
+  attachedLine,
   channelLabel,
   DM_TAKES_NO_MORE,
   filesWords,

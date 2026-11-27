@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { parseArgs } from "node:util";
-import { type Channel, receiptWords, Thread } from "../../contracts/chat/index.ts";
+import { attachedLine, type Channel, receiptWords, Thread } from "../../contracts/chat/index.ts";
 import { contextOf, isLost, unlessRefused, valueOf } from "../../contracts/gateway/index.ts";
 import { asSentence } from "../../lib/text/index.ts";
 import type { Io } from "../io/index.ts";
@@ -152,7 +152,8 @@ function report(io: Io, agent: string, thread: string, waited: Waited): number {
     io.err(`${agent} answered, but its reply ${receipt.reply} is not in the thread. Read it with: shrimpy read ${thread}`);
     return 1;
   }
-  io.out(reply.text.replace(/\n$/, ""));
+  if (reply.text.trim() !== "") io.out(reply.text.replace(/\n$/, ""));
+  for (const file of reply.attachments) io.err(attachedLine(file));
   return 0;
 }
 

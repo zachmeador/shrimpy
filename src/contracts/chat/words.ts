@@ -1,8 +1,8 @@
 import { oneLine } from "../../lib/plain/index.ts";
-import { listed, shellWord } from "../../lib/text/index.ts";
+import { listed, shellWord, sizeWords } from "../../lib/text/index.ts";
 import { howLong } from "../../lib/time/index.ts";
 import type { Channel } from "./channel.ts";
-import type { Receipt, WakeLine } from "./shapes.ts";
+import type { Attachment, Receipt, WakeLine } from "./shapes.ts";
 import type { Thread } from "./thread.ts";
 
 /**
@@ -168,3 +168,6 @@ export function channelLabel(channel: Pick<Channel, "kind" | "name" | "members">
 
 /** The files of a message that has no text, as a thread's preview and a notification say them: their names. */
 export const filesWords = (files: readonly { name: string }[]): string => listed(files.map((file) => file.name));
+
+/** A file that came with a message, on a line of its own, as the shell prints it: its name, media type and size. */
+export const attachedLine = ({ name, mediaType, size }: Attachment): string => `Attached: ${oneLine(name)}, ${oneLine(mediaType)}, ${sizeWords(size)}`;

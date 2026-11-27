@@ -1,4 +1,5 @@
 import {
+  attachedLine,
   type Channel,
   channelLabel,
   type Member,
@@ -26,20 +27,22 @@ export function renderThreads(threads: Thread[], channel: Channel): string[] {
   return renderTable(["thread", "updated", "working", "name"], rows);
 }
 
-/** What a message says as `read` prints it: its text, that it was deleted, or its wake line. */
+/** What a message says as `read` prints it: its text and a line for each file that came with it, that it was deleted, or its wake line. */
 function bodyOf(message: Message): string {
   if (message.wake !== null) {
     const at = message.wake.kind === "trigger" ? message.wake.firedAt : message.wake.at;
     return wakeLineWords(message.wake, localTime(at));
   }
-  return message.deleted ? "(deleted)" : message.text.trimEnd();
+  if (message.deleted) return "(deleted)";
+  return [message.text.trimEnd(), ...message.attachments.map(attachedLine)].filter((line) => line !== "").join("\n");
 }
 
 /**
  * A thread to read, with its messages as they now stand, oldest first: who said
- * what and when, and each message's ID. An edited message says when, a deleted
- * one says it was deleted, a trigger's line says which trigger fired and when,
- * and the emoji on a message are listed with who put them there. Below a
+ * what and when, the files that came with it, and each message's ID. An edited
+ * message says when, a deleted one says it was deleted, a trigger's line says
+ * which trigger fired and when, and the emoji on a message are listed with who
+ * put them there. Below a
  * message, a line for each agent that failed, stopped or skipped it. An answer
  * is the message that follows, and a silent receipt is data nobody is shown, so
  * neither gets a line. At the end, a line for each member working in it now.
