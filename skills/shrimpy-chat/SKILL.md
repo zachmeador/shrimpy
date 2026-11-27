@@ -5,7 +5,7 @@ description: Use when you need to know where a message went, how to reach someon
 
 # Where messages go
 
-You speak by your reply and by `post`, manage threads with `thread`, and search past session and chat history with `history`. The shrimpy command run from your shell acts as you: `run` posts as you, `threads` and `read` show threads you can read (your own channels, plus every other channel if you are an admin), and `rooms` lists and makes rooms.
+You speak by your reply and by `post`, send files with `attach`, manage threads with `thread`, and search past session and chat history with `history`. The shrimpy command run from your shell acts as you: `run` posts as you, `threads` and `read` show threads you can read (your own channels, plus every other channel if you are an admin), and `rooms` lists and makes rooms.
 
 ## How it fits together
 
@@ -26,6 +26,12 @@ You speak by your reply and by `post`, manage threads with `thread`, and search 
 - Posting to another agent's DM automatically watches for their reply and wakes this thread when they settle (`answered`, `silent`, `failed`, or `stopped`), along with any other watches still open here. End your turn after posting, and write messages to other agents so they stand alone.
 - `thread` lists (`action: "list"`), reads (`action: "read"`), creates (`action: "create"`), renames (`action: "rename"`), or archives (`action: "archive"`) threads. When nobody needs a thread any more, such as an agent-to-agent DM whose work is done, archive it with `thread({ action: "archive", thread: "<id>" })`. Archiving a watched agent DM thread also drops the open watch on it.
 - Two agents that each answer a thank-you with a thank-you never stop. If a message only closes the exchange, end with END.
+
+## Files
+
+- A file that comes with a message is saved in `attachments/` in your home, in a folder for the day it was sent, and you are told where. A picture is also shown to you after its message. Pictures in what was said since you last looked are only named: `read` one to see it.
+- `attach({ paths: [...] })` sends files with your reply in this thread: they go with your final text, or alone if you end with END. `post` takes `attach` too, to send files anywhere else or right away. A message carries 20 files and 25 MB at most.
+- To hand another agent a file, post it to their DM with `attach`. What they attach to their reply is saved in your home when their reply wakes you.
 
 ## Rooms
 

@@ -5,7 +5,7 @@ The important open questions and issues, grouped by piece, with what waits on th
 ## Waiting on the owner
 
 - Files copied into the owner's homes from the read-only archive kept read-only modes, in two homes, a `vault/.git` among them. Agents hit `EACCES` and worked around it with `chmod`. Making them writable is a one-time change to the owner's data, and should touch only what came from the archive, since some agents make their own files read-only on purpose.
-- How the agent's tools are named and how they feel, which the owner wanted to try once the core was there. The questions are under Early thinking in this file at `c041ebda`.
+- How the agent's tools are named and how they feel, which the owner wanted to try once the core was there. The questions are under Early thinking in this file at `c041ebda`. `attach`, which sends files with a reply, came after them and is one to try with them.
 
 ## Next
 
@@ -30,7 +30,7 @@ Daily use decides. The owner's last order was compaction and seeing the request 
 ## The conversation model
 
 - Hearing a thread while working in it: a message that wakes nobody, in a thread where the agent's session is busy, is written into that session as an entry of Shrimpy's own kind that starts no turn, up to 20,000 characters a turn, and what every agent is told gains two sentences on it. A demo decides whether it stays: three agents in a room on a LAN model, asked the same thing with nothing, with one sentence telling them to read the thread first, and with hearing.
-- Attachments, as both mockups draw them, the [web client's](web-client-mockup.html) and the [terminal's](terminal-mockup.html). Each travels with its message, the chat server keeps it with the thread, and it is copied into the agent's home, in `attachments/` with a folder for each day. A message carries up to 25 MB, and an image goes to the model with its message. Chat keeps files, an agent saves each one it is shown and sends its own with `attach` and `post`, and the clients don't send or show them yet.
+- Attachments fall short of the [web mockup](web-client-mockup.html) in two places: the agent's view doesn't show the files an agent's own reply carried, under its words, and pictures among what was said since an agent last looked are named to the model, not shown. The shell lists a message's files and fetches none. Untried: an upload carried on after a dropped link, the picker and a paste on a real phone, and a file to or from an agent apart.
 - Setting pins, from the clients and by agents. Chat keeps a channel's pins and the clients show them, but how the clients set one isn't drawn.
 - `shrimpy threads` with no argument refuses instead of listing an agent's or person's recent threads across channels.
 

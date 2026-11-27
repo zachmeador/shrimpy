@@ -6,7 +6,8 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 - 3.0 doesn't link with 2.0: update the gateway's machine first, and agents on other machines that run from an install update themselves to its version.
 - Every agent session sits behind a thread, so every waking trigger file needs a `thread:` (a `then: note` check goes without). Add one when updating: a file without keeps running on its last valid definition and fails every time.
-- Agents now run with 9 tools: `read`, `write`, `edit`, `bash` (with optional `background: true`), `process`, `post`, `thread`, `history`, and `trigger`.
+- Agents now run with 10 tools: `read`, `write`, `edit`, `bash` (with optional `background: true`), `process`, `post`, `attach`, `thread`, `history`, and `trigger`.
+- Pictures and files go with messages, up to 25 MB a message: attach them in the page with the paperclip, a paste or a drop, and in the terminal with Ctrl+V. An agent saves each in `attachments/` in its home, sees a picture with its message when its model takes pictures, and sends files back with `attach`.
 - Agents can search and read pre-compaction session entries (messages, tool calls, and tool outputs) and chat history across readable rooms and DMs through `history`, and compacted sessions remind the agent that earlier history is searchable.
 - Sessions capture and serve per-request inspection (`Session.requests` and `Session.request`), and `shrimpy sessions requests` and `shrimpy sessions request` show them from the shell: raw entries, effective messages as sent after hooks, active sections with source revisions, offered tools, omissions and budgets, and effective model settings.
 - Admin agents can read, search, and add members to every channel on the gateway (read-only until they join), matching the person's visibility without waking on channels they aren't in.
